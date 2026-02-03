@@ -2,7 +2,7 @@
 
 A Rust implementation of a private server for the King's Raid mobile game client.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This project is for educational and preservation purposes only. It is intended for use with legally owned copies of the game client. The game's service has ended (End of Service/EoS), and this server allows players to continue enjoying the game privately.
 
@@ -12,8 +12,9 @@ This project is for educational and preservation purposes only. It is intended f
 - Equipment system
 - Campaign battles
 - Tutorial system (dead end)
+- Stamina management
 
-## Features (WIP)
+## Features
 
 - User authentication and session management
 - Hero collection and management

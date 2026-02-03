@@ -94,12 +94,25 @@ async fn main() -> anyhow::Result<()> {
         .route("/hero/buy", post(api::hero::buy_hero))
         .route("/hero/bookmark", post(api::hero::bookmark_hero))
         .route("/avatar/change", post(api::hero::change_avatar_hero))
+        // Hero Inn - Hero recruitment through friendship
+        .route("/hero/request_new_friendly_hero", post(api::hero_inn::request_new_friendly_hero))
+        .route("/hero/do_hero_friendly", post(api::hero_inn::do_hero_friendly))
+        .route("/hero/change_recruit_hero", post(api::hero_inn::change_recruit_hero))
+        .route("/hero/recruit_hero", post(api::hero_inn::recruit_hero))
+        .route("/hero/hero_inn_reset_time", post(api::hero_inn::hero_inn_reset_time))
+        .route("/hero/give_reward_max_closeness_hero", post(api::hero_inn::give_reward_max_closeness_hero))
+        // Hero Inn Roulette - Mini game
+        .route("/hero/request_hero_inn_roulette", post(api::hero_inn::request_hero_inn_roulette))
+        .route("/hero/give_reward_hero_inn_roulette", post(api::hero_inn::give_reward_hero_inn_roulette))
         // Equipment
         .route("/equip/set_equip", post(api::equip::set_equip))
         .route("/equip/unset_equip", post(api::equip::unset_equip))
         // Shop
         .route("/shop/list", post(api::shop::get_shop_list))
         .route("/shop/buy", post(api::shop::buy_shop_item))
+        .route("/shop/buy_shop_item", post(api::shop::buy_shop_item))
+        // Item
+        .route("/item/use_potion_item", post(api::item::use_potion_item))
         // Mail
         .route("/mail/list", post(api::mail::get_mail_list))
         .route("/mail/receive", post(api::mail::receive_mail))

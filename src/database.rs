@@ -274,5 +274,78 @@ async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         )
     "#).execute(pool).await?;
 
+    // Hero Inn - Hero Friendly state table for tracking hero recruitment progress
+    // This tracks the player's progress with heroes in the Hero's Inn
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS hero_friendly_state (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER NOT NULL,
+            hero_index INTEGER NOT NULL,
+            friendly_point INTEGER NOT NULL DEFAULT 0,
+            step INTEGER NOT NULL DEFAULT 0,
+            action_reset_count INTEGER NOT NULL DEFAULT 0,
+            last_greeting_time TEXT,
+            last_conversation_time TEXT,
+            last_gift_time TEXT,
+            is_lock INTEGER NOT NULL DEFAULT 0,
+            selected_time TEXT,
+            visit_period INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
+            UNIQUE(account_id, hero_index)
+        )
+    "#).execute(pool).await?;
+
+    // Hero Inn - Player's current hero inn session
+    // Tracks which heroes are currently available in the inn
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS hero_friendly_info (
+            account_id INTEGER PRIMARY KEY,
+            hero_index INTEGER NOT NULL DEFAULT 0,
+            selected_hero_index INTEGER NOT NULL DEFAULT 0,
+            friendly_point INTEGER NOT NULL DEFAULT 0,
+            last_greeting_time TEXT,
+            last_conversation_time TEXT,
+            last_gift_time TEXT,
+            selected_time TEXT,
+            selected_hero_indices TEXT,
+            last_roulette_time TEXT,
+            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
+        )
+    "#).execute(pool).await?;
+
+    // Hero Inn Roulette - Track daily spin counts
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS hero_inn_roulette_spins (
+            account_id INTEGER NOT NULL,
+            spin_date TEXT NOT NULL,
+            spin_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (account_id, spin_date),
+            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
+        )
+    "#).execute(pool).await?;
+
+    // Inventory - Track consumable items
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS inventory (
+            account_id INTEGER NOT NULL,
+            item_code INTEGER NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (account_id, item_code),
+            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
+        )
+    "#).execute(pool).await?;
+
+    // Shop Purchases - Track shop item purchase counts
+    sqlx::query(r#"
+        CREATE TABLE IF NOT EXISTS shop_purchases (
+            account_id INTEGER NOT NULL,
+            shop_index INTEGER NOT NULL,
+            item_index INTEGER NOT NULL,
+            purchase_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (account_id, shop_index, item_index),
+            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
+        )
+    "#).execute(pool).await?;
+
     Ok(())
 }

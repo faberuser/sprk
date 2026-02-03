@@ -144,10 +144,10 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         print("\nUsage examples:")
-        print('  python patch_assets.py "D:\\Games\\Kings Raid\\King\'s Raid_Data\\resources.assets"')
+        print('  python patch_assets.py "D:\\Games\\KING\'s RAID Playtest\\King\'s Raid_Data\\resources.assets"')
         print('')
         print('To restore original:')
-        print('  python patch_assets.py --restore "D:\\Games\\Kings Raid\\King\'s Raid_Data\\resources.assets"')
+        print('  python patch_assets.py --restore "D:\\Games\\KING\'s RAID Playtest\\King\'s Raid_Data\\resources.assets"')
         sys.exit(1)
 
     if sys.argv[1] == '--restore':

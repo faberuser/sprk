@@ -10,6 +10,7 @@ use crate::{
         user::UserInfo,
         hero::HeroInfo,
         item::ItemInfo,
+        hero_inn::PlayerHeroFriendlyInfo,
     },
     state::AppState,
 };
@@ -103,6 +104,8 @@ pub struct EnterLobbyResponse {
     pub server_utc_offset_hour: i32,
     pub new_mail_count: i32,
     pub friend_request_count: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub friendly_info: Option<PlayerHeroFriendlyInfo>,
 }
 
 /// Handle enter lobby request
@@ -256,6 +259,23 @@ pub async fn enter_lobby(
     // The tutorial flow (tutorial 10000) will unlock 1-1 when appropriate.
     // For returning users who skip tutorial, user.rs handles pre-populating dungeons.
 
+    // Fetch Hero Inn friendly info if exists
+    let friendly_info = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
+        .bind(account_id)
+        .fetch_optional(&state.db)
+        .await?
+        .map(|row| PlayerHeroFriendlyInfo {
+            hero_index: row.get("hero_index"),
+            selected_hero_index: row.get("selected_hero_index"),
+            friendly_point: row.get("friendly_point"),
+            last_greeting_time: row.get("last_greeting_time"),
+            last_conversation_time: row.get("last_conversation_time"),
+            last_gift_time: row.get("last_gift_time"),
+            selected_time: row.get("selected_time"),
+            selected_hero_indice: row.get("selected_hero_indices"),
+            last_roulette_time: row.get("last_roulette_time"),
+        });
+
     Ok(Json(EnterLobbyResponse {
         base_result: "Success".to_string(),
         result: "Success".to_string(),
@@ -269,5 +289,6 @@ pub async fn enter_lobby(
         server_utc_offset_hour: 0,
         new_mail_count: mail_count,
         friend_request_count,
+        friendly_info,
     }))
 }

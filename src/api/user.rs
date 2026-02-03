@@ -314,9 +314,9 @@ pub async fn login(
             
             let account_id = result.last_insert_rowid();
             
-            // Create user_info entry
+            // Create user_info entry with starting friendship points for Hero's Inn
             sqlx::query(
-                "INSERT INTO user_info (account_id) VALUES (?)"
+                "INSERT INTO user_info (account_id, friendship_point) VALUES (?, 6000)"
             )
             .bind(account_id)
             .execute(&state.db)
