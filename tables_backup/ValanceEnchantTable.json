@@ -1,0 +1,310 @@
+[
+    {
+        "ItemCode": 1,
+        "PartType": 2,
+        "SubType": 3,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 2,
+        "SubType": 5,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 6,
+        "SubType": 7,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 8,
+        "SubType": 9,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10016
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 11,
+        "SubType": 12,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10017
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 2,
+        "SubType": 3,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 2,
+        "SubType": 7,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 8,
+        "SubType": 13,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10014
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 6,
+        "SubType": 7,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 11,
+        "SubType": 12,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10017
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 2,
+        "SubType": 5,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 8,
+        "SubType": 9,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10016
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 6,
+        "SubType": 5,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 2,
+        "SubType": 7,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 6,
+        "SubType": 7,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 6,
+        "SubType": 3,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 2,
+        "SubType": 5,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 8,
+        "SubType": 13,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10014
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 8,
+        "SubType": 9,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10016
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 8,
+        "SubType": 15,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10015
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 2,
+        "SubType": 3,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 8,
+        "SubType": 16,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10013
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 6,
+        "SubType": 3,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 6,
+        "SubType": 5,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 8,
+        "SubType": 13,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10014
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 6,
+        "SubType": 7,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 8,
+        "SubType": 9,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10016
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 2,
+        "SubType": 3,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 2,
+        "SubType": 5,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 8,
+        "SubType": 16,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10013
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 6,
+        "SubType": 5,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 8,
+        "SubType": 15,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10015
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 11,
+        "SubType": 12,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10017
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 8,
+        "SubType": 13,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10014
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 6,
+        "SubType": 3,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 4,
+        "PartType": 2,
+        "SubType": 7,
+        "ReqGold": 700000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 8,
+        "SubType": 16,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10013
+    },
+    {
+        "ItemCode": 10,
+        "PartType": 8,
+        "SubType": 15,
+        "ReqGold": 900000,
+        "OptionGroupIndex": 10015
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 6,
+        "SubType": 5,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 6,
+        "SubType": 3,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10012
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 11,
+        "SubType": 12,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10017
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 8,
+        "SubType": 15,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10015
+    },
+    {
+        "ItemCode": 1,
+        "PartType": 2,
+        "SubType": 7,
+        "ReqGold": 500000,
+        "OptionGroupIndex": 10011
+    },
+    {
+        "ItemCode": 14,
+        "PartType": 8,
+        "SubType": 16,
+        "ReqGold": 1500000,
+        "OptionGroupIndex": 10013
+    }
+]

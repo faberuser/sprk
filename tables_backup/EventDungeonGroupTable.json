@@ -1,0 +1,747 @@
+[
+    {
+        "ChapterIndex": 30025,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 3,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30039,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            14
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30040,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 7,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30040,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 10,
+        "DungeonIndices": [
+            15,
+            16,
+            17
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30040,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            18
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30041,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 11,
+        "PortraitPath": 12,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30041,
+        "GroupIndex": 2,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30042,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 13,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30042,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 14,
+        "DungeonIndices": [
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30044,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 15,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30044,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 16,
+        "DungeonIndices": [
+            7,
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30025,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 17,
+        "DungeonIndices": [
+            7,
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30045,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 18,
+        "DungeonDesc": 19,
+        "PortraitPath": 20,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30045,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 21,
+        "DungeonDesc": 22,
+        "PortraitPath": 23,
+        "DungeonIndices": [
+            7,
+            8,
+            9
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30045,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 24,
+        "DungeonDesc": 25,
+        "PortraitPath": 26,
+        "DungeonIndices": [
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30046,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 27,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30027,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 28,
+        "DungeonDesc": 29,
+        "PortraitPath": 30,
+        "DungeonIndices": [
+            1,
+            2,
+            3
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30046,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 31,
+        "DungeonIndices": [
+            9,
+            10,
+            11
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30027,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 32,
+        "DungeonDesc": 33,
+        "PortraitPath": 34,
+        "DungeonIndices": [
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30047,
+        "GroupIndex": 1,
+        "GroupType": 2,
+        "DungeonName": 35,
+        "DungeonDesc": 0,
+        "PortraitPath": 36,
+        "DungeonIndices": [
+            1
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30028,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 15,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30028,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 16,
+        "DungeonIndices": [
+            7,
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30048,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 37,
+        "DungeonDesc": 38,
+        "PortraitPath": 39,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30029,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 40,
+        "PortraitPath": 41,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30048,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 42,
+        "DungeonDesc": 43,
+        "PortraitPath": 44,
+        "DungeonIndices": [
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30029,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 45,
+        "PortraitPath": 46,
+        "DungeonIndices": [
+            7,
+            8,
+            9
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30030,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 47,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30030,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 48,
+        "DungeonIndices": [
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30050,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 49,
+        "DungeonDesc": 0,
+        "PortraitPath": 50,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30031,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 11,
+        "PortraitPath": 51,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30031,
+        "GroupIndex": 2,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            6
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30051,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 52,
+        "DungeonDesc": 0,
+        "PortraitPath": 53,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30032,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 37,
+        "DungeonDesc": 38,
+        "PortraitPath": 39,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30032,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 42,
+        "DungeonDesc": 43,
+        "PortraitPath": 44,
+        "DungeonIndices": [
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30034,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 54,
+        "PortraitPath": 55,
+        "DungeonIndices": [
+            1,
+            2,
+            3
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30034,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 56,
+        "PortraitPath": 57,
+        "DungeonIndices": [
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30035,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 58,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30035,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 59,
+        "DungeonIndices": [
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30035,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            9
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30036,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 11,
+        "PortraitPath": 60,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30036,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 61,
+        "PortraitPath": 62,
+        "DungeonIndices": [
+            9,
+            10,
+            11
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30036,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            12
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30037,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 63,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30037,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 64,
+        "DungeonIndices": [
+            5,
+            6,
+            7
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30037,
+        "GroupIndex": 3,
+        "GroupType": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "PortraitPath": 6,
+        "DungeonIndices": [
+            8
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30038,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 65,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30038,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 66,
+        "DungeonIndices": [
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30039,
+        "GroupIndex": 1,
+        "GroupType": 1,
+        "DungeonName": 1,
+        "DungeonDesc": 2,
+        "PortraitPath": 67,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+        ],
+        "BackGroundPath": 0
+    },
+    {
+        "ChapterIndex": 30039,
+        "GroupIndex": 2,
+        "GroupType": 2,
+        "DungeonName": 8,
+        "DungeonDesc": 9,
+        "PortraitPath": 68,
+        "DungeonIndices": [
+            11,
+            12,
+            13
+        ],
+        "BackGroundPath": 0
+    }
+]

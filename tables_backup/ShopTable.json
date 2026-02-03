@@ -1,0 +1,1863 @@
+[
+    {
+        "Index": 1,
+        "field_1": null,
+        "Code": 1,
+        "HeroIndex": 90,
+        "BuyCostType": 1,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 3600,
+        "RestockGem": 25,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 2,
+        "field_1": null,
+        "Code": 8,
+        "HeroIndex": 0,
+        "BuyCostType": 1,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            9,
+            10,
+            5,
+            11,
+            12,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 3,
+        "field_1": null,
+        "Code": 13,
+        "HeroIndex": 91,
+        "BuyCostType": 3,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            14,
+            15,
+            5,
+            16,
+            17,
+            5
+        ],
+        "GroupTitleKey": 18,
+        "BeforeBuyConfirm": true,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 4,
+        "field_1": null,
+        "Code": 19,
+        "HeroIndex": 92,
+        "BuyCostType": 4,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            20,
+            21,
+            5,
+            22,
+            23,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": true,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 1
+    },
+    {
+        "Index": 5,
+        "field_1": null,
+        "Code": 24,
+        "HeroIndex": 0,
+        "BuyCostType": 2,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": null,
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 6,
+        "field_1": null,
+        "Code": 25,
+        "HeroIndex": 0,
+        "BuyCostType": 5,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            26,
+            27,
+            5,
+            28,
+            29,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 7,
+        "field_1": null,
+        "Code": 30,
+        "HeroIndex": 0,
+        "BuyCostType": 1,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            31,
+            32,
+            5,
+            33,
+            34,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 8,
+        "field_1": null,
+        "Code": 35,
+        "HeroIndex": 0,
+        "BuyCostType": 1,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            36,
+            37,
+            5,
+            38,
+            39,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 9,
+        "field_1": null,
+        "Code": 40,
+        "HeroIndex": 0,
+        "BuyCostType": 1,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            41,
+            42,
+            5,
+            43,
+            44,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 10,
+        "field_1": null,
+        "Code": 45,
+        "HeroIndex": 94,
+        "BuyCostType": 7,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            46,
+            47,
+            5,
+            48,
+            49,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 11,
+        "field_1": null,
+        "Code": 50,
+        "HeroIndex": 0,
+        "BuyCostType": 8,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            51,
+            52,
+            53,
+            54,
+            55,
+            53
+        ],
+        "GroupTitleKey": 56,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 12,
+        "field_1": null,
+        "Code": 57,
+        "HeroIndex": 93,
+        "BuyCostType": 9,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            26,
+            27,
+            5,
+            28,
+            29,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 13,
+        "field_1": null,
+        "Code": 58,
+        "HeroIndex": 0,
+        "BuyCostType": 2,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 6,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": true,
+        "RestockSecond": 21600,
+        "RestockGem": 250,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 14,
+        "field_1": null,
+        "Code": 59,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 15,
+        "field_1": null,
+        "Code": 60,
+        "HeroIndex": 0,
+        "BuyCostType": 12,
+        "BuyCostTypeUI": [
+            12,
+            15
+        ],
+        "BuyCostTypeIconSprite": [
+            61,
+            62
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            14,
+            15,
+            5,
+            16,
+            17,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": true,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 16,
+        "field_1": null,
+        "Code": 63,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            64,
+            65
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            66,
+            67,
+            5,
+            68,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 17,
+        "field_1": null,
+        "Code": 70,
+        "HeroIndex": 0,
+        "BuyCostType": 13,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": [
+            71
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            72,
+            49,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 18,
+        "field_1": null,
+        "Code": 73,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            74
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            75,
+            76,
+            77,
+            78,
+            76,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 19,
+        "field_1": null,
+        "Code": 79,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            80
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            81,
+            82,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 20,
+        "field_1": null,
+        "Code": 83,
+        "HeroIndex": 92,
+        "BuyCostType": 4,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            20,
+            21,
+            5,
+            22,
+            23,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": false,
+        "ShopFilterGroupType": 2
+    },
+    {
+        "Index": 21,
+        "field_1": null,
+        "Code": 84,
+        "HeroIndex": 92,
+        "BuyCostType": 4,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            85,
+            86,
+            5,
+            87,
+            88,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 22,
+        "field_1": null,
+        "Code": 89,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            90
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 23,
+        "field_1": null,
+        "Code": 93,
+        "HeroIndex": 0,
+        "BuyCostType": 16,
+        "BuyCostTypeUI": [
+            16
+        ],
+        "BuyCostTypeIconSprite": [
+            74
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            94,
+            95,
+            5,
+            96,
+            97,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 24,
+        "field_1": null,
+        "Code": 98,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 25,
+        "field_1": null,
+        "Code": 99,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 26,
+        "field_1": null,
+        "Code": 100,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 27,
+        "field_1": null,
+        "Code": 101,
+        "HeroIndex": 92,
+        "BuyCostType": 17,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            20,
+            21,
+            5,
+            22,
+            23,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 1
+    },
+    {
+        "Index": 28,
+        "field_1": null,
+        "Code": 102,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": null,
+        "BuyCostTypeIconSprite": null,
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 29,
+        "field_1": null,
+        "Code": 103,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            104,
+            105
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 30,
+        "field_1": null,
+        "Code": 115,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            116,
+            117
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            67,
+            5,
+            92,
+            69,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 31,
+        "field_1": null,
+        "Code": 118,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            119
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            120,
+            77,
+            92,
+            120,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 32,
+        "field_1": null,
+        "Code": 121,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            122
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            123,
+            124,
+            53,
+            125,
+            124,
+            53
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 33,
+        "field_1": null,
+        "Code": 126,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            127,
+            128
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            129,
+            130,
+            77,
+            131,
+            130,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 34,
+        "field_1": null,
+        "Code": 132,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            133,
+            134
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            135,
+            136,
+            5,
+            137,
+            136,
+            5,
+            138,
+            136,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 35,
+        "field_1": null,
+        "Code": 139,
+        "HeroIndex": 0,
+        "BuyCostType": 20,
+        "BuyCostTypeUI": [
+            20
+        ],
+        "BuyCostTypeIconSprite": [
+            140
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            14,
+            15,
+            5,
+            16,
+            17,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 36,
+        "field_1": null,
+        "Code": 141,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            142
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 37,
+        "field_1": null,
+        "Code": 143,
+        "HeroIndex": 0,
+        "BuyCostType": 21,
+        "BuyCostTypeUI": [
+            21
+        ],
+        "BuyCostTypeIconSprite": [
+            144
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            145,
+            146,
+            77,
+            145,
+            147,
+            77,
+            145,
+            148,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 38,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 39,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 40,
+        "field_1": null,
+        "Code": 151,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            133,
+            134
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            135,
+            136,
+            5,
+            137,
+            136,
+            5,
+            138,
+            136,
+            5
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 41,
+        "field_1": null,
+        "Code": 152,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10,
+            11
+        ],
+        "BuyCostTypeIconSprite": [
+            104,
+            105
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 42,
+        "field_1": null,
+        "Code": 153,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            119
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            91,
+            120,
+            77,
+            92,
+            120,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 114,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 43,
+        "field_1": null,
+        "Code": 154,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            155
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            156,
+            157,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 115,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 116,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 44,
+        "field_1": null,
+        "Code": 158,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            159
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            160,
+            161,
+            77,
+            162,
+            161,
+            77,
+            163,
+            161,
+            77
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 117,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 45,
+        "field_1": null,
+        "Code": 164,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            165
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            166,
+            167,
+            53,
+            168,
+            169,
+            53
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 118,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 46,
+        "field_1": null,
+        "Code": 170,
+        "HeroIndex": 0,
+        "BuyCostType": 10,
+        "BuyCostTypeUI": [
+            10
+        ],
+        "BuyCostTypeIconSprite": [
+            122
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": [
+            123,
+            124,
+            53,
+            125,
+            124,
+            53
+        ],
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 1,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 119,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 120,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 121,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 122,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 123,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 124,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 125,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 126,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    },
+    {
+        "Index": 127,
+        "field_1": null,
+        "Code": 149,
+        "HeroIndex": 0,
+        "BuyCostType": 22,
+        "BuyCostTypeUI": [
+            22
+        ],
+        "BuyCostTypeIconSprite": [
+            150
+        ],
+        "MaxStock": 0,
+        "Timeline": [
+            2
+        ],
+        "Buyline": null,
+        "GroupTitleKey": 0,
+        "BeforeBuyConfirm": false,
+        "RestockSecond": 0,
+        "RestockGem": 0,
+        "EventOnly": 0,
+        "MiniGuideIndex": 0,
+        "UseGroupIndexForLevel": false,
+        "MultiplePurchaseShop": true,
+        "ShopFilterGroupType": 0
+    }
+]

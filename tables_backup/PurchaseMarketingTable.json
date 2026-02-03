@@ -1,0 +1,569 @@
+[
+    {
+        "Index": 1,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400001
+    },
+    {
+        "Index": 100007,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400042
+    },
+    {
+        "Index": 100008,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400043
+    },
+    {
+        "Index": 2,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400002
+    },
+    {
+        "Index": 100009,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400044
+    },
+    {
+        "Index": 3,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400003
+    },
+    {
+        "Index": 100010,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400045
+    },
+    {
+        "Index": 4,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400004
+    },
+    {
+        "Index": 100011,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400046
+    },
+    {
+        "Index": 5,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400005
+    },
+    {
+        "Index": 100012,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400047
+    },
+    {
+        "Index": 6,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400006
+    },
+    {
+        "Index": 100013,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400048
+    },
+    {
+        "Index": 7,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400007
+    },
+    {
+        "Index": 8,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400008
+    },
+    {
+        "Index": 9,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400009
+    },
+    {
+        "Index": 10001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400010
+    },
+    {
+        "Index": 10002,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400011
+    },
+    {
+        "Index": 100018,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400050
+    },
+    {
+        "Index": 10003,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400012
+    },
+    {
+        "Index": 100019,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400051
+    },
+    {
+        "Index": 10004,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400013
+    },
+    {
+        "Index": 100020,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400052
+    },
+    {
+        "Index": 10005,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400014
+    },
+    {
+        "Index": 100021,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400053
+    },
+    {
+        "Index": 10006,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400015
+    },
+    {
+        "Index": 100022,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400054
+    },
+    {
+        "Index": 10007,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400016
+    },
+    {
+        "Index": 10008,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400017
+    },
+    {
+        "Index": 10009,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400018
+    },
+    {
+        "Index": 10010,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400019
+    },
+    {
+        "Index": 10011,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400020
+    },
+    {
+        "Index": 100027,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400056
+    },
+    {
+        "Index": 10012,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400021
+    },
+    {
+        "Index": 100028,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400057
+    },
+    {
+        "Index": 10013,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400022
+    },
+    {
+        "Index": 100029,
+        "RepeatCooltime": 0,
+        "DurationTime": 60,
+        "IsOpen": false,
+        "ProductIndex": 400058
+    },
+    {
+        "Index": 100030,
+        "RepeatCooltime": 0,
+        "DurationTime": 120,
+        "IsOpen": false,
+        "ProductIndex": 400059
+    },
+    {
+        "Index": 100031,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400060
+    },
+    {
+        "Index": 100032,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400061
+    },
+    {
+        "Index": 100033,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400062
+    },
+    {
+        "Index": 100034,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400063
+    },
+    {
+        "Index": 30001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400024
+    },
+    {
+        "Index": 100035,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400064
+    },
+    {
+        "Index": 100036,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400068
+    },
+    {
+        "Index": 100037,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400067
+    },
+    {
+        "Index": 100038,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400065
+    },
+    {
+        "Index": 100039,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400066
+    },
+    {
+        "Index": 100040,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400070
+    },
+    {
+        "Index": 100041,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400072
+    },
+    {
+        "Index": 100042,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400073
+    },
+    {
+        "Index": 100043,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400071
+    },
+    {
+        "Index": 40001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400025
+    },
+    {
+        "Index": 100044,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400074
+    },
+    {
+        "Index": 100045,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400076
+    },
+    {
+        "Index": 100046,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400077
+    },
+    {
+        "Index": 100047,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400078
+    },
+    {
+        "Index": 100048,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400079
+    },
+    {
+        "Index": 100049,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400080
+    },
+    {
+        "Index": 100050,
+        "RepeatCooltime": 0,
+        "DurationTime": 20160,
+        "IsOpen": false,
+        "ProductIndex": 101564
+    },
+    {
+        "Index": 100051,
+        "RepeatCooltime": 0,
+        "DurationTime": 60,
+        "IsOpen": false,
+        "ProductIndex": 400083
+    },
+    {
+        "Index": 100052,
+        "RepeatCooltime": 0,
+        "DurationTime": 20160,
+        "IsOpen": false,
+        "ProductIndex": 101566
+    },
+    {
+        "Index": 50001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400023
+    },
+    {
+        "Index": 100053,
+        "RepeatCooltime": 0,
+        "DurationTime": 20160,
+        "IsOpen": false,
+        "ProductIndex": 101567
+    },
+    {
+        "Index": 100054,
+        "RepeatCooltime": 0,
+        "DurationTime": 20160,
+        "IsOpen": false,
+        "ProductIndex": 101568
+    },
+    {
+        "Index": 100055,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400087
+    },
+    {
+        "Index": 100056,
+        "RepeatCooltime": 0,
+        "DurationTime": 20160,
+        "IsOpen": false,
+        "ProductIndex": 101565
+    },
+    {
+        "Index": 100057,
+        "RepeatCooltime": 0,
+        "DurationTime": 180,
+        "IsOpen": false,
+        "ProductIndex": 400089
+    },
+    {
+        "Index": 100058,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 101462
+    },
+    {
+        "Index": 100059,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 101588
+    },
+    {
+        "Index": 100060,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 101590
+    },
+    {
+        "Index": 100061,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 101589
+    },
+    {
+        "Index": 60001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400028
+    },
+    {
+        "Index": 100062,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 101591
+    },
+    {
+        "Index": 60002,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400029
+    },
+    {
+        "Index": 100001,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400036
+    },
+    {
+        "Index": 100002,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400037
+    },
+    {
+        "Index": 100003,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400038
+    },
+    {
+        "Index": 100004,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400039
+    },
+    {
+        "Index": 100005,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400040
+    },
+    {
+        "Index": 100006,
+        "RepeatCooltime": 0,
+        "DurationTime": 0,
+        "IsOpen": false,
+        "ProductIndex": 400041
+    }
+]

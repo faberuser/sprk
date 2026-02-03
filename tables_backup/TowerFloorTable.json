@@ -1,0 +1,4422 @@
+[
+    {
+        "TowerIndex": 1,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 3001,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 5000,
+        "RewardIndex": [
+            211001
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            21,
+            22,
+            23,
+            24,
+            25
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111105
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 51,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 51,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500151
+        ],
+        "RepeatRewardIndex": [
+            500251
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 17,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 17,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 6,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            26,
+            27,
+            28,
+            29,
+            30
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111106
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 52,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 52,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500152
+        ],
+        "RepeatRewardIndex": [
+            500252
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 18,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 18,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 7,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            31,
+            32,
+            33,
+            34,
+            35
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111107
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 53,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 53,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500153
+        ],
+        "RepeatRewardIndex": [
+            500253
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 19,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 19,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1005,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9005,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 258,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 8,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            36,
+            37,
+            38,
+            39,
+            40
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111108
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 54,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 54,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500154
+        ],
+        "RepeatRewardIndex": [
+            500254
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 20,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 20,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1005,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9005,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 258,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 9,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            41,
+            42,
+            43,
+            44,
+            45
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111109
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 55,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 55,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500155
+        ],
+        "RepeatRewardIndex": [
+            500255
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 21,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 21,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1005,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9005,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 12,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 10,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            46,
+            47,
+            48,
+            49,
+            50
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111110
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 56,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 56,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500156
+        ],
+        "RepeatRewardIndex": [
+            500256
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 22,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 22,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1005,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9005,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 12,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 11,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            51,
+            52,
+            53,
+            54,
+            55
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111111
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 57,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 57,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500157
+        ],
+        "RepeatRewardIndex": [
+            500257
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 23,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 23,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1005,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9005,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 12,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 12,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            56,
+            57,
+            58,
+            59,
+            60
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111112
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 58,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 58,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500158
+        ],
+        "RepeatRewardIndex": [
+            500258
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 24,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 24,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 13,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            61,
+            62,
+            63,
+            64,
+            65
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111113
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 59,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 59,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500159
+        ],
+        "RepeatRewardIndex": [
+            500259
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 25,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 25,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 14,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            66,
+            67,
+            68,
+            69,
+            70
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111114
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 60,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 60,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500160
+        ],
+        "RepeatRewardIndex": [
+            500260
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 26,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 26,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 15,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            71,
+            72,
+            73,
+            74,
+            75
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111115
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 27,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 27,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 16,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            76,
+            77,
+            78,
+            79,
+            80
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111116
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 28,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 28,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 17,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            81,
+            82,
+            83,
+            84,
+            85
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111117
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 29,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 29,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 18,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            86,
+            87,
+            88,
+            89,
+            90
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111118
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 30,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 30,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 19,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            91,
+            92,
+            93,
+            94,
+            95
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111119
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 31,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 31,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 20,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            96,
+            97,
+            98,
+            99,
+            100
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111120
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 32,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 32,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 21,
+        "OpenTime": 1,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            101,
+            102,
+            103,
+            104,
+            105
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111121
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 33,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 33,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 22,
+        "OpenTime": 1,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            106,
+            107,
+            108,
+            109,
+            110
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111122
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 34,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 34,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 23,
+        "OpenTime": 1,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            111,
+            112,
+            113,
+            114,
+            115
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111123
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 35,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 35,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 24,
+        "OpenTime": 1,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            116,
+            117,
+            118,
+            119,
+            120
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111124
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 36,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 36,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 25,
+        "OpenTime": 1,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            121,
+            122,
+            123,
+            124,
+            125
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111125
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 37,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 37,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 38,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 38,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 39,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 39,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 40,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 40,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 41,
+        "OpenTime": 2,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 41,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 42,
+        "OpenTime": 2,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 42,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 43,
+        "OpenTime": 2,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 43,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 44,
+        "OpenTime": 2,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 44,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 45,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 45,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 46,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 46,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 47,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 47,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 48,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 48,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 49,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 49,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 50,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 50,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 3001,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 6000,
+        "RewardIndex": [
+            211002
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1006,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9006,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 259,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 1,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 3001,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 7000,
+        "RewardIndex": [
+            211003
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1006,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9006,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 259,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 1,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 3001,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 8000,
+        "RewardIndex": [
+            211004
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1006,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9006,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 13,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 1,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 3001,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 9000,
+        "RewardIndex": [
+            211005
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1006,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9006,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 13,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 1006,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9006,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 13,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 1001,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9001,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 254,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 1001,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9001,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 254,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 1001,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9001,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 8,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 1001,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9001,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 8,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 1001,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9001,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 8,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 2,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 3002,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 10000,
+        "RewardIndex": [
+            211006
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 2,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 3002,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 13000,
+        "RewardIndex": [
+            211007
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1007,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9007,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 260,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 2,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 3002,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 19000,
+        "RewardIndex": [
+            211008
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1007,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9007,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 260,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 2,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 3002,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 22000,
+        "RewardIndex": [
+            211009
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1007,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9007,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 14,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 2,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 3002,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 25000,
+        "RewardIndex": [
+            211010
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1007,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9007,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 14,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 1007,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9007,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 14,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 1002,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9002,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 255,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 1002,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9002,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 255,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 1002,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9002,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 9,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 1002,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9002,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 9,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 1002,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9002,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 9,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 3,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 3003,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 15000,
+        "RewardIndex": [
+            211011
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 3,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 3003,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 17500,
+        "RewardIndex": [
+            211012
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 3,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 3003,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 20000,
+        "RewardIndex": [
+            211013
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 3,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 3003,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 22500,
+        "RewardIndex": [
+            211014
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 3,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 3003,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 2,
+        "BattleStartCost": 0,
+        "BattleEndCost": 25000,
+        "RewardIndex": [
+            211015
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 1003,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9003,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 256,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 1003,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9003,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 256,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 1003,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9003,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 10,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 1003,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9003,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 10,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 1003,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9003,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 10,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500101
+        ],
+        "RepeatRewardIndex": [
+            500201
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500102
+        ],
+        "RepeatRewardIndex": [
+            500202
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500103
+        ],
+        "RepeatRewardIndex": [
+            500203
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500104
+        ],
+        "RepeatRewardIndex": [
+            500204
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500105
+        ],
+        "RepeatRewardIndex": [
+            500205
+        ]
+    },
+    {
+        "TowerIndex": 10,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 2000,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            110101
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 6,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 6,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500106
+        ],
+        "RepeatRewardIndex": [
+            500206
+        ]
+    },
+    {
+        "TowerIndex": 10,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 2000,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            110102
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 7,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 7,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500107
+        ],
+        "RepeatRewardIndex": [
+            500207
+        ]
+    },
+    {
+        "TowerIndex": 10,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 2000,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            110103
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 8,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 8,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500108
+        ],
+        "RepeatRewardIndex": [
+            500208
+        ]
+    },
+    {
+        "TowerIndex": 10,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 2000,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            110104
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 9,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 9,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500109
+        ],
+        "RepeatRewardIndex": [
+            500209
+        ]
+    },
+    {
+        "TowerIndex": 10,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 2000,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            110105
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 10,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 10,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500110
+        ],
+        "RepeatRewardIndex": [
+            500210
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 11,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 11,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500111
+        ],
+        "RepeatRewardIndex": [
+            500211
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 12,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 12,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500112
+        ],
+        "RepeatRewardIndex": [
+            500212
+        ]
+    },
+    {
+        "TowerIndex": 1004,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 9004,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 257,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300101
+        ],
+        "RepeatRewardIndex": [
+            1300201
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 13,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 13,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500113
+        ],
+        "RepeatRewardIndex": [
+            500213
+        ]
+    },
+    {
+        "TowerIndex": 1004,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 9004,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 257,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300102
+        ],
+        "RepeatRewardIndex": [
+            1300202
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 14,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 14,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500114
+        ],
+        "RepeatRewardIndex": [
+            500214
+        ]
+    },
+    {
+        "TowerIndex": 1004,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 9004,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 11,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300103
+        ],
+        "RepeatRewardIndex": [
+            1300203
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 15,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 15,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500115
+        ],
+        "RepeatRewardIndex": [
+            500215
+        ]
+    },
+    {
+        "TowerIndex": 1004,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 9004,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 11,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300104
+        ],
+        "RepeatRewardIndex": [
+            1300204
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 16,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 16,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500116
+        ],
+        "RepeatRewardIndex": [
+            500216
+        ]
+    },
+    {
+        "TowerIndex": 1004,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 9004,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 11,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            1300105
+        ],
+        "RepeatRewardIndex": [
+            1300205
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 17,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 17,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500117
+        ],
+        "RepeatRewardIndex": [
+            500217
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 18,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 18,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500118
+        ],
+        "RepeatRewardIndex": [
+            500218
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 19,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 19,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500119
+        ],
+        "RepeatRewardIndex": [
+            500219
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 20,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 20,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500120
+        ],
+        "RepeatRewardIndex": [
+            500220
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 21,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 21,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500121
+        ],
+        "RepeatRewardIndex": [
+            500221
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 22,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 22,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500122
+        ],
+        "RepeatRewardIndex": [
+            500222
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 23,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 23,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500123
+        ],
+        "RepeatRewardIndex": [
+            500223
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 24,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 24,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500124
+        ],
+        "RepeatRewardIndex": [
+            500224
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 25,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 25,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500125
+        ],
+        "RepeatRewardIndex": [
+            500225
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 26,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 26,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500126
+        ],
+        "RepeatRewardIndex": [
+            500226
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 27,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 27,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500127
+        ],
+        "RepeatRewardIndex": [
+            500227
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 28,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 28,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500128
+        ],
+        "RepeatRewardIndex": [
+            500228
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 29,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 29,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500129
+        ],
+        "RepeatRewardIndex": [
+            500229
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 30,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 30,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500130
+        ],
+        "RepeatRewardIndex": [
+            500230
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 31,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 31,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500131
+        ],
+        "RepeatRewardIndex": [
+            500231
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 32,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 32,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500132
+        ],
+        "RepeatRewardIndex": [
+            500232
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 33,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 33,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500133
+        ],
+        "RepeatRewardIndex": [
+            500233
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 34,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 34,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500134
+        ],
+        "RepeatRewardIndex": [
+            500234
+        ]
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 35,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 35,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500135
+        ],
+        "RepeatRewardIndex": [
+            500235
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 1,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 36,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 36,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500136
+        ],
+        "RepeatRewardIndex": [
+            500236
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 2,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 37,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 37,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500137
+        ],
+        "RepeatRewardIndex": [
+            500237
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 3,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 38,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 38,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500138
+        ],
+        "RepeatRewardIndex": [
+            500238
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 4,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 39,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 39,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500139
+        ],
+        "RepeatRewardIndex": [
+            500239
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 5,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 5,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 40,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 40,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500140
+        ],
+        "RepeatRewardIndex": [
+            500240
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 6,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 6,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 41,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 41,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500141
+        ],
+        "RepeatRewardIndex": [
+            500241
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 7,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 7,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 42,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 42,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500142
+        ],
+        "RepeatRewardIndex": [
+            500242
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 8,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 8,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 43,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 43,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500143
+        ],
+        "RepeatRewardIndex": [
+            500243
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 9,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 9,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 44,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 44,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500144
+        ],
+        "RepeatRewardIndex": [
+            500244
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 10,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 10,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 45,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 45,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500145
+        ],
+        "RepeatRewardIndex": [
+            500245
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 11,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 11,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 46,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 46,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500146
+        ],
+        "RepeatRewardIndex": [
+            500246
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 12,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 12,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 1,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            1,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111101
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 47,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 47,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500147
+        ],
+        "RepeatRewardIndex": [
+            500247
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 13,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 13,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 2,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            6,
+            7,
+            8,
+            9,
+            10
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111102
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 48,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 48,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500148
+        ],
+        "RepeatRewardIndex": [
+            500248
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 14,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 14,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 3,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            11,
+            12,
+            13,
+            14,
+            15
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111103
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 49,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 49,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500149
+        ],
+        "RepeatRewardIndex": [
+            500249
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 15,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 15,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 11,
+        "Floor": 4,
+        "OpenTime": 0,
+        "ChapterIndex": 2001,
+        "DungeonIndex": 0,
+        "DungeonSelectType": 1,
+        "DungeonIndices": [
+            16,
+            17,
+            18,
+            19,
+            20
+        ],
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            111104
+        ],
+        "RepeatRewardIndex": null
+    },
+    {
+        "TowerIndex": 21,
+        "Floor": 50,
+        "OpenTime": 0,
+        "ChapterIndex": 5001,
+        "DungeonIndex": 50,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": [
+            500150
+        ],
+        "RepeatRewardIndex": [
+            500250
+        ]
+    },
+    {
+        "TowerIndex": 999,
+        "Floor": 16,
+        "OpenTime": 0,
+        "ChapterIndex": 4001,
+        "DungeonIndex": 16,
+        "DungeonSelectType": 0,
+        "DungeonIndices": null,
+        "ReqTeamLevel": 0,
+        "ReqChapterIndex": 0,
+        "ReqDungeonIndex": 0,
+        "ReqClearedChapterIndex": null,
+        "ReqClearedChapterDifficulty": 0,
+        "ReqClass": 0,
+        "BattleCostType": 0,
+        "BattleStartCost": 0,
+        "BattleEndCost": 0,
+        "RewardIndex": null,
+        "RepeatRewardIndex": null
+    }
+]

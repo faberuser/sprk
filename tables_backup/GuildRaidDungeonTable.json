@@ -1,0 +1,763 @@
+[
+    55,
+    {
+        "ChapterIndex": 6002,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30001,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31001,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            5,
+            16,
+            34
+        ],
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6009,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30039,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31039,
+        "Tactic": 4,
+        "RecommendedHeroIndex": [
+            73,
+            15,
+            35
+        ],
+        "PortraitPath": 5,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6004,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30013,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31013,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            8,
+            9,
+            13
+        ],
+        "PortraitPath": 7,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6008,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30031,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31031,
+        "Tactic": 8,
+        "RecommendedHeroIndex": [
+            21,
+            1,
+            94
+        ],
+        "PortraitPath": 9,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6002,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30005,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31005,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            5,
+            16,
+            34
+        ],
+        "PortraitPath": 10,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6006,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30023,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31023,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            27,
+            33,
+            37
+        ],
+        "PortraitPath": 12,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6005,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30020,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31020,
+        "Tactic": 13,
+        "RecommendedHeroIndex": [
+            20,
+            24,
+            26
+        ],
+        "PortraitPath": 14,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6009,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30038,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31038,
+        "Tactic": 4,
+        "RecommendedHeroIndex": [
+            73,
+            15,
+            35
+        ],
+        "PortraitPath": 5,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6004,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30012,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31012,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            8,
+            9,
+            13
+        ],
+        "PortraitPath": 15,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6007,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30030,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31030,
+        "Tactic": 16,
+        "RecommendedHeroIndex": [
+            32,
+            58,
+            26
+        ],
+        "PortraitPath": 17,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6002,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30004,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31004,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            5,
+            16,
+            34
+        ],
+        "PortraitPath": 18,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6006,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30022,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31022,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            27,
+            33,
+            37
+        ],
+        "PortraitPath": 19,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6005,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30019,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31019,
+        "Tactic": 20,
+        "RecommendedHeroIndex": [
+            20,
+            24,
+            26
+        ],
+        "PortraitPath": 21,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6009,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30037,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31037,
+        "Tactic": 4,
+        "RecommendedHeroIndex": [
+            73,
+            15,
+            35
+        ],
+        "PortraitPath": 22,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6004,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30011,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31011,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            8,
+            9,
+            13
+        ],
+        "PortraitPath": 15,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6007,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30029,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31029,
+        "Tactic": 16,
+        "RecommendedHeroIndex": [
+            32,
+            58,
+            26
+        ],
+        "PortraitPath": 23,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6002,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30003,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31003,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            5,
+            16,
+            34
+        ],
+        "PortraitPath": 18,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6006,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30021,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31021,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            27,
+            33,
+            37
+        ],
+        "PortraitPath": 19,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6005,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30018,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31018,
+        "Tactic": 24,
+        "RecommendedHeroIndex": [
+            20,
+            24,
+            26
+        ],
+        "PortraitPath": 21,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6009,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30036,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31036,
+        "Tactic": 4,
+        "RecommendedHeroIndex": [
+            73,
+            15,
+            35
+        ],
+        "PortraitPath": 22,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6003,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30010,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31010,
+        "Tactic": 25,
+        "RecommendedHeroIndex": [
+            18,
+            22,
+            28
+        ],
+        "PortraitPath": 26,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6007,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30028,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31028,
+        "Tactic": 16,
+        "RecommendedHeroIndex": [
+            32,
+            58,
+            26
+        ],
+        "PortraitPath": 23,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6002,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30002,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31002,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            5,
+            16,
+            34
+        ],
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6005,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30017,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31017,
+        "Tactic": 27,
+        "RecommendedHeroIndex": [
+            20,
+            24,
+            26
+        ],
+        "PortraitPath": 28,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6008,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30035,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31035,
+        "Tactic": 8,
+        "RecommendedHeroIndex": [
+            21,
+            1,
+            94
+        ],
+        "PortraitPath": 29,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6003,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30009,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31009,
+        "Tactic": 25,
+        "RecommendedHeroIndex": [
+            18,
+            22,
+            28
+        ],
+        "PortraitPath": 30,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6007,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30027,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31027,
+        "Tactic": 16,
+        "RecommendedHeroIndex": [
+            32,
+            58,
+            26
+        ],
+        "PortraitPath": 31,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6005,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30016,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31016,
+        "Tactic": 32,
+        "RecommendedHeroIndex": [
+            20,
+            24,
+            26
+        ],
+        "PortraitPath": 28,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6008,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30034,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31034,
+        "Tactic": 8,
+        "RecommendedHeroIndex": [
+            21,
+            1,
+            94
+        ],
+        "PortraitPath": 33,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6003,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30008,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31008,
+        "Tactic": 25,
+        "RecommendedHeroIndex": [
+            18,
+            22,
+            28
+        ],
+        "PortraitPath": 30,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6007,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30026,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31026,
+        "Tactic": 16,
+        "RecommendedHeroIndex": [
+            32,
+            58,
+            26
+        ],
+        "PortraitPath": 31,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6004,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30015,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31015,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            8,
+            9,
+            13
+        ],
+        "PortraitPath": 34,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6008,
+        "DungeonIndex": 3,
+        "Step": 3,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30033,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31033,
+        "Tactic": 8,
+        "RecommendedHeroIndex": [
+            21,
+            1,
+            94
+        ],
+        "PortraitPath": 33,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6003,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30007,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31007,
+        "Tactic": 25,
+        "RecommendedHeroIndex": [
+            18,
+            22,
+            28
+        ],
+        "PortraitPath": 35,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6006,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30025,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31025,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            27,
+            33,
+            37
+        ],
+        "PortraitPath": 36,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6009,
+        "DungeonIndex": 5,
+        "Step": 5,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30040,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31040,
+        "Tactic": 4,
+        "RecommendedHeroIndex": [
+            73,
+            15,
+            35
+        ],
+        "PortraitPath": 37,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6004,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30014,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31014,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            8,
+            9,
+            13
+        ],
+        "PortraitPath": 7,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6008,
+        "DungeonIndex": 2,
+        "Step": 2,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30032,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31032,
+        "Tactic": 8,
+        "RecommendedHeroIndex": [
+            21,
+            1,
+            94
+        ],
+        "PortraitPath": 9,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6003,
+        "DungeonIndex": 1,
+        "Step": 1,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30006,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31006,
+        "Tactic": 25,
+        "RecommendedHeroIndex": [
+            18,
+            22,
+            28
+        ],
+        "PortraitPath": 35,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    },
+    {
+        "ChapterIndex": 6006,
+        "DungeonIndex": 4,
+        "Step": 4,
+        "BonusDungeonRate": 25,
+        "KillRewardIndex": 30024,
+        "KillActivityPoint": 15000,
+        "BuyableRewardIndex": 31024,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            27,
+            33,
+            37
+        ],
+        "PortraitPath": 12,
+        "PreviewBg": 3,
+        "FinishModeRatio": 15,
+        "ShowInfoSkill": null
+    }
+]

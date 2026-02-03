@@ -1,0 +1,65 @@
+[
+    {
+        "TagType": 1,
+        "ItemCode1": 1,
+        "ItemCode2": 2,
+        "ItemCode3": 3,
+        "TranscendItemCode1": 4,
+        "TranscendItemCode2": 5,
+        "TranscendItemCode3": 6
+    },
+    {
+        "TagType": 2,
+        "ItemCode1": 2,
+        "ItemCode2": 7,
+        "ItemCode3": 8,
+        "TranscendItemCode1": 5,
+        "TranscendItemCode2": 9,
+        "TranscendItemCode3": 10
+    },
+    {
+        "TagType": 3,
+        "ItemCode1": 1,
+        "ItemCode2": 7,
+        "ItemCode3": 11,
+        "TranscendItemCode1": 4,
+        "TranscendItemCode2": 9,
+        "TranscendItemCode3": 12
+    },
+    {
+        "TagType": 4,
+        "ItemCode1": 2,
+        "ItemCode2": 13,
+        "ItemCode3": 8,
+        "TranscendItemCode1": 5,
+        "TranscendItemCode2": 14,
+        "TranscendItemCode3": 10
+    },
+    {
+        "TagType": 5,
+        "ItemCode1": 1,
+        "ItemCode2": 11,
+        "ItemCode3": 8,
+        "TranscendItemCode1": 4,
+        "TranscendItemCode2": 12,
+        "TranscendItemCode3": 10
+    },
+    {
+        "TagType": 6,
+        "ItemCode1": 13,
+        "ItemCode2": 11,
+        "ItemCode3": 3,
+        "TranscendItemCode1": 14,
+        "TranscendItemCode2": 12,
+        "TranscendItemCode3": 6
+    },
+    {
+        "TagType": 7,
+        "ItemCode1": 13,
+        "ItemCode2": 7,
+        "ItemCode3": 3,
+        "TranscendItemCode1": 14,
+        "TranscendItemCode2": 9,
+        "TranscendItemCode3": 6
+    }
+]

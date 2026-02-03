@@ -1,0 +1,2702 @@
+[
+    {
+        "SlotIndex": 1,
+        "Level": 1,
+        "ReqGold": 100,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 2,
+        "ReqGold": 140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 3,
+        "ReqGold": 180,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 4,
+        "ReqGold": 220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 5,
+        "ReqGold": 260,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 6,
+        "ReqGold": 300,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 7,
+        "ReqGold": 340,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 8,
+        "ReqGold": 380,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 9,
+        "ReqGold": 420,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 10,
+        "ReqGold": 460,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 11,
+        "ReqGold": 500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 12,
+        "ReqGold": 540,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 13,
+        "ReqGold": 580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 14,
+        "ReqGold": 620,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 15,
+        "ReqGold": 660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 16,
+        "ReqGold": 700,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 17,
+        "ReqGold": 740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 18,
+        "ReqGold": 780,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 19,
+        "ReqGold": 820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 20,
+        "ReqGold": 1500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 21,
+        "ReqGold": 1580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 22,
+        "ReqGold": 1660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 23,
+        "ReqGold": 1740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 24,
+        "ReqGold": 1820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 25,
+        "ReqGold": 1900,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 26,
+        "ReqGold": 1980,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 27,
+        "ReqGold": 2060,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 28,
+        "ReqGold": 2140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 29,
+        "ReqGold": 2220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 30,
+        "ReqGold": 4000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 31,
+        "ReqGold": 4200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 32,
+        "ReqGold": 4400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 33,
+        "ReqGold": 4600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 34,
+        "ReqGold": 4800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 35,
+        "ReqGold": 5000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 36,
+        "ReqGold": 5200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 37,
+        "ReqGold": 5400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 38,
+        "ReqGold": 5600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 39,
+        "ReqGold": 5800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 40,
+        "ReqGold": 8000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 41,
+        "ReqGold": 8500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 42,
+        "ReqGold": 9000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 43,
+        "ReqGold": 9500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 44,
+        "ReqGold": 10000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 45,
+        "ReqGold": 10500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 46,
+        "ReqGold": 11000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 47,
+        "ReqGold": 11500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 48,
+        "ReqGold": 12000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 49,
+        "ReqGold": 12500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 50,
+        "ReqGold": 13000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 51,
+        "ReqGold": 13500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 52,
+        "ReqGold": 14000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 53,
+        "ReqGold": 14500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 54,
+        "ReqGold": 15000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 55,
+        "ReqGold": 15500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 56,
+        "ReqGold": 16000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 57,
+        "ReqGold": 16500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 58,
+        "ReqGold": 17000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 59,
+        "ReqGold": 17500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 60,
+        "ReqGold": 18000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 61,
+        "ReqGold": 18500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 62,
+        "ReqGold": 19000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 63,
+        "ReqGold": 19500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 64,
+        "ReqGold": 20000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 65,
+        "ReqGold": 20500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 66,
+        "ReqGold": 21000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 67,
+        "ReqGold": 21500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 68,
+        "ReqGold": 22000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 69,
+        "ReqGold": 22500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 70,
+        "ReqGold": 42500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 71,
+        "ReqGold": 45000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 72,
+        "ReqGold": 47500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 73,
+        "ReqGold": 50000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 74,
+        "ReqGold": 52500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 75,
+        "ReqGold": 55000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 76,
+        "ReqGold": 57500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 77,
+        "ReqGold": 60000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 78,
+        "ReqGold": 62500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 79,
+        "ReqGold": 65000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 80,
+        "ReqGold": 67500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 81,
+        "ReqGold": 70000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 82,
+        "ReqGold": 72500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 83,
+        "ReqGold": 75000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 84,
+        "ReqGold": 77500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 85,
+        "ReqGold": 80000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 86,
+        "ReqGold": 82500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 87,
+        "ReqGold": 85000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 88,
+        "ReqGold": 87500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 89,
+        "ReqGold": 90000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 1,
+        "Level": 90,
+        "ReqGold": 0,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 1,
+        "ReqGold": 100,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 2,
+        "ReqGold": 140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 3,
+        "ReqGold": 180,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 4,
+        "ReqGold": 220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 5,
+        "ReqGold": 260,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 6,
+        "ReqGold": 300,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 7,
+        "ReqGold": 340,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 8,
+        "ReqGold": 380,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 9,
+        "ReqGold": 420,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 10,
+        "ReqGold": 460,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 11,
+        "ReqGold": 500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 12,
+        "ReqGold": 540,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 13,
+        "ReqGold": 580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 14,
+        "ReqGold": 620,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 15,
+        "ReqGold": 660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 16,
+        "ReqGold": 700,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 17,
+        "ReqGold": 740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 18,
+        "ReqGold": 780,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 19,
+        "ReqGold": 820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 20,
+        "ReqGold": 1500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 21,
+        "ReqGold": 1580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 22,
+        "ReqGold": 1660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 23,
+        "ReqGold": 1740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 24,
+        "ReqGold": 1820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 25,
+        "ReqGold": 1900,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 26,
+        "ReqGold": 1980,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 27,
+        "ReqGold": 2060,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 28,
+        "ReqGold": 2140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 29,
+        "ReqGold": 2220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 30,
+        "ReqGold": 4000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 31,
+        "ReqGold": 4200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 32,
+        "ReqGold": 4400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 33,
+        "ReqGold": 4600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 34,
+        "ReqGold": 4800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 35,
+        "ReqGold": 5000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 36,
+        "ReqGold": 5200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 37,
+        "ReqGold": 5400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 38,
+        "ReqGold": 5600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 39,
+        "ReqGold": 5800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 40,
+        "ReqGold": 8000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 41,
+        "ReqGold": 8500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 42,
+        "ReqGold": 9000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 43,
+        "ReqGold": 9500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 44,
+        "ReqGold": 10000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 45,
+        "ReqGold": 10500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 46,
+        "ReqGold": 11000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 47,
+        "ReqGold": 11500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 48,
+        "ReqGold": 12000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 49,
+        "ReqGold": 12500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 50,
+        "ReqGold": 13000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 51,
+        "ReqGold": 13500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 52,
+        "ReqGold": 14000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 53,
+        "ReqGold": 14500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 54,
+        "ReqGold": 15000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 55,
+        "ReqGold": 15500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 56,
+        "ReqGold": 16000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 57,
+        "ReqGold": 16500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 58,
+        "ReqGold": 17000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 59,
+        "ReqGold": 17500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 60,
+        "ReqGold": 18000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 61,
+        "ReqGold": 18500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 62,
+        "ReqGold": 19000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 63,
+        "ReqGold": 19500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 64,
+        "ReqGold": 20000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 65,
+        "ReqGold": 20500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 66,
+        "ReqGold": 21000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 67,
+        "ReqGold": 21500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 68,
+        "ReqGold": 22000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 69,
+        "ReqGold": 22500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 70,
+        "ReqGold": 42500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 71,
+        "ReqGold": 45000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 72,
+        "ReqGold": 47500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 73,
+        "ReqGold": 50000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 74,
+        "ReqGold": 52500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 75,
+        "ReqGold": 55000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 76,
+        "ReqGold": 57500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 77,
+        "ReqGold": 60000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 78,
+        "ReqGold": 62500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 79,
+        "ReqGold": 65000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 80,
+        "ReqGold": 67500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 81,
+        "ReqGold": 70000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 82,
+        "ReqGold": 72500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 83,
+        "ReqGold": 75000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 84,
+        "ReqGold": 77500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 85,
+        "ReqGold": 80000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 86,
+        "ReqGold": 82500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 87,
+        "ReqGold": 85000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 88,
+        "ReqGold": 87500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 89,
+        "ReqGold": 90000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 2,
+        "Level": 90,
+        "ReqGold": 0,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 1,
+        "ReqGold": 100,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 2,
+        "ReqGold": 140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 3,
+        "ReqGold": 180,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 4,
+        "ReqGold": 220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 5,
+        "ReqGold": 260,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 6,
+        "ReqGold": 300,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 7,
+        "ReqGold": 340,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 8,
+        "ReqGold": 380,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 9,
+        "ReqGold": 420,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 10,
+        "ReqGold": 460,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 11,
+        "ReqGold": 500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 12,
+        "ReqGold": 540,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 13,
+        "ReqGold": 580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 14,
+        "ReqGold": 620,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 15,
+        "ReqGold": 660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 16,
+        "ReqGold": 700,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 17,
+        "ReqGold": 740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 18,
+        "ReqGold": 780,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 19,
+        "ReqGold": 820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 20,
+        "ReqGold": 1500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 21,
+        "ReqGold": 1580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 22,
+        "ReqGold": 1660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 23,
+        "ReqGold": 1740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 24,
+        "ReqGold": 1820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 25,
+        "ReqGold": 1900,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 26,
+        "ReqGold": 1980,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 27,
+        "ReqGold": 2060,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 28,
+        "ReqGold": 2140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 29,
+        "ReqGold": 2220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 30,
+        "ReqGold": 4000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 31,
+        "ReqGold": 4200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 32,
+        "ReqGold": 4400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 33,
+        "ReqGold": 4600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 34,
+        "ReqGold": 4800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 35,
+        "ReqGold": 5000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 36,
+        "ReqGold": 5200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 37,
+        "ReqGold": 5400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 38,
+        "ReqGold": 5600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 39,
+        "ReqGold": 5800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 40,
+        "ReqGold": 8000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 41,
+        "ReqGold": 8500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 42,
+        "ReqGold": 9000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 43,
+        "ReqGold": 9500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 44,
+        "ReqGold": 10000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 45,
+        "ReqGold": 10500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 46,
+        "ReqGold": 11000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 47,
+        "ReqGold": 11500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 48,
+        "ReqGold": 12000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 49,
+        "ReqGold": 12500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 50,
+        "ReqGold": 13000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 51,
+        "ReqGold": 13500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 52,
+        "ReqGold": 14000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 53,
+        "ReqGold": 14500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 54,
+        "ReqGold": 15000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 55,
+        "ReqGold": 15500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 56,
+        "ReqGold": 16000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 57,
+        "ReqGold": 16500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 58,
+        "ReqGold": 17000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 59,
+        "ReqGold": 17500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 60,
+        "ReqGold": 18000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 61,
+        "ReqGold": 18500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 62,
+        "ReqGold": 19000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 63,
+        "ReqGold": 19500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 64,
+        "ReqGold": 20000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 65,
+        "ReqGold": 20500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 66,
+        "ReqGold": 21000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 67,
+        "ReqGold": 21500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 68,
+        "ReqGold": 22000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 69,
+        "ReqGold": 22500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 70,
+        "ReqGold": 42500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 71,
+        "ReqGold": 45000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 72,
+        "ReqGold": 47500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 73,
+        "ReqGold": 50000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 74,
+        "ReqGold": 52500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 75,
+        "ReqGold": 55000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 76,
+        "ReqGold": 57500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 77,
+        "ReqGold": 60000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 78,
+        "ReqGold": 62500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 79,
+        "ReqGold": 65000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 80,
+        "ReqGold": 67500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 81,
+        "ReqGold": 70000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 82,
+        "ReqGold": 72500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 83,
+        "ReqGold": 75000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 84,
+        "ReqGold": 77500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 85,
+        "ReqGold": 80000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 86,
+        "ReqGold": 82500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 87,
+        "ReqGold": 85000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 88,
+        "ReqGold": 87500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 89,
+        "ReqGold": 90000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 3,
+        "Level": 90,
+        "ReqGold": 0,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 1,
+        "ReqGold": 100,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 2,
+        "ReqGold": 140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 3,
+        "ReqGold": 180,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 4,
+        "ReqGold": 220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 5,
+        "ReqGold": 260,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 6,
+        "ReqGold": 300,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 7,
+        "ReqGold": 340,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 8,
+        "ReqGold": 380,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 9,
+        "ReqGold": 420,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 10,
+        "ReqGold": 460,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 11,
+        "ReqGold": 500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 12,
+        "ReqGold": 540,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 13,
+        "ReqGold": 580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 14,
+        "ReqGold": 620,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 15,
+        "ReqGold": 660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 16,
+        "ReqGold": 700,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 17,
+        "ReqGold": 740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 18,
+        "ReqGold": 780,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 19,
+        "ReqGold": 820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 20,
+        "ReqGold": 1500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 21,
+        "ReqGold": 1580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 22,
+        "ReqGold": 1660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 23,
+        "ReqGold": 1740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 24,
+        "ReqGold": 1820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 25,
+        "ReqGold": 1900,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 26,
+        "ReqGold": 1980,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 27,
+        "ReqGold": 2060,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 28,
+        "ReqGold": 2140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 29,
+        "ReqGold": 2220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 30,
+        "ReqGold": 4000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 31,
+        "ReqGold": 4200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 32,
+        "ReqGold": 4400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 33,
+        "ReqGold": 4600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 34,
+        "ReqGold": 4800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 35,
+        "ReqGold": 5000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 36,
+        "ReqGold": 5200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 37,
+        "ReqGold": 5400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 38,
+        "ReqGold": 5600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 39,
+        "ReqGold": 5800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 40,
+        "ReqGold": 8000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 41,
+        "ReqGold": 8500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 42,
+        "ReqGold": 9000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 43,
+        "ReqGold": 9500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 44,
+        "ReqGold": 10000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 45,
+        "ReqGold": 10500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 46,
+        "ReqGold": 11000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 47,
+        "ReqGold": 11500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 48,
+        "ReqGold": 12000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 49,
+        "ReqGold": 12500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 50,
+        "ReqGold": 13000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 51,
+        "ReqGold": 13500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 52,
+        "ReqGold": 14000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 53,
+        "ReqGold": 14500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 54,
+        "ReqGold": 15000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 55,
+        "ReqGold": 15500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 56,
+        "ReqGold": 16000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 57,
+        "ReqGold": 16500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 58,
+        "ReqGold": 17000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 59,
+        "ReqGold": 17500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 60,
+        "ReqGold": 18000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 61,
+        "ReqGold": 18500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 62,
+        "ReqGold": 19000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 63,
+        "ReqGold": 19500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 64,
+        "ReqGold": 20000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 65,
+        "ReqGold": 20500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 66,
+        "ReqGold": 21000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 67,
+        "ReqGold": 21500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 68,
+        "ReqGold": 22000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 69,
+        "ReqGold": 22500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 70,
+        "ReqGold": 42500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 71,
+        "ReqGold": 45000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 72,
+        "ReqGold": 47500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 73,
+        "ReqGold": 50000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 74,
+        "ReqGold": 52500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 75,
+        "ReqGold": 55000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 76,
+        "ReqGold": 57500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 77,
+        "ReqGold": 60000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 78,
+        "ReqGold": 62500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 79,
+        "ReqGold": 65000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 80,
+        "ReqGold": 67500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 81,
+        "ReqGold": 70000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 82,
+        "ReqGold": 72500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 83,
+        "ReqGold": 75000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 84,
+        "ReqGold": 77500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 85,
+        "ReqGold": 80000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 86,
+        "ReqGold": 82500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 87,
+        "ReqGold": 85000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 88,
+        "ReqGold": 87500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 89,
+        "ReqGold": 90000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 4,
+        "Level": 90,
+        "ReqGold": 0,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 1,
+        "ReqGold": 100,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 2,
+        "ReqGold": 140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 3,
+        "ReqGold": 180,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 4,
+        "ReqGold": 220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 5,
+        "ReqGold": 260,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 6,
+        "ReqGold": 300,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 7,
+        "ReqGold": 340,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 8,
+        "ReqGold": 380,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 9,
+        "ReqGold": 420,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 10,
+        "ReqGold": 460,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 11,
+        "ReqGold": 500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 12,
+        "ReqGold": 540,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 13,
+        "ReqGold": 580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 14,
+        "ReqGold": 620,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 15,
+        "ReqGold": 660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 16,
+        "ReqGold": 700,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 17,
+        "ReqGold": 740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 18,
+        "ReqGold": 780,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 19,
+        "ReqGold": 820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 20,
+        "ReqGold": 1500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 21,
+        "ReqGold": 1580,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 22,
+        "ReqGold": 1660,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 23,
+        "ReqGold": 1740,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 24,
+        "ReqGold": 1820,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 25,
+        "ReqGold": 1900,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 26,
+        "ReqGold": 1980,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 27,
+        "ReqGold": 2060,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 28,
+        "ReqGold": 2140,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 29,
+        "ReqGold": 2220,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 30,
+        "ReqGold": 4000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 31,
+        "ReqGold": 4200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 32,
+        "ReqGold": 4400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 33,
+        "ReqGold": 4600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 34,
+        "ReqGold": 4800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 35,
+        "ReqGold": 5000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 36,
+        "ReqGold": 5200,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 37,
+        "ReqGold": 5400,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 38,
+        "ReqGold": 5600,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 39,
+        "ReqGold": 5800,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 40,
+        "ReqGold": 8000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 41,
+        "ReqGold": 8500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 42,
+        "ReqGold": 9000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 43,
+        "ReqGold": 9500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 44,
+        "ReqGold": 10000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 45,
+        "ReqGold": 10500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 46,
+        "ReqGold": 11000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 47,
+        "ReqGold": 11500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 48,
+        "ReqGold": 12000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 49,
+        "ReqGold": 12500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 50,
+        "ReqGold": 13000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 51,
+        "ReqGold": 13500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 52,
+        "ReqGold": 14000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 53,
+        "ReqGold": 14500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 54,
+        "ReqGold": 15000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 55,
+        "ReqGold": 15500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 56,
+        "ReqGold": 16000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 57,
+        "ReqGold": 16500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 58,
+        "ReqGold": 17000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 59,
+        "ReqGold": 17500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 60,
+        "ReqGold": 18000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 61,
+        "ReqGold": 18500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 62,
+        "ReqGold": 19000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 63,
+        "ReqGold": 19500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 64,
+        "ReqGold": 20000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 65,
+        "ReqGold": 20500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 66,
+        "ReqGold": 21000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 67,
+        "ReqGold": 21500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 68,
+        "ReqGold": 22000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 69,
+        "ReqGold": 22500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 70,
+        "ReqGold": 42500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 71,
+        "ReqGold": 45000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 72,
+        "ReqGold": 47500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 73,
+        "ReqGold": 50000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 74,
+        "ReqGold": 52500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 75,
+        "ReqGold": 55000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 76,
+        "ReqGold": 57500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 77,
+        "ReqGold": 60000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 78,
+        "ReqGold": 62500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 79,
+        "ReqGold": 65000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 80,
+        "ReqGold": 67500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 81,
+        "ReqGold": 70000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 82,
+        "ReqGold": 72500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 83,
+        "ReqGold": 75000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 84,
+        "ReqGold": 77500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 85,
+        "ReqGold": 80000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 86,
+        "ReqGold": 82500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 87,
+        "ReqGold": 85000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 88,
+        "ReqGold": 87500,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 89,
+        "ReqGold": 90000,
+        "ReqItemCount": 0
+    },
+    {
+        "SlotIndex": 5,
+        "Level": 90,
+        "ReqGold": 0,
+        "ReqItemCount": 0
+    }
+]

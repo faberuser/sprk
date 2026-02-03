@@ -1,0 +1,14 @@
+[
+    {
+        "PunishmentGroupIndex": 101001,
+        "RewardIndex": 0,
+        "IsAccumulate": true,
+        "DropChance": 0.0
+    },
+    {
+        "PunishmentGroupIndex": 101002,
+        "RewardIndex": 0,
+        "IsAccumulate": true,
+        "DropChance": 0.0
+    }
+]

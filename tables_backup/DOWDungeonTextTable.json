@@ -1,0 +1,422 @@
+[
+    {
+        "DungeonIndex": 20001,
+        "Diff": 1,
+        "MainRewardItemCode": 1,
+        "ClearTip": 2,
+        "MonsterTip": 3,
+        "RecommendHeroes": [
+            12,
+            26,
+            33
+        ]
+    },
+    {
+        "DungeonIndex": 20005,
+        "Diff": 5,
+        "MainRewardItemCode": 4,
+        "ClearTip": 5,
+        "MonsterTip": 6,
+        "RecommendHeroes": [
+            37,
+            23,
+            35
+        ]
+    },
+    {
+        "DungeonIndex": 20007,
+        "Diff": 1,
+        "MainRewardItemCode": 7,
+        "ClearTip": 8,
+        "MonsterTip": 9,
+        "RecommendHeroes": [
+            10,
+            29,
+            24
+        ]
+    },
+    {
+        "DungeonIndex": 20007,
+        "Diff": 2,
+        "MainRewardItemCode": 10,
+        "ClearTip": 8,
+        "MonsterTip": 9,
+        "RecommendHeroes": [
+            10,
+            29,
+            24
+        ]
+    },
+    {
+        "DungeonIndex": 20007,
+        "Diff": 3,
+        "MainRewardItemCode": 11,
+        "ClearTip": 8,
+        "MonsterTip": 9,
+        "RecommendHeroes": [
+            10,
+            29,
+            24
+        ]
+    },
+    {
+        "DungeonIndex": 20007,
+        "Diff": 4,
+        "MainRewardItemCode": 12,
+        "ClearTip": 8,
+        "MonsterTip": 9,
+        "RecommendHeroes": [
+            10,
+            29,
+            24
+        ]
+    },
+    {
+        "DungeonIndex": 20007,
+        "Diff": 5,
+        "MainRewardItemCode": 13,
+        "ClearTip": 8,
+        "MonsterTip": 9,
+        "RecommendHeroes": [
+            10,
+            29,
+            24
+        ]
+    },
+    {
+        "DungeonIndex": 20002,
+        "Diff": 1,
+        "MainRewardItemCode": 14,
+        "ClearTip": 15,
+        "MonsterTip": 16,
+        "RecommendHeroes": [
+            9,
+            13,
+            11
+        ]
+    },
+    {
+        "DungeonIndex": 20002,
+        "Diff": 2,
+        "MainRewardItemCode": 17,
+        "ClearTip": 15,
+        "MonsterTip": 16,
+        "RecommendHeroes": [
+            9,
+            13,
+            11
+        ]
+    },
+    {
+        "DungeonIndex": 20002,
+        "Diff": 3,
+        "MainRewardItemCode": 18,
+        "ClearTip": 15,
+        "MonsterTip": 16,
+        "RecommendHeroes": [
+            9,
+            13,
+            11
+        ]
+    },
+    {
+        "DungeonIndex": 20002,
+        "Diff": 4,
+        "MainRewardItemCode": 19,
+        "ClearTip": 15,
+        "MonsterTip": 16,
+        "RecommendHeroes": [
+            9,
+            13,
+            11
+        ]
+    },
+    {
+        "DungeonIndex": 20002,
+        "Diff": 5,
+        "MainRewardItemCode": 20,
+        "ClearTip": 15,
+        "MonsterTip": 16,
+        "RecommendHeroes": [
+            9,
+            13,
+            11
+        ]
+    },
+    {
+        "DungeonIndex": 20004,
+        "Diff": 1,
+        "MainRewardItemCode": 21,
+        "ClearTip": 22,
+        "MonsterTip": 23,
+        "RecommendHeroes": [
+            30,
+            8,
+            31
+        ]
+    },
+    {
+        "DungeonIndex": 20004,
+        "Diff": 2,
+        "MainRewardItemCode": 24,
+        "ClearTip": 22,
+        "MonsterTip": 23,
+        "RecommendHeroes": [
+            30,
+            8,
+            31
+        ]
+    },
+    {
+        "DungeonIndex": 20004,
+        "Diff": 3,
+        "MainRewardItemCode": 25,
+        "ClearTip": 22,
+        "MonsterTip": 23,
+        "RecommendHeroes": [
+            30,
+            8,
+            31
+        ]
+    },
+    {
+        "DungeonIndex": 20004,
+        "Diff": 4,
+        "MainRewardItemCode": 26,
+        "ClearTip": 22,
+        "MonsterTip": 23,
+        "RecommendHeroes": [
+            30,
+            8,
+            31
+        ]
+    },
+    {
+        "DungeonIndex": 20004,
+        "Diff": 5,
+        "MainRewardItemCode": 27,
+        "ClearTip": 22,
+        "MonsterTip": 23,
+        "RecommendHeroes": [
+            30,
+            8,
+            31
+        ]
+    },
+    {
+        "DungeonIndex": 20006,
+        "Diff": 1,
+        "MainRewardItemCode": 28,
+        "ClearTip": 29,
+        "MonsterTip": 30,
+        "RecommendHeroes": [
+            11,
+            5,
+            21
+        ]
+    },
+    {
+        "DungeonIndex": 20006,
+        "Diff": 2,
+        "MainRewardItemCode": 31,
+        "ClearTip": 29,
+        "MonsterTip": 30,
+        "RecommendHeroes": [
+            11,
+            5,
+            21
+        ]
+    },
+    {
+        "DungeonIndex": 20006,
+        "Diff": 3,
+        "MainRewardItemCode": 32,
+        "ClearTip": 29,
+        "MonsterTip": 30,
+        "RecommendHeroes": [
+            11,
+            5,
+            21
+        ]
+    },
+    {
+        "DungeonIndex": 20006,
+        "Diff": 4,
+        "MainRewardItemCode": 33,
+        "ClearTip": 29,
+        "MonsterTip": 30,
+        "RecommendHeroes": [
+            11,
+            5,
+            21
+        ]
+    },
+    {
+        "DungeonIndex": 20006,
+        "Diff": 5,
+        "MainRewardItemCode": 34,
+        "ClearTip": 29,
+        "MonsterTip": 30,
+        "RecommendHeroes": [
+            11,
+            5,
+            21
+        ]
+    },
+    {
+        "DungeonIndex": 20001,
+        "Diff": 2,
+        "MainRewardItemCode": 35,
+        "ClearTip": 2,
+        "MonsterTip": 3,
+        "RecommendHeroes": [
+            12,
+            26,
+            33
+        ]
+    },
+    {
+        "DungeonIndex": 20001,
+        "Diff": 3,
+        "MainRewardItemCode": 36,
+        "ClearTip": 2,
+        "MonsterTip": 3,
+        "RecommendHeroes": [
+            12,
+            26,
+            33
+        ]
+    },
+    {
+        "DungeonIndex": 20001,
+        "Diff": 4,
+        "MainRewardItemCode": 37,
+        "ClearTip": 2,
+        "MonsterTip": 3,
+        "RecommendHeroes": [
+            12,
+            26,
+            33
+        ]
+    },
+    {
+        "DungeonIndex": 20001,
+        "Diff": 5,
+        "MainRewardItemCode": 38,
+        "ClearTip": 2,
+        "MonsterTip": 3,
+        "RecommendHeroes": [
+            12,
+            26,
+            33
+        ]
+    },
+    {
+        "DungeonIndex": 20003,
+        "Diff": 1,
+        "MainRewardItemCode": 39,
+        "ClearTip": 40,
+        "MonsterTip": 41,
+        "RecommendHeroes": [
+            22,
+            4,
+            6
+        ]
+    },
+    {
+        "DungeonIndex": 20003,
+        "Diff": 2,
+        "MainRewardItemCode": 42,
+        "ClearTip": 40,
+        "MonsterTip": 41,
+        "RecommendHeroes": [
+            22,
+            4,
+            6
+        ]
+    },
+    {
+        "DungeonIndex": 20003,
+        "Diff": 3,
+        "MainRewardItemCode": 43,
+        "ClearTip": 40,
+        "MonsterTip": 41,
+        "RecommendHeroes": [
+            22,
+            4,
+            6
+        ]
+    },
+    {
+        "DungeonIndex": 20003,
+        "Diff": 4,
+        "MainRewardItemCode": 44,
+        "ClearTip": 40,
+        "MonsterTip": 41,
+        "RecommendHeroes": [
+            22,
+            4,
+            6
+        ]
+    },
+    {
+        "DungeonIndex": 20003,
+        "Diff": 5,
+        "MainRewardItemCode": 45,
+        "ClearTip": 40,
+        "MonsterTip": 41,
+        "RecommendHeroes": [
+            22,
+            4,
+            6
+        ]
+    },
+    {
+        "DungeonIndex": 20005,
+        "Diff": 1,
+        "MainRewardItemCode": 46,
+        "ClearTip": 5,
+        "MonsterTip": 6,
+        "RecommendHeroes": [
+            37,
+            23,
+            35
+        ]
+    },
+    {
+        "DungeonIndex": 20005,
+        "Diff": 2,
+        "MainRewardItemCode": 47,
+        "ClearTip": 5,
+        "MonsterTip": 6,
+        "RecommendHeroes": [
+            37,
+            23,
+            35
+        ]
+    },
+    {
+        "DungeonIndex": 20005,
+        "Diff": 3,
+        "MainRewardItemCode": 48,
+        "ClearTip": 5,
+        "MonsterTip": 6,
+        "RecommendHeroes": [
+            37,
+            23,
+            35
+        ]
+    },
+    {
+        "DungeonIndex": 20005,
+        "Diff": 4,
+        "MainRewardItemCode": 49,
+        "ClearTip": 5,
+        "MonsterTip": 6,
+        "RecommendHeroes": [
+            37,
+            23,
+            35
+        ]
+    }
+]

@@ -1,0 +1,902 @@
+[
+    {
+        "Index": 1,
+        "DeckName": 1,
+        "RouletteDeckName": 2,
+        "Hero1": 106701,
+        "Hero2": 103401,
+        "Hero3": 106201,
+        "Hero4": 107301
+    },
+    {
+        "Index": 2,
+        "DeckName": 3,
+        "RouletteDeckName": 4,
+        "Hero1": 106301,
+        "Hero2": 106501,
+        "Hero3": 103601,
+        "Hero4": 101501
+    },
+    {
+        "Index": 3,
+        "DeckName": 5,
+        "RouletteDeckName": 6,
+        "Hero1": 100101,
+        "Hero2": 100201,
+        "Hero3": 100301,
+        "Hero4": 100401
+    },
+    {
+        "Index": 4,
+        "DeckName": 7,
+        "RouletteDeckName": 8,
+        "Hero1": 109301,
+        "Hero2": 107301,
+        "Hero3": 102001,
+        "Hero4": 106201
+    },
+    {
+        "Index": 5,
+        "DeckName": 9,
+        "RouletteDeckName": 10,
+        "Hero1": 103601,
+        "Hero2": 100601,
+        "Hero3": 100501,
+        "Hero4": 103301
+    },
+    {
+        "Index": 6,
+        "DeckName": 11,
+        "RouletteDeckName": 12,
+        "Hero1": 101601,
+        "Hero2": 104201,
+        "Hero3": 107101,
+        "Hero4": 105001
+    },
+    {
+        "Index": 7,
+        "DeckName": 13,
+        "RouletteDeckName": 14,
+        "Hero1": 105401,
+        "Hero2": 105701,
+        "Hero3": 102901,
+        "Hero4": 102701
+    },
+    {
+        "Index": 8,
+        "DeckName": 15,
+        "RouletteDeckName": 16,
+        "Hero1": 102501,
+        "Hero2": 104001,
+        "Hero3": 100901,
+        "Hero4": 103801
+    },
+    {
+        "Index": 9,
+        "DeckName": 17,
+        "RouletteDeckName": 18,
+        "Hero1": 109301,
+        "Hero2": 109101,
+        "Hero3": 109001,
+        "Hero4": 109201
+    },
+    {
+        "Index": 10,
+        "DeckName": 19,
+        "RouletteDeckName": 20,
+        "Hero1": 101701,
+        "Hero2": 103801,
+        "Hero3": 106101,
+        "Hero4": 105201
+    },
+    {
+        "Index": 11,
+        "DeckName": 21,
+        "RouletteDeckName": 22,
+        "Hero1": 106301,
+        "Hero2": 100301,
+        "Hero3": 102601,
+        "Hero4": 107901
+    },
+    {
+        "Index": 12,
+        "DeckName": 23,
+        "RouletteDeckName": 24,
+        "Hero1": 102301,
+        "Hero2": 104301,
+        "Hero3": 100901,
+        "Hero4": 105301
+    },
+    {
+        "Index": 13,
+        "DeckName": 25,
+        "RouletteDeckName": 26,
+        "Hero1": 100501,
+        "Hero2": 102201,
+        "Hero3": 103201,
+        "Hero4": 101901
+    },
+    {
+        "Index": 14,
+        "DeckName": 27,
+        "RouletteDeckName": 28,
+        "Hero1": 105201,
+        "Hero2": 103501,
+        "Hero3": 107301,
+        "Hero4": 104001
+    },
+    {
+        "Index": 15,
+        "DeckName": 29,
+        "RouletteDeckName": 30,
+        "Hero1": 101301,
+        "Hero2": 101001,
+        "Hero3": 102101,
+        "Hero4": 101601
+    },
+    {
+        "Index": 16,
+        "DeckName": 31,
+        "RouletteDeckName": 32,
+        "Hero1": 100601,
+        "Hero2": 101201,
+        "Hero3": 101801,
+        "Hero4": 105801
+    },
+    {
+        "Index": 17,
+        "DeckName": 33,
+        "RouletteDeckName": 34,
+        "Hero1": 103001,
+        "Hero2": 105701,
+        "Hero3": 106101,
+        "Hero4": 109801
+    },
+    {
+        "Index": 18,
+        "DeckName": 35,
+        "RouletteDeckName": 36,
+        "Hero1": 100401,
+        "Hero2": 103701,
+        "Hero3": 102801,
+        "Hero4": 105601
+    },
+    {
+        "Index": 19,
+        "DeckName": 37,
+        "RouletteDeckName": 38,
+        "Hero1": 102401,
+        "Hero2": 103901,
+        "Hero3": 106601,
+        "Hero4": 109401
+    },
+    {
+        "Index": 20,
+        "DeckName": 39,
+        "RouletteDeckName": 40,
+        "Hero1": 104501,
+        "Hero2": 100601,
+        "Hero3": 104301,
+        "Hero4": 103801
+    },
+    {
+        "Index": 21,
+        "DeckName": 41,
+        "RouletteDeckName": 42,
+        "Hero1": 105101,
+        "Hero2": 103101,
+        "Hero3": 102101,
+        "Hero4": 100901
+    },
+    {
+        "Index": 22,
+        "DeckName": 43,
+        "RouletteDeckName": 44,
+        "Hero1": 106401,
+        "Hero2": 104901,
+        "Hero3": 102601,
+        "Hero4": 100301
+    },
+    {
+        "Index": 23,
+        "DeckName": 45,
+        "RouletteDeckName": 46,
+        "Hero1": 103001,
+        "Hero2": 105701,
+        "Hero3": 105501,
+        "Hero4": 105601
+    },
+    {
+        "Index": 24,
+        "DeckName": 47,
+        "RouletteDeckName": 48,
+        "Hero1": 100201,
+        "Hero2": 105901,
+        "Hero3": 102401,
+        "Hero4": 103601
+    },
+    {
+        "Index": 25,
+        "DeckName": 49,
+        "RouletteDeckName": 50,
+        "Hero1": 106001,
+        "Hero2": 101501,
+        "Hero3": 102801,
+        "Hero4": 102001
+    },
+    {
+        "Index": 26,
+        "DeckName": 51,
+        "RouletteDeckName": 52,
+        "Hero1": 102301,
+        "Hero2": 107501,
+        "Hero3": 100801,
+        "Hero4": 101701
+    },
+    {
+        "Index": 27,
+        "DeckName": 53,
+        "RouletteDeckName": 54,
+        "Hero1": 105201,
+        "Hero2": 103501,
+        "Hero3": 107201,
+        "Hero4": 107401
+    },
+    {
+        "Index": 28,
+        "DeckName": 55,
+        "RouletteDeckName": 56,
+        "Hero1": 106001,
+        "Hero2": 102801,
+        "Hero3": 108701,
+        "Hero4": 107201
+    },
+    {
+        "Index": 29,
+        "DeckName": 57,
+        "RouletteDeckName": 58,
+        "Hero1": 109701,
+        "Hero2": 102201,
+        "Hero3": 103501,
+        "Hero4": 100701
+    },
+    {
+        "Index": 30,
+        "DeckName": 59,
+        "RouletteDeckName": 60,
+        "Hero1": 105501,
+        "Hero2": 103201,
+        "Hero3": 104601,
+        "Hero4": 105801
+    },
+    {
+        "Index": 31,
+        "DeckName": 61,
+        "RouletteDeckName": 62,
+        "Hero1": 109801,
+        "Hero2": 104601,
+        "Hero3": 105801,
+        "Hero4": 103001
+    },
+    {
+        "Index": 32,
+        "DeckName": 63,
+        "RouletteDeckName": 64,
+        "Hero1": 101101,
+        "Hero2": 100601,
+        "Hero3": 101301,
+        "Hero4": 103201
+    },
+    {
+        "Index": 33,
+        "DeckName": 65,
+        "RouletteDeckName": 66,
+        "Hero1": 105201,
+        "Hero2": 103501,
+        "Hero3": 102801,
+        "Hero4": 106001
+    },
+    {
+        "Index": 34,
+        "DeckName": 67,
+        "RouletteDeckName": 68,
+        "Hero1": 101601,
+        "Hero2": 104201,
+        "Hero3": 102501,
+        "Hero4": 103301
+    },
+    {
+        "Index": 35,
+        "DeckName": 69,
+        "RouletteDeckName": 70,
+        "Hero1": 104401,
+        "Hero2": 102601,
+        "Hero3": 101501,
+        "Hero4": 102001
+    },
+    {
+        "Index": 36,
+        "DeckName": 71,
+        "RouletteDeckName": 72,
+        "Hero1": 101701,
+        "Hero2": 101101,
+        "Hero3": 102301,
+        "Hero4": 101001
+    },
+    {
+        "Index": 37,
+        "DeckName": 73,
+        "RouletteDeckName": 74,
+        "Hero1": 104301,
+        "Hero2": 100801,
+        "Hero3": 103801,
+        "Hero4": 102101
+    },
+    {
+        "Index": 38,
+        "DeckName": 75,
+        "RouletteDeckName": 76,
+        "Hero1": 104901,
+        "Hero2": 106601,
+        "Hero3": 103501,
+        "Hero4": 102701
+    },
+    {
+        "Index": 39,
+        "DeckName": 77,
+        "RouletteDeckName": 78,
+        "Hero1": 104801,
+        "Hero2": 102701,
+        "Hero3": 109401,
+        "Hero4": 106601
+    },
+    {
+        "Index": 40,
+        "DeckName": 79,
+        "RouletteDeckName": 80,
+        "Hero1": 103602,
+        "Hero2": 109502,
+        "Hero3": 106302,
+        "Hero4": 103302
+    },
+    {
+        "Index": 41,
+        "DeckName": 81,
+        "RouletteDeckName": 82,
+        "Hero1": 108401,
+        "Hero2": 108501,
+        "Hero3": 108601,
+        "Hero4": 110001
+    },
+    {
+        "Index": 42,
+        "DeckName": 83,
+        "RouletteDeckName": 84,
+        "Hero1": 109801,
+        "Hero2": 103001,
+        "Hero3": 108001,
+        "Hero4": 107701
+    },
+    {
+        "Index": 43,
+        "DeckName": 85,
+        "RouletteDeckName": 86,
+        "Hero1": 108101,
+        "Hero2": 108301,
+        "Hero3": 102301,
+        "Hero4": 101101
+    },
+    {
+        "Index": 44,
+        "DeckName": 87,
+        "RouletteDeckName": 88,
+        "Hero1": 108801,
+        "Hero2": 108901,
+        "Hero3": 107801,
+        "Hero4": 101801
+    },
+    {
+        "Index": 45,
+        "DeckName": 89,
+        "RouletteDeckName": 90,
+        "Hero1": 102901,
+        "Hero2": 107601,
+        "Hero3": 105001,
+        "Hero4": 106801
+    },
+    {
+        "Index": 46,
+        "DeckName": 91,
+        "RouletteDeckName": 92,
+        "Hero1": 100601,
+        "Hero2": 100501,
+        "Hero3": 103601,
+        "Hero4": 107301
+    },
+    {
+        "Index": 47,
+        "DeckName": 93,
+        "RouletteDeckName": 94,
+        "Hero1": 107801,
+        "Hero2": 104301,
+        "Hero3": 108001,
+        "Hero4": 105601
+    },
+    {
+        "Index": 48,
+        "DeckName": 95,
+        "RouletteDeckName": 96,
+        "Hero1": 107801,
+        "Hero2": 101801,
+        "Hero3": 108701,
+        "Hero4": 102801
+    },
+    {
+        "Index": 49,
+        "DeckName": 97,
+        "RouletteDeckName": 98,
+        "Hero1": 109901,
+        "Hero2": 103901,
+        "Hero3": 109001,
+        "Hero4": 105001
+    },
+    {
+        "Index": 50,
+        "DeckName": 99,
+        "RouletteDeckName": 100,
+        "Hero1": 108801,
+        "Hero2": 108901,
+        "Hero3": 102601,
+        "Hero4": 104401
+    },
+    {
+        "Index": 51,
+        "DeckName": 101,
+        "RouletteDeckName": 102,
+        "Hero1": 108201,
+        "Hero2": 100301,
+        "Hero3": 104901,
+        "Hero4": 101201
+    },
+    {
+        "Index": 52,
+        "DeckName": 103,
+        "RouletteDeckName": 104,
+        "Hero1": 105201,
+        "Hero2": 106701,
+        "Hero3": 108301,
+        "Hero4": 108101
+    },
+    {
+        "Index": 53,
+        "DeckName": 105,
+        "RouletteDeckName": 106,
+        "Hero1": 107001,
+        "Hero2": 109101,
+        "Hero3": 102101,
+        "Hero4": 106301
+    },
+    {
+        "Index": 54,
+        "DeckName": 107,
+        "RouletteDeckName": 108,
+        "Hero1": 101101,
+        "Hero2": 108301,
+        "Hero3": 108401,
+        "Hero4": 108501
+    },
+    {
+        "Index": 55,
+        "DeckName": 109,
+        "RouletteDeckName": 110,
+        "Hero1": 102901,
+        "Hero2": 103001,
+        "Hero3": 104201,
+        "Hero4": 108101
+    },
+    {
+        "Index": 56,
+        "DeckName": 111,
+        "RouletteDeckName": 112,
+        "Hero1": 108401,
+        "Hero2": 108501,
+        "Hero3": 102602,
+        "Hero4": 106502
+    },
+    {
+        "Index": 57,
+        "DeckName": 113,
+        "RouletteDeckName": 114,
+        "Hero1": 108401,
+        "Hero2": 108501,
+        "Hero3": 100101,
+        "Hero4": 100201
+    },
+    {
+        "Index": 58,
+        "DeckName": 115,
+        "RouletteDeckName": 116,
+        "Hero1": 106301,
+        "Hero2": 106101,
+        "Hero3": 100801,
+        "Hero4": 104001
+    },
+    {
+        "Index": 59,
+        "DeckName": 117,
+        "RouletteDeckName": 118,
+        "Hero1": 106301,
+        "Hero2": 104801,
+        "Hero3": 109001,
+        "Hero4": 101801
+    },
+    {
+        "Index": 60,
+        "DeckName": 119,
+        "RouletteDeckName": 120,
+        "Hero1": 102701,
+        "Hero2": 103401,
+        "Hero3": 107501,
+        "Hero4": 109201
+    },
+    {
+        "Index": 61,
+        "DeckName": 121,
+        "RouletteDeckName": 122,
+        "Hero1": 106701,
+        "Hero2": 109801,
+        "Hero3": 108001,
+        "Hero4": 103001
+    },
+    {
+        "Index": 62,
+        "DeckName": 123,
+        "RouletteDeckName": 124,
+        "Hero1": 102801,
+        "Hero2": 105001,
+        "Hero3": 101001,
+        "Hero4": 103901
+    },
+    {
+        "Index": 63,
+        "DeckName": 125,
+        "RouletteDeckName": 126,
+        "Hero1": 100601,
+        "Hero2": 108701,
+        "Hero3": 101501,
+        "Hero4": 102001
+    },
+    {
+        "Index": 64,
+        "DeckName": 127,
+        "RouletteDeckName": 128,
+        "Hero1": 107101,
+        "Hero2": 110001,
+        "Hero3": 104501,
+        "Hero4": 103601
+    },
+    {
+        "Index": 65,
+        "DeckName": 129,
+        "RouletteDeckName": 130,
+        "Hero1": 107001,
+        "Hero2": 106801,
+        "Hero3": 109101,
+        "Hero4": 102101
+    },
+    {
+        "Index": 66,
+        "DeckName": 131,
+        "RouletteDeckName": 132,
+        "Hero1": 102301,
+        "Hero2": 109601,
+        "Hero3": 105101,
+        "Hero4": 106101
+    },
+    {
+        "Index": 67,
+        "DeckName": 133,
+        "RouletteDeckName": 134,
+        "Hero1": 102601,
+        "Hero2": 105201,
+        "Hero3": 106001,
+        "Hero4": 106701
+    },
+    {
+        "Index": 68,
+        "DeckName": 135,
+        "RouletteDeckName": 136,
+        "Hero1": 102101,
+        "Hero2": 107001,
+        "Hero3": 106001,
+        "Hero4": 102501
+    },
+    {
+        "Index": 69,
+        "DeckName": 137,
+        "RouletteDeckName": 138,
+        "Hero1": 100201,
+        "Hero2": 105901,
+        "Hero3": 103101,
+        "Hero4": 105101
+    },
+    {
+        "Index": 70,
+        "DeckName": 139,
+        "RouletteDeckName": 140,
+        "Hero1": 101901,
+        "Hero2": 101301,
+        "Hero3": 108601,
+        "Hero4": 101201
+    },
+    {
+        "Index": 71,
+        "DeckName": 141,
+        "RouletteDeckName": 142,
+        "Hero1": 107301,
+        "Hero2": 102501,
+        "Hero3": 105601,
+        "Hero4": 103101
+    },
+    {
+        "Index": 72,
+        "DeckName": 143,
+        "RouletteDeckName": 144,
+        "Hero1": 109401,
+        "Hero2": 109801,
+        "Hero3": 106001,
+        "Hero4": 106701
+    },
+    {
+        "Index": 73,
+        "DeckName": 145,
+        "RouletteDeckName": 146,
+        "Hero1": 100601,
+        "Hero2": 100801,
+        "Hero3": 100701,
+        "Hero4": 107501
+    },
+    {
+        "Index": 74,
+        "DeckName": 147,
+        "RouletteDeckName": 148,
+        "Hero1": 100901,
+        "Hero2": 102801,
+        "Hero3": 107401,
+        "Hero4": 103701
+    },
+    {
+        "Index": 75,
+        "DeckName": 149,
+        "RouletteDeckName": 150,
+        "Hero1": 102701,
+        "Hero2": 109401,
+        "Hero3": 104101,
+        "Hero4": 105901
+    },
+    {
+        "Index": 76,
+        "DeckName": 151,
+        "RouletteDeckName": 152,
+        "Hero1": 107201,
+        "Hero2": 103501,
+        "Hero3": 105601,
+        "Hero4": 104101
+    },
+    {
+        "Index": 77,
+        "DeckName": 153,
+        "RouletteDeckName": 154,
+        "Hero1": 106201,
+        "Hero2": 104601,
+        "Hero3": 101001,
+        "Hero4": 100101
+    },
+    {
+        "Index": 78,
+        "DeckName": 155,
+        "RouletteDeckName": 156,
+        "Hero1": 106601,
+        "Hero2": 107301,
+        "Hero3": 106401,
+        "Hero4": 106501
+    },
+    {
+        "Index": 79,
+        "DeckName": 157,
+        "RouletteDeckName": 158,
+        "Hero1": 109701,
+        "Hero2": 107101,
+        "Hero3": 105401,
+        "Hero4": 104001
+    },
+    {
+        "Index": 80,
+        "DeckName": 159,
+        "RouletteDeckName": 160,
+        "Hero1": 110001,
+        "Hero2": 103801,
+        "Hero3": 103601,
+        "Hero4": 107001
+    },
+    {
+        "Index": 81,
+        "DeckName": 161,
+        "RouletteDeckName": 162,
+        "Hero1": 106101,
+        "Hero2": 103001,
+        "Hero3": 105701,
+        "Hero4": 104501
+    },
+    {
+        "Index": 82,
+        "DeckName": 163,
+        "RouletteDeckName": 164,
+        "Hero1": 109801,
+        "Hero2": 108001,
+        "Hero3": 105601,
+        "Hero4": 105501
+    },
+    {
+        "Index": 83,
+        "DeckName": 165,
+        "RouletteDeckName": 166,
+        "Hero1": 103001,
+        "Hero2": 100301,
+        "Hero3": 102101,
+        "Hero4": 100601
+    },
+    {
+        "Index": 84,
+        "DeckName": 167,
+        "RouletteDeckName": 168,
+        "Hero1": 100201,
+        "Hero2": 102401,
+        "Hero3": 103001,
+        "Hero4": 109401
+    },
+    {
+        "Index": 85,
+        "DeckName": 169,
+        "RouletteDeckName": 170,
+        "Hero1": 109801,
+        "Hero2": 100601,
+        "Hero3": 108401,
+        "Hero4": 106401
+    },
+    {
+        "Index": 86,
+        "DeckName": 171,
+        "RouletteDeckName": 172,
+        "Hero1": 110001,
+        "Hero2": 108601,
+        "Hero3": 105101,
+        "Hero4": 103101
+    },
+    {
+        "Index": 87,
+        "DeckName": 173,
+        "RouletteDeckName": 174,
+        "Hero1": 107601,
+        "Hero2": 103601,
+        "Hero3": 104101,
+        "Hero4": 104501
+    },
+    {
+        "Index": 88,
+        "DeckName": 175,
+        "RouletteDeckName": 176,
+        "Hero1": 104801,
+        "Hero2": 109401,
+        "Hero3": 105701,
+        "Hero4": 105401
+    },
+    {
+        "Index": 89,
+        "DeckName": 177,
+        "RouletteDeckName": 178,
+        "Hero1": 108901,
+        "Hero2": 105401,
+        "Hero3": 102501,
+        "Hero4": 108101
+    },
+    {
+        "Index": 90,
+        "DeckName": 179,
+        "RouletteDeckName": 180,
+        "Hero1": 100301,
+        "Hero2": 106401,
+        "Hero3": 104601,
+        "Hero4": 103301
+    },
+    {
+        "Index": 91,
+        "DeckName": 181,
+        "RouletteDeckName": 182,
+        "Hero1": 101101,
+        "Hero2": 107701,
+        "Hero3": 105301,
+        "Hero4": 108201
+    },
+    {
+        "Index": 92,
+        "DeckName": 183,
+        "RouletteDeckName": 184,
+        "Hero1": 103901,
+        "Hero2": 106601,
+        "Hero3": 102701,
+        "Hero4": 101101
+    },
+    {
+        "Index": 93,
+        "DeckName": 185,
+        "RouletteDeckName": 186,
+        "Hero1": 103301,
+        "Hero2": 104301,
+        "Hero3": 105901,
+        "Hero4": 106701
+    },
+    {
+        "Index": 94,
+        "DeckName": 187,
+        "RouletteDeckName": 188,
+        "Hero1": 109301,
+        "Hero2": 108701,
+        "Hero3": 106001,
+        "Hero4": 105201
+    },
+    {
+        "Index": 95,
+        "DeckName": 189,
+        "RouletteDeckName": 190,
+        "Hero1": 100901,
+        "Hero2": 110001,
+        "Hero3": 108601,
+        "Hero4": 105301
+    },
+    {
+        "Index": 96,
+        "DeckName": 191,
+        "RouletteDeckName": 192,
+        "Hero1": 107701,
+        "Hero2": 105301,
+        "Hero3": 108801,
+        "Hero4": 108901
+    },
+    {
+        "Index": 97,
+        "DeckName": 193,
+        "RouletteDeckName": 194,
+        "Hero1": 104001,
+        "Hero2": 108301,
+        "Hero3": 105201,
+        "Hero4": 108101
+    },
+    {
+        "Index": 98,
+        "DeckName": 195,
+        "RouletteDeckName": 196,
+        "Hero1": 100701,
+        "Hero2": 109001,
+        "Hero3": 104101,
+        "Hero4": 107401
+    },
+    {
+        "Index": 99,
+        "DeckName": 197,
+        "RouletteDeckName": 198,
+        "Hero1": 102401,
+        "Hero2": 103301,
+        "Hero3": 103601,
+        "Hero4": 100501
+    },
+    {
+        "Index": 100,
+        "DeckName": 199,
+        "RouletteDeckName": 200,
+        "Hero1": 103603,
+        "Hero2": 103502,
+        "Hero3": 101602,
+        "Hero4": 106503
+    }
+]

@@ -1,0 +1,128 @@
+[
+    {
+        "LineIndex": 1,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            3,
+            4
+        ],
+        "CostumeIndex": 101501,
+        "StartNode": 0,
+        "PairCostumeIndex": 0,
+        "PairStartNode": 0,
+        "PairStatus": 0,
+        "CenterPopupKey": 0,
+        "PairEffectType": 0
+    },
+    {
+        "LineIndex": 6,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            5,
+            4
+        ],
+        "CostumeIndex": 4010,
+        "StartNode": 31,
+        "PairCostumeIndex": 0,
+        "PairStartNode": 0,
+        "PairStatus": 0,
+        "CenterPopupKey": 0,
+        "PairEffectType": 0
+    },
+    {
+        "LineIndex": 7,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            6,
+            4
+        ],
+        "CostumeIndex": 8205,
+        "StartNode": 40,
+        "PairCostumeIndex": 0,
+        "PairStartNode": 0,
+        "PairStatus": 0,
+        "CenterPopupKey": 0,
+        "PairEffectType": 0
+    },
+    {
+        "LineIndex": 2,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            7,
+            4
+        ],
+        "CostumeIndex": 5205,
+        "StartNode": 9,
+        "PairCostumeIndex": 101501,
+        "PairStartNode": 12,
+        "PairStatus": 8,
+        "CenterPopupKey": 0,
+        "PairEffectType": 0
+    },
+    {
+        "LineIndex": 3,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            9,
+            4
+        ],
+        "CostumeIndex": 5205,
+        "StartNode": 12,
+        "PairCostumeIndex": 101501,
+        "PairStartNode": 0,
+        "PairStatus": 0,
+        "CenterPopupKey": 10,
+        "PairEffectType": 1
+    },
+    {
+        "LineIndex": 4,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            11,
+            4
+        ],
+        "CostumeIndex": 5205,
+        "StartNode": 0,
+        "PairCostumeIndex": 101501,
+        "PairStartNode": 16,
+        "PairStatus": 8,
+        "CenterPopupKey": 12,
+        "PairEffectType": 3
+    },
+    {
+        "LineIndex": 5,
+        "ChapterIndex": 10,
+        "Opened": true,
+        "NextStartCondition": [
+            1,
+            2,
+            13,
+            4
+        ],
+        "CostumeIndex": 101501,
+        "StartNode": 24,
+        "PairCostumeIndex": 5205,
+        "PairStartNode": 23,
+        "PairStatus": 8,
+        "CenterPopupKey": 0,
+        "PairEffectType": 0
+    }
+]

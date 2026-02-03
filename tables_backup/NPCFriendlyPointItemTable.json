@@ -1,0 +1,661 @@
+[
+    {
+        "ItemCode": 1,
+        "HeroIndices": [
+            90
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 2,
+        "HeroIndices": [
+            97
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 3,
+        "HeroIndices": [
+            97
+        ],
+        "FriendlyPoint": 5000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 4,
+        "HeroIndices": [
+            841
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 5,
+        "HeroIndices": [
+            1
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 6,
+        "HeroIndices": [
+            111
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 7,
+        "HeroIndices": [
+            92
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 8,
+        "HeroIndices": [
+            111
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 9,
+        "HeroIndices": [
+            111
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 10,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102,
+            111
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 11,
+        "HeroIndices": [
+            111
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 12,
+        "HeroIndices": [
+            80
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 13,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102,
+            111
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 14,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102
+        ],
+        "FriendlyPoint": 500,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 15,
+        "HeroIndices": [
+            94
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 16,
+        "HeroIndices": [
+            825
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 17,
+        "HeroIndices": [
+            827
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 18,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96
+        ],
+        "FriendlyPoint": 400,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 19,
+        "HeroIndices": [
+            823
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 20,
+        "HeroIndices": [
+            98
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 21,
+        "HeroIndices": [
+            815
+        ],
+        "FriendlyPoint": 70,
+        "EventGiftPoint": 50
+    },
+    {
+        "ItemCode": 22,
+        "HeroIndices": [
+            846
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 23,
+        "HeroIndices": [
+            835
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 24,
+        "HeroIndices": [
+            815
+        ],
+        "FriendlyPoint": 25,
+        "EventGiftPoint": 35
+    },
+    {
+        "ItemCode": 25,
+        "HeroIndices": [
+            839
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 26,
+        "HeroIndices": [
+            815
+        ],
+        "FriendlyPoint": 50,
+        "EventGiftPoint": 10
+    },
+    {
+        "ItemCode": 27,
+        "HeroIndices": [
+            96
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 28,
+        "HeroIndices": [
+            96
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 29,
+        "HeroIndices": [
+            96
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 30,
+        "HeroIndices": [
+            831
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 31,
+        "HeroIndices": [
+            96
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 32,
+        "HeroIndices": [
+            94
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 33,
+        "HeroIndices": [
+            1
+        ],
+        "FriendlyPoint": 30,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 34,
+        "HeroIndices": [
+            99
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 35,
+        "HeroIndices": [
+            92
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 36,
+        "HeroIndices": [
+            1
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 37,
+        "HeroIndices": [
+            99
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 38,
+        "HeroIndices": [
+            99
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 39,
+        "HeroIndices": [
+            99
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 40,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102,
+            111
+        ],
+        "FriendlyPoint": 1500,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 41,
+        "HeroIndices": [
+            95
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 42,
+        "HeroIndices": [
+            95
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 43,
+        "HeroIndices": [
+            95
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 44,
+        "HeroIndices": [
+            95
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 45,
+        "HeroIndices": [
+            90
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 46,
+        "HeroIndices": [
+            90
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 47,
+        "HeroIndices": [
+            90
+        ],
+        "FriendlyPoint": 1500,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 48,
+        "HeroIndices": [
+            98
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 49,
+        "HeroIndices": [
+            98
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 50,
+        "HeroIndices": [
+            838
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 51,
+        "HeroIndices": [
+            805
+        ],
+        "FriendlyPoint": 4,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 52,
+        "HeroIndices": [
+            98
+        ],
+        "FriendlyPoint": 10000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 53,
+        "HeroIndices": [
+            824
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 54,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96
+        ],
+        "FriendlyPoint": 400,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 55,
+        "HeroIndices": [
+            805
+        ],
+        "FriendlyPoint": 550,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 56,
+        "HeroIndices": [
+            94
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 57,
+        "HeroIndices": [
+            837
+        ],
+        "FriendlyPoint": 1,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 58,
+        "HeroIndices": [
+            92
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 59,
+        "HeroIndices": [
+            1
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 60,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102,
+            111
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 61,
+        "HeroIndices": [
+            93
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 62,
+        "HeroIndices": [
+            93
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 63,
+        "HeroIndices": [
+            91
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 64,
+        "HeroIndices": [
+            93
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 65,
+        "HeroIndices": [
+            91
+        ],
+        "FriendlyPoint": 10,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 66,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            102,
+            111
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 67,
+        "HeroIndices": [
+            91
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 68,
+        "HeroIndices": [
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96
+        ],
+        "FriendlyPoint": 400,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 69,
+        "HeroIndices": [
+            93
+        ],
+        "FriendlyPoint": 1000,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 70,
+        "HeroIndices": [
+            97
+        ],
+        "FriendlyPoint": 5,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 71,
+        "HeroIndices": [
+            91
+        ],
+        "FriendlyPoint": 1500,
+        "EventGiftPoint": 0
+    },
+    {
+        "ItemCode": 72,
+        "HeroIndices": [
+            97
+        ],
+        "FriendlyPoint": 100,
+        "EventGiftPoint": 0
+    }
+]

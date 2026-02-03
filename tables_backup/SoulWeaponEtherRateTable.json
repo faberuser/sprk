@@ -1,0 +1,312 @@
+[
+    {
+        "ReinforceLevel": 0,
+        "ItemCode": 1,
+        "AddedBonusRate": 2000
+    },
+    {
+        "ReinforceLevel": 9,
+        "ItemCode": 2,
+        "AddedBonusRate": 564
+    },
+    {
+        "ReinforceLevel": 8,
+        "ItemCode": 3,
+        "AddedBonusRate": 2380
+    },
+    {
+        "ReinforceLevel": 11,
+        "ItemCode": 4,
+        "AddedBonusRate": 590
+    },
+    {
+        "ReinforceLevel": 4,
+        "ItemCode": 1,
+        "AddedBonusRate": 770
+    },
+    {
+        "ReinforceLevel": 0,
+        "ItemCode": 2,
+        "AddedBonusRate": 6000
+    },
+    {
+        "ReinforceLevel": 13,
+        "ItemCode": 2,
+        "AddedBonusRate": 222
+    },
+    {
+        "ReinforceLevel": 2,
+        "ItemCode": 4,
+        "AddedBonusRate": 6100
+    },
+    {
+        "ReinforceLevel": 12,
+        "ItemCode": 3,
+        "AddedBonusRate": 940
+    },
+    {
+        "ReinforceLevel": 15,
+        "ItemCode": 4,
+        "AddedBonusRate": 240
+    },
+    {
+        "ReinforceLevel": 8,
+        "ItemCode": 1,
+        "AddedBonusRate": 238
+    },
+    {
+        "ReinforceLevel": 4,
+        "ItemCode": 2,
+        "AddedBonusRate": 2310
+    },
+    {
+        "ReinforceLevel": 3,
+        "ItemCode": 3,
+        "AddedBonusRate": 9620
+    },
+    {
+        "ReinforceLevel": 6,
+        "ItemCode": 4,
+        "AddedBonusRate": 2065
+    },
+    {
+        "ReinforceLevel": 16,
+        "ItemCode": 3,
+        "AddedBonusRate": 370
+    },
+    {
+        "ReinforceLevel": 8,
+        "ItemCode": 2,
+        "AddedBonusRate": 714
+    },
+    {
+        "ReinforceLevel": 7,
+        "ItemCode": 3,
+        "AddedBonusRate": 3020
+    },
+    {
+        "ReinforceLevel": 10,
+        "ItemCode": 4,
+        "AddedBonusRate": 745
+    },
+    {
+        "ReinforceLevel": 3,
+        "ItemCode": 1,
+        "AddedBonusRate": 962
+    },
+    {
+        "ReinforceLevel": 12,
+        "ItemCode": 2,
+        "AddedBonusRate": 282
+    },
+    {
+        "ReinforceLevel": 1,
+        "ItemCode": 4,
+        "AddedBonusRate": 7815
+    },
+    {
+        "ReinforceLevel": 11,
+        "ItemCode": 3,
+        "AddedBonusRate": 1180
+    },
+    {
+        "ReinforceLevel": 14,
+        "ItemCode": 4,
+        "AddedBonusRate": 296
+    },
+    {
+        "ReinforceLevel": 7,
+        "ItemCode": 1,
+        "AddedBonusRate": 302
+    },
+    {
+        "ReinforceLevel": 3,
+        "ItemCode": 2,
+        "AddedBonusRate": 2886
+    },
+    {
+        "ReinforceLevel": 2,
+        "ItemCode": 3,
+        "AddedBonusRate": 12200
+    },
+    {
+        "ReinforceLevel": 5,
+        "ItemCode": 4,
+        "AddedBonusRate": 2815
+    },
+    {
+        "ReinforceLevel": 15,
+        "ItemCode": 3,
+        "AddedBonusRate": 480
+    },
+    {
+        "ReinforceLevel": 7,
+        "ItemCode": 2,
+        "AddedBonusRate": 906
+    },
+    {
+        "ReinforceLevel": 6,
+        "ItemCode": 3,
+        "AddedBonusRate": 4130
+    },
+    {
+        "ReinforceLevel": 9,
+        "ItemCode": 4,
+        "AddedBonusRate": 940
+    },
+    {
+        "ReinforceLevel": 2,
+        "ItemCode": 1,
+        "AddedBonusRate": 1220
+    },
+    {
+        "ReinforceLevel": 19,
+        "ItemCode": 3,
+        "AddedBonusRate": 200
+    },
+    {
+        "ReinforceLevel": 11,
+        "ItemCode": 2,
+        "AddedBonusRate": 354
+    },
+    {
+        "ReinforceLevel": 0,
+        "ItemCode": 4,
+        "AddedBonusRate": 10000
+    },
+    {
+        "ReinforceLevel": 10,
+        "ItemCode": 3,
+        "AddedBonusRate": 1490
+    },
+    {
+        "ReinforceLevel": 13,
+        "ItemCode": 4,
+        "AddedBonusRate": 370
+    },
+    {
+        "ReinforceLevel": 6,
+        "ItemCode": 1,
+        "AddedBonusRate": 413
+    },
+    {
+        "ReinforceLevel": 2,
+        "ItemCode": 2,
+        "AddedBonusRate": 3660
+    },
+    {
+        "ReinforceLevel": 1,
+        "ItemCode": 3,
+        "AddedBonusRate": 15630
+    },
+    {
+        "ReinforceLevel": 4,
+        "ItemCode": 4,
+        "AddedBonusRate": 3850
+    },
+    {
+        "ReinforceLevel": 14,
+        "ItemCode": 3,
+        "AddedBonusRate": 592
+    },
+    {
+        "ReinforceLevel": 6,
+        "ItemCode": 2,
+        "AddedBonusRate": 1239
+    },
+    {
+        "ReinforceLevel": 5,
+        "ItemCode": 3,
+        "AddedBonusRate": 5630
+    },
+    {
+        "ReinforceLevel": 8,
+        "ItemCode": 4,
+        "AddedBonusRate": 1190
+    },
+    {
+        "ReinforceLevel": 1,
+        "ItemCode": 1,
+        "AddedBonusRate": 1563
+    },
+    {
+        "ReinforceLevel": 18,
+        "ItemCode": 3,
+        "AddedBonusRate": 240
+    },
+    {
+        "ReinforceLevel": 10,
+        "ItemCode": 2,
+        "AddedBonusRate": 447
+    },
+    {
+        "ReinforceLevel": 9,
+        "ItemCode": 3,
+        "AddedBonusRate": 1880
+    },
+    {
+        "ReinforceLevel": 12,
+        "ItemCode": 4,
+        "AddedBonusRate": 470
+    },
+    {
+        "ReinforceLevel": 5,
+        "ItemCode": 1,
+        "AddedBonusRate": 563
+    },
+    {
+        "ReinforceLevel": 1,
+        "ItemCode": 2,
+        "AddedBonusRate": 4689
+    },
+    {
+        "ReinforceLevel": 14,
+        "ItemCode": 2,
+        "AddedBonusRate": 178
+    },
+    {
+        "ReinforceLevel": 0,
+        "ItemCode": 3,
+        "AddedBonusRate": 20000
+    },
+    {
+        "ReinforceLevel": 3,
+        "ItemCode": 4,
+        "AddedBonusRate": 4810
+    },
+    {
+        "ReinforceLevel": 13,
+        "ItemCode": 3,
+        "AddedBonusRate": 740
+    },
+    {
+        "ReinforceLevel": 16,
+        "ItemCode": 4,
+        "AddedBonusRate": 185
+    },
+    {
+        "ReinforceLevel": 9,
+        "ItemCode": 1,
+        "AddedBonusRate": 188
+    },
+    {
+        "ReinforceLevel": 5,
+        "ItemCode": 2,
+        "AddedBonusRate": 1689
+    },
+    {
+        "ReinforceLevel": 4,
+        "ItemCode": 3,
+        "AddedBonusRate": 7700
+    },
+    {
+        "ReinforceLevel": 7,
+        "ItemCode": 4,
+        "AddedBonusRate": 1510
+    },
+    {
+        "ReinforceLevel": 17,
+        "ItemCode": 3,
+        "AddedBonusRate": 290
+    }
+]

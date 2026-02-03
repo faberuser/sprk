@@ -1,0 +1,122 @@
+[
+    {
+        "Star": 1,
+        "Transcended": 0,
+        "StatType": 3,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 5,
+        "Transcended": 4,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 1,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 0,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 4,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 3,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 0,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 2,
+        "Transcended": 0,
+        "StatType": 23,
+        "StatFactor": 2000
+    },
+    {
+        "Star": 4,
+        "Transcended": 0,
+        "StatType": 23,
+        "StatFactor": 5500
+    },
+    {
+        "Star": 5,
+        "Transcended": 3,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 2,
+        "Transcended": 0,
+        "StatType": 3,
+        "StatFactor": 2000
+    },
+    {
+        "Star": 5,
+        "Transcended": 2,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 4,
+        "Transcended": 0,
+        "StatType": 3,
+        "StatFactor": 5500
+    },
+    {
+        "Star": 1,
+        "Transcended": 0,
+        "StatType": 23,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 5,
+        "Transcended": 5,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 3,
+        "Transcended": 0,
+        "StatType": 23,
+        "StatFactor": 3500
+    },
+    {
+        "Star": 5,
+        "Transcended": 2,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 1,
+        "StatType": 23,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 5,
+        "Transcended": 5,
+        "StatType": 3,
+        "StatFactor": 8000
+    },
+    {
+        "Star": 3,
+        "Transcended": 0,
+        "StatType": 3,
+        "StatFactor": 3500
+    }
+]

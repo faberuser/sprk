@@ -1,0 +1,3602 @@
+[
+    {
+        "FactorIndex": 1,
+        "Level": 1,
+        "Value1": 1000000,
+        "Value2": 1000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 2,
+        "Value1": 1047294,
+        "Value2": 1047294
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 3,
+        "Value1": 1096824,
+        "Value2": 1096824
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 4,
+        "Value1": 1148698,
+        "Value2": 1148698
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 5,
+        "Value1": 1203025,
+        "Value2": 1203025
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 6,
+        "Value1": 1259921,
+        "Value2": 1259921
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 7,
+        "Value1": 1319507,
+        "Value2": 1319507
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 8,
+        "Value1": 1381912,
+        "Value2": 1381912
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 9,
+        "Value1": 1447269,
+        "Value2": 1447269
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 10,
+        "Value1": 1515716,
+        "Value2": 1515716
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 11,
+        "Value1": 1587401,
+        "Value2": 1587401
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 12,
+        "Value1": 1662475,
+        "Value2": 1662475
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 13,
+        "Value1": 1741101,
+        "Value2": 1741101
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 14,
+        "Value1": 1823444,
+        "Value2": 1823444
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 15,
+        "Value1": 1909683,
+        "Value2": 1909683
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 16,
+        "Value1": 2000000,
+        "Value2": 2000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 17,
+        "Value1": 2094588,
+        "Value2": 2094588
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 18,
+        "Value1": 2193649,
+        "Value2": 2193649
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 19,
+        "Value1": 2297396,
+        "Value2": 2297396
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 20,
+        "Value1": 2406050,
+        "Value2": 2406050
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 21,
+        "Value1": 2519842,
+        "Value2": 2519842
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 22,
+        "Value1": 2639015,
+        "Value2": 2639015
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 23,
+        "Value1": 2763825,
+        "Value2": 2763825
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 24,
+        "Value1": 2894538,
+        "Value2": 2894538
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 25,
+        "Value1": 3031433,
+        "Value2": 3031433
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 26,
+        "Value1": 3174802,
+        "Value2": 3174802
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 27,
+        "Value1": 3324951,
+        "Value2": 3324951
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 28,
+        "Value1": 3482202,
+        "Value2": 3482202
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 29,
+        "Value1": 3646889,
+        "Value2": 3646889
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 30,
+        "Value1": 3819366,
+        "Value2": 3819366
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 31,
+        "Value1": 3999999,
+        "Value2": 3999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 32,
+        "Value1": 4189176,
+        "Value2": 4189176
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 33,
+        "Value1": 4387299,
+        "Value2": 4387299
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 34,
+        "Value1": 4594793,
+        "Value2": 4594793
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 35,
+        "Value1": 4812100,
+        "Value2": 4812100
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 36,
+        "Value1": 5039684,
+        "Value2": 5039684
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 37,
+        "Value1": 5278031,
+        "Value2": 5278031
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 38,
+        "Value1": 5527651,
+        "Value2": 5527651
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 39,
+        "Value1": 5789076,
+        "Value2": 5789076
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 40,
+        "Value1": 6062866,
+        "Value2": 6062866
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 41,
+        "Value1": 6349604,
+        "Value2": 6349604
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 42,
+        "Value1": 6649903,
+        "Value2": 6649903
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 43,
+        "Value1": 6964404,
+        "Value2": 6964404
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 44,
+        "Value1": 7293779,
+        "Value2": 7293779
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 45,
+        "Value1": 7638732,
+        "Value2": 7638732
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 46,
+        "Value1": 7999999,
+        "Value2": 7999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 47,
+        "Value1": 8378352,
+        "Value2": 8378352
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 48,
+        "Value1": 8774599,
+        "Value2": 8774599
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 49,
+        "Value1": 9189586,
+        "Value2": 9189586
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 50,
+        "Value1": 9624200,
+        "Value2": 9624200
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 51,
+        "Value1": 10079368,
+        "Value2": 10079368
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 52,
+        "Value1": 10556063,
+        "Value2": 10556063
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 53,
+        "Value1": 11055303,
+        "Value2": 11055303
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 54,
+        "Value1": 11578153,
+        "Value2": 11578153
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 55,
+        "Value1": 12125732,
+        "Value2": 12125732
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 56,
+        "Value1": 12699208,
+        "Value2": 12699208
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 57,
+        "Value1": 13299806,
+        "Value2": 13299806
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 58,
+        "Value1": 13928809,
+        "Value2": 13928809
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 59,
+        "Value1": 14587559,
+        "Value2": 14587559
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 60,
+        "Value1": 15277465,
+        "Value2": 15277465
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 61,
+        "Value1": 15634559,
+        "Value2": 15634559
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 62,
+        "Value1": 16000000,
+        "Value2": 16000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 63,
+        "Value1": 16373982,
+        "Value2": 16373982
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 64,
+        "Value1": 16756705,
+        "Value2": 16756705
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 65,
+        "Value1": 17148375,
+        "Value2": 17148375
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 66,
+        "Value1": 17549199,
+        "Value2": 17549199
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 67,
+        "Value1": 17959392,
+        "Value2": 17959392
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 68,
+        "Value1": 18379173,
+        "Value2": 18379173
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 69,
+        "Value1": 18808766,
+        "Value2": 18808766
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 70,
+        "Value1": 19248400,
+        "Value2": 19248400
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 71,
+        "Value1": 19698310,
+        "Value2": 19698310
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 72,
+        "Value1": 20158736,
+        "Value2": 20158736
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 73,
+        "Value1": 20629924,
+        "Value2": 20629924
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 74,
+        "Value1": 21112126,
+        "Value2": 21112126
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 75,
+        "Value1": 21605599,
+        "Value2": 21605599
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 76,
+        "Value1": 22110606,
+        "Value2": 22110606
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 77,
+        "Value1": 22627416,
+        "Value2": 22627416
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 78,
+        "Value1": 23156307,
+        "Value2": 23156307
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 79,
+        "Value1": 23697560,
+        "Value2": 23697560
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 80,
+        "Value1": 24251465,
+        "Value2": 24251465
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 81,
+        "Value1": 24533253,
+        "Value2": 24533253
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 82,
+        "Value1": 24818316,
+        "Value2": 24818316
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 83,
+        "Value1": 25106691,
+        "Value2": 25106691
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 84,
+        "Value1": 25398416,
+        "Value2": 25398416
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 85,
+        "Value1": 25693532,
+        "Value2": 25693532
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 86,
+        "Value1": 25992076,
+        "Value2": 25992076
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 87,
+        "Value1": 26294090,
+        "Value2": 26294090
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 88,
+        "Value1": 26599612,
+        "Value2": 26599612
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 89,
+        "Value1": 26908685,
+        "Value2": 26908685
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 90,
+        "Value1": 27221349,
+        "Value2": 27221349
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 1,
+        "Value1": 1000000,
+        "Value2": 1000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 91,
+        "Value1": 27537645,
+        "Value2": 27537645
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 2,
+        "Value1": 1047294,
+        "Value2": 1047294
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 92,
+        "Value1": 27857618,
+        "Value2": 27857618
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 3,
+        "Value1": 1096824,
+        "Value2": 1096824
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 93,
+        "Value1": 28181307,
+        "Value2": 28181307
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 4,
+        "Value1": 1148698,
+        "Value2": 1148698
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 94,
+        "Value1": 28508758,
+        "Value2": 28508758
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 5,
+        "Value1": 1203025,
+        "Value2": 1203025
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 95,
+        "Value1": 28840014,
+        "Value2": 28840014
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 6,
+        "Value1": 1259921,
+        "Value2": 1259921
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 96,
+        "Value1": 29175119,
+        "Value2": 29175119
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 7,
+        "Value1": 1319507,
+        "Value2": 1319507
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 97,
+        "Value1": 29514118,
+        "Value2": 29514118
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 8,
+        "Value1": 1381912,
+        "Value2": 1381912
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 98,
+        "Value1": 29857055,
+        "Value2": 29857055
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 9,
+        "Value1": 1447269,
+        "Value2": 1447269
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 99,
+        "Value1": 30203978,
+        "Value2": 30203978
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 10,
+        "Value1": 1515716,
+        "Value2": 1515716
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 100,
+        "Value1": 30554931,
+        "Value2": 30554931
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 11,
+        "Value1": 1587401,
+        "Value2": 1587401
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 101,
+        "Value1": 30909962,
+        "Value2": 30909962
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 12,
+        "Value1": 1662475,
+        "Value2": 1662475
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 102,
+        "Value1": 31269118,
+        "Value2": 31269118
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 13,
+        "Value1": 1741101,
+        "Value2": 1741101
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 103,
+        "Value1": 31632448,
+        "Value2": 31632448
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 14,
+        "Value1": 1823444,
+        "Value2": 1823444
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 104,
+        "Value1": 32000000,
+        "Value2": 32000000
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 15,
+        "Value1": 1909683,
+        "Value2": 1909683
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 105,
+        "Value1": 32371822,
+        "Value2": 32371822
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 16,
+        "Value1": 2000000,
+        "Value2": 2000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 106,
+        "Value1": 32747964,
+        "Value2": 32747964
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 17,
+        "Value1": 2094588,
+        "Value2": 2094588
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 107,
+        "Value1": 33128477,
+        "Value2": 33128477
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 18,
+        "Value1": 2193649,
+        "Value2": 2193649
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 108,
+        "Value1": 33513411,
+        "Value2": 33513411
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 19,
+        "Value1": 2297396,
+        "Value2": 2297396
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 109,
+        "Value1": 33902819,
+        "Value2": 33902819
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 20,
+        "Value1": 2406050,
+        "Value2": 2406050
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 110,
+        "Value1": 34296750,
+        "Value2": 34296750
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 21,
+        "Value1": 2519842,
+        "Value2": 2519842
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 111,
+        "Value1": 34695259,
+        "Value2": 34695259
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 22,
+        "Value1": 2639015,
+        "Value2": 2639015
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 112,
+        "Value1": 35098399,
+        "Value2": 35098399
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 23,
+        "Value1": 2763825,
+        "Value2": 2763825
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 113,
+        "Value1": 35506223,
+        "Value2": 35506223
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 24,
+        "Value1": 2894538,
+        "Value2": 2894538
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 114,
+        "Value1": 35918785,
+        "Value2": 35918785
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 25,
+        "Value1": 3031433,
+        "Value2": 3031433
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 115,
+        "Value1": 36336141,
+        "Value2": 36336141
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 26,
+        "Value1": 3174802,
+        "Value2": 3174802
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 116,
+        "Value1": 36758347,
+        "Value2": 36758347
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 27,
+        "Value1": 3324951,
+        "Value2": 3324951
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 117,
+        "Value1": 37185458,
+        "Value2": 37185458
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 28,
+        "Value1": 3482202,
+        "Value2": 3482202
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 118,
+        "Value1": 37617533,
+        "Value2": 37617533
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 29,
+        "Value1": 3646889,
+        "Value2": 3646889
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 119,
+        "Value1": 38054627,
+        "Value2": 38054627
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 30,
+        "Value1": 3819366,
+        "Value2": 3819366
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 120,
+        "Value1": 38496801,
+        "Value2": 38496801
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 31,
+        "Value1": 3999999,
+        "Value2": 3999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 121,
+        "Value1": 38944112,
+        "Value2": 38944112
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 32,
+        "Value1": 4189176,
+        "Value2": 4189176
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 122,
+        "Value1": 39396621,
+        "Value2": 39396621
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 33,
+        "Value1": 4387299,
+        "Value2": 4387299
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 123,
+        "Value1": 39854387,
+        "Value2": 39854387
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 34,
+        "Value1": 4594793,
+        "Value2": 4594793
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 124,
+        "Value1": 40317473,
+        "Value2": 40317473
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 35,
+        "Value1": 4812100,
+        "Value2": 4812100
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 125,
+        "Value1": 40785940,
+        "Value2": 40785940
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 36,
+        "Value1": 5039684,
+        "Value2": 5039684
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 126,
+        "Value1": 41259849,
+        "Value2": 41259849
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 37,
+        "Value1": 5278031,
+        "Value2": 5278031
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 127,
+        "Value1": 41739266,
+        "Value2": 41739266
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 38,
+        "Value1": 5527651,
+        "Value2": 5527651
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 128,
+        "Value1": 42224253,
+        "Value2": 42224253
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 39,
+        "Value1": 5789076,
+        "Value2": 5789076
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 129,
+        "Value1": 42714875,
+        "Value2": 42714875
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 40,
+        "Value1": 6062866,
+        "Value2": 6062866
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 130,
+        "Value1": 43211198,
+        "Value2": 43211198
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 41,
+        "Value1": 6349604,
+        "Value2": 6349604
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 131,
+        "Value1": 43713288,
+        "Value2": 43713288
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 42,
+        "Value1": 6649903,
+        "Value2": 6649903
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 132,
+        "Value1": 44221212,
+        "Value2": 44221212
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 43,
+        "Value1": 6964404,
+        "Value2": 6964404
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 133,
+        "Value1": 44735037,
+        "Value2": 44735037
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 44,
+        "Value1": 7293779,
+        "Value2": 7293779
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 134,
+        "Value1": 45254833,
+        "Value2": 45254833
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 45,
+        "Value1": 7638732,
+        "Value2": 7638732
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 135,
+        "Value1": 45780669,
+        "Value2": 45780669
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 46,
+        "Value1": 7999999,
+        "Value2": 7999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 136,
+        "Value1": 46312615,
+        "Value2": 46312615
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 47,
+        "Value1": 8378352,
+        "Value2": 8378352
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 137,
+        "Value1": 46850742,
+        "Value2": 46850742
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 48,
+        "Value1": 8774599,
+        "Value2": 8774599
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 138,
+        "Value1": 47395121,
+        "Value2": 47395121
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 49,
+        "Value1": 9189586,
+        "Value2": 9189586
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 139,
+        "Value1": 47945826,
+        "Value2": 47945826
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 50,
+        "Value1": 9624200,
+        "Value2": 9624200
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 140,
+        "Value1": 48502930,
+        "Value2": 48502930
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 51,
+        "Value1": 10079368,
+        "Value2": 10079368
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 141,
+        "Value1": 49066507,
+        "Value2": 49066507
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 52,
+        "Value1": 10556063,
+        "Value2": 10556063
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 142,
+        "Value1": 49636632,
+        "Value2": 49636632
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 53,
+        "Value1": 11055303,
+        "Value2": 11055303
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 143,
+        "Value1": 50213382,
+        "Value2": 50213382
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 54,
+        "Value1": 11578153,
+        "Value2": 11578153
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 144,
+        "Value1": 50796833,
+        "Value2": 50796833
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 55,
+        "Value1": 12125732,
+        "Value2": 12125732
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 145,
+        "Value1": 51387064,
+        "Value2": 51387064
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 56,
+        "Value1": 12699208,
+        "Value2": 12699208
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 146,
+        "Value1": 51984153,
+        "Value2": 51984153
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 57,
+        "Value1": 13299806,
+        "Value2": 13299806
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 147,
+        "Value1": 52588180,
+        "Value2": 52588180
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 58,
+        "Value1": 13928809,
+        "Value2": 13928809
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 148,
+        "Value1": 53199225,
+        "Value2": 53199225
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 59,
+        "Value1": 14587559,
+        "Value2": 14587559
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 149,
+        "Value1": 53817370,
+        "Value2": 53817370
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 60,
+        "Value1": 15277465,
+        "Value2": 15277465
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 150,
+        "Value1": 54442698,
+        "Value2": 54442698
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 61,
+        "Value1": 16000000,
+        "Value2": 16000000
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 151,
+        "Value1": 55075291,
+        "Value2": 55075291
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 62,
+        "Value1": 16756705,
+        "Value2": 16756705
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 152,
+        "Value1": 55715236,
+        "Value2": 55715236
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 63,
+        "Value1": 17549199,
+        "Value2": 17549199
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 153,
+        "Value1": 56362615,
+        "Value2": 56362615
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 64,
+        "Value1": 18379173,
+        "Value2": 18379173
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 154,
+        "Value1": 57017517,
+        "Value2": 57017517
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 65,
+        "Value1": 19248400,
+        "Value2": 19248400
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 155,
+        "Value1": 57680029,
+        "Value2": 57680029
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 66,
+        "Value1": 20158736,
+        "Value2": 20158736
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 156,
+        "Value1": 58350239,
+        "Value2": 58350239
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 67,
+        "Value1": 21112126,
+        "Value2": 21112126
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 157,
+        "Value1": 59028236,
+        "Value2": 59028236
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 68,
+        "Value1": 22110606,
+        "Value2": 22110606
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 158,
+        "Value1": 59714111,
+        "Value2": 59714111
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 69,
+        "Value1": 23156307,
+        "Value2": 23156307
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 159,
+        "Value1": 60407956,
+        "Value2": 60407956
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 70,
+        "Value1": 24251465,
+        "Value2": 24251465
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 160,
+        "Value1": 61109862,
+        "Value2": 61109862
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 71,
+        "Value1": 25398416,
+        "Value2": 25398416
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 161,
+        "Value1": 61819925,
+        "Value2": 61819925
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 72,
+        "Value1": 26599612,
+        "Value2": 26599612
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 162,
+        "Value1": 62538237,
+        "Value2": 62538237
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 73,
+        "Value1": 27857618,
+        "Value2": 27857618
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 163,
+        "Value1": 63264897,
+        "Value2": 63264897
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 74,
+        "Value1": 29175119,
+        "Value2": 29175119
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 164,
+        "Value1": 64000000,
+        "Value2": 64000000
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 75,
+        "Value1": 30554931,
+        "Value2": 30554931
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 165,
+        "Value1": 64743644,
+        "Value2": 64743644
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 76,
+        "Value1": 31999999,
+        "Value2": 31999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 166,
+        "Value1": 65495929,
+        "Value2": 65495929
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 77,
+        "Value1": 33513411,
+        "Value2": 33513411
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 167,
+        "Value1": 66256955,
+        "Value2": 66256955
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 78,
+        "Value1": 35098399,
+        "Value2": 35098399
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 168,
+        "Value1": 67026823,
+        "Value2": 67026823
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 79,
+        "Value1": 36758347,
+        "Value2": 36758347
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 169,
+        "Value1": 67805638,
+        "Value2": 67805638
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 80,
+        "Value1": 38496801,
+        "Value2": 38496801
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 170,
+        "Value1": 68593501,
+        "Value2": 68593501
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 81,
+        "Value1": 40317473,
+        "Value2": 40317473
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 171,
+        "Value1": 69390519,
+        "Value2": 69390519
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 82,
+        "Value1": 42224253,
+        "Value2": 42224253
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 172,
+        "Value1": 70196798,
+        "Value2": 70196798
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 83,
+        "Value1": 44221212,
+        "Value2": 44221212
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 173,
+        "Value1": 71012446,
+        "Value2": 71012446
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 84,
+        "Value1": 46312615,
+        "Value2": 46312615
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 174,
+        "Value1": 71837571,
+        "Value2": 71837571
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 85,
+        "Value1": 48502930,
+        "Value2": 48502930
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 175,
+        "Value1": 72672283,
+        "Value2": 72672283
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 86,
+        "Value1": 50796833,
+        "Value2": 50796833
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 176,
+        "Value1": 73516694,
+        "Value2": 73516694
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 87,
+        "Value1": 53199225,
+        "Value2": 53199225
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 177,
+        "Value1": 74370917,
+        "Value2": 74370917
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 88,
+        "Value1": 55715236,
+        "Value2": 55715236
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 178,
+        "Value1": 75235066,
+        "Value2": 75235066
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 89,
+        "Value1": 58350239,
+        "Value2": 58350239
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 179,
+        "Value1": 76109255,
+        "Value2": 76109255
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 90,
+        "Value1": 61109862,
+        "Value2": 61109862
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 180,
+        "Value1": 76993602,
+        "Value2": 76993602
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 91,
+        "Value1": 63999999,
+        "Value2": 63999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 181,
+        "Value1": 77888224,
+        "Value2": 77888224
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 92,
+        "Value1": 67026823,
+        "Value2": 67026823
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 182,
+        "Value1": 78793242,
+        "Value2": 78793242
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 93,
+        "Value1": 70196798,
+        "Value2": 70196798
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 183,
+        "Value1": 79708775,
+        "Value2": 79708775
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 94,
+        "Value1": 73516694,
+        "Value2": 73516694
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 184,
+        "Value1": 80634947,
+        "Value2": 80634947
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 95,
+        "Value1": 76993602,
+        "Value2": 76993602
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 185,
+        "Value1": 81571880,
+        "Value2": 81571880
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 96,
+        "Value1": 80634947,
+        "Value2": 80634947
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 186,
+        "Value1": 82519699,
+        "Value2": 82519699
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 97,
+        "Value1": 84448506,
+        "Value2": 84448506
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 187,
+        "Value1": 83478532,
+        "Value2": 83478532
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 98,
+        "Value1": 88442424,
+        "Value2": 88442424
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 188,
+        "Value1": 84448506,
+        "Value2": 84448506
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 99,
+        "Value1": 92625231,
+        "Value2": 92625231
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 189,
+        "Value1": 85429750,
+        "Value2": 85429750
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 100,
+        "Value1": 97005860,
+        "Value2": 97005860
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 190,
+        "Value1": 86422396,
+        "Value2": 86422396
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 101,
+        "Value1": 101593667,
+        "Value2": 101593667
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 191,
+        "Value1": 87426576,
+        "Value2": 87426576
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 102,
+        "Value1": 106398450,
+        "Value2": 106398450
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 192,
+        "Value1": 88442424,
+        "Value2": 88442424
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 103,
+        "Value1": 111430472,
+        "Value2": 111430472
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 193,
+        "Value1": 89470075,
+        "Value2": 89470075
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 104,
+        "Value1": 116700478,
+        "Value2": 116700478
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 194,
+        "Value1": 90509667,
+        "Value2": 90509667
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 105,
+        "Value1": 122219725,
+        "Value2": 122219725
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 195,
+        "Value1": 91561339,
+        "Value2": 91561339
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 106,
+        "Value1": 127999999,
+        "Value2": 127999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 196,
+        "Value1": 92625231,
+        "Value2": 92625231
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 107,
+        "Value1": 134053647,
+        "Value2": 134053647
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 197,
+        "Value1": 93701484,
+        "Value2": 93701484
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 108,
+        "Value1": 140393597,
+        "Value2": 140393597
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 198,
+        "Value1": 94790243,
+        "Value2": 94790243
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 109,
+        "Value1": 147033389,
+        "Value2": 147033389
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 199,
+        "Value1": 95891652,
+        "Value2": 95891652
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 110,
+        "Value1": 153987204,
+        "Value2": 153987204
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 200,
+        "Value1": 97005860,
+        "Value2": 97005860
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 111,
+        "Value1": 161269894,
+        "Value2": 161269894
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 201,
+        "Value1": 98133014,
+        "Value2": 98133014
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 112,
+        "Value1": 168897012,
+        "Value2": 168897012
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 202,
+        "Value1": 99273264,
+        "Value2": 99273264
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 113,
+        "Value1": 176884848,
+        "Value2": 176884848
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 203,
+        "Value1": 100426764,
+        "Value2": 100426764
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 114,
+        "Value1": 185250462,
+        "Value2": 185250462
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 204,
+        "Value1": 101593667,
+        "Value2": 101593667
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 115,
+        "Value1": 194011720,
+        "Value2": 194011720
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 205,
+        "Value1": 102774128,
+        "Value2": 102774128
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 116,
+        "Value1": 203187334,
+        "Value2": 203187334
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 206,
+        "Value1": 103968306,
+        "Value2": 103968306
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 117,
+        "Value1": 212796901,
+        "Value2": 212796901
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 207,
+        "Value1": 105176360,
+        "Value2": 105176360
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 118,
+        "Value1": 222860944,
+        "Value2": 222860944
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 208,
+        "Value1": 106398450,
+        "Value2": 106398450
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 119,
+        "Value1": 233400957,
+        "Value2": 233400957
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 209,
+        "Value1": 107634741,
+        "Value2": 107634741
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 120,
+        "Value1": 244439450,
+        "Value2": 244439450
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 210,
+        "Value1": 108885396,
+        "Value2": 108885396
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 121,
+        "Value1": 255999999,
+        "Value2": 255999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 211,
+        "Value1": 110150583,
+        "Value2": 110150583
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 122,
+        "Value1": 268107295,
+        "Value2": 268107295
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 212,
+        "Value1": 111430472,
+        "Value2": 111430472
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 123,
+        "Value1": 280787194,
+        "Value2": 280787194
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 213,
+        "Value1": 112725231,
+        "Value2": 112725231
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 124,
+        "Value1": 294066778,
+        "Value2": 294066778
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 214,
+        "Value1": 114035035,
+        "Value2": 114035035
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 125,
+        "Value1": 307974409,
+        "Value2": 307974409
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 215,
+        "Value1": 115360059,
+        "Value2": 115360059
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 126,
+        "Value1": 322539788,
+        "Value2": 322539788
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 216,
+        "Value1": 116700478,
+        "Value2": 116700478
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 127,
+        "Value1": 337794025,
+        "Value2": 337794025
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 217,
+        "Value1": 118056472,
+        "Value2": 118056472
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 128,
+        "Value1": 353769697,
+        "Value2": 353769697
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 218,
+        "Value1": 119428222,
+        "Value2": 119428222
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 129,
+        "Value1": 370500924,
+        "Value2": 370500924
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 219,
+        "Value1": 120815912,
+        "Value2": 120815912
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 130,
+        "Value1": 388023441,
+        "Value2": 388023441
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 220,
+        "Value1": 122219725,
+        "Value2": 122219725
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 131,
+        "Value1": 406374669,
+        "Value2": 406374669
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 221,
+        "Value1": 123639850,
+        "Value2": 123639850
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 132,
+        "Value1": 425593802,
+        "Value2": 425593802
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 222,
+        "Value1": 125076475,
+        "Value2": 125076475
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 133,
+        "Value1": 445721888,
+        "Value2": 445721888
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 223,
+        "Value1": 126529794,
+        "Value2": 126529794
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 134,
+        "Value1": 466801914,
+        "Value2": 466801914
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 224,
+        "Value1": 128000000,
+        "Value2": 128000000
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 135,
+        "Value1": 488878901,
+        "Value2": 488878901
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 225,
+        "Value1": 129487288,
+        "Value2": 129487288
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 136,
+        "Value1": 511999999,
+        "Value2": 511999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 226,
+        "Value1": 130991858,
+        "Value2": 130991858
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 137,
+        "Value1": 536214590,
+        "Value2": 536214590
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 227,
+        "Value1": 132513910,
+        "Value2": 132513910
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 138,
+        "Value1": 561574389,
+        "Value2": 561574389
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 228,
+        "Value1": 134053647,
+        "Value2": 134053647
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 139,
+        "Value1": 588133557,
+        "Value2": 588133557
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 229,
+        "Value1": 135611276,
+        "Value2": 135611276
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 140,
+        "Value1": 615948818,
+        "Value2": 615948818
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 230,
+        "Value1": 137187003,
+        "Value2": 137187003
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 141,
+        "Value1": 645079577,
+        "Value2": 645079577
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 231,
+        "Value1": 138781039,
+        "Value2": 138781039
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 142,
+        "Value1": 675588050,
+        "Value2": 675588050
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 232,
+        "Value1": 140393597,
+        "Value2": 140393597
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 143,
+        "Value1": 707539394,
+        "Value2": 707539394
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 233,
+        "Value1": 142024892,
+        "Value2": 142024892
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 144,
+        "Value1": 741001849,
+        "Value2": 741001849
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 234,
+        "Value1": 143675142,
+        "Value2": 143675142
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 145,
+        "Value1": 776046882,
+        "Value2": 776046882
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 235,
+        "Value1": 145344566,
+        "Value2": 145344566
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 146,
+        "Value1": 812749338,
+        "Value2": 812749338
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 236,
+        "Value1": 147033389,
+        "Value2": 147033389
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 147,
+        "Value1": 851187605,
+        "Value2": 851187605
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 237,
+        "Value1": 148741835,
+        "Value2": 148741835
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 148,
+        "Value1": 891443776,
+        "Value2": 891443776
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 238,
+        "Value1": 150470132,
+        "Value2": 150470132
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 149,
+        "Value1": 933603828,
+        "Value2": 933603828
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 239,
+        "Value1": 152218510,
+        "Value2": 152218510
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 150,
+        "Value1": 977757802,
+        "Value2": 977757802
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 240,
+        "Value1": 153987204,
+        "Value2": 153987204
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 151,
+        "Value1": 1023999999,
+        "Value2": 1023999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 241,
+        "Value1": 155776449,
+        "Value2": 155776449
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 152,
+        "Value1": 1072429181,
+        "Value2": 1072429181
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 242,
+        "Value1": 157586484,
+        "Value2": 157586484
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 153,
+        "Value1": 1123148779,
+        "Value2": 1123148779
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 243,
+        "Value1": 159417551,
+        "Value2": 159417551
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 154,
+        "Value1": 1176267115,
+        "Value2": 1176267115
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 244,
+        "Value1": 161269894,
+        "Value2": 161269894
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 155,
+        "Value1": 1231897636,
+        "Value2": 1231897636
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 245,
+        "Value1": 163143760,
+        "Value2": 163143760
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 156,
+        "Value1": 1290159155,
+        "Value2": 1290159155
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 246,
+        "Value1": 165039399,
+        "Value2": 165039399
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 157,
+        "Value1": 1351176100,
+        "Value2": 1351176100
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 247,
+        "Value1": 166957064,
+        "Value2": 166957064
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 158,
+        "Value1": 1415078789,
+        "Value2": 1415078789
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 248,
+        "Value1": 168897012,
+        "Value2": 168897012
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 159,
+        "Value1": 1482003699,
+        "Value2": 1482003699
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 249,
+        "Value1": 170859501,
+        "Value2": 170859501
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 160,
+        "Value1": 1552093764,
+        "Value2": 1552093764
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 250,
+        "Value1": 172844793,
+        "Value2": 172844793
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 161,
+        "Value1": 1625498677,
+        "Value2": 1625498677
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 251,
+        "Value1": 174853152,
+        "Value2": 174853152
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 162,
+        "Value1": 1702375211,
+        "Value2": 1702375211
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 252,
+        "Value1": 176884848,
+        "Value2": 176884848
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 163,
+        "Value1": 1782887553,
+        "Value2": 1782887553
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 253,
+        "Value1": 178940151,
+        "Value2": 178940151
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 164,
+        "Value1": 1867207656,
+        "Value2": 1867207656
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 254,
+        "Value1": 181019335,
+        "Value2": 181019335
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 165,
+        "Value1": 1955515604,
+        "Value2": 1955515604
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 255,
+        "Value1": 183122679,
+        "Value2": 183122679
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 166,
+        "Value1": 2047999999,
+        "Value2": 2047999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 256,
+        "Value1": 185250462,
+        "Value2": 185250462
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 167,
+        "Value1": 2144858363,
+        "Value2": 2144858363
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 257,
+        "Value1": 187402969,
+        "Value2": 187402969
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 168,
+        "Value1": 2246297558,
+        "Value2": 2246297558
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 258,
+        "Value1": 189580486,
+        "Value2": 189580486
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 169,
+        "Value1": 2352534231,
+        "Value2": 2352534231
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 259,
+        "Value1": 191783305,
+        "Value2": 191783305
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 170,
+        "Value1": 2463795273,
+        "Value2": 2463795273
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 260,
+        "Value1": 194011720,
+        "Value2": 194011720
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 171,
+        "Value1": 2580318310,
+        "Value2": 2580318310
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 261,
+        "Value1": 196266028,
+        "Value2": 196266028
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 172,
+        "Value1": 2702352201,
+        "Value2": 2702352201
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 262,
+        "Value1": 198546529,
+        "Value2": 198546529
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 173,
+        "Value1": 2830157578,
+        "Value2": 2830157578
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 263,
+        "Value1": 200853529,
+        "Value2": 200853529
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 174,
+        "Value1": 2964007398,
+        "Value2": 2964007398
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 264,
+        "Value1": 203187334,
+        "Value2": 203187334
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 175,
+        "Value1": 3104187528,
+        "Value2": 3104187528
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 265,
+        "Value1": 205548257,
+        "Value2": 205548257
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 176,
+        "Value1": 3250997354,
+        "Value2": 3250997354
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 266,
+        "Value1": 207936613,
+        "Value2": 207936613
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 177,
+        "Value1": 3404750422,
+        "Value2": 3404750422
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 267,
+        "Value1": 210352720,
+        "Value2": 210352720
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 178,
+        "Value1": 3565775107,
+        "Value2": 3565775107
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 268,
+        "Value1": 212796901,
+        "Value2": 212796901
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 179,
+        "Value1": 3734415313,
+        "Value2": 3734415313
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 269,
+        "Value1": 215269482,
+        "Value2": 215269482
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 180,
+        "Value1": 3911031209,
+        "Value2": 3911031209
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 270,
+        "Value1": 217770793,
+        "Value2": 217770793
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 181,
+        "Value1": 4095999999,
+        "Value2": 4095999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 271,
+        "Value1": 220301167,
+        "Value2": 220301167
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 182,
+        "Value1": 4289716727,
+        "Value2": 4289716727
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 272,
+        "Value1": 222860944,
+        "Value2": 222860944
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 183,
+        "Value1": 4492595116,
+        "Value2": 4492595116
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 273,
+        "Value1": 225450463,
+        "Value2": 225450463
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 184,
+        "Value1": 4705068462,
+        "Value2": 4705068462
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 274,
+        "Value1": 228070071,
+        "Value2": 228070071
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 185,
+        "Value1": 4927590547,
+        "Value2": 4927590547
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 275,
+        "Value1": 230720118,
+        "Value2": 230720118
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 186,
+        "Value1": 5160636620,
+        "Value2": 5160636620
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 276,
+        "Value1": 233400957,
+        "Value2": 233400957
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 187,
+        "Value1": 5404704402,
+        "Value2": 5404704402
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 277,
+        "Value1": 236112945,
+        "Value2": 236112945
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 188,
+        "Value1": 5660315156,
+        "Value2": 5660315156
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 278,
+        "Value1": 238856445,
+        "Value2": 238856445
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 189,
+        "Value1": 5928014796,
+        "Value2": 5928014796
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 279,
+        "Value1": 241631824,
+        "Value2": 241631824
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 190,
+        "Value1": 6208375056,
+        "Value2": 6208375056
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 280,
+        "Value1": 244439450,
+        "Value2": 244439450
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 191,
+        "Value1": 6501994708,
+        "Value2": 6501994708
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 281,
+        "Value1": 247279700,
+        "Value2": 247279700
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 192,
+        "Value1": 6809500845,
+        "Value2": 6809500845
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 282,
+        "Value1": 250152951,
+        "Value2": 250152951
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 193,
+        "Value1": 7131550214,
+        "Value2": 7131550214
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 283,
+        "Value1": 253059589,
+        "Value2": 253059589
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 194,
+        "Value1": 7468830626,
+        "Value2": 7468830626
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 284,
+        "Value1": 256000000,
+        "Value2": 256000000
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 195,
+        "Value1": 7822062419,
+        "Value2": 7822062419
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 285,
+        "Value1": 258974576,
+        "Value2": 258974576
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 196,
+        "Value1": 8191999999,
+        "Value2": 8191999999
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 286,
+        "Value1": 261983716,
+        "Value2": 261983716
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 197,
+        "Value1": 8579433454,
+        "Value2": 8579433454
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 287,
+        "Value1": 265027820,
+        "Value2": 265027820
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 198,
+        "Value1": 8985190233,
+        "Value2": 8985190233
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 288,
+        "Value1": 268107295,
+        "Value2": 268107295
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 199,
+        "Value1": 9410136924,
+        "Value2": 9410136924
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 289,
+        "Value1": 271222552,
+        "Value2": 271222552
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 200,
+        "Value1": 9855181095,
+        "Value2": 9855181095
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 290,
+        "Value1": 274374006,
+        "Value2": 274374006
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 201,
+        "Value1": 10321273240,
+        "Value2": 10321273240
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 291,
+        "Value1": 277562078,
+        "Value2": 277562078
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 202,
+        "Value1": 10809408805,
+        "Value2": 10809408805
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 292,
+        "Value1": 280787194,
+        "Value2": 280787194
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 203,
+        "Value1": 11320630312,
+        "Value2": 11320630312
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 293,
+        "Value1": 284049784,
+        "Value2": 284049784
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 204,
+        "Value1": 11856029593,
+        "Value2": 11856029593
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 294,
+        "Value1": 287350284,
+        "Value2": 287350284
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 205,
+        "Value1": 12416750112,
+        "Value2": 12416750112
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 295,
+        "Value1": 290689133,
+        "Value2": 290689133
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 206,
+        "Value1": 13003989417,
+        "Value2": 13003989417
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 296,
+        "Value1": 294066778,
+        "Value2": 294066778
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 207,
+        "Value1": 13619001690,
+        "Value2": 13619001690
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 297,
+        "Value1": 297483670,
+        "Value2": 297483670
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 208,
+        "Value1": 14263100429,
+        "Value2": 14263100429
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 298,
+        "Value1": 300940264,
+        "Value2": 300940264
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 209,
+        "Value1": 14937661252,
+        "Value2": 14937661252
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 299,
+        "Value1": 304437021,
+        "Value2": 304437021
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 210,
+        "Value1": 15644124838,
+        "Value2": 15644124838
+    },
+    {
+        "FactorIndex": 1,
+        "Level": 300,
+        "Value1": 307974409,
+        "Value2": 307974409
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 211,
+        "Value1": 16383999999,
+        "Value2": 16383999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 212,
+        "Value1": 17158866908,
+        "Value2": 17158866908
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 213,
+        "Value1": 17970380467,
+        "Value2": 17970380467
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 214,
+        "Value1": 18820273848,
+        "Value2": 18820273848
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 215,
+        "Value1": 19710362191,
+        "Value2": 19710362191
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 216,
+        "Value1": 20642546481,
+        "Value2": 20642546481
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 217,
+        "Value1": 21618817610,
+        "Value2": 21618817610
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 218,
+        "Value1": 22641260625,
+        "Value2": 22641260625
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 219,
+        "Value1": 23712059186,
+        "Value2": 23712059186
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 220,
+        "Value1": 24833500225,
+        "Value2": 24833500225
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 221,
+        "Value1": 26007978835,
+        "Value2": 26007978835
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 222,
+        "Value1": 27238003380,
+        "Value2": 27238003380
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 223,
+        "Value1": 28526200858,
+        "Value2": 28526200858
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 224,
+        "Value1": 29875322505,
+        "Value2": 29875322505
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 225,
+        "Value1": 31288249676,
+        "Value2": 31288249676
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 226,
+        "Value1": 32767999999,
+        "Value2": 32767999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 227,
+        "Value1": 34317733816,
+        "Value2": 34317733816
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 228,
+        "Value1": 35940760934,
+        "Value2": 35940760934
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 229,
+        "Value1": 37640547696,
+        "Value2": 37640547696
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 230,
+        "Value1": 39420724382,
+        "Value2": 39420724382
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 231,
+        "Value1": 41285092962,
+        "Value2": 41285092962
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 232,
+        "Value1": 43237635220,
+        "Value2": 43237635220
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 233,
+        "Value1": 45282521250,
+        "Value2": 45282521250
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 234,
+        "Value1": 47424118372,
+        "Value2": 47424118372
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 235,
+        "Value1": 49667000451,
+        "Value2": 49667000451
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 236,
+        "Value1": 52015957670,
+        "Value2": 52015957670
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 237,
+        "Value1": 54476006761,
+        "Value2": 54476006761
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 238,
+        "Value1": 57052401716,
+        "Value2": 57052401716
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 239,
+        "Value1": 59750645010,
+        "Value2": 59750645010
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 240,
+        "Value1": 62576499353,
+        "Value2": 62576499353
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 241,
+        "Value1": 65535999999,
+        "Value2": 65535999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 242,
+        "Value1": 68635467633,
+        "Value2": 68635467633
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 243,
+        "Value1": 71881521869,
+        "Value2": 71881521869
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 244,
+        "Value1": 75281095393,
+        "Value2": 75281095393
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 245,
+        "Value1": 78841448764,
+        "Value2": 78841448764
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 246,
+        "Value1": 82570185925,
+        "Value2": 82570185925
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 247,
+        "Value1": 86475270440,
+        "Value2": 86475270440
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 248,
+        "Value1": 90565042501,
+        "Value2": 90565042501
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 249,
+        "Value1": 94848236744,
+        "Value2": 94848236744
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 250,
+        "Value1": 99334000902,
+        "Value2": 99334000902
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 251,
+        "Value1": 104031915341,
+        "Value2": 104031915341
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 252,
+        "Value1": 108952013523,
+        "Value2": 108952013523
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 253,
+        "Value1": 114104803432,
+        "Value2": 114104803432
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 254,
+        "Value1": 119501290020,
+        "Value2": 119501290020
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 255,
+        "Value1": 125152998707,
+        "Value2": 125152998707
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 256,
+        "Value1": 131071999999,
+        "Value2": 131071999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 257,
+        "Value1": 137270935266,
+        "Value2": 137270935266
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 258,
+        "Value1": 143763043738,
+        "Value2": 143763043738
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 259,
+        "Value1": 150562190786,
+        "Value2": 150562190786
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 260,
+        "Value1": 157682897529,
+        "Value2": 157682897529
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 261,
+        "Value1": 165140371851,
+        "Value2": 165140371851
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 262,
+        "Value1": 172950540880,
+        "Value2": 172950540880
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 263,
+        "Value1": 181130085003,
+        "Value2": 181130085003
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 264,
+        "Value1": 189696473489,
+        "Value2": 189696473489
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 265,
+        "Value1": 198668001805,
+        "Value2": 198668001805
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 266,
+        "Value1": 208063830683,
+        "Value2": 208063830683
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 267,
+        "Value1": 217904027046,
+        "Value2": 217904027046
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 268,
+        "Value1": 228209606864,
+        "Value2": 228209606864
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 269,
+        "Value1": 239002580040,
+        "Value2": 239002580040
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 270,
+        "Value1": 250305997415,
+        "Value2": 250305997415
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 271,
+        "Value1": 262143999999,
+        "Value2": 262143999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 272,
+        "Value1": 274541870532,
+        "Value2": 274541870532
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 273,
+        "Value1": 287526087477,
+        "Value2": 287526087477
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 274,
+        "Value1": 301124381572,
+        "Value2": 301124381572
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 275,
+        "Value1": 315365795058,
+        "Value2": 315365795058
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 276,
+        "Value1": 330280743703,
+        "Value2": 330280743703
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 277,
+        "Value1": 345901081761,
+        "Value2": 345901081761
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 278,
+        "Value1": 362260170006,
+        "Value2": 362260170006
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 279,
+        "Value1": 379392946979,
+        "Value2": 379392946979
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 280,
+        "Value1": 397336003611,
+        "Value2": 397336003611
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 281,
+        "Value1": 416127661367,
+        "Value2": 416127661367
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 282,
+        "Value1": 435808054092,
+        "Value2": 435808054092
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 283,
+        "Value1": 456419213729,
+        "Value2": 456419213729
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 284,
+        "Value1": 478005160081,
+        "Value2": 478005160081
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 285,
+        "Value1": 500611994830,
+        "Value2": 500611994830
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 286,
+        "Value1": 524287999999,
+        "Value2": 524287999999
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 287,
+        "Value1": 549083741065,
+        "Value2": 549083741065
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 288,
+        "Value1": 575052174954,
+        "Value2": 575052174954
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 289,
+        "Value1": 602248763144,
+        "Value2": 602248763144
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 290,
+        "Value1": 630731590117,
+        "Value2": 630731590117
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 291,
+        "Value1": 660561487407,
+        "Value2": 660561487407
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 292,
+        "Value1": 691802163523,
+        "Value2": 691802163523
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 293,
+        "Value1": 724520340012,
+        "Value2": 724520340012
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 294,
+        "Value1": 758785893959,
+        "Value2": 758785893959
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 295,
+        "Value1": 794672007222,
+        "Value2": 794672007222
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 296,
+        "Value1": 832255322734,
+        "Value2": 832255322734
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 297,
+        "Value1": 871616108185,
+        "Value2": 871616108185
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 298,
+        "Value1": 912838427458,
+        "Value2": 912838427458
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 299,
+        "Value1": 956010320162,
+        "Value2": 956010320162
+    },
+    {
+        "FactorIndex": 2,
+        "Level": 300,
+        "Value1": 1001223989661,
+        "Value2": 1001223989661
+    }
+]

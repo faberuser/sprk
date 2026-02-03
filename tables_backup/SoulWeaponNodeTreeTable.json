@@ -1,0 +1,5873 @@
+[
+    {
+        "ItemCode": 1,
+        "SoulStoneItemIndex": 111001,
+        "WeaponCreatureIndex": 901001,
+        "SoulStoneCreatureIndex": 911001,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            1.4800000190734863,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            -0.20000000298023224,
+            1.4800000190734863,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            -0.20000000298023224,
+            1.4800000190734863,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            2,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            5
+        ],
+        "ReinforceFail": [
+            4,
+            6
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 7,
+        "SoulStoneItemIndex": 111072,
+        "WeaponCreatureIndex": 901072,
+        "SoulStoneCreatureIndex": 911072,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            8,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            9
+        ],
+        "ReinforceFail": [
+            4,
+            10
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 11,
+        "SoulStoneItemIndex": 111089,
+        "WeaponCreatureIndex": 901089,
+        "SoulStoneCreatureIndex": 911089,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.03999999910593033,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.03999999910593033,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            12,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            13
+        ],
+        "ReinforceFail": [
+            4,
+            14
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 15,
+        "SoulStoneItemIndex": 111042,
+        "WeaponCreatureIndex": 901042,
+        "SoulStoneCreatureIndex": 911042,
+        "ManageWeaponPosition": [
+            0.05000000074505806,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.05000000074505806,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.05000000074505806,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            16,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            17
+        ],
+        "ReinforceFail": [
+            4,
+            18
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 19,
+        "SoulStoneItemIndex": 111033,
+        "WeaponCreatureIndex": 901033,
+        "SoulStoneCreatureIndex": 911033,
+        "ManageWeaponPosition": [
+            0.15000000596046448,
+            1.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.4000000953674316,
+        "UpgradeWeaponPosition": [
+            0.15000000596046448,
+            1.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.4000000953674316,
+        "UpgradeResultWeaponPosition": [
+            0.15000000596046448,
+            1.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.4000000953674316,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            20,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            21
+        ],
+        "ReinforceFail": [
+            4,
+            22
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 23,
+        "SoulStoneItemIndex": 111037,
+        "WeaponCreatureIndex": 901037,
+        "SoulStoneCreatureIndex": 911037,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.700000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.700000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.700000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            24,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            25
+        ],
+        "ReinforceFail": [
+            4,
+            26
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 27,
+        "SoulStoneItemIndex": 111046,
+        "WeaponCreatureIndex": 901046,
+        "SoulStoneCreatureIndex": 911046,
+        "ManageWeaponPosition": [
+            0.0,
+            2.380000114440918,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.380000114440918,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.380000114440918,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            28,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            29
+        ],
+        "ReinforceFail": [
+            4,
+            30
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 31,
+        "SoulStoneItemIndex": 111005,
+        "WeaponCreatureIndex": 901005,
+        "SoulStoneCreatureIndex": 911005,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 0.800000011920929,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 0.800000011920929,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            32,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            33
+        ],
+        "ReinforceFail": [
+            4,
+            34
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 35,
+        "SoulStoneItemIndex": 111047,
+        "WeaponCreatureIndex": 901047,
+        "SoulStoneCreatureIndex": 911047,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 9.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 9.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 9.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            36,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            37
+        ],
+        "ReinforceFail": [
+            4,
+            38
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 39,
+        "SoulStoneItemIndex": 111049,
+        "WeaponCreatureIndex": 901049,
+        "SoulStoneCreatureIndex": 911049,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 5.0,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 5.0,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 5.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            40,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            41
+        ],
+        "ReinforceFail": [
+            4,
+            42
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 43,
+        "SoulStoneItemIndex": 111092,
+        "WeaponCreatureIndex": 901092,
+        "SoulStoneCreatureIndex": 911092,
+        "ManageWeaponPosition": [
+            0.30000001192092896,
+            2.3499999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            0.30000001192092896,
+            2.3499999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 4.0,
+        "UpgradeResultWeaponPosition": [
+            0.30000001192092896,
+            2.3499999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 4.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            44,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            45
+        ],
+        "ReinforceFail": [
+            4,
+            46
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 47,
+        "SoulStoneItemIndex": 111032,
+        "WeaponCreatureIndex": 901032,
+        "SoulStoneCreatureIndex": 911032,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            48,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            49
+        ],
+        "ReinforceFail": [
+            4,
+            50
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 51,
+        "SoulStoneItemIndex": 111038,
+        "WeaponCreatureIndex": 901038,
+        "SoulStoneCreatureIndex": 911038,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            52,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            53
+        ],
+        "ReinforceFail": [
+            4,
+            54
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 55,
+        "SoulStoneItemIndex": 111054,
+        "WeaponCreatureIndex": 901054,
+        "SoulStoneCreatureIndex": 911054,
+        "ManageWeaponPosition": [
+            0.05999999865889549,
+            1.399999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.299999952316284,
+        "UpgradeWeaponPosition": [
+            0.05999999865889549,
+            1.399999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.299999952316284,
+        "UpgradeResultWeaponPosition": [
+            0.05999999865889549,
+            1.399999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.299999952316284,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            56,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            57
+        ],
+        "ReinforceFail": [
+            4,
+            58
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 59,
+        "SoulStoneItemIndex": 111062,
+        "WeaponCreatureIndex": 901062,
+        "SoulStoneCreatureIndex": 911062,
+        "ManageWeaponPosition": [
+            0.0,
+            1.2200000286102295,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.2200000286102295,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.2200000286102295,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            60,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            61
+        ],
+        "ReinforceFail": [
+            4,
+            62
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 63,
+        "SoulStoneItemIndex": 111010,
+        "WeaponCreatureIndex": 901010,
+        "SoulStoneCreatureIndex": 911010,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            64,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            65
+        ],
+        "ReinforceFail": [
+            4,
+            66
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 67,
+        "SoulStoneItemIndex": 111026,
+        "WeaponCreatureIndex": 901026,
+        "SoulStoneCreatureIndex": 911026,
+        "ManageWeaponPosition": [
+            0.0,
+            1.2000000476837158,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.4000000953674316,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.2000000476837158,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.4000000953674316,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.2000000476837158,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.4000000953674316,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            68,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            69
+        ],
+        "ReinforceFail": [
+            4,
+            70
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 71,
+        "SoulStoneItemIndex": 111040,
+        "WeaponCreatureIndex": 901040,
+        "SoulStoneCreatureIndex": 911040,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            72,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            73
+        ],
+        "ReinforceFail": [
+            4,
+            74
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 75,
+        "SoulStoneItemIndex": 111075,
+        "WeaponCreatureIndex": 901075,
+        "SoulStoneCreatureIndex": 911075,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 0.8999999761581421,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 0.8999999761581421,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 0.8999999761581421,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            76,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            77
+        ],
+        "ReinforceFail": [
+            4,
+            78
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 79,
+        "SoulStoneItemIndex": 111077,
+        "WeaponCreatureIndex": 901077,
+        "SoulStoneCreatureIndex": 911077,
+        "ManageWeaponPosition": [
+            -0.4000000059604645,
+            1.399999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            -0.4000000059604645,
+            1.399999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            -0.4000000059604645,
+            1.399999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            80,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            81
+        ],
+        "ReinforceFail": [
+            4,
+            82
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 83,
+        "SoulStoneItemIndex": 111034,
+        "WeaponCreatureIndex": 901034,
+        "SoulStoneCreatureIndex": 911034,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            84,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            85
+        ],
+        "ReinforceFail": [
+            4,
+            86
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 87,
+        "SoulStoneItemIndex": 111051,
+        "WeaponCreatureIndex": 901051,
+        "SoulStoneCreatureIndex": 911051,
+        "ManageWeaponPosition": [
+            0.05000000074505806,
+            1.2999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.05000000074505806,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.05000000074505806,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            88,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            89
+        ],
+        "ReinforceFail": [
+            4,
+            90
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 91,
+        "SoulStoneItemIndex": 111022,
+        "WeaponCreatureIndex": 901022,
+        "SoulStoneCreatureIndex": 911022,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            92,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            93
+        ],
+        "ReinforceFail": [
+            4,
+            94
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 95,
+        "SoulStoneItemIndex": 111086,
+        "WeaponCreatureIndex": 901086,
+        "SoulStoneCreatureIndex": 911086,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            96,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            97
+        ],
+        "ReinforceFail": [
+            4,
+            98
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 99,
+        "SoulStoneItemIndex": 111009,
+        "WeaponCreatureIndex": 901009,
+        "SoulStoneCreatureIndex": 911009,
+        "ManageWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2000000476837158,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            100,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            101
+        ],
+        "ReinforceFail": [
+            4,
+            102
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 103,
+        "SoulStoneItemIndex": 111081,
+        "WeaponCreatureIndex": 901081,
+        "SoulStoneCreatureIndex": 911081,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            104,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            105
+        ],
+        "ReinforceFail": [
+            4,
+            106
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 107,
+        "SoulStoneItemIndex": 111018,
+        "WeaponCreatureIndex": 901018,
+        "SoulStoneCreatureIndex": 911018,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            108,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            109
+        ],
+        "ReinforceFail": [
+            4,
+            110
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 111,
+        "SoulStoneItemIndex": 111094,
+        "WeaponCreatureIndex": 901094,
+        "SoulStoneCreatureIndex": 911094,
+        "ManageWeaponPosition": [
+            -0.5299999713897705,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            -0.5299999713897705,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            -0.5299999713897705,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            112,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            113
+        ],
+        "ReinforceFail": [
+            4,
+            114
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 115,
+        "SoulStoneItemIndex": 111088,
+        "WeaponCreatureIndex": 901088,
+        "SoulStoneCreatureIndex": 911088,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.200000047683716,
+        "UpgradeWeaponPosition": [
+            0.03999999910593033,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.200000047683716,
+        "UpgradeResultWeaponPosition": [
+            0.03999999910593033,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.200000047683716,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            116,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            117
+        ],
+        "ReinforceFail": [
+            4,
+            118
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 119,
+        "SoulStoneItemIndex": 111028,
+        "WeaponCreatureIndex": 901028,
+        "SoulStoneCreatureIndex": 911028,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            120,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            121
+        ],
+        "ReinforceFail": [
+            4,
+            122
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 123,
+        "SoulStoneItemIndex": 111065,
+        "WeaponCreatureIndex": 901065,
+        "SoulStoneCreatureIndex": 911065,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 6.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 6.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 6.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            124,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            125
+        ],
+        "ReinforceFail": [
+            4,
+            126
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 127,
+        "SoulStoneItemIndex": 111100,
+        "WeaponCreatureIndex": 901100,
+        "SoulStoneCreatureIndex": 911100,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            128,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            129
+        ],
+        "ReinforceFail": [
+            4,
+            130
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 131,
+        "SoulStoneItemIndex": 111053,
+        "WeaponCreatureIndex": 901053,
+        "SoulStoneCreatureIndex": 911053,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            132,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            133
+        ],
+        "ReinforceFail": [
+            4,
+            134
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 135,
+        "SoulStoneItemIndex": 111048,
+        "WeaponCreatureIndex": 901048,
+        "SoulStoneCreatureIndex": 911048,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5999999046325684,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5999999046325684,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5999999046325684,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            136,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            137
+        ],
+        "ReinforceFail": [
+            4,
+            138
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 139,
+        "SoulStoneItemIndex": 111096,
+        "WeaponCreatureIndex": 901096,
+        "SoulStoneCreatureIndex": 911096,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.5999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            140,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            141
+        ],
+        "ReinforceFail": [
+            4,
+            142
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 143,
+        "SoulStoneItemIndex": 111031,
+        "WeaponCreatureIndex": 901031,
+        "SoulStoneCreatureIndex": 911031,
+        "ManageWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            35.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            35.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            35.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            144,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            145
+        ],
+        "ReinforceFail": [
+            4,
+            146
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 147,
+        "SoulStoneItemIndex": 111080,
+        "WeaponCreatureIndex": 901080,
+        "SoulStoneCreatureIndex": 911080,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.0999999046325684,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.0999999046325684,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            148,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            149
+        ],
+        "ReinforceFail": [
+            4,
+            150
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 151,
+        "SoulStoneItemIndex": 111029,
+        "WeaponCreatureIndex": 901029,
+        "SoulStoneCreatureIndex": 911029,
+        "ManageWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.4000000953674316,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.4000000953674316,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.4000000953674316,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            152,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            153
+        ],
+        "ReinforceFail": [
+            4,
+            154
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 155,
+        "SoulStoneItemIndex": 111060,
+        "WeaponCreatureIndex": 901060,
+        "SoulStoneCreatureIndex": 911060,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            156,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            157
+        ],
+        "ReinforceFail": [
+            4,
+            158
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 159,
+        "SoulStoneItemIndex": 111061,
+        "WeaponCreatureIndex": 901061,
+        "SoulStoneCreatureIndex": 911061,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            160,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            161
+        ],
+        "ReinforceFail": [
+            4,
+            162
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 163,
+        "SoulStoneItemIndex": 111015,
+        "WeaponCreatureIndex": 901015,
+        "SoulStoneCreatureIndex": 911015,
+        "ManageWeaponPosition": [
+            0.20000000298023224,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.20000000298023224,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.20000000298023224,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            164,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            165
+        ],
+        "ReinforceFail": [
+            4,
+            166
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 167,
+        "SoulStoneItemIndex": 111024,
+        "WeaponCreatureIndex": 901024,
+        "SoulStoneCreatureIndex": 911024,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            168,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            169
+        ],
+        "ReinforceFail": [
+            4,
+            170
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 171,
+        "SoulStoneItemIndex": 111082,
+        "WeaponCreatureIndex": 901082,
+        "SoulStoneCreatureIndex": 911082,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            0.03999999910593033,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.03999999910593033,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            172,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            173
+        ],
+        "ReinforceFail": [
+            4,
+            174
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 175,
+        "SoulStoneItemIndex": 111101,
+        "WeaponCreatureIndex": 901101,
+        "SoulStoneCreatureIndex": 911101,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            176,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            177
+        ],
+        "ReinforceFail": [
+            4,
+            178
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 179,
+        "SoulStoneItemIndex": 111016,
+        "WeaponCreatureIndex": 901016,
+        "SoulStoneCreatureIndex": 911016,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            0.8999999761581421,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.100000023841858,
+        "UpgradeWeaponPosition": [
+            -0.20000000298023224,
+            0.8999999761581421,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.100000023841858,
+        "UpgradeResultWeaponPosition": [
+            -0.20000000298023224,
+            0.8999999761581421,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.100000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            180,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            181
+        ],
+        "ReinforceFail": [
+            4,
+            182
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 183,
+        "SoulStoneItemIndex": 111090,
+        "WeaponCreatureIndex": 901090,
+        "SoulStoneCreatureIndex": 911090,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            184,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            185
+        ],
+        "ReinforceFail": [
+            4,
+            186
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 187,
+        "SoulStoneItemIndex": 111071,
+        "WeaponCreatureIndex": 901071,
+        "SoulStoneCreatureIndex": 911071,
+        "ManageWeaponPosition": [
+            -0.15000000596046448,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            -0.05000000074505806,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            -0.05000000074505806,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            188,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            189
+        ],
+        "ReinforceFail": [
+            4,
+            190
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 191,
+        "SoulStoneItemIndex": 111095,
+        "WeaponCreatureIndex": 901095,
+        "SoulStoneCreatureIndex": 911095,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            1.7999999523162842,
+            -1.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            180.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            1.7999999523162842,
+            -1.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            180.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.20000000298023224,
+            1.7999999523162842,
+            -1.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            180.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            192,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            193
+        ],
+        "ReinforceFail": [
+            4,
+            194
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 195,
+        "SoulStoneItemIndex": 111085,
+        "WeaponCreatureIndex": 901085,
+        "SoulStoneCreatureIndex": 911085,
+        "ManageWeaponPosition": [
+            0.05000000074505806,
+            2.5999999046325684,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.15000000596046448,
+            2.5,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.15000000596046448,
+            2.5,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            196,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            197
+        ],
+        "ReinforceFail": [
+            4,
+            198
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 199,
+        "SoulStoneItemIndex": 111007,
+        "WeaponCreatureIndex": 901007,
+        "SoulStoneCreatureIndex": 911007,
+        "ManageWeaponPosition": [
+            0.0,
+            1.75,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.75,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.75,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            200,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            201
+        ],
+        "ReinforceFail": [
+            4,
+            202
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 203,
+        "SoulStoneItemIndex": 111017,
+        "WeaponCreatureIndex": 901017,
+        "SoulStoneCreatureIndex": 911017,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            -0.20000000298023224,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            -0.20000000298023224,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            204,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            205
+        ],
+        "ReinforceFail": [
+            4,
+            206
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 207,
+        "SoulStoneItemIndex": 111070,
+        "WeaponCreatureIndex": 901070,
+        "SoulStoneCreatureIndex": 911070,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 4.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 4.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            208,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            209
+        ],
+        "ReinforceFail": [
+            4,
+            210
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 211,
+        "SoulStoneItemIndex": 111074,
+        "WeaponCreatureIndex": 901074,
+        "SoulStoneCreatureIndex": 911074,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            -0.05000000074505806,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2999999523162842,
+        "UpgradeResultWeaponPosition": [
+            -0.05000000074505806,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            212,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            213
+        ],
+        "ReinforceFail": [
+            4,
+            214
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 215,
+        "SoulStoneItemIndex": 111091,
+        "WeaponCreatureIndex": 901091,
+        "SoulStoneCreatureIndex": 911091,
+        "ManageWeaponPosition": [
+            0.0,
+            1.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            216,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            217
+        ],
+        "ReinforceFail": [
+            4,
+            218
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 219,
+        "SoulStoneItemIndex": 111012,
+        "WeaponCreatureIndex": 901012,
+        "SoulStoneCreatureIndex": 911012,
+        "ManageWeaponPosition": [
+            -0.5,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            45.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            -0.30000001192092896,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            45.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            -0.30000001192092896,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            45.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            220,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            221
+        ],
+        "ReinforceFail": [
+            4,
+            222
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 223,
+        "SoulStoneItemIndex": 111020,
+        "WeaponCreatureIndex": 901020,
+        "SoulStoneCreatureIndex": 911020,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2000000476837158,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            224,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            225
+        ],
+        "ReinforceFail": [
+            4,
+            226
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 227,
+        "SoulStoneItemIndex": 111002,
+        "WeaponCreatureIndex": 901002,
+        "SoulStoneCreatureIndex": 911002,
+        "ManageWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            228,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            229
+        ],
+        "ReinforceFail": [
+            4,
+            230
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 231,
+        "SoulStoneItemIndex": 111021,
+        "WeaponCreatureIndex": 901021,
+        "SoulStoneCreatureIndex": 911021,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            232,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            233
+        ],
+        "ReinforceFail": [
+            4,
+            234
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 235,
+        "SoulStoneItemIndex": 111035,
+        "WeaponCreatureIndex": 901035,
+        "SoulStoneCreatureIndex": 911035,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            0.05999999865889549,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.05999999865889549,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            236,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            237
+        ],
+        "ReinforceFail": [
+            4,
+            238
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 239,
+        "SoulStoneItemIndex": 111043,
+        "WeaponCreatureIndex": 901043,
+        "SoulStoneCreatureIndex": 911043,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            70.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            70.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            70.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            240,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            241
+        ],
+        "ReinforceFail": [
+            4,
+            242
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 243,
+        "SoulStoneItemIndex": 111011,
+        "WeaponCreatureIndex": 901011,
+        "SoulStoneCreatureIndex": 911011,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5999999046325684,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5999999046325684,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5999999046325684,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            244,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            245
+        ],
+        "ReinforceFail": [
+            4,
+            246
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 247,
+        "SoulStoneItemIndex": 111087,
+        "WeaponCreatureIndex": 901087,
+        "SoulStoneCreatureIndex": 911087,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            248,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            249
+        ],
+        "ReinforceFail": [
+            4,
+            250
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 251,
+        "SoulStoneItemIndex": 111041,
+        "WeaponCreatureIndex": 901041,
+        "SoulStoneCreatureIndex": 911041,
+        "ManageWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.7999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.7999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.899999976158142,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.7999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            252,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            253
+        ],
+        "ReinforceFail": [
+            4,
+            254
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 255,
+        "SoulStoneItemIndex": 111102,
+        "WeaponCreatureIndex": 901102,
+        "SoulStoneCreatureIndex": 911102,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.799999952316284,
+        "UpgradeWeaponPosition": [
+            0.05000000074505806,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.799999952316284,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.05000000074505806,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.799999952316284,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            256,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            257
+        ],
+        "ReinforceFail": [
+            4,
+            258
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 259,
+        "SoulStoneItemIndex": 111039,
+        "WeaponCreatureIndex": 901039,
+        "SoulStoneCreatureIndex": 911039,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.700000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            260,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            261
+        ],
+        "ReinforceFail": [
+            4,
+            262
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 263,
+        "SoulStoneItemIndex": 111044,
+        "WeaponCreatureIndex": 901044,
+        "SoulStoneCreatureIndex": 911044,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.05999999865889549,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.05999999865889549,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            264,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            265
+        ],
+        "ReinforceFail": [
+            4,
+            266
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 267,
+        "SoulStoneItemIndex": 111064,
+        "WeaponCreatureIndex": 901064,
+        "SoulStoneCreatureIndex": 911064,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.600000023841858,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.600000023841858,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.600000023841858,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            268,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            269
+        ],
+        "ReinforceFail": [
+            4,
+            270
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 271,
+        "SoulStoneItemIndex": 111078,
+        "WeaponCreatureIndex": 901078,
+        "SoulStoneCreatureIndex": 911078,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            272,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            273
+        ],
+        "ReinforceFail": [
+            4,
+            274
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 275,
+        "SoulStoneItemIndex": 111073,
+        "WeaponCreatureIndex": 901073,
+        "SoulStoneCreatureIndex": 911073,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.0,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.0,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            276,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            277
+        ],
+        "ReinforceFail": [
+            4,
+            278
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 279,
+        "SoulStoneItemIndex": 111023,
+        "WeaponCreatureIndex": 901023,
+        "SoulStoneCreatureIndex": 911023,
+        "ManageWeaponPosition": [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.20000000298023224,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            280,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            281
+        ],
+        "ReinforceFail": [
+            4,
+            282
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 283,
+        "SoulStoneItemIndex": 111056,
+        "WeaponCreatureIndex": 901056,
+        "SoulStoneCreatureIndex": 911056,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 4.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 4.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            284,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            285
+        ],
+        "ReinforceFail": [
+            4,
+            286
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 287,
+        "SoulStoneItemIndex": 111004,
+        "WeaponCreatureIndex": 901004,
+        "SoulStoneCreatureIndex": 911004,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            288,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            289
+        ],
+        "ReinforceFail": [
+            4,
+            290
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 291,
+        "SoulStoneItemIndex": 111019,
+        "WeaponCreatureIndex": 901019,
+        "SoulStoneCreatureIndex": 911019,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            292,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            293
+        ],
+        "ReinforceFail": [
+            4,
+            294
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 295,
+        "SoulStoneItemIndex": 111098,
+        "WeaponCreatureIndex": 901098,
+        "SoulStoneCreatureIndex": 911098,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4800000190734863,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2999999523162842,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.4800000190734863,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2999999523162842,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.4800000190734863,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            296,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            297
+        ],
+        "ReinforceFail": [
+            4,
+            298
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 299,
+        "SoulStoneItemIndex": 111067,
+        "WeaponCreatureIndex": 901067,
+        "SoulStoneCreatureIndex": 911067,
+        "ManageWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.4000000953674316,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.4000000953674316,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.4000000953674316,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            300,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            301
+        ],
+        "ReinforceFail": [
+            4,
+            302
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 303,
+        "SoulStoneItemIndex": 111079,
+        "WeaponCreatureIndex": 901079,
+        "SoulStoneCreatureIndex": 911079,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            1.899999976158142,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            1.899999976158142,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            304,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            305
+        ],
+        "ReinforceFail": [
+            4,
+            306
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 307,
+        "SoulStoneItemIndex": 111097,
+        "WeaponCreatureIndex": 901097,
+        "SoulStoneCreatureIndex": 911097,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            308,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            309
+        ],
+        "ReinforceFail": [
+            4,
+            310
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 311,
+        "SoulStoneItemIndex": 111036,
+        "WeaponCreatureIndex": 901036,
+        "SoulStoneCreatureIndex": 911036,
+        "ManageWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            312,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            313
+        ],
+        "ReinforceFail": [
+            4,
+            314
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 315,
+        "SoulStoneItemIndex": 111027,
+        "WeaponCreatureIndex": 901027,
+        "SoulStoneCreatureIndex": 911027,
+        "ManageWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            316,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            317
+        ],
+        "ReinforceFail": [
+            4,
+            318
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 319,
+        "SoulStoneItemIndex": 111025,
+        "WeaponCreatureIndex": 901025,
+        "SoulStoneCreatureIndex": 911025,
+        "ManageWeaponPosition": [
+            0.0,
+            1.2999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2000000476837158,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.2999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            320,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            321
+        ],
+        "ReinforceFail": [
+            4,
+            322
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 323,
+        "SoulStoneItemIndex": 111111,
+        "WeaponCreatureIndex": 901111,
+        "SoulStoneCreatureIndex": 911111,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            324,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            325
+        ],
+        "ReinforceFail": [
+            4,
+            326
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 327,
+        "SoulStoneItemIndex": 111045,
+        "WeaponCreatureIndex": 901045,
+        "SoulStoneCreatureIndex": 911045,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2000000476837158,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            328,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            329
+        ],
+        "ReinforceFail": [
+            4,
+            330
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 331,
+        "SoulStoneItemIndex": 111030,
+        "WeaponCreatureIndex": 901030,
+        "SoulStoneCreatureIndex": 911030,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            332,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            333
+        ],
+        "ReinforceFail": [
+            4,
+            334
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 335,
+        "SoulStoneItemIndex": 111069,
+        "WeaponCreatureIndex": 901069,
+        "SoulStoneCreatureIndex": 911069,
+        "ManageWeaponPosition": [
+            0.05000000074505806,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.05000000074505806,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.05000000074505806,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            336,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            337
+        ],
+        "ReinforceFail": [
+            4,
+            338
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 339,
+        "SoulStoneItemIndex": 111050,
+        "WeaponCreatureIndex": 901050,
+        "SoulStoneCreatureIndex": 911050,
+        "ManageWeaponPosition": [
+            0.12999999523162842,
+            2.5999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 4.0,
+        "UpgradeWeaponPosition": [
+            0.12999999523162842,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 4.0,
+        "UpgradeResultWeaponPosition": [
+            0.12999999523162842,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 4.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            340,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            341
+        ],
+        "ReinforceFail": [
+            4,
+            342
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 343,
+        "SoulStoneItemIndex": 111099,
+        "WeaponCreatureIndex": 901099,
+        "SoulStoneCreatureIndex": 911099,
+        "ManageWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 5.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 5.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 5.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            344,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            345
+        ],
+        "ReinforceFail": [
+            4,
+            346
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 347,
+        "SoulStoneItemIndex": 111068,
+        "WeaponCreatureIndex": 901068,
+        "SoulStoneCreatureIndex": 911068,
+        "ManageWeaponPosition": [
+            0.0,
+            2.299999952316284,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.0999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            348,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            349
+        ],
+        "ReinforceFail": [
+            4,
+            350
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 351,
+        "SoulStoneItemIndex": 111014,
+        "WeaponCreatureIndex": 901014,
+        "SoulStoneCreatureIndex": 911014,
+        "ManageWeaponPosition": [
+            0.0,
+            1.0,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.0,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.0,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            352,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            353
+        ],
+        "ReinforceFail": [
+            4,
+            354
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 355,
+        "SoulStoneItemIndex": 111059,
+        "WeaponCreatureIndex": 901059,
+        "SoulStoneCreatureIndex": 911059,
+        "ManageWeaponPosition": [
+            -0.03999999910593033,
+            1.899999976158142,
+            -0.5
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 0.800000011920929,
+        "UpgradeWeaponPosition": [
+            -0.03999999910593033,
+            1.899999976158142,
+            -0.5
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 0.800000011920929,
+        "UpgradeResultWeaponPosition": [
+            -0.03999999910593033,
+            1.899999976158142,
+            -0.5
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 0.800000011920929,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            356,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            357
+        ],
+        "ReinforceFail": [
+            4,
+            358
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 359,
+        "SoulStoneItemIndex": 111052,
+        "WeaponCreatureIndex": 901052,
+        "SoulStoneCreatureIndex": 911052,
+        "ManageWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2000000476837158,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2000000476837158,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            2.4000000953674316,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2000000476837158,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            360,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            361
+        ],
+        "ReinforceFail": [
+            4,
+            362
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 363,
+        "SoulStoneItemIndex": 111057,
+        "WeaponCreatureIndex": 901057,
+        "SoulStoneCreatureIndex": 911057,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            364,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            365
+        ],
+        "ReinforceFail": [
+            4,
+            366
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 367,
+        "SoulStoneItemIndex": 111063,
+        "WeaponCreatureIndex": 901063,
+        "SoulStoneCreatureIndex": 911063,
+        "ManageWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            368,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            369
+        ],
+        "ReinforceFail": [
+            4,
+            370
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 371,
+        "SoulStoneItemIndex": 111013,
+        "WeaponCreatureIndex": 901013,
+        "SoulStoneCreatureIndex": 911013,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.399999976158142,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            372,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            373
+        ],
+        "ReinforceFail": [
+            4,
+            374
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 375,
+        "SoulStoneItemIndex": 111055,
+        "WeaponCreatureIndex": 901055,
+        "SoulStoneCreatureIndex": 911055,
+        "ManageWeaponPosition": [
+            0.0,
+            2.5999999046325684,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 2.4000000953674316,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 2.4000000953674316,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.5999999046325684,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 2.4000000953674316,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            376,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            377
+        ],
+        "ReinforceFail": [
+            4,
+            378
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 379,
+        "SoulStoneItemIndex": 111066,
+        "WeaponCreatureIndex": 901066,
+        "SoulStoneCreatureIndex": 911066,
+        "ManageWeaponPosition": [
+            0.20000000298023224,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.20000000298023224,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.20000000298023224,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            380,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            381
+        ],
+        "ReinforceFail": [
+            4,
+            382
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 383,
+        "SoulStoneItemIndex": 111083,
+        "WeaponCreatureIndex": 901083,
+        "SoulStoneCreatureIndex": 911083,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.399999976158142,
+        "UpgradeResultWeaponPosition": [
+            -0.20000000298023224,
+            1.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.399999976158142,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            384,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            385
+        ],
+        "ReinforceFail": [
+            4,
+            386
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 387,
+        "SoulStoneItemIndex": 111084,
+        "WeaponCreatureIndex": 901084,
+        "SoulStoneCreatureIndex": 911084,
+        "ManageWeaponPosition": [
+            -0.20000000298023224,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            -0.10000000149011612,
+            1.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2999999523162842,
+        "UpgradeResultWeaponPosition": [
+            -0.10000000149011612,
+            1.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            388,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            389
+        ],
+        "ReinforceFail": [
+            4,
+            390
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 391,
+        "SoulStoneItemIndex": 111058,
+        "WeaponCreatureIndex": 901058,
+        "SoulStoneCreatureIndex": 911058,
+        "ManageWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 3.0,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 3.0,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.600000023841858,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 3.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            392,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            393
+        ],
+        "ReinforceFail": [
+            4,
+            394
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 395,
+        "SoulStoneItemIndex": 111076,
+        "WeaponCreatureIndex": 901076,
+        "SoulStoneCreatureIndex": 911076,
+        "ManageWeaponPosition": [
+            -0.4000000059604645,
+            1.7999999523162842,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.2999999523162842,
+        "UpgradeWeaponPosition": [
+            -0.30000001192092896,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.2999999523162842,
+        "UpgradeResultWeaponPosition": [
+            -0.30000001192092896,
+            1.7999999523162842,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.2999999523162842,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            396,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            397
+        ],
+        "ReinforceFail": [
+            4,
+            398
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 399,
+        "SoulStoneItemIndex": 111003,
+        "WeaponCreatureIndex": 901003,
+        "SoulStoneCreatureIndex": 911003,
+        "ManageWeaponPosition": [
+            0.0,
+            2.2799999713897705,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            2.2799999713897705,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            2.2799999713897705,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            400,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            401
+        ],
+        "ReinforceFail": [
+            4,
+            402
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 403,
+        "SoulStoneItemIndex": 111006,
+        "WeaponCreatureIndex": 901006,
+        "SoulStoneCreatureIndex": 911006,
+        "ManageWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.5,
+        "UpgradeWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.5,
+        "UpgradeResultWeaponPosition": [
+            0.0,
+            1.7000000476837158,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.5,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            404,
+            3
+        ],
+        "LiberationResultSide": 0,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            405
+        ],
+        "ReinforceFail": [
+            4,
+            406
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 407,
+        "SoulStoneItemIndex": 111008,
+        "WeaponCreatureIndex": 901008,
+        "SoulStoneCreatureIndex": 911008,
+        "ManageWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.0,
+        "UpgradeWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.0,
+        "UpgradeResultWeaponPosition": [
+            0.10000000149011612,
+            2.200000047683716,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            408,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            409
+        ],
+        "ReinforceFail": [
+            4,
+            410
+        ],
+        "Restore": null
+    },
+    {
+        "ItemCode": 411,
+        "SoulStoneItemIndex": 111093,
+        "WeaponCreatureIndex": 901093,
+        "SoulStoneCreatureIndex": 911093,
+        "ManageWeaponPosition": [
+            0.15000000596046448,
+            2.5,
+            0.0
+        ],
+        "ManageWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "ManageWeaponScale": 1.0,
+        "UpgradeWeaponPosition": [
+            0.15000000596046448,
+            2.5,
+            0.0
+        ],
+        "UpgradeWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeWeaponScale": 1.0,
+        "UpgradeResultWeaponPosition": [
+            0.15000000596046448,
+            2.5,
+            0.0
+        ],
+        "UpgradeResultWeaponRotation": [
+            0.0,
+            90.0,
+            0.0
+        ],
+        "UpgradeResultWeaponScale": 1.0,
+        "LiberationBackGround": null,
+        "LiberationWait": null,
+        "LiberationAction": null,
+        "Liberation": [
+            412,
+            3
+        ],
+        "LiberationResultSide": 1,
+        "ModelView": null,
+        "ReinforceSuccess": [
+            4,
+            413
+        ],
+        "ReinforceFail": [
+            4,
+            414
+        ],
+        "Restore": null
+    }
+]

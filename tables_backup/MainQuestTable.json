@@ -1,0 +1,19 @@
+[
+    {
+        "QuestIndex": 0,
+        "Step": 0,
+        "Title": 0,
+        "Desc": 0,
+        "BackgroundPath": 0,
+        "Variable1": null,
+        "Variable2": null,
+        "StateType": 0,
+        "StateValue": null,
+        "ClientOnly": false,
+        "ReqProgress": 0,
+        "AutoComplete": false,
+        "MoveTaskType": 0,
+        "MoveTaskValue": null,
+        "RewardIndex": 0
+    }
+]

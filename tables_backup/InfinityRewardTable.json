@@ -1,0 +1,156 @@
+[
+    {
+        "Index": 1,
+        "RewardType": 1,
+        "ItemIndex": 1101,
+        "IsRatio": false,
+        "InfinityIndex": 1
+    },
+    {
+        "Index": 20202,
+        "RewardType": 1,
+        "ItemIndex": 45131,
+        "IsRatio": false,
+        "InfinityIndex": 20202
+    },
+    {
+        "Index": 2,
+        "RewardType": 2,
+        "ItemIndex": 0,
+        "IsRatio": false,
+        "InfinityIndex": 2
+    },
+    {
+        "Index": 50000,
+        "RewardType": 1,
+        "ItemIndex": 700071,
+        "IsRatio": true,
+        "InfinityIndex": 50000
+    },
+    {
+        "Index": 3,
+        "RewardType": 3,
+        "ItemIndex": 0,
+        "IsRatio": false,
+        "InfinityIndex": 3
+    },
+    {
+        "Index": 20101,
+        "RewardType": 1,
+        "ItemIndex": 45129,
+        "IsRatio": false,
+        "InfinityIndex": 20101
+    },
+    {
+        "Index": 20102,
+        "RewardType": 1,
+        "ItemIndex": 45129,
+        "IsRatio": false,
+        "InfinityIndex": 20102
+    },
+    {
+        "Index": 10200,
+        "RewardType": 1,
+        "ItemIndex": 45122,
+        "IsRatio": false,
+        "InfinityIndex": 10200
+    },
+    {
+        "Index": 10201,
+        "RewardType": 1,
+        "ItemIndex": 45122,
+        "IsRatio": false,
+        "InfinityIndex": 10201
+    },
+    {
+        "Index": 40101,
+        "RewardType": 1,
+        "ItemIndex": 45129,
+        "IsRatio": false,
+        "InfinityIndex": 40101
+    },
+    {
+        "Index": 10202,
+        "RewardType": 1,
+        "ItemIndex": 45122,
+        "IsRatio": false,
+        "InfinityIndex": 10202
+    },
+    {
+        "Index": 40102,
+        "RewardType": 1,
+        "ItemIndex": 45131,
+        "IsRatio": false,
+        "InfinityIndex": 40102
+    },
+    {
+        "Index": 10100,
+        "RewardType": 1,
+        "ItemIndex": 45128,
+        "IsRatio": false,
+        "InfinityIndex": 10100
+    },
+    {
+        "Index": 10101,
+        "RewardType": 1,
+        "ItemIndex": 45128,
+        "IsRatio": false,
+        "InfinityIndex": 10101
+    },
+    {
+        "Index": 40001,
+        "RewardType": 1,
+        "ItemIndex": 45129,
+        "IsRatio": false,
+        "InfinityIndex": 40001
+    },
+    {
+        "Index": 10102,
+        "RewardType": 1,
+        "ItemIndex": 45128,
+        "IsRatio": false,
+        "InfinityIndex": 10102
+    },
+    {
+        "Index": 40002,
+        "RewardType": 1,
+        "ItemIndex": 45131,
+        "IsRatio": false,
+        "InfinityIndex": 40002
+    },
+    {
+        "Index": 30101,
+        "RewardType": 1,
+        "ItemIndex": 45128,
+        "IsRatio": false,
+        "InfinityIndex": 30101
+    },
+    {
+        "Index": 30102,
+        "RewardType": 1,
+        "ItemIndex": 45122,
+        "IsRatio": false,
+        "InfinityIndex": 30102
+    },
+    {
+        "Index": 30001,
+        "RewardType": 1,
+        "ItemIndex": 45128,
+        "IsRatio": false,
+        "InfinityIndex": 30001
+    },
+    {
+        "Index": 30002,
+        "RewardType": 1,
+        "ItemIndex": 45122,
+        "IsRatio": false,
+        "InfinityIndex": 30002
+    },
+    {
+        "Index": 20201,
+        "RewardType": 1,
+        "ItemIndex": 45131,
+        "IsRatio": false,
+        "InfinityIndex": 20201
+    }
+]

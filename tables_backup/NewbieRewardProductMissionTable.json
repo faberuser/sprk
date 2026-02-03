@@ -1,0 +1,26 @@
+[
+    {
+        "Index": 5001,
+        "GroupIndex": 5,
+        "ProvideType": 3,
+        "Condition": [
+            1,
+            2,
+            3
+        ],
+        "RewardIndex": 7000025,
+        "ProductGroupIndex": 3
+    },
+    {
+        "Index": 5002,
+        "GroupIndex": 5,
+        "ProvideType": 3,
+        "Condition": [
+            1,
+            4,
+            3
+        ],
+        "RewardIndex": 7000026,
+        "ProductGroupIndex": 3
+    }
+]

@@ -1,0 +1,674 @@
+[
+    {
+        "Index": 1,
+        "DeviceModel": 1,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 2,
+        "DeviceModel": 3,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 3,
+        "DeviceModel": 4,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 4,
+        "DeviceModel": 5,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 5,
+        "DeviceModel": 6,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 6,
+        "DeviceModel": 7,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 2,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 7,
+        "DeviceModel": 8,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 9,
+        "DeviceStyle": 0,
+        "ScreenRate": null
+    },
+    {
+        "Index": 8,
+        "DeviceModel": 10,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 9,
+        "DeviceModel": 11,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 10,
+        "DeviceModel": 12,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 11,
+        "DeviceModel": 13,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 12,
+        "DeviceModel": 14,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 13,
+        "DeviceModel": 15,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 14,
+        "DeviceModel": 16,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 15,
+        "DeviceModel": 17,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 16,
+        "DeviceModel": 18,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 17,
+        "DeviceModel": 19,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 18,
+        "DeviceModel": 20,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 19,
+        "DeviceModel": 21,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 20,
+        "DeviceModel": 22,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 21,
+        "DeviceModel": 23,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 22,
+        "DeviceModel": 24,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 23,
+        "DeviceModel": 25,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2246.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 24,
+        "DeviceModel": 26,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2246.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 25,
+        "DeviceModel": 27,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2246.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 26,
+        "DeviceModel": 28,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2246.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 27,
+        "DeviceModel": 29,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 28,
+        "DeviceModel": 30,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 29,
+        "DeviceModel": 31,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 30,
+        "DeviceModel": 32,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 31,
+        "DeviceModel": 33,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 32,
+        "DeviceModel": 34,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 33,
+        "DeviceModel": 35,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 34,
+        "DeviceModel": 36,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 35,
+        "DeviceModel": 37,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 36,
+        "DeviceModel": 38,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 37,
+        "DeviceModel": 39,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 38,
+        "DeviceModel": 40,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 39,
+        "DeviceModel": 41,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 40,
+        "DeviceModel": 42,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 41,
+        "DeviceModel": 42,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 42,
+        "DeviceModel": 43,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 43,
+        "DeviceModel": 44,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 44,
+        "DeviceModel": 45,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 45,
+        "DeviceModel": 46,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            20.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 46,
+        "DeviceModel": 47,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            20.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 47,
+        "DeviceModel": 48,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            20.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 48,
+        "DeviceModel": 49,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            20.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 49,
+        "DeviceModel": 50,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            20.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 50,
+        "DeviceModel": 51,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 51,
+        "DeviceModel": 52,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 52,
+        "DeviceModel": 53,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 53,
+        "DeviceModel": 54,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 54,
+        "DeviceModel": 55,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 55,
+        "DeviceModel": 56,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2240.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 56,
+        "DeviceModel": 57,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 57,
+        "DeviceModel": 58,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            2310.0,
+            1080.0
+        ]
+    },
+    {
+        "Index": 58,
+        "DeviceModel": 59,
+        "UseRegularExpression": true,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 2,
+        "ScreenRate": [
+            22.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 59,
+        "DeviceModel": 60,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 0,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 60,
+        "DeviceModel": 61,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 0,
+        "ScreenRate": [
+            19.0,
+            9.0
+        ]
+    },
+    {
+        "Index": 61,
+        "DeviceModel": 62,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 62,
+        "DeviceModel": 63,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    },
+    {
+        "Index": 63,
+        "DeviceModel": 64,
+        "UseRegularExpression": false,
+        "ForceMemorySpec": 0,
+        "DeviceStyle": 3,
+        "ScreenRate": [
+            19.5,
+            9.0
+        ]
+    }
+]

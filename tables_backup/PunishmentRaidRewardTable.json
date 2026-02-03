@@ -1,0 +1,397 @@
+[
+    {
+        "Index": 1,
+        "RaidIndex": 1001,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            1101
+        ],
+        "RewardIndex": [
+            70010191
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 301,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            2,
+            3,
+            4
+        ]
+    },
+    {
+        "Index": 2,
+        "RaidIndex": 1002,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            1102
+        ],
+        "RewardIndex": [
+            70010192
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 301,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            5,
+            3,
+            4
+        ]
+    },
+    {
+        "Index": 3,
+        "RaidIndex": 1003,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            1103
+        ],
+        "RewardIndex": [
+            70010193
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 301,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            6,
+            3,
+            4
+        ]
+    },
+    {
+        "Index": 4,
+        "RaidIndex": 1004,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            1104
+        ],
+        "RewardIndex": [
+            70010194
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 301,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            7,
+            3,
+            4
+        ]
+    },
+    {
+        "Index": 5,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 1,
+        "ClearCheckIndex": [
+            1105
+        ],
+        "RewardIndex": [
+            70010050
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 300,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 6,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105
+        ],
+        "RewardIndex": [
+            70010050
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 100,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 7,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1101
+        ],
+        "RewardIndex": [
+            70010060
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 101,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 8,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1102
+        ],
+        "RewardIndex": [
+            70010120
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 101,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 9,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1103
+        ],
+        "RewardIndex": [
+            70010150
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 101,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 10,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1104
+        ],
+        "RewardIndex": [
+            70010160
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 101,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 11,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1101,
+            1102
+        ],
+        "RewardIndex": [
+            70010070
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 12,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1102,
+            1103
+        ],
+        "RewardIndex": [
+            70010070
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 13,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1103,
+            1104
+        ],
+        "RewardIndex": [
+            70010080
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 14,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1104,
+            1101
+        ],
+        "RewardIndex": [
+            70010090
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 15,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1101,
+            1103
+        ],
+        "RewardIndex": [
+            70010130
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 16,
+        "RaidIndex": 1005,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            1105,
+            1102,
+            1104
+        ],
+        "RewardIndex": [
+            70010140
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 102,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 17,
+        "RaidIndex": 1006,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            2001
+        ],
+        "RewardIndex": [
+            70010120
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 401,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            8,
+            3,
+            9
+        ]
+    },
+    {
+        "Index": 18,
+        "RaidIndex": 1007,
+        "RaidLevel": 1,
+        "RewardType": 2,
+        "ClearCheckIndex": [
+            2002
+        ],
+        "RewardIndex": [
+            70010120
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 401,
+        "ShowRecieveSubRewardCondition": [
+            1,
+            10,
+            3,
+            9
+        ]
+    },
+    {
+        "Index": 19,
+        "RaidIndex": 1008,
+        "RaidLevel": 1,
+        "RewardType": 1,
+        "ClearCheckIndex": [
+            2003
+        ],
+        "RewardIndex": [
+            70010050
+        ],
+        "Active": false,
+        "InfinityRewardGroupIndex": 400,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 20,
+        "RaidIndex": 1008,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            2003
+        ],
+        "RewardIndex": [
+            70010150
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 200,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 21,
+        "RaidIndex": 1008,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            2003,
+            2001
+        ],
+        "RewardIndex": [
+            70010150
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 201,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 22,
+        "RaidIndex": 1008,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            2003,
+            2002
+        ],
+        "RewardIndex": [
+            70010160
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 201,
+        "ShowRecieveSubRewardCondition": null
+    },
+    {
+        "Index": 23,
+        "RaidIndex": 1008,
+        "RaidLevel": 1,
+        "RewardType": 0,
+        "ClearCheckIndex": [
+            2003,
+            2001,
+            2002
+        ],
+        "RewardIndex": [
+            70010170
+        ],
+        "Active": true,
+        "InfinityRewardGroupIndex": 202,
+        "ShowRecieveSubRewardCondition": null
+    }
+]

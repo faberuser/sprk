@@ -1,0 +1,12 @@
+[
+    {
+        "Index": 1,
+        "CreatureCode": 1,
+        "BattleChapterIndex": 1,
+        "BattleDungeonIndex": 1,
+        "RoyalPoint": 1,
+        "Stamina": 6,
+        "SpeedFactor": 0.10000000149011612,
+        "PathIndex": 1
+    }
+]

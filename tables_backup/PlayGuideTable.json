@@ -1,0 +1,185 @@
+[
+    {
+        "Index": 1,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            2,
+            3,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 2130,
+        "TextKey": 5,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            8,
+            9
+        ]
+    },
+    {
+        "Index": 10,
+        "field_1": 0,
+        "Condition1": [
+            10,
+            11,
+            12,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 0,
+        "TextKey": 13,
+        "MoveTaskType": 14,
+        "MoveTaskValue": null
+    },
+    {
+        "Index": 2,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            15,
+            16,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 2130,
+        "TextKey": 17,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            8,
+            9
+        ]
+    },
+    {
+        "Index": 3,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            18,
+            19,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 2130,
+        "TextKey": 20,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            8,
+            9
+        ]
+    },
+    {
+        "Index": 4,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            21,
+            22,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 7000,
+        "TextKey": 23,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            24,
+            9
+        ]
+    },
+    {
+        "Index": 5,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            25,
+            26,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 6000,
+        "TextKey": 27,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            28,
+            9
+        ]
+    },
+    {
+        "Index": 6,
+        "field_1": 0,
+        "Condition1": [
+            29,
+            30,
+            31,
+            30,
+            4
+        ],
+        "Condition2": [
+            1,
+            32,
+            33,
+            31
+        ],
+        "Condition3": null,
+        "TutorialIndex": 8000,
+        "TextKey": 34,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            7,
+            28,
+            9
+        ]
+    },
+    {
+        "Index": 7,
+        "field_1": 0,
+        "Condition1": [
+            35,
+            30,
+            31,
+            36,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 2180,
+        "TextKey": 37,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            38,
+            39,
+            9
+        ]
+    },
+    {
+        "Index": 9,
+        "field_1": 0,
+        "Condition1": [
+            1,
+            40,
+            41,
+            4
+        ],
+        "Condition2": null,
+        "Condition3": null,
+        "TutorialIndex": 9400,
+        "TextKey": 42,
+        "MoveTaskType": 6,
+        "MoveTaskValue": [
+            28,
+            39,
+            9
+        ]
+    }
+]

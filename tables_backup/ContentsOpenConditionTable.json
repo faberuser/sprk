@@ -1,0 +1,660 @@
+[
+    {
+        "Index": 1,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1150,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            3
+        ],
+        "OpenConditionSubQuest": 10160
+    },
+    {
+        "Index": 2,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1150,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            5
+        ],
+        "OpenConditionSubQuest": 10160
+    },
+    {
+        "Index": 3,
+        "ContentsType": 5,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1220,
+        "OpenText": false,
+        "OpenTextResorce": 6,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            8
+        ],
+        "OpenConditionSubQuest": 10240
+    },
+    {
+        "Index": 4,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1260,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            5
+        ],
+        "OpenConditionSubQuest": 10280
+    },
+    {
+        "Index": 5,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1260,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            9
+        ],
+        "OpenConditionSubQuest": 10280
+    },
+    {
+        "Index": 6,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1400,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            9
+        ],
+        "OpenConditionSubQuest": 10420
+    },
+    {
+        "Index": 7,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1400,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            10
+        ],
+        "OpenConditionSubQuest": 10420
+    },
+    {
+        "Index": 8,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1510,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            10
+        ],
+        "OpenConditionSubQuest": 10560
+    },
+    {
+        "Index": 9,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1510,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            11
+        ],
+        "OpenConditionSubQuest": 10560
+    },
+    {
+        "Index": 10,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1680,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            11
+        ],
+        "OpenConditionSubQuest": 10730
+    },
+    {
+        "Index": 11,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1680,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            12
+        ],
+        "OpenConditionSubQuest": 10730
+    },
+    {
+        "Index": 12,
+        "ContentsType": 3,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1680,
+        "OpenText": false,
+        "OpenTextResorce": 13,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            14
+        ],
+        "OpenConditionSubQuest": 10730
+    },
+    {
+        "Index": 13,
+        "ContentsType": 4,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1680,
+        "OpenText": true,
+        "OpenTextResorce": 13,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            14
+        ],
+        "OpenConditionSubQuest": 10730
+    },
+    {
+        "Index": 14,
+        "ContentsType": 9,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1700,
+        "OpenText": true,
+        "OpenTextResorce": 15,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            16
+        ],
+        "OpenConditionSubQuest": 10740
+    },
+    {
+        "Index": 15,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1830,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            12
+        ],
+        "OpenConditionSubQuest": 10890
+    },
+    {
+        "Index": 16,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1830,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            17
+        ],
+        "OpenConditionSubQuest": 10890
+    },
+    {
+        "Index": 17,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1950,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            17
+        ],
+        "OpenConditionSubQuest": 11030
+    },
+    {
+        "Index": 18,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1950,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            18
+        ],
+        "OpenConditionSubQuest": 11030
+    },
+    {
+        "Index": 19,
+        "ContentsType": 8,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1950,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            19
+        ],
+        "OpenConditionSubQuest": 11030
+    },
+    {
+        "Index": 20,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2140,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            18
+        ],
+        "OpenConditionSubQuest": 11220
+    },
+    {
+        "Index": 21,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2140,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            20
+        ],
+        "OpenConditionSubQuest": 11220
+    },
+    {
+        "Index": 22,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2140,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            21
+        ],
+        "OpenConditionSubQuest": 11220
+    },
+    {
+        "Index": 23,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2340,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            22
+        ],
+        "OpenConditionSubQuest": 11420
+    },
+    {
+        "Index": 24,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2380,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            23
+        ],
+        "OpenConditionSubQuest": 11460
+    },
+    {
+        "Index": 25,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2380,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 2,
+        "OpenLocalKeyVariable": [
+            20
+        ],
+        "OpenConditionSubQuest": 11460
+    },
+    {
+        "Index": 26,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2380,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            24
+        ],
+        "OpenConditionSubQuest": 11460
+    },
+    {
+        "Index": 27,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2380,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            25
+        ],
+        "OpenConditionSubQuest": 11460
+    },
+    {
+        "Index": 28,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 2430,
+        "OpenText": false,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            24
+        ],
+        "OpenConditionSubQuest": 0
+    },
+    {
+        "Index": 29,
+        "ContentsType": 11,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 1700,
+        "OpenText": false,
+        "OpenTextResorce": 0,
+        "OpenLocalKey": 0,
+        "OpenLocalKeyVariable": null,
+        "OpenConditionSubQuest": 10740
+    },
+    {
+        "Index": 30,
+        "ContentsType": 12,
+        "ConditionValue": null,
+        "EntryMenuCondition": 26,
+        "OpenConditionMainMission": 0,
+        "OpenText": false,
+        "OpenTextResorce": 0,
+        "OpenLocalKey": 0,
+        "OpenLocalKeyVariable": null,
+        "OpenConditionSubQuest": 0
+    },
+    {
+        "Index": 31,
+        "ContentsType": 13,
+        "ConditionValue": null,
+        "EntryMenuCondition": 27,
+        "OpenConditionMainMission": 0,
+        "OpenText": false,
+        "OpenTextResorce": 0,
+        "OpenLocalKey": 0,
+        "OpenLocalKeyVariable": null,
+        "OpenConditionSubQuest": 0
+    },
+    {
+        "Index": 32,
+        "ContentsType": 14,
+        "ConditionValue": null,
+        "EntryMenuCondition": 27,
+        "OpenConditionMainMission": 0,
+        "OpenText": false,
+        "OpenTextResorce": 0,
+        "OpenLocalKey": 0,
+        "OpenLocalKeyVariable": null,
+        "OpenConditionSubQuest": 0
+    },
+    {
+        "Index": 33,
+        "ContentsType": 10,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            28
+        ],
+        "OpenConditionSubQuest": 11490
+    },
+    {
+        "Index": 34,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            29
+        ],
+        "OpenConditionSubQuest": 11495
+    },
+    {
+        "Index": 35,
+        "ContentsType": 15,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            30
+        ],
+        "OpenConditionSubQuest": 11580
+    },
+    {
+        "Index": 36,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            31
+        ],
+        "OpenConditionSubQuest": 11580
+    },
+    {
+        "Index": 37,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            32
+        ],
+        "OpenConditionSubQuest": 11790
+    },
+    {
+        "Index": 38,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            33
+        ],
+        "OpenConditionSubQuest": 11790
+    },
+    {
+        "Index": 39,
+        "ContentsType": 16,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": false,
+        "OpenTextResorce": 0,
+        "OpenLocalKey": 0,
+        "OpenLocalKeyVariable": null,
+        "OpenConditionSubQuest": 0
+    },
+    {
+        "Index": 40,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            34
+        ],
+        "OpenConditionSubQuest": 11580
+    },
+    {
+        "Index": 41,
+        "ContentsType": 0,
+        "ConditionValue": null,
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            35
+        ],
+        "OpenConditionSubQuest": 11580
+    },
+    {
+        "Index": 42,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 0,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 4,
+        "OpenLocalKeyVariable": [
+            36
+        ],
+        "OpenConditionSubQuest": 11800
+    },
+    {
+        "Index": 43,
+        "ContentsType": 10,
+        "ConditionValue": [
+            0,
+            0
+        ],
+        "EntryMenuCondition": 37,
+        "OpenConditionMainMission": 0,
+        "OpenText": true,
+        "OpenTextResorce": 1,
+        "OpenLocalKey": 7,
+        "OpenLocalKeyVariable": [
+            38
+        ],
+        "OpenConditionSubQuest": 11900
+    }
+]

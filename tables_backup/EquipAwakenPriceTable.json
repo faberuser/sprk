@@ -1,0 +1,2962 @@
+[
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 5,
+        "Tier": 10,
+        "ReqGold": 500000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 2,
+        "Tier": 10,
+        "ReqGold": 200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 15,
+        "Tier": 10,
+        "ReqGold": 2800000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 0,
+        "Tier": 10,
+        "ReqGold": 50000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 10,
+        "Tier": 10,
+        "ReqGold": 1800000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 4,
+        "Tier": 10,
+        "ReqGold": 400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 5,
+        "Tier": 10,
+        "ReqGold": 500000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 2,
+        "Tier": 10,
+        "ReqGold": 200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 0,
+        "Tier": 10,
+        "ReqGold": 50000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 4,
+        "Tier": 10,
+        "ReqGold": 400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 1,
+        "Tier": 10,
+        "ReqGold": 100000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 14,
+        "Tier": 10,
+        "ReqGold": 2600000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 9,
+        "Tier": 10,
+        "ReqGold": 1600000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 3,
+        "Tier": 10,
+        "ReqGold": 300000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 4,
+        "Tier": 10,
+        "ReqGold": 400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 1,
+        "Tier": 10,
+        "ReqGold": 100000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 5,
+        "Tier": 10,
+        "ReqGold": 500000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 3,
+        "Tier": 10,
+        "ReqGold": 300000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 0,
+        "Tier": 10,
+        "ReqGold": 50000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 13,
+        "Tier": 10,
+        "ReqGold": 2400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 8,
+        "Tier": 10,
+        "ReqGold": 1400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 5,
+        "Tier": 10,
+        "ReqGold": 500000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 2,
+        "Tier": 10,
+        "ReqGold": 200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 3,
+        "Tier": 10,
+        "ReqGold": 300000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 0,
+        "Tier": 10,
+        "ReqGold": 50000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 4,
+        "Tier": 10,
+        "ReqGold": 400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 0,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 2,
+        "Tier": 10,
+        "ReqGold": 200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 12,
+        "Tier": 10,
+        "ReqGold": 2200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 3,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 7,
+        "Tier": 10,
+        "ReqGold": 1200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 4,
+        "Tier": 10,
+        "ReqGold": 400000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 1,
+        "Tier": 10,
+        "ReqGold": 100000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 2,
+        "Tier": 10,
+        "ReqGold": 200000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 5001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 1,
+        "ReqGold": 1000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 2,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 3,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 4,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 5,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 6,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 7,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 1001,
+        "Star": 1,
+        "Tier": 8,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 1,
+        "ReqGold": 2000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6002,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 2,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 3,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 4,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 5,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 6,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 7,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 2001,
+        "Star": 4,
+        "Tier": 8,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 6001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 1024000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90005,
+        "Star": 3,
+        "Tier": 10,
+        "ReqGold": 300000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90004,
+        "Star": 1,
+        "Tier": 10,
+        "ReqGold": 100000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 1,
+        "ReqGold": 4000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 2,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 3,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 4,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 5,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 6,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 7,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 11,
+        "Tier": 10,
+        "ReqGold": 2000000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 3001,
+        "Star": 2,
+        "Tier": 8,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 7001,
+        "Star": 0,
+        "Tier": 7,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 5,
+        "Tier": 10,
+        "ReqGold": 500000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 6,
+        "Tier": 10,
+        "ReqGold": 1000000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90002,
+        "Star": 3,
+        "Tier": 10,
+        "ReqGold": 300000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 7,
+        "ReqGold": 512000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90003,
+        "Star": 0,
+        "Tier": 10,
+        "ReqGold": 50000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 5,
+        "Tier": 8,
+        "ReqGold": 786000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 1,
+        "ReqGold": 8000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 2,
+        "ReqGold": 16000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 3,
+        "ReqGold": 32000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 90001,
+        "Star": 1,
+        "Tier": 10,
+        "ReqGold": 100000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 4,
+        "ReqGold": 64000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 5,
+        "ReqGold": 128000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    },
+    {
+        "DetailIndex": 4001,
+        "Star": 0,
+        "Tier": 6,
+        "ReqGold": 256000,
+        "ItemCode1": 0,
+        "ItemCount1": 0
+    }
+]

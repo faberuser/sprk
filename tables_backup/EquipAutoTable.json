@@ -1,0 +1,942 @@
+[
+    {
+        "CreatureTagType": 3,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 100,
+        "ExtraStatType": [
+            50
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 2,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 2,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 2,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 2,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 4,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 2,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 4,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 4,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 4,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 6,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 6,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 4,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 6,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 6,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 6,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 1,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 1,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 1,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 1,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 3,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 100,
+        "ExtraStatType": [
+            3
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 1,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 3,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 100,
+        "ExtraStatType": [
+            50
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 3,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 100,
+        "ExtraStatType": [
+            23
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 5,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 3,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 1000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 100,
+        "ExtraStatType": [
+            50
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 5,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 5,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 5,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 7,
+        "EquipSlotIndex": 1,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 7,
+        "EquipSlotIndex": 2,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 5,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 7,
+        "EquipSlotIndex": 3,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 7,
+        "EquipSlotIndex": 4,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    },
+    {
+        "CreatureTagType": 7,
+        "EquipSlotIndex": 6,
+        "MainStatType1": [
+            1,
+            21
+        ],
+        "MainStatFactor1": 5000,
+        "MainStatType2": [
+            3,
+            23
+        ],
+        "MainStatFactor2": 1000,
+        "MainStatType3": [
+            50
+        ],
+        "MainStatFactor3": 50,
+        "ExtraStatType": [
+            1,
+            21
+        ],
+        "ExtraStatApplyCondition": [
+            1,
+            2,
+            3
+        ]
+    }
+]

@@ -1,0 +1,54 @@
+[
+    {
+        "Index": 10101,
+        "AdventureType": 1,
+        "MaxPetCount": 4,
+        "IsShow": true,
+        "Order": 1,
+        "ReqFood": 100,
+        "MaxDeckCount": 0,
+        "NameKey": 1,
+        "DescKey": 2,
+        "ImagePath": 3,
+        "ThumbnailImagePath": 4
+    },
+    {
+        "Index": 10201,
+        "AdventureType": 1,
+        "MaxPetCount": 4,
+        "IsShow": true,
+        "Order": 2,
+        "ReqFood": 100,
+        "MaxDeckCount": 0,
+        "NameKey": 5,
+        "DescKey": 6,
+        "ImagePath": 7,
+        "ThumbnailImagePath": 8
+    },
+    {
+        "Index": 10301,
+        "AdventureType": 1,
+        "MaxPetCount": 4,
+        "IsShow": true,
+        "Order": 3,
+        "ReqFood": 100,
+        "MaxDeckCount": 0,
+        "NameKey": 9,
+        "DescKey": 10,
+        "ImagePath": 11,
+        "ThumbnailImagePath": 12
+    },
+    {
+        "Index": 10401,
+        "AdventureType": 1,
+        "MaxPetCount": 4,
+        "IsShow": true,
+        "Order": 4,
+        "ReqFood": 100,
+        "MaxDeckCount": 0,
+        "NameKey": 13,
+        "DescKey": 14,
+        "ImagePath": 15,
+        "ThumbnailImagePath": 16
+    }
+]

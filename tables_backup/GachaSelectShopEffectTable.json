@@ -1,0 +1,122 @@
+[
+    {
+        "ItemGroupCode": 1,
+        "ItemCode": 2,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 3,
+        "ItemCode": 4,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 5,
+        "ItemCode": 6,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 7,
+        "ItemCode": 8,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 9,
+        "ItemCode": 10,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 11,
+        "ItemCode": 12,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 13,
+        "ItemCode": 14,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 15,
+        "ItemCode": 16,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 17,
+        "ItemCode": 18,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 19,
+        "ItemCode": 20,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 21,
+        "ItemCode": 22,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 23,
+        "ItemCode": 24,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 25,
+        "ItemCode": 26,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 27,
+        "ItemCode": 28,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 29,
+        "ItemCode": 30,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 31,
+        "ItemCode": 32,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 33,
+        "ItemCode": 34,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 35,
+        "ItemCode": 36,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 37,
+        "ItemCode": 38,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 39,
+        "ItemCode": 40,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 41,
+        "ItemCode": 42,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 43,
+        "ItemCode": 44,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 45,
+        "ItemCode": 46,
+        "ItemCountMin": 500
+    },
+    {
+        "ItemGroupCode": 47,
+        "ItemCode": 48,
+        "ItemCountMin": 500
+    }
+]

@@ -1,0 +1,50 @@
+[
+    {
+        "Grade": 1,
+        "Score": 1,
+        "GetEffect": 0,
+        "NameColor": 1
+    },
+    {
+        "Grade": 90,
+        "Score": 10,
+        "GetEffect": 0,
+        "NameColor": 1
+    },
+    {
+        "Grade": 2,
+        "Score": 2,
+        "GetEffect": 0,
+        "NameColor": 2
+    },
+    {
+        "Grade": 3,
+        "Score": 3,
+        "GetEffect": 0,
+        "NameColor": 3
+    },
+    {
+        "Grade": 4,
+        "Score": 4,
+        "GetEffect": 0,
+        "NameColor": 4
+    },
+    {
+        "Grade": 5,
+        "Score": 5,
+        "GetEffect": 0,
+        "NameColor": 5
+    },
+    {
+        "Grade": 6,
+        "Score": 6,
+        "GetEffect": 0,
+        "NameColor": 6
+    },
+    {
+        "Grade": 7,
+        "Score": 7,
+        "GetEffect": 0,
+        "NameColor": 7
+    }
+]

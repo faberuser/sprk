@@ -1,0 +1,86 @@
+[
+    {
+        "TriggerIndex": 1,
+        "Condition": [
+            1,
+            2,
+            3,
+            4
+        ],
+        "AffixIndices": [
+            5001
+        ],
+        "IconColor": 5,
+        "IconName": 6
+    },
+    {
+        "TriggerIndex": 2,
+        "Condition": [
+            1,
+            7,
+            3,
+            4
+        ],
+        "AffixIndices": [
+            5002
+        ],
+        "IconColor": 8,
+        "IconName": 6
+    },
+    {
+        "TriggerIndex": 3,
+        "Condition": [
+            1,
+            9,
+            3,
+            4
+        ],
+        "AffixIndices": [
+            5003
+        ],
+        "IconColor": 10,
+        "IconName": 6
+    },
+    {
+        "TriggerIndex": 4,
+        "Condition": [
+            1,
+            11,
+            3,
+            4
+        ],
+        "AffixIndices": [
+            5004
+        ],
+        "IconColor": 12,
+        "IconName": 6
+    },
+    {
+        "TriggerIndex": 5,
+        "Condition": [
+            1,
+            13,
+            3,
+            14
+        ],
+        "AffixIndices": [
+            6001
+        ],
+        "IconColor": 15,
+        "IconName": 16
+    },
+    {
+        "TriggerIndex": 6,
+        "Condition": [
+            1,
+            17,
+            3,
+            14
+        ],
+        "AffixIndices": [
+            6002
+        ],
+        "IconColor": 18,
+        "IconName": 19
+    }
+]

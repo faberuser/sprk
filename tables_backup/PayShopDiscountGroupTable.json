@@ -1,0 +1,146 @@
+[
+    {
+        "GroupIndex": 1,
+        "Step": 1,
+        "TargetValue": 100,
+        "Price": 19980
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 19,
+        "TargetValue": 19000,
+        "Price": 16200
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 20,
+        "TargetValue": 21000,
+        "Price": 15800
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 21,
+        "TargetValue": 23100,
+        "Price": 15380
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 22,
+        "TargetValue": 25300,
+        "Price": 14940
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 23,
+        "TargetValue": 27600,
+        "Price": 14480
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 24,
+        "TargetValue": 30000,
+        "Price": 14000
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 2,
+        "TargetValue": 300,
+        "Price": 19940
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 3,
+        "TargetValue": 600,
+        "Price": 19880
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 4,
+        "TargetValue": 1000,
+        "Price": 19800
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 5,
+        "TargetValue": 1500,
+        "Price": 19700
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 6,
+        "TargetValue": 2100,
+        "Price": 19580
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 7,
+        "TargetValue": 2800,
+        "Price": 19440
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 8,
+        "TargetValue": 3600,
+        "Price": 19280
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 9,
+        "TargetValue": 4500,
+        "Price": 19100
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 10,
+        "TargetValue": 5500,
+        "Price": 18900
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 11,
+        "TargetValue": 6600,
+        "Price": 18680
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 12,
+        "TargetValue": 7800,
+        "Price": 18440
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 13,
+        "TargetValue": 9100,
+        "Price": 18180
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 14,
+        "TargetValue": 10500,
+        "Price": 17900
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 15,
+        "TargetValue": 12000,
+        "Price": 17600
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 16,
+        "TargetValue": 13600,
+        "Price": 17280
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 17,
+        "TargetValue": 15300,
+        "Price": 16940
+    },
+    {
+        "GroupIndex": 1,
+        "Step": 18,
+        "TargetValue": 17100,
+        "Price": 16580
+    }
+]

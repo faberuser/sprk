@@ -1,0 +1,72 @@
+[
+    {
+        "ServerName": 1,
+        "Index": 1,
+        "PatternRange": 3
+    },
+    {
+        "ServerName": 1,
+        "Index": 6,
+        "PatternRange": 4
+    },
+    {
+        "ServerName": 1,
+        "Index": 7,
+        "PatternRange": 5
+    },
+    {
+        "ServerName": 1,
+        "Index": 8,
+        "PatternRange": 6
+    },
+    {
+        "ServerName": 1,
+        "Index": 9,
+        "PatternRange": 7
+    },
+    {
+        "ServerName": 1,
+        "Index": 10,
+        "PatternRange": 8
+    },
+    {
+        "ServerName": 1,
+        "Index": 11,
+        "PatternRange": 9
+    },
+    {
+        "ServerName": 1,
+        "Index": 12,
+        "PatternRange": 10
+    },
+    {
+        "ServerName": 1,
+        "Index": 13,
+        "PatternRange": 11
+    },
+    {
+        "ServerName": 1,
+        "Index": 14,
+        "PatternRange": 12
+    },
+    {
+        "ServerName": 1,
+        "Index": 2,
+        "PatternRange": 13
+    },
+    {
+        "ServerName": 1,
+        "Index": 3,
+        "PatternRange": 14
+    },
+    {
+        "ServerName": 1,
+        "Index": 4,
+        "PatternRange": 15
+    },
+    {
+        "ServerName": 1,
+        "Index": 5,
+        "PatternRange": 16
+    }
+]

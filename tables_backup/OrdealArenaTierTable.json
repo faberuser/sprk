@@ -1,0 +1,51 @@
+[
+    {
+        "MatchTierType": 0,
+        "StartRating": 0,
+        "DescKey": 1,
+        "SortingOrder": 1,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 1,
+        "StartRating": 1900,
+        "DescKey": 1,
+        "SortingOrder": 2,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 2,
+        "StartRating": 2800,
+        "DescKey": 1,
+        "SortingOrder": 3,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 3,
+        "StartRating": 3600,
+        "DescKey": 1,
+        "SortingOrder": 4,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 4,
+        "StartRating": 4600,
+        "DescKey": 1,
+        "SortingOrder": 5,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 5,
+        "StartRating": 5500,
+        "DescKey": 1,
+        "SortingOrder": 6,
+        "MoveChapterIndex": 60000
+    },
+    {
+        "MatchTierType": 7,
+        "StartRating": 5500,
+        "DescKey": 1,
+        "SortingOrder": 7,
+        "MoveChapterIndex": 60000
+    }
+]

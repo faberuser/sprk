@@ -1,0 +1,27 @@
+[
+    {
+        "Index": 1,
+        "ClearFloor": 7,
+        "RewardIndex": 1300301
+    },
+    {
+        "Index": 2,
+        "ClearFloor": 14,
+        "RewardIndex": 1300302
+    },
+    {
+        "Index": 3,
+        "ClearFloor": 21,
+        "RewardIndex": 1300303
+    },
+    {
+        "Index": 4,
+        "ClearFloor": 28,
+        "RewardIndex": 1300304
+    },
+    {
+        "Index": 5,
+        "ClearFloor": 35,
+        "RewardIndex": 1300305
+    }
+]

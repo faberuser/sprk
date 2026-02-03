@@ -1,0 +1,142 @@
+[
+    {
+        "Index": 10101,
+        "Order": 1,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 1
+    },
+    {
+        "Index": 10104,
+        "Order": 1,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 2
+    },
+    {
+        "Index": 20304,
+        "Order": 5,
+        "UIPanelType": 0,
+        "ViewType": 2,
+        "IconFile": 3
+    },
+    {
+        "Index": 10201,
+        "Order": 2,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 4
+    },
+    {
+        "Index": 10202,
+        "Order": 2,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 5
+    },
+    {
+        "Index": 10203,
+        "Order": 2,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 6
+    },
+    {
+        "Index": 10204,
+        "Order": 2,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 2
+    },
+    {
+        "Index": 20101,
+        "Order": 3,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 7
+    },
+    {
+        "Index": 20102,
+        "Order": 3,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 8
+    },
+    {
+        "Index": 20103,
+        "Order": 3,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 9
+    },
+    {
+        "Index": 20104,
+        "Order": 3,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 10
+    },
+    {
+        "Index": 20201,
+        "Order": 4,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 11
+    },
+    {
+        "Index": 20202,
+        "Order": 4,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 12
+    },
+    {
+        "Index": 20203,
+        "Order": 4,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 13
+    },
+    {
+        "Index": 20204,
+        "Order": 4,
+        "UIPanelType": 0,
+        "ViewType": 1,
+        "IconFile": 10
+    },
+    {
+        "Index": 20301,
+        "Order": 5,
+        "UIPanelType": 0,
+        "ViewType": 2,
+        "IconFile": 14
+    },
+    {
+        "Index": 10102,
+        "Order": 1,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 15
+    },
+    {
+        "Index": 20302,
+        "Order": 5,
+        "UIPanelType": 0,
+        "ViewType": 2,
+        "IconFile": 16
+    },
+    {
+        "Index": 10103,
+        "Order": 1,
+        "UIPanelType": 0,
+        "ViewType": 0,
+        "IconFile": 17
+    },
+    {
+        "Index": 20303,
+        "Order": 5,
+        "UIPanelType": 0,
+        "ViewType": 2,
+        "IconFile": 18
+    }
+]

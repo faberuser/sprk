@@ -1,0 +1,482 @@
+[
+    {
+        "WorldBossIndex": 1,
+        "Index": 1,
+        "MinScore": 1,
+        "MaxScore": 49999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 4,
+        "MinScore": 150000000,
+        "MaxScore": 199999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 5,
+        "MinScore": 200000000,
+        "MaxScore": 499999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 6,
+        "MinScore": 500000000,
+        "MaxScore": 999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 7,
+        "MinScore": 1000000000,
+        "MaxScore": 1999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 8,
+        "MinScore": 2000000000,
+        "MaxScore": 2999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 9,
+        "MinScore": 3000000000,
+        "MaxScore": 3999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 10,
+        "MinScore": 4000000000,
+        "MaxScore": 5999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 11,
+        "MinScore": 6000000000,
+        "MaxScore": 9999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 12,
+        "MinScore": 10000000000,
+        "MaxScore": 0,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 1,
+        "MinScore": 1,
+        "MaxScore": 49999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 2,
+        "MinScore": 50000000,
+        "MaxScore": 99999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 3,
+        "MinScore": 100000000,
+        "MaxScore": 149999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 4,
+        "MinScore": 150000000,
+        "MaxScore": 199999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 5,
+        "MinScore": 200000000,
+        "MaxScore": 499999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 2,
+        "MinScore": 50000000,
+        "MaxScore": 99999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 6,
+        "MinScore": 500000000,
+        "MaxScore": 999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 3,
+        "MinScore": 100000000,
+        "MaxScore": 149999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 7,
+        "MinScore": 1000000000,
+        "MaxScore": 1999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 4,
+        "MinScore": 150000000,
+        "MaxScore": 199999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 8,
+        "MinScore": 2000000000,
+        "MaxScore": 2999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 5,
+        "MinScore": 200000000,
+        "MaxScore": 499999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 9,
+        "MinScore": 3000000000,
+        "MaxScore": 3999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 6,
+        "MinScore": 500000000,
+        "MaxScore": 999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 10,
+        "MinScore": 4000000000,
+        "MaxScore": 5999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 7,
+        "MinScore": 1000000000,
+        "MaxScore": 1999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 11,
+        "MinScore": 6000000000,
+        "MaxScore": 9999999999,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 8,
+        "MinScore": 2000000000,
+        "MaxScore": 2999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 5,
+        "Index": 12,
+        "MinScore": 10000000000,
+        "MaxScore": 0,
+        "RewardIndex": 302103,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 9,
+        "MinScore": 3000000000,
+        "MaxScore": 3999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 10,
+        "MinScore": 4000000000,
+        "MaxScore": 5999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 11,
+        "MinScore": 6000000000,
+        "MaxScore": 9999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 1,
+        "Index": 12,
+        "MinScore": 10000000000,
+        "MaxScore": 0,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 1,
+        "MinScore": 1,
+        "MaxScore": 49999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 2,
+        "MinScore": 50000000,
+        "MaxScore": 99999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 3,
+        "MinScore": 100000000,
+        "MaxScore": 149999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 4,
+        "MinScore": 150000000,
+        "MaxScore": 199999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 5,
+        "MinScore": 200000000,
+        "MaxScore": 499999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 6,
+        "MinScore": 500000000,
+        "MaxScore": 999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 7,
+        "MinScore": 1000000000,
+        "MaxScore": 1999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 8,
+        "MinScore": 2000000000,
+        "MaxScore": 2999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 9,
+        "MinScore": 3000000000,
+        "MaxScore": 3999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 10,
+        "MinScore": 4000000000,
+        "MaxScore": 5999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 11,
+        "MinScore": 6000000000,
+        "MaxScore": 9999999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 2,
+        "Index": 12,
+        "MinScore": 10000000000,
+        "MaxScore": 0,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 1,
+        "MinScore": 1,
+        "MaxScore": 49999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 2,
+        "MinScore": 50000000,
+        "MaxScore": 99999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 3,
+        "MinScore": 100000000,
+        "MaxScore": 149999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 4,
+        "MinScore": 150000000,
+        "MaxScore": 199999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 5,
+        "MinScore": 200000000,
+        "MaxScore": 499999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 6,
+        "MinScore": 500000000,
+        "MaxScore": 999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 7,
+        "MinScore": 1000000000,
+        "MaxScore": 1999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 8,
+        "MinScore": 2000000000,
+        "MaxScore": 2999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 9,
+        "MinScore": 3000000000,
+        "MaxScore": 3999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 10,
+        "MinScore": 4000000000,
+        "MaxScore": 5999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 11,
+        "MinScore": 6000000000,
+        "MaxScore": 9999999999,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 3,
+        "Index": 12,
+        "MinScore": 10000000000,
+        "MaxScore": 0,
+        "RewardIndex": 302104,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 1,
+        "MinScore": 1,
+        "MaxScore": 49999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 2,
+        "MinScore": 50000000,
+        "MaxScore": 99999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    },
+    {
+        "WorldBossIndex": 4,
+        "Index": 3,
+        "MinScore": 100000000,
+        "MaxScore": 149999999,
+        "RewardIndex": 302105,
+        "WorldBossPoint": 0
+    }
+]

@@ -1,0 +1,7439 @@
+[
+    {
+        "SessionIndex": 1,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 1,
+        "GlobalApplyEnd": 2,
+        "GlobalBattleStart": 3,
+        "GlobalBattleEnd": 4,
+        "ViewRankSeason": 1,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            1,
+            2
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 2,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 5,
+        "GlobalApplyEnd": 6,
+        "GlobalBattleStart": 7,
+        "GlobalBattleEnd": 8,
+        "ViewRankSeason": 1,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            3,
+            4
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 3,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 9,
+        "GlobalApplyEnd": 10,
+        "GlobalBattleStart": 11,
+        "GlobalBattleEnd": 12,
+        "ViewRankSeason": 1,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 4,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 13,
+        "GlobalApplyEnd": 14,
+        "GlobalBattleStart": 15,
+        "GlobalBattleEnd": 16,
+        "ViewRankSeason": 1,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            7,
+            8
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 5,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 17,
+        "GlobalApplyEnd": 18,
+        "GlobalBattleStart": 19,
+        "GlobalBattleEnd": 20,
+        "ViewRankSeason": 1,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            9,
+            10
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 6,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 21,
+        "GlobalApplyEnd": 22,
+        "GlobalBattleStart": 23,
+        "GlobalBattleEnd": 24,
+        "ViewRankSeason": 1,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 7,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 25,
+        "GlobalApplyEnd": 26,
+        "GlobalBattleStart": 27,
+        "GlobalBattleEnd": 28,
+        "ViewRankSeason": 1,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            13,
+            14
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 8,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 29,
+        "GlobalApplyEnd": 30,
+        "GlobalBattleStart": 31,
+        "GlobalBattleEnd": 32,
+        "ViewRankSeason": 1,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            15,
+            16
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 9,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 33,
+        "GlobalApplyEnd": 34,
+        "GlobalBattleStart": 35,
+        "GlobalBattleEnd": 36,
+        "ViewRankSeason": 1,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 10,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 37,
+        "GlobalApplyEnd": 38,
+        "GlobalBattleStart": 39,
+        "GlobalBattleEnd": 40,
+        "ViewRankSeason": 1,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            19,
+            20
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 11,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 41,
+        "GlobalApplyEnd": 42,
+        "GlobalBattleStart": 43,
+        "GlobalBattleEnd": 44,
+        "ViewRankSeason": 1,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            21,
+            22
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 12,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 45,
+        "GlobalApplyEnd": 46,
+        "GlobalBattleStart": 47,
+        "GlobalBattleEnd": 48,
+        "ViewRankSeason": 1,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 13,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 49,
+        "GlobalApplyEnd": 50,
+        "GlobalBattleStart": 51,
+        "GlobalBattleEnd": 52,
+        "ViewRankSeason": 1,
+        "ViewSession": 13,
+        "SuppressDungeonIndex": [
+            25,
+            26
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 13
+    },
+    {
+        "SessionIndex": 14,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 53,
+        "GlobalApplyEnd": 54,
+        "GlobalBattleStart": 55,
+        "GlobalBattleEnd": 56,
+        "ViewRankSeason": 1,
+        "ViewSession": 14,
+        "SuppressDungeonIndex": [
+            27,
+            28
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 14
+    },
+    {
+        "SessionIndex": 15,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 57,
+        "GlobalApplyEnd": 58,
+        "GlobalBattleStart": 59,
+        "GlobalBattleEnd": 60,
+        "ViewRankSeason": 1,
+        "ViewSession": 15,
+        "SuppressDungeonIndex": [
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 15
+    },
+    {
+        "SessionIndex": 16,
+        "SeasonIndex": 1,
+        "GlobalApplyStart": 61,
+        "GlobalApplyEnd": 62,
+        "GlobalBattleStart": 63,
+        "GlobalBattleEnd": 64,
+        "ViewRankSeason": 1,
+        "ViewSession": 16,
+        "SuppressDungeonIndex": [
+            31,
+            32
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 16
+    },
+    {
+        "SessionIndex": 17,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 65,
+        "GlobalApplyEnd": 66,
+        "GlobalBattleStart": 67,
+        "GlobalBattleEnd": 68,
+        "ViewRankSeason": 1,
+        "ViewSession": 17,
+        "SuppressDungeonIndex": [
+            34,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 18,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 69,
+        "GlobalApplyEnd": 70,
+        "GlobalBattleStart": 71,
+        "GlobalBattleEnd": 72,
+        "ViewRankSeason": 2,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            37,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 19,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 73,
+        "GlobalApplyEnd": 74,
+        "GlobalBattleStart": 75,
+        "GlobalBattleEnd": 76,
+        "ViewRankSeason": 2,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            40,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 20,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 77,
+        "GlobalApplyEnd": 78,
+        "GlobalBattleStart": 79,
+        "GlobalBattleEnd": 80,
+        "ViewRankSeason": 2,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            43,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 21,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 81,
+        "GlobalApplyEnd": 82,
+        "GlobalBattleStart": 83,
+        "GlobalBattleEnd": 84,
+        "ViewRankSeason": 2,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            46,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 22,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 85,
+        "GlobalApplyEnd": 86,
+        "GlobalBattleStart": 87,
+        "GlobalBattleEnd": 88,
+        "ViewRankSeason": 2,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            49,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 23,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 89,
+        "GlobalApplyEnd": 90,
+        "GlobalBattleStart": 91,
+        "GlobalBattleEnd": 92,
+        "ViewRankSeason": 2,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            52,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 24,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 93,
+        "GlobalApplyEnd": 94,
+        "GlobalBattleStart": 95,
+        "GlobalBattleEnd": 96,
+        "ViewRankSeason": 2,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            55,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 25,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 97,
+        "GlobalApplyEnd": 98,
+        "GlobalBattleStart": 99,
+        "GlobalBattleEnd": 100,
+        "ViewRankSeason": 2,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            58,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 26,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 101,
+        "GlobalApplyEnd": 102,
+        "GlobalBattleStart": 103,
+        "GlobalBattleEnd": 104,
+        "ViewRankSeason": 2,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            61,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 27,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 105,
+        "GlobalApplyEnd": 106,
+        "GlobalBattleStart": 107,
+        "GlobalBattleEnd": 108,
+        "ViewRankSeason": 2,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            64,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 28,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 109,
+        "GlobalApplyEnd": 110,
+        "GlobalBattleStart": 111,
+        "GlobalBattleEnd": 112,
+        "ViewRankSeason": 2,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            67,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 29,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 113,
+        "GlobalApplyEnd": 114,
+        "GlobalBattleStart": 115,
+        "GlobalBattleEnd": 116,
+        "ViewRankSeason": 2,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            70,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 13
+    },
+    {
+        "SessionIndex": 30,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 117,
+        "GlobalApplyEnd": 118,
+        "GlobalBattleStart": 119,
+        "GlobalBattleEnd": 120,
+        "ViewRankSeason": 2,
+        "ViewSession": 13,
+        "SuppressDungeonIndex": [
+            73,
+            75
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 14
+    },
+    {
+        "SessionIndex": 31,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 121,
+        "GlobalApplyEnd": 122,
+        "GlobalBattleStart": 123,
+        "GlobalBattleEnd": 124,
+        "ViewRankSeason": 2,
+        "ViewSession": 14,
+        "SuppressDungeonIndex": [
+            76,
+            78
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 15
+    },
+    {
+        "SessionIndex": 32,
+        "SeasonIndex": 2,
+        "GlobalApplyStart": 125,
+        "GlobalApplyEnd": 126,
+        "GlobalBattleStart": 127,
+        "GlobalBattleEnd": 128,
+        "ViewRankSeason": 2,
+        "ViewSession": 15,
+        "SuppressDungeonIndex": [
+            79,
+            81
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2
+        ],
+        "SingleLevel": [
+            101,
+            102
+        ],
+        "PortalViewSession": 16
+    },
+    {
+        "SessionIndex": 33,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 129,
+        "GlobalApplyEnd": 130,
+        "GlobalBattleStart": 131,
+        "GlobalBattleEnd": 132,
+        "ViewRankSeason": 2,
+        "ViewSession": 16,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 34,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 133,
+        "GlobalApplyEnd": 134,
+        "GlobalBattleStart": 135,
+        "GlobalBattleEnd": 136,
+        "ViewRankSeason": 3,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 35,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 137,
+        "GlobalApplyEnd": 138,
+        "GlobalBattleStart": 139,
+        "GlobalBattleEnd": 140,
+        "ViewRankSeason": 3,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 36,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 141,
+        "GlobalApplyEnd": 142,
+        "GlobalBattleStart": 143,
+        "GlobalBattleEnd": 144,
+        "ViewRankSeason": 3,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 37,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 145,
+        "GlobalApplyEnd": 146,
+        "GlobalBattleStart": 147,
+        "GlobalBattleEnd": 148,
+        "ViewRankSeason": 3,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 38,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 149,
+        "GlobalApplyEnd": 150,
+        "GlobalBattleStart": 151,
+        "GlobalBattleEnd": 152,
+        "ViewRankSeason": 3,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 39,
+        "SeasonIndex": 3,
+        "GlobalApplyStart": 153,
+        "GlobalApplyEnd": 154,
+        "GlobalBattleStart": 155,
+        "GlobalBattleEnd": 156,
+        "ViewRankSeason": 3,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 40,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 157,
+        "GlobalApplyEnd": 158,
+        "GlobalBattleStart": 159,
+        "GlobalBattleEnd": 160,
+        "ViewRankSeason": 3,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 41,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 161,
+        "GlobalApplyEnd": 162,
+        "GlobalBattleStart": 163,
+        "GlobalBattleEnd": 164,
+        "ViewRankSeason": 4,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 42,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 165,
+        "GlobalApplyEnd": 166,
+        "GlobalBattleStart": 167,
+        "GlobalBattleEnd": 168,
+        "ViewRankSeason": 4,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 43,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 169,
+        "GlobalApplyEnd": 170,
+        "GlobalBattleStart": 171,
+        "GlobalBattleEnd": 172,
+        "ViewRankSeason": 4,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 44,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 173,
+        "GlobalApplyEnd": 174,
+        "GlobalBattleStart": 175,
+        "GlobalBattleEnd": 176,
+        "ViewRankSeason": 4,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 45,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 177,
+        "GlobalApplyEnd": 178,
+        "GlobalBattleStart": 179,
+        "GlobalBattleEnd": 180,
+        "ViewRankSeason": 4,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 46,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 181,
+        "GlobalApplyEnd": 182,
+        "GlobalBattleStart": 183,
+        "GlobalBattleEnd": 184,
+        "ViewRankSeason": 4,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 47,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 185,
+        "GlobalApplyEnd": 186,
+        "GlobalBattleStart": 187,
+        "GlobalBattleEnd": 188,
+        "ViewRankSeason": 4,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 48,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 189,
+        "GlobalApplyEnd": 190,
+        "GlobalBattleStart": 191,
+        "GlobalBattleEnd": 192,
+        "ViewRankSeason": 4,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 49,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 193,
+        "GlobalApplyEnd": 194,
+        "GlobalBattleStart": 195,
+        "GlobalBattleEnd": 196,
+        "ViewRankSeason": 4,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 50,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 197,
+        "GlobalApplyEnd": 198,
+        "GlobalBattleStart": 199,
+        "GlobalBattleEnd": 200,
+        "ViewRankSeason": 4,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 51,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 201,
+        "GlobalApplyEnd": 202,
+        "GlobalBattleStart": 203,
+        "GlobalBattleEnd": 204,
+        "ViewRankSeason": 4,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 52,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 205,
+        "GlobalApplyEnd": 206,
+        "GlobalBattleStart": 207,
+        "GlobalBattleEnd": 208,
+        "ViewRankSeason": 4,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 13
+    },
+    {
+        "SessionIndex": 53,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 209,
+        "GlobalApplyEnd": 210,
+        "GlobalBattleStart": 211,
+        "GlobalBattleEnd": 212,
+        "ViewRankSeason": 4,
+        "ViewSession": 13,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 14
+    },
+    {
+        "SessionIndex": 54,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 213,
+        "GlobalApplyEnd": 214,
+        "GlobalBattleStart": 215,
+        "GlobalBattleEnd": 216,
+        "ViewRankSeason": 4,
+        "ViewSession": 14,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 15
+    },
+    {
+        "SessionIndex": 55,
+        "SeasonIndex": 4,
+        "GlobalApplyStart": 217,
+        "GlobalApplyEnd": 218,
+        "GlobalBattleStart": 219,
+        "GlobalBattleEnd": 220,
+        "ViewRankSeason": 4,
+        "ViewSession": 15,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 16
+    },
+    {
+        "SessionIndex": 56,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 221,
+        "GlobalApplyEnd": 222,
+        "GlobalBattleStart": 223,
+        "GlobalBattleEnd": 224,
+        "ViewRankSeason": 4,
+        "ViewSession": 16,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 57,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 225,
+        "GlobalApplyEnd": 226,
+        "GlobalBattleStart": 227,
+        "GlobalBattleEnd": 228,
+        "ViewRankSeason": 5,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 58,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 229,
+        "GlobalApplyEnd": 230,
+        "GlobalBattleStart": 231,
+        "GlobalBattleEnd": 232,
+        "ViewRankSeason": 5,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 59,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 233,
+        "GlobalApplyEnd": 234,
+        "GlobalBattleStart": 235,
+        "GlobalBattleEnd": 236,
+        "ViewRankSeason": 5,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 60,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 237,
+        "GlobalApplyEnd": 238,
+        "GlobalBattleStart": 239,
+        "GlobalBattleEnd": 240,
+        "ViewRankSeason": 5,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 61,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 241,
+        "GlobalApplyEnd": 242,
+        "GlobalBattleStart": 243,
+        "GlobalBattleEnd": 244,
+        "ViewRankSeason": 5,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 62,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 245,
+        "GlobalApplyEnd": 246,
+        "GlobalBattleStart": 247,
+        "GlobalBattleEnd": 248,
+        "ViewRankSeason": 5,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 63,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 249,
+        "GlobalApplyEnd": 250,
+        "GlobalBattleStart": 251,
+        "GlobalBattleEnd": 252,
+        "ViewRankSeason": 5,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 64,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 253,
+        "GlobalApplyEnd": 254,
+        "GlobalBattleStart": 255,
+        "GlobalBattleEnd": 256,
+        "ViewRankSeason": 5,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 65,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 257,
+        "GlobalApplyEnd": 258,
+        "GlobalBattleStart": 259,
+        "GlobalBattleEnd": 260,
+        "ViewRankSeason": 5,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 66,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 261,
+        "GlobalApplyEnd": 262,
+        "GlobalBattleStart": 263,
+        "GlobalBattleEnd": 264,
+        "ViewRankSeason": 5,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 67,
+        "SeasonIndex": 5,
+        "GlobalApplyStart": 265,
+        "GlobalApplyEnd": 266,
+        "GlobalBattleStart": 267,
+        "GlobalBattleEnd": 268,
+        "ViewRankSeason": 5,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 68,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 269,
+        "GlobalApplyEnd": 270,
+        "GlobalBattleStart": 271,
+        "GlobalBattleEnd": 272,
+        "ViewRankSeason": 5,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 69,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 273,
+        "GlobalApplyEnd": 274,
+        "GlobalBattleStart": 275,
+        "GlobalBattleEnd": 276,
+        "ViewRankSeason": 6,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 70,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 277,
+        "GlobalApplyEnd": 278,
+        "GlobalBattleStart": 279,
+        "GlobalBattleEnd": 280,
+        "ViewRankSeason": 6,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 71,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 281,
+        "GlobalApplyEnd": 282,
+        "GlobalBattleStart": 283,
+        "GlobalBattleEnd": 284,
+        "ViewRankSeason": 6,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 72,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 285,
+        "GlobalApplyEnd": 286,
+        "GlobalBattleStart": 287,
+        "GlobalBattleEnd": 288,
+        "ViewRankSeason": 6,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 73,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 289,
+        "GlobalApplyEnd": 290,
+        "GlobalBattleStart": 291,
+        "GlobalBattleEnd": 292,
+        "ViewRankSeason": 6,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 74,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 293,
+        "GlobalApplyEnd": 294,
+        "GlobalBattleStart": 295,
+        "GlobalBattleEnd": 296,
+        "ViewRankSeason": 6,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 75,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 297,
+        "GlobalApplyEnd": 298,
+        "GlobalBattleStart": 299,
+        "GlobalBattleEnd": 300,
+        "ViewRankSeason": 6,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 76,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 301,
+        "GlobalApplyEnd": 302,
+        "GlobalBattleStart": 303,
+        "GlobalBattleEnd": 304,
+        "ViewRankSeason": 6,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 77,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 305,
+        "GlobalApplyEnd": 306,
+        "GlobalBattleStart": 307,
+        "GlobalBattleEnd": 308,
+        "ViewRankSeason": 6,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 78,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 309,
+        "GlobalApplyEnd": 310,
+        "GlobalBattleStart": 311,
+        "GlobalBattleEnd": 312,
+        "ViewRankSeason": 6,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 79,
+        "SeasonIndex": 6,
+        "GlobalApplyStart": 313,
+        "GlobalApplyEnd": 314,
+        "GlobalBattleStart": 315,
+        "GlobalBattleEnd": 316,
+        "ViewRankSeason": 6,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 80,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 317,
+        "GlobalApplyEnd": 318,
+        "GlobalBattleStart": 319,
+        "GlobalBattleEnd": 320,
+        "ViewRankSeason": 6,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 81,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 321,
+        "GlobalApplyEnd": 322,
+        "GlobalBattleStart": 323,
+        "GlobalBattleEnd": 324,
+        "ViewRankSeason": 7,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 82,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 325,
+        "GlobalApplyEnd": 326,
+        "GlobalBattleStart": 327,
+        "GlobalBattleEnd": 328,
+        "ViewRankSeason": 7,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 83,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 329,
+        "GlobalApplyEnd": 330,
+        "GlobalBattleStart": 331,
+        "GlobalBattleEnd": 332,
+        "ViewRankSeason": 7,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 84,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 333,
+        "GlobalApplyEnd": 334,
+        "GlobalBattleStart": 335,
+        "GlobalBattleEnd": 336,
+        "ViewRankSeason": 7,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 85,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 337,
+        "GlobalApplyEnd": 338,
+        "GlobalBattleStart": 339,
+        "GlobalBattleEnd": 340,
+        "ViewRankSeason": 7,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 86,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 341,
+        "GlobalApplyEnd": 342,
+        "GlobalBattleStart": 343,
+        "GlobalBattleEnd": 344,
+        "ViewRankSeason": 7,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 87,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 345,
+        "GlobalApplyEnd": 346,
+        "GlobalBattleStart": 347,
+        "GlobalBattleEnd": 348,
+        "ViewRankSeason": 7,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 88,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 349,
+        "GlobalApplyEnd": 350,
+        "GlobalBattleStart": 351,
+        "GlobalBattleEnd": 352,
+        "ViewRankSeason": 7,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 89,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 353,
+        "GlobalApplyEnd": 354,
+        "GlobalBattleStart": 355,
+        "GlobalBattleEnd": 356,
+        "ViewRankSeason": 7,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 90,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 357,
+        "GlobalApplyEnd": 358,
+        "GlobalBattleStart": 359,
+        "GlobalBattleEnd": 360,
+        "ViewRankSeason": 7,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 91,
+        "SeasonIndex": 7,
+        "GlobalApplyStart": 361,
+        "GlobalApplyEnd": 362,
+        "GlobalBattleStart": 363,
+        "GlobalBattleEnd": 364,
+        "ViewRankSeason": 7,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 92,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 365,
+        "GlobalApplyEnd": 366,
+        "GlobalBattleStart": 367,
+        "GlobalBattleEnd": 368,
+        "ViewRankSeason": 7,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 93,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 369,
+        "GlobalApplyEnd": 370,
+        "GlobalBattleStart": 371,
+        "GlobalBattleEnd": 372,
+        "ViewRankSeason": 8,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 94,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 373,
+        "GlobalApplyEnd": 374,
+        "GlobalBattleStart": 375,
+        "GlobalBattleEnd": 376,
+        "ViewRankSeason": 8,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 95,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 377,
+        "GlobalApplyEnd": 378,
+        "GlobalBattleStart": 379,
+        "GlobalBattleEnd": 380,
+        "ViewRankSeason": 8,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 96,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 381,
+        "GlobalApplyEnd": 382,
+        "GlobalBattleStart": 383,
+        "GlobalBattleEnd": 384,
+        "ViewRankSeason": 8,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 97,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 385,
+        "GlobalApplyEnd": 386,
+        "GlobalBattleStart": 387,
+        "GlobalBattleEnd": 388,
+        "ViewRankSeason": 8,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 98,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 389,
+        "GlobalApplyEnd": 390,
+        "GlobalBattleStart": 391,
+        "GlobalBattleEnd": 392,
+        "ViewRankSeason": 8,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 101,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 393,
+        "GlobalApplyEnd": 394,
+        "GlobalBattleStart": 395,
+        "GlobalBattleEnd": 396,
+        "ViewRankSeason": 8,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 103,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 397,
+        "GlobalApplyEnd": 398,
+        "GlobalBattleStart": 399,
+        "GlobalBattleEnd": 400,
+        "ViewRankSeason": 8,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            61,
+            62,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 104,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 401,
+        "GlobalApplyEnd": 402,
+        "GlobalBattleStart": 403,
+        "GlobalBattleEnd": 404,
+        "ViewRankSeason": 8,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            64,
+            65,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 105,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 405,
+        "GlobalApplyEnd": 406,
+        "GlobalBattleStart": 407,
+        "GlobalBattleEnd": 408,
+        "ViewRankSeason": 8,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            67,
+            68,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 106,
+        "SeasonIndex": 8,
+        "GlobalApplyStart": 409,
+        "GlobalApplyEnd": 410,
+        "GlobalBattleStart": 411,
+        "GlobalBattleEnd": 412,
+        "ViewRankSeason": 8,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            70,
+            71,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 107,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 413,
+        "GlobalApplyEnd": 414,
+        "GlobalBattleStart": 415,
+        "GlobalBattleEnd": 416,
+        "ViewRankSeason": 8,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 108,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 417,
+        "GlobalApplyEnd": 418,
+        "GlobalBattleStart": 419,
+        "GlobalBattleEnd": 420,
+        "ViewRankSeason": 9,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 109,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 421,
+        "GlobalApplyEnd": 422,
+        "GlobalBattleStart": 423,
+        "GlobalBattleEnd": 424,
+        "ViewRankSeason": 9,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 110,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 425,
+        "GlobalApplyEnd": 426,
+        "GlobalBattleStart": 427,
+        "GlobalBattleEnd": 428,
+        "ViewRankSeason": 9,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 111,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 429,
+        "GlobalApplyEnd": 430,
+        "GlobalBattleStart": 431,
+        "GlobalBattleEnd": 432,
+        "ViewRankSeason": 9,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 112,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 433,
+        "GlobalApplyEnd": 434,
+        "GlobalBattleStart": 435,
+        "GlobalBattleEnd": 436,
+        "ViewRankSeason": 9,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 113,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 437,
+        "GlobalApplyEnd": 438,
+        "GlobalBattleStart": 439,
+        "GlobalBattleEnd": 440,
+        "ViewRankSeason": 9,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 114,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 441,
+        "GlobalApplyEnd": 442,
+        "GlobalBattleStart": 443,
+        "GlobalBattleEnd": 444,
+        "ViewRankSeason": 9,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 115,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 445,
+        "GlobalApplyEnd": 446,
+        "GlobalBattleStart": 447,
+        "GlobalBattleEnd": 448,
+        "ViewRankSeason": 9,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 116,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 449,
+        "GlobalApplyEnd": 450,
+        "GlobalBattleStart": 451,
+        "GlobalBattleEnd": 452,
+        "ViewRankSeason": 9,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 117,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 453,
+        "GlobalApplyEnd": 454,
+        "GlobalBattleStart": 455,
+        "GlobalBattleEnd": 456,
+        "ViewRankSeason": 9,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 118,
+        "SeasonIndex": 9,
+        "GlobalApplyStart": 457,
+        "GlobalApplyEnd": 458,
+        "GlobalBattleStart": 459,
+        "GlobalBattleEnd": 460,
+        "ViewRankSeason": 9,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 119,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 461,
+        "GlobalApplyEnd": 462,
+        "GlobalBattleStart": 463,
+        "GlobalBattleEnd": 464,
+        "ViewRankSeason": 9,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 120,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 465,
+        "GlobalApplyEnd": 466,
+        "GlobalBattleStart": 467,
+        "GlobalBattleEnd": 468,
+        "ViewRankSeason": 10,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 121,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 469,
+        "GlobalApplyEnd": 470,
+        "GlobalBattleStart": 471,
+        "GlobalBattleEnd": 472,
+        "ViewRankSeason": 10,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 122,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 473,
+        "GlobalApplyEnd": 474,
+        "GlobalBattleStart": 475,
+        "GlobalBattleEnd": 476,
+        "ViewRankSeason": 10,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 123,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 477,
+        "GlobalApplyEnd": 478,
+        "GlobalBattleStart": 479,
+        "GlobalBattleEnd": 480,
+        "ViewRankSeason": 10,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 124,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 481,
+        "GlobalApplyEnd": 482,
+        "GlobalBattleStart": 483,
+        "GlobalBattleEnd": 484,
+        "ViewRankSeason": 10,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 125,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 485,
+        "GlobalApplyEnd": 486,
+        "GlobalBattleStart": 487,
+        "GlobalBattleEnd": 488,
+        "ViewRankSeason": 10,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 126,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 489,
+        "GlobalApplyEnd": 490,
+        "GlobalBattleStart": 491,
+        "GlobalBattleEnd": 492,
+        "ViewRankSeason": 10,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 127,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 493,
+        "GlobalApplyEnd": 494,
+        "GlobalBattleStart": 495,
+        "GlobalBattleEnd": 496,
+        "ViewRankSeason": 10,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            61,
+            62,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 128,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 497,
+        "GlobalApplyEnd": 498,
+        "GlobalBattleStart": 499,
+        "GlobalBattleEnd": 500,
+        "ViewRankSeason": 10,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            64,
+            65,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 129,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 501,
+        "GlobalApplyEnd": 502,
+        "GlobalBattleStart": 503,
+        "GlobalBattleEnd": 504,
+        "ViewRankSeason": 10,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            67,
+            68,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 130,
+        "SeasonIndex": 10,
+        "GlobalApplyStart": 505,
+        "GlobalApplyEnd": 506,
+        "GlobalBattleStart": 507,
+        "GlobalBattleEnd": 508,
+        "ViewRankSeason": 10,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            70,
+            71,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 131,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 509,
+        "GlobalApplyEnd": 510,
+        "GlobalBattleStart": 511,
+        "GlobalBattleEnd": 512,
+        "ViewRankSeason": 10,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 132,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 513,
+        "GlobalApplyEnd": 514,
+        "GlobalBattleStart": 515,
+        "GlobalBattleEnd": 516,
+        "ViewRankSeason": 11,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 133,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 517,
+        "GlobalApplyEnd": 518,
+        "GlobalBattleStart": 519,
+        "GlobalBattleEnd": 520,
+        "ViewRankSeason": 11,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 134,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 521,
+        "GlobalApplyEnd": 522,
+        "GlobalBattleStart": 523,
+        "GlobalBattleEnd": 524,
+        "ViewRankSeason": 11,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 135,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 525,
+        "GlobalApplyEnd": 526,
+        "GlobalBattleStart": 527,
+        "GlobalBattleEnd": 528,
+        "ViewRankSeason": 11,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 136,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 529,
+        "GlobalApplyEnd": 530,
+        "GlobalBattleStart": 531,
+        "GlobalBattleEnd": 532,
+        "ViewRankSeason": 11,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 137,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 533,
+        "GlobalApplyEnd": 534,
+        "GlobalBattleStart": 535,
+        "GlobalBattleEnd": 536,
+        "ViewRankSeason": 11,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 138,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 537,
+        "GlobalApplyEnd": 538,
+        "GlobalBattleStart": 539,
+        "GlobalBattleEnd": 540,
+        "ViewRankSeason": 11,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 139,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 541,
+        "GlobalApplyEnd": 542,
+        "GlobalBattleStart": 543,
+        "GlobalBattleEnd": 544,
+        "ViewRankSeason": 11,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 140,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 545,
+        "GlobalApplyEnd": 546,
+        "GlobalBattleStart": 547,
+        "GlobalBattleEnd": 548,
+        "ViewRankSeason": 11,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 141,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 549,
+        "GlobalApplyEnd": 550,
+        "GlobalBattleStart": 551,
+        "GlobalBattleEnd": 552,
+        "ViewRankSeason": 11,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 142,
+        "SeasonIndex": 11,
+        "GlobalApplyStart": 553,
+        "GlobalApplyEnd": 554,
+        "GlobalBattleStart": 555,
+        "GlobalBattleEnd": 556,
+        "ViewRankSeason": 11,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 143,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 557,
+        "GlobalApplyEnd": 558,
+        "GlobalBattleStart": 559,
+        "GlobalBattleEnd": 560,
+        "ViewRankSeason": 11,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 144,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 561,
+        "GlobalApplyEnd": 562,
+        "GlobalBattleStart": 563,
+        "GlobalBattleEnd": 564,
+        "ViewRankSeason": 12,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 145,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 565,
+        "GlobalApplyEnd": 566,
+        "GlobalBattleStart": 567,
+        "GlobalBattleEnd": 568,
+        "ViewRankSeason": 12,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 146,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 569,
+        "GlobalApplyEnd": 570,
+        "GlobalBattleStart": 571,
+        "GlobalBattleEnd": 572,
+        "ViewRankSeason": 12,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 147,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 573,
+        "GlobalApplyEnd": 574,
+        "GlobalBattleStart": 575,
+        "GlobalBattleEnd": 576,
+        "ViewRankSeason": 12,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 148,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 577,
+        "GlobalApplyEnd": 578,
+        "GlobalBattleStart": 579,
+        "GlobalBattleEnd": 580,
+        "ViewRankSeason": 12,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 149,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 581,
+        "GlobalApplyEnd": 582,
+        "GlobalBattleStart": 583,
+        "GlobalBattleEnd": 584,
+        "ViewRankSeason": 12,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 150,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 585,
+        "GlobalApplyEnd": 586,
+        "GlobalBattleStart": 587,
+        "GlobalBattleEnd": 588,
+        "ViewRankSeason": 12,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 151,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 589,
+        "GlobalApplyEnd": 590,
+        "GlobalBattleStart": 591,
+        "GlobalBattleEnd": 592,
+        "ViewRankSeason": 12,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            61,
+            62,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 152,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 593,
+        "GlobalApplyEnd": 594,
+        "GlobalBattleStart": 595,
+        "GlobalBattleEnd": 596,
+        "ViewRankSeason": 12,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            64,
+            65,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 153,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 597,
+        "GlobalApplyEnd": 598,
+        "GlobalBattleStart": 599,
+        "GlobalBattleEnd": 600,
+        "ViewRankSeason": 12,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            67,
+            68,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 154,
+        "SeasonIndex": 12,
+        "GlobalApplyStart": 601,
+        "GlobalApplyEnd": 602,
+        "GlobalBattleStart": 603,
+        "GlobalBattleEnd": 604,
+        "ViewRankSeason": 12,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            70,
+            71,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 155,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 605,
+        "GlobalApplyEnd": 606,
+        "GlobalBattleStart": 607,
+        "GlobalBattleEnd": 608,
+        "ViewRankSeason": 12,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 156,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 609,
+        "GlobalApplyEnd": 610,
+        "GlobalBattleStart": 611,
+        "GlobalBattleEnd": 612,
+        "ViewRankSeason": 13,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 157,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 613,
+        "GlobalApplyEnd": 614,
+        "GlobalBattleStart": 615,
+        "GlobalBattleEnd": 616,
+        "ViewRankSeason": 13,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 158,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 617,
+        "GlobalApplyEnd": 618,
+        "GlobalBattleStart": 619,
+        "GlobalBattleEnd": 620,
+        "ViewRankSeason": 13,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 159,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 621,
+        "GlobalApplyEnd": 622,
+        "GlobalBattleStart": 623,
+        "GlobalBattleEnd": 624,
+        "ViewRankSeason": 13,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 160,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 625,
+        "GlobalApplyEnd": 626,
+        "GlobalBattleStart": 627,
+        "GlobalBattleEnd": 628,
+        "ViewRankSeason": 13,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 161,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 629,
+        "GlobalApplyEnd": 630,
+        "GlobalBattleStart": 631,
+        "GlobalBattleEnd": 632,
+        "ViewRankSeason": 13,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 162,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 633,
+        "GlobalApplyEnd": 634,
+        "GlobalBattleStart": 635,
+        "GlobalBattleEnd": 636,
+        "ViewRankSeason": 13,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 163,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 637,
+        "GlobalApplyEnd": 638,
+        "GlobalBattleStart": 639,
+        "GlobalBattleEnd": 640,
+        "ViewRankSeason": 13,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 164,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 641,
+        "GlobalApplyEnd": 642,
+        "GlobalBattleStart": 643,
+        "GlobalBattleEnd": 644,
+        "ViewRankSeason": 13,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 165,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 645,
+        "GlobalApplyEnd": 646,
+        "GlobalBattleStart": 647,
+        "GlobalBattleEnd": 648,
+        "ViewRankSeason": 13,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 166,
+        "SeasonIndex": 13,
+        "GlobalApplyStart": 649,
+        "GlobalApplyEnd": 650,
+        "GlobalBattleStart": 651,
+        "GlobalBattleEnd": 652,
+        "ViewRankSeason": 13,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 167,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 653,
+        "GlobalApplyEnd": 654,
+        "GlobalBattleStart": 655,
+        "GlobalBattleEnd": 656,
+        "ViewRankSeason": 13,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 168,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 657,
+        "GlobalApplyEnd": 658,
+        "GlobalBattleStart": 659,
+        "GlobalBattleEnd": 660,
+        "ViewRankSeason": 14,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 169,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 661,
+        "GlobalApplyEnd": 662,
+        "GlobalBattleStart": 663,
+        "GlobalBattleEnd": 664,
+        "ViewRankSeason": 14,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 170,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 665,
+        "GlobalApplyEnd": 666,
+        "GlobalBattleStart": 667,
+        "GlobalBattleEnd": 668,
+        "ViewRankSeason": 14,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 171,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 669,
+        "GlobalApplyEnd": 670,
+        "GlobalBattleStart": 671,
+        "GlobalBattleEnd": 672,
+        "ViewRankSeason": 14,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 172,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 673,
+        "GlobalApplyEnd": 674,
+        "GlobalBattleStart": 675,
+        "GlobalBattleEnd": 676,
+        "ViewRankSeason": 14,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 173,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 677,
+        "GlobalApplyEnd": 678,
+        "GlobalBattleStart": 679,
+        "GlobalBattleEnd": 680,
+        "ViewRankSeason": 14,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 174,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 681,
+        "GlobalApplyEnd": 682,
+        "GlobalBattleStart": 683,
+        "GlobalBattleEnd": 684,
+        "ViewRankSeason": 14,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 175,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 685,
+        "GlobalApplyEnd": 686,
+        "GlobalBattleStart": 687,
+        "GlobalBattleEnd": 688,
+        "ViewRankSeason": 14,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            61,
+            62,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 176,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 689,
+        "GlobalApplyEnd": 690,
+        "GlobalBattleStart": 691,
+        "GlobalBattleEnd": 692,
+        "ViewRankSeason": 14,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            64,
+            65,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 177,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 693,
+        "GlobalApplyEnd": 694,
+        "GlobalBattleStart": 695,
+        "GlobalBattleEnd": 696,
+        "ViewRankSeason": 14,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            67,
+            68,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 178,
+        "SeasonIndex": 14,
+        "GlobalApplyStart": 697,
+        "GlobalApplyEnd": 698,
+        "GlobalBattleStart": 699,
+        "GlobalBattleEnd": 700,
+        "ViewRankSeason": 14,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            70,
+            71,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 179,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 701,
+        "GlobalApplyEnd": 702,
+        "GlobalBattleStart": 703,
+        "GlobalBattleEnd": 704,
+        "ViewRankSeason": 14,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 180,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 705,
+        "GlobalApplyEnd": 706,
+        "GlobalBattleStart": 707,
+        "GlobalBattleEnd": 708,
+        "ViewRankSeason": 15,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 181,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 709,
+        "GlobalApplyEnd": 710,
+        "GlobalBattleStart": 711,
+        "GlobalBattleEnd": 712,
+        "ViewRankSeason": 15,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 182,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 713,
+        "GlobalApplyEnd": 714,
+        "GlobalBattleStart": 715,
+        "GlobalBattleEnd": 716,
+        "ViewRankSeason": 15,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 183,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 717,
+        "GlobalApplyEnd": 718,
+        "GlobalBattleStart": 719,
+        "GlobalBattleEnd": 720,
+        "ViewRankSeason": 15,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 184,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 721,
+        "GlobalApplyEnd": 722,
+        "GlobalBattleStart": 723,
+        "GlobalBattleEnd": 724,
+        "ViewRankSeason": 15,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 185,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 725,
+        "GlobalApplyEnd": 726,
+        "GlobalBattleStart": 727,
+        "GlobalBattleEnd": 728,
+        "ViewRankSeason": 15,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 186,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 729,
+        "GlobalApplyEnd": 730,
+        "GlobalBattleStart": 731,
+        "GlobalBattleEnd": 732,
+        "ViewRankSeason": 15,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 187,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 733,
+        "GlobalApplyEnd": 734,
+        "GlobalBattleStart": 735,
+        "GlobalBattleEnd": 736,
+        "ViewRankSeason": 15,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            25,
+            26,
+            27
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 188,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 737,
+        "GlobalApplyEnd": 738,
+        "GlobalBattleStart": 739,
+        "GlobalBattleEnd": 740,
+        "ViewRankSeason": 15,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            28,
+            29,
+            30
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 189,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 741,
+        "GlobalApplyEnd": 742,
+        "GlobalBattleStart": 743,
+        "GlobalBattleEnd": 744,
+        "ViewRankSeason": 15,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            31,
+            32,
+            33
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 190,
+        "SeasonIndex": 15,
+        "GlobalApplyStart": 745,
+        "GlobalApplyEnd": 746,
+        "GlobalBattleStart": 747,
+        "GlobalBattleEnd": 748,
+        "ViewRankSeason": 15,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            34,
+            35,
+            36
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 191,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 749,
+        "GlobalApplyEnd": 750,
+        "GlobalBattleStart": 751,
+        "GlobalBattleEnd": 752,
+        "ViewRankSeason": 15,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 192,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 753,
+        "GlobalApplyEnd": 754,
+        "GlobalBattleStart": 755,
+        "GlobalBattleEnd": 756,
+        "ViewRankSeason": 16,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 193,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 757,
+        "GlobalApplyEnd": 758,
+        "GlobalBattleStart": 759,
+        "GlobalBattleEnd": 760,
+        "ViewRankSeason": 16,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 194,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 761,
+        "GlobalApplyEnd": 762,
+        "GlobalBattleStart": 763,
+        "GlobalBattleEnd": 764,
+        "ViewRankSeason": 16,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 195,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 765,
+        "GlobalApplyEnd": 766,
+        "GlobalBattleStart": 767,
+        "GlobalBattleEnd": 768,
+        "ViewRankSeason": 16,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 196,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 769,
+        "GlobalApplyEnd": 770,
+        "GlobalBattleStart": 771,
+        "GlobalBattleEnd": 772,
+        "ViewRankSeason": 16,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 197,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 773,
+        "GlobalApplyEnd": 774,
+        "GlobalBattleStart": 775,
+        "GlobalBattleEnd": 776,
+        "ViewRankSeason": 16,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 198,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 777,
+        "GlobalApplyEnd": 778,
+        "GlobalBattleStart": 779,
+        "GlobalBattleEnd": 780,
+        "ViewRankSeason": 16,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 199,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 781,
+        "GlobalApplyEnd": 782,
+        "GlobalBattleStart": 783,
+        "GlobalBattleEnd": 784,
+        "ViewRankSeason": 16,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            61,
+            62,
+            63
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 9
+    },
+    {
+        "SessionIndex": 200,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 785,
+        "GlobalApplyEnd": 786,
+        "GlobalBattleStart": 787,
+        "GlobalBattleEnd": 788,
+        "ViewRankSeason": 16,
+        "ViewSession": 9,
+        "SuppressDungeonIndex": [
+            64,
+            65,
+            66
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 10
+    },
+    {
+        "SessionIndex": 201,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 789,
+        "GlobalApplyEnd": 790,
+        "GlobalBattleStart": 791,
+        "GlobalBattleEnd": 792,
+        "ViewRankSeason": 16,
+        "ViewSession": 10,
+        "SuppressDungeonIndex": [
+            67,
+            68,
+            69
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 11
+    },
+    {
+        "SessionIndex": 202,
+        "SeasonIndex": 16,
+        "GlobalApplyStart": 793,
+        "GlobalApplyEnd": 794,
+        "GlobalBattleStart": 795,
+        "GlobalBattleEnd": 796,
+        "ViewRankSeason": 16,
+        "ViewSession": 11,
+        "SuppressDungeonIndex": [
+            70,
+            71,
+            72
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 12
+    },
+    {
+        "SessionIndex": 203,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 797,
+        "GlobalApplyEnd": 798,
+        "GlobalBattleStart": 799,
+        "GlobalBattleEnd": 800,
+        "ViewRankSeason": 16,
+        "ViewSession": 12,
+        "SuppressDungeonIndex": [
+            1,
+            2,
+            3
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 204,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 801,
+        "GlobalApplyEnd": 802,
+        "GlobalBattleStart": 803,
+        "GlobalBattleEnd": 804,
+        "ViewRankSeason": 17,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            4,
+            5,
+            6
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 205,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 805,
+        "GlobalApplyEnd": 806,
+        "GlobalBattleStart": 807,
+        "GlobalBattleEnd": 808,
+        "ViewRankSeason": 17,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            7,
+            8,
+            9
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 206,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 809,
+        "GlobalApplyEnd": 810,
+        "GlobalBattleStart": 811,
+        "GlobalBattleEnd": 812,
+        "ViewRankSeason": 17,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            10,
+            11,
+            12
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 207,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 813,
+        "GlobalApplyEnd": 814,
+        "GlobalBattleStart": 815,
+        "GlobalBattleEnd": 816,
+        "ViewRankSeason": 17,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            13,
+            14,
+            15
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 208,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 817,
+        "GlobalApplyEnd": 818,
+        "GlobalBattleStart": 819,
+        "GlobalBattleEnd": 820,
+        "ViewRankSeason": 17,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            16,
+            17,
+            18
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 209,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 821,
+        "GlobalApplyEnd": 822,
+        "GlobalBattleStart": 823,
+        "GlobalBattleEnd": 824,
+        "ViewRankSeason": 17,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            19,
+            20,
+            21
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 210,
+        "SeasonIndex": 17,
+        "GlobalApplyStart": 825,
+        "GlobalApplyEnd": 826,
+        "GlobalBattleStart": 827,
+        "GlobalBattleEnd": 828,
+        "ViewRankSeason": 17,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            22,
+            23,
+            24
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 211,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 829,
+        "GlobalApplyEnd": 830,
+        "GlobalBattleStart": 831,
+        "GlobalBattleEnd": 832,
+        "ViewRankSeason": 17,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            37,
+            38,
+            39
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 212,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 833,
+        "GlobalApplyEnd": 834,
+        "GlobalBattleStart": 835,
+        "GlobalBattleEnd": 836,
+        "ViewRankSeason": 18,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            40,
+            41,
+            42
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 213,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 837,
+        "GlobalApplyEnd": 838,
+        "GlobalBattleStart": 839,
+        "GlobalBattleEnd": 840,
+        "ViewRankSeason": 18,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            43,
+            44,
+            45
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 214,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 841,
+        "GlobalApplyEnd": 842,
+        "GlobalBattleStart": 843,
+        "GlobalBattleEnd": 844,
+        "ViewRankSeason": 18,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            46,
+            47,
+            48
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 215,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 845,
+        "GlobalApplyEnd": 846,
+        "GlobalBattleStart": 847,
+        "GlobalBattleEnd": 848,
+        "ViewRankSeason": 18,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            49,
+            50,
+            51
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 216,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 849,
+        "GlobalApplyEnd": 850,
+        "GlobalBattleStart": 851,
+        "GlobalBattleEnd": 852,
+        "ViewRankSeason": 18,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            52,
+            53,
+            54
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 217,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 853,
+        "GlobalApplyEnd": 854,
+        "GlobalBattleStart": 855,
+        "GlobalBattleEnd": 856,
+        "ViewRankSeason": 18,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            55,
+            56,
+            57
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 218,
+        "SeasonIndex": 18,
+        "GlobalApplyStart": 857,
+        "GlobalApplyEnd": 858,
+        "GlobalBattleStart": 859,
+        "GlobalBattleEnd": 860,
+        "ViewRankSeason": 18,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            58,
+            59,
+            60
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 219,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 861,
+        "GlobalApplyEnd": 862,
+        "GlobalBattleStart": 863,
+        "GlobalBattleEnd": 864,
+        "ViewRankSeason": 18,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            101,
+            102,
+            103
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 220,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 865,
+        "GlobalApplyEnd": 866,
+        "GlobalBattleStart": 867,
+        "GlobalBattleEnd": 868,
+        "ViewRankSeason": 19,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            104,
+            105,
+            106
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 221,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 869,
+        "GlobalApplyEnd": 870,
+        "GlobalBattleStart": 871,
+        "GlobalBattleEnd": 872,
+        "ViewRankSeason": 19,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            107,
+            108,
+            109
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 222,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 873,
+        "GlobalApplyEnd": 874,
+        "GlobalBattleStart": 875,
+        "GlobalBattleEnd": 876,
+        "ViewRankSeason": 19,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            110,
+            111,
+            112
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 223,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 877,
+        "GlobalApplyEnd": 878,
+        "GlobalBattleStart": 879,
+        "GlobalBattleEnd": 880,
+        "ViewRankSeason": 19,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            113,
+            114,
+            115
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 224,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 881,
+        "GlobalApplyEnd": 882,
+        "GlobalBattleStart": 883,
+        "GlobalBattleEnd": 884,
+        "ViewRankSeason": 19,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            116,
+            117,
+            118
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 225,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 885,
+        "GlobalApplyEnd": 886,
+        "GlobalBattleStart": 887,
+        "GlobalBattleEnd": 888,
+        "ViewRankSeason": 19,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            119,
+            120,
+            121
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 226,
+        "SeasonIndex": 19,
+        "GlobalApplyStart": 889,
+        "GlobalApplyEnd": 890,
+        "GlobalBattleStart": 891,
+        "GlobalBattleEnd": 892,
+        "ViewRankSeason": 19,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            122,
+            123,
+            124
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 227,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 893,
+        "GlobalApplyEnd": 894,
+        "GlobalBattleStart": 895,
+        "GlobalBattleEnd": 896,
+        "ViewRankSeason": 19,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            125,
+            126,
+            127
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 228,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 897,
+        "GlobalApplyEnd": 898,
+        "GlobalBattleStart": 899,
+        "GlobalBattleEnd": 900,
+        "ViewRankSeason": 20,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            128,
+            129,
+            130
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 229,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 901,
+        "GlobalApplyEnd": 902,
+        "GlobalBattleStart": 903,
+        "GlobalBattleEnd": 904,
+        "ViewRankSeason": 20,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            131,
+            132,
+            133
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 230,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 905,
+        "GlobalApplyEnd": 906,
+        "GlobalBattleStart": 907,
+        "GlobalBattleEnd": 908,
+        "ViewRankSeason": 20,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            134,
+            135,
+            136
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 231,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 909,
+        "GlobalApplyEnd": 910,
+        "GlobalBattleStart": 911,
+        "GlobalBattleEnd": 912,
+        "ViewRankSeason": 20,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            137,
+            138,
+            139
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 232,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 913,
+        "GlobalApplyEnd": 914,
+        "GlobalBattleStart": 915,
+        "GlobalBattleEnd": 916,
+        "ViewRankSeason": 20,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            140,
+            141,
+            142
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 233,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 917,
+        "GlobalApplyEnd": 918,
+        "GlobalBattleStart": 919,
+        "GlobalBattleEnd": 920,
+        "ViewRankSeason": 20,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            143,
+            144,
+            145
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 234,
+        "SeasonIndex": 20,
+        "GlobalApplyStart": 921,
+        "GlobalApplyEnd": 922,
+        "GlobalBattleStart": 923,
+        "GlobalBattleEnd": 924,
+        "ViewRankSeason": 20,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            146,
+            147,
+            148
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 235,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 925,
+        "GlobalApplyEnd": 926,
+        "GlobalBattleStart": 927,
+        "GlobalBattleEnd": 928,
+        "ViewRankSeason": 20,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            149,
+            150,
+            151
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 236,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 929,
+        "GlobalApplyEnd": 930,
+        "GlobalBattleStart": 931,
+        "GlobalBattleEnd": 932,
+        "ViewRankSeason": 21,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            152,
+            153,
+            154
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 237,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 933,
+        "GlobalApplyEnd": 934,
+        "GlobalBattleStart": 935,
+        "GlobalBattleEnd": 936,
+        "ViewRankSeason": 21,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            155,
+            156,
+            157
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 238,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 937,
+        "GlobalApplyEnd": 938,
+        "GlobalBattleStart": 939,
+        "GlobalBattleEnd": 940,
+        "ViewRankSeason": 21,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            158,
+            159,
+            160
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 239,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 941,
+        "GlobalApplyEnd": 942,
+        "GlobalBattleStart": 943,
+        "GlobalBattleEnd": 944,
+        "ViewRankSeason": 21,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            161,
+            162,
+            163
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 240,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 945,
+        "GlobalApplyEnd": 946,
+        "GlobalBattleStart": 947,
+        "GlobalBattleEnd": 948,
+        "ViewRankSeason": 21,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            164,
+            165,
+            166
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 241,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 949,
+        "GlobalApplyEnd": 950,
+        "GlobalBattleStart": 951,
+        "GlobalBattleEnd": 952,
+        "ViewRankSeason": 21,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            167,
+            168,
+            169
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 242,
+        "SeasonIndex": 21,
+        "GlobalApplyStart": 953,
+        "GlobalApplyEnd": 954,
+        "GlobalBattleStart": 955,
+        "GlobalBattleEnd": 956,
+        "ViewRankSeason": 21,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            170,
+            171,
+            172
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 243,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 957,
+        "GlobalApplyEnd": 958,
+        "GlobalBattleStart": 959,
+        "GlobalBattleEnd": 960,
+        "ViewRankSeason": 21,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            173,
+            174,
+            175
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 244,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 961,
+        "GlobalApplyEnd": 962,
+        "GlobalBattleStart": 963,
+        "GlobalBattleEnd": 964,
+        "ViewRankSeason": 22,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            176,
+            177,
+            178
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 245,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 965,
+        "GlobalApplyEnd": 966,
+        "GlobalBattleStart": 967,
+        "GlobalBattleEnd": 968,
+        "ViewRankSeason": 22,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            179,
+            180,
+            181
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 246,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 969,
+        "GlobalApplyEnd": 970,
+        "GlobalBattleStart": 971,
+        "GlobalBattleEnd": 972,
+        "ViewRankSeason": 22,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            182,
+            183,
+            184
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 247,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 973,
+        "GlobalApplyEnd": 974,
+        "GlobalBattleStart": 975,
+        "GlobalBattleEnd": 976,
+        "ViewRankSeason": 22,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            185,
+            186,
+            187
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 248,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 977,
+        "GlobalApplyEnd": 978,
+        "GlobalBattleStart": 979,
+        "GlobalBattleEnd": 980,
+        "ViewRankSeason": 22,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            188,
+            189,
+            190
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 249,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 981,
+        "GlobalApplyEnd": 982,
+        "GlobalBattleStart": 983,
+        "GlobalBattleEnd": 984,
+        "ViewRankSeason": 22,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            191,
+            192,
+            193
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 250,
+        "SeasonIndex": 22,
+        "GlobalApplyStart": 985,
+        "GlobalApplyEnd": 986,
+        "GlobalBattleStart": 987,
+        "GlobalBattleEnd": 988,
+        "ViewRankSeason": 22,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            194,
+            195,
+            196
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 251,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 989,
+        "GlobalApplyEnd": 990,
+        "GlobalBattleStart": 991,
+        "GlobalBattleEnd": 992,
+        "ViewRankSeason": 22,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            197,
+            198,
+            199
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 252,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 993,
+        "GlobalApplyEnd": 994,
+        "GlobalBattleStart": 995,
+        "GlobalBattleEnd": 996,
+        "ViewRankSeason": 23,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            200,
+            201,
+            202
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 253,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 997,
+        "GlobalApplyEnd": 998,
+        "GlobalBattleStart": 999,
+        "GlobalBattleEnd": 1000,
+        "ViewRankSeason": 23,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            203,
+            204,
+            205
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 254,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 1001,
+        "GlobalApplyEnd": 1002,
+        "GlobalBattleStart": 1003,
+        "GlobalBattleEnd": 1004,
+        "ViewRankSeason": 23,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            206,
+            207,
+            208
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 255,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 1005,
+        "GlobalApplyEnd": 1006,
+        "GlobalBattleStart": 1007,
+        "GlobalBattleEnd": 1008,
+        "ViewRankSeason": 23,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            209,
+            210,
+            211
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 256,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 1009,
+        "GlobalApplyEnd": 1010,
+        "GlobalBattleStart": 1011,
+        "GlobalBattleEnd": 1012,
+        "ViewRankSeason": 23,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            212,
+            213,
+            214
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 257,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 1013,
+        "GlobalApplyEnd": 1014,
+        "GlobalBattleStart": 1015,
+        "GlobalBattleEnd": 1016,
+        "ViewRankSeason": 23,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            215,
+            216,
+            217
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 258,
+        "SeasonIndex": 23,
+        "GlobalApplyStart": 1017,
+        "GlobalApplyEnd": 1018,
+        "GlobalBattleStart": 1019,
+        "GlobalBattleEnd": 1020,
+        "ViewRankSeason": 23,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            218,
+            219,
+            220
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 259,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1021,
+        "GlobalApplyEnd": 1022,
+        "GlobalBattleStart": 1023,
+        "GlobalBattleEnd": 1024,
+        "ViewRankSeason": 23,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            221,
+            222,
+            223
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 260,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1025,
+        "GlobalApplyEnd": 1026,
+        "GlobalBattleStart": 1027,
+        "GlobalBattleEnd": 1028,
+        "ViewRankSeason": 24,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            224,
+            225,
+            226
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 261,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1029,
+        "GlobalApplyEnd": 1030,
+        "GlobalBattleStart": 1031,
+        "GlobalBattleEnd": 1032,
+        "ViewRankSeason": 24,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            227,
+            228,
+            229
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 262,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1033,
+        "GlobalApplyEnd": 1034,
+        "GlobalBattleStart": 1035,
+        "GlobalBattleEnd": 1036,
+        "ViewRankSeason": 24,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            230,
+            231,
+            232
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 263,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1037,
+        "GlobalApplyEnd": 1038,
+        "GlobalBattleStart": 1039,
+        "GlobalBattleEnd": 1040,
+        "ViewRankSeason": 24,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            233,
+            234,
+            235
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 264,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1041,
+        "GlobalApplyEnd": 1042,
+        "GlobalBattleStart": 1043,
+        "GlobalBattleEnd": 1044,
+        "ViewRankSeason": 24,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            236,
+            237,
+            238
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 265,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1045,
+        "GlobalApplyEnd": 1046,
+        "GlobalBattleStart": 1047,
+        "GlobalBattleEnd": 1048,
+        "ViewRankSeason": 24,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            239,
+            240,
+            241
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 266,
+        "SeasonIndex": 24,
+        "GlobalApplyStart": 1049,
+        "GlobalApplyEnd": 1050,
+        "GlobalBattleStart": 1051,
+        "GlobalBattleEnd": 1052,
+        "ViewRankSeason": 24,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            242,
+            243,
+            244
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 267,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1053,
+        "GlobalApplyEnd": 1054,
+        "GlobalBattleStart": 1055,
+        "GlobalBattleEnd": 1056,
+        "ViewRankSeason": 24,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            245,
+            246,
+            247
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 268,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1057,
+        "GlobalApplyEnd": 1058,
+        "GlobalBattleStart": 1059,
+        "GlobalBattleEnd": 1060,
+        "ViewRankSeason": 25,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            248,
+            249,
+            250
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 269,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1061,
+        "GlobalApplyEnd": 1062,
+        "GlobalBattleStart": 1063,
+        "GlobalBattleEnd": 1064,
+        "ViewRankSeason": 25,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            251,
+            252,
+            253
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 270,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1065,
+        "GlobalApplyEnd": 1066,
+        "GlobalBattleStart": 1067,
+        "GlobalBattleEnd": 1068,
+        "ViewRankSeason": 25,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            254,
+            255,
+            256
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 271,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1069,
+        "GlobalApplyEnd": 1070,
+        "GlobalBattleStart": 1071,
+        "GlobalBattleEnd": 1072,
+        "ViewRankSeason": 25,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            257,
+            258,
+            259
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 272,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1073,
+        "GlobalApplyEnd": 1074,
+        "GlobalBattleStart": 1075,
+        "GlobalBattleEnd": 1076,
+        "ViewRankSeason": 25,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            260,
+            261,
+            262
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 273,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1077,
+        "GlobalApplyEnd": 1078,
+        "GlobalBattleStart": 1079,
+        "GlobalBattleEnd": 1080,
+        "ViewRankSeason": 25,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            263,
+            264,
+            265
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 274,
+        "SeasonIndex": 25,
+        "GlobalApplyStart": 1081,
+        "GlobalApplyEnd": 1082,
+        "GlobalBattleStart": 1083,
+        "GlobalBattleEnd": 1084,
+        "ViewRankSeason": 25,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            266,
+            267,
+            268
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    },
+    {
+        "SessionIndex": 275,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1085,
+        "GlobalApplyEnd": 1086,
+        "GlobalBattleStart": 1087,
+        "GlobalBattleEnd": 1088,
+        "ViewRankSeason": 25,
+        "ViewSession": 8,
+        "SuppressDungeonIndex": [
+            269,
+            270,
+            271
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 1
+    },
+    {
+        "SessionIndex": 276,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1089,
+        "GlobalApplyEnd": 1090,
+        "GlobalBattleStart": 1091,
+        "GlobalBattleEnd": 1092,
+        "ViewRankSeason": 26,
+        "ViewSession": 1,
+        "SuppressDungeonIndex": [
+            272,
+            273,
+            274
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 2
+    },
+    {
+        "SessionIndex": 277,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1093,
+        "GlobalApplyEnd": 1094,
+        "GlobalBattleStart": 1095,
+        "GlobalBattleEnd": 1096,
+        "ViewRankSeason": 26,
+        "ViewSession": 2,
+        "SuppressDungeonIndex": [
+            275,
+            276,
+            277
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 3
+    },
+    {
+        "SessionIndex": 278,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1097,
+        "GlobalApplyEnd": 1098,
+        "GlobalBattleStart": 1099,
+        "GlobalBattleEnd": 1100,
+        "ViewRankSeason": 26,
+        "ViewSession": 3,
+        "SuppressDungeonIndex": [
+            278,
+            279,
+            280
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 4
+    },
+    {
+        "SessionIndex": 279,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1101,
+        "GlobalApplyEnd": 1102,
+        "GlobalBattleStart": 1103,
+        "GlobalBattleEnd": 1104,
+        "ViewRankSeason": 26,
+        "ViewSession": 4,
+        "SuppressDungeonIndex": [
+            281,
+            282,
+            283
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 5
+    },
+    {
+        "SessionIndex": 280,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1105,
+        "GlobalApplyEnd": 1106,
+        "GlobalBattleStart": 1107,
+        "GlobalBattleEnd": 1108,
+        "ViewRankSeason": 26,
+        "ViewSession": 5,
+        "SuppressDungeonIndex": [
+            284,
+            285,
+            286
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 6
+    },
+    {
+        "SessionIndex": 281,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1109,
+        "GlobalApplyEnd": 1110,
+        "GlobalBattleStart": 1111,
+        "GlobalBattleEnd": 1112,
+        "ViewRankSeason": 26,
+        "ViewSession": 6,
+        "SuppressDungeonIndex": [
+            287,
+            288,
+            289
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 7
+    },
+    {
+        "SessionIndex": 282,
+        "SeasonIndex": 26,
+        "GlobalApplyStart": 1113,
+        "GlobalApplyEnd": 1114,
+        "GlobalBattleStart": 1115,
+        "GlobalBattleEnd": 1116,
+        "ViewRankSeason": 26,
+        "ViewSession": 7,
+        "SuppressDungeonIndex": [
+            290,
+            291,
+            292
+        ],
+        "RaidIndex": 90001,
+        "Level": [
+            1,
+            2,
+            3
+        ],
+        "SingleLevel": [
+            101,
+            102,
+            103
+        ],
+        "PortalViewSession": 8
+    }
+]

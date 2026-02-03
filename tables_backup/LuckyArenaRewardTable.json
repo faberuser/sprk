@@ -1,0 +1,163 @@
+[
+    {
+        "Type": 1,
+        "ShowIndex": 0,
+        "CountMin": 1,
+        "CountMax": 0,
+        "RewardIndex": 996501
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 3,
+        "CountMin": 31,
+        "CountMax": 45,
+        "RewardIndex": 996505
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 4,
+        "CountMin": 46,
+        "CountMax": 60,
+        "RewardIndex": 996506
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 5,
+        "CountMin": 61,
+        "CountMax": 75,
+        "RewardIndex": 996507
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 6,
+        "CountMin": 76,
+        "CountMax": 90,
+        "RewardIndex": 996508
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 7,
+        "CountMin": 91,
+        "CountMax": 105,
+        "RewardIndex": 996509
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 8,
+        "CountMin": 106,
+        "CountMax": 120,
+        "RewardIndex": 996510
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 9,
+        "CountMin": 121,
+        "CountMax": 135,
+        "RewardIndex": 996511
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 10,
+        "CountMin": 136,
+        "CountMax": 150,
+        "RewardIndex": 996512
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 11,
+        "CountMin": 151,
+        "CountMax": 165,
+        "RewardIndex": 996513
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 12,
+        "CountMin": 166,
+        "CountMax": 180,
+        "RewardIndex": 996514
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 13,
+        "CountMin": 181,
+        "CountMax": 195,
+        "RewardIndex": 996515
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 14,
+        "CountMin": 196,
+        "CountMax": 210,
+        "RewardIndex": 996516
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 15,
+        "CountMin": 211,
+        "CountMax": 225,
+        "RewardIndex": 996517
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 16,
+        "CountMin": 226,
+        "CountMax": 240,
+        "RewardIndex": 996518
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 17,
+        "CountMin": 241,
+        "CountMax": 255,
+        "RewardIndex": 996519
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 18,
+        "CountMin": 256,
+        "CountMax": 270,
+        "RewardIndex": 996520
+    },
+    {
+        "Type": 2,
+        "ShowIndex": 0,
+        "CountMin": 1,
+        "CountMax": 0,
+        "RewardIndex": 996502
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 19,
+        "CountMin": 271,
+        "CountMax": 285,
+        "RewardIndex": 996521
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 20,
+        "CountMin": 286,
+        "CountMax": 300,
+        "RewardIndex": 996522
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 21,
+        "CountMin": 301,
+        "CountMax": 0,
+        "RewardIndex": 996523
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 1,
+        "CountMin": 1,
+        "CountMax": 15,
+        "RewardIndex": 996503
+    },
+    {
+        "Type": 3,
+        "ShowIndex": 2,
+        "CountMin": 16,
+        "CountMax": 30,
+        "RewardIndex": 996504
+    }
+]

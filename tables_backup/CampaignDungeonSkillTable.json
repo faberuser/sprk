@@ -1,0 +1,50 @@
+[
+    {
+        "BaseSkillIndex": 1010,
+        "EnhancedSkillIndex": 1011,
+        "MaxUseCount": 0,
+        "TeamType": 0,
+        "BaseCheckState": 1,
+        "EnhancedCheckState": 2
+    },
+    {
+        "BaseSkillIndex": 1030,
+        "EnhancedSkillIndex": 1031,
+        "MaxUseCount": 0,
+        "TeamType": 0,
+        "BaseCheckState": 1,
+        "EnhancedCheckState": 2
+    },
+    {
+        "BaseSkillIndex": 7200195,
+        "EnhancedSkillIndex": 7200196,
+        "MaxUseCount": 5,
+        "TeamType": 0,
+        "BaseCheckState": 3,
+        "EnhancedCheckState": 4
+    },
+    {
+        "BaseSkillIndex": 7200197,
+        "EnhancedSkillIndex": 7200198,
+        "MaxUseCount": 3,
+        "TeamType": 0,
+        "BaseCheckState": 5,
+        "EnhancedCheckState": 6
+    },
+    {
+        "BaseSkillIndex": 4023941,
+        "EnhancedSkillIndex": 4023944,
+        "MaxUseCount": 10,
+        "TeamType": 0,
+        "BaseCheckState": 7,
+        "EnhancedCheckState": 8
+    },
+    {
+        "BaseSkillIndex": 4023942,
+        "EnhancedSkillIndex": 4023945,
+        "MaxUseCount": 10,
+        "TeamType": 0,
+        "BaseCheckState": 9,
+        "EnhancedCheckState": 10
+    }
+]

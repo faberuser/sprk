@@ -1,0 +1,44 @@
+[
+    {
+        "Index": 1003004,
+        "BundleHeroIndices": [
+            3,
+            4
+        ],
+        "PackCode": 1,
+        "TreeName": [
+            2,
+            3
+        ],
+        "SequenceHeroIndices": [
+            4,
+            3
+        ],
+        "HeroInfoPosition": [
+            1,
+            0
+        ],
+        "Name": 4
+    },
+    {
+        "Index": 1088089,
+        "BundleHeroIndices": [
+            88,
+            89
+        ],
+        "PackCode": 1,
+        "TreeName": [
+            5,
+            6
+        ],
+        "SequenceHeroIndices": [
+            89,
+            88
+        ],
+        "HeroInfoPosition": [
+            1,
+            0
+        ],
+        "Name": 7
+    }
+]

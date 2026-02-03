@@ -1,0 +1,101 @@
+[
+    {
+        "SeasonIndex": 1,
+        "BeginTime": 1,
+        "EndTime": 2,
+        "TitleKey": 3,
+        "ExpIndex": 1,
+        "LevelIndex": 1,
+        "ProductIndex": 600001
+    },
+    {
+        "SeasonIndex": 2,
+        "BeginTime": 4,
+        "EndTime": 5,
+        "TitleKey": 6,
+        "ExpIndex": 1,
+        "LevelIndex": 2,
+        "ProductIndex": 600002
+    },
+    {
+        "SeasonIndex": 3,
+        "BeginTime": 7,
+        "EndTime": 8,
+        "TitleKey": 9,
+        "ExpIndex": 1,
+        "LevelIndex": 3,
+        "ProductIndex": 600003
+    },
+    {
+        "SeasonIndex": 4,
+        "BeginTime": 10,
+        "EndTime": 11,
+        "TitleKey": 12,
+        "ExpIndex": 1,
+        "LevelIndex": 4,
+        "ProductIndex": 600004
+    },
+    {
+        "SeasonIndex": 5,
+        "BeginTime": 13,
+        "EndTime": 14,
+        "TitleKey": 15,
+        "ExpIndex": 1,
+        "LevelIndex": 5,
+        "ProductIndex": 600005
+    },
+    {
+        "SeasonIndex": 6,
+        "BeginTime": 16,
+        "EndTime": 17,
+        "TitleKey": 18,
+        "ExpIndex": 1,
+        "LevelIndex": 6,
+        "ProductIndex": 600006
+    },
+    {
+        "SeasonIndex": 7,
+        "BeginTime": 19,
+        "EndTime": 20,
+        "TitleKey": 21,
+        "ExpIndex": 1,
+        "LevelIndex": 7,
+        "ProductIndex": 600007
+    },
+    {
+        "SeasonIndex": 8,
+        "BeginTime": 22,
+        "EndTime": 23,
+        "TitleKey": 24,
+        "ExpIndex": 1,
+        "LevelIndex": 8,
+        "ProductIndex": 600008
+    },
+    {
+        "SeasonIndex": 9,
+        "BeginTime": 25,
+        "EndTime": 26,
+        "TitleKey": 27,
+        "ExpIndex": 1,
+        "LevelIndex": 9,
+        "ProductIndex": 600009
+    },
+    {
+        "SeasonIndex": 10,
+        "BeginTime": 28,
+        "EndTime": 29,
+        "TitleKey": 30,
+        "ExpIndex": 1,
+        "LevelIndex": 10,
+        "ProductIndex": 600010
+    },
+    {
+        "SeasonIndex": 11,
+        "BeginTime": 31,
+        "EndTime": 32,
+        "TitleKey": 33,
+        "ExpIndex": 1,
+        "LevelIndex": 11,
+        "ProductIndex": 600011
+    }
+]

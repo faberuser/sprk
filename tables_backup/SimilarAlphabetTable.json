@@ -1,0 +1,296 @@
+[
+    {
+        "Alphabet": 65,
+        "SimilarAlphabet": [
+            65,
+            97,
+            913,
+            945,
+            940,
+            902,
+            229,
+            226,
+            228,
+            224,
+            229,
+            196,
+            197,
+            225,
+            170,
+            186,
+            945,
+            256,
+            260,
+            245,
+            261,
+            259,
+            258,
+            1044,
+            1076,
+            1040,
+            1072,
+            192,
+            194,
+            193,
+            195,
+            227,
+            257
+        ]
+    },
+    {
+        "Alphabet": 83,
+        "SimilarAlphabet": [
+            83,
+            115,
+            352,
+            353,
+            1029,
+            1109,
+            350,
+            351
+        ]
+    },
+    {
+        "Alphabet": 73,
+        "SimilarAlphabet": [
+            73,
+            105,
+            303,
+            953,
+            970,
+            943,
+            906,
+            239,
+            238,
+            236,
+            237,
+            161,
+            298,
+            322,
+            299,
+            1110,
+            1503
+        ]
+    },
+    {
+        "Alphabet": 84,
+        "SimilarAlphabet": [
+            84,
+            116,
+            932,
+            964,
+            964,
+            355,
+            354,
+            1058,
+            1090
+        ]
+    },
+    {
+        "Alphabet": 74,
+        "SimilarAlphabet": [
+            74,
+            106
+        ]
+    },
+    {
+        "Alphabet": 85,
+        "SimilarAlphabet": [
+            85,
+            117
+        ]
+    },
+    {
+        "Alphabet": 75,
+        "SimilarAlphabet": [
+            75,
+            107
+        ]
+    },
+    {
+        "Alphabet": 86,
+        "SimilarAlphabet": [
+            86,
+            118
+        ]
+    },
+    {
+        "Alphabet": 76,
+        "SimilarAlphabet": [
+            76,
+            108
+        ]
+    },
+    {
+        "Alphabet": 66,
+        "SimilarAlphabet": [
+            66,
+            98
+        ]
+    },
+    {
+        "Alphabet": 87,
+        "SimilarAlphabet": [
+            87,
+            119
+        ]
+    },
+    {
+        "Alphabet": 77,
+        "SimilarAlphabet": [
+            77,
+            109,
+            924,
+            1052,
+            1084
+        ]
+    },
+    {
+        "Alphabet": 67,
+        "SimilarAlphabet": [
+            67,
+            99
+        ]
+    },
+    {
+        "Alphabet": 88,
+        "SimilarAlphabet": [
+            88,
+            120
+        ]
+    },
+    {
+        "Alphabet": 78,
+        "SimilarAlphabet": [
+            78,
+            110,
+            925,
+            951,
+            942,
+            241,
+            209,
+            8319,
+            325,
+            326,
+            324,
+            323,
+            328,
+            327,
+            1087,
+            1080,
+            1048,
+            1081,
+            1049,
+            1495
+        ]
+    },
+    {
+        "Alphabet": 68,
+        "SimilarAlphabet": [
+            68,
+            100,
+            271,
+            270,
+            272,
+            273,
+            1100
+        ]
+    },
+    {
+        "Alphabet": 89,
+        "SimilarAlphabet": [
+            89,
+            121
+        ]
+    },
+    {
+        "Alphabet": 79,
+        "SimilarAlphabet": [
+            79,
+            111
+        ]
+    },
+    {
+        "Alphabet": 69,
+        "SimilarAlphabet": [
+            69,
+            101,
+            917,
+            280,
+            278,
+            904,
+            274,
+            233,
+            234,
+            235,
+            232,
+            201,
+            275,
+            279,
+            281,
+            203,
+            1045,
+            1077,
+            1025,
+            1105,
+            202,
+            200
+        ]
+    },
+    {
+        "Alphabet": 90,
+        "SimilarAlphabet": [
+            90,
+            122
+        ]
+    },
+    {
+        "Alphabet": 80,
+        "SimilarAlphabet": [
+            80,
+            112
+        ]
+    },
+    {
+        "Alphabet": 70,
+        "SimilarAlphabet": [
+            70,
+            102
+        ]
+    },
+    {
+        "Alphabet": 81,
+        "SimilarAlphabet": [
+            81,
+            113
+        ]
+    },
+    {
+        "Alphabet": 71,
+        "SimilarAlphabet": [
+            71,
+            103,
+            291,
+            30,
+            287
+        ]
+    },
+    {
+        "Alphabet": 82,
+        "SimilarAlphabet": [
+            82,
+            114,
+            342,
+            343,
+            341,
+            340
+        ]
+    },
+    {
+        "Alphabet": 72,
+        "SimilarAlphabet": [
+            72,
+            104
+        ]
+    }
+]

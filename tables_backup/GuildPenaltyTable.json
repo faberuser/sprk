@@ -1,0 +1,44 @@
+[
+    {
+        "WithdrawCount": 1,
+        "RejoinTimeMin": 0,
+        "RestrictTimeMin": 720,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 2,
+        "RejoinTimeMin": 0,
+        "RestrictTimeMin": 1440,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 3,
+        "RejoinTimeMin": 0,
+        "RestrictTimeMin": 2880,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 4,
+        "RejoinTimeMin": 1440,
+        "RestrictTimeMin": 11520,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 5,
+        "RejoinTimeMin": 2160,
+        "RestrictTimeMin": 11520,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 6,
+        "RejoinTimeMin": 2880,
+        "RestrictTimeMin": 11520,
+        "ShowMinitue": false
+    },
+    {
+        "WithdrawCount": 7,
+        "RejoinTimeMin": 3600,
+        "RestrictTimeMin": 11520,
+        "ShowMinitue": false
+    }
+]

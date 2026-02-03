@@ -1,0 +1,68 @@
+[
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 1,
+        "PositionX": -880,
+        "PositionY": 460,
+        "Scale": 150,
+        "Angle": 70,
+        "ModelName": 0,
+        "SelectorName": 0,
+        "BuildingType": 1
+    },
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 2,
+        "PositionX": 1100,
+        "PositionY": 350,
+        "Scale": 150,
+        "Angle": 140,
+        "ModelName": 0,
+        "SelectorName": 0,
+        "BuildingType": 1
+    },
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 3,
+        "PositionX": 240,
+        "PositionY": -525,
+        "Scale": 150,
+        "Angle": 130,
+        "ModelName": 0,
+        "SelectorName": 0,
+        "BuildingType": 1
+    },
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 4,
+        "PositionX": 1500,
+        "PositionY": -290,
+        "Scale": 150,
+        "Angle": 130,
+        "ModelName": 0,
+        "SelectorName": 0,
+        "BuildingType": 1
+    },
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 5,
+        "PositionX": -1245,
+        "PositionY": -325,
+        "Scale": 150,
+        "Angle": 130,
+        "ModelName": 0,
+        "SelectorName": 0,
+        "BuildingType": 1
+    },
+    {
+        "ChapterIndex": 995,
+        "BuildingIndex": 6,
+        "PositionX": -130,
+        "PositionY": 380,
+        "Scale": 150,
+        "Angle": 60,
+        "ModelName": 2,
+        "SelectorName": 0,
+        "BuildingType": 3
+    }
+]

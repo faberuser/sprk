@@ -1,0 +1,56 @@
+[
+    {
+        "Index": 101,
+        "BuyCurrencyType": 0,
+        "BuyCurrencyValue": 0,
+        "OpenNum": 1,
+        "Position": [
+            0.8439444899559021,
+            0.0,
+            -3.376955032348633
+        ],
+        "Rotation": [
+            0.0,
+            -45.24407958984375,
+            0.0
+        ],
+        "DefaultIndex": 11001,
+        "Mileage": 0
+    },
+    {
+        "Index": 102,
+        "BuyCurrencyType": 2,
+        "BuyCurrencyValue": 2000,
+        "OpenNum": 2,
+        "Position": [
+            0.2939999997615814,
+            0.0,
+            -2.8340001106262207
+        ],
+        "Rotation": [
+            0.0,
+            -45.094970703125,
+            0.0
+        ],
+        "DefaultIndex": 11001,
+        "Mileage": 200
+    },
+    {
+        "Index": 103,
+        "BuyCurrencyType": 2,
+        "BuyCurrencyValue": 4000,
+        "OpenNum": 3,
+        "Position": [
+            -0.2240000069141388,
+            0.0,
+            -2.2869999408721924
+        ],
+        "Rotation": [
+            0.0,
+            -43.095638275146484,
+            0.0
+        ],
+        "DefaultIndex": 11001,
+        "Mileage": 400
+    }
+]

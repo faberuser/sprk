@@ -1,0 +1,152 @@
+[
+    {
+        "Index": 40241,
+        "GroupIndex": 101001,
+        "ShowIndex": 5,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10101,
+            10201
+        ],
+        "Duration": 30,
+        "IsWithDraw": 0,
+        "BattleIconPath": 1
+    },
+    {
+        "Index": 40251,
+        "GroupIndex": 101002,
+        "ShowIndex": 5,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10301,
+            10401
+        ],
+        "Duration": 30,
+        "IsWithDraw": 0,
+        "BattleIconPath": 1
+    },
+    {
+        "Index": 40252,
+        "GroupIndex": 101002,
+        "ShowIndex": 4,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10302,
+            10402
+        ],
+        "Duration": 60,
+        "IsWithDraw": 0,
+        "BattleIconPath": 2
+    },
+    {
+        "Index": 40253,
+        "GroupIndex": 101002,
+        "ShowIndex": 3,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10303,
+            10403
+        ],
+        "Duration": 100,
+        "IsWithDraw": 0,
+        "BattleIconPath": 3
+    },
+    {
+        "Index": 40242,
+        "GroupIndex": 101001,
+        "ShowIndex": 4,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10102,
+            10202
+        ],
+        "Duration": 60,
+        "IsWithDraw": 0,
+        "BattleIconPath": 2
+    },
+    {
+        "Index": 40254,
+        "GroupIndex": 101002,
+        "ShowIndex": 2,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10304,
+            10404
+        ],
+        "Duration": 180,
+        "IsWithDraw": 0,
+        "BattleIconPath": 4
+    },
+    {
+        "Index": 40243,
+        "GroupIndex": 101001,
+        "ShowIndex": 3,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10103,
+            10203
+        ],
+        "Duration": 100,
+        "IsWithDraw": 0,
+        "BattleIconPath": 3
+    },
+    {
+        "Index": 40255,
+        "GroupIndex": 101002,
+        "ShowIndex": 1,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10305,
+            10405
+        ],
+        "Duration": 240,
+        "IsWithDraw": 0,
+        "BattleIconPath": 5
+    },
+    {
+        "Index": 40244,
+        "GroupIndex": 101001,
+        "ShowIndex": 2,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10104,
+            10204
+        ],
+        "Duration": 180,
+        "IsWithDraw": 0,
+        "BattleIconPath": 4
+    },
+    {
+        "Index": 40245,
+        "GroupIndex": 101001,
+        "ShowIndex": 1,
+        "AvailableRaidIndices": [
+            1005
+        ],
+        "AffixIndexes": [
+            10105,
+            10205
+        ],
+        "Duration": 240,
+        "IsWithDraw": 0,
+        "BattleIconPath": 5
+    }
+]

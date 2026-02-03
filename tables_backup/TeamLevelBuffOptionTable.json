@@ -1,0 +1,1394 @@
+[
+    {
+        "Index": 1,
+        "OptionType": 45,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 2,
+        "OptionType": 42,
+        "OptionValue": [
+            40,
+            100
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 3,
+        "OptionType": 31,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 4,
+        "OptionType": 30,
+        "OptionValue": [
+            400,
+            1000
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 5,
+        "OptionType": 40,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 6,
+        "OptionType": 35,
+        "OptionValue": [
+            20,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 7,
+        "OptionType": 41,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 8,
+        "OptionType": 36,
+        "OptionValue": [
+            20,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 9,
+        "OptionType": 57,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 10,
+        "OptionType": 105,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 11,
+        "OptionType": 109,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 12,
+        "OptionType": 110,
+        "OptionValue": [
+            2,
+            5
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            100
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 1
+    },
+    {
+        "Index": 13,
+        "OptionType": 45,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 14,
+        "OptionType": 42,
+        "OptionValue": [
+            40,
+            120,
+            200
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 15,
+        "OptionType": 31,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 16,
+        "OptionType": 30,
+        "OptionValue": [
+            400,
+            1200,
+            2000
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 17,
+        "OptionType": 40,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 18,
+        "OptionType": 35,
+        "OptionValue": [
+            20,
+            60,
+            100
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 19,
+        "OptionType": 41,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 20,
+        "OptionType": 36,
+        "OptionValue": [
+            20,
+            60,
+            100
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 21,
+        "OptionType": 57,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 22,
+        "OptionType": 105,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 23,
+        "OptionType": 109,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 24,
+        "OptionType": 110,
+        "OptionValue": [
+            2,
+            6,
+            10
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            500,
+            500
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 2
+    },
+    {
+        "Index": 25,
+        "OptionType": 40,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 26,
+        "OptionType": 42,
+        "OptionValue": [
+            60,
+            140,
+            220,
+            300
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 27,
+        "OptionType": 41,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 28,
+        "OptionType": 30,
+        "OptionValue": [
+            600,
+            1400,
+            2200,
+            3000
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 29,
+        "OptionType": 45,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 30,
+        "OptionType": 35,
+        "OptionValue": [
+            30,
+            70,
+            110,
+            150
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 31,
+        "OptionType": 31,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 32,
+        "OptionType": 36,
+        "OptionValue": [
+            30,
+            70,
+            110,
+            150
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 33,
+        "OptionType": 57,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 34,
+        "OptionType": 105,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 35,
+        "OptionType": 109,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 36,
+        "OptionType": 110,
+        "OptionValue": [
+            3,
+            7,
+            11,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            2000,
+            2000,
+            2000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 3
+    },
+    {
+        "Index": 37,
+        "OptionType": 45,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 38,
+        "OptionType": 42,
+        "OptionValue": [
+            300,
+            500,
+            600,
+            700,
+            800,
+            900,
+            1000
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 39,
+        "OptionType": 31,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 40,
+        "OptionType": 30,
+        "OptionValue": [
+            3000,
+            5000,
+            6000,
+            7000,
+            8000,
+            9000,
+            10000
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 41,
+        "OptionType": 40,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 42,
+        "OptionType": 35,
+        "OptionValue": [
+            200,
+            300,
+            340,
+            380,
+            420,
+            460,
+            500
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 43,
+        "OptionType": 41,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 44,
+        "OptionType": 36,
+        "OptionValue": [
+            200,
+            300,
+            340,
+            380,
+            420,
+            460,
+            500
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 45,
+        "OptionType": 57,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 46,
+        "OptionType": 105,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 47,
+        "OptionType": 109,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 48,
+        "OptionType": 110,
+        "OptionValue": [
+            10,
+            30,
+            34,
+            38,
+            42,
+            46,
+            50
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            9000,
+            9000,
+            9000,
+            18000,
+            18000,
+            27000
+        ],
+        "ConditionType": 0,
+        "ConditionValue": null,
+        "ContentsOptionDescKey": 0,
+        "Grade": 5
+    },
+    {
+        "Index": 49,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            1,
+            2
+        ],
+        "ContentsOptionDescKey": 3,
+        "Grade": 4
+    },
+    {
+        "Index": 50,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            4,
+            2
+        ],
+        "ContentsOptionDescKey": 5,
+        "Grade": 4
+    },
+    {
+        "Index": 51,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            6,
+            2
+        ],
+        "ContentsOptionDescKey": 7,
+        "Grade": 4
+    },
+    {
+        "Index": 52,
+        "OptionType": 133,
+        "OptionValue": [
+            3,
+            5,
+            7,
+            9,
+            11,
+            13,
+            15
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            8
+        ],
+        "ContentsOptionDescKey": 9,
+        "Grade": 4
+    },
+    {
+        "Index": 53,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            10
+        ],
+        "ContentsOptionDescKey": 11,
+        "Grade": 4
+    },
+    {
+        "Index": 54,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            12
+        ],
+        "ContentsOptionDescKey": 13,
+        "Grade": 4
+    },
+    {
+        "Index": 55,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            14,
+            15
+        ],
+        "ContentsOptionDescKey": 16,
+        "Grade": 4
+    },
+    {
+        "Index": 56,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            17
+        ],
+        "ContentsOptionDescKey": 18,
+        "Grade": 4
+    },
+    {
+        "Index": 57,
+        "OptionType": 133,
+        "OptionValue": [
+            7,
+            15,
+            19,
+            23,
+            27,
+            31,
+            35
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 2,
+        "ConditionValue": [
+            19,
+            20,
+            21
+        ],
+        "ContentsOptionDescKey": 22,
+        "Grade": 4
+    },
+    {
+        "Index": 58,
+        "OptionType": 45,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            2
+        ],
+        "ContentsOptionDescKey": 24,
+        "Grade": 4
+    },
+    {
+        "Index": 59,
+        "OptionType": 31,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            2
+        ],
+        "ContentsOptionDescKey": 25,
+        "Grade": 4
+    },
+    {
+        "Index": 60,
+        "OptionType": 45,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            26
+        ],
+        "ContentsOptionDescKey": 27,
+        "Grade": 4
+    },
+    {
+        "Index": 61,
+        "OptionType": 31,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            26
+        ],
+        "ContentsOptionDescKey": 28,
+        "Grade": 4
+    },
+    {
+        "Index": 62,
+        "OptionType": 45,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            29
+        ],
+        "ContentsOptionDescKey": 30,
+        "Grade": 4
+    },
+    {
+        "Index": 63,
+        "OptionType": 31,
+        "OptionValue": [
+            16,
+            50,
+            56,
+            62,
+            68,
+            74,
+            80
+        ],
+        "ReinforcePriceType": 2,
+        "ReinforcePrice": [
+            3600,
+            3600,
+            3600,
+            7200,
+            7200,
+            10800
+        ],
+        "ConditionType": 1,
+        "ConditionValue": [
+            23,
+            29
+        ],
+        "ContentsOptionDescKey": 31,
+        "Grade": 4
+    }
+]

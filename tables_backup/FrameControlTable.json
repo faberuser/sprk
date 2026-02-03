@@ -1,0 +1,218 @@
+[
+    {
+        "Index": 0,
+        "Name": 1,
+        "ContentType": 1,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 15,
+        "Name": 2,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 10,
+        "Name": 3,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 5,
+        "Name": 4,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 14,
+        "Name": 5,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 16,
+        "Name": 6,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 21,
+        "Name": 7,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 3,
+        "Name": 8,
+        "ContentType": 1,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 9,
+        "Name": 9,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 24,
+        "Name": 10,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 22,
+        "Name": 11,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 25,
+        "Name": 12,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 19,
+        "Name": 13,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 26,
+        "Name": 14,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 1,
+        "Name": 15,
+        "ContentType": 1,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 12,
+        "Name": 16,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 8,
+        "Name": 17,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 13,
+        "Name": 18,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 4,
+        "Name": 19,
+        "ContentType": 1,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 7,
+        "Name": 20,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 6,
+        "Name": 21,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 18,
+        "Name": 22,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 2,
+        "Name": 23,
+        "ContentType": 1,
+        "DelayType": 0,
+        "Auto": 30,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 11,
+        "Name": 24,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 240
+    },
+    {
+        "Index": 20,
+        "Name": 25,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 23,
+        "Name": 26,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 45,
+        "AutoPlus": 60
+    },
+    {
+        "Index": 17,
+        "Name": 27,
+        "ContentType": 2,
+        "DelayType": 0,
+        "Auto": 60,
+        "AutoPlus": 60
+    }
+]

@@ -1,0 +1,22 @@
+[
+    {
+        "ItemCode": 1,
+        "ExpPoints": 10,
+        "ReqGold": 80000
+    },
+    {
+        "ItemCode": 2,
+        "ExpPoints": 100,
+        "ReqGold": 400000
+    },
+    {
+        "ItemCode": 3,
+        "ExpPoints": 30,
+        "ReqGold": 200000
+    },
+    {
+        "ItemCode": 4,
+        "ExpPoints": 50,
+        "ReqGold": 280000
+    }
+]

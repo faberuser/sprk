@@ -1,0 +1,32 @@
+[
+    {
+        "Index": 1,
+        "TeamType": 0,
+        "GroupIndex": 0,
+        "FilterValues": [
+            1,
+            2,
+            3,
+            4
+        ],
+        "StateValues": [
+            2,
+            5
+        ]
+    },
+    {
+        "Index": 2,
+        "TeamType": 0,
+        "GroupIndex": 1,
+        "FilterValues": [
+            1,
+            6,
+            3,
+            4
+        ],
+        "StateValues": [
+            6,
+            5
+        ]
+    }
+]

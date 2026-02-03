@@ -1,0 +1,56 @@
+[
+    {
+        "ChapterIndex": 50000,
+        "DungeonIndex": 10,
+        "BossType": 1,
+        "SequenceSkillProjectileGroup": [
+            6040,
+            6041,
+            6042,
+            6043,
+            6044
+        ],
+        "BossNameKey": 1,
+        "DungeonNameKey": 2,
+        "DungeonPrefixKey": 3,
+        "TribeKey": 4,
+        "TacticKey": 5,
+        "ShakmehIndex": 1,
+        "RecommendedHero": [
+            7,
+            48,
+            77
+        ],
+        "BgNodeTreeCode": 6,
+        "BgNodeTreePath": 7,
+        "PreviewNodeTreePath": 7,
+        "PreviewNodeTreeCode": 8
+    },
+    {
+        "ChapterIndex": 50000,
+        "DungeonIndex": 11,
+        "BossType": 2,
+        "SequenceSkillProjectileGroup": [
+            6040,
+            6041,
+            6042,
+            6043,
+            6044
+        ],
+        "BossNameKey": 9,
+        "DungeonNameKey": 2,
+        "DungeonPrefixKey": 10,
+        "TribeKey": 4,
+        "TacticKey": 11,
+        "ShakmehIndex": 2,
+        "RecommendedHero": [
+            71,
+            77,
+            7
+        ],
+        "BgNodeTreeCode": 12,
+        "BgNodeTreePath": 7,
+        "PreviewNodeTreePath": 7,
+        "PreviewNodeTreeCode": 13
+    }
+]

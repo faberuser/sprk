@@ -1,0 +1,2507 @@
+[
+    {
+        "PunishmentRuneCount": 0,
+        "RuneFragmentCount": 10000,
+        "ApostleBloodCount": 150
+    },
+    {
+        "PunishmentRuneCount": 1,
+        "RuneFragmentCount": 10110,
+        "ApostleBloodCount": 152
+    },
+    {
+        "PunishmentRuneCount": 2,
+        "RuneFragmentCount": 10221,
+        "ApostleBloodCount": 153
+    },
+    {
+        "PunishmentRuneCount": 3,
+        "RuneFragmentCount": 10334,
+        "ApostleBloodCount": 155
+    },
+    {
+        "PunishmentRuneCount": 4,
+        "RuneFragmentCount": 10447,
+        "ApostleBloodCount": 157
+    },
+    {
+        "PunishmentRuneCount": 5,
+        "RuneFragmentCount": 10562,
+        "ApostleBloodCount": 158
+    },
+    {
+        "PunishmentRuneCount": 6,
+        "RuneFragmentCount": 10678,
+        "ApostleBloodCount": 160
+    },
+    {
+        "PunishmentRuneCount": 7,
+        "RuneFragmentCount": 10796,
+        "ApostleBloodCount": 162
+    },
+    {
+        "PunishmentRuneCount": 8,
+        "RuneFragmentCount": 10915,
+        "ApostleBloodCount": 164
+    },
+    {
+        "PunishmentRuneCount": 9,
+        "RuneFragmentCount": 11035,
+        "ApostleBloodCount": 166
+    },
+    {
+        "PunishmentRuneCount": 10,
+        "RuneFragmentCount": 11156,
+        "ApostleBloodCount": 167
+    },
+    {
+        "PunishmentRuneCount": 11,
+        "RuneFragmentCount": 11279,
+        "ApostleBloodCount": 169
+    },
+    {
+        "PunishmentRuneCount": 12,
+        "RuneFragmentCount": 11403,
+        "ApostleBloodCount": 171
+    },
+    {
+        "PunishmentRuneCount": 13,
+        "RuneFragmentCount": 11528,
+        "ApostleBloodCount": 173
+    },
+    {
+        "PunishmentRuneCount": 14,
+        "RuneFragmentCount": 11655,
+        "ApostleBloodCount": 175
+    },
+    {
+        "PunishmentRuneCount": 15,
+        "RuneFragmentCount": 11783,
+        "ApostleBloodCount": 177
+    },
+    {
+        "PunishmentRuneCount": 16,
+        "RuneFragmentCount": 11913,
+        "ApostleBloodCount": 179
+    },
+    {
+        "PunishmentRuneCount": 17,
+        "RuneFragmentCount": 12044,
+        "ApostleBloodCount": 181
+    },
+    {
+        "PunishmentRuneCount": 18,
+        "RuneFragmentCount": 12176,
+        "ApostleBloodCount": 183
+    },
+    {
+        "PunishmentRuneCount": 19,
+        "RuneFragmentCount": 12310,
+        "ApostleBloodCount": 185
+    },
+    {
+        "PunishmentRuneCount": 20,
+        "RuneFragmentCount": 12446,
+        "ApostleBloodCount": 187
+    },
+    {
+        "PunishmentRuneCount": 21,
+        "RuneFragmentCount": 12570,
+        "ApostleBloodCount": 189
+    },
+    {
+        "PunishmentRuneCount": 22,
+        "RuneFragmentCount": 12696,
+        "ApostleBloodCount": 190
+    },
+    {
+        "PunishmentRuneCount": 23,
+        "RuneFragmentCount": 12823,
+        "ApostleBloodCount": 192
+    },
+    {
+        "PunishmentRuneCount": 24,
+        "RuneFragmentCount": 12951,
+        "ApostleBloodCount": 194
+    },
+    {
+        "PunishmentRuneCount": 25,
+        "RuneFragmentCount": 13081,
+        "ApostleBloodCount": 196
+    },
+    {
+        "PunishmentRuneCount": 26,
+        "RuneFragmentCount": 13211,
+        "ApostleBloodCount": 198
+    },
+    {
+        "PunishmentRuneCount": 27,
+        "RuneFragmentCount": 13344,
+        "ApostleBloodCount": 200
+    },
+    {
+        "PunishmentRuneCount": 28,
+        "RuneFragmentCount": 13477,
+        "ApostleBloodCount": 202
+    },
+    {
+        "PunishmentRuneCount": 29,
+        "RuneFragmentCount": 13612,
+        "ApostleBloodCount": 204
+    },
+    {
+        "PunishmentRuneCount": 30,
+        "RuneFragmentCount": 13748,
+        "ApostleBloodCount": 206
+    },
+    {
+        "PunishmentRuneCount": 31,
+        "RuneFragmentCount": 13885,
+        "ApostleBloodCount": 208
+    },
+    {
+        "PunishmentRuneCount": 32,
+        "RuneFragmentCount": 14024,
+        "ApostleBloodCount": 210
+    },
+    {
+        "PunishmentRuneCount": 33,
+        "RuneFragmentCount": 14164,
+        "ApostleBloodCount": 212
+    },
+    {
+        "PunishmentRuneCount": 34,
+        "RuneFragmentCount": 14306,
+        "ApostleBloodCount": 215
+    },
+    {
+        "PunishmentRuneCount": 35,
+        "RuneFragmentCount": 14449,
+        "ApostleBloodCount": 217
+    },
+    {
+        "PunishmentRuneCount": 36,
+        "RuneFragmentCount": 14594,
+        "ApostleBloodCount": 219
+    },
+    {
+        "PunishmentRuneCount": 37,
+        "RuneFragmentCount": 14740,
+        "ApostleBloodCount": 221
+    },
+    {
+        "PunishmentRuneCount": 38,
+        "RuneFragmentCount": 14887,
+        "ApostleBloodCount": 223
+    },
+    {
+        "PunishmentRuneCount": 39,
+        "RuneFragmentCount": 15036,
+        "ApostleBloodCount": 226
+    },
+    {
+        "PunishmentRuneCount": 40,
+        "RuneFragmentCount": 15186,
+        "ApostleBloodCount": 228
+    },
+    {
+        "PunishmentRuneCount": 41,
+        "RuneFragmentCount": 15323,
+        "ApostleBloodCount": 230
+    },
+    {
+        "PunishmentRuneCount": 42,
+        "RuneFragmentCount": 15461,
+        "ApostleBloodCount": 232
+    },
+    {
+        "PunishmentRuneCount": 43,
+        "RuneFragmentCount": 15600,
+        "ApostleBloodCount": 234
+    },
+    {
+        "PunishmentRuneCount": 44,
+        "RuneFragmentCount": 15740,
+        "ApostleBloodCount": 236
+    },
+    {
+        "PunishmentRuneCount": 45,
+        "RuneFragmentCount": 15882,
+        "ApostleBloodCount": 238
+    },
+    {
+        "PunishmentRuneCount": 46,
+        "RuneFragmentCount": 16025,
+        "ApostleBloodCount": 240
+    },
+    {
+        "PunishmentRuneCount": 47,
+        "RuneFragmentCount": 16169,
+        "ApostleBloodCount": 243
+    },
+    {
+        "PunishmentRuneCount": 48,
+        "RuneFragmentCount": 16315,
+        "ApostleBloodCount": 245
+    },
+    {
+        "PunishmentRuneCount": 49,
+        "RuneFragmentCount": 16462,
+        "ApostleBloodCount": 247
+    },
+    {
+        "PunishmentRuneCount": 50,
+        "RuneFragmentCount": 16610,
+        "ApostleBloodCount": 249
+    },
+    {
+        "PunishmentRuneCount": 51,
+        "RuneFragmentCount": 16759,
+        "ApostleBloodCount": 251
+    },
+    {
+        "PunishmentRuneCount": 52,
+        "RuneFragmentCount": 16910,
+        "ApostleBloodCount": 254
+    },
+    {
+        "PunishmentRuneCount": 53,
+        "RuneFragmentCount": 17062,
+        "ApostleBloodCount": 256
+    },
+    {
+        "PunishmentRuneCount": 54,
+        "RuneFragmentCount": 17216,
+        "ApostleBloodCount": 258
+    },
+    {
+        "PunishmentRuneCount": 55,
+        "RuneFragmentCount": 17371,
+        "ApostleBloodCount": 261
+    },
+    {
+        "PunishmentRuneCount": 56,
+        "RuneFragmentCount": 17527,
+        "ApostleBloodCount": 263
+    },
+    {
+        "PunishmentRuneCount": 57,
+        "RuneFragmentCount": 17685,
+        "ApostleBloodCount": 265
+    },
+    {
+        "PunishmentRuneCount": 58,
+        "RuneFragmentCount": 17844,
+        "ApostleBloodCount": 268
+    },
+    {
+        "PunishmentRuneCount": 59,
+        "RuneFragmentCount": 18005,
+        "ApostleBloodCount": 270
+    },
+    {
+        "PunishmentRuneCount": 60,
+        "RuneFragmentCount": 18167,
+        "ApostleBloodCount": 272
+    },
+    {
+        "PunishmentRuneCount": 61,
+        "RuneFragmentCount": 18312,
+        "ApostleBloodCount": 275
+    },
+    {
+        "PunishmentRuneCount": 62,
+        "RuneFragmentCount": 18458,
+        "ApostleBloodCount": 277
+    },
+    {
+        "PunishmentRuneCount": 63,
+        "RuneFragmentCount": 18606,
+        "ApostleBloodCount": 279
+    },
+    {
+        "PunishmentRuneCount": 64,
+        "RuneFragmentCount": 18755,
+        "ApostleBloodCount": 281
+    },
+    {
+        "PunishmentRuneCount": 65,
+        "RuneFragmentCount": 18905,
+        "ApostleBloodCount": 284
+    },
+    {
+        "PunishmentRuneCount": 66,
+        "RuneFragmentCount": 19056,
+        "ApostleBloodCount": 286
+    },
+    {
+        "PunishmentRuneCount": 67,
+        "RuneFragmentCount": 19209,
+        "ApostleBloodCount": 288
+    },
+    {
+        "PunishmentRuneCount": 68,
+        "RuneFragmentCount": 19362,
+        "ApostleBloodCount": 290
+    },
+    {
+        "PunishmentRuneCount": 69,
+        "RuneFragmentCount": 19517,
+        "ApostleBloodCount": 293
+    },
+    {
+        "PunishmentRuneCount": 70,
+        "RuneFragmentCount": 19673,
+        "ApostleBloodCount": 295
+    },
+    {
+        "PunishmentRuneCount": 71,
+        "RuneFragmentCount": 19831,
+        "ApostleBloodCount": 297
+    },
+    {
+        "PunishmentRuneCount": 72,
+        "RuneFragmentCount": 19989,
+        "ApostleBloodCount": 300
+    },
+    {
+        "PunishmentRuneCount": 73,
+        "RuneFragmentCount": 20149,
+        "ApostleBloodCount": 302
+    },
+    {
+        "PunishmentRuneCount": 74,
+        "RuneFragmentCount": 20311,
+        "ApostleBloodCount": 305
+    },
+    {
+        "PunishmentRuneCount": 75,
+        "RuneFragmentCount": 20473,
+        "ApostleBloodCount": 307
+    },
+    {
+        "PunishmentRuneCount": 76,
+        "RuneFragmentCount": 20637,
+        "ApostleBloodCount": 310
+    },
+    {
+        "PunishmentRuneCount": 77,
+        "RuneFragmentCount": 20802,
+        "ApostleBloodCount": 312
+    },
+    {
+        "PunishmentRuneCount": 78,
+        "RuneFragmentCount": 20968,
+        "ApostleBloodCount": 315
+    },
+    {
+        "PunishmentRuneCount": 79,
+        "RuneFragmentCount": 21136,
+        "ApostleBloodCount": 317
+    },
+    {
+        "PunishmentRuneCount": 80,
+        "RuneFragmentCount": 21305,
+        "ApostleBloodCount": 320
+    },
+    {
+        "PunishmentRuneCount": 81,
+        "RuneFragmentCount": 21454,
+        "ApostleBloodCount": 322
+    },
+    {
+        "PunishmentRuneCount": 82,
+        "RuneFragmentCount": 21604,
+        "ApostleBloodCount": 324
+    },
+    {
+        "PunishmentRuneCount": 83,
+        "RuneFragmentCount": 21756,
+        "ApostleBloodCount": 326
+    },
+    {
+        "PunishmentRuneCount": 84,
+        "RuneFragmentCount": 21908,
+        "ApostleBloodCount": 329
+    },
+    {
+        "PunishmentRuneCount": 85,
+        "RuneFragmentCount": 22061,
+        "ApostleBloodCount": 331
+    },
+    {
+        "PunishmentRuneCount": 86,
+        "RuneFragmentCount": 22216,
+        "ApostleBloodCount": 333
+    },
+    {
+        "PunishmentRuneCount": 87,
+        "RuneFragmentCount": 22371,
+        "ApostleBloodCount": 336
+    },
+    {
+        "PunishmentRuneCount": 88,
+        "RuneFragmentCount": 22528,
+        "ApostleBloodCount": 338
+    },
+    {
+        "PunishmentRuneCount": 89,
+        "RuneFragmentCount": 22686,
+        "ApostleBloodCount": 340
+    },
+    {
+        "PunishmentRuneCount": 90,
+        "RuneFragmentCount": 22844,
+        "ApostleBloodCount": 343
+    },
+    {
+        "PunishmentRuneCount": 91,
+        "RuneFragmentCount": 23004,
+        "ApostleBloodCount": 345
+    },
+    {
+        "PunishmentRuneCount": 92,
+        "RuneFragmentCount": 23165,
+        "ApostleBloodCount": 347
+    },
+    {
+        "PunishmentRuneCount": 93,
+        "RuneFragmentCount": 23327,
+        "ApostleBloodCount": 350
+    },
+    {
+        "PunishmentRuneCount": 94,
+        "RuneFragmentCount": 23491,
+        "ApostleBloodCount": 352
+    },
+    {
+        "PunishmentRuneCount": 95,
+        "RuneFragmentCount": 23655,
+        "ApostleBloodCount": 355
+    },
+    {
+        "PunishmentRuneCount": 96,
+        "RuneFragmentCount": 23821,
+        "ApostleBloodCount": 357
+    },
+    {
+        "PunishmentRuneCount": 97,
+        "RuneFragmentCount": 23988,
+        "ApostleBloodCount": 360
+    },
+    {
+        "PunishmentRuneCount": 98,
+        "RuneFragmentCount": 24155,
+        "ApostleBloodCount": 362
+    },
+    {
+        "PunishmentRuneCount": 99,
+        "RuneFragmentCount": 24325,
+        "ApostleBloodCount": 365
+    },
+    {
+        "PunishmentRuneCount": 100,
+        "RuneFragmentCount": 24495,
+        "ApostleBloodCount": 367
+    },
+    {
+        "PunishmentRuneCount": 101,
+        "RuneFragmentCount": 24666,
+        "ApostleBloodCount": 370
+    },
+    {
+        "PunishmentRuneCount": 102,
+        "RuneFragmentCount": 24839,
+        "ApostleBloodCount": 373
+    },
+    {
+        "PunishmentRuneCount": 103,
+        "RuneFragmentCount": 25013,
+        "ApostleBloodCount": 375
+    },
+    {
+        "PunishmentRuneCount": 104,
+        "RuneFragmentCount": 25188,
+        "ApostleBloodCount": 378
+    },
+    {
+        "PunishmentRuneCount": 105,
+        "RuneFragmentCount": 25364,
+        "ApostleBloodCount": 380
+    },
+    {
+        "PunishmentRuneCount": 106,
+        "RuneFragmentCount": 25542,
+        "ApostleBloodCount": 383
+    },
+    {
+        "PunishmentRuneCount": 107,
+        "RuneFragmentCount": 25721,
+        "ApostleBloodCount": 386
+    },
+    {
+        "PunishmentRuneCount": 108,
+        "RuneFragmentCount": 25901,
+        "ApostleBloodCount": 389
+    },
+    {
+        "PunishmentRuneCount": 109,
+        "RuneFragmentCount": 26082,
+        "ApostleBloodCount": 391
+    },
+    {
+        "PunishmentRuneCount": 110,
+        "RuneFragmentCount": 26264,
+        "ApostleBloodCount": 394
+    },
+    {
+        "PunishmentRuneCount": 111,
+        "RuneFragmentCount": 26448,
+        "ApostleBloodCount": 397
+    },
+    {
+        "PunishmentRuneCount": 112,
+        "RuneFragmentCount": 26633,
+        "ApostleBloodCount": 400
+    },
+    {
+        "PunishmentRuneCount": 113,
+        "RuneFragmentCount": 26820,
+        "ApostleBloodCount": 402
+    },
+    {
+        "PunishmentRuneCount": 114,
+        "RuneFragmentCount": 27008,
+        "ApostleBloodCount": 405
+    },
+    {
+        "PunishmentRuneCount": 115,
+        "RuneFragmentCount": 27197,
+        "ApostleBloodCount": 408
+    },
+    {
+        "PunishmentRuneCount": 116,
+        "RuneFragmentCount": 27387,
+        "ApostleBloodCount": 411
+    },
+    {
+        "PunishmentRuneCount": 117,
+        "RuneFragmentCount": 27579,
+        "ApostleBloodCount": 414
+    },
+    {
+        "PunishmentRuneCount": 118,
+        "RuneFragmentCount": 27772,
+        "ApostleBloodCount": 417
+    },
+    {
+        "PunishmentRuneCount": 119,
+        "RuneFragmentCount": 27966,
+        "ApostleBloodCount": 419
+    },
+    {
+        "PunishmentRuneCount": 120,
+        "RuneFragmentCount": 28162,
+        "ApostleBloodCount": 422
+    },
+    {
+        "PunishmentRuneCount": 121,
+        "RuneFragmentCount": 28359,
+        "ApostleBloodCount": 425
+    },
+    {
+        "PunishmentRuneCount": 122,
+        "RuneFragmentCount": 28558,
+        "ApostleBloodCount": 428
+    },
+    {
+        "PunishmentRuneCount": 123,
+        "RuneFragmentCount": 28758,
+        "ApostleBloodCount": 431
+    },
+    {
+        "PunishmentRuneCount": 124,
+        "RuneFragmentCount": 28959,
+        "ApostleBloodCount": 434
+    },
+    {
+        "PunishmentRuneCount": 125,
+        "RuneFragmentCount": 29162,
+        "ApostleBloodCount": 437
+    },
+    {
+        "PunishmentRuneCount": 126,
+        "RuneFragmentCount": 29366,
+        "ApostleBloodCount": 440
+    },
+    {
+        "PunishmentRuneCount": 127,
+        "RuneFragmentCount": 29571,
+        "ApostleBloodCount": 444
+    },
+    {
+        "PunishmentRuneCount": 128,
+        "RuneFragmentCount": 29778,
+        "ApostleBloodCount": 447
+    },
+    {
+        "PunishmentRuneCount": 129,
+        "RuneFragmentCount": 29987,
+        "ApostleBloodCount": 450
+    },
+    {
+        "PunishmentRuneCount": 130,
+        "RuneFragmentCount": 30197,
+        "ApostleBloodCount": 453
+    },
+    {
+        "PunishmentRuneCount": 131,
+        "RuneFragmentCount": 30408,
+        "ApostleBloodCount": 456
+    },
+    {
+        "PunishmentRuneCount": 132,
+        "RuneFragmentCount": 30621,
+        "ApostleBloodCount": 459
+    },
+    {
+        "PunishmentRuneCount": 133,
+        "RuneFragmentCount": 30835,
+        "ApostleBloodCount": 463
+    },
+    {
+        "PunishmentRuneCount": 134,
+        "RuneFragmentCount": 31051,
+        "ApostleBloodCount": 466
+    },
+    {
+        "PunishmentRuneCount": 135,
+        "RuneFragmentCount": 31268,
+        "ApostleBloodCount": 469
+    },
+    {
+        "PunishmentRuneCount": 136,
+        "RuneFragmentCount": 31487,
+        "ApostleBloodCount": 472
+    },
+    {
+        "PunishmentRuneCount": 137,
+        "RuneFragmentCount": 31708,
+        "ApostleBloodCount": 476
+    },
+    {
+        "PunishmentRuneCount": 138,
+        "RuneFragmentCount": 31930,
+        "ApostleBloodCount": 479
+    },
+    {
+        "PunishmentRuneCount": 139,
+        "RuneFragmentCount": 32153,
+        "ApostleBloodCount": 482
+    },
+    {
+        "PunishmentRuneCount": 140,
+        "RuneFragmentCount": 32378,
+        "ApostleBloodCount": 486
+    },
+    {
+        "PunishmentRuneCount": 141,
+        "RuneFragmentCount": 32572,
+        "ApostleBloodCount": 489
+    },
+    {
+        "PunishmentRuneCount": 142,
+        "RuneFragmentCount": 32768,
+        "ApostleBloodCount": 492
+    },
+    {
+        "PunishmentRuneCount": 143,
+        "RuneFragmentCount": 32965,
+        "ApostleBloodCount": 494
+    },
+    {
+        "PunishmentRuneCount": 144,
+        "RuneFragmentCount": 33162,
+        "ApostleBloodCount": 497
+    },
+    {
+        "PunishmentRuneCount": 145,
+        "RuneFragmentCount": 33361,
+        "ApostleBloodCount": 500
+    },
+    {
+        "PunishmentRuneCount": 146,
+        "RuneFragmentCount": 33561,
+        "ApostleBloodCount": 503
+    },
+    {
+        "PunishmentRuneCount": 147,
+        "RuneFragmentCount": 33763,
+        "ApostleBloodCount": 506
+    },
+    {
+        "PunishmentRuneCount": 148,
+        "RuneFragmentCount": 33965,
+        "ApostleBloodCount": 509
+    },
+    {
+        "PunishmentRuneCount": 149,
+        "RuneFragmentCount": 34169,
+        "ApostleBloodCount": 513
+    },
+    {
+        "PunishmentRuneCount": 150,
+        "RuneFragmentCount": 34374,
+        "ApostleBloodCount": 516
+    },
+    {
+        "PunishmentRuneCount": 151,
+        "RuneFragmentCount": 34580,
+        "ApostleBloodCount": 519
+    },
+    {
+        "PunishmentRuneCount": 152,
+        "RuneFragmentCount": 34788,
+        "ApostleBloodCount": 522
+    },
+    {
+        "PunishmentRuneCount": 153,
+        "RuneFragmentCount": 34997,
+        "ApostleBloodCount": 525
+    },
+    {
+        "PunishmentRuneCount": 154,
+        "RuneFragmentCount": 35207,
+        "ApostleBloodCount": 528
+    },
+    {
+        "PunishmentRuneCount": 155,
+        "RuneFragmentCount": 35418,
+        "ApostleBloodCount": 531
+    },
+    {
+        "PunishmentRuneCount": 156,
+        "RuneFragmentCount": 35630,
+        "ApostleBloodCount": 534
+    },
+    {
+        "PunishmentRuneCount": 157,
+        "RuneFragmentCount": 35844,
+        "ApostleBloodCount": 538
+    },
+    {
+        "PunishmentRuneCount": 158,
+        "RuneFragmentCount": 36059,
+        "ApostleBloodCount": 541
+    },
+    {
+        "PunishmentRuneCount": 159,
+        "RuneFragmentCount": 36276,
+        "ApostleBloodCount": 544
+    },
+    {
+        "PunishmentRuneCount": 160,
+        "RuneFragmentCount": 36493,
+        "ApostleBloodCount": 547
+    },
+    {
+        "PunishmentRuneCount": 161,
+        "RuneFragmentCount": 36712,
+        "ApostleBloodCount": 551
+    },
+    {
+        "PunishmentRuneCount": 162,
+        "RuneFragmentCount": 36932,
+        "ApostleBloodCount": 554
+    },
+    {
+        "PunishmentRuneCount": 163,
+        "RuneFragmentCount": 37154,
+        "ApostleBloodCount": 557
+    },
+    {
+        "PunishmentRuneCount": 164,
+        "RuneFragmentCount": 37377,
+        "ApostleBloodCount": 561
+    },
+    {
+        "PunishmentRuneCount": 165,
+        "RuneFragmentCount": 37601,
+        "ApostleBloodCount": 564
+    },
+    {
+        "PunishmentRuneCount": 166,
+        "RuneFragmentCount": 37827,
+        "ApostleBloodCount": 567
+    },
+    {
+        "PunishmentRuneCount": 167,
+        "RuneFragmentCount": 38054,
+        "ApostleBloodCount": 571
+    },
+    {
+        "PunishmentRuneCount": 168,
+        "RuneFragmentCount": 38282,
+        "ApostleBloodCount": 574
+    },
+    {
+        "PunishmentRuneCount": 169,
+        "RuneFragmentCount": 38512,
+        "ApostleBloodCount": 578
+    },
+    {
+        "PunishmentRuneCount": 170,
+        "RuneFragmentCount": 38743,
+        "ApostleBloodCount": 581
+    },
+    {
+        "PunishmentRuneCount": 171,
+        "RuneFragmentCount": 38975,
+        "ApostleBloodCount": 585
+    },
+    {
+        "PunishmentRuneCount": 172,
+        "RuneFragmentCount": 39209,
+        "ApostleBloodCount": 588
+    },
+    {
+        "PunishmentRuneCount": 173,
+        "RuneFragmentCount": 39444,
+        "ApostleBloodCount": 592
+    },
+    {
+        "PunishmentRuneCount": 174,
+        "RuneFragmentCount": 39681,
+        "ApostleBloodCount": 595
+    },
+    {
+        "PunishmentRuneCount": 175,
+        "RuneFragmentCount": 39919,
+        "ApostleBloodCount": 599
+    },
+    {
+        "PunishmentRuneCount": 176,
+        "RuneFragmentCount": 40159,
+        "ApostleBloodCount": 602
+    },
+    {
+        "PunishmentRuneCount": 177,
+        "RuneFragmentCount": 40400,
+        "ApostleBloodCount": 606
+    },
+    {
+        "PunishmentRuneCount": 178,
+        "RuneFragmentCount": 40642,
+        "ApostleBloodCount": 610
+    },
+    {
+        "PunishmentRuneCount": 179,
+        "RuneFragmentCount": 40886,
+        "ApostleBloodCount": 613
+    },
+    {
+        "PunishmentRuneCount": 180,
+        "RuneFragmentCount": 41131,
+        "ApostleBloodCount": 617
+    },
+    {
+        "PunishmentRuneCount": 181,
+        "RuneFragmentCount": 41296,
+        "ApostleBloodCount": 619
+    },
+    {
+        "PunishmentRuneCount": 182,
+        "RuneFragmentCount": 41461,
+        "ApostleBloodCount": 622
+    },
+    {
+        "PunishmentRuneCount": 183,
+        "RuneFragmentCount": 41627,
+        "ApostleBloodCount": 624
+    },
+    {
+        "PunishmentRuneCount": 184,
+        "RuneFragmentCount": 41793,
+        "ApostleBloodCount": 627
+    },
+    {
+        "PunishmentRuneCount": 185,
+        "RuneFragmentCount": 41960,
+        "ApostleBloodCount": 629
+    },
+    {
+        "PunishmentRuneCount": 186,
+        "RuneFragmentCount": 42128,
+        "ApostleBloodCount": 632
+    },
+    {
+        "PunishmentRuneCount": 187,
+        "RuneFragmentCount": 42297,
+        "ApostleBloodCount": 634
+    },
+    {
+        "PunishmentRuneCount": 188,
+        "RuneFragmentCount": 42466,
+        "ApostleBloodCount": 637
+    },
+    {
+        "PunishmentRuneCount": 189,
+        "RuneFragmentCount": 42636,
+        "ApostleBloodCount": 640
+    },
+    {
+        "PunishmentRuneCount": 190,
+        "RuneFragmentCount": 42806,
+        "ApostleBloodCount": 642
+    },
+    {
+        "PunishmentRuneCount": 191,
+        "RuneFragmentCount": 42978,
+        "ApostleBloodCount": 645
+    },
+    {
+        "PunishmentRuneCount": 192,
+        "RuneFragmentCount": 43150,
+        "ApostleBloodCount": 647
+    },
+    {
+        "PunishmentRuneCount": 193,
+        "RuneFragmentCount": 43322,
+        "ApostleBloodCount": 650
+    },
+    {
+        "PunishmentRuneCount": 194,
+        "RuneFragmentCount": 43495,
+        "ApostleBloodCount": 652
+    },
+    {
+        "PunishmentRuneCount": 195,
+        "RuneFragmentCount": 43669,
+        "ApostleBloodCount": 655
+    },
+    {
+        "PunishmentRuneCount": 196,
+        "RuneFragmentCount": 43844,
+        "ApostleBloodCount": 658
+    },
+    {
+        "PunishmentRuneCount": 197,
+        "RuneFragmentCount": 44020,
+        "ApostleBloodCount": 660
+    },
+    {
+        "PunishmentRuneCount": 198,
+        "RuneFragmentCount": 44196,
+        "ApostleBloodCount": 663
+    },
+    {
+        "PunishmentRuneCount": 199,
+        "RuneFragmentCount": 44372,
+        "ApostleBloodCount": 666
+    },
+    {
+        "PunishmentRuneCount": 200,
+        "RuneFragmentCount": 44550,
+        "ApostleBloodCount": 668
+    },
+    {
+        "PunishmentRuneCount": 201,
+        "RuneFragmentCount": 44728,
+        "ApostleBloodCount": 671
+    },
+    {
+        "PunishmentRuneCount": 202,
+        "RuneFragmentCount": 44907,
+        "ApostleBloodCount": 674
+    },
+    {
+        "PunishmentRuneCount": 203,
+        "RuneFragmentCount": 45087,
+        "ApostleBloodCount": 676
+    },
+    {
+        "PunishmentRuneCount": 204,
+        "RuneFragmentCount": 45267,
+        "ApostleBloodCount": 679
+    },
+    {
+        "PunishmentRuneCount": 205,
+        "RuneFragmentCount": 45448,
+        "ApostleBloodCount": 682
+    },
+    {
+        "PunishmentRuneCount": 206,
+        "RuneFragmentCount": 45630,
+        "ApostleBloodCount": 684
+    },
+    {
+        "PunishmentRuneCount": 207,
+        "RuneFragmentCount": 45812,
+        "ApostleBloodCount": 687
+    },
+    {
+        "PunishmentRuneCount": 208,
+        "RuneFragmentCount": 45996,
+        "ApostleBloodCount": 690
+    },
+    {
+        "PunishmentRuneCount": 209,
+        "RuneFragmentCount": 46180,
+        "ApostleBloodCount": 693
+    },
+    {
+        "PunishmentRuneCount": 210,
+        "RuneFragmentCount": 46364,
+        "ApostleBloodCount": 695
+    },
+    {
+        "PunishmentRuneCount": 211,
+        "RuneFragmentCount": 46550,
+        "ApostleBloodCount": 698
+    },
+    {
+        "PunishmentRuneCount": 212,
+        "RuneFragmentCount": 46736,
+        "ApostleBloodCount": 701
+    },
+    {
+        "PunishmentRuneCount": 213,
+        "RuneFragmentCount": 46923,
+        "ApostleBloodCount": 704
+    },
+    {
+        "PunishmentRuneCount": 214,
+        "RuneFragmentCount": 47111,
+        "ApostleBloodCount": 707
+    },
+    {
+        "PunishmentRuneCount": 215,
+        "RuneFragmentCount": 47299,
+        "ApostleBloodCount": 709
+    },
+    {
+        "PunishmentRuneCount": 216,
+        "RuneFragmentCount": 47488,
+        "ApostleBloodCount": 712
+    },
+    {
+        "PunishmentRuneCount": 217,
+        "RuneFragmentCount": 47678,
+        "ApostleBloodCount": 715
+    },
+    {
+        "PunishmentRuneCount": 218,
+        "RuneFragmentCount": 47869,
+        "ApostleBloodCount": 718
+    },
+    {
+        "PunishmentRuneCount": 219,
+        "RuneFragmentCount": 48060,
+        "ApostleBloodCount": 721
+    },
+    {
+        "PunishmentRuneCount": 220,
+        "RuneFragmentCount": 48253,
+        "ApostleBloodCount": 724
+    },
+    {
+        "PunishmentRuneCount": 221,
+        "RuneFragmentCount": 48446,
+        "ApostleBloodCount": 727
+    },
+    {
+        "PunishmentRuneCount": 222,
+        "RuneFragmentCount": 48639,
+        "ApostleBloodCount": 730
+    },
+    {
+        "PunishmentRuneCount": 223,
+        "RuneFragmentCount": 48834,
+        "ApostleBloodCount": 733
+    },
+    {
+        "PunishmentRuneCount": 224,
+        "RuneFragmentCount": 49029,
+        "ApostleBloodCount": 735
+    },
+    {
+        "PunishmentRuneCount": 225,
+        "RuneFragmentCount": 49225,
+        "ApostleBloodCount": 738
+    },
+    {
+        "PunishmentRuneCount": 226,
+        "RuneFragmentCount": 49422,
+        "ApostleBloodCount": 741
+    },
+    {
+        "PunishmentRuneCount": 227,
+        "RuneFragmentCount": 49620,
+        "ApostleBloodCount": 744
+    },
+    {
+        "PunishmentRuneCount": 228,
+        "RuneFragmentCount": 49818,
+        "ApostleBloodCount": 747
+    },
+    {
+        "PunishmentRuneCount": 229,
+        "RuneFragmentCount": 50018,
+        "ApostleBloodCount": 750
+    },
+    {
+        "PunishmentRuneCount": 230,
+        "RuneFragmentCount": 50218,
+        "ApostleBloodCount": 753
+    },
+    {
+        "PunishmentRuneCount": 231,
+        "RuneFragmentCount": 50419,
+        "ApostleBloodCount": 756
+    },
+    {
+        "PunishmentRuneCount": 232,
+        "RuneFragmentCount": 50620,
+        "ApostleBloodCount": 759
+    },
+    {
+        "PunishmentRuneCount": 233,
+        "RuneFragmentCount": 50823,
+        "ApostleBloodCount": 762
+    },
+    {
+        "PunishmentRuneCount": 234,
+        "RuneFragmentCount": 51026,
+        "ApostleBloodCount": 765
+    },
+    {
+        "PunishmentRuneCount": 235,
+        "RuneFragmentCount": 51230,
+        "ApostleBloodCount": 768
+    },
+    {
+        "PunishmentRuneCount": 236,
+        "RuneFragmentCount": 51435,
+        "ApostleBloodCount": 772
+    },
+    {
+        "PunishmentRuneCount": 237,
+        "RuneFragmentCount": 51641,
+        "ApostleBloodCount": 775
+    },
+    {
+        "PunishmentRuneCount": 238,
+        "RuneFragmentCount": 51847,
+        "ApostleBloodCount": 778
+    },
+    {
+        "PunishmentRuneCount": 239,
+        "RuneFragmentCount": 52055,
+        "ApostleBloodCount": 781
+    },
+    {
+        "PunishmentRuneCount": 240,
+        "RuneFragmentCount": 52263,
+        "ApostleBloodCount": 784
+    },
+    {
+        "PunishmentRuneCount": 241,
+        "RuneFragmentCount": 52472,
+        "ApostleBloodCount": 787
+    },
+    {
+        "PunishmentRuneCount": 242,
+        "RuneFragmentCount": 52682,
+        "ApostleBloodCount": 790
+    },
+    {
+        "PunishmentRuneCount": 243,
+        "RuneFragmentCount": 52893,
+        "ApostleBloodCount": 793
+    },
+    {
+        "PunishmentRuneCount": 244,
+        "RuneFragmentCount": 53104,
+        "ApostleBloodCount": 797
+    },
+    {
+        "PunishmentRuneCount": 245,
+        "RuneFragmentCount": 53317,
+        "ApostleBloodCount": 800
+    },
+    {
+        "PunishmentRuneCount": 246,
+        "RuneFragmentCount": 53530,
+        "ApostleBloodCount": 803
+    },
+    {
+        "PunishmentRuneCount": 247,
+        "RuneFragmentCount": 53744,
+        "ApostleBloodCount": 806
+    },
+    {
+        "PunishmentRuneCount": 248,
+        "RuneFragmentCount": 53959,
+        "ApostleBloodCount": 809
+    },
+    {
+        "PunishmentRuneCount": 249,
+        "RuneFragmentCount": 54175,
+        "ApostleBloodCount": 813
+    },
+    {
+        "PunishmentRuneCount": 250,
+        "RuneFragmentCount": 54392,
+        "ApostleBloodCount": 816
+    },
+    {
+        "PunishmentRuneCount": 251,
+        "RuneFragmentCount": 54609,
+        "ApostleBloodCount": 819
+    },
+    {
+        "PunishmentRuneCount": 252,
+        "RuneFragmentCount": 54828,
+        "ApostleBloodCount": 822
+    },
+    {
+        "PunishmentRuneCount": 253,
+        "RuneFragmentCount": 55047,
+        "ApostleBloodCount": 826
+    },
+    {
+        "PunishmentRuneCount": 254,
+        "RuneFragmentCount": 55267,
+        "ApostleBloodCount": 829
+    },
+    {
+        "PunishmentRuneCount": 255,
+        "RuneFragmentCount": 55488,
+        "ApostleBloodCount": 832
+    },
+    {
+        "PunishmentRuneCount": 256,
+        "RuneFragmentCount": 55710,
+        "ApostleBloodCount": 836
+    },
+    {
+        "PunishmentRuneCount": 257,
+        "RuneFragmentCount": 55933,
+        "ApostleBloodCount": 839
+    },
+    {
+        "PunishmentRuneCount": 258,
+        "RuneFragmentCount": 56157,
+        "ApostleBloodCount": 842
+    },
+    {
+        "PunishmentRuneCount": 259,
+        "RuneFragmentCount": 56381,
+        "ApostleBloodCount": 846
+    },
+    {
+        "PunishmentRuneCount": 260,
+        "RuneFragmentCount": 56607,
+        "ApostleBloodCount": 849
+    },
+    {
+        "PunishmentRuneCount": 261,
+        "RuneFragmentCount": 56833,
+        "ApostleBloodCount": 852
+    },
+    {
+        "PunishmentRuneCount": 262,
+        "RuneFragmentCount": 57061,
+        "ApostleBloodCount": 856
+    },
+    {
+        "PunishmentRuneCount": 263,
+        "RuneFragmentCount": 57289,
+        "ApostleBloodCount": 859
+    },
+    {
+        "PunishmentRuneCount": 264,
+        "RuneFragmentCount": 57518,
+        "ApostleBloodCount": 863
+    },
+    {
+        "PunishmentRuneCount": 265,
+        "RuneFragmentCount": 57748,
+        "ApostleBloodCount": 866
+    },
+    {
+        "PunishmentRuneCount": 266,
+        "RuneFragmentCount": 57979,
+        "ApostleBloodCount": 870
+    },
+    {
+        "PunishmentRuneCount": 267,
+        "RuneFragmentCount": 58211,
+        "ApostleBloodCount": 873
+    },
+    {
+        "PunishmentRuneCount": 268,
+        "RuneFragmentCount": 58444,
+        "ApostleBloodCount": 877
+    },
+    {
+        "PunishmentRuneCount": 269,
+        "RuneFragmentCount": 58678,
+        "ApostleBloodCount": 880
+    },
+    {
+        "PunishmentRuneCount": 270,
+        "RuneFragmentCount": 58912,
+        "ApostleBloodCount": 884
+    },
+    {
+        "PunishmentRuneCount": 271,
+        "RuneFragmentCount": 59148,
+        "ApostleBloodCount": 887
+    },
+    {
+        "PunishmentRuneCount": 272,
+        "RuneFragmentCount": 59385,
+        "ApostleBloodCount": 891
+    },
+    {
+        "PunishmentRuneCount": 273,
+        "RuneFragmentCount": 59622,
+        "ApostleBloodCount": 894
+    },
+    {
+        "PunishmentRuneCount": 274,
+        "RuneFragmentCount": 59861,
+        "ApostleBloodCount": 898
+    },
+    {
+        "PunishmentRuneCount": 275,
+        "RuneFragmentCount": 60100,
+        "ApostleBloodCount": 902
+    },
+    {
+        "PunishmentRuneCount": 276,
+        "RuneFragmentCount": 60340,
+        "ApostleBloodCount": 905
+    },
+    {
+        "PunishmentRuneCount": 277,
+        "RuneFragmentCount": 60582,
+        "ApostleBloodCount": 909
+    },
+    {
+        "PunishmentRuneCount": 278,
+        "RuneFragmentCount": 60824,
+        "ApostleBloodCount": 912
+    },
+    {
+        "PunishmentRuneCount": 279,
+        "RuneFragmentCount": 61067,
+        "ApostleBloodCount": 916
+    },
+    {
+        "PunishmentRuneCount": 280,
+        "RuneFragmentCount": 61312,
+        "ApostleBloodCount": 920
+    },
+    {
+        "PunishmentRuneCount": 281,
+        "RuneFragmentCount": 61557,
+        "ApostleBloodCount": 923
+    },
+    {
+        "PunishmentRuneCount": 282,
+        "RuneFragmentCount": 61803,
+        "ApostleBloodCount": 927
+    },
+    {
+        "PunishmentRuneCount": 283,
+        "RuneFragmentCount": 62050,
+        "ApostleBloodCount": 931
+    },
+    {
+        "PunishmentRuneCount": 284,
+        "RuneFragmentCount": 62299,
+        "ApostleBloodCount": 934
+    },
+    {
+        "PunishmentRuneCount": 285,
+        "RuneFragmentCount": 62548,
+        "ApostleBloodCount": 938
+    },
+    {
+        "PunishmentRuneCount": 286,
+        "RuneFragmentCount": 62798,
+        "ApostleBloodCount": 942
+    },
+    {
+        "PunishmentRuneCount": 287,
+        "RuneFragmentCount": 63049,
+        "ApostleBloodCount": 946
+    },
+    {
+        "PunishmentRuneCount": 288,
+        "RuneFragmentCount": 63301,
+        "ApostleBloodCount": 950
+    },
+    {
+        "PunishmentRuneCount": 289,
+        "RuneFragmentCount": 63555,
+        "ApostleBloodCount": 953
+    },
+    {
+        "PunishmentRuneCount": 290,
+        "RuneFragmentCount": 63809,
+        "ApostleBloodCount": 957
+    },
+    {
+        "PunishmentRuneCount": 291,
+        "RuneFragmentCount": 64064,
+        "ApostleBloodCount": 961
+    },
+    {
+        "PunishmentRuneCount": 292,
+        "RuneFragmentCount": 64320,
+        "ApostleBloodCount": 965
+    },
+    {
+        "PunishmentRuneCount": 293,
+        "RuneFragmentCount": 64578,
+        "ApostleBloodCount": 969
+    },
+    {
+        "PunishmentRuneCount": 294,
+        "RuneFragmentCount": 64836,
+        "ApostleBloodCount": 973
+    },
+    {
+        "PunishmentRuneCount": 295,
+        "RuneFragmentCount": 65095,
+        "ApostleBloodCount": 976
+    },
+    {
+        "PunishmentRuneCount": 296,
+        "RuneFragmentCount": 65356,
+        "ApostleBloodCount": 980
+    },
+    {
+        "PunishmentRuneCount": 297,
+        "RuneFragmentCount": 65617,
+        "ApostleBloodCount": 984
+    },
+    {
+        "PunishmentRuneCount": 298,
+        "RuneFragmentCount": 65879,
+        "ApostleBloodCount": 988
+    },
+    {
+        "PunishmentRuneCount": 299,
+        "RuneFragmentCount": 66143,
+        "ApostleBloodCount": 992
+    },
+    {
+        "PunishmentRuneCount": 300,
+        "RuneFragmentCount": 66408,
+        "ApostleBloodCount": 996
+    },
+    {
+        "PunishmentRuneCount": 301,
+        "RuneFragmentCount": 66673,
+        "ApostleBloodCount": 1000
+    },
+    {
+        "PunishmentRuneCount": 302,
+        "RuneFragmentCount": 66940,
+        "ApostleBloodCount": 1004
+    },
+    {
+        "PunishmentRuneCount": 303,
+        "RuneFragmentCount": 67208,
+        "ApostleBloodCount": 1008
+    },
+    {
+        "PunishmentRuneCount": 304,
+        "RuneFragmentCount": 67476,
+        "ApostleBloodCount": 1012
+    },
+    {
+        "PunishmentRuneCount": 305,
+        "RuneFragmentCount": 67746,
+        "ApostleBloodCount": 1016
+    },
+    {
+        "PunishmentRuneCount": 306,
+        "RuneFragmentCount": 68017,
+        "ApostleBloodCount": 1020
+    },
+    {
+        "PunishmentRuneCount": 307,
+        "RuneFragmentCount": 68289,
+        "ApostleBloodCount": 1024
+    },
+    {
+        "PunishmentRuneCount": 308,
+        "RuneFragmentCount": 68563,
+        "ApostleBloodCount": 1028
+    },
+    {
+        "PunishmentRuneCount": 309,
+        "RuneFragmentCount": 68837,
+        "ApostleBloodCount": 1033
+    },
+    {
+        "PunishmentRuneCount": 310,
+        "RuneFragmentCount": 69112,
+        "ApostleBloodCount": 1037
+    },
+    {
+        "PunishmentRuneCount": 311,
+        "RuneFragmentCount": 69389,
+        "ApostleBloodCount": 1041
+    },
+    {
+        "PunishmentRuneCount": 312,
+        "RuneFragmentCount": 69666,
+        "ApostleBloodCount": 1045
+    },
+    {
+        "PunishmentRuneCount": 313,
+        "RuneFragmentCount": 69945,
+        "ApostleBloodCount": 1049
+    },
+    {
+        "PunishmentRuneCount": 314,
+        "RuneFragmentCount": 70225,
+        "ApostleBloodCount": 1053
+    },
+    {
+        "PunishmentRuneCount": 315,
+        "RuneFragmentCount": 70506,
+        "ApostleBloodCount": 1058
+    },
+    {
+        "PunishmentRuneCount": 316,
+        "RuneFragmentCount": 70788,
+        "ApostleBloodCount": 1062
+    },
+    {
+        "PunishmentRuneCount": 317,
+        "RuneFragmentCount": 71071,
+        "ApostleBloodCount": 1066
+    },
+    {
+        "PunishmentRuneCount": 318,
+        "RuneFragmentCount": 71355,
+        "ApostleBloodCount": 1070
+    },
+    {
+        "PunishmentRuneCount": 319,
+        "RuneFragmentCount": 71640,
+        "ApostleBloodCount": 1075
+    },
+    {
+        "PunishmentRuneCount": 320,
+        "RuneFragmentCount": 71927,
+        "ApostleBloodCount": 1079
+    },
+    {
+        "PunishmentRuneCount": 321,
+        "RuneFragmentCount": 72215,
+        "ApostleBloodCount": 1083
+    },
+    {
+        "PunishmentRuneCount": 322,
+        "RuneFragmentCount": 72504,
+        "ApostleBloodCount": 1088
+    },
+    {
+        "PunishmentRuneCount": 323,
+        "RuneFragmentCount": 72794,
+        "ApostleBloodCount": 1092
+    },
+    {
+        "PunishmentRuneCount": 324,
+        "RuneFragmentCount": 73085,
+        "ApostleBloodCount": 1096
+    },
+    {
+        "PunishmentRuneCount": 325,
+        "RuneFragmentCount": 73377,
+        "ApostleBloodCount": 1101
+    },
+    {
+        "PunishmentRuneCount": 326,
+        "RuneFragmentCount": 73671,
+        "ApostleBloodCount": 1105
+    },
+    {
+        "PunishmentRuneCount": 327,
+        "RuneFragmentCount": 73965,
+        "ApostleBloodCount": 1109
+    },
+    {
+        "PunishmentRuneCount": 328,
+        "RuneFragmentCount": 74261,
+        "ApostleBloodCount": 1114
+    },
+    {
+        "PunishmentRuneCount": 329,
+        "RuneFragmentCount": 74558,
+        "ApostleBloodCount": 1118
+    },
+    {
+        "PunishmentRuneCount": 330,
+        "RuneFragmentCount": 74856,
+        "ApostleBloodCount": 1123
+    },
+    {
+        "PunishmentRuneCount": 331,
+        "RuneFragmentCount": 75156,
+        "ApostleBloodCount": 1127
+    },
+    {
+        "PunishmentRuneCount": 332,
+        "RuneFragmentCount": 75456,
+        "ApostleBloodCount": 1132
+    },
+    {
+        "PunishmentRuneCount": 333,
+        "RuneFragmentCount": 75758,
+        "ApostleBloodCount": 1136
+    },
+    {
+        "PunishmentRuneCount": 334,
+        "RuneFragmentCount": 76061,
+        "ApostleBloodCount": 1141
+    },
+    {
+        "PunishmentRuneCount": 335,
+        "RuneFragmentCount": 76366,
+        "ApostleBloodCount": 1145
+    },
+    {
+        "PunishmentRuneCount": 336,
+        "RuneFragmentCount": 76671,
+        "ApostleBloodCount": 1150
+    },
+    {
+        "PunishmentRuneCount": 337,
+        "RuneFragmentCount": 76978,
+        "ApostleBloodCount": 1155
+    },
+    {
+        "PunishmentRuneCount": 338,
+        "RuneFragmentCount": 77286,
+        "ApostleBloodCount": 1159
+    },
+    {
+        "PunishmentRuneCount": 339,
+        "RuneFragmentCount": 77595,
+        "ApostleBloodCount": 1164
+    },
+    {
+        "PunishmentRuneCount": 340,
+        "RuneFragmentCount": 77905,
+        "ApostleBloodCount": 1169
+    },
+    {
+        "PunishmentRuneCount": 341,
+        "RuneFragmentCount": 78217,
+        "ApostleBloodCount": 1173
+    },
+    {
+        "PunishmentRuneCount": 342,
+        "RuneFragmentCount": 78530,
+        "ApostleBloodCount": 1178
+    },
+    {
+        "PunishmentRuneCount": 343,
+        "RuneFragmentCount": 78844,
+        "ApostleBloodCount": 1183
+    },
+    {
+        "PunishmentRuneCount": 344,
+        "RuneFragmentCount": 79159,
+        "ApostleBloodCount": 1187
+    },
+    {
+        "PunishmentRuneCount": 345,
+        "RuneFragmentCount": 79476,
+        "ApostleBloodCount": 1192
+    },
+    {
+        "PunishmentRuneCount": 346,
+        "RuneFragmentCount": 79794,
+        "ApostleBloodCount": 1197
+    },
+    {
+        "PunishmentRuneCount": 347,
+        "RuneFragmentCount": 80113,
+        "ApostleBloodCount": 1202
+    },
+    {
+        "PunishmentRuneCount": 348,
+        "RuneFragmentCount": 80433,
+        "ApostleBloodCount": 1206
+    },
+    {
+        "PunishmentRuneCount": 349,
+        "RuneFragmentCount": 80755,
+        "ApostleBloodCount": 1211
+    },
+    {
+        "PunishmentRuneCount": 350,
+        "RuneFragmentCount": 81078,
+        "ApostleBloodCount": 1216
+    },
+    {
+        "PunishmentRuneCount": 351,
+        "RuneFragmentCount": 81402,
+        "ApostleBloodCount": 1221
+    },
+    {
+        "PunishmentRuneCount": 352,
+        "RuneFragmentCount": 81728,
+        "ApostleBloodCount": 1226
+    },
+    {
+        "PunishmentRuneCount": 353,
+        "RuneFragmentCount": 82055,
+        "ApostleBloodCount": 1231
+    },
+    {
+        "PunishmentRuneCount": 354,
+        "RuneFragmentCount": 82383,
+        "ApostleBloodCount": 1236
+    },
+    {
+        "PunishmentRuneCount": 355,
+        "RuneFragmentCount": 82713,
+        "ApostleBloodCount": 1241
+    },
+    {
+        "PunishmentRuneCount": 356,
+        "RuneFragmentCount": 83043,
+        "ApostleBloodCount": 1246
+    },
+    {
+        "PunishmentRuneCount": 357,
+        "RuneFragmentCount": 83376,
+        "ApostleBloodCount": 1251
+    },
+    {
+        "PunishmentRuneCount": 358,
+        "RuneFragmentCount": 83709,
+        "ApostleBloodCount": 1256
+    },
+    {
+        "PunishmentRuneCount": 359,
+        "RuneFragmentCount": 84044,
+        "ApostleBloodCount": 1261
+    },
+    {
+        "PunishmentRuneCount": 360,
+        "RuneFragmentCount": 84380,
+        "ApostleBloodCount": 1266
+    },
+    {
+        "PunishmentRuneCount": 361,
+        "RuneFragmentCount": 84718,
+        "ApostleBloodCount": 1271
+    },
+    {
+        "PunishmentRuneCount": 362,
+        "RuneFragmentCount": 85057,
+        "ApostleBloodCount": 1276
+    },
+    {
+        "PunishmentRuneCount": 363,
+        "RuneFragmentCount": 85397,
+        "ApostleBloodCount": 1281
+    },
+    {
+        "PunishmentRuneCount": 364,
+        "RuneFragmentCount": 85738,
+        "ApostleBloodCount": 1286
+    },
+    {
+        "PunishmentRuneCount": 365,
+        "RuneFragmentCount": 86081,
+        "ApostleBloodCount": 1291
+    },
+    {
+        "PunishmentRuneCount": 366,
+        "RuneFragmentCount": 86426,
+        "ApostleBloodCount": 1296
+    },
+    {
+        "PunishmentRuneCount": 367,
+        "RuneFragmentCount": 86771,
+        "ApostleBloodCount": 1302
+    },
+    {
+        "PunishmentRuneCount": 368,
+        "RuneFragmentCount": 87118,
+        "ApostleBloodCount": 1307
+    },
+    {
+        "PunishmentRuneCount": 369,
+        "RuneFragmentCount": 87467,
+        "ApostleBloodCount": 1312
+    },
+    {
+        "PunishmentRuneCount": 370,
+        "RuneFragmentCount": 87817,
+        "ApostleBloodCount": 1317
+    },
+    {
+        "PunishmentRuneCount": 371,
+        "RuneFragmentCount": 88168,
+        "ApostleBloodCount": 1323
+    },
+    {
+        "PunishmentRuneCount": 372,
+        "RuneFragmentCount": 88521,
+        "ApostleBloodCount": 1328
+    },
+    {
+        "PunishmentRuneCount": 373,
+        "RuneFragmentCount": 88875,
+        "ApostleBloodCount": 1333
+    },
+    {
+        "PunishmentRuneCount": 374,
+        "RuneFragmentCount": 89230,
+        "ApostleBloodCount": 1338
+    },
+    {
+        "PunishmentRuneCount": 375,
+        "RuneFragmentCount": 89587,
+        "ApostleBloodCount": 1344
+    },
+    {
+        "PunishmentRuneCount": 376,
+        "RuneFragmentCount": 89946,
+        "ApostleBloodCount": 1349
+    },
+    {
+        "PunishmentRuneCount": 377,
+        "RuneFragmentCount": 90305,
+        "ApostleBloodCount": 1355
+    },
+    {
+        "PunishmentRuneCount": 378,
+        "RuneFragmentCount": 90667,
+        "ApostleBloodCount": 1360
+    },
+    {
+        "PunishmentRuneCount": 379,
+        "RuneFragmentCount": 91029,
+        "ApostleBloodCount": 1365
+    },
+    {
+        "PunishmentRuneCount": 380,
+        "RuneFragmentCount": 91393,
+        "ApostleBloodCount": 1371
+    },
+    {
+        "PunishmentRuneCount": 381,
+        "RuneFragmentCount": 91759,
+        "ApostleBloodCount": 1376
+    },
+    {
+        "PunishmentRuneCount": 382,
+        "RuneFragmentCount": 92126,
+        "ApostleBloodCount": 1382
+    },
+    {
+        "PunishmentRuneCount": 383,
+        "RuneFragmentCount": 92494,
+        "ApostleBloodCount": 1387
+    },
+    {
+        "PunishmentRuneCount": 384,
+        "RuneFragmentCount": 92864,
+        "ApostleBloodCount": 1393
+    },
+    {
+        "PunishmentRuneCount": 385,
+        "RuneFragmentCount": 93236,
+        "ApostleBloodCount": 1399
+    },
+    {
+        "PunishmentRuneCount": 386,
+        "RuneFragmentCount": 93609,
+        "ApostleBloodCount": 1404
+    },
+    {
+        "PunishmentRuneCount": 387,
+        "RuneFragmentCount": 93983,
+        "ApostleBloodCount": 1410
+    },
+    {
+        "PunishmentRuneCount": 388,
+        "RuneFragmentCount": 94359,
+        "ApostleBloodCount": 1415
+    },
+    {
+        "PunishmentRuneCount": 389,
+        "RuneFragmentCount": 94737,
+        "ApostleBloodCount": 1421
+    },
+    {
+        "PunishmentRuneCount": 390,
+        "RuneFragmentCount": 95116,
+        "ApostleBloodCount": 1427
+    },
+    {
+        "PunishmentRuneCount": 391,
+        "RuneFragmentCount": 95496,
+        "ApostleBloodCount": 1432
+    },
+    {
+        "PunishmentRuneCount": 392,
+        "RuneFragmentCount": 95878,
+        "ApostleBloodCount": 1438
+    },
+    {
+        "PunishmentRuneCount": 393,
+        "RuneFragmentCount": 96262,
+        "ApostleBloodCount": 1444
+    },
+    {
+        "PunishmentRuneCount": 394,
+        "RuneFragmentCount": 96647,
+        "ApostleBloodCount": 1450
+    },
+    {
+        "PunishmentRuneCount": 395,
+        "RuneFragmentCount": 97033,
+        "ApostleBloodCount": 1455
+    },
+    {
+        "PunishmentRuneCount": 396,
+        "RuneFragmentCount": 97421,
+        "ApostleBloodCount": 1461
+    },
+    {
+        "PunishmentRuneCount": 397,
+        "RuneFragmentCount": 97811,
+        "ApostleBloodCount": 1467
+    },
+    {
+        "PunishmentRuneCount": 398,
+        "RuneFragmentCount": 98202,
+        "ApostleBloodCount": 1473
+    },
+    {
+        "PunishmentRuneCount": 399,
+        "RuneFragmentCount": 98595,
+        "ApostleBloodCount": 1479
+    },
+    {
+        "PunishmentRuneCount": 400,
+        "RuneFragmentCount": 98989,
+        "ApostleBloodCount": 1485
+    },
+    {
+        "PunishmentRuneCount": 401,
+        "RuneFragmentCount": 99385,
+        "ApostleBloodCount": 1491
+    },
+    {
+        "PunishmentRuneCount": 402,
+        "RuneFragmentCount": 99783,
+        "ApostleBloodCount": 1497
+    },
+    {
+        "PunishmentRuneCount": 403,
+        "RuneFragmentCount": 100182,
+        "ApostleBloodCount": 1503
+    },
+    {
+        "PunishmentRuneCount": 404,
+        "RuneFragmentCount": 100583,
+        "ApostleBloodCount": 1509
+    },
+    {
+        "PunishmentRuneCount": 405,
+        "RuneFragmentCount": 100985,
+        "ApostleBloodCount": 1515
+    },
+    {
+        "PunishmentRuneCount": 406,
+        "RuneFragmentCount": 101389,
+        "ApostleBloodCount": 1521
+    },
+    {
+        "PunishmentRuneCount": 407,
+        "RuneFragmentCount": 101795,
+        "ApostleBloodCount": 1527
+    },
+    {
+        "PunishmentRuneCount": 408,
+        "RuneFragmentCount": 102202,
+        "ApostleBloodCount": 1533
+    },
+    {
+        "PunishmentRuneCount": 409,
+        "RuneFragmentCount": 102611,
+        "ApostleBloodCount": 1539
+    },
+    {
+        "PunishmentRuneCount": 410,
+        "RuneFragmentCount": 103021,
+        "ApostleBloodCount": 1545
+    },
+    {
+        "PunishmentRuneCount": 411,
+        "RuneFragmentCount": 103433,
+        "ApostleBloodCount": 1551
+    },
+    {
+        "PunishmentRuneCount": 412,
+        "RuneFragmentCount": 103847,
+        "ApostleBloodCount": 1558
+    },
+    {
+        "PunishmentRuneCount": 413,
+        "RuneFragmentCount": 104262,
+        "ApostleBloodCount": 1564
+    },
+    {
+        "PunishmentRuneCount": 414,
+        "RuneFragmentCount": 104679,
+        "ApostleBloodCount": 1570
+    },
+    {
+        "PunishmentRuneCount": 415,
+        "RuneFragmentCount": 105098,
+        "ApostleBloodCount": 1576
+    },
+    {
+        "PunishmentRuneCount": 416,
+        "RuneFragmentCount": 105518,
+        "ApostleBloodCount": 1583
+    },
+    {
+        "PunishmentRuneCount": 417,
+        "RuneFragmentCount": 105940,
+        "ApostleBloodCount": 1589
+    },
+    {
+        "PunishmentRuneCount": 418,
+        "RuneFragmentCount": 106364,
+        "ApostleBloodCount": 1595
+    },
+    {
+        "PunishmentRuneCount": 419,
+        "RuneFragmentCount": 106790,
+        "ApostleBloodCount": 1602
+    },
+    {
+        "PunishmentRuneCount": 420,
+        "RuneFragmentCount": 107217,
+        "ApostleBloodCount": 1608
+    },
+    {
+        "PunishmentRuneCount": 421,
+        "RuneFragmentCount": 107646,
+        "ApostleBloodCount": 1615
+    },
+    {
+        "PunishmentRuneCount": 422,
+        "RuneFragmentCount": 108076,
+        "ApostleBloodCount": 1621
+    },
+    {
+        "PunishmentRuneCount": 423,
+        "RuneFragmentCount": 108509,
+        "ApostleBloodCount": 1628
+    },
+    {
+        "PunishmentRuneCount": 424,
+        "RuneFragmentCount": 108943,
+        "ApostleBloodCount": 1634
+    },
+    {
+        "PunishmentRuneCount": 425,
+        "RuneFragmentCount": 109378,
+        "ApostleBloodCount": 1641
+    },
+    {
+        "PunishmentRuneCount": 426,
+        "RuneFragmentCount": 109816,
+        "ApostleBloodCount": 1647
+    },
+    {
+        "PunishmentRuneCount": 427,
+        "RuneFragmentCount": 110255,
+        "ApostleBloodCount": 1654
+    },
+    {
+        "PunishmentRuneCount": 428,
+        "RuneFragmentCount": 110696,
+        "ApostleBloodCount": 1660
+    },
+    {
+        "PunishmentRuneCount": 429,
+        "RuneFragmentCount": 111139,
+        "ApostleBloodCount": 1667
+    },
+    {
+        "PunishmentRuneCount": 430,
+        "RuneFragmentCount": 111584,
+        "ApostleBloodCount": 1674
+    },
+    {
+        "PunishmentRuneCount": 431,
+        "RuneFragmentCount": 112030,
+        "ApostleBloodCount": 1680
+    },
+    {
+        "PunishmentRuneCount": 432,
+        "RuneFragmentCount": 112478,
+        "ApostleBloodCount": 1687
+    },
+    {
+        "PunishmentRuneCount": 433,
+        "RuneFragmentCount": 112928,
+        "ApostleBloodCount": 1694
+    },
+    {
+        "PunishmentRuneCount": 434,
+        "RuneFragmentCount": 113380,
+        "ApostleBloodCount": 1701
+    },
+    {
+        "PunishmentRuneCount": 435,
+        "RuneFragmentCount": 113833,
+        "ApostleBloodCount": 1707
+    },
+    {
+        "PunishmentRuneCount": 436,
+        "RuneFragmentCount": 114288,
+        "ApostleBloodCount": 1714
+    },
+    {
+        "PunishmentRuneCount": 437,
+        "RuneFragmentCount": 114746,
+        "ApostleBloodCount": 1721
+    },
+    {
+        "PunishmentRuneCount": 438,
+        "RuneFragmentCount": 115205,
+        "ApostleBloodCount": 1728
+    },
+    {
+        "PunishmentRuneCount": 439,
+        "RuneFragmentCount": 115665,
+        "ApostleBloodCount": 1735
+    },
+    {
+        "PunishmentRuneCount": 440,
+        "RuneFragmentCount": 116128,
+        "ApostleBloodCount": 1742
+    },
+    {
+        "PunishmentRuneCount": 441,
+        "RuneFragmentCount": 116593,
+        "ApostleBloodCount": 1749
+    },
+    {
+        "PunishmentRuneCount": 442,
+        "RuneFragmentCount": 117059,
+        "ApostleBloodCount": 1756
+    },
+    {
+        "PunishmentRuneCount": 443,
+        "RuneFragmentCount": 117527,
+        "ApostleBloodCount": 1763
+    },
+    {
+        "PunishmentRuneCount": 444,
+        "RuneFragmentCount": 117997,
+        "ApostleBloodCount": 1770
+    },
+    {
+        "PunishmentRuneCount": 445,
+        "RuneFragmentCount": 118469,
+        "ApostleBloodCount": 1777
+    },
+    {
+        "PunishmentRuneCount": 446,
+        "RuneFragmentCount": 118943,
+        "ApostleBloodCount": 1784
+    },
+    {
+        "PunishmentRuneCount": 447,
+        "RuneFragmentCount": 119419,
+        "ApostleBloodCount": 1791
+    },
+    {
+        "PunishmentRuneCount": 448,
+        "RuneFragmentCount": 119897,
+        "ApostleBloodCount": 1798
+    },
+    {
+        "PunishmentRuneCount": 449,
+        "RuneFragmentCount": 120376,
+        "ApostleBloodCount": 1806
+    },
+    {
+        "PunishmentRuneCount": 450,
+        "RuneFragmentCount": 120858,
+        "ApostleBloodCount": 1813
+    },
+    {
+        "PunishmentRuneCount": 451,
+        "RuneFragmentCount": 121341,
+        "ApostleBloodCount": 1820
+    },
+    {
+        "PunishmentRuneCount": 452,
+        "RuneFragmentCount": 121827,
+        "ApostleBloodCount": 1827
+    },
+    {
+        "PunishmentRuneCount": 453,
+        "RuneFragmentCount": 122314,
+        "ApostleBloodCount": 1835
+    },
+    {
+        "PunishmentRuneCount": 454,
+        "RuneFragmentCount": 122803,
+        "ApostleBloodCount": 1842
+    },
+    {
+        "PunishmentRuneCount": 455,
+        "RuneFragmentCount": 123294,
+        "ApostleBloodCount": 1849
+    },
+    {
+        "PunishmentRuneCount": 456,
+        "RuneFragmentCount": 123787,
+        "ApostleBloodCount": 1857
+    },
+    {
+        "PunishmentRuneCount": 457,
+        "RuneFragmentCount": 124283,
+        "ApostleBloodCount": 1864
+    },
+    {
+        "PunishmentRuneCount": 458,
+        "RuneFragmentCount": 124780,
+        "ApostleBloodCount": 1872
+    },
+    {
+        "PunishmentRuneCount": 459,
+        "RuneFragmentCount": 125279,
+        "ApostleBloodCount": 1879
+    },
+    {
+        "PunishmentRuneCount": 460,
+        "RuneFragmentCount": 125780,
+        "ApostleBloodCount": 1887
+    },
+    {
+        "PunishmentRuneCount": 461,
+        "RuneFragmentCount": 126283,
+        "ApostleBloodCount": 1894
+    },
+    {
+        "PunishmentRuneCount": 462,
+        "RuneFragmentCount": 126788,
+        "ApostleBloodCount": 1902
+    },
+    {
+        "PunishmentRuneCount": 463,
+        "RuneFragmentCount": 127295,
+        "ApostleBloodCount": 1909
+    },
+    {
+        "PunishmentRuneCount": 464,
+        "RuneFragmentCount": 127805,
+        "ApostleBloodCount": 1917
+    },
+    {
+        "PunishmentRuneCount": 465,
+        "RuneFragmentCount": 128316,
+        "ApostleBloodCount": 1925
+    },
+    {
+        "PunishmentRuneCount": 466,
+        "RuneFragmentCount": 128829,
+        "ApostleBloodCount": 1932
+    },
+    {
+        "PunishmentRuneCount": 467,
+        "RuneFragmentCount": 129344,
+        "ApostleBloodCount": 1940
+    },
+    {
+        "PunishmentRuneCount": 468,
+        "RuneFragmentCount": 129862,
+        "ApostleBloodCount": 1948
+    },
+    {
+        "PunishmentRuneCount": 469,
+        "RuneFragmentCount": 130381,
+        "ApostleBloodCount": 1956
+    },
+    {
+        "PunishmentRuneCount": 470,
+        "RuneFragmentCount": 130903,
+        "ApostleBloodCount": 1964
+    },
+    {
+        "PunishmentRuneCount": 471,
+        "RuneFragmentCount": 131426,
+        "ApostleBloodCount": 1971
+    },
+    {
+        "PunishmentRuneCount": 472,
+        "RuneFragmentCount": 131952,
+        "ApostleBloodCount": 1979
+    },
+    {
+        "PunishmentRuneCount": 473,
+        "RuneFragmentCount": 132480,
+        "ApostleBloodCount": 1987
+    },
+    {
+        "PunishmentRuneCount": 474,
+        "RuneFragmentCount": 133010,
+        "ApostleBloodCount": 1995
+    },
+    {
+        "PunishmentRuneCount": 475,
+        "RuneFragmentCount": 133542,
+        "ApostleBloodCount": 2003
+    },
+    {
+        "PunishmentRuneCount": 476,
+        "RuneFragmentCount": 134076,
+        "ApostleBloodCount": 2011
+    },
+    {
+        "PunishmentRuneCount": 477,
+        "RuneFragmentCount": 134612,
+        "ApostleBloodCount": 2019
+    },
+    {
+        "PunishmentRuneCount": 478,
+        "RuneFragmentCount": 135151,
+        "ApostleBloodCount": 2027
+    },
+    {
+        "PunishmentRuneCount": 479,
+        "RuneFragmentCount": 135691,
+        "ApostleBloodCount": 2035
+    },
+    {
+        "PunishmentRuneCount": 480,
+        "RuneFragmentCount": 136234,
+        "ApostleBloodCount": 2044
+    },
+    {
+        "PunishmentRuneCount": 481,
+        "RuneFragmentCount": 136779,
+        "ApostleBloodCount": 2052
+    },
+    {
+        "PunishmentRuneCount": 482,
+        "RuneFragmentCount": 137326,
+        "ApostleBloodCount": 2060
+    },
+    {
+        "PunishmentRuneCount": 483,
+        "RuneFragmentCount": 137875,
+        "ApostleBloodCount": 2068
+    },
+    {
+        "PunishmentRuneCount": 484,
+        "RuneFragmentCount": 138427,
+        "ApostleBloodCount": 2076
+    },
+    {
+        "PunishmentRuneCount": 485,
+        "RuneFragmentCount": 138981,
+        "ApostleBloodCount": 2085
+    },
+    {
+        "PunishmentRuneCount": 486,
+        "RuneFragmentCount": 139537,
+        "ApostleBloodCount": 2093
+    },
+    {
+        "PunishmentRuneCount": 487,
+        "RuneFragmentCount": 140095,
+        "ApostleBloodCount": 2101
+    },
+    {
+        "PunishmentRuneCount": 488,
+        "RuneFragmentCount": 140655,
+        "ApostleBloodCount": 2110
+    },
+    {
+        "PunishmentRuneCount": 489,
+        "RuneFragmentCount": 141218,
+        "ApostleBloodCount": 2118
+    },
+    {
+        "PunishmentRuneCount": 490,
+        "RuneFragmentCount": 141783,
+        "ApostleBloodCount": 2127
+    },
+    {
+        "PunishmentRuneCount": 491,
+        "RuneFragmentCount": 142350,
+        "ApostleBloodCount": 2135
+    },
+    {
+        "PunishmentRuneCount": 492,
+        "RuneFragmentCount": 142919,
+        "ApostleBloodCount": 2144
+    },
+    {
+        "PunishmentRuneCount": 493,
+        "RuneFragmentCount": 143491,
+        "ApostleBloodCount": 2152
+    },
+    {
+        "PunishmentRuneCount": 494,
+        "RuneFragmentCount": 144065,
+        "ApostleBloodCount": 2161
+    },
+    {
+        "PunishmentRuneCount": 495,
+        "RuneFragmentCount": 144641,
+        "ApostleBloodCount": 2170
+    },
+    {
+        "PunishmentRuneCount": 496,
+        "RuneFragmentCount": 145220,
+        "ApostleBloodCount": 2178
+    },
+    {
+        "PunishmentRuneCount": 497,
+        "RuneFragmentCount": 145800,
+        "ApostleBloodCount": 2187
+    },
+    {
+        "PunishmentRuneCount": 498,
+        "RuneFragmentCount": 146384,
+        "ApostleBloodCount": 2196
+    },
+    {
+        "PunishmentRuneCount": 499,
+        "RuneFragmentCount": 146969,
+        "ApostleBloodCount": 2205
+    },
+    {
+        "PunishmentRuneCount": 500,
+        "RuneFragmentCount": 147557,
+        "ApostleBloodCount": 2213
+    }
+]

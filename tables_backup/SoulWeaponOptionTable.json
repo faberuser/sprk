@@ -1,0 +1,100 @@
+[
+    {
+        "TagType": 3,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 7000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 1,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 8000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 2,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 9000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 4,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 9000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 5,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 9000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 6,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 8000,
+        "OptionRatioPerValue2": 250000
+    },
+    {
+        "TagType": 7,
+        "OptionIndex1": 0,
+        "OptionIndex2": 0,
+        "OptionStatType1": [
+            1,
+            21
+        ],
+        "OptionStatType2": [
+            50
+        ],
+        "OptionRatioPerValue1": 9000,
+        "OptionRatioPerValue2": 250000
+    }
+]

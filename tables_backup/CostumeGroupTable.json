@@ -1,0 +1,338 @@
+[
+    {
+        "CostumeGroupIndex": 1,
+        "GroupName": 1,
+        "TexturePath": 2,
+        "field_3": null,
+        "SelectItemGroup": 3,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 2,
+        "GroupName": 4,
+        "TexturePath": 5,
+        "field_3": null,
+        "SelectItemGroup": 6,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 3,
+        "GroupName": 7,
+        "TexturePath": 8,
+        "field_3": null,
+        "SelectItemGroup": 9,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 4,
+        "GroupName": 10,
+        "TexturePath": 11,
+        "field_3": null,
+        "SelectItemGroup": 12,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 5,
+        "GroupName": 13,
+        "TexturePath": 14,
+        "field_3": null,
+        "SelectItemGroup": 15,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 6,
+        "GroupName": 16,
+        "TexturePath": 17,
+        "field_3": null,
+        "SelectItemGroup": 18,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 7,
+        "GroupName": 19,
+        "TexturePath": 20,
+        "field_3": null,
+        "SelectItemGroup": 21,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 8,
+        "GroupName": 22,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 3,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 9,
+        "GroupName": 23,
+        "TexturePath": 24,
+        "field_3": null,
+        "SelectItemGroup": 25,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 10,
+        "GroupName": 26,
+        "TexturePath": 27,
+        "field_3": null,
+        "SelectItemGroup": 28,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 11,
+        "GroupName": 29,
+        "TexturePath": 5,
+        "field_3": null,
+        "SelectItemGroup": 6,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 12,
+        "GroupName": 30,
+        "TexturePath": 31,
+        "field_3": null,
+        "SelectItemGroup": 25,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 13,
+        "GroupName": 32,
+        "TexturePath": 33,
+        "field_3": null,
+        "SelectItemGroup": 9,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 14,
+        "GroupName": 34,
+        "TexturePath": 35,
+        "field_3": null,
+        "SelectItemGroup": 36,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 15,
+        "GroupName": 37,
+        "TexturePath": 38,
+        "field_3": null,
+        "SelectItemGroup": 15,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 16,
+        "GroupName": 39,
+        "TexturePath": 40,
+        "field_3": null,
+        "SelectItemGroup": 18,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 17,
+        "GroupName": 41,
+        "TexturePath": 42,
+        "field_3": null,
+        "SelectItemGroup": 25,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 18,
+        "GroupName": 43,
+        "TexturePath": 44,
+        "field_3": null,
+        "SelectItemGroup": 45,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 19,
+        "GroupName": 46,
+        "TexturePath": 47,
+        "field_3": null,
+        "SelectItemGroup": 6,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 20,
+        "GroupName": 48,
+        "TexturePath": 49,
+        "field_3": null,
+        "SelectItemGroup": 50,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 21,
+        "GroupName": 51,
+        "TexturePath": 52,
+        "field_3": null,
+        "SelectItemGroup": 53,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 22,
+        "GroupName": 54,
+        "TexturePath": 55,
+        "field_3": null,
+        "SelectItemGroup": 9,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 23,
+        "GroupName": 56,
+        "TexturePath": 57,
+        "field_3": null,
+        "SelectItemGroup": 58,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 24,
+        "GroupName": 59,
+        "TexturePath": 60,
+        "field_3": null,
+        "SelectItemGroup": 15,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 25,
+        "GroupName": 61,
+        "TexturePath": 62,
+        "field_3": null,
+        "SelectItemGroup": 63,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 26,
+        "GroupName": 64,
+        "TexturePath": 65,
+        "field_3": null,
+        "SelectItemGroup": 3,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 27,
+        "GroupName": 66,
+        "TexturePath": 67,
+        "field_3": null,
+        "SelectItemGroup": 25,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 28,
+        "GroupName": 68,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 6,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 29,
+        "GroupName": 69,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 9,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 30,
+        "GroupName": 70,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 15,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 31,
+        "GroupName": 71,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 53,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 32,
+        "GroupName": 72,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 25,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 33,
+        "GroupName": 73,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 74,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 34,
+        "GroupName": 75,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 28,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 35,
+        "GroupName": 76,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 6,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 36,
+        "GroupName": 77,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 9,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 37,
+        "GroupName": 78,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 15,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 38,
+        "GroupName": 79,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 80,
+        "CostumeType": 2
+    },
+    {
+        "CostumeGroupIndex": 39,
+        "GroupName": 81,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 82,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 40,
+        "GroupName": 83,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 84,
+        "CostumeType": 1
+    },
+    {
+        "CostumeGroupIndex": 41,
+        "GroupName": 85,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 80,
+        "CostumeType": 2
+    },
+    {
+        "CostumeGroupIndex": 42,
+        "GroupName": 86,
+        "TexturePath": 0,
+        "field_3": null,
+        "SelectItemGroup": 80,
+        "CostumeType": 2
+    }
+]

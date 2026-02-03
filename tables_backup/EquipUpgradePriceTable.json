@@ -1,0 +1,6992 @@
+[
+    {
+        "Tier": 1,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90002,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 500
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 500
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 500
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 300
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 300
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 300
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 1,
+        "ReqGold": 250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 3,
+        "ReqGold": 550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 4,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 5,
+        "ReqGold": 850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 6,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 7,
+        "ReqGold": 1150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 8,
+        "ReqGold": 1300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 9,
+        "ReqGold": 1450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 11,
+        "ReqGold": 1750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 12,
+        "ReqGold": 1900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 13,
+        "ReqGold": 2050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 14,
+        "ReqGold": 2200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 15,
+        "ReqGold": 2350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 16,
+        "ReqGold": 2500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 17,
+        "ReqGold": 2650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 18,
+        "ReqGold": 2800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 19,
+        "ReqGold": 2950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 20,
+        "ReqGold": 3100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 21,
+        "ReqGold": 3250
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 22,
+        "ReqGold": 3400
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 23,
+        "ReqGold": 3550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 24,
+        "ReqGold": 3700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 25,
+        "ReqGold": 3850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 26,
+        "ReqGold": 4000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 27,
+        "ReqGold": 4150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 28,
+        "ReqGold": 4300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 29,
+        "ReqGold": 4450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 30,
+        "ReqGold": 4600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 31,
+        "ReqGold": 4750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 32,
+        "ReqGold": 4900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 33,
+        "ReqGold": 5050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 34,
+        "ReqGold": 5200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 35,
+        "ReqGold": 5350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 36,
+        "ReqGold": 5500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 37,
+        "ReqGold": 5650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 38,
+        "ReqGold": 5800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 39,
+        "ReqGold": 5950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 40,
+        "ReqGold": 6100
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 41,
+        "ReqGold": 6250
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 42,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 43,
+        "ReqGold": 6550
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 44,
+        "ReqGold": 6700
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 45,
+        "ReqGold": 6850
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 46,
+        "ReqGold": 7000
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 47,
+        "ReqGold": 7150
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 48,
+        "ReqGold": 7300
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 49,
+        "ReqGold": 7450
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 50,
+        "ReqGold": 7600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 51,
+        "ReqGold": 7750
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 52,
+        "ReqGold": 7900
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 53,
+        "ReqGold": 8050
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 54,
+        "ReqGold": 8200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 55,
+        "ReqGold": 8350
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 56,
+        "ReqGold": 8500
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 57,
+        "ReqGold": 8650
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 58,
+        "ReqGold": 8800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 59,
+        "ReqGold": 8950
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 60,
+        "ReqGold": 9100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 61,
+        "ReqGold": 9250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 62,
+        "ReqGold": 9400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 63,
+        "ReqGold": 9550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 64,
+        "ReqGold": 9700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 65,
+        "ReqGold": 9850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 66,
+        "ReqGold": 10000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 67,
+        "ReqGold": 10150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 68,
+        "ReqGold": 10300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 69,
+        "ReqGold": 10450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 70,
+        "ReqGold": 10600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 71,
+        "ReqGold": 10750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 72,
+        "ReqGold": 10900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 73,
+        "ReqGold": 11050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 74,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 75,
+        "ReqGold": 11350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 1,
+        "ReqGold": 250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 76,
+        "ReqGold": 11500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 77,
+        "ReqGold": 11650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 3,
+        "ReqGold": 550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 78,
+        "ReqGold": 11800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 4,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 79,
+        "ReqGold": 11950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 5,
+        "ReqGold": 850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 80,
+        "ReqGold": 12100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 6,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 81,
+        "ReqGold": 12250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 7,
+        "ReqGold": 1150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 82,
+        "ReqGold": 12400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 8,
+        "ReqGold": 1300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 83,
+        "ReqGold": 12550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 9,
+        "ReqGold": 1450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 84,
+        "ReqGold": 12700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 85,
+        "ReqGold": 12850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 11,
+        "ReqGold": 1750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 86,
+        "ReqGold": 13000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 12,
+        "ReqGold": 1900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 87,
+        "ReqGold": 13150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 13,
+        "ReqGold": 2050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 88,
+        "ReqGold": 13300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 14,
+        "ReqGold": 2200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 89,
+        "ReqGold": 13450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 15,
+        "ReqGold": 2350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 90,
+        "ReqGold": 13600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 16,
+        "ReqGold": 2500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 91,
+        "ReqGold": 13750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 17,
+        "ReqGold": 2650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 92,
+        "ReqGold": 13900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 18,
+        "ReqGold": 2800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 93,
+        "ReqGold": 14050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 19,
+        "ReqGold": 2950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 94,
+        "ReqGold": 14200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 20,
+        "ReqGold": 3100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 95,
+        "ReqGold": 14350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 21,
+        "ReqGold": 3250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 96,
+        "ReqGold": 14500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 22,
+        "ReqGold": 3400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 97,
+        "ReqGold": 14650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 23,
+        "ReqGold": 3550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 98,
+        "ReqGold": 14800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 24,
+        "ReqGold": 3700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 99,
+        "ReqGold": 14950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 25,
+        "ReqGold": 3850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 100,
+        "ReqGold": 15100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 26,
+        "ReqGold": 4000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 101,
+        "ReqGold": 15250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 27,
+        "ReqGold": 4150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 102,
+        "ReqGold": 15400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 28,
+        "ReqGold": 4300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 103,
+        "ReqGold": 15550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 29,
+        "ReqGold": 4450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 104,
+        "ReqGold": 15700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 30,
+        "ReqGold": 4600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 105,
+        "ReqGold": 15850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 31,
+        "ReqGold": 4750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 106,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 32,
+        "ReqGold": 4900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 107,
+        "ReqGold": 16150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 33,
+        "ReqGold": 5050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 108,
+        "ReqGold": 16300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 34,
+        "ReqGold": 5200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 109,
+        "ReqGold": 16450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 35,
+        "ReqGold": 5350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 110,
+        "ReqGold": 16600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 36,
+        "ReqGold": 5500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 111,
+        "ReqGold": 16750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 37,
+        "ReqGold": 5650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 112,
+        "ReqGold": 16900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 38,
+        "ReqGold": 5800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 113,
+        "ReqGold": 17050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 39,
+        "ReqGold": 5950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 114,
+        "ReqGold": 17200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 40,
+        "ReqGold": 6100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 115,
+        "ReqGold": 17350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 41,
+        "ReqGold": 6250
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 116,
+        "ReqGold": 17500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 42,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 117,
+        "ReqGold": 17650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 43,
+        "ReqGold": 6550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 118,
+        "ReqGold": 17800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 44,
+        "ReqGold": 6700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 119,
+        "ReqGold": 17950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 45,
+        "ReqGold": 6850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90001,
+        "Level": 120,
+        "ReqGold": 18100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 46,
+        "ReqGold": 7000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 47,
+        "ReqGold": 7150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 48,
+        "ReqGold": 7300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 49,
+        "ReqGold": 7450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 50,
+        "ReqGold": 7600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 51,
+        "ReqGold": 7750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 52,
+        "ReqGold": 7900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 53,
+        "ReqGold": 8050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 54,
+        "ReqGold": 8200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 55,
+        "ReqGold": 8350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 56,
+        "ReqGold": 8500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 57,
+        "ReqGold": 8650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 58,
+        "ReqGold": 8800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 59,
+        "ReqGold": 8950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 60,
+        "ReqGold": 9100
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 61,
+        "ReqGold": 9250
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 62,
+        "ReqGold": 9400
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 63,
+        "ReqGold": 9550
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 64,
+        "ReqGold": 9700
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 65,
+        "ReqGold": 9850
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 66,
+        "ReqGold": 10000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 67,
+        "ReqGold": 10150
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 68,
+        "ReqGold": 10300
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 69,
+        "ReqGold": 10450
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 70,
+        "ReqGold": 10600
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 71,
+        "ReqGold": 10750
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 72,
+        "ReqGold": 10900
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 73,
+        "ReqGold": 11050
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 74,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 75,
+        "ReqGold": 11350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 76,
+        "ReqGold": 11500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 77,
+        "ReqGold": 11650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 78,
+        "ReqGold": 11800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 79,
+        "ReqGold": 11950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 80,
+        "ReqGold": 12100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 81,
+        "ReqGold": 12250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 82,
+        "ReqGold": 12400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 83,
+        "ReqGold": 12550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 84,
+        "ReqGold": 12700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 85,
+        "ReqGold": 12850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 86,
+        "ReqGold": 13000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 87,
+        "ReqGold": 13150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 88,
+        "ReqGold": 13300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 89,
+        "ReqGold": 13450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 90,
+        "ReqGold": 13600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 91,
+        "ReqGold": 13750
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 92,
+        "ReqGold": 13900
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 93,
+        "ReqGold": 14050
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 94,
+        "ReqGold": 14200
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 95,
+        "ReqGold": 14350
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 96,
+        "ReqGold": 14500
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 97,
+        "ReqGold": 14650
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 98,
+        "ReqGold": 14800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 99,
+        "ReqGold": 14950
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 100,
+        "ReqGold": 15100
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 101,
+        "ReqGold": 15250
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 102,
+        "ReqGold": 15400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 103,
+        "ReqGold": 15550
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 104,
+        "ReqGold": 15700
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 105,
+        "ReqGold": 15850
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 106,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 107,
+        "ReqGold": 16150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 108,
+        "ReqGold": 16300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 109,
+        "ReqGold": 16450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 110,
+        "ReqGold": 16600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 111,
+        "ReqGold": 16750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 112,
+        "ReqGold": 16900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 113,
+        "ReqGold": 17050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 114,
+        "ReqGold": 17200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 115,
+        "ReqGold": 17350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 116,
+        "ReqGold": 17500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 117,
+        "ReqGold": 17650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 118,
+        "ReqGold": 17800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 119,
+        "ReqGold": 17950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90005,
+        "Level": 120,
+        "ReqGold": 18100
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 0,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 1,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 2,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 3,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 4,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 5,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 6,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 7,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 8,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 9,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 11,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 12,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 13,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 5001,
+        "Level": 14,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 8000
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 7200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 3200
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 1,
+        "ReqGold": 250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 3,
+        "ReqGold": 550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 4,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 5,
+        "ReqGold": 850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 6,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 7,
+        "ReqGold": 1150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 8,
+        "ReqGold": 1300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 9,
+        "ReqGold": 1450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 11,
+        "ReqGold": 1750
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 12,
+        "ReqGold": 1900
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 13,
+        "ReqGold": 2050
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 14,
+        "ReqGold": 2200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 15,
+        "ReqGold": 2350
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 16,
+        "ReqGold": 2500
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 17,
+        "ReqGold": 2650
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 18,
+        "ReqGold": 2800
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 19,
+        "ReqGold": 2950
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 4800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 20,
+        "ReqGold": 3100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 21,
+        "ReqGold": 3250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 22,
+        "ReqGold": 3400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 23,
+        "ReqGold": 3550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 24,
+        "ReqGold": 3700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 25,
+        "ReqGold": 3850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 26,
+        "ReqGold": 4000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 27,
+        "ReqGold": 4150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 28,
+        "ReqGold": 4300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 29,
+        "ReqGold": 4450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 30,
+        "ReqGold": 4600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 31,
+        "ReqGold": 4750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 32,
+        "ReqGold": 4900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 33,
+        "ReqGold": 5050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 34,
+        "ReqGold": 5200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 35,
+        "ReqGold": 5350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 36,
+        "ReqGold": 5500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 37,
+        "ReqGold": 5650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 38,
+        "ReqGold": 5800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 39,
+        "ReqGold": 5950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 40,
+        "ReqGold": 6100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 41,
+        "ReqGold": 6250
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 42,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 43,
+        "ReqGold": 6550
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 44,
+        "ReqGold": 6700
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 45,
+        "ReqGold": 6850
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 46,
+        "ReqGold": 7000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 47,
+        "ReqGold": 7150
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 48,
+        "ReqGold": 7300
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 49,
+        "ReqGold": 7450
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 50,
+        "ReqGold": 7600
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 3000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 51,
+        "ReqGold": 7750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 52,
+        "ReqGold": 7900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 53,
+        "ReqGold": 8050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 54,
+        "ReqGold": 8200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 55,
+        "ReqGold": 8350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 56,
+        "ReqGold": 8500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 57,
+        "ReqGold": 8650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 58,
+        "ReqGold": 8800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 59,
+        "ReqGold": 8950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 60,
+        "ReqGold": 9100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 61,
+        "ReqGold": 9250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 62,
+        "ReqGold": 9400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 63,
+        "ReqGold": 9550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 64,
+        "ReqGold": 9700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 65,
+        "ReqGold": 9850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 66,
+        "ReqGold": 10000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 67,
+        "ReqGold": 10150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 68,
+        "ReqGold": 10300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 69,
+        "ReqGold": 10450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 70,
+        "ReqGold": 10600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 71,
+        "ReqGold": 10750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 72,
+        "ReqGold": 10900
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 0,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 73,
+        "ReqGold": 11050
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 1,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 74,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 2,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 75,
+        "ReqGold": 11350
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 3,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 76,
+        "ReqGold": 11500
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 4,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 77,
+        "ReqGold": 11650
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 5,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 78,
+        "ReqGold": 11800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 6,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 79,
+        "ReqGold": 11950
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 7,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 80,
+        "ReqGold": 12100
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 8,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 81,
+        "ReqGold": 12250
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 3001,
+        "Level": 9,
+        "ReqGold": 2400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 82,
+        "ReqGold": 12400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 83,
+        "ReqGold": 12550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 84,
+        "ReqGold": 12700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 85,
+        "ReqGold": 12850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 86,
+        "ReqGold": 13000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 87,
+        "ReqGold": 13150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 88,
+        "ReqGold": 13300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 89,
+        "ReqGold": 13450
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 0,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 90,
+        "ReqGold": 13600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 1,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 91,
+        "ReqGold": 13750
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 2,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 92,
+        "ReqGold": 13900
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 3,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 93,
+        "ReqGold": 14050
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 4,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 94,
+        "ReqGold": 14200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 5,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 95,
+        "ReqGold": 14350
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 6,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 96,
+        "ReqGold": 14500
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 7,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 97,
+        "ReqGold": 14650
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 8,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 98,
+        "ReqGold": 14800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 9,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 99,
+        "ReqGold": 14950
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 10,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 100,
+        "ReqGold": 15100
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 11,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 101,
+        "ReqGold": 15250
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 12,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 102,
+        "ReqGold": 15400
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 13,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 103,
+        "ReqGold": 15550
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 14,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 104,
+        "ReqGold": 15700
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 15,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 105,
+        "ReqGold": 15850
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 16,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 106,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 17,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 107,
+        "ReqGold": 16150
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 18,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 108,
+        "ReqGold": 16300
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6002,
+        "Level": 19,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 109,
+        "ReqGold": 16450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 110,
+        "ReqGold": 16600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 111,
+        "ReqGold": 16750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 112,
+        "ReqGold": 16900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 113,
+        "ReqGold": 17050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 114,
+        "ReqGold": 17200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 115,
+        "ReqGold": 17350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 116,
+        "ReqGold": 17500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 117,
+        "ReqGold": 17650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 118,
+        "ReqGold": 17800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 119,
+        "ReqGold": 17950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90004,
+        "Level": 120,
+        "ReqGold": 18100
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 0,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 1,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 2,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 3,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 4,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 5,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 6,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 7,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 8,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 9,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 10,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 11,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 12,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 13,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 14,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 1400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 15,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 1400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 16,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 1400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 17,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 1400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 18,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 1400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6002,
+        "Level": 19,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 2001,
+        "Level": 0,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 2001,
+        "Level": 1,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 2001,
+        "Level": 2,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 2001,
+        "Level": 3,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 2001,
+        "Level": 4,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 1800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 2,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 1200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 800
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 1001,
+        "Level": 0,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 3002,
+        "Level": 0,
+        "ReqGold": 600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 1001,
+        "Level": 1,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 1001,
+        "Level": 2,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 0,
+        "ReqGold": 100
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 1,
+        "ReqGold": 250
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 2,
+        "ReqGold": 400
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 3,
+        "ReqGold": 550
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 4,
+        "ReqGold": 700
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 5,
+        "ReqGold": 850
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 6,
+        "ReqGold": 1000
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 7,
+        "ReqGold": 1150
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 8,
+        "ReqGold": 1300
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 9,
+        "ReqGold": 1450
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 11,
+        "ReqGold": 1750
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 12,
+        "ReqGold": 1900
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 13,
+        "ReqGold": 2050
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 14,
+        "ReqGold": 2200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 15,
+        "ReqGold": 2350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 16,
+        "ReqGold": 2500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 17,
+        "ReqGold": 2650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 18,
+        "ReqGold": 2800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 19,
+        "ReqGold": 2950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 20,
+        "ReqGold": 3100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 21,
+        "ReqGold": 3250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 22,
+        "ReqGold": 3400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 23,
+        "ReqGold": 3550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 24,
+        "ReqGold": 3700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 25,
+        "ReqGold": 3850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 26,
+        "ReqGold": 4000
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 27,
+        "ReqGold": 4150
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 28,
+        "ReqGold": 4300
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 29,
+        "ReqGold": 4450
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 30,
+        "ReqGold": 4600
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 31,
+        "ReqGold": 4750
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 32,
+        "ReqGold": 4900
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 33,
+        "ReqGold": 5050
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 34,
+        "ReqGold": 5200
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 35,
+        "ReqGold": 5350
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 36,
+        "ReqGold": 5500
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 37,
+        "ReqGold": 5650
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 38,
+        "ReqGold": 5800
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 39,
+        "ReqGold": 5950
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 40,
+        "ReqGold": 6100
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 41,
+        "ReqGold": 6250
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 42,
+        "ReqGold": 6400
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 43,
+        "ReqGold": 6550
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 44,
+        "ReqGold": 6700
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 45,
+        "ReqGold": 6850
+    },
+    {
+        "Tier": 5,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 46,
+        "ReqGold": 7000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 47,
+        "ReqGold": 7150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 48,
+        "ReqGold": 7300
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 49,
+        "ReqGold": 7450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 50,
+        "ReqGold": 7600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 51,
+        "ReqGold": 7750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 52,
+        "ReqGold": 7900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 53,
+        "ReqGold": 8050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 54,
+        "ReqGold": 8200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 55,
+        "ReqGold": 8350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 56,
+        "ReqGold": 8500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 57,
+        "ReqGold": 8650
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 58,
+        "ReqGold": 8800
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 59,
+        "ReqGold": 8950
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 60,
+        "ReqGold": 9100
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 61,
+        "ReqGold": 9250
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 62,
+        "ReqGold": 9400
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 63,
+        "ReqGold": 9550
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 64,
+        "ReqGold": 9700
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 65,
+        "ReqGold": 9850
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 66,
+        "ReqGold": 10000
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 67,
+        "ReqGold": 10150
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 68,
+        "ReqGold": 10300
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 69,
+        "ReqGold": 10450
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 70,
+        "ReqGold": 10600
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 71,
+        "ReqGold": 10750
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 72,
+        "ReqGold": 10900
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 73,
+        "ReqGold": 11050
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 74,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 75,
+        "ReqGold": 11350
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 76,
+        "ReqGold": 11500
+    },
+    {
+        "Tier": 4,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 12800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 77,
+        "ReqGold": 11650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 78,
+        "ReqGold": 11800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 79,
+        "ReqGold": 11950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 80,
+        "ReqGold": 12100
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 81,
+        "ReqGold": 12250
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 82,
+        "ReqGold": 12400
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 83,
+        "ReqGold": 12550
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 84,
+        "ReqGold": 12700
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 85,
+        "ReqGold": 12850
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 86,
+        "ReqGold": 13000
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 87,
+        "ReqGold": 13150
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 88,
+        "ReqGold": 13300
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 0,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 89,
+        "ReqGold": 13450
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 1,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 90,
+        "ReqGold": 13600
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 2,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 91,
+        "ReqGold": 13750
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 3,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 92,
+        "ReqGold": 13900
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 4,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 93,
+        "ReqGold": 14050
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 5,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 94,
+        "ReqGold": 14200
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 6,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 95,
+        "ReqGold": 14350
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 7,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 96,
+        "ReqGold": 14500
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 8,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 97,
+        "ReqGold": 14650
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 9,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 98,
+        "ReqGold": 14800
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 10,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 99,
+        "ReqGold": 14950
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 11,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 100,
+        "ReqGold": 15100
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 12,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 101,
+        "ReqGold": 15250
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 13,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 4002,
+        "Level": 0,
+        "ReqGold": 11200
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 102,
+        "ReqGold": 15400
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 14,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 103,
+        "ReqGold": 15550
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 15,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 104,
+        "ReqGold": 15700
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 16,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 105,
+        "ReqGold": 15850
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 17,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 106,
+        "ReqGold": 16000
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 18,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 107,
+        "ReqGold": 16150
+    },
+    {
+        "Tier": 3,
+        "DetailIndex": 7001,
+        "Level": 19,
+        "ReqGold": 9600
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 108,
+        "ReqGold": 16300
+    },
+    {
+        "Tier": 8,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 25600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 109,
+        "ReqGold": 16450
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 110,
+        "ReqGold": 16600
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 111,
+        "ReqGold": 16750
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 112,
+        "ReqGold": 16900
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 113,
+        "ReqGold": 17050
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 114,
+        "ReqGold": 17200
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 115,
+        "ReqGold": 17350
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 116,
+        "ReqGold": 17500
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 117,
+        "ReqGold": 17650
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 118,
+        "ReqGold": 17800
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 119,
+        "ReqGold": 17950
+    },
+    {
+        "Tier": 10,
+        "DetailIndex": 90003,
+        "Level": 120,
+        "ReqGold": 18100
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 0,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 1,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 2,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 3,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 7,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 22400
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 4,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 5,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 6,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 7,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 8,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 9,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 10,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 11,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 12,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 13,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 1,
+        "DetailIndex": 4001,
+        "Level": 14,
+        "ReqGold": 1600
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 0,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 1,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 2,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 3,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 4,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 5,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 6,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 7,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 8,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 9,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 10,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 11,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 12,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 13,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 14,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 15,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 16,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 17,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 18,
+        "ReqGold": 19200
+    },
+    {
+        "Tier": 6,
+        "DetailIndex": 6001,
+        "Level": 19,
+        "ReqGold": 19200
+    }
+]

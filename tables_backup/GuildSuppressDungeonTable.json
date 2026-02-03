@@ -1,0 +1,5762 @@
+[
+    {
+        "Index": 1,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 634,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 2,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 635,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 3,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 636,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 4,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 637,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 5,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 638,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 6,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 639,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 7,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 640,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 8,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 641,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 9,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 642,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 10,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 643,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 11,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 644,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 12,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 645,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 13,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 646,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 14,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 647,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 15,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 648,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 16,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 649,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 17,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 650,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 18,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 651,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 19,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 652,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 20,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 653,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 21,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 654,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 22,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 655,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 23,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 656,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 24,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 657,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 25,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 586,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 26,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 587,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 27,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 588,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 28,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 589,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 29,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 590,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 30,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 591,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 31,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 592,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 32,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 593,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 33,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 594,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 34,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 595,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 35,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 596,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 36,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 597,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 37,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 658,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 38,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 659,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 39,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 660,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 40,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 661,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 41,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 662,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 42,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 663,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 43,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 664,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 44,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 665,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 45,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 666,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 46,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 667,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 47,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 668,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 48,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 669,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 49,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 670,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 50,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 671,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 51,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 672,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 52,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 673,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 53,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 674,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 54,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 675,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 55,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 676,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 56,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 677,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 57,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 678,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 58,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 679,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 59,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 680,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 60,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 681,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 61,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 622,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 62,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 623,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 63,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 624,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 64,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 625,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 65,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 626,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 66,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 627,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 67,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 628,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 68,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 629,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 69,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 630,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 70,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 631,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 71,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 632,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 72,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 633,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 73,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 107,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 74,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 108,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 75,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 109,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 76,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 110,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 77,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 111,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 78,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 112,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 79,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 113,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 80,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 114,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 81,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 115,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 82,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 116,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 83,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 117,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 84,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 118,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 85,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 119,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 86,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 120,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 87,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 121,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 88,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 122,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 89,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 123,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 90,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 124,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 91,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 125,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 92,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 126,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 93,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 127,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 94,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 128,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 95,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 129,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 96,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 130,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 101,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 682,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 102,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 683,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 103,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 684,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 104,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 685,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 105,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 686,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 106,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 687,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 107,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 688,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 108,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 689,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 109,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 690,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 110,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 691,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 111,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 692,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 112,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 693,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 113,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 694,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 114,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 695,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 115,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 696,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 116,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 697,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 117,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 698,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 118,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 699,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 119,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 700,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 120,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 701,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 121,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 702,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 122,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 703,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 123,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 704,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 124,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 705,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 125,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 706,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 126,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 707,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 127,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 708,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 128,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 709,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 129,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 710,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 130,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 711,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 131,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 712,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 132,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 713,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 133,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 714,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 134,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 715,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 135,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 716,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 136,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 717,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 137,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 718,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 138,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 719,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 139,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 720,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 140,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 721,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 141,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 722,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 142,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 723,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 143,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 724,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 144,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 725,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 145,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 726,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 146,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 727,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 147,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 728,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 148,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 729,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 149,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 730,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 150,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 731,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 151,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 732,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 152,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 733,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 153,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 734,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 154,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 735,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 155,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 736,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 156,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 737,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 157,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 738,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 158,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 739,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 159,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 740,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 160,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 741,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 161,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 742,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 162,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 743,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 163,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 744,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 164,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 745,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 165,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 746,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 166,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 747,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 167,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 748,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 168,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 749,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 169,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 750,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 170,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 751,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 171,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 752,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 172,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 753,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 173,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 754,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 174,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 755,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 175,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 756,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 176,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 757,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 177,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 758,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 178,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 759,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 179,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 760,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 180,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 761,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 181,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 762,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 182,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 763,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 183,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 764,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 184,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 765,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 185,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 766,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 186,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 767,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 187,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 768,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 188,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 769,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 189,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 770,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 190,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 771,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 191,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 772,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 192,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 773,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 193,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 774,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 194,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 775,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 195,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 776,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 196,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 777,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 197,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 778,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 198,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 779,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 199,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 780,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 200,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 781,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 201,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 782,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 202,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 783,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 203,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 784,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 204,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 785,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 205,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 786,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 206,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 787,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 207,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 788,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 208,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 789,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 209,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 790,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 210,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 791,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 211,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 792,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 212,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 793,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 213,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 794,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 214,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 795,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 215,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 796,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 216,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 797,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 217,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 798,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 218,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 799,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 219,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 800,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 220,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 801,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 221,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 802,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 222,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 803,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 223,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 804,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 224,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 805,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 225,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 806,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 226,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 807,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 227,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 808,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 228,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 809,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 229,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 810,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 230,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 811,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 231,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 812,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 232,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 813,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 233,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 814,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 234,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 815,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 235,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 816,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 236,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 817,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 237,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 818,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 238,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 819,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 239,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 820,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 240,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 821,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 241,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 822,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 242,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 823,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 243,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 824,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 244,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 825,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 245,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 826,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 246,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 827,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 247,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 828,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 248,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 829,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 249,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 830,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 250,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 831,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 251,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 832,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 252,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 833,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 253,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 834,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 254,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 835,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 255,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 836,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 256,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 837,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 257,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 838,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 258,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 839,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 259,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 840,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 260,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 841,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 261,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 842,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 262,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 843,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 263,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 844,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 264,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 845,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 265,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 846,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 266,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 847,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 267,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 848,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 268,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 849,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 269,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 850,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 270,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 851,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 271,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 852,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 272,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 853,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 273,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 854,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 274,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 855,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 275,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 856,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 276,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 857,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 277,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 858,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 278,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 859,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 279,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 860,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 280,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 861,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 281,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 862,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 282,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 863,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 283,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 864,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 284,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 865,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 285,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 866,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 286,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 867,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 287,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 868,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 288,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 869,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 289,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 870,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    },
+    {
+        "Index": 290,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995146,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 1,
+        "RecommendedHeroIndex": [
+            2,
+            26,
+            67
+        ],
+        "BanIndex": 871,
+        "PortraitPath": 2,
+        "PreviewBg": 3,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 4,
+        "StatusBoardPortraitPath": 5
+    },
+    {
+        "Index": 291,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 995147,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 6,
+        "RecommendedHeroIndex": [
+            21,
+            94,
+            22
+        ],
+        "BanIndex": 872,
+        "PortraitPath": 7,
+        "PreviewBg": 8,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 9,
+        "StatusBoardPortraitPath": 10
+    },
+    {
+        "Index": 292,
+        "DefaultRewardIndex": 0,
+        "KillRewardIndex": 0,
+        "KillActivityPoint": 0,
+        "BuyableRewardIndex": 0,
+        "Tactic": 11,
+        "RecommendedHeroIndex": [
+            3,
+            33,
+            66
+        ],
+        "BanIndex": 873,
+        "PortraitPath": 12,
+        "PreviewBg": 13,
+        "FinishModeRatio": 0,
+        "ShowInfoSkill": null,
+        "IconPath": 14,
+        "StatusBoardPortraitPath": 15
+    }
+]

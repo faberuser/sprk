@@ -1,0 +1,50 @@
+[
+    {
+        "Grade": 3,
+        "SleepCoolTimeSec": 28800,
+        "RewardIndex": 17100004,
+        "PetFeedCoolTimeSec": 1,
+        "PetPatCoolTimeSec": 10,
+        "PetPlayCoolTimeSec": 10,
+        "PetFeedAddHappinessPoint": 25,
+        "PetPatAddHappinessPoint": 25,
+        "PetPlayAddHappinesPoint": 25,
+        "PetMaxHappinessPoint": 100
+    },
+    {
+        "Grade": 5,
+        "SleepCoolTimeSec": 28800,
+        "RewardIndex": 17100004,
+        "PetFeedCoolTimeSec": 1,
+        "PetPatCoolTimeSec": 10,
+        "PetPlayCoolTimeSec": 10,
+        "PetFeedAddHappinessPoint": 25,
+        "PetPatAddHappinessPoint": 25,
+        "PetPlayAddHappinesPoint": 25,
+        "PetMaxHappinessPoint": 100
+    },
+    {
+        "Grade": 6,
+        "SleepCoolTimeSec": 28800,
+        "RewardIndex": 17100004,
+        "PetFeedCoolTimeSec": 1,
+        "PetPatCoolTimeSec": 10,
+        "PetPlayCoolTimeSec": 10,
+        "PetFeedAddHappinessPoint": 25,
+        "PetPatAddHappinessPoint": 25,
+        "PetPlayAddHappinesPoint": 25,
+        "PetMaxHappinessPoint": 100
+    },
+    {
+        "Grade": 4,
+        "SleepCoolTimeSec": 28800,
+        "RewardIndex": 17100004,
+        "PetFeedCoolTimeSec": 1,
+        "PetPatCoolTimeSec": 10,
+        "PetPlayCoolTimeSec": 10,
+        "PetFeedAddHappinessPoint": 25,
+        "PetPatAddHappinessPoint": 25,
+        "PetPlayAddHappinesPoint": 25,
+        "PetMaxHappinessPoint": 100
+    }
+]

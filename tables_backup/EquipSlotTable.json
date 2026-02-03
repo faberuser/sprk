@@ -1,0 +1,123 @@
+[
+    {
+        "Index": 1,
+        "EquipPartType": 1,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 2,
+        "EquipPartType": 2,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 3,
+        "EquipPartType": 3,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 4,
+        "EquipPartType": 4,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 5,
+        "EquipPartType": 5,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 6,
+        "EquipPartType": 6,
+        "EquipItemSubType": null,
+        "GroupIndex": 0,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 7,
+        "EquipPartType": 7,
+        "EquipItemSubType": [
+            15,
+            16,
+            17,
+            18,
+            19
+        ],
+        "GroupIndex": 1,
+        "IgnoreStat": false,
+        "IgnoreFixedOption": false,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 8,
+        "EquipPartType": 7,
+        "EquipItemSubType": [
+            15,
+            16,
+            17,
+            18
+        ],
+        "GroupIndex": 1,
+        "IgnoreStat": true,
+        "IgnoreFixedOption": true,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 9,
+        "EquipPartType": 7,
+        "EquipItemSubType": [
+            15,
+            16,
+            17,
+            18
+        ],
+        "GroupIndex": 1,
+        "IgnoreStat": true,
+        "IgnoreFixedOption": true,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    },
+    {
+        "Index": 10,
+        "EquipPartType": 7,
+        "EquipItemSubType": [
+            15,
+            16,
+            17,
+            18
+        ],
+        "GroupIndex": 1,
+        "IgnoreStat": true,
+        "IgnoreFixedOption": true,
+        "IgnoreRandomOption": false,
+        "IgnoreEnchantOption": false
+    }
+]

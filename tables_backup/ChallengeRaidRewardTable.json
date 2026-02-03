@@ -1,0 +1,6018 @@
+[
+    {
+        "Index": 1,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 2,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 3,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 4,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 5,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 6,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 7,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 8,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 9,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 10,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 11,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 12,
+        "ChallengeRaidIndex": 60001,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 13,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 14,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 15,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 16,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 17,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 18,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 19,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 20,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 21,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 22,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 23,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 24,
+        "ChallengeRaidIndex": 60002,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 25,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 26,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 27,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 28,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 29,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 30,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 31,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 32,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 33,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 34,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 35,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 36,
+        "ChallengeRaidIndex": 60003,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 37,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 38,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 39,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 40,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 41,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 42,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 43,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 44,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 45,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 46,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 47,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 48,
+        "ChallengeRaidIndex": 60004,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 49,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 50,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 51,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 52,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 53,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 54,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 55,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 56,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 57,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 58,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 59,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 60,
+        "ChallengeRaidIndex": 60005,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 61,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 62,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 63,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 64,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 65,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 66,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 67,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 68,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 69,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 70,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 71,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 72,
+        "ChallengeRaidIndex": 60006,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 73,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 74,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 75,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 76,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 77,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 78,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 79,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 80,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 81,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 82,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 83,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 84,
+        "ChallengeRaidIndex": 60007,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 85,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 86,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 87,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 88,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 89,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 90,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 91,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 92,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 93,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 94,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 95,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 96,
+        "ChallengeRaidIndex": 60008,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 97,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 98,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 99,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 100,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 101,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 102,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 103,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 104,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 105,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 106,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 107,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 108,
+        "ChallengeRaidIndex": 60009,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 109,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 110,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 111,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 112,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 113,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 114,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 115,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 116,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 117,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 118,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 119,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 120,
+        "ChallengeRaidIndex": 60010,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 121,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 122,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 123,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 124,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 125,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 126,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 127,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 128,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 129,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 130,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 131,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 132,
+        "ChallengeRaidIndex": 60011,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 133,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 134,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 135,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 136,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 137,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 138,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 139,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 140,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 141,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 142,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 143,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 144,
+        "ChallengeRaidIndex": 60012,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 145,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 146,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 147,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 148,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 149,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 150,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 151,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 152,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 153,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 154,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 155,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 156,
+        "ChallengeRaidIndex": 60013,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 157,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 158,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 159,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 160,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 161,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 162,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 163,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 164,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 165,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 166,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 167,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 168,
+        "ChallengeRaidIndex": 60014,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 169,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 170,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 171,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 172,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 173,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 174,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 175,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 176,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 177,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 178,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 179,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 180,
+        "ChallengeRaidIndex": 60015,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 181,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 182,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 183,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 184,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 185,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 186,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 187,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 188,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 189,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 190,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 191,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 192,
+        "ChallengeRaidIndex": 60016,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 193,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 194,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 195,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 196,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 197,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 198,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 199,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 200,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 201,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 202,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 203,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 204,
+        "ChallengeRaidIndex": 60017,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 205,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 206,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 207,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 208,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 209,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 210,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 211,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 212,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 213,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 214,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 215,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 216,
+        "ChallengeRaidIndex": 60018,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 217,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 218,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 219,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 220,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 221,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 222,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 223,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 224,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 225,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 226,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 227,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 228,
+        "ChallengeRaidIndex": 60019,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 229,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 230,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 231,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 232,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 233,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 234,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 235,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 236,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 237,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 238,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 239,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 240,
+        "ChallengeRaidIndex": 60020,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 241,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 242,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 243,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 244,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 245,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 246,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 247,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 248,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 249,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 250,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 251,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 252,
+        "ChallengeRaidIndex": 60021,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 253,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 254,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 255,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 256,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 257,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 258,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 259,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 260,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 261,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 262,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 263,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 264,
+        "ChallengeRaidIndex": 60022,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 265,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 266,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 267,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 268,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 269,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 270,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 271,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 272,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 273,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 274,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 275,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 276,
+        "ChallengeRaidIndex": 60023,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 277,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 278,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 279,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 280,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 281,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 282,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 283,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 284,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 285,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 286,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 287,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 288,
+        "ChallengeRaidIndex": 60024,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 289,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 290,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 291,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 292,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 293,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 294,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 295,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 296,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 297,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 298,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 299,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 300,
+        "ChallengeRaidIndex": 60025,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 301,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 302,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 303,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 304,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 305,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 306,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 307,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 308,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 309,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 310,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 311,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 312,
+        "ChallengeRaidIndex": 60026,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 313,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 314,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 315,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 316,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 317,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 318,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 319,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 320,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 321,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 322,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 323,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 324,
+        "ChallengeRaidIndex": 60027,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 325,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 326,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 327,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 328,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 329,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 330,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 331,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 332,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 333,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 334,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 335,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 336,
+        "ChallengeRaidIndex": 60028,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 337,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 338,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 339,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 340,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 341,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 342,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 343,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 344,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 345,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 346,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 347,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 348,
+        "ChallengeRaidIndex": 60029,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 349,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 350,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 351,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 352,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 353,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 354,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 355,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 356,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 357,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 358,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 359,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 360,
+        "ChallengeRaidIndex": 60030,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 361,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 362,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 363,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 364,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 365,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 366,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 367,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 368,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 369,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 370,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 371,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 372,
+        "ChallengeRaidIndex": 60031,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 373,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 374,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 375,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 376,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 377,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 378,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 379,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 380,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 381,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 382,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 383,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 384,
+        "ChallengeRaidIndex": 60032,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 385,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 386,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 387,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 388,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 389,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 390,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 391,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 392,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 393,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 394,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 395,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 396,
+        "ChallengeRaidIndex": 60033,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 397,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 398,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 399,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 400,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 401,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 402,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 403,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 404,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 405,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 406,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 407,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 408,
+        "ChallengeRaidIndex": 60034,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 409,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 410,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 411,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 412,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 413,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 414,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 415,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 416,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 417,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 418,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 419,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 420,
+        "ChallengeRaidIndex": 60035,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 421,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 422,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 423,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 424,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 425,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 426,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 427,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 428,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 429,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 430,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 431,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 432,
+        "ChallengeRaidIndex": 60036,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 433,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 434,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 435,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 436,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 437,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 438,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 439,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 440,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 441,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 442,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 443,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 444,
+        "ChallengeRaidIndex": 60037,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 445,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 446,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 447,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 448,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 449,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 450,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 451,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 452,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 453,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 454,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 455,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 456,
+        "ChallengeRaidIndex": 60038,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 457,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 458,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 459,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 460,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 461,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 462,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 463,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 464,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 465,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 466,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 467,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 468,
+        "ChallengeRaidIndex": 60039,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 469,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 470,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 471,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 472,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 473,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 474,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 475,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 476,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 477,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 478,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 479,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 480,
+        "ChallengeRaidIndex": 60040,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 481,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 482,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 483,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 484,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 485,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 486,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 487,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 488,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 489,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 490,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 491,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 492,
+        "ChallengeRaidIndex": 60041,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 493,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 494,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 495,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 496,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 497,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 498,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 499,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 500,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 501,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 502,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 503,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 504,
+        "ChallengeRaidIndex": 60042,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 505,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 506,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 507,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 508,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 509,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 510,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 511,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 512,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 513,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 514,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 515,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 516,
+        "ChallengeRaidIndex": 60043,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 517,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 518,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 519,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 520,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 521,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 522,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 523,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 524,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 525,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 526,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 527,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 528,
+        "ChallengeRaidIndex": 60044,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 529,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 530,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 531,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 532,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 533,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 534,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 535,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 536,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 537,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 538,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 539,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 540,
+        "ChallengeRaidIndex": 60045,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 541,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 542,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 543,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 544,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 545,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 546,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 547,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 548,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 549,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 550,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 551,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 552,
+        "ChallengeRaidIndex": 60046,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 553,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 554,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 555,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 556,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 557,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 558,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 559,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 560,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 561,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 562,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 563,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 564,
+        "ChallengeRaidIndex": 60047,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 565,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 566,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 567,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 568,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 569,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 570,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 571,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 572,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 573,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 574,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 575,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 576,
+        "ChallengeRaidIndex": 60048,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 577,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 578,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 579,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 580,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 581,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 582,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 583,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 584,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 585,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 586,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 587,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 588,
+        "ChallengeRaidIndex": 60049,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 589,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 590,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 591,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 592,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 593,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 594,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 595,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 596,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 597,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 598,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 599,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 600,
+        "ChallengeRaidIndex": 60050,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 601,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 602,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 603,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 604,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 605,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 606,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 607,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 608,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 609,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 610,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 611,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 612,
+        "ChallengeRaidIndex": 60051,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 613,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 614,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 615,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 616,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 617,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 618,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 619,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 620,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 621,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 622,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 623,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 624,
+        "ChallengeRaidIndex": 60052,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 625,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 626,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 627,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 628,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 629,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 630,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 631,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 632,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 633,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 634,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 635,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 636,
+        "ChallengeRaidIndex": 60053,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 637,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 638,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 639,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 640,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 641,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 642,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 643,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 644,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 645,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 646,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 647,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 648,
+        "ChallengeRaidIndex": 60054,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 649,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 650,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 651,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 652,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 653,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 654,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 655,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 656,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 657,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 658,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 659,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 660,
+        "ChallengeRaidIndex": 60055,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 661,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6000013
+    },
+    {
+        "Index": 662,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6000014
+    },
+    {
+        "Index": 663,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6000015
+    },
+    {
+        "Index": 664,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6000016
+    },
+    {
+        "Index": 665,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 6000017
+    },
+    {
+        "Index": 666,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6000018
+    },
+    {
+        "Index": 667,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 6000019
+    },
+    {
+        "Index": 668,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 301,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6000020
+    },
+    {
+        "Index": 669,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 1001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 6000021
+    },
+    {
+        "Index": 670,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6000022
+    },
+    {
+        "Index": 671,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 6000023
+    },
+    {
+        "Index": 672,
+        "ChallengeRaidIndex": 60056,
+        "MinRank": 20001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 6000024
+    },
+    {
+        "Index": 673,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 674,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 675,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 676,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 677,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 678,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 679,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 680,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 681,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 682,
+        "ChallengeRaidIndex": 70002,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 683,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 684,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 685,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 686,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 687,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 688,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 689,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 690,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 691,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 692,
+        "ChallengeRaidIndex": 70004,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 693,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 694,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 695,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 696,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 697,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 698,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 699,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 700,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 701,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 702,
+        "ChallengeRaidIndex": 70006,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 703,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 704,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 705,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 706,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 707,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 708,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 709,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 710,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 711,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 712,
+        "ChallengeRaidIndex": 70008,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 713,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 714,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 715,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 716,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 717,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 718,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 719,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 720,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 721,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 722,
+        "ChallengeRaidIndex": 70010,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 723,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 724,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 725,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 726,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 727,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 728,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 729,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 730,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 731,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 732,
+        "ChallengeRaidIndex": 70012,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 733,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 734,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 735,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 736,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 737,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 738,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 739,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 740,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 741,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 742,
+        "ChallengeRaidIndex": 70014,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    },
+    {
+        "Index": 743,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 6001001
+    },
+    {
+        "Index": 744,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 6001002
+    },
+    {
+        "Index": 745,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 6001003
+    },
+    {
+        "Index": 746,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 6001004
+    },
+    {
+        "Index": 747,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 11,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 6001005
+    },
+    {
+        "Index": 748,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 101,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 6001006
+    },
+    {
+        "Index": 749,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 501,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 6001007
+    },
+    {
+        "Index": 750,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 1001,
+        "MaxRank": 5000,
+        "Percentage": 0,
+        "RewardIndex": 6001008
+    },
+    {
+        "Index": 751,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 5001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 6001009
+    },
+    {
+        "Index": 752,
+        "ChallengeRaidIndex": 70016,
+        "MinRank": 10001,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 6001010
+    }
+]

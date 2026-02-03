@@ -1,0 +1,18 @@
+[
+    {
+        "SkillIndex": 701010001,
+        "PunishmentGroupIndex": 101001
+    },
+    {
+        "SkillIndex": 702010001,
+        "PunishmentGroupIndex": 101002
+    },
+    {
+        "SkillIndex": 701010002,
+        "PunishmentGroupIndex": 101001
+    },
+    {
+        "SkillIndex": 702010002,
+        "PunishmentGroupIndex": 101002
+    }
+]

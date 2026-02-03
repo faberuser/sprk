@@ -1,0 +1,10838 @@
+[
+    {
+        "Type": 1,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            1
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            7
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            1
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            8
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            9
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 5,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            10
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 2,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            11
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 7,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            12
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 4,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            7
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 2,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            11
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 7,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            12
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 1,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            8
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 6,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            9
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 5,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            10
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 3,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            1
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 1,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            8
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 6,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            9
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            888
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            300
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 5,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            10
+        ],
+        "ItemCountList": [
+            700
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 2,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            300,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 1,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            200
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 4,
+        "Grade": 2,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            7
+        ],
+        "ItemCountList": [
+            4900
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 2,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            11
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 6,
+        "Grade": 1,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            200,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            6
+        ],
+        "ItemCountList": [
+            100
+        ]
+    },
+    {
+        "Type": 1,
+        "TagType": 7,
+        "Grade": 1,
+        "ReinforceLevel": 0,
+        "ItemCodeList": [
+            12
+        ],
+        "ItemCountList": [
+            2100
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 1,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            35
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 2,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            80
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 3,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            137
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 4,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            210
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 5,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            301
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 6,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            426
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 7,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            596
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 8,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            827
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 9,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1123
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 10,
+        "ItemCodeList": [
+            2
+        ],
+        "ItemCountList": [
+            1496
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 11,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            157
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 12,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            355
+        ]
+    },
+    {
+        "Type": 3,
+        "TagType": 3,
+        "Grade": 0,
+        "ReinforceLevel": 20,
+        "ItemCodeList": [
+            6,
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            100,
+            10,
+            20,
+            30,
+            40
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 13,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            605
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 14,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            922
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 15,
+        "ItemCodeList": [
+            2,
+            3
+        ],
+        "ItemCountList": [
+            1496,
+            1317
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 16,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            298
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 17,
+        "ItemCodeList": [
+            2,
+            3,
+            4
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 18,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            245
+        ]
+    },
+    {
+        "Type": 2,
+        "TagType": 4,
+        "Grade": 0,
+        "ReinforceLevel": 19,
+        "ItemCodeList": [
+            2,
+            3,
+            4,
+            5
+        ],
+        "ItemCountList": [
+            1496,
+            1317,
+            678,
+            538
+        ]
+    }
+]

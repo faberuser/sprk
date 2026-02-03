@@ -1,0 +1,107 @@
+[
+    {
+        "ItemCode": 1,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 2,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": false
+    },
+    {
+        "ItemCode": 3,
+        "Type": 43,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 4,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 5,
+        "Type": 43,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 6,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": false
+    },
+    {
+        "ItemCode": 7,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 8,
+        "Type": 43,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 9,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": false
+    },
+    {
+        "ItemCode": 10,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 11,
+        "Type": 43,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 12,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": false
+    },
+    {
+        "ItemCode": 13,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 14,
+        "Type": 43,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": true
+    },
+    {
+        "ItemCode": 15,
+        "Type": 42,
+        "AwakenStar": 0,
+        "ItemIndices": null,
+        "IsAllowNPC": false
+    }
+]

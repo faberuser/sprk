@@ -1,0 +1,32 @@
+[
+    {
+        "PunishmentGroupIndex": 101001,
+        "Wave": 1,
+        "ExponentialValue": 1.0
+    },
+    {
+        "PunishmentGroupIndex": 101002,
+        "Wave": 6,
+        "ExponentialValue": 1.2200000286102295
+    },
+    {
+        "PunishmentGroupIndex": 101002,
+        "Wave": 21,
+        "ExponentialValue": 0.8600000143051147
+    },
+    {
+        "PunishmentGroupIndex": 101002,
+        "Wave": 1,
+        "ExponentialValue": 1.0
+    },
+    {
+        "PunishmentGroupIndex": 101001,
+        "Wave": 6,
+        "ExponentialValue": 1.2200000286102295
+    },
+    {
+        "PunishmentGroupIndex": 101001,
+        "Wave": 21,
+        "ExponentialValue": 0.8600000143051147
+    }
+]

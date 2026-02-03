@@ -1,0 +1,966 @@
+[
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 8,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            3
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 10,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            4
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 764,
+        "PositionY": 443,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            5
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            6
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 10,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            6
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 8,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            7,
+            8,
+            9,
+            10
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 8,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            7,
+            11,
+            2,
+            12
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 8,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            12
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            13
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 10,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            13
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 30,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            14
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            14
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 31,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            15
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            15
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 19,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            16
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            16
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 32,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            17
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 33,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            18
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            18
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 34,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            19
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            19
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 35,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            20
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            20
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 22,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            4
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            21
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 36,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            21
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 37,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            21
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 38,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            22
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            22
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 39,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            23
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            23
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 40,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            25
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            25
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 29,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            26
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            26
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 42,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            27
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 43,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            28
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            28
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            27
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 44,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            29
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            29
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 45,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            30
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            30
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 46,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            31
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            24,
+            31
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 47,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            32
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            32
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 49,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            33
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            33
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 50,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            34
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            34
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 51,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            35
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            35
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 53,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            36
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 54,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            37
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 55,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            38
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            38
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 56,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            39
+        ]
+    },
+    {
+        "ChapterIndex": 0,
+        "DungeonIndex": 0,
+        "PositionX": 224,
+        "PositionY": -113,
+        "PropType": 1,
+        "PropName": 1,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            39
+        ]
+    },
+    {
+        "ChapterIndex": 99,
+        "DungeonIndex": 57,
+        "PositionX": 0,
+        "PositionY": 0,
+        "PropType": 0,
+        "PropName": 0,
+        "PropAction": null,
+        "Scale": 0,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            2,
+            34
+        ]
+    }
+]

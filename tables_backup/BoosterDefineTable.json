@@ -1,0 +1,32 @@
+[
+    {
+        "BoosterCode": 1,
+        "BonusType": 3,
+        "CostumeBuffType": 0,
+        "IconItemCode": 2,
+        "TooltipName": 3,
+        "TooltipDesc": 4,
+        "PopUpBuffCategory": 0,
+        "PopUpBuffDetail": 0
+    },
+    {
+        "BoosterCode": 5,
+        "BonusType": 1,
+        "CostumeBuffType": 0,
+        "IconItemCode": 2,
+        "TooltipName": 6,
+        "TooltipDesc": 7,
+        "PopUpBuffCategory": 0,
+        "PopUpBuffDetail": 0
+    },
+    {
+        "BoosterCode": 8,
+        "BonusType": 76,
+        "CostumeBuffType": 1,
+        "IconItemCode": 9,
+        "TooltipName": 10,
+        "TooltipDesc": 11,
+        "PopUpBuffCategory": 12,
+        "PopUpBuffDetail": 13
+    }
+]

@@ -1,0 +1,1562 @@
+[
+    {
+        "field_0": 1,
+        "field_1": 70000001,
+        "field_2": 1,
+        "ActivityPoint": 100000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000048,
+        "field_2": 8,
+        "ActivityPoint": 1470000,
+        "TotalActivityPoint": 5740000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 3402,
+        "TotalSuppressPoint": 13284,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000049,
+        "field_2": 9,
+        "ActivityPoint": 1610000,
+        "TotalActivityPoint": 7210000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 3726,
+        "TotalSuppressPoint": 16686,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000050,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 8820000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 20412,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000091,
+        "field_2": 1,
+        "ActivityPoint": 250000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 1080,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000092,
+        "field_2": 2,
+        "ActivityPoint": 350000,
+        "TotalActivityPoint": 250000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 1512,
+        "TotalSuppressPoint": 1080,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000093,
+        "field_2": 3,
+        "ActivityPoint": 475000,
+        "TotalActivityPoint": 600000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 2052,
+        "TotalSuppressPoint": 2592,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000094,
+        "field_2": 4,
+        "ActivityPoint": 575000,
+        "TotalActivityPoint": 1075000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 2484,
+        "TotalSuppressPoint": 4644,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000095,
+        "field_2": 5,
+        "ActivityPoint": 700000,
+        "TotalActivityPoint": 1650000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 3024,
+        "TotalSuppressPoint": 7128,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000096,
+        "field_2": 6,
+        "ActivityPoint": 825000,
+        "TotalActivityPoint": 2350000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 3564,
+        "TotalSuppressPoint": 10152,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000097,
+        "field_2": 7,
+        "ActivityPoint": 925000,
+        "TotalActivityPoint": 3175000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 3996,
+        "TotalSuppressPoint": 13716,
+        "TrainingCenterLevel": 8
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000098,
+        "field_2": 8,
+        "ActivityPoint": 1050000,
+        "TotalActivityPoint": 4100000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 4536,
+        "TotalSuppressPoint": 17712,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000021,
+        "field_2": 1,
+        "ActivityPoint": 150000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000099,
+        "field_2": 9,
+        "ActivityPoint": 1150000,
+        "TotalActivityPoint": 5150000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 4968,
+        "TotalSuppressPoint": 22248,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000022,
+        "field_2": 2,
+        "ActivityPoint": 210000,
+        "TotalActivityPoint": 150000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 13,
+        "field_1": 70000100,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 6300000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 27216,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000023,
+        "field_2": 3,
+        "ActivityPoint": 285000,
+        "TotalActivityPoint": 360000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000024,
+        "field_2": 4,
+        "ActivityPoint": 345000,
+        "TotalActivityPoint": 645000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000025,
+        "field_2": 5,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 990000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000026,
+        "field_2": 6,
+        "ActivityPoint": 495000,
+        "TotalActivityPoint": 1410000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000027,
+        "field_2": 7,
+        "ActivityPoint": 555000,
+        "TotalActivityPoint": 1905000,
+        "Values": [
+            14
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000028,
+        "field_2": 8,
+        "ActivityPoint": 630000,
+        "TotalActivityPoint": 2460000,
+        "Values": [
+            16
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000029,
+        "field_2": 9,
+        "ActivityPoint": 690000,
+        "TotalActivityPoint": 3090000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 5,
+        "field_1": 70000030,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 3780000,
+        "Values": [
+            20
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000011,
+        "field_2": 1,
+        "ActivityPoint": 100000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000012,
+        "field_2": 2,
+        "ActivityPoint": 140000,
+        "TotalActivityPoint": 100000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000013,
+        "field_2": 3,
+        "ActivityPoint": 190000,
+        "TotalActivityPoint": 240000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000014,
+        "field_2": 4,
+        "ActivityPoint": 230000,
+        "TotalActivityPoint": 430000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000015,
+        "field_2": 5,
+        "ActivityPoint": 280000,
+        "TotalActivityPoint": 660000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000016,
+        "field_2": 6,
+        "ActivityPoint": 330000,
+        "TotalActivityPoint": 940000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000111,
+        "field_2": 1,
+        "ActivityPoint": 300000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 540,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000017,
+        "field_2": 7,
+        "ActivityPoint": 370000,
+        "TotalActivityPoint": 1270000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000112,
+        "field_2": 2,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 300000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 756,
+        "TotalSuppressPoint": 540,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000018,
+        "field_2": 8,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 1640000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000113,
+        "field_2": 3,
+        "ActivityPoint": 570000,
+        "TotalActivityPoint": 720000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 1026,
+        "TotalSuppressPoint": 1296,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000019,
+        "field_2": 9,
+        "ActivityPoint": 460000,
+        "TotalActivityPoint": 2060000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000114,
+        "field_2": 4,
+        "ActivityPoint": 690000,
+        "TotalActivityPoint": 1290000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 1242,
+        "TotalSuppressPoint": 2322,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 2,
+        "field_1": 70000020,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 2520000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000115,
+        "field_2": 5,
+        "ActivityPoint": 840000,
+        "TotalActivityPoint": 1980000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 1512,
+        "TotalSuppressPoint": 3564,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000116,
+        "field_2": 6,
+        "ActivityPoint": 990000,
+        "TotalActivityPoint": 2820000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 1782,
+        "TotalSuppressPoint": 5076,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000117,
+        "field_2": 7,
+        "ActivityPoint": 1110000,
+        "TotalActivityPoint": 3810000,
+        "Values": [
+            14
+        ],
+        "SuppressPoint": 1998,
+        "TotalSuppressPoint": 6858,
+        "TrainingCenterLevel": 8
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000118,
+        "field_2": 8,
+        "ActivityPoint": 1260000,
+        "TotalActivityPoint": 4920000,
+        "Values": [
+            16
+        ],
+        "SuppressPoint": 2268,
+        "TotalSuppressPoint": 8856,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000119,
+        "field_2": 9,
+        "ActivityPoint": 1380000,
+        "TotalActivityPoint": 6180000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 2484,
+        "TotalSuppressPoint": 11124,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 15,
+        "field_1": 70000120,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 7560000,
+        "Values": [
+            20
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 13608,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000081,
+        "field_2": 1,
+        "ActivityPoint": 250000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 1080,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000082,
+        "field_2": 2,
+        "ActivityPoint": 350000,
+        "TotalActivityPoint": 250000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 1512,
+        "TotalSuppressPoint": 1080,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000083,
+        "field_2": 3,
+        "ActivityPoint": 475000,
+        "TotalActivityPoint": 600000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 2052,
+        "TotalSuppressPoint": 2592,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000084,
+        "field_2": 4,
+        "ActivityPoint": 575000,
+        "TotalActivityPoint": 1075000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 2484,
+        "TotalSuppressPoint": 4644,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000085,
+        "field_2": 5,
+        "ActivityPoint": 700000,
+        "TotalActivityPoint": 1650000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 3024,
+        "TotalSuppressPoint": 7128,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000086,
+        "field_2": 6,
+        "ActivityPoint": 825000,
+        "TotalActivityPoint": 2350000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 3564,
+        "TotalSuppressPoint": 10152,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000087,
+        "field_2": 7,
+        "ActivityPoint": 925000,
+        "TotalActivityPoint": 3175000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 3996,
+        "TotalSuppressPoint": 13716,
+        "TrainingCenterLevel": 8
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000088,
+        "field_2": 8,
+        "ActivityPoint": 1050000,
+        "TotalActivityPoint": 4100000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 4536,
+        "TotalSuppressPoint": 17712,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 1,
+        "ActivityPoint": 50000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000089,
+        "field_2": 9,
+        "ActivityPoint": 1150000,
+        "TotalActivityPoint": 5150000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 4968,
+        "TotalSuppressPoint": 22248,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 2,
+        "ActivityPoint": 70000,
+        "TotalActivityPoint": 50000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 12,
+        "field_1": 70000090,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 6300000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 27216,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 3,
+        "ActivityPoint": 90000,
+        "TotalActivityPoint": 120000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 4,
+        "ActivityPoint": 110000,
+        "TotalActivityPoint": 210000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 5,
+        "ActivityPoint": 130000,
+        "TotalActivityPoint": 320000,
+        "Values": [
+            15
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 6,
+        "ActivityPoint": 150000,
+        "TotalActivityPoint": 450000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 7,
+        "ActivityPoint": 170000,
+        "TotalActivityPoint": 600000,
+        "Values": [
+            21
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 8,
+        "ActivityPoint": 190000,
+        "TotalActivityPoint": 770000,
+        "Values": [
+            24
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 9,
+        "ActivityPoint": 210000,
+        "TotalActivityPoint": 960000,
+        "Values": [
+            27
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 4,
+        "field_1": 0,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 1170000,
+        "Values": [
+            30
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000051,
+        "field_2": 1,
+        "ActivityPoint": 300000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 540,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000052,
+        "field_2": 2,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 300000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 756,
+        "TotalSuppressPoint": 540,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000053,
+        "field_2": 3,
+        "ActivityPoint": 570000,
+        "TotalActivityPoint": 720000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 1026,
+        "TotalSuppressPoint": 1296,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000054,
+        "field_2": 4,
+        "ActivityPoint": 690000,
+        "TotalActivityPoint": 1290000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 1242,
+        "TotalSuppressPoint": 2322,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000055,
+        "field_2": 5,
+        "ActivityPoint": 840000,
+        "TotalActivityPoint": 1980000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 1512,
+        "TotalSuppressPoint": 3564,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000056,
+        "field_2": 6,
+        "ActivityPoint": 990000,
+        "TotalActivityPoint": 2820000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 1782,
+        "TotalSuppressPoint": 5076,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000057,
+        "field_2": 7,
+        "ActivityPoint": 1110000,
+        "TotalActivityPoint": 3810000,
+        "Values": [
+            14
+        ],
+        "SuppressPoint": 1998,
+        "TotalSuppressPoint": 6858,
+        "TrainingCenterLevel": 8
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000058,
+        "field_2": 8,
+        "ActivityPoint": 1260000,
+        "TotalActivityPoint": 4920000,
+        "Values": [
+            16
+        ],
+        "SuppressPoint": 2268,
+        "TotalSuppressPoint": 8856,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000059,
+        "field_2": 9,
+        "ActivityPoint": 1380000,
+        "TotalActivityPoint": 6180000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 2484,
+        "TotalSuppressPoint": 11124,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000002,
+        "field_2": 2,
+        "ActivityPoint": 140000,
+        "TotalActivityPoint": 100000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 9,
+        "field_1": 70000060,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 7560000,
+        "Values": [
+            20
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 13608,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000003,
+        "field_2": 3,
+        "ActivityPoint": 190000,
+        "TotalActivityPoint": 240000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000004,
+        "field_2": 4,
+        "ActivityPoint": 230000,
+        "TotalActivityPoint": 430000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000005,
+        "field_2": 5,
+        "ActivityPoint": 280000,
+        "TotalActivityPoint": 660000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000006,
+        "field_2": 6,
+        "ActivityPoint": 330000,
+        "TotalActivityPoint": 940000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000101,
+        "field_2": 1,
+        "ActivityPoint": 350000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 810,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000007,
+        "field_2": 7,
+        "ActivityPoint": 370000,
+        "TotalActivityPoint": 1270000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000102,
+        "field_2": 2,
+        "ActivityPoint": 490000,
+        "TotalActivityPoint": 350000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 1134,
+        "TotalSuppressPoint": 810,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000008,
+        "field_2": 8,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 1640000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000103,
+        "field_2": 3,
+        "ActivityPoint": 665000,
+        "TotalActivityPoint": 840000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 1539,
+        "TotalSuppressPoint": 1944,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000009,
+        "field_2": 9,
+        "ActivityPoint": 460000,
+        "TotalActivityPoint": 2060000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000104,
+        "field_2": 4,
+        "ActivityPoint": 805000,
+        "TotalActivityPoint": 1505000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 1863,
+        "TotalSuppressPoint": 3483,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 1,
+        "field_1": 70000010,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 2520000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000105,
+        "field_2": 5,
+        "ActivityPoint": 980000,
+        "TotalActivityPoint": 2310000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 2268,
+        "TotalSuppressPoint": 5346,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000106,
+        "field_2": 6,
+        "ActivityPoint": 1155000,
+        "TotalActivityPoint": 3290000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 2673,
+        "TotalSuppressPoint": 7614,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000107,
+        "field_2": 7,
+        "ActivityPoint": 1295000,
+        "TotalActivityPoint": 4445000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 2997,
+        "TotalSuppressPoint": 10287,
+        "TrainingCenterLevel": 8
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000108,
+        "field_2": 8,
+        "ActivityPoint": 1470000,
+        "TotalActivityPoint": 5740000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 3402,
+        "TotalSuppressPoint": 13284,
+        "TrainingCenterLevel": 9
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000031,
+        "field_2": 1,
+        "ActivityPoint": 150000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000109,
+        "field_2": 9,
+        "ActivityPoint": 1610000,
+        "TotalActivityPoint": 7210000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 3726,
+        "TotalSuppressPoint": 16686,
+        "TrainingCenterLevel": 10
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000032,
+        "field_2": 2,
+        "ActivityPoint": 210000,
+        "TotalActivityPoint": 150000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 14,
+        "field_1": 70000110,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 8820000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 20412,
+        "TrainingCenterLevel": 0
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000033,
+        "field_2": 3,
+        "ActivityPoint": 285000,
+        "TotalActivityPoint": 360000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000034,
+        "field_2": 4,
+        "ActivityPoint": 345000,
+        "TotalActivityPoint": 645000,
+        "Values": [
+            8
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000035,
+        "field_2": 5,
+        "ActivityPoint": 420000,
+        "TotalActivityPoint": 990000,
+        "Values": [
+            10
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000036,
+        "field_2": 6,
+        "ActivityPoint": 495000,
+        "TotalActivityPoint": 1410000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000037,
+        "field_2": 7,
+        "ActivityPoint": 555000,
+        "TotalActivityPoint": 1905000,
+        "Values": [
+            14
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000038,
+        "field_2": 8,
+        "ActivityPoint": 630000,
+        "TotalActivityPoint": 2460000,
+        "Values": [
+            16
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000039,
+        "field_2": 9,
+        "ActivityPoint": 690000,
+        "TotalActivityPoint": 3090000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 6,
+        "field_1": 70000040,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 3780000,
+        "Values": [
+            20
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 1,
+        "ActivityPoint": 50000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 2,
+        "ActivityPoint": 70000,
+        "TotalActivityPoint": 50000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 3,
+        "ActivityPoint": 90000,
+        "TotalActivityPoint": 120000,
+        "Values": [
+            9
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 4,
+        "ActivityPoint": 110000,
+        "TotalActivityPoint": 210000,
+        "Values": [
+            12
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 5,
+        "ActivityPoint": 130000,
+        "TotalActivityPoint": 320000,
+        "Values": [
+            15
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 6,
+        "ActivityPoint": 150000,
+        "TotalActivityPoint": 450000,
+        "Values": [
+            18
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 7,
+        "ActivityPoint": 170000,
+        "TotalActivityPoint": 600000,
+        "Values": [
+            21
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 8,
+        "ActivityPoint": 190000,
+        "TotalActivityPoint": 770000,
+        "Values": [
+            24
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 9,
+        "ActivityPoint": 210000,
+        "TotalActivityPoint": 960000,
+        "Values": [
+            27
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 3,
+        "field_1": 0,
+        "field_2": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 1170000,
+        "Values": [
+            30
+        ],
+        "SuppressPoint": 0,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 1
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000041,
+        "field_2": 1,
+        "ActivityPoint": 350000,
+        "TotalActivityPoint": 0,
+        "Values": [
+            1
+        ],
+        "SuppressPoint": 810,
+        "TotalSuppressPoint": 0,
+        "TrainingCenterLevel": 2
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000042,
+        "field_2": 2,
+        "ActivityPoint": 490000,
+        "TotalActivityPoint": 350000,
+        "Values": [
+            2
+        ],
+        "SuppressPoint": 1134,
+        "TotalSuppressPoint": 810,
+        "TrainingCenterLevel": 3
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000043,
+        "field_2": 3,
+        "ActivityPoint": 665000,
+        "TotalActivityPoint": 840000,
+        "Values": [
+            3
+        ],
+        "SuppressPoint": 1539,
+        "TotalSuppressPoint": 1944,
+        "TrainingCenterLevel": 4
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000044,
+        "field_2": 4,
+        "ActivityPoint": 805000,
+        "TotalActivityPoint": 1505000,
+        "Values": [
+            4
+        ],
+        "SuppressPoint": 1863,
+        "TotalSuppressPoint": 3483,
+        "TrainingCenterLevel": 5
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000045,
+        "field_2": 5,
+        "ActivityPoint": 980000,
+        "TotalActivityPoint": 2310000,
+        "Values": [
+            5
+        ],
+        "SuppressPoint": 2268,
+        "TotalSuppressPoint": 5346,
+        "TrainingCenterLevel": 6
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000046,
+        "field_2": 6,
+        "ActivityPoint": 1155000,
+        "TotalActivityPoint": 3290000,
+        "Values": [
+            6
+        ],
+        "SuppressPoint": 2673,
+        "TotalSuppressPoint": 7614,
+        "TrainingCenterLevel": 7
+    },
+    {
+        "field_0": 8,
+        "field_1": 70000047,
+        "field_2": 7,
+        "ActivityPoint": 1295000,
+        "TotalActivityPoint": 4445000,
+        "Values": [
+            7
+        ],
+        "SuppressPoint": 2997,
+        "TotalSuppressPoint": 10287,
+        "TrainingCenterLevel": 8
+    }
+]

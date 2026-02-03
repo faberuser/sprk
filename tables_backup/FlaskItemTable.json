@@ -1,0 +1,356 @@
+[
+    {
+        "ItemCode": 1,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 200,
+        "PotionItemIndex": 40005,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 20
+    },
+    {
+        "ItemCode": 3,
+        "Type": 3,
+        "SourceType": 2,
+        "RewardType": 1,
+        "FlaskExp": 300,
+        "PotionItemIndex": 40226,
+        "UseDescLocal": 4,
+        "EffectiveSkillIndex": [
+            40513000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 13
+    },
+    {
+        "ItemCode": 5,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 500,
+        "PotionItemIndex": 40224,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40512000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 12
+    },
+    {
+        "ItemCode": 7,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 1,
+        "FlaskExp": 300,
+        "PotionItemIndex": 40204,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40502000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 2
+    },
+    {
+        "ItemCode": 8,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 500,
+        "PotionItemIndex": 40222,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40511000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 11
+    },
+    {
+        "ItemCode": 9,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 500,
+        "PotionItemIndex": 40220,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40510000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 10
+    },
+    {
+        "ItemCode": 10,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 1,
+        "FlaskExp": 300,
+        "PotionItemIndex": 40208,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40504000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 4
+    },
+    {
+        "ItemCode": 11,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 0,
+        "FlaskExp": 400,
+        "PotionItemIndex": 40214,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40507000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 7
+    },
+    {
+        "ItemCode": 12,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 25000,
+        "PotionItemIndex": 40008,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 17
+    },
+    {
+        "ItemCode": 13,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 500,
+        "PotionItemIndex": 40218,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40509000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 9
+    },
+    {
+        "ItemCode": 14,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 125000,
+        "PotionItemIndex": 40010,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 16
+    },
+    {
+        "ItemCode": 15,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 250000,
+        "PotionItemIndex": 821010,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 16
+    },
+    {
+        "ItemCode": 16,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 0,
+        "FlaskExp": 400,
+        "PotionItemIndex": 40212,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40506000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 6
+    },
+    {
+        "ItemCode": 17,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 8000,
+        "PotionItemIndex": 40104,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 22
+    },
+    {
+        "ItemCode": 19,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 800,
+        "PotionItemIndex": 40102,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 23
+    },
+    {
+        "ItemCode": 20,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 8000,
+        "PotionItemIndex": 40116,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 18
+    },
+    {
+        "ItemCode": 21,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 0,
+        "FlaskExp": 400,
+        "PotionItemIndex": 40216,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40508000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 8
+    },
+    {
+        "ItemCode": 22,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 1000,
+        "PotionItemIndex": 40006,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 19
+    },
+    {
+        "ItemCode": 23,
+        "Type": 0,
+        "SourceType": 1,
+        "RewardType": 1,
+        "FlaskExp": 5000,
+        "PotionItemIndex": 40007,
+        "UseDescLocal": 2,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 18
+    },
+    {
+        "ItemCode": 24,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 80000,
+        "PotionItemIndex": 40106,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 21
+    },
+    {
+        "ItemCode": 25,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 1,
+        "FlaskExp": 300,
+        "PotionItemIndex": 40202,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40501000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 1
+    },
+    {
+        "ItemCode": 26,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 800,
+        "PotionItemIndex": 40114,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 19
+    },
+    {
+        "ItemCode": 27,
+        "Type": 1,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 100,
+        "PotionItemIndex": 40112,
+        "UseDescLocal": 18,
+        "EffectiveSkillIndex": null,
+        "IsUnEquip": true,
+        "ShowIndex": 20
+    },
+    {
+        "ItemCode": 28,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 1,
+        "FlaskExp": 300,
+        "PotionItemIndex": 40206,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40503000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 3
+    },
+    {
+        "ItemCode": 29,
+        "Type": 3,
+        "SourceType": 2,
+        "RewardType": 2,
+        "FlaskExp": 500,
+        "PotionItemIndex": 40230,
+        "UseDescLocal": 4,
+        "EffectiveSkillIndex": [
+            40515000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 15
+    },
+    {
+        "ItemCode": 30,
+        "Type": 2,
+        "SourceType": 2,
+        "RewardType": 0,
+        "FlaskExp": 400,
+        "PotionItemIndex": 40210,
+        "UseDescLocal": 6,
+        "EffectiveSkillIndex": [
+            40505000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 5
+    },
+    {
+        "ItemCode": 31,
+        "Type": 3,
+        "SourceType": 2,
+        "RewardType": 0,
+        "FlaskExp": 400,
+        "PotionItemIndex": 40228,
+        "UseDescLocal": 4,
+        "EffectiveSkillIndex": [
+            40514000
+        ],
+        "IsUnEquip": false,
+        "ShowIndex": 14
+    }
+]

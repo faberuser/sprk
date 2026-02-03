@@ -1,0 +1,1232 @@
+[
+    {
+        "LevelIndex": 1,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 11,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 7,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 3,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 10,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 6,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 2,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 9,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 5,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 1,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 8,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 1,
+        "ReqExp": 3000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 2,
+        "ReqExp": 6000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 3,
+        "ReqExp": 9000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 4,
+        "ReqExp": 12000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 5,
+        "ReqExp": 15000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 6,
+        "ReqExp": 18000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 7,
+        "ReqExp": 21000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 8,
+        "ReqExp": 24000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 9,
+        "ReqExp": 27000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 10,
+        "ReqExp": 30000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 11,
+        "ReqExp": 33000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 12,
+        "ReqExp": 36000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 13,
+        "ReqExp": 39000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 14,
+        "ReqExp": 42000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 15,
+        "ReqExp": 45000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 16,
+        "ReqExp": 48000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 17,
+        "ReqExp": 51000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 18,
+        "ReqExp": 54000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 19,
+        "ReqExp": 57000,
+        "LevelUpPrice": 100
+    },
+    {
+        "LevelIndex": 4,
+        "Level": 20,
+        "ReqExp": 60000,
+        "LevelUpPrice": 100
+    }
+]

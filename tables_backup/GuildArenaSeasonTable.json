@@ -1,0 +1,186 @@
+[
+    {
+        "SeasonIndex": 1,
+        "DisplaySeasonText": 0,
+        "DisplaySeasonLocalKey": 1,
+        "Begin": 2,
+        "End": 3,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 2,
+        "DisplaySeasonText": 4,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 5,
+        "End": 6,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 3,
+        "DisplaySeasonText": 7,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 8,
+        "End": 9,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 4,
+        "DisplaySeasonText": 10,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 11,
+        "End": 12,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 5,
+        "DisplaySeasonText": 13,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 14,
+        "End": 15,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 6,
+        "DisplaySeasonText": 16,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 17,
+        "End": 18,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 7,
+        "DisplaySeasonText": 19,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 20,
+        "End": 21,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 8,
+        "DisplaySeasonText": 22,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 23,
+        "End": 24,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 9,
+        "DisplaySeasonText": 0,
+        "DisplaySeasonLocalKey": 1,
+        "Begin": 25,
+        "End": 26,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 10,
+        "DisplaySeasonText": 27,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 28,
+        "End": 29,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 11,
+        "DisplaySeasonText": 30,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 31,
+        "End": 32,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 12,
+        "DisplaySeasonText": 33,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 34,
+        "End": 35,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 13,
+        "DisplaySeasonText": 36,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 37,
+        "End": 38,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 14,
+        "DisplaySeasonText": 39,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 40,
+        "End": 41,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 15,
+        "DisplaySeasonText": 42,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 43,
+        "End": 44,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 16,
+        "DisplaySeasonText": 45,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 46,
+        "End": 47,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 17,
+        "DisplaySeasonText": 48,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 49,
+        "End": 50,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 18,
+        "DisplaySeasonText": 51,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 52,
+        "End": 53,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 19,
+        "DisplaySeasonText": 54,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 55,
+        "End": 56,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 20,
+        "DisplaySeasonText": 57,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 58,
+        "End": 59,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 21,
+        "DisplaySeasonText": 60,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 61,
+        "End": 62,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 22,
+        "DisplaySeasonText": 63,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 64,
+        "End": 65,
+        "SeasonType": 0
+    },
+    {
+        "SeasonIndex": 23,
+        "DisplaySeasonText": 66,
+        "DisplaySeasonLocalKey": 0,
+        "Begin": 67,
+        "End": 68,
+        "SeasonType": 0
+    }
+]

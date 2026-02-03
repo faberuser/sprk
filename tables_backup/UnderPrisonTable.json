@@ -1,0 +1,54 @@
+[
+    {
+        "ChapterIndex": 20001,
+        "Name": 1,
+        "Desc": 2,
+        "Type": 1,
+        "DailyEnterMaxCount": 2,
+        "DailyEnterMaxCountByGem": 2,
+        "RequireGem": [
+            100,
+            500
+        ],
+        "IsSelectReward": true
+    },
+    {
+        "ChapterIndex": 20002,
+        "Name": 3,
+        "Desc": 4,
+        "Type": 2,
+        "DailyEnterMaxCount": 2,
+        "DailyEnterMaxCountByGem": 2,
+        "RequireGem": [
+            100,
+            500
+        ],
+        "IsSelectReward": true
+    },
+    {
+        "ChapterIndex": 20003,
+        "Name": 5,
+        "Desc": 6,
+        "Type": 3,
+        "DailyEnterMaxCount": 2,
+        "DailyEnterMaxCountByGem": 2,
+        "RequireGem": [
+            100,
+            500
+        ],
+        "IsSelectReward": false
+    },
+    {
+        "ChapterIndex": 20004,
+        "Name": 7,
+        "Desc": 8,
+        "Type": 4,
+        "DailyEnterMaxCount": 2,
+        "DailyEnterMaxCountByGem": 2,
+        "RequireGem": [
+            100,
+            500
+        ],
+        "IsSelectReward": false
+    }
+]

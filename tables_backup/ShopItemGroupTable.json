@@ -1,0 +1,38 @@
+[
+    {
+        "ShopIndex": 11,
+        "GroupIndex": 4,
+        "GroupNameKey": 1,
+        "IsDefault": false
+    },
+    {
+        "ShopIndex": 11,
+        "GroupIndex": 6,
+        "GroupNameKey": 2,
+        "IsDefault": false
+    },
+    {
+        "ShopIndex": 11,
+        "GroupIndex": 7,
+        "GroupNameKey": 3,
+        "IsDefault": true
+    },
+    {
+        "ShopIndex": 15,
+        "GroupIndex": 1,
+        "GroupNameKey": 4,
+        "IsDefault": false
+    },
+    {
+        "ShopIndex": 15,
+        "GroupIndex": 2,
+        "GroupNameKey": 5,
+        "IsDefault": false
+    },
+    {
+        "ShopIndex": 11,
+        "GroupIndex": 5,
+        "GroupNameKey": 6,
+        "IsDefault": false
+    }
+]

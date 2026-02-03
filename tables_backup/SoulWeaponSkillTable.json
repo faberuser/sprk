@@ -1,0 +1,1669 @@
+[
+    {
+        "ItemCode": 1,
+        "ActiveConditionSkillIndices": [
+            93000110
+        ],
+        "BasicSkillIndex": 93000100,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93000101,
+        "AddSkillIndex2": 93000102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 2,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 4,
+        "ActiveConditionSkillIndices": [
+            93007210
+        ],
+        "BasicSkillIndex": 93007200,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93007201,
+        "AddSkillIndex2": 93007202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 5,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 7,
+        "ActiveConditionSkillIndices": [
+            93008910,
+            93008911
+        ],
+        "BasicSkillIndex": 93008900,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008901,
+        "AddSkillIndex2": 93008902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 8,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 9,
+        "ActiveConditionSkillIndices": [
+            93004210
+        ],
+        "BasicSkillIndex": 93004200,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93004201,
+        "AddSkillIndex2": 93004202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 10,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 11,
+        "ActiveConditionSkillIndices": [
+            93003310
+        ],
+        "BasicSkillIndex": 93003300,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003301,
+        "AddSkillIndex2": 93003302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 12,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 13,
+        "ActiveConditionSkillIndices": [
+            93003710
+        ],
+        "BasicSkillIndex": 93003700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003701,
+        "AddSkillIndex2": 93003702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 14,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 15,
+        "ActiveConditionSkillIndices": [
+            93004610
+        ],
+        "BasicSkillIndex": 93004600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93004601,
+        "AddSkillIndex2": 93004602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 16,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 18,
+        "ActiveConditionSkillIndices": [
+            93000510
+        ],
+        "BasicSkillIndex": 93000500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93000501,
+        "AddSkillIndex2": 93000502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 19,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 20,
+        "ActiveConditionSkillIndices": [
+            93004710
+        ],
+        "BasicSkillIndex": 93004700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93004701,
+        "AddSkillIndex2": 93004702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 21,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 22,
+        "ActiveConditionSkillIndices": [
+            93004910
+        ],
+        "BasicSkillIndex": 93004900,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93004901,
+        "AddSkillIndex2": 93004902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 23,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 24,
+        "ActiveConditionSkillIndices": [
+            93009210
+        ],
+        "BasicSkillIndex": 93009200,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93009201,
+        "AddSkillIndex2": 93009202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 25,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 26,
+        "ActiveConditionSkillIndices": [
+            93003210
+        ],
+        "BasicSkillIndex": 93003200,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93003201,
+        "AddSkillIndex2": 93003202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 27,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 28,
+        "ActiveConditionSkillIndices": [
+            93003810
+        ],
+        "BasicSkillIndex": 93003800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003801,
+        "AddSkillIndex2": 93003802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 29,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 30,
+        "ActiveConditionSkillIndices": [
+            93005410
+        ],
+        "BasicSkillIndex": 93005400,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93005401,
+        "AddSkillIndex2": 93005402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 31,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 32,
+        "ActiveConditionSkillIndices": [
+            93006210
+        ],
+        "BasicSkillIndex": 93006200,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93006201,
+        "AddSkillIndex2": 93006202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 33,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 34,
+        "ActiveConditionSkillIndices": [
+            93001010
+        ],
+        "BasicSkillIndex": 93001000,
+        "MaxUseCount": 8,
+        "AddSkillIndex1": 93001001,
+        "AddSkillIndex2": 93001002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 35,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 36,
+        "ActiveConditionSkillIndices": [
+            93002610
+        ],
+        "BasicSkillIndex": 93002600,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93002601,
+        "AddSkillIndex2": 93002602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 37,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 38,
+        "ActiveConditionSkillIndices": [
+            93004010
+        ],
+        "BasicSkillIndex": 93004000,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93004001,
+        "AddSkillIndex2": 93004002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 39,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 40,
+        "ActiveConditionSkillIndices": [
+            93007510
+        ],
+        "BasicSkillIndex": 93007500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93007501,
+        "AddSkillIndex2": 93007502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 41,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 42,
+        "ActiveConditionSkillIndices": [
+            93007710
+        ],
+        "BasicSkillIndex": 93007700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93007701,
+        "AddSkillIndex2": 93007702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 43,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 44,
+        "ActiveConditionSkillIndices": [
+            93003410
+        ],
+        "BasicSkillIndex": 93003400,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003401,
+        "AddSkillIndex2": 93003402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 45,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 46,
+        "ActiveConditionSkillIndices": [
+            93005110
+        ],
+        "BasicSkillIndex": 93005100,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93005101,
+        "AddSkillIndex2": 93005102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 47,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 48,
+        "ActiveConditionSkillIndices": [
+            93002210
+        ],
+        "BasicSkillIndex": 93002200,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93002201,
+        "AddSkillIndex2": 93002202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 49,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 50,
+        "ActiveConditionSkillIndices": [
+            93008610
+        ],
+        "BasicSkillIndex": 93008600,
+        "MaxUseCount": 8,
+        "AddSkillIndex1": 93008601,
+        "AddSkillIndex2": 93008602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 51,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 52,
+        "ActiveConditionSkillIndices": [
+            93000910
+        ],
+        "BasicSkillIndex": 93000900,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93000901,
+        "AddSkillIndex2": 93000902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 53,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 54,
+        "ActiveConditionSkillIndices": [
+            93008110
+        ],
+        "BasicSkillIndex": 93008100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008101,
+        "AddSkillIndex2": 93008102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 55,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 56,
+        "ActiveConditionSkillIndices": [
+            93001810
+        ],
+        "BasicSkillIndex": 93001800,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93001801,
+        "AddSkillIndex2": 93001802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 57,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 58,
+        "ActiveConditionSkillIndices": [
+            93009410
+        ],
+        "BasicSkillIndex": 93009400,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93009401,
+        "AddSkillIndex2": 93009402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 59,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 60,
+        "ActiveConditionSkillIndices": [
+            93008810,
+            93008812,
+            93008813
+        ],
+        "BasicSkillIndex": 93008800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008801,
+        "AddSkillIndex2": 93008802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 61,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 62,
+        "ActiveConditionSkillIndices": [
+            93002810
+        ],
+        "BasicSkillIndex": 93002800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93002801,
+        "AddSkillIndex2": 93002802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 63,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 64,
+        "ActiveConditionSkillIndices": [
+            93006510
+        ],
+        "BasicSkillIndex": 93006500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93006501,
+        "AddSkillIndex2": 93006502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 65,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 66,
+        "ActiveConditionSkillIndices": [
+            93010010,
+            93010011
+        ],
+        "BasicSkillIndex": 93010000,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93010001,
+        "AddSkillIndex2": 93010002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 67,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 68,
+        "ActiveConditionSkillIndices": [
+            93005310,
+            93005311
+        ],
+        "BasicSkillIndex": 93005300,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93005301,
+        "AddSkillIndex2": 93005302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 69,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 70,
+        "ActiveConditionSkillIndices": [
+            93004810
+        ],
+        "BasicSkillIndex": 93004800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93004801,
+        "AddSkillIndex2": 93004802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 71,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 72,
+        "ActiveConditionSkillIndices": [
+            93009610
+        ],
+        "BasicSkillIndex": 93009600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93009601,
+        "AddSkillIndex2": 93009602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 73,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 74,
+        "ActiveConditionSkillIndices": [
+            93003110
+        ],
+        "BasicSkillIndex": 93003100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003101,
+        "AddSkillIndex2": 93003102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 75,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 76,
+        "ActiveConditionSkillIndices": [
+            93008010,
+            93008012
+        ],
+        "BasicSkillIndex": 93008000,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008001,
+        "AddSkillIndex2": 93008002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 77,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 78,
+        "ActiveConditionSkillIndices": [
+            93002910
+        ],
+        "BasicSkillIndex": 93002900,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93002901,
+        "AddSkillIndex2": 93002902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 79,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 80,
+        "ActiveConditionSkillIndices": [
+            93006010
+        ],
+        "BasicSkillIndex": 93006000,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93006001,
+        "AddSkillIndex2": 93006002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 81,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 82,
+        "ActiveConditionSkillIndices": [
+            93006110,
+            93006111
+        ],
+        "BasicSkillIndex": 93006100,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93006101,
+        "AddSkillIndex2": 93006102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 83,
+        "StackTypeName": 84,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 85,
+        "ActiveConditionSkillIndices": [
+            93001510,
+            93001512
+        ],
+        "BasicSkillIndex": 93001500,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93001501,
+        "AddSkillIndex2": 93001502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 86,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 87,
+        "ActiveConditionSkillIndices": [
+            93002410
+        ],
+        "BasicSkillIndex": 93002400,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93002401,
+        "AddSkillIndex2": 93002402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 88,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 89,
+        "ActiveConditionSkillIndices": [
+            93008210
+        ],
+        "BasicSkillIndex": 93008200,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93008201,
+        "AddSkillIndex2": 93008202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 90,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 91,
+        "ActiveConditionSkillIndices": [
+            93010110,
+            93010111
+        ],
+        "BasicSkillIndex": 93010100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93010101,
+        "AddSkillIndex2": 93010102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 92,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 93,
+        "ActiveConditionSkillIndices": [
+            93001610
+        ],
+        "BasicSkillIndex": 93001600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93001601,
+        "AddSkillIndex2": 93001602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 94,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 95,
+        "ActiveConditionSkillIndices": [
+            93009010
+        ],
+        "BasicSkillIndex": 93009000,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93009001,
+        "AddSkillIndex2": 93009002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 96,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 97,
+        "ActiveConditionSkillIndices": [
+            93007110
+        ],
+        "BasicSkillIndex": 93007100,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93007101,
+        "AddSkillIndex2": 93007102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 98,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 99,
+        "ActiveConditionSkillIndices": [
+            93009510
+        ],
+        "BasicSkillIndex": 93009500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93009501,
+        "AddSkillIndex2": 93009502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 100,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 101,
+        "ActiveConditionSkillIndices": [
+            93008510
+        ],
+        "BasicSkillIndex": 93008500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008501,
+        "AddSkillIndex2": 93008502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 102,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 103,
+        "ActiveConditionSkillIndices": [
+            93000710
+        ],
+        "BasicSkillIndex": 93000700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93000701,
+        "AddSkillIndex2": 93000702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 104,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 105,
+        "ActiveConditionSkillIndices": [
+            93001710
+        ],
+        "BasicSkillIndex": 93001700,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93001701,
+        "AddSkillIndex2": 93001702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 106,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 107,
+        "ActiveConditionSkillIndices": [
+            93007010
+        ],
+        "BasicSkillIndex": 93007000,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93007001,
+        "AddSkillIndex2": 93007002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 108,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 109,
+        "ActiveConditionSkillIndices": [
+            93007410,
+            93007413
+        ],
+        "BasicSkillIndex": 93007400,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93007401,
+        "AddSkillIndex2": 93007402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 110,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 111,
+        "ActiveConditionSkillIndices": [
+            93009110
+        ],
+        "BasicSkillIndex": 93009100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93009101,
+        "AddSkillIndex2": 93009102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 112,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 113,
+        "ActiveConditionSkillIndices": [
+            93001210
+        ],
+        "BasicSkillIndex": 93001200,
+        "MaxUseCount": 8,
+        "AddSkillIndex1": 93001201,
+        "AddSkillIndex2": 93001202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 114,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 115,
+        "ActiveConditionSkillIndices": [
+            93002010
+        ],
+        "BasicSkillIndex": 93002000,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93002001,
+        "AddSkillIndex2": 93002002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 116,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 117,
+        "ActiveConditionSkillIndices": [
+            93000210
+        ],
+        "BasicSkillIndex": 93000200,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93000201,
+        "AddSkillIndex2": 93000202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 118,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 119,
+        "ActiveConditionSkillIndices": [
+            93002110
+        ],
+        "BasicSkillIndex": 93002100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93002101,
+        "AddSkillIndex2": 93002102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 120,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 121,
+        "ActiveConditionSkillIndices": [
+            93003510
+        ],
+        "BasicSkillIndex": 93003500,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93003501,
+        "AddSkillIndex2": 93003502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 122,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 123,
+        "ActiveConditionSkillIndices": [
+            93004310
+        ],
+        "BasicSkillIndex": 93004300,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93004301,
+        "AddSkillIndex2": 93004302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 124,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 125,
+        "ActiveConditionSkillIndices": [
+            93001110
+        ],
+        "BasicSkillIndex": 93001100,
+        "MaxUseCount": 8,
+        "AddSkillIndex1": 93001101,
+        "AddSkillIndex2": 93001102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 126,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 127,
+        "ActiveConditionSkillIndices": [
+            93008710,
+            93008711
+        ],
+        "BasicSkillIndex": 93008700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008701,
+        "AddSkillIndex2": 93008702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 128,
+        "StackTypeName": 84,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 129,
+        "ActiveConditionSkillIndices": [
+            93004110
+        ],
+        "BasicSkillIndex": 93004100,
+        "MaxUseCount": 4,
+        "AddSkillIndex1": 93004101,
+        "AddSkillIndex2": 93004102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 130,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 131,
+        "ActiveConditionSkillIndices": [
+            93010210
+        ],
+        "BasicSkillIndex": 93010200,
+        "MaxUseCount": 4,
+        "AddSkillIndex1": 93010201,
+        "AddSkillIndex2": 93010202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 132,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 133,
+        "ActiveConditionSkillIndices": [
+            93003910
+        ],
+        "BasicSkillIndex": 93003900,
+        "MaxUseCount": 4,
+        "AddSkillIndex1": 93003901,
+        "AddSkillIndex2": 93003902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 134,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 135,
+        "ActiveConditionSkillIndices": [
+            93004410
+        ],
+        "BasicSkillIndex": 93004400,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93004401,
+        "AddSkillIndex2": 93004402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 136,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 137,
+        "ActiveConditionSkillIndices": [
+            93006410
+        ],
+        "BasicSkillIndex": 93006400,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93006401,
+        "AddSkillIndex2": 93006402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 138,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 139,
+        "ActiveConditionSkillIndices": [
+            93007810,
+            93007812
+        ],
+        "BasicSkillIndex": 93007800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93007801,
+        "AddSkillIndex2": 93007802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 140,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 141,
+        "ActiveConditionSkillIndices": [
+            93007310
+        ],
+        "BasicSkillIndex": 93007300,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93007301,
+        "AddSkillIndex2": 93007302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 142,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 143,
+        "ActiveConditionSkillIndices": [
+            93002310
+        ],
+        "BasicSkillIndex": 93002300,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93002301,
+        "AddSkillIndex2": 93002302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 144,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 145,
+        "ActiveConditionSkillIndices": [
+            93005610
+        ],
+        "BasicSkillIndex": 93005600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93005601,
+        "AddSkillIndex2": 93005602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 146,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 147,
+        "ActiveConditionSkillIndices": [
+            93000410
+        ],
+        "BasicSkillIndex": 93000400,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93000401,
+        "AddSkillIndex2": 93000402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 148,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 149,
+        "ActiveConditionSkillIndices": [
+            93001910
+        ],
+        "BasicSkillIndex": 93001900,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93001901,
+        "AddSkillIndex2": 93001902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 150,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 151,
+        "ActiveConditionSkillIndices": [
+            93009810
+        ],
+        "BasicSkillIndex": 93009800,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93009801,
+        "AddSkillIndex2": 93009802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 152,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 153,
+        "ActiveConditionSkillIndices": [
+            93006710
+        ],
+        "BasicSkillIndex": 93006700,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93006701,
+        "AddSkillIndex2": 93006702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 154,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 155,
+        "ActiveConditionSkillIndices": [
+            93007910
+        ],
+        "BasicSkillIndex": 93007900,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93007901,
+        "AddSkillIndex2": 93007902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 156,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 157,
+        "ActiveConditionSkillIndices": [
+            93009710,
+            93009713
+        ],
+        "BasicSkillIndex": 93009700,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93009701,
+        "AddSkillIndex2": 93009702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 158,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 159,
+        "ActiveConditionSkillIndices": [
+            93003610,
+            93003612
+        ],
+        "BasicSkillIndex": 93003600,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93003601,
+        "AddSkillIndex2": 93003602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 160,
+        "StackTypeName": 84,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 161,
+        "ActiveConditionSkillIndices": [
+            93002710
+        ],
+        "BasicSkillIndex": 93002700,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93002701,
+        "AddSkillIndex2": 93002702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 162,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 163,
+        "ActiveConditionSkillIndices": [
+            93002510,
+            93002513
+        ],
+        "BasicSkillIndex": 93002500,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93002501,
+        "AddSkillIndex2": 93002502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 164,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 165,
+        "ActiveConditionSkillIndices": [
+            93011110,
+            93011111,
+            93011112
+        ],
+        "BasicSkillIndex": 93011100,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93011101,
+        "AddSkillIndex2": 93011102,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 166,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 167,
+        "ActiveConditionSkillIndices": [
+            93004510
+        ],
+        "BasicSkillIndex": 93004500,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93004501,
+        "AddSkillIndex2": 93004502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 168,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 169,
+        "ActiveConditionSkillIndices": [
+            93003010
+        ],
+        "BasicSkillIndex": 93003000,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93003001,
+        "AddSkillIndex2": 93003002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 170,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 171,
+        "ActiveConditionSkillIndices": [
+            93006910
+        ],
+        "BasicSkillIndex": 93006900,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93006901,
+        "AddSkillIndex2": 93006902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 172,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 173,
+        "ActiveConditionSkillIndices": [
+            93005010
+        ],
+        "BasicSkillIndex": 93005000,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93005001,
+        "AddSkillIndex2": 93005002,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 174,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 175,
+        "ActiveConditionSkillIndices": [
+            93009910
+        ],
+        "BasicSkillIndex": 93009900,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93009901,
+        "AddSkillIndex2": 93009902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 176,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 177,
+        "ActiveConditionSkillIndices": [
+            93006810
+        ],
+        "BasicSkillIndex": 93006800,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93006801,
+        "AddSkillIndex2": 93006802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 178,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 179,
+        "ActiveConditionSkillIndices": [
+            93001410
+        ],
+        "BasicSkillIndex": 93001400,
+        "MaxUseCount": 0,
+        "AddSkillIndex1": 93001401,
+        "AddSkillIndex2": 93001402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 180,
+        "StackTypeName": 0,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 181,
+        "ActiveConditionSkillIndices": [
+            93005910
+        ],
+        "BasicSkillIndex": 93005900,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93005901,
+        "AddSkillIndex2": 93005902,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 182,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 183,
+        "ActiveConditionSkillIndices": [
+            93005210
+        ],
+        "BasicSkillIndex": 93005200,
+        "MaxUseCount": 3,
+        "AddSkillIndex1": 93005201,
+        "AddSkillIndex2": 93005202,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 184,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 185,
+        "ActiveConditionSkillIndices": [
+            93005710
+        ],
+        "BasicSkillIndex": 93005700,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93005701,
+        "AddSkillIndex2": 93005702,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 186,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 187,
+        "ActiveConditionSkillIndices": [
+            93006310,
+            93006311
+        ],
+        "BasicSkillIndex": 93006300,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93006301,
+        "AddSkillIndex2": 93006302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 188,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 189,
+        "ActiveConditionSkillIndices": [
+            93001310
+        ],
+        "BasicSkillIndex": 93001300,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93001301,
+        "AddSkillIndex2": 93001302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 190,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 191,
+        "ActiveConditionSkillIndices": [
+            93005510
+        ],
+        "BasicSkillIndex": 93005500,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93005501,
+        "AddSkillIndex2": 93005502,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 192,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 193,
+        "ActiveConditionSkillIndices": [
+            93006610
+        ],
+        "BasicSkillIndex": 93006600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93006601,
+        "AddSkillIndex2": 93006602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 194,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 195,
+        "ActiveConditionSkillIndices": [
+            93008310
+        ],
+        "BasicSkillIndex": 93008300,
+        "MaxUseCount": 5,
+        "AddSkillIndex1": 93008301,
+        "AddSkillIndex2": 93008302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 196,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 197,
+        "ActiveConditionSkillIndices": [
+            93008410
+        ],
+        "BasicSkillIndex": 93008400,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93008401,
+        "AddSkillIndex2": 93008402,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 198,
+        "StackTypeName": 6,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 199,
+        "ActiveConditionSkillIndices": [
+            93005810
+        ],
+        "BasicSkillIndex": 93005800,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93005801,
+        "AddSkillIndex2": 93005802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 200,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 201,
+        "ActiveConditionSkillIndices": [
+            93007610
+        ],
+        "BasicSkillIndex": 93007600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93007601,
+        "AddSkillIndex2": 93007602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 202,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 203,
+        "ActiveConditionSkillIndices": [
+            93000310,
+            93000311
+        ],
+        "BasicSkillIndex": 93000300,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93000301,
+        "AddSkillIndex2": 93000302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 204,
+        "StackTypeName": 17,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 205,
+        "ActiveConditionSkillIndices": [
+            93000610
+        ],
+        "BasicSkillIndex": 93000600,
+        "MaxUseCount": 6,
+        "AddSkillIndex1": 93000601,
+        "AddSkillIndex2": 93000602,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 206,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 207,
+        "ActiveConditionSkillIndices": [
+            93000810
+        ],
+        "BasicSkillIndex": 93000800,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93000801,
+        "AddSkillIndex2": 93000802,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 208,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    },
+    {
+        "ItemCode": 209,
+        "ActiveConditionSkillIndices": [
+            93009310
+        ],
+        "BasicSkillIndex": 93009300,
+        "MaxUseCount": 7,
+        "AddSkillIndex1": 93009301,
+        "AddSkillIndex2": 93009302,
+        "AddSkillIndex3": 0,
+        "AddSkillIndex4": 0,
+        "AddSkillIndex5": 0,
+        "CheckState": 210,
+        "StackTypeName": 3,
+        "UpgradeDescription": null
+    }
+]

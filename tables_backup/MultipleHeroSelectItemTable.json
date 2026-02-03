@@ -1,0 +1,78 @@
+[
+    {
+        "ItemCode": 1,
+        "HeroStar": 5,
+        "HeroLevel": 1,
+        "HeroTranscend": 0,
+        "AllOwnedRewardIndex1": 454,
+        "AllOwendRewardDesc1": 0,
+        "SelectTitle1": 2,
+        "SelectDesc1": 3,
+        "HeroIndices1": [
+            72,
+            56,
+            73,
+            57,
+            70,
+            86,
+            77,
+            100,
+            64,
+            55
+        ],
+        "AllOwnedRewardIndex2": 454,
+        "AllOwendRewardDesc2": 0,
+        "SelectTitle2": 4,
+        "SelectDesc2": 3,
+        "HeroIndices2": [
+            101,
+            87,
+            79,
+            48,
+            41,
+            25,
+            54,
+            34,
+            43,
+            42
+        ]
+    },
+    {
+        "ItemCode": 5,
+        "HeroStar": 0,
+        "HeroLevel": 0,
+        "HeroTranscend": 0,
+        "AllOwnedRewardIndex1": 0,
+        "AllOwendRewardDesc1": 0,
+        "SelectTitle1": 0,
+        "SelectDesc1": 3,
+        "HeroIndices1": [
+            50,
+            56,
+            67,
+            57,
+            70,
+            86,
+            77,
+            58,
+            63,
+            25
+        ],
+        "AllOwnedRewardIndex2": 454,
+        "AllOwendRewardDesc2": 0,
+        "SelectTitle2": 4,
+        "SelectDesc2": 3,
+        "HeroIndices2": [
+            101,
+            27,
+            79,
+            48,
+            91,
+            25,
+            89,
+            30,
+            43,
+            22
+        ]
+    }
+]

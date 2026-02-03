@@ -1,0 +1,1994 @@
+[
+    {
+        "ChapterIndex": 99,
+        "PositionX": -1052,
+        "PositionY": 210,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 1568,
+        "PositionY": 147,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            2,
+            3,
+            4,
+            8,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 1228,
+        "PositionY": -472,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            2,
+            3,
+            4,
+            9,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -1117,
+        "PositionY": -477,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            2,
+            3,
+            4,
+            10,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 379,
+        "PositionY": -1279,
+        "PropType": 0,
+        "PropName": 11,
+        "PropAction": [
+            2,
+            3,
+            4,
+            12,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -800,
+        "PositionY": 1200,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            2,
+            3,
+            4,
+            13,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 1,
+        "PositionX": -457,
+        "PositionY": 695,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            15,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 1,
+        "PositionX": -1632,
+        "PositionY": 590,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            16,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 1,
+        "PositionX": 1650,
+        "PositionY": -27,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            17,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            18,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 1,
+        "PositionX": -454,
+        "PositionY": 322,
+        "PropType": 2,
+        "PropName": 20,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            21,
+            22
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 2,
+        "PositionX": -1610,
+        "PositionY": 580,
+        "PropType": 0,
+        "PropName": 23,
+        "PropAction": [
+            2,
+            3,
+            4,
+            24,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": [
+            25,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 2,
+        "PositionX": -1510,
+        "PositionY": 492,
+        "PropType": 1,
+        "PropName": 26,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            28
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 2,
+        "PositionX": 230,
+        "PositionY": 529,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 3,
+        "PositionX": -2590,
+        "PositionY": 666,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 4,
+        "PositionX": 1110,
+        "PositionY": -128,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 5,
+        "PositionX": -385,
+        "PositionY": 184,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 6,
+        "PositionX": -860,
+        "PositionY": 340,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 7,
+        "PositionX": 844,
+        "PositionY": 94,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            32,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 7,
+        "PositionX": 820,
+        "PositionY": 806,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 8,
+        "PositionX": -750,
+        "PositionY": -353,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 9,
+        "PositionX": -1300,
+        "PositionY": 1130,
+        "PropType": 0,
+        "PropName": 29,
+        "PropAction": [
+            30,
+            31
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 7,
+        "PositionX": 440,
+        "PositionY": 0,
+        "PropType": 2,
+        "PropName": 33,
+        "PropAction": null,
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 517,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            35
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 517,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            35,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 1056,
+        "PositionY": 604,
+        "PropType": 1,
+        "PropName": 26,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            38
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 517,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 26,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            39
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 517,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 26,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            40
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            41,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            41
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            42,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            42
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            43,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            43
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -225,
+        "PositionY": -395,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            44,
+            45
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -225,
+        "PositionY": -395,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            44
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -232,
+        "PositionY": -719,
+        "PropType": 1,
+        "PropName": 46,
+        "PropAction": null,
+        "Scale": 120,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            44
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            47,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            47
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            48,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            48
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            49,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            49
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            50,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            50,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            51,
+            52,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            51,
+            52,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            53,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            53
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            54,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            54
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -875,
+        "PositionY": -676,
+        "PropType": 1,
+        "PropName": 55,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 3,
+        "ConditionArgs": [
+            56,
+            57,
+            58,
+            59
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -875,
+        "PositionY": -626,
+        "PropType": 1,
+        "PropName": 55,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 3,
+        "ConditionArgs": [
+            56,
+            60,
+            27,
+            61
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 515,
+        "PositionY": -58,
+        "PropType": 1,
+        "PropName": 26,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            62
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -600,
+        "PositionY": 1000,
+        "PropType": 1,
+        "PropName": 55,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 4,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 336,
+        "PositionY": -628,
+        "PropType": 1,
+        "PropName": 63,
+        "PropAction": null,
+        "Scale": 220,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            51,
+            64
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            51,
+            65
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 220,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            51,
+            65
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            66,
+            45
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            66,
+            45
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            67,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            67
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            68,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            68
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            69,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            69
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -620,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            70
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 515,
+        "PositionY": -100,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            71
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 515,
+        "PositionY": -100,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            71
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 995,
+        "PositionX": -880,
+        "PositionY": 800,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            72,
+            3,
+            4,
+            73,
+            6,
+            7,
+            57
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 31
+    },
+    {
+        "ChapterIndex": 995,
+        "PositionX": 850,
+        "PositionY": 770,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            72,
+            3,
+            4,
+            74,
+            6,
+            7,
+            75
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 31
+    },
+    {
+        "ChapterIndex": 995,
+        "PositionX": 1350,
+        "PositionY": 150,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            72,
+            3,
+            4,
+            76,
+            6,
+            7,
+            77
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 31
+    },
+    {
+        "ChapterIndex": 995,
+        "PositionX": 150,
+        "PositionY": -190,
+        "PropType": 0,
+        "PropName": 1,
+        "PropAction": [
+            72,
+            3,
+            4,
+            78,
+            6,
+            7,
+            79
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 31
+    },
+    {
+        "ChapterIndex": 6,
+        "PositionX": -287,
+        "PositionY": 595,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            80,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 6,
+        "PositionX": 1845,
+        "PositionY": 121,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            81,
+            6,
+            7
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            82,
+            83,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 346,
+        "PositionY": -433,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            84,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 457,
+        "PositionY": -597,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            85,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 834,
+        "PositionY": -562,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            87,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 492,
+        "PositionY": -252,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            88,
+            6,
+            7
+        ],
+        "Scale": 85,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 721,
+        "PositionY": 50,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            89,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": -613,
+        "PositionY": -605,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            90,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": -363,
+        "PositionY": 94,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            91,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 151,
+        "PositionY": 829,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            92,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": -560,
+        "PositionY": 515,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            93,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": -1264,
+        "PositionY": -212,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            94,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 112,
+        "PositionY": -587,
+        "PropType": 0,
+        "PropName": 14,
+        "PropAction": [
+            2,
+            3,
+            4,
+            95,
+            6,
+            7
+        ],
+        "Scale": 80,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 97,
+        "PositionX": 112,
+        "PositionY": -528,
+        "PropType": 2,
+        "PropName": 96,
+        "PropAction": null,
+        "Scale": 48,
+        "Angle": 0,
+        "ConditionType": 1,
+        "ConditionArgs": [
+            86,
+            75,
+            19
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 180,
+        "PositionY": 646,
+        "PropType": 0,
+        "PropName": 97,
+        "PropAction": [
+            98,
+            99,
+            100,
+            101,
+            102
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": -13,
+        "PositionY": 634,
+        "PropType": 0,
+        "PropName": 97,
+        "PropAction": [
+            98,
+            103,
+            100,
+            101,
+            4
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 368,
+        "PositionY": 655,
+        "PropType": 0,
+        "PropName": 97,
+        "PropAction": [
+            98,
+            104,
+            100,
+            101,
+            105
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 50000,
+        "PositionX": -1984,
+        "PositionY": -250,
+        "PropType": 3,
+        "PropName": 106,
+        "PropAction": null,
+        "Scale": 70,
+        "Angle": 0,
+        "ConditionType": 5,
+        "ConditionArgs": [
+            83,
+            107
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 11,
+        "PositionX": -2796,
+        "PositionY": 119,
+        "PropType": 1,
+        "PropName": 108,
+        "PropAction": null,
+        "Scale": 330,
+        "Angle": 30,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            109,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            109
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "PositionX": 24,
+        "PositionY": -359,
+        "PropType": 0,
+        "PropName": 110,
+        "PropAction": [
+            111,
+            112,
+            57
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "PositionX": 42,
+        "PositionY": 691,
+        "PropType": 0,
+        "PropName": 110,
+        "PropAction": [
+            111,
+            113,
+            75
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "PositionX": 56,
+        "PositionY": 1749,
+        "PropType": 0,
+        "PropName": 110,
+        "PropAction": [
+            111,
+            114,
+            79
+        ],
+        "Scale": 100,
+        "Angle": 0,
+        "ConditionType": 0,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            115,
+            45
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            115
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 886,
+        "PositionY": 155,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 7,
+        "ConditionArgs": [
+            116,
+            58
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 995,
+        "PositionX": -703,
+        "PositionY": 527,
+        "PropType": 1,
+        "PropName": 55,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 8,
+        "ConditionArgs": null,
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            117,
+            45
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 460,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            117
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            118,
+            37
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            118
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 36,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            119
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 500,
+        "PositionY": -507,
+        "PropType": 1,
+        "PropName": 34,
+        "PropAction": null,
+        "Scale": 140,
+        "Angle": 0,
+        "ConditionType": 2,
+        "ConditionArgs": [
+            27,
+            119
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 120,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            122,
+            123
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 124,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            125,
+            126
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 127,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            128,
+            129
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 130,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            131,
+            132
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 133,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            134,
+            135
+        ],
+        "LayerName": 0
+    },
+    {
+        "ChapterIndex": 99,
+        "PositionX": 185,
+        "PositionY": -582,
+        "PropType": 1,
+        "PropName": 136,
+        "PropAction": null,
+        "Scale": 50,
+        "Angle": 0,
+        "ConditionType": 9,
+        "ConditionArgs": [
+            121,
+            137,
+            138
+        ],
+        "LayerName": 0
+    }
+]

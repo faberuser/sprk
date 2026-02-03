@@ -1,0 +1,65 @@
+[
+    {
+        "Index": 1,
+        "OpenNpcCode": 1,
+        "PortalPath": 2,
+        "PortraitPath": 3,
+        "DungeonName": 4,
+        "DungeonDesc": 5,
+        "SelectDungeonName": 6
+    },
+    {
+        "Index": 2,
+        "OpenNpcCode": 7,
+        "PortalPath": 8,
+        "PortraitPath": 9,
+        "DungeonName": 10,
+        "DungeonDesc": 11,
+        "SelectDungeonName": 12
+    },
+    {
+        "Index": 3,
+        "OpenNpcCode": 13,
+        "PortalPath": 14,
+        "PortraitPath": 15,
+        "DungeonName": 16,
+        "DungeonDesc": 17,
+        "SelectDungeonName": 18
+    },
+    {
+        "Index": 4,
+        "OpenNpcCode": 19,
+        "PortalPath": 20,
+        "PortraitPath": 21,
+        "DungeonName": 22,
+        "DungeonDesc": 23,
+        "SelectDungeonName": 24
+    },
+    {
+        "Index": 5,
+        "OpenNpcCode": 25,
+        "PortalPath": 26,
+        "PortraitPath": 27,
+        "DungeonName": 28,
+        "DungeonDesc": 29,
+        "SelectDungeonName": 30
+    },
+    {
+        "Index": 6,
+        "OpenNpcCode": 31,
+        "PortalPath": 32,
+        "PortraitPath": 33,
+        "DungeonName": 34,
+        "DungeonDesc": 35,
+        "SelectDungeonName": 36
+    },
+    {
+        "Index": 7,
+        "OpenNpcCode": 37,
+        "PortalPath": 38,
+        "PortraitPath": 39,
+        "DungeonName": 40,
+        "DungeonDesc": 41,
+        "SelectDungeonName": 42
+    }
+]

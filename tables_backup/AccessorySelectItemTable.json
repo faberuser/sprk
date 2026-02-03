@@ -1,0 +1,1160 @@
+[
+    {
+        "ItemCode": 1,
+        "AccessoryIndex": 3100017,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            73,
+            75,
+            78,
+            87,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96
+        ]
+    },
+    {
+        "ItemCode": 2,
+        "AccessoryIndex": 3901711,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 3,
+        "AccessoryIndex": 3401401,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 4,
+        "AccessoryIndex": 3110004,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            73
+        ]
+    },
+    {
+        "ItemCode": 5,
+        "AccessoryIndex": 3901401,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 6,
+        "AccessoryIndex": 3101201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 7,
+        "AccessoryIndex": 3100902,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 8,
+        "AccessoryIndex": 3901002,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 9,
+        "AccessoryIndex": 3100901,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 10,
+        "AccessoryIndex": 3200401,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 11,
+        "AccessoryIndex": 3901812,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 12,
+        "AccessoryIndex": 3110006,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            55
+        ]
+    },
+    {
+        "ItemCode": 13,
+        "AccessoryIndex": 3200010,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 14,
+        "AccessoryIndex": 3101401,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 15,
+        "AccessoryIndex": 3110011,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            53
+        ]
+    },
+    {
+        "ItemCode": 16,
+        "AccessoryIndex": 3102503,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 17,
+        "AccessoryIndex": 3103014,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 18,
+        "AccessoryIndex": 3100201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 19,
+        "AccessoryIndex": 3901111,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 20,
+        "AccessoryIndex": 3901101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 21,
+        "AccessoryIndex": 3901201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 22,
+        "AccessoryIndex": 3110024,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            51
+        ]
+    },
+    {
+        "ItemCode": 23,
+        "AccessoryIndex": 3901211,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 24,
+        "AccessoryIndex": 3401301,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 25,
+        "AccessoryIndex": 3102502,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 26,
+        "AccessoryIndex": 3901202,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 27,
+        "AccessoryIndex": 3102510,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 28,
+        "AccessoryIndex": 3901212,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 29,
+        "AccessoryIndex": 3110008,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            62
+        ]
+    },
+    {
+        "ItemCode": 30,
+        "AccessoryIndex": 3901713,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 31,
+        "AccessoryIndex": 3100401,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 32,
+        "AccessoryIndex": 3901702,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 33,
+        "AccessoryIndex": 3901703,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 34,
+        "AccessoryIndex": 3102507,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 35,
+        "AccessoryIndex": 3901402,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 36,
+        "AccessoryIndex": 3110022,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            99
+        ]
+    },
+    {
+        "ItemCode": 37,
+        "AccessoryIndex": 3101301,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 38,
+        "AccessoryIndex": 3102505,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 39,
+        "AccessoryIndex": 3900802,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 40,
+        "AccessoryIndex": 3101501,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 41,
+        "AccessoryIndex": 3900801,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 42,
+        "AccessoryIndex": 3110015,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            84
+        ]
+    },
+    {
+        "ItemCode": 43,
+        "AccessoryIndex": 3102504,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 44,
+        "AccessoryIndex": 3110016,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            85
+        ]
+    },
+    {
+        "ItemCode": 45,
+        "AccessoryIndex": 3900903,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 46,
+        "AccessoryIndex": 3901301,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 47,
+        "AccessoryIndex": 3110020,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            97
+        ]
+    },
+    {
+        "ItemCode": 48,
+        "AccessoryIndex": 3901302,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 49,
+        "AccessoryIndex": 3901311,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 50,
+        "AccessoryIndex": 3901303,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 51,
+        "AccessoryIndex": 3901312,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 52,
+        "AccessoryIndex": 3901313,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 53,
+        "AccessoryIndex": 3901403,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 54,
+        "AccessoryIndex": 3901802,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 55,
+        "AccessoryIndex": 3100501,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 56,
+        "AccessoryIndex": 3200001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 57,
+        "AccessoryIndex": 3901502,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 58,
+        "AccessoryIndex": 3110018,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            90
+        ]
+    },
+    {
+        "ItemCode": 59,
+        "AccessoryIndex": 3200007,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 60,
+        "AccessoryIndex": 3103003,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 61,
+        "AccessoryIndex": 3103002,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 62,
+        "AccessoryIndex": 3103013,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 63,
+        "AccessoryIndex": 3103001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 64,
+        "AccessoryIndex": 3103012,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 65,
+        "AccessoryIndex": 3200004,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 66,
+        "AccessoryIndex": 3103011,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 67,
+        "AccessoryIndex": 3101001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 68,
+        "AccessoryIndex": 3103010,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 69,
+        "AccessoryIndex": 3110012,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            1
+        ]
+    },
+    {
+        "ItemCode": 70,
+        "AccessoryIndex": 3102201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 71,
+        "AccessoryIndex": 3103006,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 72,
+        "AccessoryIndex": 3901612,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 73,
+        "AccessoryIndex": 3103005,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 74,
+        "AccessoryIndex": 3103016,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 75,
+        "AccessoryIndex": 3901501,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 76,
+        "AccessoryIndex": 3103004,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 77,
+        "AccessoryIndex": 3103015,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 78,
+        "AccessoryIndex": 3110014,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            15
+        ]
+    },
+    {
+        "ItemCode": 79,
+        "AccessoryIndex": 3103009,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 80,
+        "AccessoryIndex": 3900902,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 81,
+        "AccessoryIndex": 3103008,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 82,
+        "AccessoryIndex": 3900901,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 83,
+        "AccessoryIndex": 3901813,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 84,
+        "AccessoryIndex": 3901803,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 85,
+        "AccessoryIndex": 3300101,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 86,
+        "AccessoryIndex": 3300102,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 87,
+        "AccessoryIndex": 3400901,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 88,
+        "AccessoryIndex": 3100001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 89,
+        "AccessoryIndex": 3901003,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 90,
+        "AccessoryIndex": 3110025,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            45
+        ]
+    },
+    {
+        "ItemCode": 91,
+        "AccessoryIndex": 3901001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 92,
+        "AccessoryIndex": 3110002,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            66
+        ]
+    },
+    {
+        "ItemCode": 93,
+        "AccessoryIndex": 3102501,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 94,
+        "AccessoryIndex": 3200101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 95,
+        "AccessoryIndex": 3400016,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 96,
+        "AccessoryIndex": 3901113,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 97,
+        "AccessoryIndex": 3400017,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            73,
+            75,
+            78,
+            87,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96
+        ]
+    },
+    {
+        "ItemCode": 98,
+        "AccessoryIndex": 3401201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 99,
+        "AccessoryIndex": 3901103,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 100,
+        "AccessoryIndex": 3400007,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 101,
+        "AccessoryIndex": 3110007,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            47
+        ]
+    },
+    {
+        "ItemCode": 102,
+        "AccessoryIndex": 3101101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 103,
+        "AccessoryIndex": 3110013,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            2
+        ]
+    },
+    {
+        "ItemCode": 104,
+        "AccessoryIndex": 3100101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 105,
+        "AccessoryIndex": 3901102,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 106,
+        "AccessoryIndex": 3901112,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 107,
+        "AccessoryIndex": 3102509,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 108,
+        "AccessoryIndex": 3901602,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 109,
+        "AccessoryIndex": 3110005,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            4
+        ]
+    },
+    {
+        "ItemCode": 110,
+        "AccessoryIndex": 3901213,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 111,
+        "AccessoryIndex": 3110009,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            25
+        ]
+    },
+    {
+        "ItemCode": 112,
+        "AccessoryIndex": 3300001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 113,
+        "AccessoryIndex": 3401101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 114,
+        "AccessoryIndex": 3110004,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            73
+        ]
+    },
+    {
+        "ItemCode": 115,
+        "AccessoryIndex": 3110023,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            30
+        ]
+    },
+    {
+        "ItemCode": 116,
+        "AccessoryIndex": 3300004,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 117,
+        "AccessoryIndex": 3100013,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 118,
+        "AccessoryIndex": 3101601,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 119,
+        "AccessoryIndex": 3102001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 120,
+        "AccessoryIndex": 3101801,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 121,
+        "AccessoryIndex": 3100025,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 122,
+        "AccessoryIndex": 3110001,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            86
+        ]
+    },
+    {
+        "ItemCode": 123,
+        "AccessoryIndex": 3100015,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 124,
+        "AccessoryIndex": 3100014,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 125,
+        "AccessoryIndex": 3101803,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 126,
+        "AccessoryIndex": 3110019,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            95
+        ]
+    },
+    {
+        "ItemCode": 127,
+        "AccessoryIndex": 3900803,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 128,
+        "AccessoryIndex": 3102508,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 129,
+        "AccessoryIndex": 3110017,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            83
+        ]
+    },
+    {
+        "ItemCode": 130,
+        "AccessoryIndex": 3101805,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 131,
+        "AccessoryIndex": 3101804,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 132,
+        "AccessoryIndex": 3901601,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 133,
+        "AccessoryIndex": 3901503,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 134,
+        "AccessoryIndex": 3901611,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 135,
+        "AccessoryIndex": 3901603,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 136,
+        "AccessoryIndex": 3901613,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 137,
+        "AccessoryIndex": 3110010,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            3
+        ]
+    },
+    {
+        "ItemCode": 138,
+        "AccessoryIndex": 3110021,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            56
+        ]
+    },
+    {
+        "ItemCode": 139,
+        "AccessoryIndex": 3100801,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 140,
+        "AccessoryIndex": 3200701,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 141,
+        "AccessoryIndex": 3901801,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 142,
+        "AccessoryIndex": 3901811,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 143,
+        "AccessoryIndex": 3901712,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 144,
+        "AccessoryIndex": 3101701,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 145,
+        "AccessoryIndex": 3102101,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 146,
+        "AccessoryIndex": 3110003,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            64
+        ]
+    },
+    {
+        "ItemCode": 147,
+        "AccessoryIndex": 3110005,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            4
+        ]
+    },
+    {
+        "ItemCode": 148,
+        "AccessoryIndex": 3110006,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": [
+            55
+        ]
+    },
+    {
+        "ItemCode": 149,
+        "AccessoryIndex": 3102506,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 150,
+        "AccessoryIndex": 3101802,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 151,
+        "AccessoryIndex": 3101901,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 152,
+        "AccessoryIndex": 3901203,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 153,
+        "AccessoryIndex": 3400801,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 154,
+        "AccessoryIndex": 3200801,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 155,
+        "AccessoryIndex": 3100701,
+        "AllOwnedRewardIndex": 0,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 156,
+        "AccessoryIndex": 3200201,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    },
+    {
+        "ItemCode": 157,
+        "AccessoryIndex": 3901701,
+        "AllOwnedRewardIndex": 171,
+        "TargetHero": null
+    }
+]

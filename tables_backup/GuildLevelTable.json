@@ -1,0 +1,72 @@
+[
+    {
+        "Level": 1,
+        "ActivityPoint": 50000,
+        "TotalActivityPoint": 0,
+        "MaxMember": 23,
+        "MaxAdmin": 1
+    },
+    {
+        "Level": 2,
+        "ActivityPoint": 70000,
+        "TotalActivityPoint": 50000,
+        "MaxMember": 26,
+        "MaxAdmin": 2
+    },
+    {
+        "Level": 3,
+        "ActivityPoint": 100000,
+        "TotalActivityPoint": 120000,
+        "MaxMember": 29,
+        "MaxAdmin": 3
+    },
+    {
+        "Level": 4,
+        "ActivityPoint": 120000,
+        "TotalActivityPoint": 220000,
+        "MaxMember": 32,
+        "MaxAdmin": 4
+    },
+    {
+        "Level": 5,
+        "ActivityPoint": 140000,
+        "TotalActivityPoint": 340000,
+        "MaxMember": 35,
+        "MaxAdmin": 5
+    },
+    {
+        "Level": 6,
+        "ActivityPoint": 170000,
+        "TotalActivityPoint": 480000,
+        "MaxMember": 38,
+        "MaxAdmin": 6
+    },
+    {
+        "Level": 7,
+        "ActivityPoint": 190000,
+        "TotalActivityPoint": 650000,
+        "MaxMember": 41,
+        "MaxAdmin": 7
+    },
+    {
+        "Level": 8,
+        "ActivityPoint": 210000,
+        "TotalActivityPoint": 840000,
+        "MaxMember": 44,
+        "MaxAdmin": 8
+    },
+    {
+        "Level": 9,
+        "ActivityPoint": 230000,
+        "TotalActivityPoint": 1050000,
+        "MaxMember": 47,
+        "MaxAdmin": 9
+    },
+    {
+        "Level": 10,
+        "ActivityPoint": 0,
+        "TotalActivityPoint": 1280000,
+        "MaxMember": 50,
+        "MaxAdmin": 10
+    }
+]

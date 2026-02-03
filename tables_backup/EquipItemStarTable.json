@@ -1,0 +1,114 @@
+[
+    {
+        "Star": 0,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 1000,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 1,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 1200,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 2,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 1400,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 3,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 1600,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 4,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 1800,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 5,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1000
+    },
+    {
+        "Star": 6,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1100
+    },
+    {
+        "Star": 7,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1200
+    },
+    {
+        "Star": 8,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1300
+    },
+    {
+        "Star": 9,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1400
+    },
+    {
+        "Star": 10,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1500
+    },
+    {
+        "Star": 11,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1600
+    },
+    {
+        "Star": 12,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1700
+    },
+    {
+        "Star": 13,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1800
+    },
+    {
+        "Star": 14,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 1900
+    },
+    {
+        "Star": 15,
+        "RuneSlotOpen": 3,
+        "BuyPriceFactor": 1000,
+        "SellPriceFactor": 2000,
+        "StatFactor": 2000
+    }
+]

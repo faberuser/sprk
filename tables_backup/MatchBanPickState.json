@@ -1,0 +1,192 @@
+[
+    {
+        "State": 1,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": 1,
+        "LocalMessage2P": 1,
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 20,
+        "PenaltyTime4Deck2": 20,
+        "PenaltyTime4Deck3": 20,
+        "AnimMe1P": [
+            2,
+            3
+        ],
+        "AnimMe2P": [
+            2,
+            3
+        ]
+    },
+    {
+        "State": 2,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": 4,
+        "LocalMessage2P": 5,
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            6
+        ],
+        "AnimMe2P": [
+            7
+        ]
+    },
+    {
+        "State": 3,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": 5,
+        "LocalMessage2P": 4,
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            8
+        ],
+        "AnimMe2P": [
+            9
+        ]
+    },
+    {
+        "State": 4,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": 4,
+        "LocalMessage2P": 5,
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            9
+        ],
+        "AnimMe2P": [
+            8
+        ]
+    },
+    {
+        "State": 5,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": 5,
+        "LocalMessage2P": 4,
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            8
+        ],
+        "AnimMe2P": [
+            9
+        ]
+    },
+    {
+        "State": 6,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": 4,
+        "LocalMessage2P": 5,
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            9
+        ],
+        "AnimMe2P": [
+            8
+        ]
+    },
+    {
+        "State": 7,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": 5,
+        "LocalMessage2P": 4,
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+            8,
+            10
+        ],
+        "AnimMe2P": [
+            9,
+            11
+        ]
+    },
+    {
+        "State": 8,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": 12,
+        "LocalMessage2P": 12,
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 20,
+        "PenaltyTime4Deck2": 20,
+        "PenaltyTime4Deck3": 20,
+        "AnimMe1P": [
+            13
+        ],
+        "AnimMe2P": [
+            13
+        ]
+    },
+    {
+        "State": 9,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 0,
+        "SelectableCount8Deck": 0,
+        "LocalMessage1P": 14,
+        "LocalMessage2P": 14,
+        "WaitTime4Deck": 10,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 10,
+        "PenaltyTime4Deck3": 10,
+        "AnimMe1P": null,
+        "AnimMe2P": null
+    },
+    {
+        "State": 10,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 0,
+        "SelectableCount8Deck": 0,
+        "LocalMessage1P": 15,
+        "LocalMessage2P": 15,
+        "WaitTime4Deck": 0,
+        "PenaltyTime4Deck1": 0,
+        "PenaltyTime4Deck2": 0,
+        "PenaltyTime4Deck3": 0,
+        "AnimMe1P": [
+            16
+        ],
+        "AnimMe2P": [
+            16
+        ]
+    }
+]

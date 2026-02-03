@@ -1,0 +1,82 @@
+[
+    {
+        "ChapterIndex": 6002,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6003,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6004,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6005,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6006,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6007,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6008,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6009,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6010,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": true,
+        "IsDummyDungeon": false
+    },
+    {
+        "ChapterIndex": 6011,
+        "Name": 1,
+        "Description": 0,
+        "BonusGroup": 1,
+        "IsBonusDungeon": false,
+        "IsDummyDungeon": true
+    }
+]

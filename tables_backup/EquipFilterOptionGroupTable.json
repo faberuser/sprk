@@ -1,0 +1,92 @@
+[
+    {
+        "Index": 2,
+        "Key": 6,
+        "Step": 5,
+        "LocalKey": 7,
+        "Show": true,
+        "FieldTypeName": 8,
+        "FieldName": 9,
+        "DataTypeName": 5
+    },
+    {
+        "Index": 3,
+        "Key": 10,
+        "Step": 6,
+        "LocalKey": 11,
+        "Show": true,
+        "FieldTypeName": 12,
+        "FieldName": 10,
+        "DataTypeName": 13
+    },
+    {
+        "Index": 4,
+        "Key": 14,
+        "Step": 7,
+        "LocalKey": 15,
+        "Show": true,
+        "FieldTypeName": 16,
+        "FieldName": 14,
+        "DataTypeName": 5
+    },
+    {
+        "Index": 5,
+        "Key": 17,
+        "Step": 8,
+        "LocalKey": 18,
+        "Show": true,
+        "FieldTypeName": 19,
+        "FieldName": 17,
+        "DataTypeName": 20
+    },
+    {
+        "Index": 6,
+        "Key": 21,
+        "Step": 2,
+        "LocalKey": 22,
+        "Show": true,
+        "FieldTypeName": 19,
+        "FieldName": 23,
+        "DataTypeName": 5
+    },
+    {
+        "Index": 7,
+        "Key": 24,
+        "Step": 3,
+        "LocalKey": 25,
+        "Show": true,
+        "FieldTypeName": 19,
+        "FieldName": 26,
+        "DataTypeName": 5
+    },
+    {
+        "Index": 8,
+        "Key": 27,
+        "Step": 9,
+        "LocalKey": 28,
+        "Show": true,
+        "FieldTypeName": 12,
+        "FieldName": 29,
+        "DataTypeName": 20
+    },
+    {
+        "Index": 9,
+        "Key": 30,
+        "Step": 1,
+        "LocalKey": 31,
+        "Show": true,
+        "FieldTypeName": 32,
+        "FieldName": 33,
+        "DataTypeName": 20
+    },
+    {
+        "Index": 10,
+        "Key": 34,
+        "Step": 10,
+        "LocalKey": 35,
+        "Show": true,
+        "FieldTypeName": 32,
+        "FieldName": 36,
+        "DataTypeName": 20
+    }
+]

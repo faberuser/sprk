@@ -1,0 +1,372 @@
+[
+    48,
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 1,
+        "Index": 1,
+        "Floor": 0,
+        "NodeType": 0,
+        "RewardIndex": 0,
+        "DescKey": 1
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 41,
+        "Index": 41,
+        "Floor": 16,
+        "NodeType": 3,
+        "RewardIndex": 3,
+        "DescKey": 2
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 2,
+        "Index": 2,
+        "Floor": 1,
+        "NodeType": 1,
+        "RewardIndex": 0,
+        "DescKey": 3
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 3,
+        "Index": 3,
+        "Floor": 2,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 4,
+        "Index": 4,
+        "Floor": 2,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 5,
+        "Index": 5,
+        "Floor": 2,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 6,
+        "Index": 6,
+        "Floor": 2,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 7,
+        "Index": 7,
+        "Floor": 3,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 8,
+        "Index": 8,
+        "Floor": 3,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 9,
+        "Index": 9,
+        "Floor": 3,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 10,
+        "Index": 10,
+        "Floor": 4,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 11,
+        "Index": 11,
+        "Floor": 4,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 12,
+        "Index": 12,
+        "Floor": 5,
+        "NodeType": 2,
+        "RewardIndex": 1,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 13,
+        "Index": 13,
+        "Floor": 5,
+        "NodeType": 2,
+        "RewardIndex": 1,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 14,
+        "Index": 14,
+        "Floor": 5,
+        "NodeType": 2,
+        "RewardIndex": 1,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 15,
+        "Index": 15,
+        "Floor": 6,
+        "NodeType": 1,
+        "RewardIndex": 0,
+        "DescKey": 3
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 16,
+        "Index": 16,
+        "Floor": 7,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 17,
+        "Index": 17,
+        "Floor": 7,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 18,
+        "Index": 18,
+        "Floor": 7,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 19,
+        "Index": 19,
+        "Floor": 7,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 20,
+        "Index": 20,
+        "Floor": 8,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 21,
+        "Index": 21,
+        "Floor": 8,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 22,
+        "Index": 22,
+        "Floor": 8,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 23,
+        "Index": 23,
+        "Floor": 9,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 24,
+        "Index": 24,
+        "Floor": 9,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 25,
+        "Index": 25,
+        "Floor": 10,
+        "NodeType": 2,
+        "RewardIndex": 2,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 26,
+        "Index": 26,
+        "Floor": 10,
+        "NodeType": 2,
+        "RewardIndex": 2,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 27,
+        "Index": 27,
+        "Floor": 10,
+        "NodeType": 2,
+        "RewardIndex": 2,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 28,
+        "Index": 28,
+        "Floor": 11,
+        "NodeType": 1,
+        "RewardIndex": 0,
+        "DescKey": 3
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 29,
+        "Index": 29,
+        "Floor": 12,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 30,
+        "Index": 30,
+        "Floor": 12,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 31,
+        "Index": 31,
+        "Floor": 12,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 32,
+        "Index": 32,
+        "Floor": 12,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 33,
+        "Index": 33,
+        "Floor": 13,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 34,
+        "Index": 34,
+        "Floor": 13,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 35,
+        "Index": 35,
+        "Floor": 13,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 36,
+        "Index": 36,
+        "Floor": 14,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 37,
+        "Index": 37,
+        "Floor": 14,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 38,
+        "Index": 38,
+        "Floor": 15,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 39,
+        "Index": 39,
+        "Floor": 15,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    },
+    {
+        "ChapterIndex": 60000,
+        "DungeonIndex": 40,
+        "Index": 40,
+        "Floor": 15,
+        "NodeType": 2,
+        "RewardIndex": 0,
+        "DescKey": 0
+    }
+]

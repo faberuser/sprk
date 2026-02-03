@@ -1,0 +1,50 @@
+[
+    {
+        "OptionType": 45,
+        "Priority": 1
+    },
+    {
+        "OptionType": 42,
+        "Priority": 2
+    },
+    {
+        "OptionType": 57,
+        "Priority": 9
+    },
+    {
+        "OptionType": 30,
+        "Priority": 4
+    },
+    {
+        "OptionType": 31,
+        "Priority": 3
+    },
+    {
+        "OptionType": 35,
+        "Priority": 6
+    },
+    {
+        "OptionType": 105,
+        "Priority": 10
+    },
+    {
+        "OptionType": 36,
+        "Priority": 8
+    },
+    {
+        "OptionType": 109,
+        "Priority": 11
+    },
+    {
+        "OptionType": 40,
+        "Priority": 5
+    },
+    {
+        "OptionType": 110,
+        "Priority": 12
+    },
+    {
+        "OptionType": 41,
+        "Priority": 7
+    }
+]
