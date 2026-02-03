@@ -6,6 +6,13 @@ A Rust implementation of a private server for the King's Raid mobile game client
 
 This project is for educational and preservation purposes only. It is intended for use with legally owned copies of the game client. The game's service has ended (End of Service/EoS), and this server allows players to continue enjoying the game privately.
 
+## Progress
+
+- Guest authentication
+- Equipment system
+- Campaign battles
+- Tutorial system (dead end)
+
 ## Features (WIP)
 
 - User authentication and session management
@@ -25,8 +32,8 @@ This project is for educational and preservation purposes only. It is intended f
 
 ### Prerequisites
 
-- Rust 1.70+ (Install from https://rustup.rs)
-- SQLite (bundled with the project)
+- Rust 1.9+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
+- SQLite ([bundled with the project](https://www.sqlite.org/download.html))
 
 ### Build Steps
 
@@ -56,3 +63,9 @@ The server will:
 1. Create a SQLite database file (`kings_raid.db`) on first run
 2. Initialize all required tables
 3. Start listening on `http://0.0.0.0:8080`
+
+### Patching the Client
+
+```
+python scripts/patch_assets.py "D:\\Games\\KING\'s RAID Playtest\\King\'s Raid_Data\\resources.assets"
+```
