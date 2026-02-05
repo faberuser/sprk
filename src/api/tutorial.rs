@@ -139,10 +139,69 @@ pub async fn begin_tutorial(
     
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
+    let account_id = session.account_id;
+    let completed_time = state.server_time_str();
 
-    tracing::info!("Begin tutorial {} for account {}", tutorial_index, session.account_id);
+    tracing::info!("Begin tutorial {} for account {}", tutorial_index, account_id);
 
-    // Just acknowledge the tutorial start - we track completion, not start
+    // Some tutorials indicate that a battle just finished
+    // We handle dungeon completion here because complete_tutorial may not be called
+    // for tutorials that get stuck or have complex sequences
+    //
+    // Pattern observed:
+    //   - 10110 begins after battle 1-2 ends → should mark 1-2 complete, unlock 1-3
+    //   - 10220 begins after battle 1-4 ends → should mark 1-4 complete, unlock 1-5
+    //   - etc.
+    //
+    // We use the tutorial table to determine what dungeon is being unlocked,
+    // then mark the previous dungeon as complete.
+    
+    if let Some(reward) = state.tables.tutorials.get_reward_dungeon(tutorial_index) {
+        let unlock_chapter = reward.chapter_index;
+        let unlock_dungeon = reward.dungeon_index;
+        
+        // Calculate the previous dungeon that should be completed
+        if unlock_dungeon > 1 {
+            let prev_chapter = unlock_chapter;
+            let prev_dungeon = unlock_dungeon - 1;
+            
+            tracing::info!(
+                "Begin tutorial {}: Marking dungeon {}-{} as complete (unlocking {}-{})",
+                tutorial_index, prev_chapter, prev_dungeon, unlock_chapter, unlock_dungeon
+            );
+            
+            // Mark previous dungeon as completed
+            sqlx::query(
+                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
+                 VALUES (?, ?, ?, 1, 3, 1, ?)
+                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
+                 DO UPDATE SET clear_count = MAX(clear_count, 1), best_star = MAX(best_star, 3), completed_time = COALESCE(completed_time, ?)"
+            )
+            .bind(account_id)
+            .bind(prev_chapter)
+            .bind(prev_dungeon)
+            .bind(&completed_time)
+            .bind(&completed_time)
+            .execute(&state.db)
+            .await
+            .ok(); // Ignore errors, this is opportunistic
+            
+            // Unlock the new dungeon
+            sqlx::query(
+                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) 
+                 VALUES (?, ?, ?, 1)
+                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
+                 DO UPDATE SET is_unlocked = 1"
+            )
+            .bind(account_id)
+            .bind(unlock_chapter)
+            .bind(unlock_dungeon)
+            .execute(&state.db)
+            .await
+            .ok();
+        }
+    }
+
     Ok(Json(BeginTutorialResponse {
         base_result: "Success".to_string(),
         result: "Success".to_string(),
@@ -263,25 +322,31 @@ pub async fn complete_tutorial(
         .await?;
     }
 
-    // Handle dungeon unlocking based on tutorial index
-    // Tutorial indices and their meaning (from TutorialTable.json RewardDungeonIndex):
-    // 10000 = Tutorial start -> unlock 1-1 (not completed, just available to play)
-    // 10010 = 1-1 battle complete -> mark 1-1 completed, unlock 1-2
-    // 10110 = 1-2 battle complete -> mark 1-2 completed, unlock 1-3
-    // 10202 = 1-3 complete / tutorial end -> mark 1-3 completed, unlock 1-4
+    // Handle dungeon unlocking based on tutorial index using the table data
+    // TutorialTable.json has RewardDungeonIndex which tells us what dungeon to unlock
     let mut dungeon_infos: Vec<ChapterDungeonInfo> = Vec::new();
     
     // Helper to create a dungeon info
-    // FirstRewardedDiff is a bitmask: bit 0 = Easy, bit 1 = Normal, bit 2 = Hard##
-    // So Easy first clear = 1, Normal first clear = 2, Hard first clear = 4
-    // For a completed dungeon on Easy (which is what tutorial uses), FirstRewardedDiff = 1
+    // 
+    // MaxStar encoding: difficulty * 10 + stars
+    //   - Chapter 1 has MinDifficulty = Normal (1), not Easy (0)!
+    //   - So for Normal 3-star: MaxStar = 1*10 + 3 = 13
+    //   - The client checks: (MaxStar / 10) >= MinDifficulty to verify completion
+    //
+    // FirstRewardedDiff is a bitmask for which difficulties have been first-cleared:
+    //   - Bit 0 (value 1) = Easy cleared
+    //   - Bit 1 (value 2) = Normal cleared  
+    //   - Bit 2 (value 4) = Hard cleared
+    //   - Bit 3 (value 8) = Hell cleared
+    //   - For chapter 1 (min difficulty = Normal), use value 2
+    //
     let make_dungeon_info = |chapter: i32, dungeon: i32, max_star: i16, completed: bool| {
         ChapterDungeonInfo {
             chapter_index: chapter,
             dungeon_index: dungeon,
             max_star,
-            // If completed, set Easy bit (1). If not completed, 0 (no first rewards yet)
-            first_rewarded_diff: if completed { 1 } else { 0 },
+            // If completed on Normal (chapter 1 min difficulty), set Normal bit (2)
+            first_rewarded_diff: if completed { 2 } else { 0 },
             scenario_complete: if completed { 1 } else { 0 },
             visited_time: if completed { Some(state.server_time_str()) } else { None },
             completed_time: if completed { Some(state.server_time_str()) } else { None },
@@ -290,29 +355,121 @@ pub async fn complete_tutorial(
         }
     };
     
-    match tutorial_index {
-        10000 | 17010 => {
-            // Tutorial start - unlock 1-1 (available to play, but NOT completed yet)
-            tracing::info!("Tutorial {}: Unlocking 1-1 (not completed)", tutorial_index);
-            
-            // Insert 1-1 as unlocked but not completed
+    // Detect post-battle tutorials that need special handling
+    // Pattern: 10X10 where X is the dungeon number minus 1
+    //   10010 = after battle 1-2
+    //   10110 = after battle 1-3
+    //   10210 = after battle 1-4
+    //   10310 = after battle 1-5, etc.
+    // These fire AFTER completing a battle and should mark that dungeon as complete
+    let is_post_battle_tutorial = tutorial_index >= 10010 && 
+                                   tutorial_index < 20000 && 
+                                   (tutorial_index % 100) == 10;
+    
+    if is_post_battle_tutorial {
+        // Extract dungeon number from tutorial index
+        // 10010 -> dungeon 2, 10110 -> dungeon 3, etc.
+        let dungeon_offset = (tutorial_index - 10010) / 100;
+        let completed_dungeon = (dungeon_offset + 2) as i32;
+        let next_dungeon = completed_dungeon + 1;
+        
+        // Mark the just-completed dungeon as complete
+        sqlx::query(
+            "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
+             VALUES (?, 1, ?, 1, 3, 1, ?)
+             ON CONFLICT(account_id, chapter_id, dungeon_id) 
+             DO UPDATE SET clear_count = clear_count + 1, best_star = MAX(best_star, 3), completed_time = ?"
+        )
+        .bind(account_id)
+        .bind(completed_dungeon)
+        .bind(&completed_time)
+        .bind(&completed_time)
+        .execute(&state.db)
+        .await?;
+        
+        // Unlock the next dungeon
+        sqlx::query(
+            "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) 
+             VALUES (?, 1, ?, 1)
+             ON CONFLICT(account_id, chapter_id, dungeon_id) 
+             DO UPDATE SET is_unlocked = 1"
+        )
+        .bind(account_id)
+        .bind(next_dungeon)
+        .execute(&state.db)
+        .await?;
+        
+        // Return dungeon infos - next dungeon unlocked FIRST, then completed dungeon LAST
+        // MaxStar = 13 = Normal (1) * 10 + 3 stars (chapter 1 min difficulty is Normal)
+        dungeon_infos.push(make_dungeon_info(1, next_dungeon, 0, false));
+        dungeon_infos.push(make_dungeon_info(1, completed_dungeon, 13, true));
+    }
+    // Look up tutorial in the table to see if it unlocks a dungeon
+    else if let Some(reward) = state.tables.tutorials.get_reward_dungeon(tutorial_index) {
+        let unlock_chapter = reward.chapter_index;
+        let unlock_dungeon = reward.dungeon_index;
+        
+        // Calculate the previous dungeon that should be completed
+        let prev_dungeon = if unlock_dungeon > 1 {
+            Some((unlock_chapter, unlock_dungeon - 1))
+        } else if unlock_chapter > 1 {
+            // Previous chapter's last dungeon (assuming 12 dungeons per chapter)
+            Some((unlock_chapter - 1, 12))
+        } else {
+            // Dungeon 1-1 has no previous, it's just being unlocked
+            None
+        };
+        
+        // Mark previous dungeon as completed (if any)
+        if let Some((prev_chapter, prev_dung)) = prev_dungeon {
             sqlx::query(
-                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked) 
-                 VALUES (?, 1, 1, 0, 0, 1)
+                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
+                 VALUES (?, ?, ?, 1, 3, 1, ?)
                  ON CONFLICT(account_id, chapter_id, dungeon_id) 
-                 DO UPDATE SET is_unlocked = 1"
+                 DO UPDATE SET clear_count = clear_count + 1, best_star = MAX(best_star, 3), completed_time = ?"
             )
             .bind(account_id)
+            .bind(prev_chapter)
+            .bind(prev_dung)
+            .bind(&completed_time)
+            .bind(&completed_time)
             .execute(&state.db)
             .await?;
             
-            // Return dungeon info for 1-1 (unlocked, not completed)
-            dungeon_infos.push(make_dungeon_info(1, 1, 0, false));
+            // Add completed dungeon info (will be added LAST for positioning)
+            // MaxStar = 13 = Normal (1) * 10 + 3 stars
+            dungeon_infos.push(make_dungeon_info(prev_chapter, prev_dung, 13, true));
         }
-        10010 => {
-            // 1-1 complete - mark as completed with 3 stars and unlock 1-2
-            tracing::info!("Tutorial 10010: Marking 1-1 as complete, unlocking 1-2");
-            
+        
+        // Unlock the new dungeon
+        sqlx::query(
+            "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) 
+             VALUES (?, ?, ?, 1)
+             ON CONFLICT(account_id, chapter_id, dungeon_id) 
+             DO UPDATE SET is_unlocked = 1"
+        )
+        .bind(account_id)
+        .bind(unlock_chapter)
+        .bind(unlock_dungeon)
+        .execute(&state.db)
+        .await?;
+        
+        // Add unlocked dungeon info FIRST
+        // Reorder: unlocked dungeon first, then completed dungeon last
+        // This is because client positions character at the LAST dungeon
+        if !dungeon_infos.is_empty() {
+            let completed_dungeon = dungeon_infos.remove(0);
+            dungeon_infos.insert(0, make_dungeon_info(unlock_chapter, unlock_dungeon, 0, false));
+            dungeon_infos.push(completed_dungeon);
+        } else {
+            // No previous dungeon (e.g., tutorial 10000 just unlocks 1-1)
+            dungeon_infos.push(make_dungeon_info(unlock_chapter, unlock_dungeon, 0, false));
+        }
+    } else {
+        // Tutorial not in table, check if it's a known post-battle tutorial
+        // Tutorial 10002 fires after battle 1-1 ends (observed behavior)
+        // It's not in the table but we need to handle it
+        if tutorial_index == 10002 {
             // Update/insert 1-1 as completed
             sqlx::query(
                 "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
@@ -337,76 +494,10 @@ pub async fn complete_tutorial(
             .execute(&state.db)
             .await?;
             
-            // Return dungeon infos for 1-1 (completed) and 1-2 (unlocked)
-            dungeon_infos.push(make_dungeon_info(1, 1, 3, true));
+            // Return dungeon infos - 1-2 unlocked FIRST, then 1-1 completed LAST
+            // MaxStar = 13 = Normal (1) * 10 + 3 stars (chapter 1 min difficulty is Normal)
             dungeon_infos.push(make_dungeon_info(1, 2, 0, false));
-        }
-        10110 => {
-            // 1-2 complete - mark as completed with 3 stars and unlock 1-3
-            tracing::info!("Tutorial 10110: Marking 1-2 as complete, unlocking 1-3");
-            
-            // Update/insert 1-2 as completed
-            sqlx::query(
-                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
-                 VALUES (?, 1, 2, 1, 3, 1, ?)
-                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
-                 DO UPDATE SET clear_count = clear_count + 1, best_star = MAX(best_star, 3), completed_time = ?"
-            )
-            .bind(account_id)
-            .bind(&completed_time)
-            .bind(&completed_time)
-            .execute(&state.db)
-            .await?;
-            
-            // Unlock 1-3
-            sqlx::query(
-                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) 
-                 VALUES (?, 1, 3, 1)
-                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
-                 DO UPDATE SET is_unlocked = 1"
-            )
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-            
-            // Return dungeon infos for 1-2 (completed) and 1-3 (unlocked)
-            dungeon_infos.push(make_dungeon_info(1, 2, 3, true));
-            dungeon_infos.push(make_dungeon_info(1, 3, 0, false));
-        }
-        10202 => {
-            // 1-3 complete - mark as completed with 3 stars and unlock 1-4
-            tracing::info!("Tutorial 10202: Marking 1-3 as complete, unlocking 1-4");
-            
-            // Update/insert 1-3 as completed
-            sqlx::query(
-                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
-                 VALUES (?, 1, 3, 1, 3, 1, ?)
-                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
-                 DO UPDATE SET clear_count = clear_count + 1, best_star = MAX(best_star, 3), completed_time = ?"
-            )
-            .bind(account_id)
-            .bind(&completed_time)
-            .bind(&completed_time)
-            .execute(&state.db)
-            .await?;
-            
-            // Unlock 1-4
-            sqlx::query(
-                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) 
-                 VALUES (?, 1, 4, 1)
-                 ON CONFLICT(account_id, chapter_id, dungeon_id) 
-                 DO UPDATE SET is_unlocked = 1"
-            )
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-            
-            // Return dungeon infos for 1-3 (completed) and 1-4 (unlocked)
-            dungeon_infos.push(make_dungeon_info(1, 3, 3, true));
-            dungeon_infos.push(make_dungeon_info(1, 4, 0, false));
-        }
-        _ => {
-            // Other tutorials don't unlock dungeons
+            dungeon_infos.push(make_dungeon_info(1, 1, 13, true));
         }
     }
 
@@ -429,13 +520,6 @@ pub async fn complete_tutorial(
         equip_gacha_info: None,
         opend_mission_categories: None,
     };
-    
-    // Log the dungeon infos we're returning
-    if !dungeon_infos.is_empty() {
-        tracing::info!("Returning dungeon_infos: {:?}", dungeon_infos);
-        // Log the full JSON response to verify field names
-        tracing::info!("Full JSON response: {}", serde_json::to_string(&response).unwrap_or_default());
-    }
     
     Ok(Json(response))
 }

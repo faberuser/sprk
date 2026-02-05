@@ -11,7 +11,9 @@ This project is for educational and preservation purposes only. It is intended f
 - Guest authentication
 - Equipment system
 - Campaign battles
-- Tutorial system (dead end)
+- Tutorial system (WIP), not implemented:
+    - Rewards during tutorial
+    - Get hero animation (Kasel, Frey, Cleo, Roi, Clause?)
 - Stamina management
 
 ## Features

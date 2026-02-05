@@ -597,8 +597,9 @@ pub async fn login(
     //   - The CompleteTutorial response includes DungeonInfos but client may not refresh UI
     //   - See tutorial.rs for the tutorial index handlers
     //
-    // For now, we skip tutorial for ALL users to avoid these issues:
-    let tutorial_skip = true;
+    // FORCE TUTORIAL ENABLED FOR TESTING:
+    let tutorial_skip = false;  // Force tutorial on for all users to test DLL patch logging
+    // let tutorial_skip = !is_new_user;
 
     // Fetch campaign progress and build chapter_dungeons
     let campaign_rows = sqlx::query(
@@ -610,17 +611,40 @@ pub async fn login(
     .unwrap_or_default();
 
     // Build chapter_dungeons from database
+    // 
+    // MaxStar encoding: difficulty * 10 + stars
+    //   - Chapter 1 has MinDifficulty = Normal (1), not Easy (0)!
+    //   - So the DB stores best_star = 3, but we send MaxStar = 13 (Normal 3-star)
+    //   - The client checks: (MaxStar / 10) >= MinDifficulty to verify completion
+    //
+    // FirstRewardedDiff bitmask:
+    //   - Bit 1 (value 2) = Normal cleared (for chapter 1)
+    //
     let mut chapter_dungeons: Vec<ChapterDungeonInfo> = campaign_rows.iter().map(|row| {
+        let chapter_id: i32 = row.get("chapter_id");
         let clear_count: i32 = row.get("clear_count");
         let best_star: i32 = row.get("best_star");
         let completed_time: Option<String> = row.get("completed_time");
         let is_completed = clear_count > 0 || best_star > 0 || completed_time.is_some();
         
+        // For chapter 1, MinDifficulty is Normal (1), so encode as Normal + stars
+        // For other chapters, we'd need to check their actual MinDifficulty
+        let max_star = if is_completed && chapter_id <= 10 {
+            // Chapter 1-10: assume Normal (1) as minimum difficulty
+            // MaxStar = 1 * 10 + best_star
+            (10 + best_star) as i16
+        } else {
+            best_star as i16
+        };
+        
+        // FirstRewardedDiff: For Normal cleared, use bit 1 (value 2)
+        let first_rewarded_diff = if is_completed { 2 } else { 0 };
+        
         ChapterDungeonInfo {
-            chapter_index: row.get("chapter_id"),
+            chapter_index: chapter_id,
             dungeon_index: row.get("dungeon_id"),
-            max_star: best_star as i16,
-            first_rewarded_diff: if is_completed { 1 } else { 0 },
+            max_star,
+            first_rewarded_diff,
             scenario_complete: if is_completed { 1 } else { 0 },
             visited_time: Some(state.server_time_str()),
             completed_time,
@@ -634,24 +658,14 @@ pub async fn login(
     // ==========================================================================
     //
     // When tutorial_skip is true and user has no dungeon progress, we need to
-    // pre-populate some dungeons so the user can start playing.
+    // pre-populate dungeon 1-1 so the user can start playing.
     //
-    // The dungeons are set up as follows:
-    //   - 1-1, 1-2, 1-3: Completed with 3 stars (so user can replay or move on)
-    //   - 1-4, 1-5: Unlocked but not completed (so user has progression)
-    //
-    // MaxStar encoding: The client expects MaxStar = (difficulty * 10) + stars
-    //   - Easy difficulty (0) with 3 stars = 0*10 + 3 = 3
+    // IMPORTANT: Chapter 1 has MinDifficulty = Normal (1), not Easy (0)!
+    // This affects the MaxStar encoding:
     //   - Normal difficulty (1) with 3 stars = 1*10 + 3 = 13
-    //   - Hard difficulty (2) with 3 stars = 2*10 + 3 = 23
-    //   - For now we just use 3 (Easy 3-star) since that's what tutorial gives
+    //   - The client checks: (MaxStar / 10) >= MinDifficulty
     //
-    // FirstRewardedDiff is a BITMASK for which difficulties have been cleared:
-    //   - Bit 0 (value 1) = Easy cleared
-    //   - Bit 1 (value 2) = Normal cleared  
-    //   - Bit 2 (value 4) = Hard cleared
-    //   - Bit 3 (value 8) = Hell cleared
-    //   - For a dungeon cleared on Easy, FirstRewardedDiff = 1
+    // FirstRewardedDiff bitmask for Normal cleared = 2 (bit 1)
     //
     // CompletedTime must be non-empty for the client to consider it "completed"
     // (see DungeonCompleteChecker.CheckDefault in client code)

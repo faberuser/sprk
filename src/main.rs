@@ -129,6 +129,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/campaign/submit", post(api::campaign::submit_campaign_battle))
         .route("/campaign/end_campaign", post(api::campaign::end_campaign))
         .route("/campaign/visit_dungeon", post(api::campaign::visit_dungeon))
+        .route("/campaign/complete_scenario_dungeon", post(api::campaign::complete_scenario_dungeon))
         // Guild
         .route("/guild/info", post(api::guild::get_guild_info))
         .route("/guild/create", post(api::guild::create_guild))

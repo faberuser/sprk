@@ -1086,6 +1086,13 @@ pub async fn end_campaign(
     }
 
     // Build campaign result
+    // MaxStar encoding: difficulty * 10 + star
+    // e.g., Easy(0) with 3 stars = 0*10+3 = 3
+    //       Normal(1) with 3 stars = 1*10+3 = 13
+    //       Hard(2) with 3 stars = 2*10+3 = 23
+    // The client checks: (MaxStar / 10) >= difficulty to verify completion
+    let encoded_max_star = (difficulty * 10 + new_star) as i16;
+    
     // FirstRewardedDiff is a BITMASK: bit 0 = Easy (1), bit 1 = Normal (2), bit 2 = Hard (4), bit 3 = Hell (8)
     // For first clear, we set the bit for the difficulty that was cleared
     let first_rewarded_diff_bitmask = if is_first_clear { 
@@ -1097,17 +1104,31 @@ pub async fn end_campaign(
     let campaign_result = CampaignResultInfo {
         chapter_index,
         dungeon_index,
-        max_star: new_star as i16,
+        max_star: encoded_max_star,
         first_rewarded_diff: first_rewarded_diff_bitmask as i16,
         scenario_complete: 1,
         visited_time: Some(now.clone()),
-        completed_time: Some(now),
+        completed_time: Some(now.clone()),
         daily_completed_count: 1,
         reset_count: 0,
     };
+    
+    // Also include the NEXT dungeon as unlocked (but not completed)
+    // This tells the client that the next dungeon is now accessible
+    let next_dungeon_result = CampaignResultInfo {
+        chapter_index: next_chapter,
+        dungeon_index: next_dungeon,
+        max_star: 0,
+        first_rewarded_diff: 0,
+        scenario_complete: 0,
+        visited_time: None,
+        completed_time: None,  // Not completed yet, just unlocked
+        daily_completed_count: 0,
+        reset_count: 0,
+    };
 
-    tracing::info!("Campaign completed: gold_reward={}, gem_reward={}, hero_exp_count={}, item_count={}", 
-        gold_reward, gem_reward, hero_exp_results.len(), item_results.len());
+    tracing::info!("Campaign completed: gold_reward={}, gem_reward={}, hero_exp_count={}, item_count={}, max_star={}", 
+        gold_reward, gem_reward, hero_exp_results.len(), item_results.len(), encoded_max_star);
     
     // Log item results for debugging
     for item in &item_results {
@@ -1121,12 +1142,13 @@ pub async fn end_campaign(
             equip.slot_index, equip.item_index, equip.star);
     }
 
-    Ok(Json(EndCampaignResponse {
+    let response = EndCampaignResponse {
         base_result: "Success".to_string(),
         result: "Success".to_string(),
         forward_host: None,
         currency_results,
-        campaign_results: vec![campaign_result],
+        // Include both the completed dungeon AND the next unlocked dungeon
+        campaign_results: vec![campaign_result, next_dungeon_result],
         exp_result: None,
         stamina_result: None,
         item_results,
@@ -1134,7 +1156,9 @@ pub async fn end_campaign(
         hero_exp_results,
         hero_infos: vec![],
         tower_infos: vec![],
-    }))
+    };
+    
+    Ok(Json(response))
 }
 
 /// Visit dungeon request
@@ -1271,4 +1295,106 @@ pub async fn visit_dungeon(
         exp_result_infos: vec![],
         stamina_result_infos: vec![],
     }))
+}
+
+/// Complete scenario dungeon request
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CompleteScenarioDungeonRequest {
+    pub session_key: Option<String>,
+    pub session_id: Option<String>,
+    pub chapter_index: i32,
+    pub dungeon_index: i32,
+}
+
+/// Complete scenario dungeon response
+/// Note: This endpoint only returns dungeon info, no rewards.
+/// It's used for scenario replays where rewards were already given.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CompleteScenarioDungeonResponse {
+    pub base_result: String,
+    pub result: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dungeon_info: Option<CampaignResultInfo>,
+}
+
+/// Handle complete scenario dungeon request
+/// This is called after winning a battle to grant rewards
+pub async fn complete_scenario_dungeon(
+    State(state): State<AppState>,
+    Form(req): Form<CompleteScenarioDungeonRequest>,
+) -> Result<Json<CompleteScenarioDungeonResponse>> {
+    let session_id = req.session_key.or(req.session_id)
+        .ok_or_else(|| ServerError::SessionExpired)?;
+    
+    let session = state.get_session(&session_id)
+        .ok_or(ServerError::SessionExpired)?;
+    
+    let account_id = session.account_id;
+    let chapter_index = req.chapter_index;
+    let dungeon_index = req.dungeon_index;
+    
+    tracing::info!(
+        "Complete scenario dungeon {}-{} for account {}",
+        chapter_index, dungeon_index, account_id
+    );
+    
+    // Mark dungeon as completed with 3 stars (Normal difficulty)
+    let completed_time = state.server_time_str();
+    sqlx::query(
+        "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) 
+         VALUES (?, ?, ?, 1, 3, 1, ?)
+         ON CONFLICT(account_id, chapter_id, dungeon_id) 
+         DO UPDATE SET clear_count = clear_count + 1, best_star = MAX(best_star, 3), completed_time = ?"
+    )
+    .bind(account_id)
+    .bind(chapter_index)
+    .bind(dungeon_index)
+    .bind(&completed_time)
+    .bind(&completed_time)
+    .execute(&state.db)
+    .await?;
+    
+    // Get updated dungeon info
+    let row = sqlx::query(
+        "SELECT * FROM campaign_progress WHERE account_id = ? AND chapter_id = ? AND dungeon_id = ?"
+    )
+    .bind(account_id)
+    .bind(chapter_index)
+    .bind(dungeon_index)
+    .fetch_one(&state.db)
+    .await?;
+    
+    let clear_count: i32 = row.get("clear_count");
+    let best_star: i32 = row.get("best_star");
+    
+    // MaxStar encoding: For chapter 1 (min difficulty Normal), encode as 1*10 + stars
+    let max_star = if chapter_index <= 10 {
+        (10 + best_star) as i16
+    } else {
+        best_star as i16
+    };
+    
+    let dungeon_info = CampaignResultInfo {
+        chapter_index,
+        dungeon_index,
+        max_star,
+        first_rewarded_diff: 2, // Normal difficulty bit
+        scenario_complete: 1,
+        visited_time: Some(state.server_time_str()),
+        completed_time: Some(completed_time),
+        daily_completed_count: clear_count,
+        reset_count: 0,
+    };
+    
+    // CompleteScenarioDungeon doesn't return rewards (unlike EndCampaign)
+    // It's used for scenario replays where rewards were already given
+    let response = CompleteScenarioDungeonResponse {
+        base_result: "Success".to_string(),
+        result: "Success".to_string(),
+        dungeon_info: Some(dungeon_info),
+    };
+    
+    Ok(Json(response))
 }

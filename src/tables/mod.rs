@@ -11,11 +11,13 @@ mod campaign_dungeon;
 pub mod item;
 mod item_group;
 mod reward;
+mod tutorial;
 
 pub use campaign_dungeon::*;
 pub use item::*;
 pub use item_group::*;
 pub use reward::*;
+pub use tutorial::*;
 
 /// String pool for resolving HashString indices to actual strings
 #[derive(Debug, Clone, Default)]
@@ -56,6 +58,7 @@ pub struct GameTables {
     pub item_group_string_pool: Arc<ItemGroupStringPool>,
     pub reward_string_pool: Arc<RewardStringPool>,
     pub items: Arc<ItemTable>,
+    pub tutorials: Arc<TutorialTable>,
 }
 
 impl GameTables {
@@ -97,6 +100,12 @@ impl GameTables {
         )?;
         tracing::info!("Loaded {} item code→index mappings", items.len());
         
+        // Load tutorial table
+        let tutorials = TutorialTable::load(
+            &table_dir.join("TutorialTable.json")
+        )?;
+        tracing::info!("Loaded {} tutorial dungeon rewards", tutorials.dungeon_rewards.len());
+        
         Ok(Self {
             campaign_dungeons: Arc::new(campaign_dungeons),
             rewards: Arc::new(rewards),
@@ -104,6 +113,7 @@ impl GameTables {
             item_group_string_pool: Arc::new(item_group_string_pool),
             reward_string_pool: Arc::new(reward_string_pool),
             items: Arc::new(items),
+            tutorials: Arc::new(tutorials),
         })
     }
     
@@ -116,6 +126,7 @@ impl GameTables {
             item_group_string_pool: Arc::new(ItemGroupStringPool::default()),
             reward_string_pool: Arc::new(RewardStringPool::default()),
             items: Arc::new(ItemTable::default()),
+            tutorials: Arc::new(TutorialTable::default()),
         }
     }
     

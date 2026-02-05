@@ -236,17 +236,34 @@ pub async fn enter_lobby(
     .unwrap_or_default();
 
     // Build dungeon infos from database
+    // 
+    // MaxStar encoding: difficulty * 10 + stars
+    //   - Chapter 1 has MinDifficulty = Normal (1), not Easy (0)!
+    //   - So the DB stores best_star = 3, but we send MaxStar = 13 (Normal 3-star)
+    //   - The client checks: (MaxStar / 10) >= MinDifficulty to verify completion
+    //
     let dungeon_infos: Vec<ChapterDungeonInfo> = campaign_rows.iter().map(|row| {
+        let chapter_id: i32 = row.get("chapter_id");
         let clear_count: i32 = row.get("clear_count");
         let best_star: i32 = row.get("best_star");
         let completed_time: Option<String> = row.get("completed_time");
         let is_completed = clear_count > 0 || best_star > 0 || completed_time.is_some();
         
+        // For chapter 1-10, MinDifficulty is Normal (1), so encode as Normal + stars
+        let max_star = if is_completed && chapter_id <= 10 {
+            (10 + best_star) as i16
+        } else {
+            best_star as i16
+        };
+        
+        // FirstRewardedDiff: For Normal cleared (chapter 1-10), use bit 1 (value 2)
+        let first_rewarded_diff = if is_completed { 2 } else { 0 };
+        
         ChapterDungeonInfo {
-            chapter_index: row.get("chapter_id"),
+            chapter_index: chapter_id,
             dungeon_index: row.get("dungeon_id"),
-            max_star: best_star as i16,
-            first_rewarded_diff: if is_completed { 1 } else { 0 },
+            max_star,
+            first_rewarded_diff,
             scenario_complete: if is_completed { 1 } else { 0 },
             visited_time: Some(state.server_time_str()),
             completed_time,
