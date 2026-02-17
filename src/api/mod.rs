@@ -10,6 +10,7 @@ pub mod shop;
 pub mod item;
 pub mod mail;
 pub mod friend;
+pub mod chat;
 pub mod campaign;
 pub mod guild;
 pub mod attendance;
@@ -20,3 +21,4 @@ pub mod cheat;
 pub mod fallback;
 pub mod auth;
 pub mod cdn;
+

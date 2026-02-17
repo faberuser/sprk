@@ -274,15 +274,29 @@ pub async fn login(
     
     let req = parse_login_request(&body_str);
     
-    let login_id = req.login_id.unwrap_or_else(|| {
-        req.device_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
-    });
-    let device_id = req.device_id.unwrap_or_default();
+    // For guest login, use DeviceId as the unique identifier to allow multiple guest accounts
+    let raw_login_id = req.login_id.clone().unwrap_or_default();
+    let device_id = req.device_id.clone().unwrap_or_default();
+    
+    let login_id = if raw_login_id.to_lowercase() == "guest" && !device_id.is_empty() {
+        // Use device_id for guest accounts to allow multiple devices to have separate accounts
+        format!("guest_{}", device_id)
+    } else if raw_login_id.is_empty() {
+        // Fallback to device_id or generate new UUID
+        if !device_id.is_empty() {
+            device_id.clone()
+        } else {
+            uuid::Uuid::new_v4().to_string()
+        }
+    } else {
+        raw_login_id
+    };
+    
     let login_method: i32 = req.login_method.as_ref()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 
-    tracing::info!("Login request from: {} (method: {})", login_id, login_method);
+    tracing::info!("Login request from: {} (device: {}, method: {})", login_id, device_id, login_method);
 
     // Check if account exists
     let existing_account = sqlx::query(
@@ -598,7 +612,7 @@ pub async fn login(
     //   - See tutorial.rs for the tutorial index handlers
     //
     // FORCE TUTORIAL ENABLED FOR TESTING:
-    let tutorial_skip = false;  // Force tutorial on for all users to test DLL patch logging
+    let tutorial_skip = true;  // Force tutorial on for all users to test DLL patch logging
     // let tutorial_skip = !is_new_user;
 
     // Fetch campaign progress and build chapter_dungeons

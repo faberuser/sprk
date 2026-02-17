@@ -35,34 +35,6 @@ use crate::{
 // POST /tutorial/begin_tutorial   - Called when a tutorial sequence starts
 // POST /tutorial/complete_tutorial - Called when a tutorial sequence completes
 //
-// RESPONSE FORMAT:
-// ----------------
-// CompleteTutorial.Response includes:
-//   - Info: TutorialInfo with the completed tutorial index
-//   - DungeonInfos: Array of ChapterDungeonInfo for unlocked/completed dungeons
-//   - CurrencyResults: Any gold/gem rewards
-//   - ItemResults: Any item rewards
-//
-// CLIENT PROCESSING:
-// ------------------
-// In TutorialManager.coResponseCompleteTutorial(), the client:
-//   1. Adds the tutorial to the completed list
-//   2. Applies DungeonInfos via CampaignManager.Apply()
-//   3. Applies currency/item rewards
-//
-// DUNGEON COMPLETION CHECK (client-side):
-// ----------------------------------------
-// DungeonCompleteChecker.CheckDefault() checks:
-//   - ChapterDungeonInfo exists for the dungeon
-//   - CompletedTime is not empty
-//   - MaxStar / 10 >= difficulty (MaxStar encodes difficulty*10 + stars)
-//
-// CURRENT STATUS:
-// ---------------
-// The tutorial is currently SKIPPED (see user.rs tutorial_skip = true).
-// Dungeons are pre-populated in user.rs login handler instead.
-// To re-enable tutorial, set tutorial_skip = !is_new_user in user.rs.
-//
 // ============================================================================
 
 // ============================================================================

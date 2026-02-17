@@ -21,6 +21,7 @@ This project is for educational and preservation purposes only. It is intended f
 - User authentication and session management
 - Hero collection and management
 - Equipment system
+- Inventory system
 - Campaign battles
 - Guild system
 - Mail system
@@ -70,5 +71,9 @@ The server will:
 ### Patching the Client
 
 ```
-python scripts/patch_assets.py "D:\\Games\\KING\'s RAID Playtest\\King\'s Raid_Data\\resources.assets"
+powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\kingsraid\KING's RAID Playtest CCBT\King's Raid_Data\resources.assets" -Mode localhost
+```
+
+```
+powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\kingsraid\KING's RAID Playtest CCBT\King's Raid_Data\resources.assets" -Mode lan
 ```

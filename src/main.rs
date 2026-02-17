@@ -114,14 +114,31 @@ async fn main() -> anyhow::Result<()> {
         // Item
         .route("/item/use_potion_item", post(api::item::use_potion_item))
         // Mail
+        .route("/mail/check_new_mail", post(api::mail::check_new_mail))
+        .route("/mail/get_mail_list", post(api::mail::get_mail_list))
+        .route("/mail/get_global_mail_list", post(api::mail::get_global_mail_list))
+        .route("/mail/receive_mail", post(api::mail::receive_mail))
+        .route("/mail/receive_all_mail", post(api::mail::receive_all_mail))
+        // Keep old routes for backwards compatibility
         .route("/mail/list", post(api::mail::get_mail_list))
         .route("/mail/receive", post(api::mail::receive_mail))
         .route("/mail/receive/all", post(api::mail::receive_all_mail))
-        // Friend
+        // Friend - new client endpoints
+        .route("/friend/search_friend", post(api::friend::search_friend))
+        .route("/friend/request_friend", post(api::friend::request_friend))
+        .route("/friend/reject_friend", post(api::friend::reject_friend))
+        .route("/friend/send_friendship_point", post(api::friend::send_friendship_point))
+        .route("/friend/recv_friendship_point", post(api::friend::recv_friendship_point))
+        // Friend - legacy endpoints
         .route("/friend/list", post(api::friend::get_friend_list))
-        .route("/friend/add", post(api::friend::add_friend))
         .route("/friend/accept", post(api::friend::accept_friend))
         .route("/friend/remove", post(api::friend::remove_friend))
+        // Chat
+        .route("/chat/info", post(api::chat::get_chat_info))
+        .route("/chat/world", post(api::chat::send_world_chat))
+        .route("/chat/whisper", post(api::chat::send_whisper))
+        .route("/chat/guild", post(api::chat::send_guild_chat))
+        .route("/chat/recent", post(api::chat::get_recent_chats))
         // Campaign
         .route("/campaign/info", post(api::campaign::get_campaign_info))
         .route("/campaign/start", post(api::campaign::start_campaign_battle))
