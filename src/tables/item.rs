@@ -54,18 +54,22 @@ impl ItemTable {
     /// Check if an item index represents equipment (stored in equip_items table)
     /// Equipment items have unique instances with stars, levels, options, etc.
     /// Based on item index ranges:
+    /// - Unique Weapons (UW): 1001-1999  (1000 + hero_index)
+    /// - Unique Treasures (UT): 101001-104999  (101000-104000 + hero_index)
     /// - Weapons: 50000-59999
     /// - Armor: 60000-79999
     /// - Accessories: 80000-89999
-    /// - Runes: 100000-129999
+    /// - Runes: 105000-129999
     /// - Orbs: 140000-149999
     pub fn is_equipment(item_index: i32) -> bool {
         matches!(item_index,
-            50000..=59999 |  // Weapons
-            60000..=79999 |  // Armor
-            80000..=89999 |  // Accessories
-            100000..=129999 | // Runes
-            140000..=149999   // Orbs
+            1001..=1999     |  // Unique Weapons (UW)
+            101001..=104999 |  // Unique Treasures (UT1-UT4)
+            50000..=59999   |  // Weapons
+            60000..=79999   |  // Armor
+            80000..=89999   |  // Accessories
+            105000..=129999 |  // Runes (above UT range)
+            140000..=149999    // Orbs
         )
     }
 }

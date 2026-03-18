@@ -15,6 +15,8 @@ This project is for educational and preservation purposes only. It is intended f
     - Rewards during tutorial
     - Get hero animation (Kasel, Frey, Cleo, Roi, Clause?)
 - Stamina management
+- Mail system (WIP)
+- Friend system (WIP)
 
 ## Features
 

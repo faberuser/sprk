@@ -179,6 +179,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/cheat/unlock", post(api::cheat::gm_unlock_all))
         .route("/cheat/reset", post(api::cheat::gm_reset_account))
         .route("/cheat/allheroes", post(api::cheat::gm_add_all_heroes))
+        .route("/cheat/uwut", post(api::cheat::gm_add_all_uwut))
         // CDN endpoints for patch/asset downloads
         .route("/cdn/LastBuildVersion.txt", get(api::cdn::get_last_build_version))
         .route("/cdn/:version/patch.json", get(api::cdn::get_patch_json))
