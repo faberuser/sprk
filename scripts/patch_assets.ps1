@@ -1,4 +1,4 @@
-# King's Raid Asset Patcher - PowerShell Script
+# sprk Asset Patcher - PowerShell Script
 # Patches resources.assets to change the QueryHost URL
 
 param(
@@ -223,7 +223,7 @@ function Patch-AssetsFile {
     Write-Host "  Server: http://${serverAddress}:8080                        " -ForegroundColor White
     Write-Host "================================================================" -ForegroundColor Green
     Write-Host "  Next steps:                                                 " -ForegroundColor White
-    Write-Host "  1. Start the private server (kings-raid-server.exe)         " -ForegroundColor White
+    Write-Host "  1. Start the private server (sprk-server.exe)         " -ForegroundColor White
     Write-Host "  2. Launch the game                                          " -ForegroundColor White
     Write-Host "                                                               " -ForegroundColor White
     Write-Host "  No hosts file modification needed!                          " -ForegroundColor White

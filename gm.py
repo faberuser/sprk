@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-King's Raid GM CLI
+sprk GM CLI
 Interact with the private server's cheat endpoints.
 
 Usage (interactive menu):
@@ -176,7 +176,7 @@ def prompt_int(label: str, default: int) -> int:
 
 def interactive(cfg):
     print("\n========================================")
-    print("  King's Raid GM CLI")
+    print("  sprk GM CLI")
     print("========================================")
     print(f"  Server  : {cfg['server']}")
     sid = cfg.get("session_id") or "(not set)"
@@ -270,7 +270,7 @@ def interactive(cfg):
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="gm.py",
-        description="King's Raid GM cheat CLI",
+        description="sprk GM cheat CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

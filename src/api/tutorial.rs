@@ -13,7 +13,7 @@ use crate::{
 // TUTORIAL SYSTEM DOCUMENTATION
 // ============================================================================
 //
-// The tutorial system in King's Raid is complex and involves multiple steps.
+// The tutorial system in sprk is complex and involves multiple steps.
 // Each tutorial is identified by an index (e.g., 10000, 10010, etc.)
 //
 // TUTORIAL FLOW (from TutorialTable.json):

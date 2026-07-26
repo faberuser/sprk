@@ -1,8 +1,8 @@
 [package]
-name = "kings-raid-server"
+name = "sprk-server"
 version = "0.1.0"
 edition = "2021"
-description = "Private compatibility server for King's Raid"
+description = "Private compatibility server for sprk"
 authors = ["Private Server Project"]
 
 [dependencies]

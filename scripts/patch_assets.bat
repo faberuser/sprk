@@ -1,5 +1,5 @@
 @echo off
-REM King's Raid Asset Patcher (Batch/PowerShell)
+REM sprk Asset Patcher (Batch/PowerShell)
 REM Patches resources.assets to change the QueryHost URL
 
 setlocal enabledelayedexpansion
@@ -25,7 +25,7 @@ if "%ASSETS_PATH%"=="" goto :usage
 
 echo.
 echo ======================================
-echo King's Raid Asset Patcher
+echo sprk Asset Patcher
 echo ======================================
 echo.
 
@@ -62,15 +62,15 @@ if %ERRORLEVEL% EQU 0 (
 
 :usage
 echo.
-echo King's Raid Asset Patcher
+echo sprk Asset Patcher
 echo.
 echo Usage:
-echo   patch_assets.bat "path\to\King's Raid_Data\resources.assets"
+echo   patch_assets.bat "path\to\sprk_Data\resources.assets"
 echo.
 echo For LAN/multi-machine (use server IP 26.69.156.42):
-echo   patch_assets.bat --lan "path\to\King's Raid_Data\resources.assets"
+echo   patch_assets.bat --lan "path\to\sprk_Data\resources.assets"
 echo.
 echo To restore original:
-echo   patch_assets.bat --restore "path\to\King's Raid_Data\resources.assets"
+echo   patch_assets.bat --restore "path\to\sprk_Data\resources.assets"
 echo.
 exit /b 1

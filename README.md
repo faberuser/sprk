@@ -1,10 +1,14 @@
-# King's Raid Private Server
+# sprk
 
-A Rust implementation of a private server for the King's Raid mobile game client.
+A Rust implementation of a server emulator for a real-time RPG mobile game client.
 
 ## Disclaimer
 
-This project is for educational and preservation purposes only. It is intended for use with legally owned copies of the game client. The game's service has ended (End of Service/EoS), and this server allows players to continue enjoying the game privately.
+This project is for educational and preservation purposes only.
+
+- All trademarks, copyrights, and other intellectual property related to the original game and its associated franchise belong to their respective owners.
+- This repository does not include any copyrighted game assets, binaries, or master data.
+- Use this software at your own risk. The authors assume no responsibility for any damages or legal consequences resulting from its use.
 
 ## Progress
 
@@ -50,8 +54,8 @@ cd server
 # Build in release mode
 cargo build --release
 
-# The binary will be at target/release/kings-raid-server.exe (Windows)
-# Or target/release/kings-raid-server (Linux/Mac)
+# The binary will be at target/release/sprk-server.exe (Windows)
+# Or target/release/sprk-server (Linux/Mac)
 ```
 
 ### Running the Server
@@ -61,21 +65,21 @@ cargo build --release
 cargo run --release
 
 # Or run the binary directly
-./target/release/kings-raid-server
+./target/release/sprk-server
 ```
 
 The server will:
 
-1. Create a SQLite database file (`kings_raid.db`) on first run
+1. Create a SQLite database file (`sprk.db`) on first run
 2. Initialize all required tables
 3. Start listening on `http://0.0.0.0:8080`
 
 ### Patching the Client
 
 ```
-powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\kingsraid\KING's RAID Playtest CCBT\King's Raid_Data\resources.assets" -Mode localhost
+powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\sprk\sprk Playtest CCBT\sprk_Data\resources.assets" -Mode localhost
 ```
 
 ```
-powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\kingsraid\KING's RAID Playtest CCBT\King's Raid_Data\resources.assets" -Mode lan
+powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\sprk\sprk Playtest CCBT\sprk_Data\resources.assets" -Mode lan
 ```

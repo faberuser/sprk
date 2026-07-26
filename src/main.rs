@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Starting King's Raid Private Server...");
+    tracing::info!("Starting sprk Private Server...");
 
     // Initialize database
     let db = database::init_database().await?;
@@ -207,5 +207,5 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn health_check() -> &'static str {
-    "King's Raid Private Server is running!"
+    "sprk Private Server is running!"
 }

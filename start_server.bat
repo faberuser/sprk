@@ -1,8 +1,8 @@
 @echo off
-REM Start King's Raid Private Server with LAN configuration
+REM Start sprk server with LAN configuration
 REM This allows clients on other machines to connect
 
-echo Starting King's Raid Private Server...
+echo Starting sprk server...
 echo Server will be accessible at: 192.168.1.96:8080
 echo.
 

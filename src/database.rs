@@ -5,7 +5,7 @@ pub type DbPool = Pool<Sqlite>;
 
 /// Initialize the SQLite database with the required tables
 pub async fn init_database() -> anyhow::Result<DbPool> {
-    let db_path = "kings_raid.db";
+    let db_path = "sprk.db";
     
     // Create database file if it doesn't exist
     if !Path::new(db_path).exists() {

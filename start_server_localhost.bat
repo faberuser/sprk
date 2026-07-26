@@ -1,8 +1,8 @@
 @echo off
-REM Start King's Raid Private Server with localhost configuration
+REM Start sprk server with localhost configuration
 REM This is for testing on the same machine as the server
 
-echo Starting King's Raid Private Server (localhost mode)...
+echo Starting sprk server (localhost mode)...
 echo Server will be accessible at: 127.0.0.1:8080
 echo.
 
