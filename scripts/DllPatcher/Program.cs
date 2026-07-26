@@ -1252,7 +1252,7 @@ namespace DllPatcher
         /// </summary>
         static string PromptForClientPath()
         {
-            string defaultPath = @"D:\kingsraid";
+            string defaultPath = @"D:\client";
             Console.Write($"Enter game client path [default: {defaultPath}]: ");
             string? input = Console.ReadLine()?.Trim().TrimEnd('\\', '/');
             if (string.IsNullOrEmpty(input))
