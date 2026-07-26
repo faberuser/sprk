@@ -76,10 +76,31 @@ The server will:
 
 ### Patching the Client
 
-```
-powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\sprk\sprk Playtest CCBT\sprk_Data\resources.assets" -Mode localhost
+Use the unified patcher to patch both `Assembly-CSharp.dll` and `resources.assets` in one command — just point it at your game client root folder:
+
+```batch
+scripts\patch.bat "D:\path\to\game\client"
+scripts\patch.bat --restore "D:\path\to\game\client"
 ```
 
+Or via PowerShell:
+
+```powershell
+.\scripts\patch.ps1 -ClientPath "D:\path\to\game\client"
+.\scripts\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
 ```
-powershell -ExecutionPolicy Bypass -File patch_assets.ps1 -AssetsPath "D:\sprk\sprk Playtest CCBT\sprk_Data\resources.assets" -Mode lan
+
+This will:
+
+1. Run the DLL patcher (`scripts/DllPatcher`) — creates a backup `Assembly-CSharp.dll.backup_before_patch` on first run
+2. Patch `resources.assets` to redirect the query host URL to your local server (`http://127.0.0.1:8080`)
+3. Both done in one command with just the client folder path
+
+#### DLL Patcher CLI
+
+`DllPatcher` and `DllDisasm` also accept the client root as a CLI argument:
+
+```bash
+dotnet run --project scripts/DllPatcher -- "D:\path\to\game\client"
+dotnet run --project scripts/DllDisasm -- "D:\path\to\game\client"
 ```
