@@ -116,6 +116,8 @@ pub struct ChapterDungeonInfo {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct LoginResponse {
+    pub main_quest_info: serde_json::Value,
+    pub attendance_datas: Vec<serde_json::Value>,
     pub player_avatar_hero_info: serde_json::Value,
     pub base_result: String,  // Must be string like "Success" for C# enum parsing
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -610,7 +612,10 @@ pub async fn login(
     let costume_storage_slot_infos = super::hero::presets(&mut *state.db.acquire().await?, account_id).await?;
 
     let player_avatar_hero_info = super::hero::avatar_info(&mut *state.db.acquire().await?,&state,account_id).await?;
+    let progression = super::progression::login(&state, account_id).await?;
     let response = LoginResponse {
+        main_quest_info: progression["MainQuestInfo"].clone(),
+        attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
         player_avatar_hero_info,
         base_result: "Success".to_string(),
         internal_error_message: None,
@@ -634,6 +639,7 @@ pub async fn login(
         user_info,
         battle_info: Some(PlayerBattleInfo::default()),
         misc_info: Some(PlayerMiscInfo {
+            login_daily_count: progression["LoginDailyCount"].as_i64().unwrap_or(0),
             inventory_extend: inventory_settings.get("inventory_extend"),
             chest_extend: inventory_settings.get("chest_extend"),
             daily_acc_friendship_point: sqlx::query_scalar("SELECT points FROM friend_daily WHERE account_id=? AND day=?").bind(account_id).bind(state.server_date()).fetch_optional(&state.db).await?.unwrap_or(0),
@@ -656,7 +662,7 @@ pub async fn login(
         chapter_dungeons,
         towers: vec![],
         deck_infos: vec![],
-        achievement_infos: vec![],
+        achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         is_tutorial_skip: tutorial_skip,
         server_name: "Private Server".to_string(),
         created_time: state.server_time_str(),
@@ -665,7 +671,7 @@ pub async fn login(
         sent_friendship_point_infos: sent_points,
         friend_infos,
         friend_invitor_infos,
-        attendance_infos: vec![],
+        attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
         hideout_dungeons: vec![],
         conquest_dungeons: vec![],
         contents_statuses: vec![],
@@ -675,7 +681,7 @@ pub async fn login(
         item_time_durations: super::item::booster_login(&state,account_id).await?,
         purchase_time_durations: vec![],
         world_map_event_time_infos: vec![],
-        world_map_event_infos: vec![],
+        world_map_event_infos: progression["WorldMapEventInfos"].as_array().cloned().unwrap_or_default(),
         wanted_quest_infos: vec![],
         raid_infos: vec![],
         craft_slot_infos,
@@ -689,23 +695,23 @@ pub async fn login(
         godking_trial_dungeons: vec![],
         under_prison_infos: vec![],
         play_record_infos: vec![],
-        login_daily_infos: vec![],
+        login_daily_infos: progression["LoginDailyInfos"].as_array().cloned().unwrap_or_default(),
         player_archive_infos: vec![],
         player_currency_infos: vec![],
-        newbie_mission_infos: vec![],
+        newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),
         free_equip_gacha_infos: vec![],
         equip_gacha_infos: vec![],
-        chapter_reward_infos: vec![],
+        chapter_reward_infos: progression["ChapterRewardInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_point_infos: vec![],
         class_buff_infos: vec![],
         dispatch_battle_infos: vec![],
         monthly_hero_infos: vec![],
-        sub_quest_infos: vec![],
+        sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
         eclipse_dungeon_infos: vec![],
-        clear_mission_infos: vec![],
+        clear_mission_infos: progression["ClearMissionInfos"].as_array().cloned().unwrap_or_default(),
         player_any_miscs: vec![],
         soul_weapon_infos: vec![],
-        player_product_purchase_infos: vec![],
+        player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().cloned().unwrap_or_default(),
         drop_bonus_events: vec![],
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos: vec![],

@@ -1,0 +1,135 @@
+[
+  {
+    "Index": 1,
+    "Title": "Local daily attendance",
+    "Keyword": "Common",
+    "StartDate": "2020-01-01 00:00:00",
+    "EndDate": "2099-12-31 23:59:59",
+    "ManualStart": 0,
+    "RewardEndDay": 7,
+    "Repeatable": 1,
+    "PageSize": 7,
+    "InitialPage": 1,
+    "OpenLevel": 1,
+    "NextAttendanceIndex": 0,
+    "ApplyAttendanceTime": "2020-01-01 00:00:00",
+    "GroupIndex": 1,
+    "AttendanceRewardableDays": 0,
+    "SendMail": 0,
+    "Conditions": [],
+    "Reward": [
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 2002,
+            "Count": 1,
+            "Star": 0,
+            "Index": 1,
+            "Day": 1,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 200003,
+            "Count": 5,
+            "Star": 0,
+            "Index": 1,
+            "Day": 2,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 110008,
+            "Count": 2,
+            "Star": 0,
+            "Index": 1,
+            "Day": 3,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 2002,
+            "Count": 1,
+            "Star": 0,
+            "Index": 1,
+            "Day": 4,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 200003,
+            "Count": 5,
+            "Star": 0,
+            "Index": 1,
+            "Day": 5,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 110008,
+            "Count": 2,
+            "Star": 0,
+            "Index": 1,
+            "Day": 6,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      },
+      {
+        "Reward": [
+          {
+            "Type": "Item",
+            "Value": 2002,
+            "Count": 1,
+            "Star": 0,
+            "Index": 1,
+            "Day": 7,
+            "No": 1,
+            "Invisible": false,
+            "SendMail": false,
+            "ShowType": "None"
+          }
+        ]
+      }
+    ]
+  }
+]

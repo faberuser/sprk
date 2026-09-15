@@ -28,6 +28,9 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Mail:** personal/global inboxes, pagination, expiry, and atomic attachment claims.
 - **Friends:** search, invitations, acceptance/removal, daily points, and live notifications.
 - **Chat:** native TCP world/channel messages, whispers, guild messages, and reconnect history.
+- **Attendance and login rewards:** configurable daily/conditional calendars, accumulated-login milestones, UTC resets, and persistent claims.
+- **Achievements and quests:** extracted achievement/subquest definitions, progress from supported gameplay, reward claims, and login/gameplay notifications.
+- **Completion rewards:** chapter-star rewards, entitlement-checked clear/newcomer missions, and claims for persisted world-map events.
 - **Development tools:** GM/cheat commands for currencies, heroes, levels, unlocks, and equipment.
 
 ## WIP / Future Implementation
@@ -37,8 +40,7 @@ This backlog includes partial implementations and systems not started yet; it is
 ### Accounts, quests, and rewards
 
 - **Account services:** account linking/recovery, nickname/country changes, player inspection/search, remaining native account queries, and token expiry/refresh validation (`user/*`).
-- **Attendance and login rewards:** native daily/conditional attendance and login reward flows with table-defined schedules; replace the current sample attendance schedule (`attendance/*`, `logindaily/*`).
-- **Achievements and missions:** native achievement checks/rewards, gameplay-driven progress, main/subquests, chapter/world-map completion rewards, clear missions, and newcomer missions; replace the current sample achievement definitions (`achievement/*`, `quest/*`, `clear_mission/*`, `newbie_mission/*`, `world_map/*`).
+- **Progression data and dependencies:** restore actual main-quest definitions (the extracted table contains only a placeholder), original attendance schedules, and world-map event generation/completion rules. Add achievement/mission tracking for future battle modes, collection archives, NPC gifts, and equipment/soul-weapon progression. Connect paid mission entitlements to verified purchases (`quest/*`, `world_map/*`, `clear_mission/*`, `newbie_mission/*`).
 - **Seasonal progression and rewards:** King's Pass, monthly hero completion, phase-step rewards, scheduled push rewards, and coupon redemption (`kings_pass/*`, `monthly_hero/*`, `phase_step/*`, `push_reward/*`, `promotion/*`).
 
 ### Hero, equipment, and item extensions
@@ -53,7 +55,7 @@ This backlog includes partial implementations and systems not started yet; it is
 
 ### Dungeons, raids, and multiplayer
 
-- **Campaign completion:** stricter battle-result validation, participating-hero reward handling, chapter-clear/selected rewards, dungeon resets, sweeps, and dispatch missions (`campaign/*`, `sweep/*`, `dispatch/*`).
+- **Campaign completion:** stricter battle-result validation, participating-hero reward handling, selected rewards, dungeon resets, sweeps, and dispatch missions (`campaign/*`, `sweep/*`, `dispatch/*`).
 - **Dungeon-specific progression:** tower and maze rewards/resets, day-of-week and underground-prison state/keys, treasure-house runs, and God King trials (`campaign/*tower*`, `maze_tower/*`, `dow_dungeon/*`, `under_prison/*`, `treasure_house/*`, `godking_trial/*`).
 - **Special battle modes:** Eclipse decks/runs/results, Ordeal Arena nodes/buffs/resurrection, punishment raids, and Shakmeh passive state (`eclipse/*`, `ordeal_arena/*`, `punishment_raid/*`, `shakmeh_dungeon/*`).
 - **Co-op rooms and raids:** room creation/search/join/leave, host transfer, readiness/polling, shared battle state, raid resets, and multiplayer reward claims (`party_dungeon/*`, `raid/*`, `campaign/*multiplay*`).

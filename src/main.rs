@@ -236,13 +236,25 @@ async fn main() -> anyhow::Result<()> {
         .route("/guild/join", post(api::guild::join_guild))
         .route("/guild/leave", post(api::guild::leave_guild))
         .route("/guild/search", post(api::guild::search_guilds))
+        .route("/attendance/get_attendance_reward", post(api::progression::get_attendance_reward))
+        .route("/attendance/get_all_conditional_attendance_reward", post(api::progression::get_all_conditional_attendance_reward))
+        .route("/logindaily/get_logindaily_reward", post(api::progression::get_logindaily_reward))
+        .route("/achievement/get_achievements", post(api::progression::get_achievements))
+        .route("/achievement/check_achievements", post(api::progression::check_achievements))
+        .route("/achievement/reward_achievement", post(api::progression::reward_achievement))
+        .route("/quest/complete_sub_quest", post(api::progression::complete_sub_quest))
+        .route("/quest/progress_client_main_quest", post(api::progression::progress_client_main_quest))
+        .route("/clear_mission/get_clear_mission_reward", post(api::progression::get_clear_mission_reward))
+        .route("/newbie_mission/get_newbie_mission_reward", post(api::progression::get_newbie_mission_reward))
+        .route("/campaign/reward_clear_chapter", post(api::progression::reward_clear_chapter))
+        .route("/world_map/receive_completed_reward", post(api::progression::receive_completed_reward))
         // Attendance/Daily rewards
-        .route("/attendance/info", post(api::attendance::get_attendance_info))
-        .route("/attendance/receive", post(api::attendance::receive_attendance_reward))
+        .route("/attendance/info", post(api::progression::attendance_info))
+        .route("/attendance/receive", post(api::progression::get_attendance_reward))
         // Achievements
-        .route("/achievement/list", post(api::achievement::get_achievement_list))
-        .route("/achievement/receive", post(api::achievement::receive_achievement_reward))
-        .route("/achievement/update", post(api::achievement::update_achievement_progress))
+        .route("/achievement/list", post(api::progression::get_achievements))
+        .route("/achievement/receive", post(api::progression::reward_achievement))
+        .route("/achievement/update", post(api::progression::check_achievements))
         // Stamina
         .route("/stamina/info", post(api::stamina::get_stamina_info))
         .route("/stamina/buy", post(api::stamina::buy_stamina))
@@ -269,6 +281,7 @@ async fn main() -> anyhow::Result<()> {
         // Catch-all for unimplemented endpoints
         .fallback(api::fallback::handle_fallback)
         // Middleware
+        .layer(middleware::from_fn_with_state(state.clone(), api::progression::notifications::notify))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(state.clone(), api::middleware::decrypt_request))

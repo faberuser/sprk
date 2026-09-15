@@ -13,8 +13,6 @@ pub mod friend;
 pub mod chat;
 pub mod campaign;
 pub mod guild;
-pub mod attendance;
-pub mod achievement;
 pub mod stamina;
 pub mod tutorial;
 pub mod cheat;
@@ -37,3 +35,4 @@ mod inventory_tests;
 mod hero_shop_tests;
 
 pub mod hero_presets;
+pub mod progression;

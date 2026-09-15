@@ -115,6 +115,7 @@ impl UserInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerMiscInfo {
+    pub login_daily_count: i64,
     pub inventory_extend: i64,
     pub chest_extend: i64,
     pub daily_acc_friendship_point: i64,

@@ -52,6 +52,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     item::init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
+            if action=="craft_item" {super::progression::record(&mut tx,account,"CraftItem",0,0,1).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }

@@ -423,5 +423,6 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         "CREATE TABLE IF NOT EXISTS shop_purchase_ledger(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,item_index INTEGER NOT NULL,period TEXT NOT NULL,purchased INTEGER NOT NULL DEFAULT 0,purchased_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account_id,shop_index,item_index,period))",
     ] { sqlx::query(statement).execute(pool).await?; }
 
+    crate::api::progression::schema::migrate(pool).await?;
     Ok(())
 }

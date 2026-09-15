@@ -96,6 +96,10 @@ pub struct EnterLobbyRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct EnterLobbyResponse {
+    pub attendance_datas: Vec<serde_json::Value>,
+    pub attendance_infos: Vec<serde_json::Value>,
+    pub achievement_infos: Vec<serde_json::Value>,
+    pub reserved_sub_quest_infos: Vec<serde_json::Value>,
     pub base_result: String,
     pub result: String,
     pub user_info: Option<UserInfo>,
@@ -265,7 +269,12 @@ pub async fn enter_lobby(
             last_roulette_time: row.get("last_roulette_time"),
         });
 
+    let progression = super::progression::login(&state, session.account_id).await?;
     Ok(Json(EnterLobbyResponse {
+        attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
+        attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
+        achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
+        reserved_sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
         base_result: "Success".to_string(),
         result: "Success".to_string(),
         user_info,

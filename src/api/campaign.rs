@@ -406,34 +406,22 @@ pub async fn begin_campaign(
 
     // Get stamina cost from dungeon table
     let stamina_cost = state.tables.get_campaign_dungeon(chapter_index, dungeon_index)
-        .map(|d| d.get_req_stamina(difficulty))
-        .unwrap_or(6);  // Default to 6 if dungeon not found
+        .ok_or_else(|| ServerError::InvalidRequest("Dungeon not found".into()))?
+        .get_req_stamina(difficulty).max(0);
     
     tracing::info!("Begin campaign: chapter={}, dungeon={}, difficulty={}, stamina_cost={}", 
         chapter_index, dungeon_index, difficulty, stamina_cost);
 
-    // Get current stamina
-    let stamina_row = sqlx::query("SELECT stamina FROM user_info WHERE account_id = ?")
+    // Deduction and entry progress commit together; concurrent entries cannot overspend.
+    let mut tx = state.db.begin().await?;
+    let new_stamina: i32 = sqlx::query_scalar("UPDATE user_info SET stamina = stamina - ? WHERE account_id = ? AND stamina >= ? RETURNING stamina")
+        .bind(stamina_cost)
         .bind(session.account_id)
-        .fetch_optional(&state.db)
-        .await?;
-    
-    let current_stamina: i32 = stamina_row.map(|r| r.get("stamina")).unwrap_or(0);
-    
-    if current_stamina < stamina_cost {
-        return Err(ServerError::InvalidRequest("Not enough stamina".to_string()));
-    }
-    
-    let new_stamina = current_stamina - stamina_cost;
-    
-    // Deduct stamina
-    sqlx::query("UPDATE user_info SET stamina = ? WHERE account_id = ?")
-        .bind(new_stamina)
-        .bind(session.account_id)
-        .execute(&state.db)
-        .await?;
-    
-    tracing::info!("Stamina deducted: {} -> {} (cost: {})", current_stamina, new_stamina, stamina_cost);
+        .bind(stamina_cost)
+        .fetch_optional(&mut *tx)
+        .await?.ok_or_else(|| ServerError::InvalidRequest("Not enough stamina".into()))?;
+    super::progression::record(&mut tx, session.account_id, "EnterDungeon", chapter_index as i64, dungeon_index as i64, 1).await?;
+    tx.commit().await?;
 
     // Build stamina result for client to update UI
     let stamina_result = StaminaResultInfo {

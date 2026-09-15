@@ -355,6 +355,9 @@ pub async fn gm_reset_account(
             .execute(&mut *tx).await?;
     }
 
+    for table in ["progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
+        sqlx::query(&format!("DELETE FROM {table} WHERE account_id=?")).bind(session.account_id).execute(&mut *tx).await?;
+    }
     tx.commit().await?;
 
     Ok(Json(GmResetAccountResponse {

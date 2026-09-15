@@ -349,6 +349,11 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
+            if action.starts_with("use_") {
+                super::progression::record(&mut tx,account,"UseItem",req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?).await?;
+            }
+            let kind=match action {"use_potion_item"=>"UsePotionItem","use_booster_item"=>"UseBoosterItem",_=>""};
+            if !kind.is_empty() {super::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }
