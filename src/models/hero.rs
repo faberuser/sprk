@@ -9,6 +9,7 @@ pub struct HeroInfo {
     pub star: i32,
     pub level: i32,
     pub exp: i32,
+    #[serde(rename="Transcended", alias="Transcend")]
     pub transcend: i32,
     pub awakened: i32,
     pub skill_level_1: i32,
@@ -20,6 +21,8 @@ pub struct HeroInfo {
     pub is_bookmarked: bool,
     pub closeness: i32,
     pub transcend_skill_point: i32,
+    #[serde(flatten, default)]
+    pub details: std::collections::BTreeMap<String, serde_json::Value>,
     
     // Equipment slots (1-10, 0 means empty)
     // Slot 1: Weapon, Slot 2: Armor, Slot 3: Secondary, Slot 4: Accessory, Slot 5: Orb
@@ -65,6 +68,7 @@ impl HeroInfo {
             is_bookmarked: false,
             closeness: 0,
             transcend_skill_point: 0,
+            details: Default::default(),
             equip_item_slot_index_1: 0,
             equip_item_slot_index_2: 0,
             equip_item_slot_index_3: 0,
@@ -77,14 +81,4 @@ impl HeroInfo {
             equip_item_slot_index_10: 0,
         }
     }
-}
-
-/// Default starting heroes (Kasel, Frey, Cleo, Roi)
-pub fn get_starting_heroes(base_hero_id: i64) -> Vec<HeroInfo> {
-    vec![
-        HeroInfo::new(base_hero_id, 1, 2),      // Kasel - Knight
-        HeroInfo::new(base_hero_id + 1, 2, 2),  // Frey - Priest  
-        HeroInfo::new(base_hero_id + 2, 3, 2),  // Cleo - Wizard
-        HeroInfo::new(base_hero_id + 3, 4, 2),  // Roi - Assassin
-    ]
 }

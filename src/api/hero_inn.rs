@@ -12,7 +12,7 @@ use crate::{
     models::{
         hero::HeroInfo,
         hero_inn::{
-            PlayerHeroFriendlyInfo, HeroAddResultInfo,
+            PlayerHeroFriendlyInfo,
             FriendlyActionType, CurrencyResultInfo3, FriendshipPointResultInfo,
             get_available_inn_hero_indices, MAX_FRIENDSHIP_POINTS,
             GREETING_POINTS, CONVERSATION_POINTS, GIFT_POINTS,
@@ -790,167 +790,30 @@ pub struct RecruitHeroRequest {
     pub hero_index: Option<i32>,
 }
 
-/// Result types for RecruitHero (client expects string names)
-#[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
-pub enum RecruitHeroResult {
-    Fail,
-    HeroIndexMismatch,
-    FriendlyPointMismatch,
-    AlreadyRecruited,
-    HeroNotExist,
-    CannotRecruit,
-    Success,
-}
-
-impl RecruitHeroResult {
-    fn as_str(&self) -> &'static str {
-        match self {
-            RecruitHeroResult::Fail => "Fail",
-            RecruitHeroResult::HeroIndexMismatch => "HeroIndexMismatch",
-            RecruitHeroResult::FriendlyPointMismatch => "FriendlyPointMismatch",
-            RecruitHeroResult::AlreadyRecruited => "AlreadyRecruited",
-            RecruitHeroResult::HeroNotExist => "HeroNotExist",
-            RecruitHeroResult::CannotRecruit => "CannotRecruit",
-            RecruitHeroResult::Success => "Success",
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct RecruitHeroResponse {
-    pub base_result: String,
-    pub result: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hero_result: Option<HeroAddResultInfo>,
-}
-
 /// Handle recruit hero
 pub async fn recruit_hero(
     State(state): State<AppState>,
     Form(req): Form<RecruitHeroRequest>,
-) -> Result<Json<RecruitHeroResponse>> {
-    let session_id = req.session_key.or(req.session_id)
-        .ok_or_else(|| ServerError::SessionExpired)?;
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-    
-    let account_id = session.account_id;
-    let hero_index = req.hero_index.unwrap_or(0);
-
-    if hero_index == 0 {
-        return Ok(Json(RecruitHeroResponse {
-            base_result: "Success".to_string(),
-            result: RecruitHeroResult::HeroIndexMismatch.as_str().to_string(),
-            hero_result: None,
-        }));
-    }
-
-    // Check if already owned
-    let owned = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ? AND hero_index = ?")
-        .bind(account_id)
-        .bind(hero_index)
-        .fetch_optional(&state.db)
-        .await?;
-
-    if owned.is_some() {
-        return Ok(Json(RecruitHeroResponse {
-            base_result: "Success".to_string(),
-            result: RecruitHeroResult::AlreadyRecruited.as_str().to_string(),
-            hero_result: None,
-        }));
-    }
-
-    // Check friendly points
-    let friendly_row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_optional(&state.db)
-        .await?;
-
-    let friendly_row = match friendly_row {
-        Some(row) => row,
-        None => {
-            return Ok(Json(RecruitHeroResponse {
-                base_result: "Success".to_string(),
-                result: RecruitHeroResult::HeroNotExist.as_str().to_string(),
-                hero_result: None,
-            }));
-        }
-    };
-
-    let current_hero_index: i32 = friendly_row.get("hero_index");
-    let friendly_point: i32 = friendly_row.get("friendly_point");
-
-    if current_hero_index != hero_index {
-        return Ok(Json(RecruitHeroResponse {
-            base_result: "Success".to_string(),
-            result: RecruitHeroResult::HeroIndexMismatch.as_str().to_string(),
-            hero_result: None,
-        }));
-    }
-
-    if friendly_point < MAX_FRIENDSHIP_POINTS {
-        return Ok(Json(RecruitHeroResponse {
-            base_result: "Success".to_string(),
-            result: RecruitHeroResult::FriendlyPointMismatch.as_str().to_string(),
-            hero_result: None,
-        }));
-    }
-
-    // Create the hero
-    let result = sqlx::query(
-        "INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, ?, ?, 2, 1)"
-    )
-    .bind(account_id)
-    .bind(hero_index as i64) // hero_id = hero_index for simplicity
-    .bind(hero_index)
-    .execute(&state.db)
-    .await?;
-
-    let hero_id = result.last_insert_rowid();
-
-    // Reset the friendly info for next hero
-    let current_time = state.server_time_str();
-    sqlx::query(
-        "UPDATE hero_friendly_info SET hero_index = 0, selected_hero_index = 0, friendly_point = 0, selected_time = ? WHERE account_id = ?"
-    )
-    .bind(&current_time)
-    .bind(account_id)
-    .execute(&state.db)
-    .await?;
-
-    let hero_info = HeroInfo {
-        hero_id,
-        hero_index,
-        star: 2,
-        level: 1,
-        ..Default::default()
-    };
-
-    let hero_result = HeroAddResultInfo {
-        hero_info: Some(hero_info),
-        team_exp_result: None,
-        stamina_result: None,
-        hero_friendly_info: Some(PlayerHeroFriendlyInfo {
-            hero_index: 0,
-            selected_hero_index: 0,
-            friendly_point: 0,
-            last_greeting_time: None,
-            last_conversation_time: None,
-            last_gift_time: None,
-            selected_time: Some(current_time),
-            selected_hero_indice: None,
-            last_roulette_time: None,
-        }),
-    };
-
-    Ok(Json(RecruitHeroResponse {
-        base_result: "Success".to_string(),
-        result: RecruitHeroResult::Success.as_str().to_string(),
-        hero_result: Some(hero_result),
-    }))
+) -> Result<Json<serde_json::Value>> {
+    use serde_json::json;
+    let key=req.session_key.or(req.session_id).ok_or(ServerError::SessionExpired)?;
+    let account=state.get_session(&key).ok_or(ServerError::SessionExpired)?.account_id;
+    let index=req.hero_index.unwrap_or(0);
+    let fail=|code:&str|Json(json!({"BaseResult":"Success","Result":code}));
+    let Some(c)=state.tables.hero_shop.heroes.get(&index) else {return Ok(fail("HeroIndexMismatch"))};
+    let mut tx=state.db.begin().await?;
+    super::item::init(&mut tx,&state,account).await?;
+    let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)").bind(account).bind(index).fetch_one(&mut *tx).await?;
+    if owned {return Ok(fail("AlreadyRecruited"));}
+    let row=sqlx::query("SELECT hero_index,friendly_point FROM hero_friendly_info WHERE account_id=?").bind(account).fetch_optional(&mut *tx).await?;
+    let Some(row)=row else {return Ok(fail("HeroNotExist"))};
+    if row.get::<i32,_>("hero_index")!=index {return Ok(fail("HeroIndexMismatch"));}
+    if row.get::<i32,_>("friendly_point")<MAX_FRIENDSHIP_POINTS {return Ok(fail("FriendlyPointMismatch"));}
+    let mut reward=super::hero::recruit_at(&mut tx,&state,account,index,super::item::n(c,"StartHeroStar"),super::item::n(c,"StartHeroLevel"),0).await?;
+    sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,selected_time=datetime('now') WHERE account_id=?").bind(account).execute(&mut *tx).await?;
+    reward["HeroFriendlyInfo"]=json!({"HeroIndex":0,"SelectedHeroIndex":0,"FriendlyPoint":0,"SelectedTime":state.server_time_str(),"SelectedHeroIndice":""});
+    tx.commit().await?;
+    Ok(Json(json!({"BaseResult":"Success","Result":"Success","HeroResult":reward})))
 }
 
 // ============================================================================

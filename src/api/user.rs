@@ -10,7 +10,7 @@ use crate::{
     error::Result,
     models::{
         user::{UserInfo, PlayerMiscInfo, PlayerBattleInfo},
-        hero::{HeroInfo, get_starting_heroes},
+        hero::HeroInfo,
         item::ItemInfo,
         equip::EquipItemInfo,
         BaseResultType,
@@ -116,6 +116,7 @@ pub struct ChapterDungeonInfo {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct LoginResponse {
+    pub player_avatar_hero_info: serde_json::Value,
     pub base_result: String,  // Must be string like "Success" for C# enum parsing
     #[serde(skip_serializing_if = "Option::is_none")]
     pub internal_error_message: Option<String>,
@@ -165,6 +166,7 @@ pub struct LoginResponse {
     // Critical field - account creation time
     pub created_time: String,
     // Additional arrays that the client expects (always include even when empty)
+    pub message_server_info: serde_json::Value,
     pub friend_infos: Vec<serde_json::Value>,
     pub friend_invitor_infos: Vec<serde_json::Value>,
     pub attendance_infos: Vec<serde_json::Value>,
@@ -313,6 +315,7 @@ pub async fn login(
             (account_id, nick, false)
         }
         None => {
+            let mut tx = state.db.begin().await?;
             // Create new account
             let nick = format!("Raider{}", rand::random::<u32>() % 100000);
             
@@ -323,7 +326,7 @@ pub async fn login(
             .bind(login_method)
             .bind(&device_id)
             .bind(&nick)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
             
             let account_id = result.last_insert_rowid();
@@ -333,24 +336,18 @@ pub async fn login(
                 "INSERT INTO user_info (account_id, friendship_point) VALUES (?, 6000)"
             )
             .bind(account_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
             
-            // Create starting heroes
-            let starting_heroes = get_starting_heroes(1);
-            for hero in &starting_heroes {
-                sqlx::query(
-                    "INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, ?, ?, ?, ?)"
-                )
-                .bind(account_id)
-                .bind(hero.hero_id)
-                .bind(hero.hero_index)
-                .bind(hero.star)
-                .bind(hero.level)
-                .execute(&state.db)
-                .await?;
-            }
-            
+            sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 0)")
+                .bind(account_id).execute(&mut *tx).await?;
+            // Kasel is present in the opening scene. The tutorial recruits the rest.
+            let kasel = state.tables.tutorials.support.items.get(&1)
+                .ok_or_else(|| crate::error::ServerError::Internal("Missing starter hero data".into()))?;
+            sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, 1, ?, ?, ?)")
+                .bind(account_id).bind(kasel.hero_index).bind(kasel.star).bind(kasel.level)
+                .execute(&mut *tx).await?;
+
             // New users start with empty tutorial progress
             // Tutorials will be triggered by EventTriggers in the client
             // The client will call begin_tutorial and complete_tutorial endpoints
@@ -360,9 +357,10 @@ pub async fn login(
                 "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 1000000, 5000)"
             )
             .bind(account_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
             
+            tx.commit().await?;
             (account_id, nick, true)
         }
     };
@@ -411,6 +409,7 @@ pub async fn login(
             avatar_hero_index: row.get("avatar_hero_index"),
             royal_point: row.get("royal_point"),
             raid_point: row.get("raid_point"),
+            event_dungeon_point: row.get("event_dungeon_point"),
             mileage: row.get("mileage"),
             friendship_point: row.get("friendship_point"),
             guild_raid_ticket: row.get("guild_raid_ticket"),
@@ -420,45 +419,11 @@ pub async fn login(
         None => UserInfo::new_user(account_id, &nick, &session_key),
     };
 
-    // Fetch heroes
-    let hero_rows = sqlx::query(
-        "SELECT * FROM heroes WHERE account_id = ?"
-    )
-    .bind(account_id)
-    .fetch_all(&state.db)
-    .await?;
-
-    let heroes: Vec<HeroInfo> = hero_rows.iter().map(|row| HeroInfo {
-        hero_id: row.get("hero_id"),
-        hero_index: row.get("hero_index"),
-        star: row.get("star"),
-        level: row.get("level"),
-        exp: row.get("exp"),
-        transcend: row.get("transcend"),
-        awakened: row.get("awakened"),
-        skill_level_1: row.get("skill_level_1"),
-        skill_level_2: row.get("skill_level_2"),
-        skill_level_3: row.get("skill_level_3"),
-        skill_level_4: row.get("skill_level_4"),
-        unique_weapon_id: row.get("unique_weapon_id"),
-        is_bookmarked: row.get::<i32, _>("is_bookmarked") != 0,
-        closeness: row.get("closeness"),
-        transcend_skill_point: 0,
-        equip_item_slot_index_1: row.get("equip_item_slot_index_1"),
-        equip_item_slot_index_2: row.get("equip_item_slot_index_2"),
-        equip_item_slot_index_3: row.get("equip_item_slot_index_3"),
-        equip_item_slot_index_4: row.get("equip_item_slot_index_4"),
-        equip_item_slot_index_5: row.get("equip_item_slot_index_5"),
-        equip_item_slot_index_6: row.get("equip_item_slot_index_6"),
-        equip_item_slot_index_7: row.get("equip_item_slot_index_7"),
-        equip_item_slot_index_8: row.get("equip_item_slot_index_8"),
-        equip_item_slot_index_9: row.get("equip_item_slot_index_9"),
-        equip_item_slot_index_10: row.get("equip_item_slot_index_10"),
-    }).collect();
+    let heroes = super::hero::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
     // Fetch items
     let item_rows = sqlx::query(
-        "SELECT * FROM items WHERE account_id = ?"
+        "SELECT * FROM items WHERE account_id = ? AND count > 0"
     )
     .bind(account_id)
     .fetch_all(&state.db)
@@ -467,6 +432,9 @@ pub async fn login(
     let items: Vec<ItemInfo> = item_rows.iter().map(|row| ItemInfo {
         item_index: row.get("item_index"),
         count: row.get("count"),
+        locked: row.get::<i32,_>("locked") as u8,
+        created_time: row.get("created_time"),
+        uid: row.get::<i32,_>("item_index").to_string(),
     }).collect();
 
     // Fetch equipment items
@@ -477,35 +445,7 @@ pub async fn login(
     .fetch_all(&state.db)
     .await?;
 
-    let equip_items: Vec<EquipItemInfo> = equip_rows.iter().map(|row| {
-        let slot_index: i32 = row.get("slot_index");
-        EquipItemInfo {
-            slot_index,
-            item_index: row.get("item_index"),
-            star: row.get("star"),
-            level: row.get("level"),
-            exp: row.get("exp"),
-            option_index_1: row.get("option_index_1"),
-            option_step_1: row.get("option_step_1"),
-            option_index_2: row.get("option_index_2"),
-            option_step_2: row.get("option_step_2"),
-            option_index_3: row.get("option_index_3"),
-            option_step_3: row.get("option_step_3"),
-            option_index_4: row.get("option_index_4"),
-            option_step_4: row.get("option_step_4"),
-            rune_slot_count: row.get("rune_slot_count"),
-            rune_item_index_1: row.get("rune_item_index_1"),
-            rune_item_index_2: row.get("rune_item_index_2"),
-            rune_item_index_3: row.get("rune_item_index_3"),
-            created_time: row.get("created_time"),
-            upgrade_star_fail_bonus: row.get("upgrade_star_fail_bonus"),
-            locked: row.get("locked"),
-            inventory_type: row.get("inventory_type"),
-            identified: row.get("identified"),
-            uid: format!("{}", slot_index),
-            ..Default::default()
-        }
-    }).collect();
+    let equip_items: Vec<EquipItemInfo> = equip_rows.iter().map(EquipItemInfo::from_row).collect();
 
     // Check guild membership
     let guild_row = sqlx::query(
@@ -577,43 +517,9 @@ pub async fn login(
         completed_time: row.get::<Option<String>, _>("completed_time"),
     }).collect();
 
-    // ==========================================================================
-    // TUTORIAL SKIP CONFIGURATION
-    // ==========================================================================
-    // 
-    // The tutorial system is complex and involves multiple tutorial indices:
-    //   - Tutorial 1000: Initial tutorial start
-    //   - Tutorial 10000/17010: Unlocks dungeon 1-1 (player can now see it on map)
-    //   - Tutorial 10010: Completes 1-1, unlocks 1-2 (after tutorial battle)
-    //   - Tutorial 10110: Completes 1-2, unlocks 1-3
-    //   - Tutorial 10202: Completes 1-3, unlocks 1-4 (end of main tutorial)
-    //   - Tutorial 10220: Completes 1-4, unlocks 1-5
-    //   - Tutorial 10230: Completes 1-5, unlocks 1-6
-    //   - Tutorial 10300: Completes 1-6, unlocks 1-7
-    //   - etc.
-    //
-    // When the tutorial is ENABLED (tutorial_skip = false):
-    //   - Client drives the tutorial flow and calls /complete_tutorial for each step
-    //   - Server handles dungeon unlocking in tutorial.rs based on tutorial index
-    //   - The DungeonInfos returned in complete_tutorial response update client state
-    //   - Client should call CampaignManager.Apply() to apply the dungeon info
-    //
-    // When the tutorial is SKIPPED (tutorial_skip = true):
-    //   - We pre-populate dungeons in the database below
-    //   - User starts with some dungeons already unlocked/completed
-    //   - No tutorial flow runs, user goes directly to gameplay
-    //
-    // TODO: To re-enable tutorial, set tutorial_skip = false for new users:
-    //   let tutorial_skip = !is_new_user;
-    //
-    // KNOWN ISSUES when tutorial is enabled:
-    //   - Client may show dungeons as greyed out or 0 stars even though server sends correct data
-    //   - The CompleteTutorial response includes DungeonInfos but client may not refresh UI
-    //   - See tutorial.rs for the tutorial index handlers
-    //
-    // FORCE TUTORIAL ENABLED FOR TESTING:
-    let tutorial_skip = true;  // Force tutorial on for all users to test DLL patch logging
-    // let tutorial_skip = !is_new_user;
+    // Keep incomplete tutorials enabled across reconnects. Completion is tracked per index.
+    let tutorial_skip: bool = sqlx::query_scalar("SELECT is_skipped FROM tutorial_settings WHERE account_id = ?")
+        .bind(account_id).fetch_optional(&state.db).await?.unwrap_or(false);
 
     // Fetch campaign progress and build chapter_dungeons
     let campaign_rows = sqlx::query(
@@ -624,16 +530,7 @@ pub async fn login(
     .await
     .unwrap_or_default();
 
-    // Build chapter_dungeons from database
-    // 
-    // MaxStar encoding: difficulty * 10 + stars
-    //   - Chapter 1 has MinDifficulty = Normal (1), not Easy (0)!
-    //   - So the DB stores best_star = 3, but we send MaxStar = 13 (Normal 3-star)
-    //   - The client checks: (MaxStar / 10) >= MinDifficulty to verify completion
-    //
-    // FirstRewardedDiff bitmask:
-    //   - Bit 1 (value 2) = Normal cleared (for chapter 1)
-    //
+    // Encode difficulty and stars consistently with tutorial completion.
     let mut chapter_dungeons: Vec<ChapterDungeonInfo> = campaign_rows.iter().map(|row| {
         let chapter_id: i32 = row.get("chapter_id");
         let clear_count: i32 = row.get("clear_count");
@@ -641,18 +538,9 @@ pub async fn login(
         let completed_time: Option<String> = row.get("completed_time");
         let is_completed = clear_count > 0 || best_star > 0 || completed_time.is_some();
         
-        // For chapter 1, MinDifficulty is Normal (1), so encode as Normal + stars
-        // For other chapters, we'd need to check their actual MinDifficulty
-        let max_star = if is_completed && chapter_id <= 10 {
-            // Chapter 1-10: assume Normal (1) as minimum difficulty
-            // MaxStar = 1 * 10 + best_star
-            (10 + best_star) as i16
-        } else {
-            best_star as i16
-        };
-        
-        // FirstRewardedDiff: For Normal cleared, use bit 1 (value 2)
-        let first_rewarded_diff = if is_completed { 2 } else { 0 };
+        let difficulty = state.tables.tutorials.dungeon_difficulty(chapter_id, row.get("dungeon_id"));
+        let max_star = if is_completed { (difficulty * 10 + best_star) as i16 } else { 0 };
+        let first_rewarded_diff = if is_completed { (1 << difficulty) as i16 } else { 0 };
         
         ChapterDungeonInfo {
             chapter_index: chapter_id,
@@ -715,7 +603,15 @@ pub async fn login(
     // The client will update this position as the player navigates
     let (current_chapter_index, current_dungeon_index) = (1, 1);
 
+    let craft_slot_infos = super::craft::login_data(&state,account_id).await?;
+    let inventory_settings = sqlx::query("SELECT * FROM inventory_settings WHERE account_id=?").bind(account_id).fetch_one(&state.db).await?;
+    let (friend_infos, friend_invitor_infos, point_infos, sent_points) = super::friend::login_data(&state, account_id).await?;
+    let costume_infos = super::hero::costumes(&mut *state.db.acquire().await?, account_id).await?;
+    let costume_storage_slot_infos = super::hero::presets(&mut *state.db.acquire().await?, account_id).await?;
+
+    let player_avatar_hero_info = super::hero::avatar_info(&mut *state.db.acquire().await?,&state,account_id).await?;
     let response = LoginResponse {
+        player_avatar_hero_info,
         base_result: "Success".to_string(),
         internal_error_message: None,
         result: "Success".to_string(),
@@ -738,6 +634,10 @@ pub async fn login(
         user_info,
         battle_info: Some(PlayerBattleInfo::default()),
         misc_info: Some(PlayerMiscInfo {
+            inventory_extend: inventory_settings.get("inventory_extend"),
+            chest_extend: inventory_settings.get("chest_extend"),
+            daily_acc_friendship_point: sqlx::query_scalar("SELECT points FROM friend_daily WHERE account_id=? AND day=?").bind(account_id).bind(state.server_date()).fetch_optional(&state.db).await?.unwrap_or(0),
+            daily_acc_friendship_point_reset_time: (chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string(),
             nick_change_count: 0,
             inventory_expand_count: 0,
             last_login_time: state.server_time_str(),
@@ -757,11 +657,14 @@ pub async fn login(
         towers: vec![],
         deck_infos: vec![],
         achievement_infos: vec![],
-        is_tutorial_skip: tutorial_skip,  // false for new users to enable tutorial, true for returning users
+        is_tutorial_skip: tutorial_skip,
         server_name: "Private Server".to_string(),
         created_time: state.server_time_str(),
-        friend_infos: vec![],
-        friend_invitor_infos: vec![],
+        message_server_info: serde_json::json!({"Address":state.chat.address, "Port":state.chat.port}),
+        send_recv_friendship_point_infos: point_infos,
+        sent_friendship_point_infos: sent_points,
+        friend_infos,
+        friend_invitor_infos,
         attendance_infos: vec![],
         hideout_dungeons: vec![],
         conquest_dungeons: vec![],
@@ -769,17 +672,17 @@ pub async fn login(
         contents_values: vec![],
         // All the additional empty arrays
         hero_rune_page_infos: vec![],
-        item_time_durations: vec![],
+        item_time_durations: super::item::booster_login(&state,account_id).await?,
         purchase_time_durations: vec![],
         world_map_event_time_infos: vec![],
         world_map_event_infos: vec![],
         wanted_quest_infos: vec![],
         raid_infos: vec![],
-        craft_slot_infos: vec![],
-        costume_infos: vec![],
+        craft_slot_infos,
+        costume_infos,
         weapon_costume_infos: vec![],
         hair_costume_infos: vec![],
-        costume_storage_slot_infos: vec![],
+        costume_storage_slot_infos,
         player_accessory_costume_infos: vec![],
         purchase_marketing_infos: vec![],
         player_item_use_infos: vec![],
@@ -805,8 +708,6 @@ pub async fn login(
         player_product_purchase_infos: vec![],
         drop_bonus_events: vec![],
         pay_shop_item_event_infos: vec![],
-        send_recv_friendship_point_infos: vec![],
-        sent_friendship_point_infos: vec![],
         npc_friendly_infos: vec![],
         chat_ban_infos: vec![],
         // Hero friendly info - CRITICAL: cannot be null or client crashes

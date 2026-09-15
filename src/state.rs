@@ -20,6 +20,7 @@ pub struct SessionInfo {
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
+    pub chat: Arc<crate::api::chat::ChatHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
     pub auth_tokens: Arc<DashMap<String, String>>, // access_token -> device_id
     #[allow(dead_code)]
@@ -31,6 +32,7 @@ impl AppState {
     pub fn new(db: DbPool, tables: GameTables) -> Self {
         Self {
             db,
+            chat: Arc::new(crate::api::chat::ChatHub::default()),
             sessions: Arc::new(DashMap::new()),
             auth_tokens: Arc::new(DashMap::new()),
             server_start_time: chrono::Utc::now(),

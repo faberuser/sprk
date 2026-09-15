@@ -100,6 +100,20 @@ pub async fn set_equip(
     tracing::info!("SetEquip: hero_index={}, parts={:?}, slots={:?}", 
         hero_index, hero_part_indices, equip_slot_indices);
 
+    if hero_part_indices.is_empty() || hero_part_indices.len()!=equip_slot_indices.len() || hero_part_indices.len()>10
+        || hero_part_indices.iter().any(|p|!(0..10).contains(p))
+        || hero_part_indices.iter().collect::<std::collections::HashSet<_>>().len()!=hero_part_indices.len()
+        || equip_slot_indices.iter().collect::<std::collections::HashSet<_>>().len()!=equip_slot_indices.len() {
+        return Err(ServerError::InvalidRequest("Invalid equipment slots".into()));
+    }
+    let mut tx=state.db.begin().await?;
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(session.account_id).execute(&mut *tx).await?;
+    let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)").bind(session.account_id).bind(hero_index).fetch_one(&mut *tx).await?;
+    if !owned {return Err(ServerError::InvalidRequest("HeroNotOwned".into()));}
+    for slot in &equip_slot_indices {
+        let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0)").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
+        if !owned {return Err(ServerError::InvalidRequest("EquipNotOwned".into()));}
+    }
     let mut equipped_slots: Vec<i32> = Vec::new();
     let mut unequipped_slots: Vec<i32> = Vec::new();
 
@@ -130,7 +144,7 @@ pub async fn set_equip(
         .bind(equip_slot_index).bind(equip_slot_index)
         .bind(equip_slot_index).bind(equip_slot_index)
         .bind(equip_slot_index).bind(equip_slot_index)
-        .fetch_optional(&state.db)
+        .fetch_optional(&mut *tx)
         .await?;
 
         if let Some(row) = current_owner {
@@ -146,7 +160,7 @@ pub async fn set_equip(
                     .bind(session.account_id)
                     .bind(other_hero_index)
                     .bind(equip_slot_index)
-                    .execute(&state.db)
+                    .execute(&mut *tx)
                     .await?;
                 }
                 unequipped_slots.push(equip_slot_index);
@@ -162,7 +176,7 @@ pub async fn set_equip(
         ))
         .bind(session.account_id)
         .bind(hero_index)
-        .fetch_optional(&state.db)
+        .fetch_optional(&mut *tx)
         .await?;
 
         if let Some(row) = current_in_slot {
@@ -182,13 +196,14 @@ pub async fn set_equip(
             .bind(equip_slot_index)
             .bind(session.account_id)
             .bind(hero_index)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
 
         equipped_slots.push(equip_slot_index);
         tracing::info!("Equipped slot {} to hero {} part {}", equip_slot_index, hero_index, part_index);
     }
 
+    tx.commit().await?;
     Ok(Json(SetEquipResponse {
         base_result: "Success".to_string(),
         result: "Success".to_string(),

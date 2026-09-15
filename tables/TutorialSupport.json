@@ -1,0 +1,1616 @@
+{
+  "DungeonDifficulties": {
+    "1:1": 1,
+    "1:7": 1,
+    "1:3": 1,
+    "50000:10": 1,
+    "1:6": 1,
+    "1:9": 1,
+    "1:2": 1,
+    "1:5": 1,
+    "1:8": 1,
+    "1:11": 1,
+    "117:4": 0,
+    "50000:11": 1
+  },
+  "Items": {
+    "1": {
+      "Kind": "Hero",
+      "HeroIndex": 1,
+      "Star": 1,
+      "Level": 1,
+      "Transcend": 0
+    },
+    "2": {
+      "Kind": "Hero",
+      "HeroIndex": 2,
+      "Star": 1,
+      "Level": 1,
+      "Transcend": 0
+    },
+    "3": {
+      "Kind": "Hero",
+      "HeroIndex": 3,
+      "Star": 1,
+      "Level": 3,
+      "Transcend": 0
+    },
+    "4": {
+      "Kind": "Hero",
+      "HeroIndex": 4,
+      "Star": 1,
+      "Level": 3,
+      "Transcend": 0
+    },
+    "15": {
+      "Kind": "Hero",
+      "HeroIndex": 15,
+      "Star": 2,
+      "Level": 20,
+      "Transcend": 0
+    },
+    "111": {
+      "Kind": "Hero",
+      "HeroIndex": 111,
+      "Star": 5,
+      "Level": 1,
+      "Transcend": 0
+    },
+    "1001": {
+      "Kind": "Equip"
+    },
+    "1007711": {
+      "Kind": "Hero",
+      "HeroIndex": 88,
+      "Star": 5,
+      "Level": 50,
+      "Transcend": 0
+    },
+    "1007712": {
+      "Kind": "Hero",
+      "HeroIndex": 89,
+      "Star": 5,
+      "Level": 50,
+      "Transcend": 0
+    },
+    "55001": {
+      "Kind": "Equip"
+    },
+    "600044": {
+      "Kind": "Item"
+    },
+    "45040": {
+      "Kind": "Item"
+    },
+    "120109": {
+      "Kind": "Item"
+    },
+    "80114": {
+      "Kind": "Equip"
+    },
+    "70002": {
+      "Kind": "Equip"
+    },
+    "60001": {
+      "Kind": "Equip"
+    },
+    "81114": {
+      "Kind": "Equip"
+    },
+    "50001": {
+      "Kind": "Equip"
+    },
+    "71001": {
+      "Kind": "Equip"
+    },
+    "61002": {
+      "Kind": "Equip"
+    },
+    "82114": {
+      "Kind": "Equip"
+    },
+    "30001": {
+      "Kind": "Item"
+    },
+    "30006": {
+      "Kind": "Item"
+    },
+    "30011": {
+      "Kind": "Item"
+    },
+    "30016": {
+      "Kind": "Item"
+    },
+    "30021": {
+      "Kind": "Item"
+    },
+    "30026": {
+      "Kind": "Item"
+    },
+    "30031": {
+      "Kind": "Item"
+    },
+    "51001": {
+      "Kind": "Equip"
+    },
+    "72001": {
+      "Kind": "Equip"
+    },
+    "72002": {
+      "Kind": "Equip"
+    },
+    "51401": {
+      "Kind": "Equip"
+    },
+    "62001": {
+      "Kind": "Equip"
+    },
+    "62002": {
+      "Kind": "Equip"
+    },
+    "83114": {
+      "Kind": "Equip"
+    },
+    "52001": {
+      "Kind": "Equip"
+    },
+    "52002": {
+      "Kind": "Equip"
+    }
+  },
+  "HeroLevels": [
+    {
+      "Level": 1,
+      "LocalExp": 15,
+      "TotalExp": 0
+    },
+    {
+      "Level": 2,
+      "LocalExp": 40,
+      "TotalExp": 15
+    },
+    {
+      "Level": 3,
+      "LocalExp": 75,
+      "TotalExp": 55
+    },
+    {
+      "Level": 4,
+      "LocalExp": 120,
+      "TotalExp": 130
+    },
+    {
+      "Level": 5,
+      "LocalExp": 175,
+      "TotalExp": 250
+    },
+    {
+      "Level": 6,
+      "LocalExp": 240,
+      "TotalExp": 425
+    },
+    {
+      "Level": 7,
+      "LocalExp": 315,
+      "TotalExp": 665
+    },
+    {
+      "Level": 8,
+      "LocalExp": 400,
+      "TotalExp": 980
+    },
+    {
+      "Level": 9,
+      "LocalExp": 495,
+      "TotalExp": 1380
+    },
+    {
+      "Level": 10,
+      "LocalExp": 600,
+      "TotalExp": 1875
+    },
+    {
+      "Level": 11,
+      "LocalExp": 725,
+      "TotalExp": 2475
+    },
+    {
+      "Level": 12,
+      "LocalExp": 880,
+      "TotalExp": 3200
+    },
+    {
+      "Level": 13,
+      "LocalExp": 1075,
+      "TotalExp": 4080
+    },
+    {
+      "Level": 14,
+      "LocalExp": 1320,
+      "TotalExp": 5155
+    },
+    {
+      "Level": 15,
+      "LocalExp": 1625,
+      "TotalExp": 6475
+    },
+    {
+      "Level": 16,
+      "LocalExp": 2000,
+      "TotalExp": 8100
+    },
+    {
+      "Level": 17,
+      "LocalExp": 2455,
+      "TotalExp": 10100
+    },
+    {
+      "Level": 18,
+      "LocalExp": 3000,
+      "TotalExp": 12555
+    },
+    {
+      "Level": 19,
+      "LocalExp": 3645,
+      "TotalExp": 15555
+    },
+    {
+      "Level": 20,
+      "LocalExp": 4400,
+      "TotalExp": 19200
+    },
+    {
+      "Level": 21,
+      "LocalExp": 5280,
+      "TotalExp": 23600
+    },
+    {
+      "Level": 22,
+      "LocalExp": 6305,
+      "TotalExp": 28880
+    },
+    {
+      "Level": 23,
+      "LocalExp": 7500,
+      "TotalExp": 35185
+    },
+    {
+      "Level": 24,
+      "LocalExp": 8895,
+      "TotalExp": 42685
+    },
+    {
+      "Level": 25,
+      "LocalExp": 10525,
+      "TotalExp": 51580
+    },
+    {
+      "Level": 26,
+      "LocalExp": 12435,
+      "TotalExp": 62105
+    },
+    {
+      "Level": 27,
+      "LocalExp": 14680,
+      "TotalExp": 74540
+    },
+    {
+      "Level": 28,
+      "LocalExp": 17325,
+      "TotalExp": 89220
+    },
+    {
+      "Level": 29,
+      "LocalExp": 20445,
+      "TotalExp": 106545
+    },
+    {
+      "Level": 30,
+      "LocalExp": 24125,
+      "TotalExp": 126990
+    },
+    {
+      "Level": 31,
+      "LocalExp": 28470,
+      "TotalExp": 151115
+    },
+    {
+      "Level": 32,
+      "LocalExp": 33605,
+      "TotalExp": 179585
+    },
+    {
+      "Level": 33,
+      "LocalExp": 39675,
+      "TotalExp": 213190
+    },
+    {
+      "Level": 34,
+      "LocalExp": 46845,
+      "TotalExp": 252865
+    },
+    {
+      "Level": 35,
+      "LocalExp": 55300,
+      "TotalExp": 299710
+    },
+    {
+      "Level": 36,
+      "LocalExp": 65255,
+      "TotalExp": 355010
+    },
+    {
+      "Level": 37,
+      "LocalExp": 76955,
+      "TotalExp": 420265
+    },
+    {
+      "Level": 38,
+      "LocalExp": 90675,
+      "TotalExp": 497220
+    },
+    {
+      "Level": 39,
+      "LocalExp": 106720,
+      "TotalExp": 587895
+    },
+    {
+      "Level": 40,
+      "LocalExp": 125425,
+      "TotalExp": 694615
+    },
+    {
+      "Level": 41,
+      "LocalExp": 147165,
+      "TotalExp": 820040
+    },
+    {
+      "Level": 42,
+      "LocalExp": 172355,
+      "TotalExp": 967205
+    },
+    {
+      "Level": 43,
+      "LocalExp": 201450,
+      "TotalExp": 1139560
+    },
+    {
+      "Level": 44,
+      "LocalExp": 234945,
+      "TotalExp": 1341010
+    },
+    {
+      "Level": 45,
+      "LocalExp": 273375,
+      "TotalExp": 1575955
+    },
+    {
+      "Level": 46,
+      "LocalExp": 317335,
+      "TotalExp": 1849330
+    },
+    {
+      "Level": 47,
+      "LocalExp": 367480,
+      "TotalExp": 2166665
+    },
+    {
+      "Level": 48,
+      "LocalExp": 424525,
+      "TotalExp": 2534145
+    },
+    {
+      "Level": 49,
+      "LocalExp": 489245,
+      "TotalExp": 2958670
+    },
+    {
+      "Level": 50,
+      "LocalExp": 562475,
+      "TotalExp": 3447915
+    },
+    {
+      "Level": 51,
+      "LocalExp": 645130,
+      "TotalExp": 4010390
+    },
+    {
+      "Level": 52,
+      "LocalExp": 738205,
+      "TotalExp": 4655520
+    },
+    {
+      "Level": 53,
+      "LocalExp": 842775,
+      "TotalExp": 5393725
+    },
+    {
+      "Level": 54,
+      "LocalExp": 959995,
+      "TotalExp": 6236500
+    },
+    {
+      "Level": 55,
+      "LocalExp": 1091100,
+      "TotalExp": 7196495
+    },
+    {
+      "Level": 56,
+      "LocalExp": 1237445,
+      "TotalExp": 8287595
+    },
+    {
+      "Level": 57,
+      "LocalExp": 1400505,
+      "TotalExp": 9525040
+    },
+    {
+      "Level": 58,
+      "LocalExp": 1581875,
+      "TotalExp": 10925545
+    },
+    {
+      "Level": 59,
+      "LocalExp": 1783270,
+      "TotalExp": 12507420
+    },
+    {
+      "Level": 60,
+      "LocalExp": 2006525,
+      "TotalExp": 14290690
+    },
+    {
+      "Level": 61,
+      "LocalExp": 2253635,
+      "TotalExp": 16297215
+    },
+    {
+      "Level": 62,
+      "LocalExp": 2526755,
+      "TotalExp": 18550850
+    },
+    {
+      "Level": 63,
+      "LocalExp": 2828200,
+      "TotalExp": 21077605
+    },
+    {
+      "Level": 64,
+      "LocalExp": 3160445,
+      "TotalExp": 23905805
+    },
+    {
+      "Level": 65,
+      "LocalExp": 3526125,
+      "TotalExp": 27066250
+    },
+    {
+      "Level": 66,
+      "LocalExp": 3928075,
+      "TotalExp": 30592375
+    },
+    {
+      "Level": 67,
+      "LocalExp": 4369330,
+      "TotalExp": 34520450
+    },
+    {
+      "Level": 68,
+      "LocalExp": 4853125,
+      "TotalExp": 38889780
+    },
+    {
+      "Level": 69,
+      "LocalExp": 5382895,
+      "TotalExp": 43742905
+    },
+    {
+      "Level": 70,
+      "LocalExp": 5962275,
+      "TotalExp": 49125800
+    },
+    {
+      "Level": 71,
+      "LocalExp": 6595220,
+      "TotalExp": 55088075
+    },
+    {
+      "Level": 72,
+      "LocalExp": 7286005,
+      "TotalExp": 61683295
+    },
+    {
+      "Level": 73,
+      "LocalExp": 8039225,
+      "TotalExp": 68969300
+    },
+    {
+      "Level": 74,
+      "LocalExp": 8859795,
+      "TotalExp": 77008525
+    },
+    {
+      "Level": 75,
+      "LocalExp": 9752950,
+      "TotalExp": 85868320
+    },
+    {
+      "Level": 76,
+      "LocalExp": 10724325,
+      "TotalExp": 95621270
+    },
+    {
+      "Level": 77,
+      "LocalExp": 11779955,
+      "TotalExp": 106345595
+    },
+    {
+      "Level": 78,
+      "LocalExp": 12926275,
+      "TotalExp": 118125550
+    },
+    {
+      "Level": 79,
+      "LocalExp": 14170120,
+      "TotalExp": 131051825
+    },
+    {
+      "Level": 80,
+      "LocalExp": 15518725,
+      "TotalExp": 145221945
+    },
+    {
+      "Level": 81,
+      "LocalExp": 16979945,
+      "TotalExp": 160740670
+    },
+    {
+      "Level": 82,
+      "LocalExp": 18562255,
+      "TotalExp": 177720615
+    },
+    {
+      "Level": 83,
+      "LocalExp": 20274750,
+      "TotalExp": 196282870
+    },
+    {
+      "Level": 84,
+      "LocalExp": 22127145,
+      "TotalExp": 216557620
+    },
+    {
+      "Level": 85,
+      "LocalExp": 24129775,
+      "TotalExp": 238684765
+    },
+    {
+      "Level": 86,
+      "LocalExp": 26293787,
+      "TotalExp": 262814540
+    },
+    {
+      "Level": 87,
+      "LocalExp": 28631140,
+      "TotalExp": 289108327
+    },
+    {
+      "Level": 88,
+      "LocalExp": 31154605,
+      "TotalExp": 317739467
+    },
+    {
+      "Level": 89,
+      "LocalExp": 33877787,
+      "TotalExp": 348894072
+    },
+    {
+      "Level": 90,
+      "LocalExp": 36838998,
+      "TotalExp": 382771859
+    },
+    {
+      "Level": 91,
+      "LocalExp": 40030585,
+      "TotalExp": 419610857
+    },
+    {
+      "Level": 92,
+      "LocalExp": 43468345,
+      "TotalExp": 459641442
+    },
+    {
+      "Level": 93,
+      "LocalExp": 47168397,
+      "TotalExp": 503109787
+    },
+    {
+      "Level": 94,
+      "LocalExp": 51147658,
+      "TotalExp": 550278184
+    },
+    {
+      "Level": 95,
+      "LocalExp": 55423864,
+      "TotalExp": 601425842
+    },
+    {
+      "Level": 96,
+      "LocalExp": 60015585,
+      "TotalExp": 656849706
+    },
+    {
+      "Level": 97,
+      "LocalExp": 64942243,
+      "TotalExp": 716865291
+    },
+    {
+      "Level": 98,
+      "LocalExp": 70224119,
+      "TotalExp": 781807534
+    },
+    {
+      "Level": 99,
+      "LocalExp": 75882369,
+      "TotalExp": 852031653
+    },
+    {
+      "Level": 100,
+      "LocalExp": 0,
+      "TotalExp": 927914022
+    },
+    {
+      "Level": 1,
+      "LocalExp": 100,
+      "TotalExp": 927914022
+    }
+  ],
+  "HeroStars": [
+    {
+      "Star": 1,
+      "Transcended": 0,
+      "GetHeroTeamExp": 1500,
+      "MaxHeroLevel": 30
+    },
+    {
+      "Star": 5,
+      "Transcended": 0,
+      "GetHeroTeamExp": 6000,
+      "MaxHeroLevel": 70
+    },
+    {
+      "Star": 5,
+      "Transcended": 1,
+      "GetHeroTeamExp": 8000,
+      "MaxHeroLevel": 80
+    },
+    {
+      "Star": 3,
+      "Transcended": 0,
+      "GetHeroTeamExp": 3000,
+      "MaxHeroLevel": 50
+    },
+    {
+      "Star": 5,
+      "Transcended": 2,
+      "GetHeroTeamExp": 10000,
+      "MaxHeroLevel": 90
+    },
+    {
+      "Star": 5,
+      "Transcended": 3,
+      "GetHeroTeamExp": 12000,
+      "MaxHeroLevel": 100
+    },
+    {
+      "Star": 5,
+      "Transcended": 4,
+      "GetHeroTeamExp": 15000,
+      "MaxHeroLevel": 100
+    },
+    {
+      "Star": 5,
+      "Transcended": 5,
+      "GetHeroTeamExp": 18000,
+      "MaxHeroLevel": 100
+    },
+    {
+      "Star": 4,
+      "Transcended": 0,
+      "GetHeroTeamExp": 4000,
+      "MaxHeroLevel": 60
+    },
+    {
+      "Star": 2,
+      "Transcended": 0,
+      "GetHeroTeamExp": 2000,
+      "MaxHeroLevel": 40
+    }
+  ],
+  "TeamLevels": [
+    {
+      "Level": 1,
+      "LocalExp": 1500
+    },
+    {
+      "Level": 2,
+      "LocalExp": 1800
+    },
+    {
+      "Level": 3,
+      "LocalExp": 2100
+    },
+    {
+      "Level": 4,
+      "LocalExp": 2400
+    },
+    {
+      "Level": 5,
+      "LocalExp": 2700
+    },
+    {
+      "Level": 6,
+      "LocalExp": 3000
+    },
+    {
+      "Level": 7,
+      "LocalExp": 3300
+    },
+    {
+      "Level": 8,
+      "LocalExp": 3600
+    },
+    {
+      "Level": 9,
+      "LocalExp": 3900
+    },
+    {
+      "Level": 10,
+      "LocalExp": 4200
+    },
+    {
+      "Level": 11,
+      "LocalExp": 4500
+    },
+    {
+      "Level": 12,
+      "LocalExp": 4800
+    },
+    {
+      "Level": 13,
+      "LocalExp": 5100
+    },
+    {
+      "Level": 14,
+      "LocalExp": 5400
+    },
+    {
+      "Level": 15,
+      "LocalExp": 5700
+    },
+    {
+      "Level": 16,
+      "LocalExp": 6000
+    },
+    {
+      "Level": 17,
+      "LocalExp": 6300
+    },
+    {
+      "Level": 18,
+      "LocalExp": 6600
+    },
+    {
+      "Level": 19,
+      "LocalExp": 6900
+    },
+    {
+      "Level": 20,
+      "LocalExp": 7200
+    },
+    {
+      "Level": 21,
+      "LocalExp": 7500
+    },
+    {
+      "Level": 22,
+      "LocalExp": 7800
+    },
+    {
+      "Level": 23,
+      "LocalExp": 8100
+    },
+    {
+      "Level": 24,
+      "LocalExp": 8400
+    },
+    {
+      "Level": 25,
+      "LocalExp": 8700
+    },
+    {
+      "Level": 26,
+      "LocalExp": 9000
+    },
+    {
+      "Level": 27,
+      "LocalExp": 9300
+    },
+    {
+      "Level": 28,
+      "LocalExp": 9600
+    },
+    {
+      "Level": 29,
+      "LocalExp": 9900
+    },
+    {
+      "Level": 30,
+      "LocalExp": 10200
+    },
+    {
+      "Level": 31,
+      "LocalExp": 10500
+    },
+    {
+      "Level": 32,
+      "LocalExp": 10800
+    },
+    {
+      "Level": 33,
+      "LocalExp": 11100
+    },
+    {
+      "Level": 34,
+      "LocalExp": 11400
+    },
+    {
+      "Level": 35,
+      "LocalExp": 11700
+    },
+    {
+      "Level": 36,
+      "LocalExp": 12000
+    },
+    {
+      "Level": 37,
+      "LocalExp": 12300
+    },
+    {
+      "Level": 38,
+      "LocalExp": 12600
+    },
+    {
+      "Level": 39,
+      "LocalExp": 12900
+    },
+    {
+      "Level": 40,
+      "LocalExp": 13200
+    },
+    {
+      "Level": 41,
+      "LocalExp": 13500
+    },
+    {
+      "Level": 42,
+      "LocalExp": 13800
+    },
+    {
+      "Level": 43,
+      "LocalExp": 14100
+    },
+    {
+      "Level": 44,
+      "LocalExp": 14400
+    },
+    {
+      "Level": 45,
+      "LocalExp": 14700
+    },
+    {
+      "Level": 46,
+      "LocalExp": 15000
+    },
+    {
+      "Level": 47,
+      "LocalExp": 15300
+    },
+    {
+      "Level": 48,
+      "LocalExp": 15600
+    },
+    {
+      "Level": 49,
+      "LocalExp": 15900
+    },
+    {
+      "Level": 50,
+      "LocalExp": 16200
+    },
+    {
+      "Level": 51,
+      "LocalExp": 16500
+    },
+    {
+      "Level": 52,
+      "LocalExp": 16800
+    },
+    {
+      "Level": 53,
+      "LocalExp": 17100
+    },
+    {
+      "Level": 54,
+      "LocalExp": 17400
+    },
+    {
+      "Level": 55,
+      "LocalExp": 17700
+    },
+    {
+      "Level": 56,
+      "LocalExp": 18000
+    },
+    {
+      "Level": 57,
+      "LocalExp": 18300
+    },
+    {
+      "Level": 58,
+      "LocalExp": 18600
+    },
+    {
+      "Level": 59,
+      "LocalExp": 18900
+    },
+    {
+      "Level": 60,
+      "LocalExp": 19200
+    },
+    {
+      "Level": 61,
+      "LocalExp": 19500
+    },
+    {
+      "Level": 62,
+      "LocalExp": 19800
+    },
+    {
+      "Level": 63,
+      "LocalExp": 20100
+    },
+    {
+      "Level": 64,
+      "LocalExp": 20400
+    },
+    {
+      "Level": 65,
+      "LocalExp": 20700
+    },
+    {
+      "Level": 66,
+      "LocalExp": 21000
+    },
+    {
+      "Level": 67,
+      "LocalExp": 21300
+    },
+    {
+      "Level": 68,
+      "LocalExp": 21600
+    },
+    {
+      "Level": 69,
+      "LocalExp": 21900
+    },
+    {
+      "Level": 70,
+      "LocalExp": 22200
+    },
+    {
+      "Level": 71,
+      "LocalExp": 22500
+    },
+    {
+      "Level": 72,
+      "LocalExp": 22800
+    },
+    {
+      "Level": 73,
+      "LocalExp": 23100
+    },
+    {
+      "Level": 74,
+      "LocalExp": 23400
+    },
+    {
+      "Level": 75,
+      "LocalExp": 23700
+    },
+    {
+      "Level": 76,
+      "LocalExp": 24000
+    },
+    {
+      "Level": 77,
+      "LocalExp": 24300
+    },
+    {
+      "Level": 78,
+      "LocalExp": 24600
+    },
+    {
+      "Level": 79,
+      "LocalExp": 24900
+    },
+    {
+      "Level": 80,
+      "LocalExp": 25200
+    },
+    {
+      "Level": 81,
+      "LocalExp": 25500
+    },
+    {
+      "Level": 82,
+      "LocalExp": 25800
+    },
+    {
+      "Level": 83,
+      "LocalExp": 26100
+    },
+    {
+      "Level": 84,
+      "LocalExp": 26400
+    },
+    {
+      "Level": 85,
+      "LocalExp": 26700
+    },
+    {
+      "Level": 86,
+      "LocalExp": 27000
+    },
+    {
+      "Level": 87,
+      "LocalExp": 27300
+    },
+    {
+      "Level": 88,
+      "LocalExp": 27600
+    },
+    {
+      "Level": 89,
+      "LocalExp": 27900
+    },
+    {
+      "Level": 90,
+      "LocalExp": 28200
+    },
+    {
+      "Level": 91,
+      "LocalExp": 28500
+    },
+    {
+      "Level": 92,
+      "LocalExp": 28800
+    },
+    {
+      "Level": 93,
+      "LocalExp": 29100
+    },
+    {
+      "Level": 94,
+      "LocalExp": 29400
+    },
+    {
+      "Level": 95,
+      "LocalExp": 29700
+    },
+    {
+      "Level": 96,
+      "LocalExp": 30000
+    },
+    {
+      "Level": 97,
+      "LocalExp": 30300
+    },
+    {
+      "Level": 98,
+      "LocalExp": 30600
+    },
+    {
+      "Level": 99,
+      "LocalExp": 31212
+    },
+    {
+      "Level": 100,
+      "LocalExp": 31836
+    },
+    {
+      "Level": 101,
+      "LocalExp": 32472
+    },
+    {
+      "Level": 102,
+      "LocalExp": 33121
+    },
+    {
+      "Level": 103,
+      "LocalExp": 33783
+    },
+    {
+      "Level": 104,
+      "LocalExp": 34458
+    },
+    {
+      "Level": 105,
+      "LocalExp": 35147
+    },
+    {
+      "Level": 106,
+      "LocalExp": 35849
+    },
+    {
+      "Level": 107,
+      "LocalExp": 36565
+    },
+    {
+      "Level": 108,
+      "LocalExp": 37296
+    },
+    {
+      "Level": 109,
+      "LocalExp": 38041
+    },
+    {
+      "Level": 110,
+      "LocalExp": 38801
+    },
+    {
+      "Level": 111,
+      "LocalExp": 39577
+    },
+    {
+      "Level": 112,
+      "LocalExp": 40368
+    },
+    {
+      "Level": 113,
+      "LocalExp": 41175
+    },
+    {
+      "Level": 114,
+      "LocalExp": 41998
+    },
+    {
+      "Level": 115,
+      "LocalExp": 42837
+    },
+    {
+      "Level": 116,
+      "LocalExp": 43693
+    },
+    {
+      "Level": 117,
+      "LocalExp": 44566
+    },
+    {
+      "Level": 118,
+      "LocalExp": 45457
+    },
+    {
+      "Level": 119,
+      "LocalExp": 46366
+    },
+    {
+      "Level": 120,
+      "LocalExp": 47293
+    },
+    {
+      "Level": 121,
+      "LocalExp": 48238
+    },
+    {
+      "Level": 122,
+      "LocalExp": 49202
+    },
+    {
+      "Level": 123,
+      "LocalExp": 50186
+    },
+    {
+      "Level": 124,
+      "LocalExp": 51189
+    },
+    {
+      "Level": 125,
+      "LocalExp": 52212
+    },
+    {
+      "Level": 126,
+      "LocalExp": 53256
+    },
+    {
+      "Level": 127,
+      "LocalExp": 54321
+    },
+    {
+      "Level": 128,
+      "LocalExp": 55407
+    },
+    {
+      "Level": 129,
+      "LocalExp": 56515
+    },
+    {
+      "Level": 130,
+      "LocalExp": 57645
+    },
+    {
+      "Level": 131,
+      "LocalExp": 58797
+    },
+    {
+      "Level": 132,
+      "LocalExp": 59972
+    },
+    {
+      "Level": 133,
+      "LocalExp": 61171
+    },
+    {
+      "Level": 134,
+      "LocalExp": 62394
+    },
+    {
+      "Level": 135,
+      "LocalExp": 63641
+    },
+    {
+      "Level": 136,
+      "LocalExp": 64913
+    },
+    {
+      "Level": 137,
+      "LocalExp": 66211
+    },
+    {
+      "Level": 138,
+      "LocalExp": 67535
+    },
+    {
+      "Level": 139,
+      "LocalExp": 68885
+    },
+    {
+      "Level": 140,
+      "LocalExp": 70262
+    },
+    {
+      "Level": 141,
+      "LocalExp": 71667
+    },
+    {
+      "Level": 142,
+      "LocalExp": 73100
+    },
+    {
+      "Level": 143,
+      "LocalExp": 74562
+    },
+    {
+      "Level": 144,
+      "LocalExp": 76053
+    },
+    {
+      "Level": 145,
+      "LocalExp": 77574
+    },
+    {
+      "Level": 146,
+      "LocalExp": 79125
+    },
+    {
+      "Level": 147,
+      "LocalExp": 80707
+    },
+    {
+      "Level": 148,
+      "LocalExp": 82321
+    },
+    {
+      "Level": 149,
+      "LocalExp": 83967
+    },
+    {
+      "Level": 150,
+      "LocalExp": 85646
+    },
+    {
+      "Level": 151,
+      "LocalExp": 87358
+    },
+    {
+      "Level": 152,
+      "LocalExp": 89105
+    },
+    {
+      "Level": 153,
+      "LocalExp": 90887
+    },
+    {
+      "Level": 154,
+      "LocalExp": 92704
+    },
+    {
+      "Level": 155,
+      "LocalExp": 94558
+    },
+    {
+      "Level": 156,
+      "LocalExp": 96449
+    },
+    {
+      "Level": 157,
+      "LocalExp": 98377
+    },
+    {
+      "Level": 158,
+      "LocalExp": 100344
+    },
+    {
+      "Level": 159,
+      "LocalExp": 102350
+    },
+    {
+      "Level": 160,
+      "LocalExp": 104397
+    },
+    {
+      "Level": 161,
+      "LocalExp": 106484
+    },
+    {
+      "Level": 162,
+      "LocalExp": 108613
+    },
+    {
+      "Level": 163,
+      "LocalExp": 110785
+    },
+    {
+      "Level": 164,
+      "LocalExp": 113000
+    },
+    {
+      "Level": 165,
+      "LocalExp": 115260
+    },
+    {
+      "Level": 166,
+      "LocalExp": 117565
+    },
+    {
+      "Level": 167,
+      "LocalExp": 119916
+    },
+    {
+      "Level": 168,
+      "LocalExp": 122314
+    },
+    {
+      "Level": 169,
+      "LocalExp": 124760
+    },
+    {
+      "Level": 170,
+      "LocalExp": 127255
+    },
+    {
+      "Level": 171,
+      "LocalExp": 129800
+    },
+    {
+      "Level": 172,
+      "LocalExp": 132396
+    },
+    {
+      "Level": 173,
+      "LocalExp": 135043
+    },
+    {
+      "Level": 174,
+      "LocalExp": 137743
+    },
+    {
+      "Level": 175,
+      "LocalExp": 140497
+    },
+    {
+      "Level": 176,
+      "LocalExp": 143306
+    },
+    {
+      "Level": 177,
+      "LocalExp": 146172
+    },
+    {
+      "Level": 178,
+      "LocalExp": 149095
+    },
+    {
+      "Level": 179,
+      "LocalExp": 152076
+    },
+    {
+      "Level": 180,
+      "LocalExp": 155117
+    },
+    {
+      "Level": 181,
+      "LocalExp": 158219
+    },
+    {
+      "Level": 182,
+      "LocalExp": 161383
+    },
+    {
+      "Level": 183,
+      "LocalExp": 164610
+    },
+    {
+      "Level": 184,
+      "LocalExp": 167902
+    },
+    {
+      "Level": 185,
+      "LocalExp": 171260
+    },
+    {
+      "Level": 186,
+      "LocalExp": 174685
+    },
+    {
+      "Level": 187,
+      "LocalExp": 178178
+    },
+    {
+      "Level": 188,
+      "LocalExp": 181741
+    },
+    {
+      "Level": 189,
+      "LocalExp": 185375
+    },
+    {
+      "Level": 190,
+      "LocalExp": 189082
+    },
+    {
+      "Level": 191,
+      "LocalExp": 192863
+    },
+    {
+      "Level": 192,
+      "LocalExp": 196720
+    },
+    {
+      "Level": 193,
+      "LocalExp": 200654
+    },
+    {
+      "Level": 194,
+      "LocalExp": 204667
+    },
+    {
+      "Level": 195,
+      "LocalExp": 208760
+    },
+    {
+      "Level": 196,
+      "LocalExp": 212935
+    },
+    {
+      "Level": 197,
+      "LocalExp": 217193
+    },
+    {
+      "Level": 198,
+      "LocalExp": 221536
+    },
+    {
+      "Level": 199,
+      "LocalExp": 225966
+    },
+    {
+      "Level": 200,
+      "LocalExp": 0
+    }
+  ],
+  "CustomEquipment": {
+    "2": {
+      "Index": 2,
+      "SlotIndex": 0,
+      "ItemIndex": 81104,
+      "Star": 0,
+      "Level": 0,
+      "Exp": 20,
+      "OptionIndex1": 105,
+      "OptionStep1": 1,
+      "OptionRenewCount1": 0,
+      "IsRenewedOption1": 0,
+      "OptionIndex2": 1105,
+      "OptionStep2": 1,
+      "OptionRenewCount2": 0,
+      "IsRenewedOption2": 0,
+      "OptionIndex3": 505,
+      "OptionStep3": 1,
+      "OptionRenewCount3": 0,
+      "IsRenewedOption3": 0,
+      "OptionIndex4": 805,
+      "OptionStep4": 1,
+      "OptionRenewCount4": 1,
+      "IsRenewedOption4": 1,
+      "OptionIndex5": 0,
+      "OptionStep5": 0,
+      "OptionRenewCount5": 0,
+      "IsRenewedOption5": 0,
+      "RuneSlotCount": 0,
+      "RuneItemIndex1": 0,
+      "RuneItemIndex2": 0,
+      "RuneItemIndex3": 0,
+      "UpgradeStarFailBonus": 0,
+      "Locked": 0,
+      "EnchantOptionIndex1": 0,
+      "EnchantOptionStep1": 0,
+      "EnchantOptionIndex2": 0,
+      "EnchantOptionStep2": 0,
+      "EnchantOptionIndex3": 0,
+      "EnchantOptionStep3": 0,
+      "RenewEnchantOptionSlotIndex": 0
+    },
+    "6": {
+      "Index": 6,
+      "SlotIndex": 0,
+      "ItemIndex": 51401,
+      "Star": 0,
+      "Level": 0,
+      "Exp": 20,
+      "OptionIndex1": 101,
+      "OptionStep1": 10,
+      "OptionRenewCount1": 0,
+      "IsRenewedOption1": 0,
+      "OptionIndex2": 501,
+      "OptionStep2": 10,
+      "OptionRenewCount2": 0,
+      "IsRenewedOption2": 0,
+      "OptionIndex3": 801,
+      "OptionStep3": 10,
+      "OptionRenewCount3": 0,
+      "IsRenewedOption3": 0,
+      "OptionIndex4": 0,
+      "OptionStep4": 0,
+      "OptionRenewCount4": 0,
+      "IsRenewedOption4": 0,
+      "OptionIndex5": 0,
+      "OptionStep5": 0,
+      "OptionRenewCount5": 0,
+      "IsRenewedOption5": 0,
+      "RuneSlotCount": 0,
+      "RuneItemIndex1": 0,
+      "RuneItemIndex2": 0,
+      "RuneItemIndex3": 0,
+      "UpgradeStarFailBonus": 0,
+      "Locked": 0,
+      "EnchantOptionIndex1": 0,
+      "EnchantOptionStep1": 0,
+      "EnchantOptionIndex2": 0,
+      "EnchantOptionStep2": 0,
+      "EnchantOptionIndex3": 0,
+      "EnchantOptionStep3": 0,
+      "RenewEnchantOptionSlotIndex": 0
+    }
+  }
+}

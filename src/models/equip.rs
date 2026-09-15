@@ -1,3 +1,4 @@
+use sqlx::Row;
 use serde::{Deserialize, Serialize};
 
 /// Equipment item info matching client's EquipItemInfo
@@ -137,6 +138,45 @@ pub struct EquipItemInfo {
 }
 
 impl EquipItemInfo {
+    /// Build the same equipment snapshot for login and tutorial retries.
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Self {
+        let slot_index: i32 = row.get("slot_index");
+        EquipItemInfo {
+            slot_index,
+            item_index: row.get("item_index"),
+            star: row.get("star"),
+            level: row.get("level"),
+            exp: row.get("exp"),
+            option_index_1: row.get("option_index_1"),
+            option_step_1: row.get("option_step_1"),
+            option_renew_count_1: row.get("option_renew_count_1"),
+            is_renewed_option_1: row.get("is_renewed_option_1"),
+            option_index_2: row.get("option_index_2"),
+            option_step_2: row.get("option_step_2"),
+            option_renew_count_2: row.get("option_renew_count_2"),
+            is_renewed_option_2: row.get("is_renewed_option_2"),
+            option_index_3: row.get("option_index_3"),
+            option_step_3: row.get("option_step_3"),
+            option_renew_count_3: row.get("option_renew_count_3"),
+            is_renewed_option_3: row.get("is_renewed_option_3"),
+            option_index_4: row.get("option_index_4"),
+            option_step_4: row.get("option_step_4"),
+            option_renew_count_4: row.get("option_renew_count_4"),
+            is_renewed_option_4: row.get("is_renewed_option_4"),
+            rune_slot_count: row.get("rune_slot_count"),
+            rune_item_index_1: row.get("rune_item_index_1"),
+            rune_item_index_2: row.get("rune_item_index_2"),
+            rune_item_index_3: row.get("rune_item_index_3"),
+            created_time: row.get("created_time"),
+            upgrade_star_fail_bonus: row.get("upgrade_star_fail_bonus"),
+            locked: row.get("locked"),
+            inventory_type: row.get("inventory_type"),
+            identified: row.get("identified"),
+            uid: format!("{}", slot_index),
+            ..Default::default()
+        }
+    }
+
     /// Create a new equipment item with default values
     pub fn new(slot_index: i32, item_index: i32, star: i32, created_time: String) -> Self {
         Self {

@@ -22,7 +22,7 @@ pub async fn init_database() -> anyhow::Result<DbPool> {
     Ok(pool)
 }
 
-async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
+pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     // Users/Accounts table
     sqlx::query(r#"
         CREATE TABLE IF NOT EXISTS accounts (
@@ -346,6 +346,82 @@ async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
             FOREIGN KEY (account_id) REFERENCES accounts(account_id)
         )
     "#).execute(pool).await?;
+
+    // Existing accounts used the old forced-skip flow. Preserve that preference;
+    // login explicitly opts newly created accounts into the tutorial.
+    sqlx::query("CREATE TABLE IF NOT EXISTS tutorial_settings (account_id INTEGER PRIMARY KEY, is_skipped INTEGER NOT NULL DEFAULT 0, FOREIGN KEY (account_id) REFERENCES accounts(account_id))")
+        .execute(pool).await?;
+    sqlx::query("INSERT OR IGNORE INTO tutorial_settings (account_id, is_skipped) SELECT account_id, 1 FROM accounts")
+        .execute(pool).await?;
+
+    // Additive migrations also work with databases created by earlier builds.
+    for (table, column, definition) in [
+        ("tutorial_progress", "completion_response", "TEXT"),
+        ("user_info", "event_dungeon_point", "INTEGER NOT NULL DEFAULT 0"),
+    ] {
+        use sqlx::Row;
+        let columns = sqlx::query(&format!("PRAGMA table_info({table})")).fetch_all(pool).await?;
+        if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
+            sqlx::query(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+                .execute(pool).await?;
+        }
+    }
+
+    let columns = sqlx::query("PRAGMA table_info(equip_items)").fetch_all(pool).await?;
+    for slot in 1..=4 {
+        use sqlx::Row;
+        for prefix in ["option_renew_count", "is_renewed_option"] {
+            let column = format!("{prefix}_{slot}");
+            if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
+                sqlx::query(&format!("ALTER TABLE equip_items ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"))
+                    .execute(pool).await?;
+            }
+        }
+    }
+
+    for statement in [
+        "CREATE TABLE IF NOT EXISTS friend_points (account_id INTEGER NOT NULL, friend_id INTEGER NOT NULL, last_send_time TEXT, last_recv_time TEXT, PRIMARY KEY(account_id, friend_id))",
+        "CREATE TABLE IF NOT EXISTS friend_daily (account_id INTEGER PRIMARY KEY, day TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0, removed INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS global_mails (global_id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL DEFAULT 'System', title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', reward_gold INTEGER NOT NULL DEFAULT 0, reward_gem INTEGER NOT NULL DEFAULT 0, reward_items TEXT, reward_stamina INTEGER NOT NULL DEFAULT 0, reward_equipment TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), expires_at TEXT, opens_at TEXT)",
+        "CREATE TABLE IF NOT EXISTS global_mail_deliveries (account_id INTEGER NOT NULL, global_id INTEGER NOT NULL, mail_id INTEGER NOT NULL, PRIMARY KEY(account_id, global_id))",
+        "CREATE TABLE IF NOT EXISTS chat_messages (message_id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER NOT NULL, group_type TEXT NOT NULL, channel INTEGER NOT NULL DEFAULT 1, guild_id INTEGER NOT NULL DEFAULT 0, receiver_id INTEGER NOT NULL DEFAULT 0, protocol TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+        "CREATE INDEX IF NOT EXISTS chat_channel_history ON chat_messages(group_type, channel, message_id)",
+        "CREATE INDEX IF NOT EXISTS chat_whisper_history ON chat_messages(receiver_id, sender_id, message_id)",
+        "CREATE INDEX IF NOT EXISTS mail_inbox ON mails(account_id, is_received, mail_id)",
+    ] { sqlx::query(statement).execute(pool).await?; }
+    for (column, definition) in [
+        ("read_time", "TEXT"), ("received_time", "TEXT"), ("opens_at", "TEXT"),
+        ("reward_stamina", "INTEGER NOT NULL DEFAULT 0"), ("reward_equipment", "TEXT"),
+        ("global_id", "INTEGER"), ("receipt", "TEXT"),
+    ] {
+        use sqlx::Row;
+        let columns = sqlx::query("PRAGMA table_info(mails)").fetch_all(pool).await?;
+        if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
+            sqlx::query(&format!("ALTER TABLE mails ADD COLUMN {column} {definition}")).execute(pool).await?;
+        }
+    }
+
+    for statement in [
+        "CREATE TABLE IF NOT EXISTS inventory_settings(account_id INTEGER PRIMARY KEY, inventory_extend INTEGER NOT NULL DEFAULT 0, chest_extend INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS craft_slots(account_id INTEGER NOT NULL, slot_index INTEGER NOT NULL, craft_index INTEGER NOT NULL DEFAULT 0, item_index INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, complete_time INTEGER NOT NULL DEFAULT 0, paid_gold INTEGER NOT NULL DEFAULT 0, materials TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(account_id,slot_index))",
+        "CREATE TABLE IF NOT EXISTS item_boosters(account_id INTEGER NOT NULL, item_index INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL, PRIMARY KEY(account_id,item_index))",
+    ] { sqlx::query(statement).execute(pool).await?; }
+    for (column,definition) in [("locked","INTEGER NOT NULL DEFAULT 0"),("created_time","TEXT")] {
+        use sqlx::Row;
+        let columns=sqlx::query("PRAGMA table_info(items)").fetch_all(pool).await?;
+        if !columns.iter().any(|r|r.get::<String,_>("name")==column) {
+            sqlx::query(&format!("ALTER TABLE items ADD COLUMN {column} {definition}")).execute(pool).await?;
+        }
+    }
+
+    for statement in [
+        "CREATE TABLE IF NOT EXISTS hero_presets(account_id INTEGER NOT NULL,storage_key TEXT NOT NULL,name TEXT NOT NULL DEFAULT '',data TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(account_id,storage_key))",
+        "CREATE TABLE IF NOT EXISTS hero_details(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account_id,hero_index))",
+        "CREATE TABLE IF NOT EXISTS costumes(account_id INTEGER NOT NULL,costume_index INTEGER NOT NULL,created_time TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(account_id,costume_index))",
+        "CREATE TABLE IF NOT EXISTS costume_presets(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,slot_index INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account_id,hero_index,slot_index))",
+        "CREATE TABLE IF NOT EXISTS shop_stock(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 1,restock_time INTEGER NOT NULL DEFAULT 0,restock_count INTEGER NOT NULL DEFAULT 0,stock TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(account_id,shop_index))",
+        "CREATE TABLE IF NOT EXISTS shop_purchase_ledger(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,item_index INTEGER NOT NULL,period TEXT NOT NULL,purchased INTEGER NOT NULL DEFAULT 0,purchased_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account_id,shop_index,item_index,period))",
+    ] { sqlx::query(statement).execute(pool).await?; }
 
     Ok(())
 }

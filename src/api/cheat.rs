@@ -205,6 +205,9 @@ pub async fn gm_unlock_all(
 
     let completed_time = state.server_time_str();
 
+    sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
+        .bind(session.account_id).execute(&state.db).await?;
+
     // Skip tutorial - mark all key tutorials as completed
     let key_tutorials = [
         1, 1000, 10000, 10010, 10110, 10202, 10220, 10230, 10300, 10310,
@@ -297,51 +300,62 @@ pub async fn gm_reset_account(
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
 
+    let mut tx = state.db.begin().await?;
     // Reset user info to defaults
     sqlx::query(
-        "UPDATE user_info SET level = 1, exp = 0, gold = 10000, gem = 100, stamina = 100 WHERE account_id = ?"
+        "UPDATE user_info SET team_level = 1, team_exp = 0, event_dungeon_point = 0, gold = 10000, gem = 100, stamina = 100 WHERE account_id = ?"
     )
     .bind(session.account_id)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
 
     // Clear progress
     sqlx::query("DELETE FROM campaign_progress WHERE account_id = ?")
         .bind(session.account_id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
     sqlx::query("DELETE FROM tutorial_progress WHERE account_id = ?")
         .bind(session.account_id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
     sqlx::query("DELETE FROM attendance WHERE account_id = ?")
         .bind(session.account_id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
     sqlx::query("DELETE FROM achievements WHERE account_id = ?")
         .bind(session.account_id)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
+
+    sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 0) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 0")
+        .bind(session.account_id).execute(&mut *tx).await?;
 
     if !keep_heroes {
         sqlx::query("DELETE FROM heroes WHERE account_id = ?")
             .bind(session.account_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
 
         sqlx::query("DELETE FROM equip_items WHERE account_id = ?")
             .bind(session.account_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
 
         sqlx::query("DELETE FROM items WHERE account_id = ?")
             .bind(session.account_id)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
+        let kasel = state.tables.tutorials.support.items.get(&1)
+            .ok_or_else(|| ServerError::Internal("Missing starter hero data".into()))?;
+        sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, 1, ?, ?, ?)")
+            .bind(session.account_id).bind(kasel.hero_index).bind(kasel.star).bind(kasel.level)
+            .execute(&mut *tx).await?;
     }
+
+    tx.commit().await?;
 
     Ok(Json(GmResetAccountResponse {
         base_result: BaseResultType::Success as i32,

@@ -689,13 +689,14 @@ namespace DllPatcher
             Console.WriteLine("3. HeroInnViewButtonGroup: Added HideUnsupportedButtons (fix ActionTypes, hide extra buttons)");
             Console.WriteLine("4. StateBase_InAppBilling: Skip payment error popup (Steam initialization)");
             Console.WriteLine("5. SoulWeaponLimitBreak: Disabled Limit Break stars 6-15 (TryGetMaxStar, GetAfterDataByCurrent, GetDataByResultStar patched)");
-            Console.WriteLine("6. Hero/Costume visibility: Hero OpenType None->Opened only for index 1..102 and 111 (Valance), costume visibility forced, and costume states treated as Owned for model preview");
+            Console.WriteLine("6. Hero/Costume visibility: Hero OpenType None->Opened only for index 1..102 and 111 (Valance), costume visibility and priced purchases enabled, native ownership checks preserved");
         }
 
         static void PatchHeroAndCostumeVisibility(ModuleDefinition module)
         {
             PatchCreatureOpenTypeGetter(module);
-            PatchCostumeStateForPreview(module);
+            // Preserve the original ownership checks so the shop can offer unowned costumes.
+            PatchCostumeBuying(module);
             PatchHeroCostumeViewMotionButton(module);
 
             // Costume IsOpen flags
@@ -717,6 +718,44 @@ namespace DllPatcher
             PatchBooleanGetter(module, "NShared.WeaponCostumeData", "get_PreviewableWhenNeedCostumeOwned", false);
             PatchBooleanGetter(module, "NShared.WeaponCostumeData", "get_PreviewableWhenNeedWeaponOwned", false);
             PatchBooleanGetter(module, "NShared.AccessoryCostumeData", "get_PreviewableWhenOwned", false);
+        }
+
+        // Mirrors HeroShopSupport's Buyable policy: normal, priced, non-default costumes.
+        static void PatchCostumeBuying(ModuleDefinition module)
+        {
+            var type = module.Types.FirstOrDefault(t => t.FullName == "NShared.CostumeData");
+            var getter = type?.Methods.FirstOrDefault(m => m.Name == "get_IsBuy");
+            if (getter == null || type == null) throw new InvalidOperationException("CostumeData.IsBuy not found");
+            MethodDefinition Get(string name) => type.Methods.First(m => m.Name == "get_" + name);
+            getter.Body = new MethodBody(getter);
+            var il = getter.Body.GetILProcessor();
+            var no = il.Create(OpCodes.Ldc_I4_0);
+            var yes = il.Create(OpCodes.Ldc_I4_1);
+            il.Append(il.Create(OpCodes.Ldarg_0));
+            il.Append(il.Create(OpCodes.Call, Get("IsDefault")));
+            il.Append(il.Create(OpCodes.Brtrue, no));
+            il.Append(il.Create(OpCodes.Ldarg_0));
+            il.Append(il.Create(OpCodes.Call, Get("CostumeType")));
+            il.Append(il.Create(OpCodes.Ldc_I4_1));
+            il.Append(il.Create(OpCodes.Bne_Un, no));
+            il.Append(il.Create(OpCodes.Ldarg_0));
+            il.Append(il.Create(OpCodes.Call, Get("ProductIndex")));
+            il.Append(il.Create(OpCodes.Brtrue, no));
+            il.Append(il.Create(OpCodes.Ldarg_0));
+            il.Append(il.Create(OpCodes.Call, type.Methods.First(m => m.Name == "IsBonusCostume")));
+            il.Append(il.Create(OpCodes.Brtrue, no));
+            foreach (var price in new[] { "ReqBuyGem", "ReqBuyGold", "ReqBuyMileage" })
+            {
+                il.Append(il.Create(OpCodes.Ldarg_0));
+                il.Append(il.Create(OpCodes.Call, Get(price)));
+                il.Append(il.Create(OpCodes.Ldc_I4_0));
+                il.Append(il.Create(OpCodes.Bgt, yes));
+            }
+            il.Append(no);
+            il.Append(il.Create(OpCodes.Ret));
+            il.Append(yes);
+            il.Append(il.Create(OpCodes.Ret));
+            Console.WriteLine("Enabled priced costume purchases with native ownership checks");
         }
 
         static void PatchHeroCostumeViewMotionButton(ModuleDefinition module)

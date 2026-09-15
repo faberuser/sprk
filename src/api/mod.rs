@@ -22,3 +22,18 @@ pub mod fallback;
 pub mod auth;
 pub mod cdn;
 
+
+pub(crate) mod social_request;
+
+#[cfg(test)]
+mod social_tests;
+
+pub mod craft;
+
+#[cfg(test)]
+mod inventory_tests;
+
+#[cfg(test)]
+mod hero_shop_tests;
+
+pub mod hero_presets;

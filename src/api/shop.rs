@@ -1,309 +1,367 @@
-use axum::{
-    extract::{State, Form},
-    Json,
+//! Table-priced shops with persistent stock and atomic purchase limits.
+use super::{
+    hero,
+    item::{self, n, rule},
+    social_request::Request,
+    tutorial::Rewards,
 };
-use serde::{Deserialize, Serialize};
 use crate::{
     error::{Result, ServerError},
-    models::hero_inn::{CurrencyResultInfo3, FriendshipPointResultInfo, ItemResultInfo},
     state::AppState,
 };
+use axum::{body::Bytes, extract::State, Json};
+use chrono::{Datelike, TimeZone, Utc};
+use serde_json::{json, Value};
+use sqlx::{Row, SqliteConnection};
 
-/// ShopItemInfo matching client's NShared.ShopItemInfo
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "PascalCase")]
-pub struct ShopItemInfo {
-    pub shop_index: i32,
-    pub item_index: i32,
-    pub purchase_count: i32,
-    pub max_purchase_count: i32,
-}
-
-/// Get shop list request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
-pub struct GetShopListRequest {
-    #[serde(alias = "SessionKey")]
-    pub session_id: Option<String>,
-    pub shop_index: Option<String>,
-}
-
-/// Get shop list response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct GetShopListResponse {
-    pub base_result: String,
-    pub result: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shop_items: Option<Vec<ShopItemInfo>>,
-}
-
-/// Handle get shop list request
-pub async fn get_shop_list(
-    State(state): State<AppState>,
-    Form(req): Form<GetShopListRequest>,
-) -> Result<Json<GetShopListResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    
-    let _session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    // Return empty shop list for now - would need to implement full shop system
-    Ok(Json(GetShopListResponse {
-        base_result: "Success".to_string(),
-        result: "Success".to_string(),
-        shop_items: Some(vec![]),
-    }))
-}
-
-/// Buy shop item request - matching client's NShared.BuyShopItem.Request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
-pub struct BuyShopItemRequest {
-    #[serde(alias = "SessionKey")]
-    pub session_id: Option<String>,
-    pub shop_index: Option<String>,
-    pub list_no: Option<String>,
-    pub shop_item_index: Option<String>,
-    pub shop_item_purchase_count: Option<String>,
-}
-
-/// Buy shop item response - matching client's NShared.BuyShopItem.Response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct BuyShopItemResponse {
-    pub base_result: String,
-    pub result: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub currency_results: Option<Vec<CurrencyResultInfo3>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub friendship_point_result: Option<FriendshipPointResultInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_result: Option<ItemResultInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shop_item: Option<ShopItemInfo>,
-}
-
-/// Hero Inn shop item definition (ShopIndex=10)
-/// Items purchasable with Friendship Points - these are gift items for Hero Inn
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct HeroInnShopItem {
-    index: i32,          // Shop item index (1-6)
-    item_index: i32,     // ItemTable Index (41001-41006)
-    item_code: i32,      // ItemTable Code (kept for reference)
-    count: i32,
-    friendship_point_cost: i64,
-}
-
-/// Get Hero Inn shop items with their prices
-/// Based on ItemTable entries with Type=11 (gift items) and BuyFriendshipPoint > 0
-fn get_hero_inn_shop_items() -> Vec<HeroInnShopItem> {
-    // Hero Inn shop items (ShopIndex=10)
-    // These are gift items used for Hero Inn interactions
-    // Data from ItemTable: Index, Code, BuyFriendshipPoint
-    vec![
-        // Index 41001: Aromatic Toasted Nuts (Code 1436) - 30 FP
-        HeroInnShopItem { index: 1, item_index: 41001, item_code: 1436, count: 1, friendship_point_cost: 30 },
-        // Index 41002: Silver Catfish Filet (Code 1434) - 60 FP
-        HeroInnShopItem { index: 2, item_index: 41002, item_code: 1434, count: 1, friendship_point_cost: 60 },
-        // Index 41003: Special Meat Stew (Code 1433) - 90 FP
-        HeroInnShopItem { index: 3, item_index: 41003, item_code: 1433, count: 1, friendship_point_cost: 90 },
-        // Index 41004: Hot Spring Egg (Code 1432) - 120 FP
-        HeroInnShopItem { index: 4, item_index: 41004, item_code: 1432, count: 1, friendship_point_cost: 120 },
-        // Index 41005: Silver Hot Spring Egg (Code 1431) - 150 FP
-        HeroInnShopItem { index: 5, item_index: 41005, item_code: 1431, count: 1, friendship_point_cost: 150 },
-        // Index 41006: Gold Hot Spring Egg (Code 1429) - 180 FP
-        HeroInnShopItem { index: 6, item_index: 41006, item_code: 1429, count: 1, friendship_point_cost: 180 },
-    ]
-}
-
-/// Handle buy shop item request
-pub async fn buy_shop_item(
-    State(state): State<AppState>,
-    Form(req): Form<BuyShopItemRequest>,
-) -> Result<Json<BuyShopItemResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-    
-    let account_id = session.account_id;
-    let shop_index: i32 = req.shop_index.as_ref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let shop_item_index: i32 = req.shop_item_index.as_ref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let purchase_count: i32 = req.shop_item_purchase_count.as_ref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1);
-
-    // Hero Inn Shop (ShopIndex = 10)
-    if shop_index == 10 {
-        return handle_hero_inn_shop_purchase(
-            &state, 
-            account_id, 
-            shop_item_index, 
-            purchase_count
-        ).await;
+macro_rules! endpoints {($($name:ident),*)=>{$(pub async fn $name(State(state):State<AppState>,body:Bytes)->Result<Json<Value>> {handle(state,body,stringify!($name)).await})*};}
+endpoints!(
+    get_shop_list,
+    request_shop_list,
+    get_all_shop_item_purchase_count,
+    buy_shop_item
+);
+fn period(row: &Value, now: i64, revision: i64, rotating: bool) -> String {
+    if rotating {
+        return format!("stock:{revision}");
     }
-
-    // For other shop types, return success with empty result
-    Ok(Json(BuyShopItemResponse {
-        base_result: "Success".to_string(),
-        result: "Success".to_string(),
-        currency_results: None,
-        friendship_point_result: None,
-        item_result: None,
-        shop_item: None,
-    }))
-}
-
-/// Handle Hero Inn shop purchase (ShopIndex = 10)
-async fn handle_hero_inn_shop_purchase(
-    state: &AppState,
-    account_id: i64,
-    shop_item_index: i32,
-    purchase_count: i32,
-) -> Result<Json<BuyShopItemResponse>> {
-    // Find the shop item
-    let shop_items = get_hero_inn_shop_items();
-    let shop_item = shop_items.iter()
-        .find(|item| item.index == shop_item_index);
-    
-    let shop_item = match shop_item {
-        Some(item) => item,
-        None => {
-            return Ok(Json(BuyShopItemResponse {
-                base_result: "Success".to_string(),
-                result: "ShopItemNotFound".to_string(),
-                currency_results: None,
-                friendship_point_result: None,
-                item_result: None,
-                shop_item: None,
-            }));
+    let d = Utc.timestamp_opt(now, 0).single().unwrap_or_else(Utc::now);
+    if row["DailyReset"] == true {
+        return d.format("day:%Y-%m-%d").to_string();
+    }
+    if row["WeeklyReset"] == true {
+        let week = d.iso_week();
+        return format!("week:{}:{}", week.year(), week.week());
+    }
+    if let Some(days) = row["MonthlyResetDate"].as_array().filter(|v| !v.is_empty()) {
+        let today = d.date_naive();
+        // The most recent configured reset date identifies the purchase period.
+        for offset in 0..=62 {
+            let date = today - chrono::Duration::days(offset);
+            if days.iter().any(|v| v.as_u64() == Some(date.day() as u64)) {
+                return date.format("month:%Y-%m-%d").to_string();
+            }
         }
-    };
-
-    let total_cost = shop_item.friendship_point_cost * purchase_count as i64;
-
-    // Get current friendship points
-    let current_fp: i64 = sqlx::query_scalar::<_, i64>(
-        "SELECT COALESCE(friendship_point, 0) FROM user_info WHERE account_id = ?"
-    )
-    .bind(account_id)
-    .fetch_optional(&state.db)
-    .await?
-    .unwrap_or(0);
-
-    // Check if player has enough friendship points
-    if current_fp < total_cost {
-        return Ok(Json(BuyShopItemResponse {
-            base_result: "Success".to_string(),
-            result: "NotEnoughCurrency".to_string(),
-            currency_results: None,
-            friendship_point_result: None,
-            item_result: None,
-            shop_item: None,
-        }));
     }
-
-    // Deduct friendship points
-    let new_fp = current_fp - total_cost;
-    sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
-        .bind(new_fp)
-        .bind(account_id)
-        .execute(&state.db)
+    "all".into()
+}
+fn kind(cost: i64) -> Result<&'static str> {
+    match cost {
+        1 => Ok("Gold"),
+        2 => Ok("Gem"),
+        3 => Ok("PvpCoin"),
+        5 => Ok("RoyalPoint"),
+        6 => Ok("Mileage"),
+        7 => Ok("FriendshipPoint"),
+        8 => Ok("RaidPoint"),
+        _ => Err(rule("InvalidCost")),
+    }
+}
+async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
+    let req = Request::parse(&body)?;
+    let account = req.account(&state)?;
+    let mut tx = state.db.begin().await?;
+    item::init(&mut tx, &state, account).await?;
+    match execute(&mut tx, &state, account, &req, action).await {
+        Ok(v) => {
+            tx.commit().await?;
+            Ok(Json(v))
+        }
+        Err(ServerError::InvalidRequest(code)) => {
+            tx.rollback().await?;
+            Ok(Json(
+                json!({"BaseResult":"Success","Result":state.tables.hero_shop.result(action,&code)}),
+            ))
+        }
+        Err(e) => Err(e),
+    }
+}
+async fn purchased(
+    db: &mut SqliteConnection,
+    account: i64,
+    shop: i32,
+    index: i64,
+    period: &str,
+) -> Result<i64> {
+    Ok(sqlx::query_scalar("SELECT purchased FROM shop_purchase_ledger WHERE account_id=? AND shop_index=? AND item_index=? AND period=?").bind(account).bind(shop).bind(index).bind(period).fetch_optional(db).await?.unwrap_or(0))
+}
+fn purchasable(state: &AppState, shop: &Value, row: &Value) -> bool {
+    let cost = if n(row, "BuyCostTypeForItem") > 0 {
+        n(row, "BuyCostTypeForItem")
+    } else {
+        n(shop, "BuyCostType")
+    };
+    kind(cost).is_ok()
+        && n(row, "ItemIndex") > 0
+        && n(row, "Condition") == 0
+        && state
+            .tables
+            .items
+            .reward_item(n(row, "ItemIndex") as i32)
+            .is_some_and(|r| matches!(r.kind.as_str(), "Item" | "Equip"))
+}
+async fn stock(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    shop: &Value,
+    refresh: bool,
+) -> Result<(Vec<Value>, Value)> {
+    let shop_id = n(shop, "Index") as i32;
+    let now = state.server_time();
+    let old = sqlx::query("SELECT * FROM shop_stock WHERE account_id=? AND shop_index=?")
+        .bind(account)
+        .bind(shop_id)
+        .fetch_optional(&mut *db)
         .await?;
+    let rotating = n(shop, "MaxStock") > 0;
+    let expired = old.as_ref().is_some_and(|r| {
+        r.get::<i64, _>("restock_time") > 0 && r.get::<i64, _>("restock_time") <= now
+    });
+    let needs = old.is_none() || refresh || expired;
+    if needs {
+        let rev = old
+            .as_ref()
+            .map(|r| r.get::<i64, _>("revision") + 1)
+            .unwrap_or(1);
+        let mut rows: Vec<Value> = state
+            .tables
+            .hero_shop
+            .shop_items
+            .iter()
+            .filter(|v| n(v, "ShopIndex") == shop_id as i64 && purchasable(state, shop, v))
+            .cloned()
+            .collect();
+        if rotating {
+            if rows.is_empty() {
+                rows = state
+                    .tables
+                    .hero_shop
+                    .shop_items
+                    .iter()
+                    .filter(|v| n(v, "ShopIndex") == 0 && purchasable(state, shop, v))
+                    .cloned()
+                    .collect();
+            }
+            use rand::seq::SliceRandom;
+            rows.shuffle(&mut rand::thread_rng());
+            rows.truncate(n(shop, "MaxStock") as usize);
+            for (i, r) in rows.iter_mut().enumerate() {
+                r["Index"] = json!(i + 1);
+                r["PurchasableCount"] = json!(1);
+            }
+        }
+        rows.sort_by_key(|r| n(r, "Index"));
+        let next = if n(shop, "RestockSecond") > 0 {
+            now + n(shop, "RestockSecond")
+        } else {
+            0
+        };
+        let count = if refresh {
+            old.as_ref()
+                .map(|r| r.get::<i64, _>("restock_count") + 1)
+                .unwrap_or(1)
+        } else {
+            0
+        };
+        sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,?,?,?,?,?) ON CONFLICT(account_id,shop_index) DO UPDATE SET revision=excluded.revision,restock_time=excluded.restock_time,restock_count=excluded.restock_count,stock=excluded.stock").bind(account).bind(shop_id).bind(rev).bind(next).bind(count).bind(json!(rows).to_string()).execute(&mut *db).await?;
+    }
+    let row = sqlx::query("SELECT * FROM shop_stock WHERE account_id=? AND shop_index=?")
+        .bind(account)
+        .bind(shop_id)
+        .fetch_one(&mut *db)
+        .await?;
+    let rows: Vec<Value> = serde_json::from_str(row.get::<String, _>("stock").as_str())
+        .map_err(|_| rule("NoShopItemInfo"))?;
+    let time = row.get::<i64, _>("restock_time");
+    let info = json!({"ShopIndex":shop_id,"ShopItemListIndex":row.get::<i64,_>("revision"),"RestockTime":if time>0 {Utc.timestamp_opt(time,0).single().map(|d|d.format("%Y-%m-%d %H:%M:%S").to_string())}else{None},"RestockCount":row.get::<i64,_>("restock_count"),"RestockCountResetTime":null});
+    Ok((rows, info))
+}
+async fn execute(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    req: &Request,
+    action: &str,
+) -> Result<Value> {
+    let id = item::item_index(req, "ShopIndex")?;
+    let table = &state.tables.hero_shop;
+    let shop = table.shops.get(&id).ok_or_else(|| rule("NoShopData"))?;
+    if n(shop, "EventOnly") != 0 {
+        return Err(rule("ContentsDisabled"));
+    }
+    let mut out = item::success();
+    if action == "buy_shop_item" && n(shop, "MaxStock") > 0 {
+        let expiry: Option<i64> = sqlx::query_scalar(
+            "SELECT restock_time FROM shop_stock WHERE account_id=? AND shop_index=?",
+        )
+        .bind(account)
+        .bind(id)
+        .fetch_optional(&mut *db)
+        .await?;
+        if expiry.is_none_or(|t| t > 0 && t <= state.server_time()) {
+            return Err(rule("InvalidShopItemListIndex"));
+        }
+    }
+    let refresh = action == "request_shop_list";
+    if refresh {
+        if n(shop, "MaxStock") == 0 || n(shop, "RestockSecond") <= 0 || n(shop, "RestockGem") <= 0 {
+            return Err(rule("CannotRestock"));
+        }
+        out["CurrencyResult"] = hero::currency(db, account, "Gem", -n(shop, "RestockGem")).await?;
+    }
+    let (rows, restock) = stock(db, state, account, shop, refresh).await?;
+    let rotating = n(shop, "MaxStock") > 0;
+    let revision = n(&restock, "ShopItemListIndex");
+    let now = state.server_time();
+    if action == "buy_shop_item" {
+        let index = req.number(if rotating { "ListNo" } else { "ShopItemIndex" }, 0)?;
+        let row = rows
+            .iter()
+            .find(|v| n(v, "Index") == index)
+            .ok_or_else(|| rule("ShopItemDataNotFound"))?;
+        let count = item::positive(req, "ShopItemPurchaseCount")? as i64;
+        if rotating && count != 1 {
+            return Err(rule("InvalidValue"));
+        }
+        let period = period(row, now, revision, rotating);
+        let old = purchased(db, account, id, index, &period).await?;
+        let max = n(row, "PurchasableCount");
+        if max > 0 && old + count > max {
+            return Err(rule("SoldOut"));
+        }
+        let item_id = n(row, "ItemIndex") as i32;
+        let meta = table
+            .items
+            .get(&item_id)
+            .ok_or_else(|| rule("ItemDataNotFound"))?;
+        let cost_type = if n(row, "BuyCostTypeForItem") > 0 {
+            n(row, "BuyCostTypeForItem")
+        } else {
+            n(shop, "BuyCostType")
+        };
+        let kind = kind(cost_type)?;
+        let mut price = if n(row, "TargetPrice") > 0 {
+            n(row, "TargetPrice")
+        } else {
+            n(meta, &format!("Buy{kind}")) * n(row, "Count")
+        };
+        if n(row, "TargetPrice") == 0
+            && state
+                .tables
+                .items
+                .reward_item(item_id)
+                .is_some_and(|m| m.kind == "Equip")
+        {
+            if let Some(star) = table
+                .equip_star_prices
+                .iter()
+                .find(|v| n(v, "Star") == n(row, "Star"))
+            {
+                price = price * n(star, "BuyPriceFactor") / 1000;
+            }
+        }
+        if price <= 0 {
+            return Err(rule("InvalidCost"));
+        }
+        if n(shop, "HeroIndex") > 0 {
+            let owned = sqlx::query(
+                "SELECT star,transcend FROM heroes WHERE account_id=? AND hero_index=?",
+            )
+            .bind(account)
+            .bind(n(shop, "HeroIndex"))
+            .fetch_optional(&mut *db)
+            .await?;
+            if let Some(owned) = owned {
+                if let Some(bonus) = table.hero_bonuses.iter().find(|v| {
+                    n(v, "HeroIndex") == n(shop, "HeroIndex")
+                        && n(v, "HeroStar") == owned.get::<i64, _>("star")
+                        && n(v, "HeroTranscended") == owned.get::<i64, _>("transcend")
+                }) {
+                    let mut ratio = 1.0_f64;
+                    for i in 1..=5 {
+                        if n(bonus, &format!("BonusType{i}")) != 19 {
+                            continue;
+                        }
+                        if let Some(values) = bonus[format!("BonusValue{i}")]
+                            .as_array()
+                            .filter(|v| v.len() == 2)
+                        {
+                            let number = |v: &Value| {
+                                v.as_str().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0)
+                            };
+                            if number(&values[0]) == id as i64 {
+                                ratio *= 1.0 - number(&values[1]).clamp(0, 100) as f64 / 100.0;
+                            }
+                        }
+                    }
+                    price = ((price as f64 * ratio * 100.0).round() / 100.0).ceil() as i64;
+                }
+            }
+        }
+        let cost = price
+            .checked_mul(count)
+            .ok_or_else(|| rule("InvalidCost"))?;
+        let currency = hero::currency(db, account, kind, -cost).await?;
+        if kind == "FriendshipPoint" {
+            out["FriendshipPointResult"] = currency;
+        } else if kind == "RoyalPoint" {
+            out["RoyalPointResult"] = currency;
+        } else {
+            out["CurrencyResults"] = json!([currency]);
+        }
+        let amount = n(row, "Count")
+            .checked_mul(count)
+            .and_then(|v| i32::try_from(v).ok())
+            .ok_or_else(|| rule("InvalidValue"))?;
+        let mut rewards = Rewards::default();
+        item::give(
+            db,
+            state,
+            account,
+            item_id,
+            amount,
+            n(row, "Star") as i32,
+            0,
+            &mut rewards,
+        )
+        .await?;
+        if rewards.items.len() > 1 || !rewards.heroes.is_empty() {
+            return Err(rule("InvalidItemType"));
+        }
+        out["ItemResult"] = json!(rewards.items.first());
+        out["EquipItems"] = json!(rewards.equipment);
+        sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,?,?,?,?,?) ON CONFLICT(account_id,shop_index,item_index,period) DO UPDATE SET purchased=excluded.purchased,purchased_time=excluded.purchased_time").bind(account).bind(id).bind(index).bind(period).bind(old+count).bind(now).execute(&mut *db).await?;
+        out["ShopItem"] = json!({"ShopIndex":id,"ListNo":index,"Sold":if max>0&&old+count>=max {1}else{0},"Purchased":old+count,"PurchasedTime":now});
+    } else {
+        let mut result = vec![];
+        for row in rows {
+            let period = period(&row, now, revision, rotating);
+            let count = purchased(db, account, id, n(&row, "Index"), &period).await?;
+            let max = n(&row, "PurchasableCount");
+            result.push(json!({"ShopIndex":id,"ListNo":n(&row,"Index"),"ItemCode":row["ItemCode"],"Count":row["Count"],"Star":row["Star"],"Sold":if max>0&&count>=max {1}else{0},"PurchasableCount":max,"Purchased":count,"PurchasedTime":0}));
+        }
+        out["ShopItems"] = json!(result);
+        out["RestockTimeInfo"] = restock;
+    }
+    Ok(out)
+}
 
-    // Add items to player's items table (used by get_user_data)
-    let item_count = shop_item.count * purchase_count;
-    let current_item_count: i32 = sqlx::query_scalar::<_, i32>(
-        "SELECT COALESCE(count, 0) FROM items WHERE account_id = ? AND item_index = ?"
-    )
-    .bind(account_id)
-    .bind(shop_item.item_index)
-    .fetch_optional(&state.db)
-    .await?
-    .unwrap_or(0);
-
-    let new_item_count = current_item_count + item_count;
-    
-    // Upsert items table
-    sqlx::query(
-        "INSERT INTO items (account_id, item_index, count) VALUES (?, ?, ?)
-         ON CONFLICT(account_id, item_index) DO UPDATE SET count = ?"
-    )
-    .bind(account_id)
-    .bind(shop_item.item_index)
-    .bind(new_item_count)
-    .bind(new_item_count)
-    .execute(&state.db)
-    .await?;
-
-    // Get current purchase count for this shop item
-    let current_purchase_count: i32 = sqlx::query_scalar::<_, i32>(
-        "SELECT COALESCE(purchase_count, 0) FROM shop_purchases 
-         WHERE account_id = ? AND shop_index = ? AND item_index = ?"
-    )
-    .bind(account_id)
-    .bind(10)  // Hero Inn shop
-    .bind(shop_item_index)
-    .fetch_optional(&state.db)
-    .await?
-    .unwrap_or(0);
-
-    let new_purchase_count = current_purchase_count + purchase_count;
-
-    // Track purchase count
-    sqlx::query(
-        "INSERT INTO shop_purchases (account_id, shop_index, item_index, purchase_count)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(account_id, shop_index, item_index) DO UPDATE SET purchase_count = ?"
-    )
-    .bind(account_id)
-    .bind(10)  // Hero Inn shop
-    .bind(shop_item_index)
-    .bind(new_purchase_count)
-    .bind(new_purchase_count)
-    .execute(&state.db)
-    .await?;
-
-    // Build response
-    let friendship_point_result = FriendshipPointResultInfo {
-        add_value: -total_cost,
-        add_daily_acc_value: 0,
-        new_value: new_fp,
-        new_daily_acc_value: 0,
-    };
-
-    let item_result = ItemResultInfo {
-        item_index: shop_item.item_index,
-        add_count: item_count,
-        new_count: new_item_count,
-        add_booster_count: 0,
-        add_npc_booster_count: 0,
-        add_bonus_assigned_item_percent: 0,
-        locked: 0,
-        is_first_clear_reward: false,
-    };
-
-    let shop_item_info = ShopItemInfo {
-        shop_index: 10,
-        item_index: shop_item_index,
-        purchase_count: new_purchase_count,
-        max_purchase_count: 0, // 0 means unlimited
-    };
-
-    Ok(Json(BuyShopItemResponse {
-        base_result: "Success".to_string(),
-        result: "Success".to_string(),
-        currency_results: None,
-        friendship_point_result: Some(friendship_point_result),
-        item_result: Some(item_result),
-        shop_item: Some(shop_item_info),
-    }))
+// The original live-service paid catalog is absent from the extracted tables.
+// These endpoints deliberately cannot manufacture a successful purchase.
+pub async fn get_payshop_products(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<Json<Value>> {
+    Request::parse(&body)?.account(&state)?;
+    Ok(Json(
+        json!({"BaseResult":"Success","Result":"Success","PayShopProductInfos":[],"PlayerProductPurchaseInfos":[]}),
+    ))
+}
+pub async fn unavailable_product(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<Json<Value>> {
+    Request::parse(&body)?.account(&state)?;
+    Ok(Json(json!({"BaseResult":"Success","Result":"Fail"})))
 }

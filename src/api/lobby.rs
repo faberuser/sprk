@@ -29,6 +29,8 @@ pub struct FirstLobbyRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FirstLobbyResponse {
+    pub hero_preset_storages: Vec<serde_json::Value>,
+    pub player_book_mark_hero_info: serde_json::Value,
     pub base_result: String,
     pub result: String,
 }
@@ -54,7 +56,11 @@ pub async fn first_lobby(
             .await?;
     }
 
+    let bookmarks = super::hero::bookmarks(&mut *state.db.acquire().await?,session.account_id).await?;
+    let hero_preset_storages = super::hero_presets::list(&mut *state.db.acquire().await?,session.account_id).await?;
     Ok(Json(FirstLobbyResponse {
+        hero_preset_storages,
+        player_book_mark_hero_info: bookmarks,
         base_result: "Success".to_string(),
         result: "Success".to_string(),
     }))
@@ -166,41 +172,10 @@ pub async fn enter_lobby(
     };
 
     // Fetch heroes
-    let hero_rows = sqlx::query("SELECT * FROM heroes WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_all(&state.db)
-        .await?;
-
-    let heroes: Vec<HeroInfo> = hero_rows.iter().map(|row| HeroInfo {
-        hero_id: row.get("hero_id"),
-        hero_index: row.get("hero_index"),
-        star: row.get("star"),
-        level: row.get("level"),
-        exp: row.get("exp"),
-        transcend: row.get("transcend"),
-        awakened: row.get("awakened"),
-        skill_level_1: row.get("skill_level_1"),
-        skill_level_2: row.get("skill_level_2"),
-        skill_level_3: row.get("skill_level_3"),
-        skill_level_4: row.get("skill_level_4"),
-        unique_weapon_id: row.get("unique_weapon_id"),
-        is_bookmarked: row.get::<i32, _>("is_bookmarked") != 0,
-        closeness: row.get("closeness"),
-        transcend_skill_point: 0,
-        equip_item_slot_index_1: row.get("equip_item_slot_index_1"),
-        equip_item_slot_index_2: row.get("equip_item_slot_index_2"),
-        equip_item_slot_index_3: row.get("equip_item_slot_index_3"),
-        equip_item_slot_index_4: row.get("equip_item_slot_index_4"),
-        equip_item_slot_index_5: row.get("equip_item_slot_index_5"),
-        equip_item_slot_index_6: row.get("equip_item_slot_index_6"),
-        equip_item_slot_index_7: row.get("equip_item_slot_index_7"),
-        equip_item_slot_index_8: row.get("equip_item_slot_index_8"),
-        equip_item_slot_index_9: row.get("equip_item_slot_index_9"),
-        equip_item_slot_index_10: row.get("equip_item_slot_index_10"),
-    }).collect();
+    let heroes = super::hero::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
     // Fetch items
-    let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ?")
+    let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ? AND count > 0")
         .bind(account_id)
         .fetch_all(&state.db)
         .await?;
@@ -208,6 +183,9 @@ pub async fn enter_lobby(
     let items: Vec<ItemInfo> = item_rows.iter().map(|row| ItemInfo {
         item_index: row.get("item_index"),
         count: row.get("count"),
+        locked: row.get::<i32,_>("locked") as u8,
+        created_time: row.get("created_time"),
+        uid: row.get::<i32,_>("item_index").to_string(),
     }).collect();
 
     // Count unread mail
@@ -249,15 +227,9 @@ pub async fn enter_lobby(
         let completed_time: Option<String> = row.get("completed_time");
         let is_completed = clear_count > 0 || best_star > 0 || completed_time.is_some();
         
-        // For chapter 1-10, MinDifficulty is Normal (1), so encode as Normal + stars
-        let max_star = if is_completed && chapter_id <= 10 {
-            (10 + best_star) as i16
-        } else {
-            best_star as i16
-        };
-        
-        // FirstRewardedDiff: For Normal cleared (chapter 1-10), use bit 1 (value 2)
-        let first_rewarded_diff = if is_completed { 2 } else { 0 };
+        let difficulty = state.tables.tutorials.dungeon_difficulty(chapter_id, row.get("dungeon_id"));
+        let max_star = if is_completed { (difficulty * 10 + best_star) as i16 } else { 0 };
+        let first_rewarded_diff = if is_completed { (1 << difficulty) as i16 } else { 0 };
         
         ChapterDungeonInfo {
             chapter_index: chapter_id,

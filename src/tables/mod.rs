@@ -8,6 +8,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 mod campaign_dungeon;
+mod inventory;
+mod hero_shop;
+pub use hero_shop::HeroShopTable;
+pub use inventory::InventoryTable;
 pub mod item;
 mod item_group;
 mod reward;
@@ -52,6 +56,8 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub hero_shop: Arc<HeroShopTable>,
+    pub inventory: Arc<InventoryTable>,
     pub campaign_dungeons: Arc<CampaignDungeonTable>,
     pub rewards: Arc<RewardTable>,
     pub item_groups: Arc<ItemGroupTable>,
@@ -104,9 +110,11 @@ impl GameTables {
         let tutorials = TutorialTable::load(
             &table_dir.join("TutorialTable.json")
         )?;
-        tracing::info!("Loaded {} tutorial dungeon rewards", tutorials.dungeon_rewards.len());
+        tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            hero_shop: Arc::new(HeroShopTable::load(&table_dir.join("HeroShopSupport.json"))?),
+            inventory: Arc::new(InventoryTable::load(&table_dir.join("InventorySupport.json"))?),
             campaign_dungeons: Arc::new(campaign_dungeons),
             rewards: Arc::new(rewards),
             item_groups: Arc::new(item_groups),
@@ -120,6 +128,8 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            hero_shop: Arc::new(HeroShopTable::default()),
+            inventory: Arc::new(InventoryTable::default()),
             campaign_dungeons: Arc::new(CampaignDungeonTable::default()),
             rewards: Arc::new(RewardTable::default()),
             item_groups: Arc::new(ItemGroupTable::default()),

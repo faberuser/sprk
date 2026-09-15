@@ -400,6 +400,10 @@ pub async fn begin_campaign(
             ServerError::SessionExpired
         })?;
 
+    if super::hero::trial(&state, session.account_id, chapter_index, dungeon_index, None).await?.is_some() {
+        return Ok(Json(BeginCampaignResponse { base_result: "Success".into(), result: "Success".into(), stamina_result: None, drop_gold: Some(0), recharge_time: None }));
+    }
+
     // Get stamina cost from dungeon table
     let stamina_cost = state.tables.get_campaign_dungeon(chapter_index, dungeon_index)
         .map(|d| d.get_req_stamina(difficulty))
@@ -680,6 +684,16 @@ pub async fn end_campaign(
     tracing::info!("End campaign: chapter={}, dungeon={}, difficulty={}, completed={}, star={}", 
         chapter_index, dungeon_index, difficulty, completed, star);
 
+    if let Some(trial) = super::hero::trial(&state, session.account_id, chapter_index, dungeon_index, Some(completed)).await? {
+        let items = serde_json::from_value::<Vec<serde_json::Value>>(trial["ItemResults"].clone()).unwrap_or_default();
+        return Ok(Json(EndCampaignResponse {
+            base_result: "Success".into(), result: "Success".into(),
+            hero_infos: trial["HeroInfos"].as_array().cloned().unwrap_or_default(),
+            item_results: items.iter().map(|v| ItemResultInfo {item_index: super::item::n(v,"ItemIndex") as i32, add_count: super::item::n(v,"AddCount") as i32, new_count: super::item::n(v,"NewCount") as i32, ..Default::default()}).collect(),
+            ..Default::default()
+        }));
+    }
+
     if !completed {
         // Battle lost, no rewards
         return Ok(Json(EndCampaignResponse {
@@ -757,7 +771,10 @@ pub async fn end_campaign(
                 _ => 500 + (chapter_index - 1) * 200 + (dungeon_index - 1) * 50,
             }
         });
-    let exp_per_hero = base_exp;
+    let (gold_boost, exp_boost) = super::item::campaign_boost(&state,session.account_id).await?;
+    let gold_reward = gold_reward + gold_reward * gold_boost as i64 / 100;
+    let exp_bonus = base_exp * exp_boost / 100;
+    let exp_per_hero = base_exp + exp_bonus;
     
     tracing::info!("Calculated rewards: gold={}, exp_per_hero={}", gold_reward, exp_per_hero);
 
@@ -844,7 +861,7 @@ pub async fn end_campaign(
     
     // Get all heroes for this account
     let hero_rows = sqlx::query(
-        "SELECT hero_index, exp, level FROM heroes WHERE account_id = ?"
+        "SELECT hero_index, exp, level, star, transcend FROM heroes WHERE account_id = ?"
     )
     .bind(session.account_id)
     .fetch_all(&state.db)
@@ -857,10 +874,12 @@ pub async fn end_campaign(
         {
             let current_exp: i32 = hero_row.get("exp");
             let current_level: i32 = hero_row.get("level");
-            let new_exp = current_exp + exp_per_hero;
-            
-            // Simple level calculation (every 1000 exp = 1 level, max 100)
-            let new_level = ((new_exp / 1000) + 1).min(100);
+            let cap=state.tables.tutorials.support.hero_stars.iter()
+                .find(|v|v.star==hero_row.get::<i32,_>("star")&&v.transcended==hero_row.get::<i32,_>("transcend"))
+                .map(|v|v.max_hero_level).unwrap_or(current_level);
+            let (new_level,new_exp)=if current_level>=cap {(current_level,current_exp as i64)}else{
+                crate::tables::add_exp(&state.tables.tutorials.support.hero_levels,current_level,current_exp as i64,exp_per_hero as i64,cap)
+            };
             
             // Update hero exp in database
             sqlx::query("UPDATE heroes SET exp = ?, level = ? WHERE account_id = ? AND hero_index = ?")
@@ -873,10 +892,10 @@ pub async fn end_campaign(
 
             hero_exp_results.push(HeroExpResultInfo {
                 hero_index,
-                add_value: exp_per_hero,
-                add_booster_value: 0,
+                add_value: base_exp,
+                add_booster_value: exp_bonus,
                 add_team_level_value: 0,
-                new_value: new_exp,
+                new_value: new_exp as i32,
                 old_level: current_level as i16,
                 new_level: new_level as i16,
             });
