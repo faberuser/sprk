@@ -6,6 +6,7 @@ pub mod lobby;
 pub mod hero;
 pub mod hero_inn;
 pub mod equip;
+pub mod extensions;
 pub mod shop;
 pub mod item;
 pub mod mail;

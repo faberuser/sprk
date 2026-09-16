@@ -115,6 +115,8 @@ impl UserInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerMiscInfo {
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
     pub login_daily_count: i64,
     pub inventory_extend: i64,
     pub chest_extend: i64,

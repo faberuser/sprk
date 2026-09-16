@@ -23,6 +23,9 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             | "tutorial"
             | "hero_inn"
             | "guild"
+            | "npc"
+            | "valance"
+            | "equip_storage_slot"
     ) {
         return next.run(request).await;
     }

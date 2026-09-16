@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct EquipItemInfo {
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub punishment_rune_option: Option<serde_json::Value>,
     /// Slot index - unique identifier for the equipment
     pub slot_index: i32,
     /// Item index from ItemTable
@@ -141,7 +143,7 @@ impl EquipItemInfo {
     /// Build the same equipment snapshot for login and tutorial retries.
     pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Self {
         let slot_index: i32 = row.get("slot_index");
-        EquipItemInfo {
+        let mut info = EquipItemInfo {
             slot_index,
             item_index: row.get("item_index"),
             star: row.get("star"),
@@ -174,7 +176,30 @@ impl EquipItemInfo {
             identified: row.get("identified"),
             uid: format!("{}", slot_index),
             ..Default::default()
+        };
+        // Read every persisted extension field, including enchantments and extra options.
+        let mut value = serde_json::to_value(&info).expect("equipment serializes");
+        if let Ok(Some(raw))=row.try_get::<Option<String>,_>("punishment_rune_option") {
+            value["PunishmentRuneOption"]=serde_json::from_str(&raw).expect("stored rune option JSON");
         }
+        for (key, field) in value.as_object_mut().unwrap() {
+            if field.is_number() {
+                if let Ok(number) = row.try_get::<i64,_>(Self::column(key).as_str()) {
+                    *field = serde_json::json!(number);
+                }
+            }
+        }
+        info = serde_json::from_value(value).expect("equipment columns match native types");
+        info
+    }
+
+    pub(crate) fn column(wire: &str) -> String {
+        let mut out = String::new();
+        for (i, c) in wire.chars().enumerate() {
+            if i > 0 && (c.is_ascii_uppercase() || c.is_ascii_digit()) { out.push('_'); }
+            out.push(c.to_ascii_lowercase());
+        }
+        out
     }
 
     /// Create a new equipment item with default values

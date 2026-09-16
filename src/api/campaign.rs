@@ -594,6 +594,8 @@ pub struct EndCampaignRequest {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct EndCampaignResponse {
+    pub flask_results: Vec<serde_json::Value>,
+    pub flask_item_results: Vec<serde_json::Value>,
     pub base_result: String,  // String "Success" for C# enum parsing
     pub result: String,  // String "Success" for C# enum parsing
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -846,6 +848,8 @@ pub async fn end_campaign(
 
     // Get heroes that participated and update their EXP
     let mut hero_exp_results = Vec::new();
+    let mut flask_results=Vec::new();
+    let mut flask_item_results=Vec::new();
     
     // Get all heroes for this account
     let hero_rows = sqlx::query(
@@ -868,6 +872,14 @@ pub async fn end_campaign(
             let (new_level,new_exp)=if current_level>=cap {(current_level,current_exp as i64)}else{
                 crate::tables::add_exp(&state.tables.tutorials.support.hero_levels,current_level,current_exp as i64,exp_per_hero as i64,cap)
             };
+            if current_level>=cap {
+                let mut tx=state.db.begin().await?;
+                super::item::init(&mut tx,&state,session.account_id).await?;
+                if let Some((result,items))=super::extensions::consumables::fill_flask(&mut tx,&state,session.account_id,hero_index,exp_per_hero as i64).await? {
+                    flask_results.push(result);flask_item_results.extend(items);
+                }
+                tx.commit().await?;
+            }
             
             // Update hero exp in database
             sqlx::query("UPDATE heroes SET exp = ?, level = ? WHERE account_id = ? AND hero_index = ?")
@@ -1161,6 +1173,8 @@ pub async fn end_campaign(
         item_results,
         equip_item_infos,
         hero_exp_results,
+        flask_results,
+        flask_item_results,
         hero_infos: vec![],
         tower_infos: vec![],
     };

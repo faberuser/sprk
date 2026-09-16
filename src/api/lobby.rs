@@ -29,6 +29,8 @@ pub struct FirstLobbyRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FirstLobbyResponse {
+    #[serde(flatten)]
+    pub extensions: serde_json::Value,
     pub hero_preset_storages: Vec<serde_json::Value>,
     pub player_book_mark_hero_info: serde_json::Value,
     pub base_result: String,
@@ -59,6 +61,7 @@ pub async fn first_lobby(
     let bookmarks = super::hero::bookmarks(&mut *state.db.acquire().await?,session.account_id).await?;
     let hero_preset_storages = super::hero_presets::list(&mut *state.db.acquire().await?,session.account_id).await?;
     Ok(Json(FirstLobbyResponse {
+        extensions: super::extensions::first_lobby(&state,session.account_id).await?,
         hero_preset_storages,
         player_book_mark_hero_info: bookmarks,
         base_result: "Success".to_string(),

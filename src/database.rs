@@ -424,5 +424,6 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     ] { sqlx::query(statement).execute(pool).await?; }
 
     crate::api::progression::schema::migrate(pool).await?;
+    crate::api::extensions::schema::migrate(pool).await?;
     Ok(())
 }

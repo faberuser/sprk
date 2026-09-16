@@ -235,6 +235,10 @@ pub(crate) async fn give(
         for equip in &mut rewards.equipment[equip_start..] {
             make_options(state, index, equip, &[])?;
             save_options(db, account, equip).await?;
+            if state.tables.extensions.find("EquipItem",&[("ItemIndex",index as i64)]).is_some_and(|v|n(v,"EquipType")==1){
+                equip.identified=0;
+                super::extensions::save_equip(db,account,equip).await?;
+            }
         }
     }
     sqlx::query("UPDATE items SET created_time=COALESCE(created_time,datetime('now')) WHERE account_id=? AND item_index=?").bind(account).bind(index).execute(&mut *db).await?;
@@ -564,6 +568,15 @@ async fn execute(
                         "NewInventoryExtend"
                     }] = json!(old + amount);
                 }
+                11=>{
+                    let id=item_index(req,"HeroIndex")?;
+                    let h=super::hero::info(db,account,id).await?;
+                    let max=state.tables.hero_shop.constant("MaxExtraTranscendPoint",15);
+                    let points=n(&h,"TranscendPoint").checked_add(amount).filter(|p|*p<=max).ok_or_else(||rule("MaxHeroTranscendPoint"))?;
+                    if amount<=0{return Err(rule("InvalidHeroTranscendPoint"));}
+                    let mut details=super::hero::details(db,account,id).await?;details["TranscendPoint"]=json!(points);super::hero::save_details(db,account,id,&details).await?;
+                    out["HeroTranscendResult"]=json!({"HeroIndex":id,"AddPointValue":amount,"NewPointValue":points});
+                }
                 _ => return Err(rule("InvalidAction")),
             }
             let mut buffs = vec![];
@@ -696,7 +709,7 @@ async fn execute(
                     serde_json::from_str(req.text("EquipExtraOptionIndices"))
                         .map_err(|_| rule("NoAvailableOption"))?
                 };
-                if extra.iter().any(|i| *i != 0) {
+                if extra.iter().any(|i| *i != 0) && selector["SelectUniqueOption"]!=true {
                     return Err(rule("NoAvailableOption"));
                 }
             }
@@ -714,6 +727,11 @@ async fn execute(
             )
             .await?;
             for equip in &mut r.equipment {
+                if selector["SelectUniqueOption"]==true {
+                    let extra:Vec<i32>=serde_json::from_str(req.text("EquipExtraOptionIndices")).map_err(|_|rule("NoAvailableOption"))?;
+                    super::extensions::valance::select_unique(state,equip,&extra)?;
+                    super::extensions::save_equip(db,account,equip).await?;
+                }
                 if !options.is_empty() {
                     make_options(state, selected, equip, &options)?;
                     save_options(db, account, equip).await?;
@@ -918,6 +936,10 @@ async fn equipment_action(
             .fetch_optional(&mut *db)
             .await?
             .ok_or_else(|| rule("EquipNotOwned"))?;
+        let in_use:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?)").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
+        if (row.get::<i32,_>("inventory_type")>1 && action!="set_lock_equip_item") || (action!="set_lock_equip_item" && in_use) {return Err(rule("Equipped"));}
+        let preset:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM extension_state s,json_each(s.data) j WHERE s.account_id=? AND s.kind='equip_storage' AND j.key LIKE 'EquipItemSlotIndex%' AND j.value=?)").bind(account).bind(id).fetch_one(&mut *db).await?;
+        if preset && action!="set_lock_equip_item" {return Err(rule("Equipped"));}
         if action == "set_lock_equip_item" {
             let locked = req.number("Locked", 0)?;
             if ![0, 1].contains(&locked) {
@@ -1140,7 +1162,7 @@ fn option_pool(state: &AppState, eq: &Value) -> Vec<i32> {
         })
         .collect()
 }
-fn make_options(
+pub(crate) fn make_options(
     state: &AppState,
     index: i32,
     item: &mut EquipItemInfo,
@@ -1241,13 +1263,12 @@ async fn dismantle_runes(
     account: i64,
     req: &Request,
 ) -> Result<Value> {
-    // Stackable runes use grade-based material yields; equipment runes need their own rules.
-    if !matches!(req.text("EquipItemSlotIndices"), "" | "null" | "[]") {
-        return Err(rule("InvalidItemType"));
-    }
-    let batch = pairs(req, "Counts")?;
+    let batch = if matches!(req.text("ItemIndices"),""|"[]"|"null"){vec![]}else{pairs(req, "Counts")?};
     let mut consumed = vec![];
     let mut rewards = Rewards::default();
+    if !matches!(req.text("EquipItemSlotIndices"),""|"[]"|"null") {
+        super::extensions::punishment::dismantle(db,state,account,req,&mut rewards).await?;
+    }
     for (id, count) in batch {
         if count > 1000 {
             return Err(rule("InvalidItemCount"));
@@ -1291,7 +1312,7 @@ async fn dismantle_runes(
         }
     }
     Ok(
-        json!({"BaseResult":"Success","Result":"Success","DecItemResults":consumed,"ItemResults":rewards.items,"RemoveEquipItemSlotIndices":[]}),
+        json!({"BaseResult":"Success","Result":"Success","DecItemResults":consumed,"ItemResults":rewards.items,"RemoveEquipItemSlotIndices":req.ids("EquipItemSlotIndices")?}),
     )
 }
 

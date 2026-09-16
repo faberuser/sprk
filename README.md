@@ -22,7 +22,12 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Hero management:** skill learning/upgrades/extensions, awakening trials and purification, transcendence and standard skill pages, limit breaks, bookmarks, avatars, and account-wide equipment/skill presets.
 - **Costumes:** normal body-costume purchases and selectors, ownership, equip/unequip, appearance presets, unique-weapon visibility, and gold/EXP bonuses.
 - **Item shops:** table-defined listings and prices, supported currencies, NPC discounts, rotating stock/restocking, and persistent purchase limits.
-- **Equipment basics:** equip/unequip with ownership and chest-placement checks.
+- **Equipment:** equip/unequip and swapping, material-based upgrades/awakening, tier changes, option upgrades/rerolls, skill rerolls, enchanting/confirmation, dismantling, and artifact restoration.
+- **Soul weapons:** liberation, grade upgrades, ether injection/reinforcement, option renewal/confirmation, transitions, dismantling, and configurable soul-stone restoration with mileage rewards.
+- **Runes and loadouts:** hero rune pages, equip/removal with paid preservation, equipment loadout slots, punishment-rune crafting/storage/expansion, and equipment-rune dismantling.
+- **Additional progression and customization:** NPC gifts/reward claims, class-buff spending/reset with configurable local point earnings, team-buff upgrades, hair/weapon unlocks from costumes, accessory selectors/positioning, and customization resets.
+- **Specialized items:** EXP flask filling/cancellation, pet/accessory selectors, nickname/guild-name tickets, awakening/soul transition tickets, soul growth tickets, transcendence-point potions, and extra-option equipment selectors.
+- **Valance equipment:** crafting, identification, awakening, enchanting, and persistent confirmation choices.
 - **Inventory:** supported consumables, boxes/selectors, locks, selling/dismantling, equipment storage/expansion, and timed gold/EXP boosters.
 - **Crafting:** recipes, slots, timed completion/cancellation, and collection.
 - **Mail:** personal/global inboxes, pagination, expiry, and atomic attachment claims.
@@ -32,6 +37,8 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Achievements and quests:** extracted achievement/subquest definitions, progress from supported gameplay, reward claims, and login/gameplay notifications.
 - **Completion rewards:** chapter-star rewards, entitlement-checked clear/newcomer missions, and claims for persisted world-map events.
 - **Development tools:** GM/cheat commands for currencies, heroes, levels, unlocks, and equipment.
+
+Equipment-extension configuration and data limitations are documented in [hero-equipment-extensions.md](docs/hero-equipment-extensions.md).
 
 ## WIP / Future Implementation
 
@@ -45,13 +52,12 @@ This backlog includes partial implementations and systems not started yet; it is
 
 ### Hero, equipment, and item extensions
 
-- **Equipment progression:** upgrading, awakening, tier upgrades, enchanting, option/skill rerolls and confirmation, and artifact restoration (`equip/*`).
-- **Soul weapons:** liberation, upgrades, ether injection, reinforcement, limit breaks, option renewal, transitions, and soul-stone restoration/mileage rewards (`equip/soul_*`, `equip/restore_soul_stone`, `equip/get_soul_stone_mileage_reward`).
-- **Runes and equipment presets:** rune equip/removal, hero rune pages, per-hero equipment storage slots/swapping, equipment-rune dismantling, and punishment rune crafting/storage (`hero/*rune*`, `equip_storage_slot/*`, `punishment_rune/*`).
-- **Further hero progression:** enhanced transcendence perk levels, class buffs, team-level buffs, and NPC gift/friendship rewards outside the Hero's Inn (`hero/learn_hero_transcend_skill_page`, `class_buff/*`, `user/reinforce_team_level_buff`, `npc/*`).
-- **Cosmetic customization:** hair/weapon/accessory costume purchases and positioning, customization resets, dyes, and legendary costume progression (`hero/buy_customizing_costumes`, `hero/edit_accessory_costume_position`, `hero/reset_all_customizing_costumes`; costume data).
-- **Specialized items:** flask filling/cancellation, recipe consumables, accessory/pet selectors, nickname/guild-name tickets, awakening/soul-weapon transition tickets, extra/unique-option selection, and unsupported potion/booster actions (`item/*`).
-- **Valance equipment:** crafting, identification, awakening, enchanting/confirmation, and tier upgrades (`valance/*`).
+- **Missing original rules:** soul-weapon limit-break definitions and recipe-consumable recipes. Handlers accept configured definitions, but these features remain disabled without them. Class-buff point earnings and soul-stone restoration use explicitly local rules; original server balance is not reproduced.
+- **Client-dependent progression:** enhanced transcendence perk levels (this extracted client's page parser stores only selected skill codes), dyes, and legendary-costume progression need corresponding client contracts/data. Normal body costumes, hair/weapon customization, and accessories are implemented separately.
+- **Unavailable shop stock:** all extracted accessory shop rows have `IsOpen=false`; the purchase handler enforces those flags. Accessory selectors still work. Hair/weapon pieces in this extraction are unlocked through costumes rather than separate paid listings.
+- **Battle and event dependencies:** event flasks, archive/achievement potions, mode-specific recovery items, and boosters whose battle modes/reward calculations are unfinished remain unsupported. EXP flasks currently use the campaign's existing all-hero EXP handling for capped heroes. Pet selectors persist collection ownership; the broader pet system remains below.
+- **Valance tier upgrades:** the extracted request has no target/material fields and no matching upgrade rules; it returns a failure without spending items. Other Valance flows are implemented.
+- **Integration testing:** client playthroughs, appearance-preset interactions, class/team-buff effects in unfinished battle modes, and original random distributions still need verification.
 
 ### Dungeons, raids, and multiplayer
 

@@ -1,0 +1,21 @@
+{
+  "SoulWeaponLimitBreak": [],
+  "LocalClassBuffPoints": [
+    {
+      "HeroLevel": 1,
+      "HeroAwaken": 5,
+      "HeroTranscend": 10,
+      "UniqueWeaponAwaken": 10,
+      "UniqueTreasureAwaken": 5,
+      "ClassUniqueWeaponAwaken": 5
+    }
+  ],
+  "LocalSoulStoneRestore": [
+    {
+      "Index": 1,
+      "UseLiberationStonePool": true,
+      "IncludeNpcHeroes": false,
+      "ItemIndices": []
+    }
+  ]
+}

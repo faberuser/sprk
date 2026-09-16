@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build router with all API routes
     let app = Router::new()
+        .merge(api::extensions::routes())
         // Health check
         .route("/health", get(health_check))
         // Initial host query (client fetches this first to get server info)
@@ -144,6 +145,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/hero/give_reward_hero_inn_roulette", post(api::hero_inn::give_reward_hero_inn_roulette))
         // Equipment
         .route("/equip/set_equip", post(api::equip::set_equip))
+        .route("/equip/set_equip_swap", post(api::equip::set_equip))
         .route("/equip/unset_equip", post(api::equip::unset_equip))
         // Shop
         .route("/shop/get_shop_list", post(api::shop::get_shop_list))
@@ -179,21 +181,21 @@ async fn main() -> anyhow::Result<()> {
         .route("/equip/unset_chest", post(api::item::unset_chest))
         .route("/shop/sell_item", post(api::item::sell_item))
         .route("/inventory/get_inventory", post(api::item::get_inventory))
-        .route("/item/use_flask_item", post(api::item::unsupported_item))
-        .route("/item/cancel_flask_item", post(api::item::unsupported_item))
-        .route("/item/use_recipe_item", post(api::item::unsupported_item))
+        .route("/item/use_flask_item", post(api::extensions::handle))
+        .route("/item/cancel_flask_item", post(api::extensions::handle))
+        .route("/item/use_recipe_item", post(api::extensions::handle))
         .route("/item/use_costume_select_item", post(api::hero::use_costume_select_item))
-        .route("/item/use_accessory_select_item", post(api::item::unsupported_item))
-        .route("/item/use_pet_select_item", post(api::item::unsupported_item))
+        .route("/item/use_accessory_select_item", post(api::extensions::handle))
+        .route("/item/use_pet_select_item", post(api::extensions::handle))
         .route("/item/use_multiple_hero_select_item", post(api::hero::use_multiple_hero_select_item))
         .route("/item/use_hero_growth_item", post(api::hero::use_hero_growth_item))
-        .route("/item/use_nick_change_item", post(api::item::unsupported_item))
-        .route("/item/use_guild_name_change_item", post(api::item::unsupported_item))
+        .route("/item/use_nick_change_item", post(api::extensions::handle))
+        .route("/item/use_guild_name_change_item", post(api::extensions::handle))
         .route("/item/event_craft_item", post(api::item::unsupported_item))
         .route("/item/reward_event_roulette", post(api::item::unsupported_item))
-        .route("/item/awaken_transition", post(api::item::unsupported_item))
-        .route("/item/soul_weapon_transition_ticket", post(api::item::unsupported_item))
-        .route("/item/soul_weapon_ability_ticket", post(api::item::unsupported_item))
+        .route("/item/awaken_transition", post(api::extensions::handle))
+        .route("/item/soul_weapon_transition_ticket", post(api::extensions::handle))
+        .route("/item/soul_weapon_ability_ticket", post(api::extensions::handle))
         // Mail
         .route("/mail/check_new_mail", post(api::mail::check_new_mail))
         .route("/mail/get_mail_list", post(api::mail::get_mail_list))

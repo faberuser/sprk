@@ -11,6 +11,8 @@ mod campaign_dungeon;
 mod inventory;
 mod hero_shop;
 mod progression;
+mod extensions;
+pub use extensions::ExtensionTable;
 pub use progression::ProgressionTable;
 pub use hero_shop::HeroShopTable;
 pub use inventory::InventoryTable;
@@ -58,6 +60,7 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub extensions: Arc<ExtensionTable>,
     pub progression: Arc<ProgressionTable>,
     pub hero_shop: Arc<HeroShopTable>,
     pub inventory: Arc<InventoryTable>,
@@ -116,6 +119,7 @@ impl GameTables {
         tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            extensions: Arc::new(ExtensionTable::load(&table_dir.join("ExtensionSupport.json"))?),
             progression: Arc::new(ProgressionTable::load(table_dir)?),
             hero_shop: Arc::new(HeroShopTable::load(&table_dir.join("HeroShopSupport.json"))?),
             inventory: Arc::new(InventoryTable::load(&table_dir.join("InventorySupport.json"))?),
@@ -132,6 +136,7 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            extensions: Arc::new(ExtensionTable::default()),
             progression: Arc::new(ProgressionTable::default()),
             hero_shop: Arc::new(HeroShopTable::default()),
             inventory: Arc::new(InventoryTable::default()),

@@ -218,6 +218,9 @@ pub struct LoginResponse {
     pub sent_friendship_point_infos: Vec<serde_json::Value>,
     pub npc_friendly_infos: Vec<serde_json::Value>,
     pub chat_ban_infos: Vec<serde_json::Value>,
+    pub team_level_buff_infos: Vec<serde_json::Value>,
+    pub equip_storage_slot_infos: Vec<serde_json::Value>,
+    pub pet_infos: Vec<serde_json::Value>,
     // Hero friendly info - CRITICAL: client crashes if null
     pub hero_friendly_info: PlayerHeroFriendlyInfo,
 }
@@ -613,7 +616,21 @@ pub async fn login(
 
     let player_avatar_hero_info = super::hero::avatar_info(&mut *state.db.acquire().await?,&state,account_id).await?;
     let progression = super::progression::login(&state, account_id).await?;
+    let soul_weapon_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
+    let npc_friendly_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "npc").await?;
+    let extension_misc = super::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
+    let weapon_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
+    let hair_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
+    let player_accessory_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
+    let class_buffs={let mut tx=state.db.begin().await?;let v=super::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
+    let team_level_buff_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"team_buff").await?;
+    let equip_storage_slot_infos=super::extensions::storage_login(&state,account_id).await?;
+    let pet_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
+    let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
     let response = LoginResponse {
+        team_level_buff_infos,
+        equip_storage_slot_infos,
+        pet_infos,
         main_quest_info: progression["MainQuestInfo"].clone(),
         attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
         player_avatar_hero_info,
@@ -639,6 +656,7 @@ pub async fn login(
         user_info,
         battle_info: Some(PlayerBattleInfo::default()),
         misc_info: Some(PlayerMiscInfo {
+            extra: extension_misc,
             login_daily_count: progression["LoginDailyCount"].as_i64().unwrap_or(0),
             inventory_extend: inventory_settings.get("inventory_extend"),
             chest_extend: inventory_settings.get("chest_extend"),
@@ -677,7 +695,7 @@ pub async fn login(
         contents_statuses: vec![],
         contents_values: vec![],
         // All the additional empty arrays
-        hero_rune_page_infos: vec![],
+        hero_rune_page_infos,
         item_time_durations: super::item::booster_login(&state,account_id).await?,
         purchase_time_durations: vec![],
         world_map_event_time_infos: vec![],
@@ -686,10 +704,10 @@ pub async fn login(
         raid_infos: vec![],
         craft_slot_infos,
         costume_infos,
-        weapon_costume_infos: vec![],
-        hair_costume_infos: vec![],
+        weapon_costume_infos,
+        hair_costume_infos,
         costume_storage_slot_infos,
-        player_accessory_costume_infos: vec![],
+        player_accessory_costume_infos,
         purchase_marketing_infos: vec![],
         player_item_use_infos: vec![],
         godking_trial_dungeons: vec![],
@@ -702,19 +720,19 @@ pub async fn login(
         free_equip_gacha_infos: vec![],
         equip_gacha_infos: vec![],
         chapter_reward_infos: progression["ChapterRewardInfos"].as_array().cloned().unwrap_or_default(),
-        class_buff_point_infos: vec![],
-        class_buff_infos: vec![],
+        class_buff_point_infos: class_buffs["ClassBuffPointInfos"].as_array().cloned().unwrap_or_default(),
+        class_buff_infos: class_buffs["ClassBuffInfos"].as_array().cloned().unwrap_or_default(),
         dispatch_battle_infos: vec![],
         monthly_hero_infos: vec![],
         sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
         eclipse_dungeon_infos: vec![],
         clear_mission_infos: progression["ClearMissionInfos"].as_array().cloned().unwrap_or_default(),
         player_any_miscs: vec![],
-        soul_weapon_infos: vec![],
+        soul_weapon_infos,
         player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().cloned().unwrap_or_default(),
         drop_bonus_events: vec![],
         pay_shop_item_event_infos: vec![],
-        npc_friendly_infos: vec![],
+        npc_friendly_infos,
         chat_ban_infos: vec![],
         // Hero friendly info - CRITICAL: cannot be null or client crashes
         hero_friendly_info: PlayerHeroFriendlyInfo {

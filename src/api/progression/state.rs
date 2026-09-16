@@ -238,6 +238,7 @@ impl View {
                 a.first().copied(),
                 a.get(1).copied(),
             ),
+            "AwakenGear"|"UpgradeEquipOption"|"UpgradeEquipTier"|"RenewEquipOption"|"Enchant"|"EquipRune"|"ArtifactRestore"|"SoulRestore"|"SoulWeaponRenewOption"|"GiveFriendlyPoint"|"GiveMultipleGiftItem" => self.metric(row["Kind"].as_str().unwrap(),"all",a.first().copied(),a.get(1).copied()),
             _ => 0,
         }
     }

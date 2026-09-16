@@ -197,7 +197,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
         Err(e) => Err(e),
     }
 }
-fn appearance(hero: &Value) -> Value {
+pub(crate) fn appearance(hero: &Value) -> Value {
     let mut r = json!({});
     for k in [
         "HeroIndex",
@@ -234,7 +234,7 @@ fn next_star<'a>(state: &'a AppState, h: &Value) -> Result<&'a Value> {
         if s == 5 { t + 1 } else { t },
     )
 }
-async fn check_costume(
+pub(crate) async fn check_costume(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
