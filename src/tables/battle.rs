@@ -14,9 +14,12 @@ pub struct BattleTable {
 }
 impl BattleTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::load_with_rules(path, "BattleRules.json")
+    }
+    pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
         data.rules = serde_json::from_reader(std::fs::File::open(
-            path.with_file_name("BattleRules.json"),
+            path.with_file_name(rules),
         )?)?;
         Ok(data)
     }

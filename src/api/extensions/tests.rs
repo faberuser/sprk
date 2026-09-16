@@ -1,5 +1,7 @@
 use super::*;
-use crate::{api::user, database, tables::GameTables};
+use crate::api::account::user;
+use crate::database;
+use crate::tables::GameTables;
 use std::{path::Path, sync::OnceLock};
 
 async fn setup() -> (AppState, user::LoginResponse) {

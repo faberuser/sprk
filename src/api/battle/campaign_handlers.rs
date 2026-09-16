@@ -156,7 +156,7 @@ pub async fn submit_campaign_battle(
         ("Star", req.star_rating.unwrap_or(0).to_string()),
     ])
     .map_err(|_| ServerError::InvalidRequest("Invalid campaign request".into()))?;
-    super::battle::execute_request(&state, "campaign/end_campaign", Bytes::from(body))
+    crate::api::battle::execute_request(&state, "campaign/end_campaign", Bytes::from(body))
         .await
         .map(Json)
 }
@@ -233,7 +233,7 @@ pub async fn begin_campaign(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>> {
-    super::battle::execute_request(&state, "campaign/begin_campaign", body)
+    crate::api::battle::execute_request(&state, "campaign/begin_campaign", body)
         .await
         .map(Json)
 }
@@ -315,7 +315,7 @@ pub async fn end_campaign(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>> {
-    super::battle::execute_request(&state, "campaign/end_campaign", body)
+    crate::api::battle::execute_request(&state, "campaign/end_campaign", body)
         .await
         .map(Json)
 }
@@ -325,7 +325,7 @@ pub async fn visit_dungeon(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>> {
-    super::battle::execute_request(&state, "campaign/visit_dungeon", body)
+    crate::api::battle::execute_request(&state, "campaign/visit_dungeon", body)
         .await
         .map(Json)
 }
@@ -335,7 +335,7 @@ pub async fn complete_scenario_dungeon(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<serde_json::Value>> {
-    super::battle::execute_request(&state, "campaign/complete_scenario_dungeon", body)
+    crate::api::battle::execute_request(&state, "campaign/complete_scenario_dungeon", body)
         .await
         .map(Json)
 }

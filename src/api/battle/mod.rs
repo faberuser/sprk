@@ -1,8 +1,8 @@
 //! Persistent battle entries, rewards, dungeon modes, rooms, and asynchronous runs.
-use super::{
-    hero,
-    item::{self, n, rule},
-    social_request::Request,
+use crate::api::{
+    heroes as hero,
+    inventory::item::{self, n, rule},
+    system::request::Request,
     tutorial::{self, Rewards},
 };
 use crate::{
@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
 mod campaign;
+pub mod campaign_handlers;
 mod dispatch;
 mod dungeons;
 mod restrictions;
@@ -49,6 +50,7 @@ pub fn routes(tables: &crate::tables::BattleTable) -> axum::Router<AppState> {
                 | "campaign/visit_dungeon"
                 | "campaign/complete_scenario_dungeon"
                 | "campaign/reward_clear_chapter"
+                | "match/get_season_info"
         ) {
             continue;
         }
@@ -184,6 +186,9 @@ fn response(s: &AppState, path: &str) -> Value {
         }
     }
     out
+}
+pub(crate) fn match_calendar(s: &AppState) -> Result<Value> {
+    Ok(seasons::match_season(s, &Request::parse(b"ArenaType=5")?)?["SeasonData"].clone())
 }
 fn merge(out: &mut Value, other: Value) {
     if let Some(o) = other.as_object() {

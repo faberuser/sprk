@@ -1,5 +1,10 @@
 //! Native forms and real client table rules against isolated databases.
-use super::{campaign, hero, item, shop, user};
+use crate::api::{
+    account::user,
+    battle::campaign_handlers as campaign,
+    heroes as hero,
+    inventory::{item, shop},
+};
 use crate::{database, state::AppState, tables::GameTables};
 use axum::{body::Bytes, extract::State};
 use serde_json::Value;
@@ -911,7 +916,7 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
             })
             .unwrap();
         let mut tx = s.db.begin().await.unwrap();
-        let mut r = super::tutorial::Rewards::default();
+        let mut r = crate::api::tutorial::Rewards::default();
         item::give(&mut tx, &s, u.user_info.account_id, id, 1, 0, 0, &mut r)
             .await
             .unwrap();
@@ -989,9 +994,9 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
     let _ = hero::bookmark_hero(State(s.clone()), form(&u, "HeroIndex=[2,1]"))
         .await
         .unwrap();
-    let r = super::lobby::first_lobby(
+    let r = crate::api::account::lobby::first_lobby(
         State(s.clone()),
-        axum::extract::Form(super::lobby::FirstLobbyRequest {
+        axum::extract::Form(crate::api::account::lobby::FirstLobbyRequest {
             session_id: None,
             session_key: Some(u.user_info.session_key.clone()),
             nick: None,
@@ -1079,9 +1084,9 @@ async fn inn_recruitment_uses_table_star_account_local_ids_and_cannot_duplicate_
     .await
     .unwrap();
     sqlx::query("INSERT INTO hero_friendly_info(account_id,hero_index,friendly_point) VALUES (?,?,1000) ON CONFLICT(account_id) DO UPDATE SET hero_index=excluded.hero_index,friendly_point=excluded.friendly_point").bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
-    let r = super::hero_inn::recruit_hero(
+    let r = crate::api::heroes::inn::recruit_hero(
         State(s.clone()),
-        axum::extract::Form(super::hero_inn::RecruitHeroRequest {
+        axum::extract::Form(crate::api::heroes::inn::RecruitHeroRequest {
             session_id: None,
             session_key: Some(u.user_info.session_key.clone()),
             hero_index: Some(id),
@@ -1100,9 +1105,9 @@ async fn inn_recruitment_uses_table_star_account_local_ids_and_cannot_duplicate_
     .execute(&s.db)
     .await
     .unwrap();
-    let r = super::hero_inn::recruit_hero(
+    let r = crate::api::heroes::inn::recruit_hero(
         State(s.clone()),
-        axum::extract::Form(super::hero_inn::RecruitHeroRequest {
+        axum::extract::Form(crate::api::heroes::inn::RecruitHeroRequest {
             session_id: None,
             session_key: Some(u.user_info.session_key.clone()),
             hero_index: Some(id),

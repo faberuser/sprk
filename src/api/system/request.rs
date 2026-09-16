@@ -1,4 +1,4 @@
-//! Form parsing shared by the social APIs. Arrays are JSON strings in this client.
+//! Form parsing shared by the APIs. Arrays are JSON strings in this client.
 use crate::{
     error::{Result, ServerError},
     state::AppState,

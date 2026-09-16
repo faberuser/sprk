@@ -67,7 +67,7 @@ pub(super) async fn validate(
     let c = n(d, "ChapterIndex");
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
-    if ch["IsOpen"] != true {
+    if ch["IsOpen"] != true && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
         return Err(rule("NotOpenedDungeon"));
     }
     if diff > n(ch, "MaxDifficulty") && d["NoDifficulty"] != true {
@@ -279,6 +279,12 @@ pub(super) async fn end(
         return Err(rule("ModulatedData"));
     }
     let request = Request(read_value(entry["Request"].clone())?);
+    if n(&entry,"GuildId")>0 {
+        let mut out=item::success();
+        super::super::community::raid_finish(db,s,a,r,&entry,&mut out).await?;
+        sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0").bind(a).execute(db).await?;
+        return Ok(out);
+    }
     let mut out = if completed {
         complete(db, s, a, &request, &party, star, 1).await?
     } else {

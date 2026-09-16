@@ -1,7 +1,7 @@
 //! Crafting costs and outcomes come from the installed client's tables.
-use super::{
-    item::{self, n, rule},
-    social_request::Request,
+use crate::api::{
+    inventory::item::{self, n, rule},
+    system::request::Request,
     tutorial::Rewards,
 };
 use crate::{
@@ -52,7 +52,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     item::init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
-            if action=="craft_item" {super::progression::record(&mut tx,account,"CraftItem",0,0,1).await?;}
+            if action=="craft_item" {crate::api::progression::record(&mut tx,account,"CraftItem",0,0,1).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }

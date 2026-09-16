@@ -5,6 +5,7 @@ pub(super) async fn ensure_available(
     party: &[i64],
     except: Option<i64>,
 ) -> Result<()> {
+    super::super::community::ensure_available(db,a,party).await?;
     for v in list(db, a, "dispatch").await? {
         if except == Some(n(&v, "SlotIndex"))
             || matches!(v["State"].as_str(), Some("Complete" | "Cancel"))

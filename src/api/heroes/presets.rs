@@ -1,8 +1,8 @@
 //! Account-wide hero equipment/skill presets. Apply validates ownership before any write.
-use super::{
-    hero,
-    item::{self, n, rule},
-    social_request::Request,
+use crate::api::{
+    heroes as hero,
+    inventory::item::{self, n, rule},
+    system::request::Request,
 };
 use crate::{
     error::{Result, ServerError},

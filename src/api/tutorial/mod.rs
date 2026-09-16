@@ -1,5 +1,5 @@
 //! Client-driven tutorial completion with atomic, replayable rewards.
-use super::campaign::CurrencyResultInfo3;
+use crate::api::battle::campaign_handlers::CurrencyResultInfo3;
 use crate::{
     error::{Result, ServerError},
     models::equip::EquipItemInfo,
@@ -329,7 +329,7 @@ async fn reward_action(
 }
 
 pub(crate) async fn hero_info(db: &mut SqliteConnection, account_id: i64, index: i32) -> Result<Value> {
-    super::hero::info(db, account_id, index).await
+    crate::api::heroes::info(db, account_id, index).await
 }
 
 async fn grant_rewards(

@@ -1,7 +1,13 @@
 //! Native hero ownership, appearance, and progression operations.
-use super::{
-    item::{self, n, rule},
-    social_request::Request,
+pub mod inn;
+pub mod presets;
+
+#[cfg(test)]
+mod tests;
+
+use crate::api::{
+    inventory::item::{self, n, rule},
+    system::request::Request,
     tutorial::{self, Rewards},
 };
 use crate::{
@@ -153,7 +159,7 @@ pub(crate) async fn currency(
     if matches!(kind, "Gold" | "Gem") {
         return item::money(db, account, kind, amount).await;
     }
-    if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint") {
+    if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint") {
         sqlx::query("INSERT OR IGNORE INTO battle_currencies(account,kind,value) VALUES(?,?,0)")
             .bind(account).bind(kind).execute(&mut *db).await?;
         let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN 0 AND 2147483647 RETURNING value")
@@ -315,7 +321,7 @@ pub(crate) async fn execute(
         return Ok(out);
     }
     if action.ends_with("hero_storage_slot") || action == "change_hero_storage_slot_name" {
-        return super::hero_presets::execute(db, state, account, req, action).await;
+        return crate::api::heroes::presets::execute(db, state, account, req, action).await;
     }
     if action.starts_with("use_") {
         return collection_item(db, state, account, req, action).await;

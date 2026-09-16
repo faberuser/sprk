@@ -802,14 +802,14 @@ pub async fn recruit_hero(
     let fail=|code:&str|Json(json!({"BaseResult":"Success","Result":code}));
     let Some(c)=state.tables.hero_shop.heroes.get(&index) else {return Ok(fail("HeroIndexMismatch"))};
     let mut tx=state.db.begin().await?;
-    super::item::init(&mut tx,&state,account).await?;
+    crate::api::inventory::item::init(&mut tx,&state,account).await?;
     let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)").bind(account).bind(index).fetch_one(&mut *tx).await?;
     if owned {return Ok(fail("AlreadyRecruited"));}
     let row=sqlx::query("SELECT hero_index,friendly_point FROM hero_friendly_info WHERE account_id=?").bind(account).fetch_optional(&mut *tx).await?;
     let Some(row)=row else {return Ok(fail("HeroNotExist"))};
     if row.get::<i32,_>("hero_index")!=index {return Ok(fail("HeroIndexMismatch"));}
     if row.get::<i32,_>("friendly_point")<MAX_FRIENDSHIP_POINTS {return Ok(fail("FriendlyPointMismatch"));}
-    let mut reward=super::hero::recruit_at(&mut tx,&state,account,index,super::item::n(c,"StartHeroStar"),super::item::n(c,"StartHeroLevel"),0).await?;
+    let mut reward=crate::api::heroes::recruit_at(&mut tx,&state,account,index,crate::api::inventory::item::n(c,"StartHeroStar"),crate::api::inventory::item::n(c,"StartHeroLevel"),0).await?;
     sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,selected_time=datetime('now') WHERE account_id=?").bind(account).execute(&mut *tx).await?;
     reward["HeroFriendlyInfo"]=json!({"HeroIndex":0,"SelectedHeroIndex":0,"FriendlyPoint":0,"SelectedTime":state.server_time_str(),"SelectedHeroIndice":""});
     tx.commit().await?;

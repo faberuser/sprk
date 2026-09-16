@@ -1,5 +1,7 @@
 use super::*;
-use crate::{api::user, database, tables::GameTables};
+use crate::api::account::user;
+use crate::database;
+use crate::tables::GameTables;
 use std::{
     path::Path,
     sync::{Arc, OnceLock},
@@ -561,7 +563,7 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
     let mut app = axum::Router::new()
         .route(
             "/campaign/begin",
-            axum::routing::post(super::super::campaign::begin_campaign),
+            axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign),
         )
         .layer(axum::middleware::from_fn_with_state(
             s.clone(),

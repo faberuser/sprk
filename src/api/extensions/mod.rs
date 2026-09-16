@@ -1,8 +1,8 @@
 //! Native equipment and hero extensions; all costs and mutations share one transaction.
-use super::{
-    hero,
-    item::{self, n, rule},
-    social_request::Request,
+use crate::api::{
+    heroes as hero,
+    inventory::item::{self, n, rule},
+    system::request::Request,
     tutorial::Rewards,
 };
 use crate::{

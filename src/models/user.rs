@@ -137,9 +137,14 @@ pub struct PlayerMiscInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerBattleInfo {
-    pub tier: i32,
-    pub score: i32,
-    pub rank: i32,
-    pub win_count: i32,
-    pub lose_count: i32,
+    pub match_score: i32,
+    pub season_win: i32,
+    pub season_lose: i32,
+    #[serde(default)]
+    pub successive_win: i32,
+    #[serde(default)]
+    pub successive_lose: i32,
+    pub tier_index: i32,
+    pub world_tier_index: i32,
+    pub last_match_time: Option<String>,
 }

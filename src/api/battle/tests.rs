@@ -1,5 +1,7 @@
 use super::*;
-use crate::{api::user, database, tables::GameTables};
+use crate::api::account::user;
+use crate::database;
+use crate::tables::GameTables;
 use std::{path::Path, sync::OnceLock};
 async fn setup() -> (AppState, Value) {
     static TABLES: OnceLock<GameTables> = OnceLock::new();
@@ -625,7 +627,7 @@ async fn world_boss_closed_day_and_season_send_mail_once() {
         u["UserInfo"]["SessionKey"].as_str().unwrap()
     ));
     for _ in 0..2 {
-        let _ = super::super::mail::receive_mail(State(s.clone()), body.clone())
+        let _ = crate::api::community::mail::receive_mail(State(s.clone()), body.clone())
             .await
             .unwrap();
     }
@@ -814,9 +816,9 @@ async fn tower_sweep_consumes_tickets_and_grants_repeat_rewards() {
             || !sweep["CurrencyResults"].as_array().unwrap().is_empty()
     );
     let lobby = json!(
-        super::super::lobby::enter_lobby(
+        crate::api::account::lobby::enter_lobby(
             State(s.clone()),
-            axum::extract::Form(super::super::lobby::EnterLobbyRequest {
+            axum::extract::Form(crate::api::account::lobby::EnterLobbyRequest {
                 session_id: None,
                 session_key: u["UserInfo"]["SessionKey"].as_str().map(String::from)
             })

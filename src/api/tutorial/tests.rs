@@ -1,5 +1,7 @@
 use super::*;
-use crate::{api::user, database, tables::GameTables};
+use crate::api::account::user;
+use crate::database;
+use crate::tables::GameTables;
 use axum::body::Bytes;
 use std::{
     path::Path,
@@ -355,7 +357,7 @@ async fn custom_equipment_survives_relogin_and_replay() {
 
 #[tokio::test]
 async fn gm_reset_restarts_tutorial_with_kasel() {
-    use crate::api::cheat::{
+    use crate::api::system::cheat::{
         gm_reset_account, gm_unlock_all, GmResetAccountRequest, GmUnlockAllRequest,
     };
     let (state, first) = setup().await;

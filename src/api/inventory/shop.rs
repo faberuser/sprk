@@ -1,8 +1,8 @@
 //! Table-priced shops with persistent stock and atomic purchase limits.
-use super::{
-    hero,
-    item::{self, n, rule},
-    social_request::Request,
+use crate::api::{
+    heroes as hero,
+    inventory::item::{self, n, rule},
+    system::request::Request,
     tutorial::Rewards,
 };
 use crate::{
@@ -50,10 +50,12 @@ fn kind(cost: i64) -> Result<&'static str> {
         1 => Ok("Gold"),
         2 => Ok("Gem"),
         3 => Ok("PvpCoin"),
+        4 => Ok("GuildPoint"),
         5 => Ok("RoyalPoint"),
         6 => Ok("Mileage"),
         7 => Ok("FriendshipPoint"),
         8 => Ok("RaidPoint"),
+        17 => Ok("GuildArenaPoint"),
         _ => Err(rule("InvalidCost")),
     }
 }
@@ -190,6 +192,9 @@ async fn execute(
     if n(shop, "EventOnly") != 0 {
         return Err(rule("ContentsDisabled"));
     }
+    let guild_level = if n(shop, "BuyCostType") == 4 {
+        Some(crate::api::community::validate_shop(db, state, account, id as i64).await?)
+    } else { None };
     let mut out = item::success();
     if action == "buy_shop_item" && n(shop, "MaxStock") > 0 {
         let expiry: Option<i64> = sqlx::query_scalar(
@@ -210,7 +215,10 @@ async fn execute(
         }
         out["CurrencyResult"] = hero::currency(db, account, "Gem", -n(shop, "RestockGem")).await?;
     }
-    let (rows, restock) = stock(db, state, account, shop, refresh).await?;
+    let (mut rows, restock) = stock(db, state, account, shop, refresh).await?;
+    if let Some(level) = guild_level {
+        if shop["UseGroupIndexForLevel"] == true { rows.retain(|r|n(r,"GroupIndex")<=level); }
+    }
     let rotating = n(shop, "MaxStock") > 0;
     let revision = n(&restock, "ShopItemListIndex");
     let now = state.server_time();
@@ -241,6 +249,9 @@ async fn execute(
             n(shop, "BuyCostType")
         };
         let kind = kind(cost_type)?;
+        if kind == "GuildPoint" {
+            crate::api::community::validate_shop(db,state,account,id as i64).await?;
+        }
         let mut price = if n(row, "TargetPrice") > 0 {
             n(row, "TargetPrice")
         } else {
@@ -305,6 +316,8 @@ async fn execute(
         let currency = hero::currency(db, account, kind, -cost).await?;
         if kind == "FriendshipPoint" {
             out["FriendshipPointResult"] = currency;
+        } else if kind == "GuildPoint" {
+            out["GuildPointResult"] = currency;
         } else if kind == "RoyalPoint" {
             out["RoyalPointResult"] = currency;
         } else {

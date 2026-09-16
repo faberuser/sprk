@@ -1,5 +1,5 @@
 //! Directional invitations, mutual friendships and once-per-day point exchange.
-use super::social_request::Request;
+use crate::api::system::request::Request;
 use crate::{
     error::{Result, ServerError},
     state::AppState,

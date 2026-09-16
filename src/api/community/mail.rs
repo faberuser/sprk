@@ -1,6 +1,6 @@
 //! Persistent inboxes and atomic attachment claims using the native mail protocol.
-use super::{
-    social_request::Request,
+use crate::api::{
+    system::request::Request,
     tutorial::{self, Rewards},
 };
 use crate::{
@@ -164,7 +164,7 @@ async fn claim(
     for currency in attachments::<Value>(row, "reward_currencies")? {
         let kind = currency["CurrencyType"].as_str().ok_or_else(|| ServerError::Internal("Invalid mail currency".into()))?;
         let amount = currency["Amount"].as_i64().filter(|n| *n > 0).ok_or_else(|| ServerError::Internal("Invalid mail currency amount".into()))?;
-        rewards.currencies.push(super::hero::currency(db, account, kind, amount).await?);
+        rewards.currencies.push(crate::api::heroes::currency(db, account, kind, amount).await?);
     }
     tutorial::currency(db, account, "Gold", gold, &mut rewards).await?;
     tutorial::currency(db, account, "Gem", gem, &mut rewards).await?;
@@ -207,7 +207,7 @@ async fn claim(
                 let index = state.tables.get_item_index(&code).ok_or_else(|| {
                     ServerError::Internal("Unresolved duplicate hero reward".into())
                 })?;
-                super::item::give(
+                crate::api::inventory::item::give(
                     db,
                     state,
                     account,
@@ -220,7 +220,7 @@ async fn claim(
                 .await?;
             }
         } else if !owned {
-            super::item::give(
+            crate::api::inventory::item::give(
                 db,
                 state,
                 account,
@@ -239,7 +239,7 @@ async fn claim(
             "Too many mail equipment attachments".into(),
         ));
     }
-    if !equipment.is_empty() {super::item::capacity(db,state,account,0,equipment.len() as i64).await?;}
+    if !equipment.is_empty() {crate::api::inventory::item::capacity(db,state,account,0,equipment.len() as i64).await?;}
     for mut item in equipment {
         if !state
             .tables

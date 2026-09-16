@@ -1,7 +1,7 @@
 //! Inventory mutations use client table rules and one database transaction per request.
-use super::{
-    campaign::CurrencyResultInfo3,
-    social_request::Request,
+use crate::api::{
+    battle::campaign_handlers::CurrencyResultInfo3,
+    system::request::Request,
     tutorial::{self, Rewards},
 };
 use crate::{
@@ -237,7 +237,7 @@ pub(crate) async fn give(
             save_options(db, account, equip).await?;
             if state.tables.extensions.find("EquipItem",&[("ItemIndex",index as i64)]).is_some_and(|v|n(v,"EquipType")==1){
                 equip.identified=0;
-                super::extensions::save_equip(db,account,equip).await?;
+                crate::api::extensions::save_equip(db,account,equip).await?;
             }
         }
     }
@@ -275,14 +275,14 @@ pub(crate) async fn reward(
     tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
     for drop in row.roll_items(&state.tables.reward_string_pool) {
         let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
-        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint") {
+        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint") {
             let mut amount=drop.count as i64;
             if code=="ShakmehMiddleBossPoint" {
                 let max=state.tables.battle.find("CurrencyType",&[("CurrencyType",48)]).map(|v|n(v,"MaxValue")).filter(|v|*v>0).ok_or_else(||rule("ItemDataNotFound"))?;
                 let balance:i64=sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
                 amount=amount.min((max-balance).max(0));
             }
-            rewards.currencies.push(super::hero::currency(db,account,&code,amount).await?);
+            rewards.currencies.push(crate::api::heroes::currency(db,account,&code,amount).await?);
             continue;
         }
         if code == "EventDungeonPoint" || code == "RaidPoint" {
@@ -364,10 +364,10 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
             if action.starts_with("use_") {
-                super::progression::record(&mut tx,account,"UseItem",req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?).await?;
+                crate::api::progression::record(&mut tx,account,"UseItem",req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?).await?;
             }
             let kind=match action {"use_potion_item"=>"UsePotionItem","use_booster_item"=>"UseBoosterItem",_=>""};
-            if !kind.is_empty() {super::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
+            if !kind.is_empty() {crate::api::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }
@@ -580,11 +580,11 @@ async fn execute(
                 }
                 11=>{
                     let id=item_index(req,"HeroIndex")?;
-                    let h=super::hero::info(db,account,id).await?;
+                    let h=crate::api::heroes::info(db,account,id).await?;
                     let max=state.tables.hero_shop.constant("MaxExtraTranscendPoint",15);
                     let points=n(&h,"TranscendPoint").checked_add(amount).filter(|p|*p<=max).ok_or_else(||rule("MaxHeroTranscendPoint"))?;
                     if amount<=0{return Err(rule("InvalidHeroTranscendPoint"));}
-                    let mut details=super::hero::details(db,account,id).await?;details["TranscendPoint"]=json!(points);super::hero::save_details(db,account,id,&details).await?;
+                    let mut details=crate::api::heroes::details(db,account,id).await?;details["TranscendPoint"]=json!(points);crate::api::heroes::save_details(db,account,id,&details).await?;
                     out["HeroTranscendResult"]=json!({"HeroIndex":id,"AddPointValue":amount,"NewPointValue":points});
                 }
                 _ => return Err(rule("InvalidAction")),
@@ -739,8 +739,8 @@ async fn execute(
             for equip in &mut r.equipment {
                 if selector["SelectUniqueOption"]==true {
                     let extra:Vec<i32>=serde_json::from_str(req.text("EquipExtraOptionIndices")).map_err(|_|rule("NoAvailableOption"))?;
-                    super::extensions::valance::select_unique(state,equip,&extra)?;
-                    super::extensions::save_equip(db,account,equip).await?;
+                    crate::api::extensions::valance::select_unique(state,equip,&extra)?;
+                    crate::api::extensions::save_equip(db,account,equip).await?;
                 }
                 if !options.is_empty() {
                     make_options(state, selected, equip, &options)?;
@@ -1140,7 +1140,7 @@ pub(crate) async fn campaign_boost(state: &AppState, account: i64) -> Result<(i3
             }
         }
     }
-    let (costume_gold,costume_exp)=super::hero::costume_boost(state,account).await?;
+    let (costume_gold,costume_exp)=crate::api::heroes::costume_boost(state,account).await?;
     Ok((gold+costume_gold, exp+costume_exp))
 }
 
@@ -1277,7 +1277,7 @@ async fn dismantle_runes(
     let mut consumed = vec![];
     let mut rewards = Rewards::default();
     if !matches!(req.text("EquipItemSlotIndices"),""|"[]"|"null") {
-        super::extensions::punishment::dismantle(db,state,account,req,&mut rewards).await?;
+        crate::api::extensions::punishment::dismantle(db,state,account,req,&mut rewards).await?;
     }
     for (id, count) in batch {
         if count > 1000 {

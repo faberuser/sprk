@@ -58,10 +58,10 @@ pub async fn first_lobby(
             .await?;
     }
 
-    let bookmarks = super::hero::bookmarks(&mut *state.db.acquire().await?,session.account_id).await?;
-    let hero_preset_storages = super::hero_presets::list(&mut *state.db.acquire().await?,session.account_id).await?;
+    let bookmarks = crate::api::heroes::bookmarks(&mut *state.db.acquire().await?,session.account_id).await?;
+    let hero_preset_storages = crate::api::heroes::presets::list(&mut *state.db.acquire().await?,session.account_id).await?;
     Ok(Json(FirstLobbyResponse {
-        extensions: super::extensions::first_lobby(&state,session.account_id).await?,
+        extensions: crate::api::extensions::first_lobby(&state,session.account_id).await?,
         hero_preset_storages,
         player_book_mark_hero_info: bookmarks,
         base_result: "Success".to_string(),
@@ -181,7 +181,7 @@ pub async fn enter_lobby(
     };
 
     // Fetch heroes
-    let heroes = super::hero::snapshot(&mut *state.db.acquire().await?, account_id).await?;
+    let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
     // Fetch items
     let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ? AND count > 0")
@@ -274,8 +274,13 @@ pub async fn enter_lobby(
             last_roulette_time: row.get("last_roulette_time"),
         });
 
-    let progression = super::progression::login(&state, session.account_id).await?;
-    let mut battle = super::battle::login(&state, account_id).await?;
+    let progression = crate::api::progression::login(&state, session.account_id).await?;
+    let mut battle = crate::api::battle::login(&state, account_id).await?;
+    let community=crate::api::community::login(&state,account_id).await?;
+    battle["GuildInfo"]=community["MyGuildInfo"].clone();
+    battle["BattleInfo"]=community["BattleInfo"].clone();
+    if let Some(keys)=battle["BattleKeyResults"].as_array_mut(){keys.push(community["SwordResult"].clone());keys.push(community["GuildRaidTicket"].clone());}
+    if let Some(user)=&mut user_info{user.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;}
     for info in battle["DungeonInfos"].as_array().into_iter().flatten() {
         let info: ChapterDungeonInfo = serde_json::from_value(info.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
         if let Some(old)=dungeon_infos.iter_mut().find(|d|d.chapter_index==info.chapter_index&&d.dungeon_index==info.dungeon_index){*old=info;}else{dungeon_infos.push(info);}

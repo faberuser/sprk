@@ -310,7 +310,7 @@ pub async fn gm_reset_account(
     .await?;
 
     // Clear progress
-    super::battle::reset(&mut tx,session.account_id,keep_heroes).await?;
+    crate::api::battle::reset(&mut tx,session.account_id,keep_heroes).await?;
     sqlx::query("DELETE FROM campaign_progress WHERE account_id = ?")
         .bind(session.account_id)
         .execute(&mut *tx)

@@ -179,10 +179,11 @@ pub(super) async fn validate(
     let battle_type = n(d, "BattleType");
     if matches!(
         battle_type,
-        4 | 9 | 12 | 16 | 20 | 26 | 29 | 30 | 32 | 36 | 39 | 43 | 44 | 48
+        4 | 9 | 12 | 20 | 26 | 29 | 30 | 32 | 36 | 39 | 43 | 44 | 48
     ) {
         return Err(rule("ContentsDisabled"));
     }
+    if battle_type == 16 { super::super::community::raid_validate(db,s,a,r).await?; }
     if battle_type == 15 && int(r, "WorldBossIndex")? == 0 {
         return Err(rule("MissingWorldBossIndex"));
     }
@@ -446,6 +447,7 @@ pub(super) async fn enter(
         }
     }
     let dungeon = campaign::dungeon(s, r)?;
+    if n(dungeon,"BattleType")==16 {super::super::community::raid_enter(db,s,a,r,entry,out).await?;}
     if n(dungeon, "BattleType") == 38 {
         let def = row(
             s,

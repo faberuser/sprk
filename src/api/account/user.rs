@@ -150,6 +150,7 @@ pub struct LoginResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub misc_info: Option<PlayerMiscInfo>,
     pub guild_id: i64,
+    pub guild_info: serde_json::Value,
     pub heroes: Vec<HeroInfo>,
     pub items: Vec<ItemInfo>,
     // Additional required fields
@@ -198,6 +199,7 @@ pub struct LoginResponse {
     pub login_daily_infos: Vec<serde_json::Value>,
     pub player_archive_infos: Vec<serde_json::Value>,
     pub player_currency_infos: Vec<serde_json::Value>,
+    pub guild_point_info: serde_json::Value,
     pub newbie_mission_infos: Vec<serde_json::Value>,
     pub free_equip_gacha_infos: Vec<serde_json::Value>,
     pub equip_gacha_infos: Vec<serde_json::Value>,
@@ -424,7 +426,7 @@ pub async fn login(
         None => UserInfo::new_user(account_id, &nick, &session_key),
     };
 
-    let heroes = super::hero::snapshot(&mut *state.db.acquire().await?, account_id).await?;
+    let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
     // Fetch items
     let item_rows = sqlx::query(
@@ -608,29 +610,35 @@ pub async fn login(
     // The client will update this position as the player navigates
     let (current_chapter_index, current_dungeon_index) = (1, 1);
 
-    let craft_slot_infos = super::craft::login_data(&state,account_id).await?;
+    let craft_slot_infos = crate::api::inventory::craft::login_data(&state,account_id).await?;
     let inventory_settings = sqlx::query("SELECT * FROM inventory_settings WHERE account_id=?").bind(account_id).fetch_one(&state.db).await?;
-    let (friend_infos, friend_invitor_infos, point_infos, sent_points) = super::friend::login_data(&state, account_id).await?;
-    let costume_infos = super::hero::costumes(&mut *state.db.acquire().await?, account_id).await?;
-    let costume_storage_slot_infos = super::hero::presets(&mut *state.db.acquire().await?, account_id).await?;
+    let (friend_infos, friend_invitor_infos, point_infos, sent_points) = crate::api::community::friend::login_data(&state, account_id).await?;
+    let costume_infos = crate::api::heroes::costumes(&mut *state.db.acquire().await?, account_id).await?;
+    let costume_storage_slot_infos = crate::api::heroes::presets(&mut *state.db.acquire().await?, account_id).await?;
 
-    let player_avatar_hero_info = super::hero::avatar_info(&mut *state.db.acquire().await?,&state,account_id).await?;
-    let progression = super::progression::login(&state, account_id).await?;
-    let soul_weapon_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
-    let npc_friendly_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "npc").await?;
-    let mut extension_misc = super::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
-    let weapon_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
-    let hair_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
-    let player_accessory_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
-    let class_buffs={let mut tx=state.db.begin().await?;let v=super::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
-    let team_level_buff_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"team_buff").await?;
-    let equip_storage_slot_infos=super::extensions::storage_login(&state,account_id).await?;
-    let pet_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
+    let player_avatar_hero_info = crate::api::heroes::avatar_info(&mut *state.db.acquire().await?,&state,account_id).await?;
+    let progression = crate::api::progression::login(&state, account_id).await?;
+    let soul_weapon_infos = crate::api::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
+    let npc_friendly_infos = crate::api::extensions::list(&mut *state.db.acquire().await?, account_id, "npc").await?;
+    let mut extension_misc = crate::api::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
+    let weapon_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
+    let hair_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
+    let player_accessory_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
+    let class_buffs={let mut tx=state.db.begin().await?;let v=crate::api::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
+    let team_level_buff_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"team_buff").await?;
+    let equip_storage_slot_infos=crate::api::extensions::storage_login(&state,account_id).await?;
+    let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
-    let battle = super::battle::login(&state,account_id).await?;
+    let battle = crate::api::battle::login(&state,account_id).await?;
+    let community = crate::api::community::login(&state,account_id).await?;
+    user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;
+    user_info.sword=community["SwordResult"]["NewValue"].as_i64().unwrap_or(0) as i32;
+    user_info.guild_raid_ticket=community["GuildRaidTicket"]["NewValue"].as_i64().unwrap_or(user_info.guild_raid_ticket as i64) as i32;
+    if let Some(sword)=stamina_results.iter_mut().find(|v|v.stamina_type=="Sword"){sword.new_value=user_info.sword;}
+    if let Some(misc)=community["MiscInfo"].as_object(){for(k,v)in misc{extension_misc.insert(k.clone(),v.clone());}}
     extension_misc.insert("ShakemehPassiveInfos".into(),battle["ShakemehPassiveInfos"].clone());
     let mut user_value=serde_json::to_value(&user_info).map_err(|e|ServerError::Internal(e.to_string()))?;
-    for key in battle["BattleKeyResults"].as_array().into_iter().flatten() {
+    for key in battle["BattleKeyResults"].as_array().into_iter().flatten().chain([&community["SwordResult"], &community["GuildRaidTicket"]]) {
         if let Some(kind)=key["Type"].as_str(){
             user_value[kind]=key["NewValue"].clone();
             if let Some(index)=stamina_results.iter().position(|v|v.stamina_type==kind){stamina_results.remove(index);}
@@ -674,7 +682,7 @@ pub async fn login(
         guild_suppress_push: true,
         night_push: false,
         user_info,
-        battle_info: Some(PlayerBattleInfo::default()),
+        battle_info: Some(serde_json::from_value(community["BattleInfo"].clone()).map_err(|e|ServerError::Internal(e.to_string()))?),
         misc_info: Some(PlayerMiscInfo {
             extra: extension_misc,
             login_daily_count: progression["LoginDailyCount"].as_i64().unwrap_or(0),
@@ -690,6 +698,7 @@ pub async fn login(
             current_dungeon_index,
         }),
         guild_id,
+        guild_info: community["MyGuildInfo"].clone(),
         heroes,
         items,
         stamina_results,
@@ -716,7 +725,7 @@ pub async fn login(
         contents_values: vec![],
         // All the additional empty arrays
         hero_rune_page_infos,
-        item_time_durations: super::item::booster_login(&state,account_id).await?,
+        item_time_durations: crate::api::inventory::item::booster_login(&state,account_id).await?,
         purchase_time_durations: vec![],
         world_map_event_time_infos: vec![],
         world_map_event_infos: progression["WorldMapEventInfos"].as_array().cloned().unwrap_or_default(),
@@ -736,6 +745,7 @@ pub async fn login(
         login_daily_infos: progression["LoginDailyInfos"].as_array().cloned().unwrap_or_default(),
         player_archive_infos: vec![],
         player_currency_infos: battle["PlayerCurrencyInfos"].as_array().cloned().unwrap_or_default(),
+        guild_point_info: serde_json::json!({"GuildPoint":community["GuildPoint"],"DailyAccGuildPoint":0,"DailyAccGuildPointResetTime":(chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string()}),
         newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),
         free_equip_gacha_infos: vec![],
         equip_gacha_infos: vec![],

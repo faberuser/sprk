@@ -1,4 +1,7 @@
-use super::{craft, item, user};
+use crate::api::{
+    account::user,
+    inventory::{craft, item},
+};
 use crate::{database, state::AppState, tables::GameTables};
 use axum::{body::Bytes, extract::State};
 use serde_json::{json, Value};
@@ -1022,7 +1025,7 @@ async fn equipping_rejects_another_players_item_and_chest_items() {
         .last_insert_rowid();
     let fields = format!("HeroIndex=1&HeroPartIndex=[0]&EquipItemSlotIndex=[{slot}]");
     assert!(
-        super::equip::set_equip(State(state.clone()), form(&u, &fields))
+        crate::api::inventory::equip::set_equip(State(state.clone()), form(&u, &fields))
             .await
             .is_err()
     );
@@ -1033,7 +1036,7 @@ async fn equipping_rejects_another_players_item_and_chest_items() {
         .await
         .unwrap();
     assert!(
-        super::equip::set_equip(State(state.clone()), form(&u, &fields))
+        crate::api::inventory::equip::set_equip(State(state.clone()), form(&u, &fields))
             .await
             .is_err()
     );
@@ -1043,7 +1046,7 @@ async fn equipping_rejects_another_players_item_and_chest_items() {
         .await
         .unwrap();
     assert_eq!(
-        super::equip::set_equip(State(state.clone()), form(&u, &fields))
+        crate::api::inventory::equip::set_equip(State(state.clone()), form(&u, &fields))
             .await
             .unwrap()
             .0

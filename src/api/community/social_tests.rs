@@ -1,5 +1,8 @@
 //! Exercise native forms and TCP packets against isolated databases, never sprk.db.
-use super::{chat, friend, mail, user};
+use crate::api::{
+    account::user,
+    community::{chat, friend, mail},
+};
 use crate::{database, state::AppState, tables::GameTables};
 use axum::{body::Bytes, extract::State};
 use base64::{engine::general_purpose::STANDARD, Engine};

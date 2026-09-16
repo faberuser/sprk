@@ -1,5 +1,5 @@
 //! Native client TCP chat: `<packet-name> <base64 JSON>\r\n`.
-use super::social_request::Request;
+use crate::api::system::request::Request;
 use crate::{
     error::{Result, ServerError},
     state::AppState,
