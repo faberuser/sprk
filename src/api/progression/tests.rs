@@ -568,7 +568,7 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
             notifications::notify,
         ))
         .with_state(s.clone());
-    let body = form(&u, "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1");
+    let body = form(&u, "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]");
     let response = app
         .call(
             axum::http::Request::builder()

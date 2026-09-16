@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UserInfo {
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String,serde_json::Value>,
     pub session_key: String,
     pub account_id: i64,
     pub nick: String,
@@ -63,6 +65,7 @@ impl UserInfo {
     /// Create a new user with default values
     pub fn new_user(account_id: i64, nick: &str, session_key: &str) -> Self {
         Self {
+            extra: Default::default(),
             session_key: session_key.to_string(),
             account_id,
             nick: nick.to_string(),

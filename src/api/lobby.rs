@@ -70,7 +70,7 @@ pub async fn first_lobby(
 }
 
 /// Chapter dungeon info for lobby responses
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChapterDungeonInfo {
     pub chapter_index: i32,
@@ -99,6 +99,8 @@ pub struct EnterLobbyRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct EnterLobbyResponse {
+    #[serde(flatten)]
+    pub battle: serde_json::Value,
     pub attendance_datas: Vec<serde_json::Value>,
     pub attendance_infos: Vec<serde_json::Value>,
     pub achievement_infos: Vec<serde_json::Value>,
@@ -150,7 +152,7 @@ pub async fn enter_lobby(
         .fetch_optional(&state.db)
         .await?;
 
-    let user_info = match user_info_row {
+    let mut user_info = match user_info_row {
         Some(row) => Some(UserInfo {
             session_key: session_id.clone(),
             account_id,
@@ -227,7 +229,7 @@ pub async fn enter_lobby(
     //   - So the DB stores best_star = 3, but we send MaxStar = 13 (Normal 3-star)
     //   - The client checks: (MaxStar / 10) >= MinDifficulty to verify completion
     //
-    let dungeon_infos: Vec<ChapterDungeonInfo> = campaign_rows.iter().map(|row| {
+    let mut dungeon_infos: Vec<ChapterDungeonInfo> = campaign_rows.iter().map(|row| {
         let chapter_id: i32 = row.get("chapter_id");
         let clear_count: i32 = row.get("clear_count");
         let best_star: i32 = row.get("best_star");
@@ -273,7 +275,21 @@ pub async fn enter_lobby(
         });
 
     let progression = super::progression::login(&state, session.account_id).await?;
+    let mut battle = super::battle::login(&state, account_id).await?;
+    for info in battle["DungeonInfos"].as_array().into_iter().flatten() {
+        let info: ChapterDungeonInfo = serde_json::from_value(info.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
+        if let Some(old)=dungeon_infos.iter_mut().find(|d|d.chapter_index==info.chapter_index&&d.dungeon_index==info.dungeon_index){*old=info;}else{dungeon_infos.push(info);}
+    }
+    if let Some(user)=&mut user_info {
+        let mut value=serde_json::to_value(&*user).map_err(|e|ServerError::Internal(e.to_string()))?;
+        for key in battle["BattleKeyResults"].as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){value[kind]=key["NewValue"].clone();}}
+        *user=serde_json::from_value(value).map_err(|e|ServerError::Internal(e.to_string()))?;
+    }
+    battle.as_object_mut().unwrap().remove("DungeonInfos");
+    battle["StaminaResults"]=battle["BattleKeyResults"].clone();
+    battle.as_object_mut().unwrap().remove("BattleKeyResults");
     Ok(Json(EnterLobbyResponse {
+        battle,
         attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
         attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),

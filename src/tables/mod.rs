@@ -12,6 +12,8 @@ mod inventory;
 mod hero_shop;
 mod progression;
 mod extensions;
+mod battle;
+pub use battle::BattleTable;
 pub use extensions::ExtensionTable;
 pub use progression::ProgressionTable;
 pub use hero_shop::HeroShopTable;
@@ -60,6 +62,7 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub battle: Arc<BattleTable>,
     pub extensions: Arc<ExtensionTable>,
     pub progression: Arc<ProgressionTable>,
     pub hero_shop: Arc<HeroShopTable>,
@@ -77,6 +80,7 @@ impl GameTables {
     /// Load all game tables from the specified directory
     pub fn load(table_dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         tracing::info!("Loading game tables from: {:?}", table_dir);
+        let battle = Arc::new(BattleTable::load(&table_dir.join("BattleSupport.json"))?);
         
         let campaign_dungeons = CampaignDungeonTable::load(
             &table_dir.join("CampaignDungeonTable.json")
@@ -119,6 +123,7 @@ impl GameTables {
         tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            battle,
             extensions: Arc::new(ExtensionTable::load(&table_dir.join("ExtensionSupport.json"))?),
             progression: Arc::new(ProgressionTable::load(table_dir)?),
             hero_shop: Arc::new(HeroShopTable::load(&table_dir.join("HeroShopSupport.json"))?),
@@ -136,6 +141,7 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            battle: Arc::new(BattleTable::default()),
             extensions: Arc::new(ExtensionTable::default()),
             progression: Arc::new(ProgressionTable::default()),
             hero_shop: Arc::new(HeroShopTable::default()),

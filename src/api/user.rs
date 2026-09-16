@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use crate::{
     crypto::{generate_session_key, generate_aes_key},
-    error::Result,
+    error::{Result,ServerError},
     models::{
         user::{UserInfo, PlayerMiscInfo, PlayerBattleInfo},
         hero::HeroInfo,
@@ -50,7 +50,7 @@ pub struct LoginRequest {
 }
 
 /// Stamina result info matching client's NShared.StaminaResultInfo
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct StaminaResultInfo {
     #[serde(rename = "Type")]
@@ -395,7 +395,7 @@ pub async fn login(
     .fetch_optional(&state.db)
     .await?;
 
-    let user_info = match user_info_row {
+    let mut user_info = match user_info_row {
         Some(row) => UserInfo {
             session_key: session_key.clone(),
             account_id,
@@ -463,7 +463,7 @@ pub async fn login(
     let guild_id = guild_row.map(|r| r.get("guild_id")).unwrap_or(0i64);
 
     // Generate stamina results for common stamina types - use actual DB values
-    let stamina_results = vec![
+    let mut stamina_results = vec![
         StaminaResultInfo {
             stamina_type: "Chicken".to_string(),  // Main stamina
             add_value: 0,
@@ -618,7 +618,7 @@ pub async fn login(
     let progression = super::progression::login(&state, account_id).await?;
     let soul_weapon_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
     let npc_friendly_infos = super::extensions::list(&mut *state.db.acquire().await?, account_id, "npc").await?;
-    let extension_misc = super::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
+    let mut extension_misc = super::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
     let weapon_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
     let hair_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
     let player_accessory_costume_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
@@ -627,6 +627,26 @@ pub async fn login(
     let equip_storage_slot_infos=super::extensions::storage_login(&state,account_id).await?;
     let pet_infos=super::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
+    let battle = super::battle::login(&state,account_id).await?;
+    extension_misc.insert("ShakemehPassiveInfos".into(),battle["ShakemehPassiveInfos"].clone());
+    let mut user_value=serde_json::to_value(&user_info).map_err(|e|ServerError::Internal(e.to_string()))?;
+    for key in battle["BattleKeyResults"].as_array().into_iter().flatten() {
+        if let Some(kind)=key["Type"].as_str(){
+            user_value[kind]=key["NewValue"].clone();
+            if let Some(index)=stamina_results.iter().position(|v|v.stamina_type==kind){stamina_results.remove(index);}
+            if let Ok(value)=serde_json::from_value(key.clone()){stamina_results.push(value);}
+        }
+    }
+    user_info=serde_json::from_value(user_value).map_err(|e|ServerError::Internal(e.to_string()))?;
+    for info in battle["DungeonInfos"].as_array().into_iter().flatten(){
+        if let Some(current)=chapter_dungeons.iter_mut().find(|d|d.chapter_index as i64==info["ChapterIndex"].as_i64().unwrap_or(0)&&d.dungeon_index as i64==info["DungeonIndex"].as_i64().unwrap_or(0)){
+            current.max_star=info["MaxStar"].as_i64().unwrap_or(0) as i16;
+            current.first_rewarded_diff=info["FirstRewardedDiff"].as_i64().unwrap_or(0) as i16;
+            current.scenario_complete=info["ScenarioComplete"].as_i64().unwrap_or(0) as i16;
+            current.daily_completed_count=info["DailyCompletedCount"].as_i64().unwrap_or(0) as i32;
+            current.reset_count=info["ResetCount"].as_i64().unwrap_or(0) as i32;
+        }
+    }
     let response = LoginResponse {
         team_level_buff_infos,
         equip_storage_slot_infos,
@@ -678,7 +698,7 @@ pub async fn login(
         shop_list_items: vec![],
         shop_restock_times: vec![],
         chapter_dungeons,
-        towers: vec![],
+        towers: battle["Towers"].as_array().cloned().unwrap_or_default(),
         deck_infos: vec![],
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         is_tutorial_skip: tutorial_skip,
@@ -690,8 +710,8 @@ pub async fn login(
         friend_infos,
         friend_invitor_infos,
         attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
-        hideout_dungeons: vec![],
-        conquest_dungeons: vec![],
+        hideout_dungeons: battle["HideoutDungeons"].as_array().cloned().unwrap_or_default(),
+        conquest_dungeons: battle["ConquestDungeons"].as_array().cloned().unwrap_or_default(),
         contents_statuses: vec![],
         contents_values: vec![],
         // All the additional empty arrays
@@ -701,7 +721,7 @@ pub async fn login(
         world_map_event_time_infos: vec![],
         world_map_event_infos: progression["WorldMapEventInfos"].as_array().cloned().unwrap_or_default(),
         wanted_quest_infos: vec![],
-        raid_infos: vec![],
+        raid_infos: battle["RaidInfos"].as_array().cloned().unwrap_or_default(),
         craft_slot_infos,
         costume_infos,
         weapon_costume_infos,
@@ -710,19 +730,19 @@ pub async fn login(
         player_accessory_costume_infos,
         purchase_marketing_infos: vec![],
         player_item_use_infos: vec![],
-        godking_trial_dungeons: vec![],
-        under_prison_infos: vec![],
+        godking_trial_dungeons: battle["GodkingTrialDungeonInfos"].as_array().cloned().unwrap_or_default(),
+        under_prison_infos: battle["UnderPrisonInfos"].as_array().cloned().unwrap_or_default(),
         play_record_infos: vec![],
         login_daily_infos: progression["LoginDailyInfos"].as_array().cloned().unwrap_or_default(),
         player_archive_infos: vec![],
-        player_currency_infos: vec![],
+        player_currency_infos: battle["PlayerCurrencyInfos"].as_array().cloned().unwrap_or_default(),
         newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),
         free_equip_gacha_infos: vec![],
         equip_gacha_infos: vec![],
         chapter_reward_infos: progression["ChapterRewardInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_point_infos: class_buffs["ClassBuffPointInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_infos: class_buffs["ClassBuffInfos"].as_array().cloned().unwrap_or_default(),
-        dispatch_battle_infos: vec![],
+        dispatch_battle_infos: battle["DispatchBattleInfos"].as_array().cloned().unwrap_or_default(),
         monthly_hero_infos: vec![],
         sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
         eclipse_dungeon_infos: vec![],

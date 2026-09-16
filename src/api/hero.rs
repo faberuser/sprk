@@ -153,6 +153,14 @@ pub(crate) async fn currency(
     if matches!(kind, "Gold" | "Gem") {
         return item::money(db, account, kind, amount).await;
     }
+    if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint") {
+        sqlx::query("INSERT OR IGNORE INTO battle_currencies(account,kind,value) VALUES(?,?,0)")
+            .bind(account).bind(kind).execute(&mut *db).await?;
+        let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN 0 AND 2147483647 RETURNING value")
+            .bind(amount).bind(account).bind(kind).bind(amount).fetch_optional(db).await?;
+        let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
+        return Ok(json!({"CurrencyType":kind,"AddValue":amount,"NewValue":value,"AddDailyAccValue":0,"NewDailyAccValue":0}));
+    }
     let col = match kind {
         "Mileage" => "mileage",
         "FriendshipPoint" => "friendship_point",

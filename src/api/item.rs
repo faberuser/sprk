@@ -275,6 +275,16 @@ pub(crate) async fn reward(
     tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
     for drop in row.roll_items(&state.tables.reward_string_pool) {
         let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
+        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint") {
+            let mut amount=drop.count as i64;
+            if code=="ShakmehMiddleBossPoint" {
+                let max=state.tables.battle.find("CurrencyType",&[("CurrencyType",48)]).map(|v|n(v,"MaxValue")).filter(|v|*v>0).ok_or_else(||rule("ItemDataNotFound"))?;
+                let balance:i64=sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'),0)").bind(account).fetch_one(&mut *db).await?;
+                amount=amount.min((max-balance).max(0));
+            }
+            rewards.currencies.push(super::hero::currency(db,account,&code,amount).await?);
+            continue;
+        }
         if code == "EventDungeonPoint" || code == "RaidPoint" {
             tutorial::currency(db, account, &code, drop.count as i64, rewards).await?;
             continue;

@@ -15,7 +15,11 @@ This project is for educational and preservation purposes only.
 The following server flows are implemented. Client playthrough testing is ongoing; remaining work within these systems is listed separately below.
 
 - **Account basics:** guest authentication, login/logout, in-memory sessions, and account state restored at login.
-- **Campaign basics:** battle entry/completion, table-based rewards and EXP, dungeon visits, and scenario completion.
+- **Campaign:** persistent battle entries, ownership/party/prerequisite checks, replay rejection, participating-hero EXP and flask filling, table rewards/boosters, selected rewards, and scenario completion.
+- **Dispatch and sweeps:** timed campaign dispatch, reserved heroes, cancellation refunds and atomic collection; tower/maze and Shakmeh sweeps with ticket/key costs and mode rewards.
+- **Dungeon progression:** tower floors/rewards/resets, party restrictions and reported HP/MP carry-over, day-of-week availability, prison attempts/recharges, treasure-house selection, God King trial opening, and hideout/conquest resets.
+- **Battle mode state:** solo raid records/resets, Shakmeh clear rewards/gauge/passives, Eclipse decks, and Ordeal Arena opponents/nodes/buffs/resurrection using local rules.
+- **Bosses and rooms:** persistent world/event-boss HP and scores, rankings, world-boss daily and world/challenge season reward mail, and HTTP co-op room creation/search/join/leave/host transfer. Co-op combat remains below.
 - **Stamina:** balance tracking, regeneration, purchases, and consumption.
 - **Tutorial:** rewards, hero recruitment, scripted battle progress, and reconnect support.
 - **Hero collection:** Hero's Inn recruitment, ruby purchases, hero selectors, multiple-hero selectors, and growth tickets.
@@ -39,33 +43,33 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Development tools:** GM/cheat commands for currencies, heroes, levels, unlocks, and equipment.
 
 Equipment-extension configuration and data limitations are documented in [hero-equipment-extensions.md](docs/hero-equipment-extensions.md).
+Battle configuration, supported flows, and remaining limitations are documented in [battle-systems.md](docs/battle-systems.md).
 
-## WIP / Future Implementation
+## Implementing
 
 This backlog includes partial implementations and systems not started yet; it is not a priority order. It was checked against the extracted client's `Assembly-CSharp/NShared` service requests and the server's registered routes/handlers. Route families in parentheses identify the corresponding client contracts. An empty success response from the generic fallback does not count as an implemented feature.
 
-### Accounts, quests, and rewards
+### Accounts, quests, and rewards (WIP)
 
 - **Account services:** account linking/recovery, nickname/country changes, player inspection/search, remaining native account queries, and token expiry/refresh validation (`user/*`).
 - **Progression data and dependencies:** restore actual main-quest definitions (the extracted table contains only a placeholder), original attendance schedules, and world-map event generation/completion rules. Add achievement/mission tracking for future battle modes, collection archives, NPC gifts, and equipment/soul-weapon progression. Connect paid mission entitlements to verified purchases (`quest/*`, `world_map/*`, `clear_mission/*`, `newbie_mission/*`).
 - **Seasonal progression and rewards:** King's Pass, monthly hero completion, phase-step rewards, scheduled push rewards, and coupon redemption (`kings_pass/*`, `monthly_hero/*`, `phase_step/*`, `push_reward/*`, `promotion/*`).
 
-### Hero, equipment, and item extensions
+### Hero, equipment, and item extensions (WIP)
 
 - **Missing original rules:** soul-weapon limit-break definitions and recipe-consumable recipes. Handlers accept configured definitions, but these features remain disabled without them. Class-buff point earnings and soul-stone restoration use explicitly local rules; original server balance is not reproduced.
 - **Client-dependent progression:** enhanced transcendence perk levels (this extracted client's page parser stores only selected skill codes), dyes, and legendary-costume progression need corresponding client contracts/data. Normal body costumes, hair/weapon customization, and accessories are implemented separately.
 - **Unavailable shop stock:** all extracted accessory shop rows have `IsOpen=false`; the purchase handler enforces those flags. Accessory selectors still work. Hair/weapon pieces in this extraction are unlocked through costumes rather than separate paid listings.
-- **Battle and event dependencies:** event flasks, archive/achievement potions, mode-specific recovery items, and boosters whose battle modes/reward calculations are unfinished remain unsupported. EXP flasks currently use the campaign's existing all-hero EXP handling for capped heroes. Pet selectors persist collection ownership; the broader pet system remains below.
+- **Battle and event dependencies:** event flasks, archive/achievement potions, mode-specific recovery items, and boosters whose battle modes/reward calculations are unfinished remain unsupported. Campaign EXP flasks use participating capped heroes. Pet selectors persist collection ownership; the broader pet system remains below.
 - **Valance tier upgrades:** the extracted request has no target/material fields and no matching upgrade rules; it returns a failure without spending items. Other Valance flows are implemented.
 - **Integration testing:** client playthroughs, appearance-preset interactions, class/team-buff effects in unfinished battle modes, and original random distributions still need verification.
 
-### Dungeons, raids, and multiplayer
+### Dungeons, raids, and multiplayer (WIP)
 
-- **Campaign completion:** stricter battle-result validation, participating-hero reward handling, selected rewards, dungeon resets, sweeps, and dispatch missions (`campaign/*`, `sweep/*`, `dispatch/*`).
-- **Dungeon-specific progression:** tower and maze rewards/resets, day-of-week and underground-prison state/keys, treasure-house runs, and God King trials (`campaign/*tower*`, `maze_tower/*`, `dow_dungeon/*`, `under_prison/*`, `treasure_house/*`, `godking_trial/*`).
-- **Special battle modes:** Eclipse decks/runs/results, Ordeal Arena nodes/buffs/resurrection, punishment raids, and Shakmeh passive state (`eclipse/*`, `ordeal_arena/*`, `punishment_raid/*`, `shakmeh_dungeon/*`).
-- **Co-op rooms and raids:** room creation/search/join/leave, host transfer, readiness/polling, shared battle state, raid resets, and multiplayer reward claims (`party_dungeon/*`, `raid/*`, `campaign/*multiplay*`).
-- **World and challenge bosses:** boss HP, scores, rankings, daily/seasonal rewards, and challenge-raid leaderboards (`world_boss/*`, `event_world_boss/*`, `raid/*challenge_raid*`).
+- **Real-time battles:** implement the native battle service and room socket notifications/readiness, shared combat, reconnects, and verified multiplayer reward allocation. Co-op/Eclipse combat entry currently fails without charging; room metadata and Eclipse decks are available (`party_dungeon/*`, `raid/*`, `eclipse/*`).
+- **Special-mode rules:** maze aggregate reward definitions (configurable but empty by default), missing punishment-raid stage definitions and trigger/bonus rewards, Karma dungeon rules, and Eclipse runs/sweeps. Punishment groups with missing raid definitions reject opening without charging. Ordeal uses local opponent snapshots, buff events, and configurable win points; original matchmaking/scoring/events remain unrecovered. Tower NPC snapshots are supported when enabled, but all extracted towers disable NPCs.
+- **Boss scheduling and rewards:** original boss rotations/phases, event-boss daily kill/season rewards, world-boss achievement rewards/server buffs, and native challenge-raid scoring/tie rules. Current schedules, damage bounds, and challenge damage totals are local rules; multiplayer challenge rankings depend on the battle service.
+- **Further integration:** event-dungeon reset rules, dispatch for raid modes, full battle-mode achievement tracking, and client playthrough testing. Battle entry/result checks do not simulate combat or verify client-reported wins/damage.
 
 ### Arena and guilds
 
@@ -97,9 +101,6 @@ This backlog includes partial implementations and systems not started yet; it is
 ### Build Steps
 
 ```bash
-# Navigate to the server directory
-cd server
-
 # Build in release mode
 cargo build --release
 

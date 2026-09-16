@@ -13,6 +13,7 @@ pub mod mail;
 pub mod friend;
 pub mod chat;
 pub mod campaign;
+pub mod battle;
 pub mod guild;
 pub mod stamina;
 pub mod tutorial;

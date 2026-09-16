@@ -392,7 +392,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     for (column, definition) in [
         ("read_time", "TEXT"), ("received_time", "TEXT"), ("opens_at", "TEXT"),
         ("reward_stamina", "INTEGER NOT NULL DEFAULT 0"), ("reward_equipment", "TEXT"),
-        ("global_id", "INTEGER"), ("receipt", "TEXT"),
+        ("global_id", "INTEGER"), ("receipt", "TEXT"), ("reward_currencies", "TEXT"),
     ] {
         use sqlx::Row;
         let columns = sqlx::query("PRAGMA table_info(mails)").fetch_all(pool).await?;
@@ -425,5 +425,6 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
 
     crate::api::progression::schema::migrate(pool).await?;
     crate::api::extensions::schema::migrate(pool).await?;
+    crate::api::battle::migrate(pool).await?;
     Ok(())
 }

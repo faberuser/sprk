@@ -453,8 +453,8 @@ async fn awakening_requires_challenge_battle_purification_then_consumes_essence_
     .await
     .unwrap()
     .0;
-    assert_eq!(r.item_results.len(), 1);
-    let essence = r.item_results[0].item_index;
+    assert_eq!(r["ItemResults"].as_array().unwrap().len(), 1);
+    let essence = r["ItemResults"][0]["ItemIndex"].as_i64().unwrap() as i32;
     assert!(
         hero::trial(&s, u.user_info.account_id, chapter, dungeon, Some(true))
             .await

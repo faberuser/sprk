@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
     // Build router with all API routes
     let app = Router::new()
         .merge(api::extensions::routes())
+        .merge(api::battle::routes(&state.tables.battle))
         // Health check
         .route("/health", get(health_check))
         // Initial host query (client fetches this first to get server info)

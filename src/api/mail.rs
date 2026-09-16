@@ -77,12 +77,13 @@ fn mail_info(row: &SqliteRow) -> Result<Value> {
         .unwrap_or(0);
     let equipment: Vec<EquipItemInfo> = attachments(row, "reward_equipment")?;
     let items: Vec<MailItemInfo> = attachments(row, "reward_items")?;
+    let currencies: Vec<Value> = attachments(row, "reward_currencies")?;
     Ok(
         json!({"MailIndex":row.get::<i64,_>("mail_id"),"OpenIndex":0,"SenderId":0,"SenderName":row.get::<String,_>("sender"),
         "ReceiverId":row.get::<i64,_>("account_id"),"Title":row.get::<String,_>("title"),"Content":row.get::<Option<String>,_>("content").unwrap_or_default(),
         "SendGold":row.get::<i64,_>("reward_gold"),"SendGem":row.get::<i64,_>("reward_gem"),"SendChicken":row.get::<i64,_>("reward_stamina"),
         "ReadTime":row.get::<Option<String>,_>("read_time"),"ExpireTime":row.get::<Option<String>,_>("expires_at"),"OpenTime":opens,"OpenRemainTime":remain,
-        "ItemInfos":items,"EquipItemInfos":equipment,"CurrencyInfos":[],"StaminaInfos":[]}),
+        "ItemInfos":items,"EquipItemInfos":equipment,"CurrencyInfos":currencies,"StaminaInfos":[]}),
     )
 }
 
@@ -160,6 +161,11 @@ async fn claim(
         return Err(ServerError::Internal("Negative mail attachment".into()));
     }
     let mut rewards = Rewards::default();
+    for currency in attachments::<Value>(row, "reward_currencies")? {
+        let kind = currency["CurrencyType"].as_str().ok_or_else(|| ServerError::Internal("Invalid mail currency".into()))?;
+        let amount = currency["Amount"].as_i64().filter(|n| *n > 0).ok_or_else(|| ServerError::Internal("Invalid mail currency amount".into()))?;
+        rewards.currencies.push(super::hero::currency(db, account, kind, amount).await?);
+    }
     tutorial::currency(db, account, "Gold", gold, &mut rewards).await?;
     tutorial::currency(db, account, "Gem", gem, &mut rewards).await?;
     for item in attachments::<MailItemInfo>(row, "reward_items")? {
