@@ -116,6 +116,8 @@ pub struct ChapterDungeonInfo {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct LoginResponse {
+    #[serde(flatten)]
+    pub live: serde_json::Value,
     pub main_quest_info: serde_json::Value,
     pub attendance_datas: Vec<serde_json::Value>,
     pub player_avatar_hero_info: serde_json::Value,
@@ -201,6 +203,7 @@ pub struct LoginResponse {
     pub player_currency_infos: Vec<serde_json::Value>,
     pub guild_point_info: serde_json::Value,
     pub newbie_mission_infos: Vec<serde_json::Value>,
+    #[serde(rename = "freeEquipGachaInfos")]
     pub free_equip_gacha_infos: Vec<serde_json::Value>,
     pub equip_gacha_infos: Vec<serde_json::Value>,
     pub chapter_reward_infos: Vec<serde_json::Value>,
@@ -655,7 +658,13 @@ pub async fn login(
             current.reset_count=info["ResetCount"].as_i64().unwrap_or(0) as i32;
         }
     }
+    let mut live = crate::api::live::snapshot(&state,account_id).await?;
+    let free_gacha=live.as_object_mut().unwrap().remove("freeEquipGachaInfos").unwrap_or_default();
+    let gacha=live.as_object_mut().unwrap().remove("EquipGachaInfos").unwrap_or_default();
+    let products=live.as_object_mut().unwrap().remove("PlayerProductPurchaseInfos").unwrap_or_default();
+    live.as_object_mut().unwrap().remove("PetInfos");
     let response = LoginResponse {
+        live,
         team_level_buff_infos,
         equip_storage_slot_infos,
         pet_infos,
@@ -747,8 +756,8 @@ pub async fn login(
         player_currency_infos: battle["PlayerCurrencyInfos"].as_array().cloned().unwrap_or_default(),
         guild_point_info: serde_json::json!({"GuildPoint":community["GuildPoint"],"DailyAccGuildPoint":0,"DailyAccGuildPointResetTime":(chrono::Utc::now().date_naive()+chrono::Duration::days(1)).format("%Y-%m-%d 00:00:00").to_string()}),
         newbie_mission_infos: progression["NewbieMissionInfos"].as_array().cloned().unwrap_or_default(),
-        free_equip_gacha_infos: vec![],
-        equip_gacha_infos: vec![],
+        free_equip_gacha_infos: free_gacha.as_array().cloned().unwrap_or_default(),
+        equip_gacha_infos: gacha.as_array().cloned().unwrap_or_default(),
         chapter_reward_infos: progression["ChapterRewardInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_point_infos: class_buffs["ClassBuffPointInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_infos: class_buffs["ClassBuffInfos"].as_array().cloned().unwrap_or_default(),
@@ -759,7 +768,7 @@ pub async fn login(
         clear_mission_infos: progression["ClearMissionInfos"].as_array().cloned().unwrap_or_default(),
         player_any_miscs: vec![],
         soul_weapon_infos,
-        player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().cloned().unwrap_or_default(),
+        player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().into_iter().flatten().chain(products.as_array().into_iter().flatten()).cloned().collect(),
         drop_bonus_events: vec![],
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos,

@@ -81,6 +81,7 @@ pub async fn begin_tutorial(
 
 #[derive(Default)]
 pub(crate) struct Rewards {
+    pub(crate) pets: Vec<Value>,
     pub(crate) currencies: Vec<Value>,
     pub(crate) items: Vec<Value>,
     pub(crate) equipment: Vec<EquipItemInfo>,

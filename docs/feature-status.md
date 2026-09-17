@@ -49,6 +49,14 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Friends:** search, invitations, acceptance/removal, daily points, and live notifications.
 - **Chat:** native TCP world/channel messages, whispers, guild messages, and reconnect history.
 
+### Shops, events, and pets
+
+- **Non-cash shops:** remaining shop currencies, configurable ruby/gold bundles, persistent selection stock/restocking, purchase limits, timed offers, shared discount limits, and table-priced dungeon access.
+- **Summons:** free, currency and validated-ticket draws; category/pickup pools; step-up discounts/rewards; configurable pity, ceiling and final rewards; pet summons and duplicate souls.
+- **Events:** configurable calendars, personal/daily/shared step contributions and claims, event crafting, currency/item roulette, equipment forging and exchange.
+- **Pets:** shared collection ownership, selectors/rewards, egg supply and incubation, incubator purchases/slot expansion, feeding/interactions/gifts, awakening/soul tier upgrades, house/avatar selection, and timed exploration.
+- **Persistence and validation:** atomic costs/rewards, ownership/capacity checks, claim replay protection, login/lobby snapshots, and restart recovery. Missing original rules use explicit local definitions.
+
 ### Configuration and development tools
 
 - **Optional data support:** handlers for configured soul-weapon limit breaks, recipe consumables, and maze aggregate rewards; tower NPC snapshots when enabled. These require supplied definitions and matching client data/settings where applicable.
@@ -57,6 +65,7 @@ The following server flows are implemented. Client playthrough testing is ongoin
 Equipment-extension configuration and data limitations are documented in [hero-equipment-extensions.md](hero-equipment-extensions.md).
 Battle configuration, supported flows, and remaining limitations are documented in [battle-systems.md](battle-systems.md).
 Arena/guild configuration and client limitations are documented in [arena-guild.md](arena-guild.md).
+Shop, summon, event, and pet configuration is documented in [shops-events-pets.md](shops-events-pets.md).
 
 ## Implementing
 
@@ -93,12 +102,11 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 - **Conquest/suppression:** restore the missing `RaidIndex=90001` definition and implement its party battle service, combat, rewards, and populated ranking boards. The session reports `NotHeld`; registration fails without spending (`guild_suppress/*`, `guild_ranking_board/*`).
 - **Guild integration:** live guild-change notifications, skill effects in battle snapshots/reward calculations, original Guild Point daily caps/bonuses, fuller achievement tracking, and native client playthroughs. Season captions may be blank beyond the client's historical calendar.
 
-### Shops, events, and pets
+### Shops, events, and pets (limitations)
 
-- **Advanced shops and billing:** remaining event currencies, selection shops, dynamic offers/discounts, paid dungeon access, paid bundles, and platform purchase verification. The extracted paid-product identifiers do not include the original live server's full prices/reward catalog (`shop/*`, `cashshop/*`, `payment/*`).
-- **Equipment summons:** free/paid equipment gacha, pickup groups, mileage/pity, and ceiling rewards (`equip_gacha/*`).
-- **Events:** calendars, event-step progress/rewards, equipment forging/exchange, event crafting, and roulette rewards (`event/*`, `event_step/*`, `event_equip/*`, `item/event_craft_item`, `item/reward_event_roulette`).
-- **Pets:** collection/gacha, eggs/incubators, feeding/interactions, awakening/tier upgrades, house layouts, and exploration missions (`pet/*`).
+- **Billing (excluded):** real-money checkout, platform receipt verification, subscription billing, and payment callbacks remain unavailable (`cashshop/*`, `payment/*`).
+- **Original live data:** restore historical server prices, reward-pool assignments, schedules, and marketing triggers. Other historical summon banners require configuration; promotional web content/artwork is not hosted.
+- **Client integration:** native playthroughs, event/shop visibility settings, and pet combat-bonus integration remain. Missing pet supply/tier/exploration rules and summon pity use configurable local definitions.
 
 ### Client integration and supporting services
 

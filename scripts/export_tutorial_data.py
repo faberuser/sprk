@@ -70,7 +70,7 @@ def main():
         code = item_pool[row['Code']]
         if code not in codes:
             continue
-        item = {'Kind': 'Equip' if row['Type'] == 1 else 'Item'}
+        item = {'Kind': 'Equip' if row['Type'] in (1, 52) else 'Item'}
         if row['Type'] == 15:
             values = [int(item_pool[i]) for i in row['Value']]
             creature = creatures[values[0]]

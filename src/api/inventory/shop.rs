@@ -55,7 +55,11 @@ fn kind(cost: i64) -> Result<&'static str> {
         6 => Ok("Mileage"),
         7 => Ok("FriendshipPoint"),
         8 => Ok("RaidPoint"),
-        17 => Ok("GuildArenaPoint"),
+        9 => Ok("WorldBossPoint"), 10 => Ok("EventDungeonPoint"), 11 => Ok("EventDungeonPoint2"),
+        12 => Ok("GloryPoint"), 13 => Ok("EventGiftPoint"), 14 => Ok("LuaPoint"), 15 => Ok("RankingPoint"),
+        16 => Ok("EventDungeonPoint3"), 17 => Ok("GuildArenaPoint"), 18 => Ok("ShopEventPoint"),
+        19 => Ok("LimitedShopEventPoint"), 20 => Ok("OrdealArenaPoint"), 21 => Ok("EventOrvelPoint"),
+        22 => Ok("ChallengeRaidPoint"), 23 => Ok("CraftEventPoint"),
         _ => Err(rule("InvalidCost")),
     }
 }
@@ -360,17 +364,7 @@ async fn execute(
     Ok(out)
 }
 
-// The original live-service paid catalog is absent from the extracted tables.
-// These endpoints deliberately cannot manufacture a successful purchase.
-pub async fn get_payshop_products(
-    State(state): State<AppState>,
-    body: Bytes,
-) -> Result<Json<Value>> {
-    Request::parse(&body)?.account(&state)?;
-    Ok(Json(
-        json!({"BaseResult":"Success","Result":"Success","PayShopProductInfos":[],"PlayerProductPurchaseInfos":[]}),
-    ))
-}
+// Platform payment checks remain unavailable.
 pub async fn unavailable_product(
     State(state): State<AppState>,
     body: Bytes,

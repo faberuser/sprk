@@ -33,7 +33,7 @@ const KEYS: &[&str] = &[
     "TechnoEnchantKey",
     "PunishmentRaidKey",
 ];
-pub(super) async fn charge(
+pub(crate) async fn charge(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
@@ -179,9 +179,12 @@ pub(super) async fn validate(
     let battle_type = n(d, "BattleType");
     if matches!(
         battle_type,
-        4 | 9 | 12 | 20 | 26 | 29 | 30 | 32 | 36 | 39 | 43 | 44 | 48
+        4 | 9 | 12 | 20 | 26 | 29 | 30 | 32 | 36 | 43 | 44 | 48
     ) {
         return Err(rule("ContentsDisabled"));
+    }
+    if battle_type == 39 {
+        crate::api::live::validate_purchase_dungeon(db,s,a,n(d,"ChapterIndex"),n(d,"DungeonIndex")).await?;
     }
     if battle_type == 16 { super::super::community::raid_validate(db,s,a,r).await?; }
     if battle_type == 15 && int(r, "WorldBossIndex")? == 0 {

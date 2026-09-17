@@ -15,6 +15,7 @@ This project is for educational and preservation purposes only.
 - Accounts, quests, and rewards
 - Heroes, equipment, and customization
 - Inventory, crafting, and shops
+- Events, summons, and pets
 - Dungeons, raids, and multiplayer
 - Arena, guilds, and community
 - Configuration and development tools

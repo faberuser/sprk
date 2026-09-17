@@ -113,6 +113,10 @@ pub async fn set_equip(
     for slot in &equip_slot_indices {
         let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0)").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
         if !owned {return Err(ServerError::InvalidRequest("EquipNotOwned".into()));}
+        let item_index:i32=sqlx::query_scalar("SELECT item_index FROM equip_items WHERE account_id=? AND slot_index=?").bind(session.account_id).bind(slot).fetch_one(&mut *tx).await?;
+        if state.tables.inventory.items.get(&item_index).is_some_and(|v|crate::api::inventory::item::n(v,"Type")==52) {
+            return Err(ServerError::InvalidRequest("ImpossibleEquipItem".into()));
+        }
     }
     let mut equipped_slots: Vec<i32> = Vec::new();
     let mut unequipped_slots: Vec<i32> = Vec::new();

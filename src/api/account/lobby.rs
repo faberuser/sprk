@@ -60,8 +60,11 @@ pub async fn first_lobby(
 
     let bookmarks = crate::api::heroes::bookmarks(&mut *state.db.acquire().await?,session.account_id).await?;
     let hero_preset_storages = crate::api::heroes::presets::list(&mut *state.db.acquire().await?,session.account_id).await?;
+    let mut extensions=crate::api::extensions::first_lobby(&state,session.account_id).await?;
+    let live=crate::api::live::snapshot(&state,session.account_id).await?;
+    if let Some(fields)=live.as_object(){for(k,v)in fields{extensions[k]=v.clone();}}
     Ok(Json(FirstLobbyResponse {
-        extensions: crate::api::extensions::first_lobby(&state,session.account_id).await?,
+        extensions,
         hero_preset_storages,
         player_book_mark_hero_info: bookmarks,
         base_result: "Success".to_string(),

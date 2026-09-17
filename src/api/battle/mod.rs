@@ -384,3 +384,5 @@ fn read_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T> {
     serde_json::from_value(value)
         .map_err(|e| ServerError::Internal(format!("Invalid stored battle value: {e}")))
 }
+
+pub(crate) use dungeons::charge as charge_key;

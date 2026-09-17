@@ -189,6 +189,15 @@ pub(crate) async fn give(
         .items
         .reward_item(index)
         .ok_or_else(|| rule("ItemDataNotFound"))?;
+    if state.tables.live.find("Pet", &[("Index",index as i64)]).is_some() {
+        if count > 100 {return Err(rule("InvalidItemCount"));}
+        for _ in 0..count {
+            let result=Box::pin(crate::api::live::add_pet(db,state,account,index as i64)).await?;
+            if !result["PetResult"].is_null(){rewards.pets.push(result["PetResult"].clone());}
+            rewards.items.extend(result["PetSoulResults"].as_array().into_iter().flatten().cloned());
+        }
+        return Ok(());
+    }
     if metadata.kind == "Hero" {
         let owned: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",
@@ -265,17 +274,22 @@ pub(crate) async fn reward(
         .tables
         .get_reward(index)
         .ok_or_else(|| rule("ItemDataNotFound"))?;
-    if row.lua_point_rate > 0
-        || row.shop_event_point_rate > 0
-        || row.limited_shop_event_point_rate > 0
-    {
-        return Err(rule("Fail"));
+    for (kind, rate, min, max) in [
+        ("LuaPoint", row.lua_point_rate, row.lua_point_min, row.lua_point_max),
+        ("ShopEventPoint", row.shop_event_point_rate, row.shop_event_point_min, row.shop_event_point_max),
+        ("LimitedShopEventPoint", row.limited_shop_event_point_rate, row.limited_shop_event_point_value, row.limited_shop_event_point_value),
+    ] {
+        use rand::Rng;
+        let amount = if max > 0 && rand::thread_rng().gen_range(0..1000) < rate {
+            rand::thread_rng().gen_range(min.max(0)..=max.max(min).max(0)) as i64
+        } else { 0 };
+        if amount > 0 { rewards.currencies.push(crate::api::heroes::currency(db,account,kind,amount).await?); }
     }
     tutorial::currency(db, account, "Gold", row.roll_gold(), rewards).await?;
     tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
     for drop in row.roll_items(&state.tables.reward_string_pool) {
         let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
-        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint") {
+        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
             let mut amount=drop.count as i64;
             if code=="ShakmehMiddleBossPoint" {
                 let max=state.tables.battle.find("CurrencyType",&[("CurrencyType",48)]).map(|v|n(v,"MaxValue")).filter(|v|*v>0).ok_or_else(||rule("ItemDataNotFound"))?;
@@ -332,7 +346,7 @@ pub(crate) async fn reward_response(
         heroes.push(tutorial::hero_info(db, account, *index).await?);
     }
     Ok(
-        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":[]}),
+        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":[],"EquipItemBoostInfos":[],"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
     )
 }
 
@@ -1581,10 +1595,4 @@ pub(crate) fn native_result(action: &str, code: &str) -> String {
     } else {
         "Fail".into()
     }
-}
-
-/// Specialized inventory actions must not hit the legacy success-only fallback.
-pub async fn unsupported_item(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
-    Request::parse(&body)?.account(&state)?;
-    Ok(Json(json!({"BaseResult":"Success","Result":"Fail"})))
 }

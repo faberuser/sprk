@@ -154,7 +154,7 @@ pub(crate) async fn save_equip(
     .await?;
     Ok(())
 }
-async fn material(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
     let eq = equip(db, account, slot).await?;
     if eq.locked != 0 {
         return Err(rule("LockedEquip"));
@@ -228,7 +228,7 @@ fn roll(chance: i64, scale: i64) -> bool {
     rand::thread_rng().gen_range(0..scale) < chance.clamp(0, scale)
 }
 
-async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id: i64) -> Result<Value> {
+pub(crate) async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id: i64) -> Result<Value> {
     let text: Option<String> = sqlx::query_scalar(
         "SELECT data FROM extension_state WHERE account_id=? AND kind=? AND idx=?",
     )
@@ -241,7 +241,7 @@ async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id: i64) -> Re
         .transpose()
         .map(|v| v.unwrap_or(Value::Null))
 }
-async fn put(
+pub(crate) async fn put(
     db: &mut SqliteConnection,
     account: i64,
     kind: &str,

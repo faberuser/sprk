@@ -62,6 +62,7 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub live: Arc<BattleTable>,
     pub arena_guild: Arc<BattleTable>,
     pub battle: Arc<BattleTable>,
     pub extensions: Arc<ExtensionTable>,
@@ -94,9 +95,13 @@ impl GameTables {
         tracing::info!("Loaded {} reward entries", rewards.entries.len());
         
         // Load the resolved item group table (keyed by string codes)
-        let item_groups = ItemGroupTable::load(
+        let mut item_groups = ItemGroupTable::load(
             &table_dir.join("ItemGroupTableResolved.json")
         )?;
+        let live = Arc::new(BattleTable::load_with_rules(&table_dir.join("LiveSupport.json"), "LiveRules.json")?);
+        if let Some(groups) = live.rules["LocalGroups"].as_object() {
+            for (code, group) in groups { item_groups.entries.insert(code.clone(), serde_json::from_value(group.clone())?); }
+        }
         tracing::info!("Loaded {} item group entries", item_groups.entries.len());
         
         // Load the item group string pool (for resolving integer indices to string codes in ItemGroupTable)
@@ -124,6 +129,7 @@ impl GameTables {
         tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            live,
             arena_guild: Arc::new(BattleTable::load_with_rules(&table_dir.join("ArenaGuildSupport.json"), "ArenaGuildRules.json")?),
             battle,
             extensions: Arc::new(ExtensionTable::load(&table_dir.join("ExtensionSupport.json"))?),
@@ -143,6 +149,7 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            live: Arc::new(BattleTable::default()),
             arena_guild: Arc::new(BattleTable::default()),
             battle: Arc::new(BattleTable::default()),
             extensions: Arc::new(ExtensionTable::default()),

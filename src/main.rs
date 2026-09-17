@@ -71,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
     // Build router with all API routes
     let app = Router::new()
         .merge(api::extensions::routes())
+        .merge(api::live::routes(&state.tables.live))
         .merge(api::battle::routes(&state.tables.battle))
         .merge(api::community::routes(&state.tables.arena_guild))
         // Health check
@@ -153,8 +154,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/shop/get_shop_list", post(api::inventory::shop::get_shop_list))
         .route("/shop/request_shop_list", post(api::inventory::shop::request_shop_list))
         .route("/shop/get_all_shop_item_purchase_count", post(api::inventory::shop::get_all_shop_item_purchase_count))
-        .route("/shop/get_payshop_products", post(api::inventory::shop::get_payshop_products))
-        .route("/shop/buy_payshop_product", post(api::inventory::shop::unavailable_product))
         .route("/shop/check_payshop_product", post(api::inventory::shop::unavailable_product))
         .route("/shop/list", post(api::inventory::shop::get_shop_list))
         .route("/shop/buy", post(api::inventory::shop::buy_shop_item))
@@ -193,8 +192,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/item/use_hero_growth_item", post(api::heroes::use_hero_growth_item))
         .route("/item/use_nick_change_item", post(api::extensions::handle))
         .route("/item/use_guild_name_change_item", post(api::extensions::handle))
-        .route("/item/event_craft_item", post(api::inventory::item::unsupported_item))
-        .route("/item/reward_event_roulette", post(api::inventory::item::unsupported_item))
         .route("/item/awaken_transition", post(api::extensions::handle))
         .route("/item/soul_weapon_transition_ticket", post(api::extensions::handle))
         .route("/item/soul_weapon_ability_ticket", post(api::extensions::handle))

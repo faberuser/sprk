@@ -39,6 +39,10 @@ pub(super) async fn execute(
         return break_equipment(db, state, account, req).await;
     }
     let mut eq = equip(db, account, req.number("EquipItemSlotIndex", 0)?).await?;
+    // Event forge levels must only advance through their event material rules.
+    if n(item::data(state,eq.item_index)?,"Type")==52 {
+        return Err(rule("InvalidMaterial"));
+    }
     let data = meta(state, eq.item_index)?;
     let detail = row(
         state,

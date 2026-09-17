@@ -159,7 +159,7 @@ pub(crate) async fn currency(
     if matches!(kind, "Gold" | "Gem") {
         return item::money(db, account, kind, amount).await;
     }
-    if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint") {
+    if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
         sqlx::query("INSERT OR IGNORE INTO battle_currencies(account,kind,value) VALUES(?,?,0)")
             .bind(account).bind(kind).execute(&mut *db).await?;
         let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN 0 AND 2147483647 RETURNING value")
@@ -168,6 +168,7 @@ pub(crate) async fn currency(
         return Ok(json!({"CurrencyType":kind,"AddValue":amount,"NewValue":value,"AddDailyAccValue":0,"NewDailyAccValue":0}));
     }
     let col = match kind {
+        "EventDungeonPoint" => "event_dungeon_point",
         "Mileage" => "mileage",
         "FriendshipPoint" => "friendship_point",
         "PvpCoin" => "pvp_coin",
