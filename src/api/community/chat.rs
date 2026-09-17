@@ -21,6 +21,7 @@ use tokio::{
 
 const MAX_FRAME: usize = 64 * 1024;
 const MAX_TEXT: usize = 500;
+fn integer(v: &Value) -> Option<i64> {v.as_i64().or_else(||v.as_str().and_then(|s|s.parse().ok()))}
 
 pub struct Peer {
     account: i64,
@@ -122,16 +123,13 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                     while let Some(end) = incoming.iter().position(|v| *v == b'\n') {
                         let frame: Vec<_> = incoming.drain(..=end).collect();
                         let (name, request) = decode_packet(&frame)?;
-                        let request_id = request["RequestId"].as_i64().unwrap_or(0);
+                        let request_id = integer(&request["RequestId"]).unwrap_or(0);
                         let response_name = name.strip_suffix("Req").map(|v| format!("{v}Res")).unwrap_or_else(|| "MessageRes".into());
                         let mut response = json!({"RequestId": request_id, "Result": "Success"});
                         if name == "LoginReq" && account_id == 0 {
-                            let requested = request["AccountId"].as_i64().unwrap_or(0);
-                            // The shipped LoginReq carries AccountId only. Token-aware clients may
-                            // additionally provide SessionKey. Never accept accounts without a game login.
-                            let key = request["SessionKey"].as_str().map(str::to_owned).or_else(|| state.sessions.iter()
-                                .filter(|s| s.account_id == requested && s.last_activity > chrono::Utc::now() - chrono::Duration::minutes(10))
-                                .max_by_key(|s| s.login_time).map(|s| s.session_key.clone()));
+                            let requested = integer(&request["AccountId"]).unwrap_or(0);
+                            // Socket identity must prove possession of the game session.
+                            let key = request["SessionKey"].as_str().map(str::to_owned);
                             let valid = key.as_ref().and_then(|key| state.get_session(key)).is_some_and(|s| s.account_id == requested && requested > 0);
                             let allowed: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = ? AND is_banned = 0)").bind(requested).fetch_one(&state.db).await?;
                             if !valid || !allowed {
@@ -141,7 +139,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                             }
                             account_id = requested;
                             session_key = key.unwrap();
-                            let channel = request["ChannelNo"].as_i64().unwrap_or(1).clamp(1, 9999) as i32;
+                            let channel = integer(&request["ChannelNo"]).unwrap_or(1).clamp(1, 9999) as i32;
                             state.chat.peers.insert(id.clone(), Arc::new(Peer { account: account_id, channel: AtomicI32::new(channel), sender: sender.clone() }));
                             response["ChannelNo"] = json!(channel);
                             let history = history(&state, account_id, channel, 30).await?;
@@ -158,7 +156,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                             match name.as_str() {
                                 "PingReq" | "ChangeFriendReq" | "ChangeGuildReq" => {},
                                 "ChangeChannelReq" => {
-                                    let channel = request["ChannelNo"].as_i64().unwrap_or(0);
+                                    let channel = integer(&request["ChannelNo"]).unwrap_or(0);
                                     response["Changed"] = json!((1..=9999).contains(&channel));
                                     if (1..=9999).contains(&channel) { if let Some(peer) = state.chat.peers.get(&id) { peer.channel.store(channel as i32, Ordering::Relaxed); } }
                                 }
@@ -167,7 +165,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                                     let text = request["Message"].as_str().unwrap_or("");
                                     let (protocol, body) = text.split_once(' ').unwrap_or((text, "{}"));
                                     let content: Value = serde_json::from_str(body).unwrap_or(Value::Null);
-                                    let target = request["ReceiverIds"].as_array().and_then(|v| v.first()).and_then(Value::as_i64).unwrap_or(0);
+                                    let target = request["ReceiverIds"].as_array().and_then(|v| v.first()).and_then(integer).unwrap_or(0);
                                     if matches!(protocol, "Login" | "Logout") {
                                         // Presence targets come from the persisted friend graph.
                                         presence(&state, account_id, protocol).await?;
@@ -177,7 +175,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                                 }
                                 "ClearMessageReq" => {
                                     sqlx::query("DELETE FROM chat_messages WHERE protocol = 'WhisperChat' AND receiver_id = ? AND sender_id = ?")
-                                        .bind(account_id).bind(request["RemoveAccountId"].as_i64().unwrap_or(0)).execute(&state.db).await?;
+                                        .bind(account_id).bind(integer(&request["RemoveAccountId"]).unwrap_or(0)).execute(&state.db).await?;
                                 }
                                 _ => { response["Result"] = json!("Fail"); }
                             }
@@ -185,7 +183,10 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                         socket.write_all(&encode_packet(&response_name, &response)).await?;
                     }
                 }
-                Some(message) = receiver.recv() => { socket.write_all(&encode_packet("MessageNot", &message)).await?; }
+                Some(message) = receiver.recv() => {
+                    if state.get_session(&session_key).is_none() { break; }
+                    socket.write_all(&encode_packet("MessageNot", &message)).await?;
+                }
             }
         }
         Ok(())
@@ -232,7 +233,7 @@ async fn send_chat(
         _ => return Err(ServerError::InvalidRequest("Unsupported chat type".into())),
     };
     let text = content["Chat"].as_str().unwrap_or("").trim();
-    let emoticon = content["EmoticonIndex"].as_i64().unwrap_or(0);
+    let emoticon = integer(&content["EmoticonIndex"]).unwrap_or(0);
     if !content.is_object()
         || text.chars().count() > MAX_TEXT
         || (text.is_empty() && emoticon <= 0)
@@ -272,18 +273,22 @@ async fn send_chat(
     content["SendTime"] = json!(state.server_time_str());
     content["ReceiverId"] = json!(if group == "None" { target } else { 0 });
     content["ReceiverName"] = json!(target_name.unwrap_or_default());
-    // Unverified item links are omitted until owned equipment links are supported.
-    if content
-        .get("LinkedItem")
-        .is_some_and(|v| !v.is_null() && v.as_array().is_none_or(|a| !a.is_empty()))
-    {
-        content["LinkedItem"] = json!([]);
-    }
     let mut tx = state.db.begin().await?;
     sqlx::query("UPDATE accounts SET last_login = last_login WHERE account_id = ?")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
+        .bind(account).execute(&mut *tx).await?;
+    let links = match content.get("LinkedItem") {
+        None | Some(Value::Null) => vec![],
+        Some(Value::Array(v)) if v.len() <= 5 => v.clone(),
+        _ => return Err(ServerError::InvalidRequest("Invalid equipment links".into())),
+    };
+    let mut verified = Vec::new();
+    for link in links {
+        let slot = integer(&link["EquipItemInfo"]["SlotIndex"]).unwrap_or(0);
+        let eq = crate::api::extensions::equip(&mut tx, account, slot).await?;
+        // Client-supplied stats and item identity are replaced by owned equipment.
+        verified.push(json!({"MaxEquipLevel":0,"EquipItemInfo":eq}));
+    }
+    content["LinkedItem"] = json!(verified);
     let recent: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_messages WHERE sender_id = ? AND created_at > datetime('now', '-2 seconds')")
         .bind(account).fetch_one(&mut *tx).await?;
     if recent >= 3 {
@@ -353,8 +358,8 @@ pub async fn get_chat_info(State(state): State<AppState>, body: Bytes) -> Result
 async fn http_send(state: AppState, body: Bytes, protocol: &str) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
-    let content =
-        json!({"Chat": req.text("Chat"), "EmoticonIndex": req.number("EmoticonIndex",0)?});
+    let links: Value = if req.text("LinkedItem").is_empty() {json!([])} else {serde_json::from_str(req.text("LinkedItem")).map_err(|_|ServerError::InvalidRequest("Invalid equipment links".into()))?};
+    let content = json!({"Chat": req.text("Chat"), "EmoticonIndex": req.number("EmoticonIndex",0)?,"LinkedItem":links});
     let message = send_chat(
         &state,
         account,

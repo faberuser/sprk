@@ -1,0 +1,9 @@
+{
+  "Description": "Local supporting-service limits. Replay logs remain in the native opaque LZ4 format. Scores use this server only.",
+  "ReplayLimitPerAccount": 100,
+  "ReplayMaxBytes": 1048576,
+  "ReplayInfoMaxBytes": 131072,
+  "ServerGroup": "Local",
+  "GameServerHosts": ["http://127.0.0.1:8080"],
+  "RequireBattleService": false
+}

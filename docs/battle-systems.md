@@ -59,7 +59,7 @@ Edit `tables/BattleRules.json` and restart the server. Times use UTC.
 | `WorldBossMaxDamagePerSecond` | Upper bound on reported damage, based on server elapsed time. This does not verify combat. |
 | `BossTicketsPerBattle` | Ticket cost when the dungeon table has no boss-ticket cost; default one. |
 | `DungeonKeyDailyDefaults` | Daily balances for listed keys. World-boss tickets retain purchased/recovered surplus. Unlisted keys receive no free balance. |
-| `PrisonRechargeGem` | Local prison recharge price; default 100 rubies. |
+| `PrisonRechargeGem` | Legacy setting, superseded by extracted stamina recharge prices; see [supporting-services.md](supporting-services.md). |
 | `UnderPrisonMaxDailyAttempts` | Default prison daily attempt limit; default three. |
 | `TowerCarryCreatureTypes` | Tower type IDs that retain reported HP/MP; defaults to Pit (1) and Labyrinth (2). |
 | `OrdealArenaWinPoint` | Local points per battle win; default 100. |

@@ -467,49 +467,7 @@ pub async fn login(
     
     let guild_id = guild_row.map(|r| r.get("guild_id")).unwrap_or(0i64);
 
-    // Generate stamina results for common stamina types - use actual DB values
-    let mut stamina_results = vec![
-        StaminaResultInfo {
-            stamina_type: "Chicken".to_string(),  // Main stamina
-            add_value: 0,
-            new_value: user_info.stamina,  // Use actual stamina from database
-            stamina_recharge_time: None,
-            next_recharge_remain_time: 0,
-            full_recharge_remain_time: 0,
-            recharge_count: 0,
-            is_hide: false,
-        },
-        StaminaResultInfo {
-            stamina_type: "Sword".to_string(),  // Arena entries
-            add_value: 0,
-            new_value: user_info.sword,  // Use actual sword from database
-            stamina_recharge_time: None,
-            next_recharge_remain_time: 0,
-            full_recharge_remain_time: 0,
-            recharge_count: 0,
-            is_hide: false,
-        },
-        StaminaResultInfo {
-            stamina_type: "GuildRaidTicket".to_string(),
-            add_value: 0,
-            new_value: user_info.guild_raid_ticket,  // Use actual DB value
-            stamina_recharge_time: None,
-            next_recharge_remain_time: 0,
-            full_recharge_remain_time: 0,
-            recharge_count: 0,
-            is_hide: false,
-        },
-        StaminaResultInfo {
-            stamina_type: "WorldBossTicket".to_string(),
-            add_value: 0,
-            new_value: user_info.world_boss_ticket,  // Use actual DB value
-            stamina_recharge_time: None,
-            next_recharge_remain_time: 0,
-            full_recharge_remain_time: 0,
-            recharge_count: 0,
-            is_hide: false,
-        },
-    ];
+    let mut stamina_results: Vec<StaminaResultInfo> = vec![];
 
     // Fetch tutorial progress - only return completed tutorials
     // The client expects an array of TutorialInfo with TutorialIndex and CompletedTime
@@ -648,6 +606,9 @@ pub async fn login(
             if let Ok(value)=serde_json::from_value(key.clone()){stamina_results.push(value);}
         }
     }
+    let stamina=crate::api::account::stamina::login(&state,account_id).await?;
+    stamina_results=serde_json::from_value(stamina.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
+    for key in stamina.as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){user_value[if kind=="Chicken"{"Stamina"}else{kind}]=key["NewValue"].clone();}}
     user_info=serde_json::from_value(user_value).map_err(|e|ServerError::Internal(e.to_string()))?;
     for info in battle["DungeonInfos"].as_array().into_iter().flatten(){
         if let Some(current)=chapter_dungeons.iter_mut().find(|d|d.chapter_index as i64==info["ChapterIndex"].as_i64().unwrap_or(0)&&d.dungeon_index as i64==info["DungeonIndex"].as_i64().unwrap_or(0)){
@@ -663,6 +624,8 @@ pub async fn login(
     let gacha=live.as_object_mut().unwrap().remove("EquipGachaInfos").unwrap_or_default();
     let products=live.as_object_mut().unwrap().remove("PlayerProductPurchaseInfos").unwrap_or_default();
     live.as_object_mut().unwrap().remove("PetInfos");
+    let supporting=crate::api::services::login(&state,account_id).await?;
+    for(k,v)in supporting.as_object().unwrap(){live[k]=v.clone();}
     let response = LoginResponse {
         live,
         team_level_buff_infos,

@@ -270,7 +270,7 @@ async fn rewards(
 ) -> Result<Value> {
     item::reward_response(db, s, a, reward).await
 }
-async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
+pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
     let mut h = hero::info(db, a, id as i32).await?;
     for part in 1..=10 {
         let slot = n(&h, &format!("EquipItemSlotIndex{part}"));
@@ -382,3 +382,7 @@ pub(crate) async fn ensure_available(
     }
     Ok(())
 }
+
+pub(crate) use arena::tickets;
+
+pub(crate) use arena::service_result as service_match_result;

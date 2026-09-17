@@ -63,6 +63,9 @@ pub async fn first_lobby(
     let mut extensions=crate::api::extensions::first_lobby(&state,session.account_id).await?;
     let live=crate::api::live::snapshot(&state,session.account_id).await?;
     if let Some(fields)=live.as_object(){for(k,v)in fields{extensions[k]=v.clone();}}
+    let supporting=crate::api::services::login(&state,session.account_id).await?;
+    for(k,v)in supporting.as_object().unwrap(){extensions[k]=v.clone();}
+    extensions["StaminaResults"]=crate::api::account::stamina::login(&state,session.account_id).await?;
     Ok(Json(FirstLobbyResponse {
         extensions,
         hero_preset_storages,
@@ -294,8 +297,15 @@ pub async fn enter_lobby(
         *user=serde_json::from_value(value).map_err(|e|ServerError::Internal(e.to_string()))?;
     }
     battle.as_object_mut().unwrap().remove("DungeonInfos");
-    battle["StaminaResults"]=battle["BattleKeyResults"].clone();
+    battle["StaminaResults"]=crate::api::account::stamina::login(&state,account_id).await?;
+    if let Some(user)=&mut user_info {
+        let mut value=serde_json::to_value(&*user).map_err(|e|ServerError::Internal(e.to_string()))?;
+        for key in battle["StaminaResults"].as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){value[if kind=="Chicken"{"Stamina"}else{kind}]=key["NewValue"].clone();}}
+        *user=serde_json::from_value(value).map_err(|e|ServerError::Internal(e.to_string()))?;
+    }
     battle.as_object_mut().unwrap().remove("BattleKeyResults");
+    let supporting=crate::api::services::login(&state,account_id).await?;
+    for(k,v)in supporting.as_object().unwrap(){battle[k]=v.clone();}
     Ok(Json(EnterLobbyResponse {
         battle,
         attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),

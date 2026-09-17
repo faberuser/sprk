@@ -18,6 +18,7 @@ This project is for educational and preservation purposes only.
 - Events, summons, and pets
 - Dungeons, raids, and multiplayer
 - Arena, guilds, and community
+- Replays, rankings, and supporting services
 - Configuration and development tools
 
 See [feature status](docs/feature-status.md) for implemented capabilities, testing status, limitations, and remaining work.

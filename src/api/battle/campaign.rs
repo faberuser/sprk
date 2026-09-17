@@ -186,6 +186,9 @@ pub(super) async fn begin(
     entry["Selected"] = json!(selected);
     let run_id = uuid::Uuid::new_v4().to_string();
     entry["RunId"] = json!(run_id);
+    entry["ServiceRequired"] = json!(s.tables.services.rules["RequireBattleService"]==true);
+    entry["DeckSnapshot"] = crate::api::services::records::snapshot(db,a,&party).await?;
+    out["RunId"] = json!(run_id);
     sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,?,?,0,?,?) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
     super::super::progression::record(
         db,
@@ -229,20 +232,24 @@ pub(super) async fn visit(
     put(db, a, "dungeon", key(c, di), &p).await?;
     Ok(json!({"DungeonInfo":p}))
 }
-pub(super) async fn end(
+pub(super) async fn end(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
+    end_inner(db,s,a,r,false).await
+}
+pub(crate) async fn end_authoritative(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
+    end_inner(db,s,a,r,true).await
+}
+async fn end_inner(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
     r: &Request,
+    trusted: bool,
 ) -> Result<Value> {
     let saved = sqlx::query("SELECT * FROM battle_runs WHERE account=?")
         .bind(a)
         .fetch_optional(&mut *db)
         .await?
         .ok_or_else(|| rule("UserCampaignInfoNotFound"))?;
-    if saved.get::<i64, _>("completed") != 0 {
-        return Err(rule("AlreadyCompleted"));
-    }
     if now() - saved.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400) {
         return Err(rule("UserCampaignInfoNotFound"));
     }
@@ -261,6 +268,14 @@ pub(super) async fn end(
     {
         return Err(rule("DifficultyMismatch"));
     }
+    if saved.get::<i64,_>("completed") != 0 {
+        if entry["ServiceOwned"]==true {
+            let result:Option<String>=sqlx::query_scalar("SELECT response FROM service_results WHERE run=? AND account=?").bind(saved.get::<String,_>("run_id")).bind(a).fetch_optional(&mut *db).await?;
+            if let Some(result)=result{return read_json(&result);}
+        }
+        return Err(rule("AlreadyCompleted"));
+    }
+    if !trusted && (entry["ServiceOwned"]==true || entry["ServiceRequired"]==true){return Err(rule("NotCompletedBattle"));}
     let completed = boolean(r, "Completed", false)?;
     let star = r.number("Star", if completed { 3 } else { 0 })?;
     if !(0..=3).contains(&star) || completed && star == 0 {
@@ -293,6 +308,7 @@ pub(super) async fn end(
     dungeons::finish(db, s, a, &request, r, &entry, completed, &mut out).await?;
     seasons::finish(db, s, a, &request, r, elapsed, &mut out).await?;
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
+    if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}
     sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0")
         .bind(a)
         .execute(db)

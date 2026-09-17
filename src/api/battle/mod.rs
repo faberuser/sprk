@@ -246,7 +246,7 @@ fn time(t: i64) -> String {
 fn day() -> String {
     chrono::Utc::now().format("%Y-%m-%d").to_string()
 }
-async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
+pub(crate) async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
     let data: Option<String> =
         sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind=? AND idx=?")
             .bind(a)
@@ -259,7 +259,7 @@ async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<
         .transpose()?
         .unwrap_or(Value::Null))
 }
-async fn put(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
+pub(crate) async fn put(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
     sqlx::query("INSERT INTO battle_state(account,kind,idx,data) VALUES(?,?,?,?) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
     Ok(())
 }
@@ -386,3 +386,5 @@ fn read_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T> {
 }
 
 pub(crate) use dungeons::charge as charge_key;
+
+pub(crate) use campaign::end_authoritative;

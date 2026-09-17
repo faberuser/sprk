@@ -25,7 +25,7 @@ pub(super) fn season_info(s: &AppState, kind: i64) -> Value {
     .unwrap_or("Normal");
     json!({"Index":index,"Name":"Local arena season","Begin":time(start),"End":time(end),"Description":"","SeasonIndex":index,"ShowSeasonIndex":index,"ArenaType":name,"MatchSeasonType":"Regular","IsTakeReward":false,"PlayTimeBegin":"00:00:00","PlayTimeEnd":"23:59:59","LimitedHeroStar":0,"LimitedHeroLevel":0,"LimitedHeroCount":4,"ActiveTier":true})
 }
-pub(super) async fn tickets(
+pub(crate) async fn tickets(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
@@ -213,12 +213,19 @@ pub(super) async fn battle_info(db: &mut SqliteConnection, s: &AppState, a: i64)
     out["WorldTierIndex"] = out["TierIndex"].clone();
     Ok(out)
 }
-pub(super) async fn execute(
+pub(super) async fn execute(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,action:&str)->Result<Value>{
+    execute_inner(db,s,a,r,action,false).await
+}
+pub(crate) async fn service_result(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
+    execute_inner(db,s,a,r,"set_offline_match_result",true).await
+}
+async fn execute_inner(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
     r: &Request,
     action: &str,
+    trusted: bool,
 ) -> Result<Value> {
     let kind = int(r, "ArenaType")?;
     if action == "get_season_info" {
@@ -369,6 +376,7 @@ pub(super) async fn execute(
                 .ok_or_else(|| rule("MatchingAborted"))?;
             let id = run.get::<i64, _>("id");
             let mut data: Value = parse(&run.get::<String, _>("data"))?;
+            if !trusted && (data["ServiceOwned"]==true || s.tables.services.rules["RequireBattleService"]==true){return Err(rule("MatchingAborted"));}
             if n(&data, "Season") != season(s).0 {
                 return Err(rule("MatchingAborted"));
             }

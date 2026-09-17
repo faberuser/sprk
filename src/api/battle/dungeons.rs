@@ -53,6 +53,7 @@ pub(crate) async fn charge(
         .get(kind as usize)
         .ok_or_else(|| rule("NotEnoughStamina"))?;
     let value = if kind == 1 {
+        crate::api::account::stamina::chicken(db,s,a).await?;
         sqlx::query_scalar::<_,i64>("UPDATE user_info SET stamina=stamina-? WHERE account_id=? AND stamina>=? RETURNING stamina").bind(cost).bind(a).bind(cost).fetch_optional(&mut *db).await?.ok_or_else(||rule("NotEnoughStamina"))?
     } else if matches!(kind, 3 | 4 | 7) {
         let kind = if kind == 3 {
@@ -890,19 +891,10 @@ pub(super) async fn execute(
         "recharge_underground_prison_key" => {
             let c = int(r, "DungeonIndex")?;
             row(s, "DOWDungeon", &[("DungeonIndex", c)])?;
-            let price = settings(s, "PrisonRechargeGem", 100);
-            reward
-                .currencies
-                .push(hero::currency(db, a, "Gem", -price).await?);
-            charge(db, s, a, 5, 0).await?;
-            let mut k = get(db, a, "key", 5).await?;
-            if n(&k, "RechargeCount") >= 3 {
-                return Err(rule("AlreadyCompleted"));
-            }
-            k["Count"] = json!(n(&k, "Count") + 1);
-            k["RechargeCount"] = json!(n(&k, "RechargeCount") + 1);
-            put(db, a, "key", 5, &k).await?;
-            out["UndergroundPrisonKeyResult"] = charge(db, s, a, 5, 0).await?;
+            let request=Request(std::collections::HashMap::from([("StaminaType".into(),"UndergroundPrisonKey".into())]));
+            let result=crate::api::account::stamina::execute(db,s,a,&request,"user/recharge_stamina").await?;
+            reward.currencies.push(result["CurrencyResult"].clone());
+            out["UndergroundPrisonKeyResult"]=result["StaminaResult"].clone();
         }
         "get_treasure_house_info" | "reset_treasure_house_info" => {
             if action.starts_with("reset") {

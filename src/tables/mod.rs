@@ -62,6 +62,7 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub services: Arc<BattleTable>,
     pub live: Arc<BattleTable>,
     pub arena_guild: Arc<BattleTable>,
     pub battle: Arc<BattleTable>,
@@ -129,6 +130,7 @@ impl GameTables {
         tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            services: Arc::new(BattleTable::load_with_rules(&table_dir.join("ServicesSupport.json"), "ServicesRules.json")?),
             live,
             arena_guild: Arc::new(BattleTable::load_with_rules(&table_dir.join("ArenaGuildSupport.json"), "ArenaGuildRules.json")?),
             battle,
@@ -149,6 +151,7 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            services: Arc::new(BattleTable::default()),
             live: Arc::new(BattleTable::default()),
             arena_guild: Arc::new(BattleTable::default()),
             battle: Arc::new(BattleTable::default()),

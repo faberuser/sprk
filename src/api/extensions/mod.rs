@@ -111,7 +111,7 @@ fn row<'a>(state: &'a AppState, table: &str, fields: &[(&str, i64)]) -> Result<&
 fn meta(state: &AppState, item: i32) -> Result<&Value> {
     row(state, "EquipItem", &[("ItemIndex", item as i64)])
 }
-async fn equip(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+pub(crate) async fn equip(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
     let r = sqlx::query(
         "SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0",
     )

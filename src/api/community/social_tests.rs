@@ -678,8 +678,8 @@ impl Socket {
     }
     async fn connect(address: std::net::SocketAddr, a: &user::LoginResponse, channel: i32) -> Self {
         let mut socket = Self(BufReader::new(TcpStream::connect(address).await.unwrap()));
-        // Native LoginReq deliberately has no SessionKey field.
-        socket.send("LoginReq",json!({"RequestId":11,"AccountId":a.user_info.account_id,"ChannelNo":channel,"FriendIds":[]})).await;
+        // Patched LoginReq proves identity with the game session.
+        socket.send("LoginReq",json!({"RequestId":11,"SessionKey":a.user_info.session_key,"AccountId":a.user_info.account_id,"ChannelNo":channel,"FriendIds":[]})).await;
         let (name, value) = socket.read().await;
         assert_eq!(name, "LoginRes");
         assert_eq!(value["RequestId"], 11);
@@ -772,7 +772,7 @@ async fn socket_rejects_unknown_accounts_and_handles_fragmented_coalesced_packet
     let mut socket = Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
     let login = chat::encode_packet(
         "LoginReq",
-        &json!({"RequestId":8,"AccountId":a.user_info.account_id}),
+        &json!({"RequestId":8,"SessionKey":a.user_info.session_key,"AccountId":a.user_info.account_id}),
     );
     socket.0.get_mut().write_all(&login[..5]).await.unwrap();
     let mut tail = login[5..].to_vec();
@@ -783,4 +783,30 @@ async fn socket_rejects_unknown_accounts_and_handles_fragmented_coalesced_packet
     assert_eq!(name, "PingRes");
     assert_eq!(ping["RequestId"], 9);
     server.abort();
+}
+
+#[tokio::test]
+async fn socket_requires_session_proof_and_accepts_native_string_ids() {
+    let (state,a,b)=setup().await;
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state));
+    for key in [None,Some(b.user_info.session_key.as_str())] {
+        let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+        socket.send("LoginReq",json!({"AccountId":a.user_info.account_id.to_string(),"RequestId":"2","SessionKey":key})).await;
+        let response=socket.read().await.1;assert_eq!(response["Result"],"Fail");assert_eq!(response["RequestId"],2);
+    }
+    let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+    socket.send("LoginReq",json!({"AccountId":a.user_info.account_id.to_string(),"RequestId":"3","SessionKey":a.user_info.session_key,"ChannelNo":"1"})).await;
+    assert_eq!(socket.read().await.1["Result"],"Success");server.abort();
+}
+#[tokio::test]
+async fn chat_equipment_links_use_owned_snapshot() {
+    let (state,a,b)=setup().await;
+    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index) VALUES(?,50,1010101)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999}}]"#).into_owned();
+    let v=chat::send_world_chat(State(state.clone()),form(&a,&format!("Chat=item&LinkedItem={link}"))).await.unwrap().0;
+    let content:Value=serde_json::from_str(v["Message"]["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["ItemIndex"],1010101);
+    assert_eq!(content["LinkedItem"][0]["MaxEquipLevel"],0);
+    assert!(chat::send_world_chat(State(state.clone()),form(&b,&format!("Chat=item&LinkedItem={link}"))).await.is_err());
 }

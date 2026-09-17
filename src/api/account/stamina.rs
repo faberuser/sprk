@@ -1,404 +1,295 @@
-use axum::{
-    extract::{State, Form},
-    Json,
-};
-use serde::{Deserialize, Serialize};
-use sqlx::Row;
+//! Native stamina APIs share the same balances used by battles and rewards.
 use crate::{
+    api::{
+        battle, community,
+        extensions::{get, put},
+        heroes,
+        inventory::item::{n, rule},
+        system::request::Request,
+    },
     error::{Result, ServerError},
-    models::BaseResultType,
     state::AppState,
 };
-
-/// Get stamina info request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct GetStaminaInfoRequest {
-    pub session_id: Option<String>,
+use axum::{body::Bytes, extract::State, Json};
+use serde_json::{json, Value};
+use sqlx::{Row, SqliteConnection};
+fn kind(s: &AppState, v: &str) -> Result<i64> {
+    s.tables
+        .services
+        .enums
+        .get("StaminaType")
+        .and_then(|e| e.get(v))
+        .copied()
+        .or_else(|| v.parse().ok())
+        .filter(|v| *v > 0 && *v <= 30)
+        .ok_or_else(|| rule("InvalidStaminaType"))
 }
-
-/// Get stamina info response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct GetStaminaInfoResponse {
-    pub base_result: i32,
-    pub current_stamina: i32,
-    pub max_stamina: i32,
-    pub stamina_regen_time: i64,
-    pub next_regen_at: i64,
+fn name(s: &AppState, k: i64) -> Result<&str> {
+    s.tables
+        .services
+        .enums
+        .get("StaminaType")
+        .and_then(|e| e.iter().find(|(_, v)| **v == k))
+        .map(|(k, _)| k.as_str())
+        .ok_or_else(|| rule("InvalidStaminaType"))
 }
-
-/// Handle get stamina info request
-pub async fn get_stamina_info(
-    State(state): State<AppState>,
-    Form(req): Form<GetStaminaInfoRequest>,
-) -> Result<Json<GetStaminaInfoResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    // Get user stamina info
-    let user = sqlx::query(
-        "SELECT stamina, max_stamina, last_stamina_update FROM user_info WHERE account_id = ?"
+fn constant(s: &AppState, key: &str) -> Result<i64> {
+    s.tables
+        .services
+        .rows("Constant")
+        .iter()
+        .find(|v| v["Key"] == key)
+        .and_then(|v| v["Value"].as_str())
+        .and_then(|v| v.parse().ok())
+        .filter(|v| *v > 0)
+        .ok_or_else(|| rule("Fail"))
+}
+async fn counter(db: &mut SqliteConnection, a: i64, k: i64) -> Result<Value> {
+    let v = get(db, a, "stamina_recharges", k).await?;
+    let day = chrono::Utc::now().date_naive().to_string();
+    Ok(if v["Day"] == day {
+        v
+    } else {
+        json!({"Day":day,"Count":0})
+    })
+}
+pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    let row = sqlx::query(
+        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=?",
     )
-    .bind(session.account_id)
-    .fetch_one(&state.db)
+    .bind(a)
+    .fetch_one(&mut *db)
     .await?;
-
-    let mut current_stamina: i32 = user.get("stamina");
-    let max_stamina: i32 = user.get("max_stamina");
-    let last_update: i64 = user.get("last_stamina_update");
-
-    // Calculate regenerated stamina (1 stamina per 5 minutes = 300 seconds)
-    let stamina_regen_time: i64 = 300;
-    let now = state.server_time();
-    let elapsed = now - last_update;
-    let regenerated = (elapsed / stamina_regen_time) as i32;
-
-    if regenerated > 0 && current_stamina < max_stamina {
-        current_stamina = (current_stamina + regenerated).min(max_stamina);
-        
-        // Update stamina in database
-        sqlx::query("UPDATE user_info SET stamina = ?, last_stamina_update = ? WHERE account_id = ?")
-            .bind(current_stamina)
-            .bind(now)
-            .bind(session.account_id)
-            .execute(&state.db)
-            .await?;
-    }
-
-    // Calculate next regen time
-    let next_regen_at = if current_stamina >= max_stamina {
+    let team = s
+        .tables
+        .services
+        .find("TeamLevel", &[("Level", row.get("team_level"))])
+        .ok_or_else(|| rule("Fail"))?;
+    let ids: Vec<i32> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=?")
+        .bind(a)
+        .fetch_all(&mut *db)
+        .await?;
+    let cap = n(team, "MaxStamina")
+        + ids
+            .iter()
+            .filter_map(|id| s.tables.hero_shop.heroes.get(id))
+            .map(|v| n(v, "AddStamina"))
+            .sum::<i64>();
+    let interval = n(team, "RechargeStaminaSec").max(1);
+    let now = s.server_time();
+    let old = row.get::<i64, _>("stamina");
+    let last = row.get::<i64, _>("stamina_recharge_time");
+    let last = if last <= 0 || last > now { now } else { last };
+    let added = if old < cap {
+        ((now - last) / interval).min(cap - old)
+    } else {
         0
-    } else {
-        let time_since_last_regen = elapsed % stamina_regen_time;
-        now + (stamina_regen_time - time_since_last_regen)
     };
-
-    Ok(Json(GetStaminaInfoResponse {
-        base_result: BaseResultType::Success as i32,
-        current_stamina,
-        max_stamina,
-        stamina_regen_time,
-        next_regen_at,
-    }))
-}
-
-/// Buy stamina request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct BuyStaminaRequest {
-    pub session_id: Option<String>,
-    pub amount: Option<i32>,
-}
-
-/// Buy stamina response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct BuyStaminaResponse {
-    pub base_result: i32,
-    pub result: i32,
-    pub new_stamina: i32,
-    pub gem_cost: i32,
-    pub daily_purchases_remaining: i32,
-}
-
-/// Handle buy stamina request
-pub async fn buy_stamina(
-    State(state): State<AppState>,
-    Form(req): Form<BuyStaminaRequest>,
-) -> Result<Json<BuyStaminaResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    let amount = req.amount.unwrap_or(100); // Default stamina purchase amount
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    // Cost per purchase (could scale with daily purchases)
-    let gem_cost = 50;
-
-    // Get user info
-    let user = sqlx::query(
-        "SELECT stamina, max_stamina, gem FROM user_info WHERE account_id = ?"
+    let value = old + added;
+    let anchor = if value >= cap {
+        now
+    } else {
+        last + added * interval
+    };
+    sqlx::query("UPDATE user_info SET stamina=?,stamina_recharge_time=? WHERE account_id=?")
+        .bind(value)
+        .bind(anchor)
+        .bind(a)
+        .execute(db)
+        .await?;
+    let next = if value < cap {
+        interval - (now - anchor)
+    } else {
+        0
+    };
+    Ok(
+        json!({"Type":"Chicken","AddValue":added,"NewValue":value,"StaminaRechargeTime":chrono::DateTime::from_timestamp(anchor,0).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),"NextRechargeRemainTime":next,"FullRechargeRemainTime":if value<cap{next+(cap-value-1)*interval}else{0},"RechargeCount":0,"IsHide":false}),
     )
-    .bind(session.account_id)
-    .fetch_one(&state.db)
-    .await?;
-
-    let current_gem: i32 = user.get("gem");
-    
-    if current_gem < gem_cost {
-        return Ok(Json(BuyStaminaResponse {
-            base_result: BaseResultType::Success as i32,
-            result: 1, // Not enough gems
-            new_stamina: user.get("stamina"),
-            gem_cost,
-            daily_purchases_remaining: 0,
-        }));
-    }
-
-    // Buy stamina
-    let new_stamina: i32 = user.get::<i32, _>("stamina") + amount;
-    
-    sqlx::query("UPDATE user_info SET stamina = ?, gem = gem - ? WHERE account_id = ?")
-        .bind(new_stamina)
-        .bind(gem_cost)
-        .bind(session.account_id)
-        .execute(&state.db)
-        .await?;
-
-    Ok(Json(BuyStaminaResponse {
-        base_result: BaseResultType::Success as i32,
-        result: 0,
-        new_stamina,
-        gem_cost,
-        daily_purchases_remaining: 10, // Simplified, should track daily purchases
-    }))
 }
-
-/// Use stamina request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct UseStaminaRequest {
-    pub session_id: Option<String>,
-    pub amount: Option<i32>,
-    #[allow(dead_code)]
-    pub content_type: Option<String>,  // Reserved for future use
-}
-
-/// Use stamina response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct UseStaminaResponse {
-    pub base_result: i32,
-    pub result: i32,
-    pub new_stamina: i32,
-}
-
-/// Handle use stamina request
-pub async fn use_stamina(
-    State(state): State<AppState>,
-    Form(req): Form<UseStaminaRequest>,
-) -> Result<Json<UseStaminaResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    let amount = req.amount.ok_or_else(|| ServerError::InvalidRequest("Missing amount".to_string()))?;
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    // Get current stamina
-    let user = sqlx::query("SELECT stamina FROM user_info WHERE account_id = ?")
-        .bind(session.account_id)
-        .fetch_one(&state.db)
-        .await?;
-
-    let current_stamina: i32 = user.get("stamina");
-    
-    if current_stamina < amount {
-        return Ok(Json(UseStaminaResponse {
-            base_result: BaseResultType::Success as i32,
-            result: 1, // Not enough stamina
-            new_stamina: current_stamina,
-        }));
-    }
-
-    // Deduct stamina
-    let new_stamina = current_stamina - amount;
-    
-    sqlx::query("UPDATE user_info SET stamina = ? WHERE account_id = ?")
-        .bind(new_stamina)
-        .bind(session.account_id)
-        .execute(&state.db)
-        .await?;
-
-    Ok(Json(UseStaminaResponse {
-        base_result: BaseResultType::Success as i32,
-        result: 0,
-        new_stamina,
-    }))
-}
-
-/// Restore stamina (for overflow from mail/rewards)
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct RestoreStaminaRequest {
-    pub session_id: Option<String>,
-    pub amount: Option<i32>,
-}
-
-/// Restore stamina response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct RestoreStaminaResponse {
-    pub base_result: i32,
-    pub new_stamina: i32,
-}
-
-/// Handle restore stamina request
-pub async fn restore_stamina(
-    State(state): State<AppState>,
-    Form(req): Form<RestoreStaminaRequest>,
-) -> Result<Json<RestoreStaminaResponse>> {
-    let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
-    let amount = req.amount.ok_or_else(|| ServerError::InvalidRequest("Missing amount".to_string()))?;
-    
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    // Add stamina (can exceed max from rewards)
-    sqlx::query("UPDATE user_info SET stamina = stamina + ? WHERE account_id = ?")
-        .bind(amount)
-        .bind(session.account_id)
-        .execute(&state.db)
-        .await?;
-
-    // Get new stamina
-    let user = sqlx::query("SELECT stamina FROM user_info WHERE account_id = ?")
-        .bind(session.account_id)
-        .fetch_one(&state.db)
-        .await?;
-
-    Ok(Json(RestoreStaminaResponse {
-        base_result: BaseResultType::Success as i32,
-        new_stamina: user.get("stamina"),
-    }))
-}
-
-/// Stamina result info for a specific type
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct StaminaResultInfo {
-    #[serde(rename = "Type")]
-    pub stamina_type: String,
-    pub add_value: i32,
-    pub new_value: i32,
-    pub stamina_recharge_time: Option<String>,
-    pub next_recharge_remain_time: i32,
-    pub full_recharge_remain_time: i32,
-    pub recharge_count: i32,
-    pub is_hide: bool,
-}
-
-/// Get stamina infos response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct GetStaminaInfosResponse {
-    pub base_result: String,
-    pub result: String,
-    pub stamina_results: Vec<StaminaResultInfo>,
-}
-
-/// Handle get stamina infos request
-/// This returns stamina info for multiple stamina types (keys, tickets, etc.)
-/// IMPORTANT: This now queries the database for actual user stamina values,
-/// especially for "Chicken" (main stamina) which was previously returning 10
-pub async fn get_stamina_infos(
-    State(state): State<AppState>,
-    body: axum::body::Bytes,
-) -> Result<Json<GetStaminaInfosResponse>> {
-    // Parse form-urlencoded data manually
-    let body_str = String::from_utf8_lossy(&body);
-    tracing::info!("get_stamina_infos called with body: {}", body_str);
-    
-    // Parse the form data manually - collect ALL StaminaTypes values and SessionKey
-    let mut stamina_types: Vec<String> = Vec::new();
-    let mut session_key: Option<String> = None;
-    
-    for pair in body_str.split('&') {
-        let mut kv = pair.splitn(2, '=');
-        if let (Some(key), Some(value)) = (kv.next(), kv.next()) {
-            let decoded_value = urlencoding::decode(value).unwrap_or_default();
-            match key {
-                "StaminaTypes" => stamina_types.push(decoded_value.to_string()),
-                "SessionKey" | "SessionId" => session_key = Some(decoded_value.to_string()),
-                _ => {}
-            }
-        }
-    }
-    
-    tracing::info!("Parsed {} stamina types: {:?}", stamina_types.len(), stamina_types);
-    
-    // Get user's actual stamina values from database if session is valid
-    let user_stamina = if let Some(ref key) = session_key {
-        if let Some(session) = state.get_session(key) {
-            sqlx::query(
-                "SELECT stamina, sword, sword2, guild_raid_ticket, world_boss_ticket FROM user_info WHERE account_id = ?"
-            )
-            .bind(session.account_id)
-            .fetch_optional(&state.db)
-            .await
-            .ok()
-            .flatten()
-        } else {
-            None
-        }
-    } else {
-        None
+pub(crate) async fn snapshot(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    k: i64,
+) -> Result<Value> {
+    let mut v = match k {
+        1 => chicken(db, s, a).await?,
+        2 | 20 => community::tickets(db, s, a, name(s, k)?, 0).await?,
+        10 => community::guild_ticket(db, s, a, 0).await?,
+        _ => battle::charge_key(db, s, a, k, 0).await?,
     };
-    
-    // Create stamina results for each requested type
-    let mut stamina_results = Vec::new();
-    
-    for stamina_type in &stamina_types {
-        let stamina_type = stamina_type.trim();
-        if stamina_type.is_empty() {
-            continue;
-        }
-        
-        // Get actual value from database for known types, otherwise use defaults
-        let actual_value = if let Some(ref row) = user_stamina {
-            match stamina_type {
-                "Chicken" => row.get::<i32, _>("stamina"),
-                "Sword" => row.get::<i32, _>("sword"),
-                "Sword2" => row.get::<i32, _>("sword2"),
-                "GuildRaidTicket" | "GuildRaidKey" => row.get::<i32, _>("guild_raid_ticket"),
-                "WorldBossTicket" | "WorldBossKey" => row.get::<i32, _>("world_boss_ticket"),
-                _ => get_max_for_stamina_type(stamina_type), // Use max for keys/tickets
-            }
-        } else {
-            get_max_for_stamina_type(stamina_type)
-        };
-        
-        tracing::debug!("Stamina type '{}' returning value: {}", stamina_type, actual_value);
-        
-        stamina_results.push(StaminaResultInfo {
-            stamina_type: stamina_type.to_string(),
-            add_value: 0,
-            new_value: actual_value,
-            stamina_recharge_time: None,
-            next_recharge_remain_time: 3600,  // 1 hour until next recharge
-            full_recharge_remain_time: 3600,  // 1 hour until full recharge
-            recharge_count: 0,
-            is_hide: false,
-        });
-    }
-    
-    Ok(Json(GetStaminaInfosResponse {
-        base_result: "Success".to_string(),
-        result: "Success".to_string(),
-        stamina_results,
-    }))
+    v["RechargeCount"] = counter(db, a, k).await?["Count"].clone();
+    Ok(v)
 }
-
-/// Get max value for a specific stamina type (for keys/tickets that aren't stored in user_info)
-fn get_max_for_stamina_type(stamina_type: &str) -> i32 {
-    match stamina_type {
-        "Chicken" => 100, // Default max stamina if not found in DB
-        "Sword" => 5,
-        "Sword2" => 5,
-        "PunishmentRaidKey" => 5,
-        "TrialOfGodKingKey" => 5,
-        "TrialOfFlowKey" => 5,
-        "DailyDungeonKey" => 5,
-        "WorldBossKey" | "WorldBossTicket" => 3,
-        "GuildRaidKey" | "GuildRaidTicket" => 3,
-        "ArenaKey" => 5,
-        "StockadeKey" => 5,
-        "LabyrinthKey" | "UndergroundLabyrinthKey" => 1,
-        "HideoutKey" => 5,
-        "ChallengeTowerKey" => 5,
-        "UndergroundPrisonKey" => 5,
-        _ => 5, // Default for unknown types
+pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
+    let mut tx = s.db.begin().await?;
+    crate::api::inventory::item::init(&mut tx, s, a).await?;
+    let mut out = vec![];
+    for k in (1..=30).filter(|k| !matches!(k, 3 | 4 | 7)) {
+        out.push(snapshot(&mut tx, s, a, k).await?);
     }
+    tx.commit().await?;
+    Ok(json!(out))
+}
+pub(crate) async fn execute(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    path: &str,
+) -> Result<Value> {
+    if path.ends_with("get_stamina_infos") {
+        let raw = r.text("StaminaTypes");
+        let values: Vec<Value> = serde_json::from_str(raw).unwrap_or_else(|_| vec![json!(raw)]);
+        if values.is_empty() || values.len() > 30 {
+            return Err(rule("InvalidStaminaType"));
+        }
+        let mut out = vec![];
+        for v in values {
+            let k = kind(
+                s,
+                &v.as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| v.to_string()),
+            )?;
+            out.push(snapshot(db, s, a, k).await?);
+        }
+        return Ok(json!({"StaminaResults":out}));
+    }
+    let k = kind(s, r.text("StaminaType"))?;
+    let mut out = snapshot(db, s, a, k).await?;
+    if path.ends_with("get_stamina") {
+        return Ok(json!({"StaminaResult":out}));
+    }
+    let mut count = counter(db, a, k).await?;
+    let (amount, gold, gem) = if path.ends_with("buy_stamina") {
+        if k != 1 {
+            return Err(rule("InvalidStaminaType"));
+        }
+        (constant(s, "BuyStamina")?, 0, constant(s, "BuyStaminaGem")?)
+    } else {
+        let def = s
+            .tables
+            .services
+            .find("Stamina", &[("StaminaType", k)])
+            .ok_or_else(|| rule("InvalidStaminaType"))?;
+        if n(def, "RechargeCostType") != 1 {
+            return Err(rule("InvalidStaminaType"));
+        }
+        if def["IsResetLimit"] == true && n(&count, "Count") >= n(def, "ResetLimitCount") {
+            return Err(rule("ResetLimitExceeded"));
+        }
+        let cost = |key: &str| -> Result<i64> {
+            let Some(v) = def[key].as_array().filter(|v| !v.is_empty()) else {
+                return Ok(0);
+            };
+            v[(n(&count, "Count") as usize).min(v.len() - 1)]
+                .as_str()
+                .and_then(|v| v.parse::<i64>().ok())
+                .filter(|v| *v >= 0)
+                .ok_or_else(|| rule("Fail"))
+        };
+        let amount = def["ResetCount"]
+            .as_array()
+            .and_then(|v| v.first())
+            .and_then(Value::as_i64)
+            .filter(|v| *v > 0)
+            .ok_or_else(|| rule("InvalidStaminaType"))?;
+        let max = def["MaxCountValue"]
+            .as_str()
+            .and_then(|v| v.parse::<i64>().ok())
+            .unwrap_or(0);
+        if (def["AllowOverflow"] == false || matches!(n(def, "MaxCountType"), 4 | 6))
+            && n(&out, "NewValue") + amount > max
+        {
+            return Err(rule("MaxStamina"));
+        }
+        (
+            amount,
+            cost("RechargeGoldValue")?,
+            cost("RechargeGemValue")?,
+        )
+    };
+    if gold == 0 && gem == 0 {
+        return Err(rule("InvalidStaminaType"));
+    }
+    if gold > 0 {
+        heroes::currency(db, a, "Gold", -gold).await?;
+    }
+    let currency = heroes::currency(
+        db,
+        a,
+        if gem > 0 { "Gem" } else { "Gold" },
+        if gem > 0 { -gem } else { 0 },
+    )
+    .await?;
+    let new = n(&out, "NewValue")
+        .checked_add(amount)
+        .filter(|v| *v <= i32::MAX as i64)
+        .ok_or_else(|| rule("MaxStamina"))?;
+    if k == 1 {
+        sqlx::query("UPDATE user_info SET stamina=? WHERE account_id=?")
+            .bind(new)
+            .bind(a)
+            .execute(&mut *db)
+            .await?;
+    } else if k == 2 {
+        community::tickets(db, s, a, "Sword", amount).await?;
+    } else {
+        let mut v = battle::get(db, a, "key", k).await?;
+        v["Count"] = json!(new);
+        battle::put(db, a, "key", k, &v).await?;
+    }
+    count["Count"] = json!(n(&count, "Count") + 1);
+    put(db, a, "stamina_recharges", k, &count).await?;
+    out["NewValue"] = json!(new);
+    out["AddValue"] = json!(amount);
+    out["RechargeCount"] = count["Count"].clone();
+    if k == 1 {
+        let info = chicken(db, s, a).await?;
+        out["NextRechargeRemainTime"] = info["NextRechargeRemainTime"].clone();
+        out["FullRechargeRemainTime"] = info["FullRechargeRemainTime"].clone();
+    }
+    Ok(json!({"CurrencyResult":currency,"StaminaResult":out}))
+}
+async fn legacy(s: AppState, body: Bytes, path: &str) -> Result<Json<Value>> {
+    let mut r = Request::parse(&body)?;
+    r.0.insert("StaminaType".into(), "Chicken".into());
+    let body = serde_urlencoded::to_string(&r.0).map_err(|_| rule("Fail"))?;
+    crate::api::services::execute_request(
+        &s,
+        path,
+        &axum::http::HeaderMap::new(),
+        Bytes::from(body),
+    )
+    .await
+    .map(Json)
+}
+pub async fn get_stamina_info(State(s): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    legacy(s, body, "user/get_stamina").await
+}
+pub async fn buy_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    legacy(s, body, "user/buy_stamina").await
+}
+pub async fn use_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    let r = Request::parse(&body)?;
+    let a = r.account(&s)?;
+    let amount = r.number("Amount", 0)?;
+    if !(1..=i32::MAX as i64).contains(&amount) {
+        return Err(rule("InvalidCost"));
+    }
+    let mut tx = s.db.begin().await?;
+    crate::api::inventory::item::init(&mut tx, &s, a).await?;
+    chicken(&mut tx, &s, a).await?;
+    let out = battle::charge_key(&mut tx, &s, a, 1, amount).await?;
+    tx.commit().await?;
+    Ok(Json(
+        json!({"BaseResult":"Success","Result":"Success","StaminaResult":out}),
+    ))
+}
+pub async fn restore_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    Request::parse(&body)?.account(&s)?;
+    Err(ServerError::InvalidRequest(
+        "Stamina restoration requires a server reward".into(),
+    ))
 }

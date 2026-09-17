@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build router with all API routes
     let app = Router::new()
+        .merge(api::services::routes(&state.tables.services))
         .merge(api::extensions::routes())
         .merge(api::live::routes(&state.tables.live))
         .merge(api::battle::routes(&state.tables.battle))
@@ -261,7 +262,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/stamina/buy", post(api::account::stamina::buy_stamina))
         .route("/stamina/use", post(api::account::stamina::use_stamina))
         .route("/stamina/restore", post(api::account::stamina::restore_stamina))
-        .route("/user/get_stamina_infos", post(api::account::stamina::get_stamina_infos))
+
         // Tutorial - endpoints matching client's expected paths
         .route("/tutorial/begin_tutorial", post(api::tutorial::begin_tutorial))
         .route("/tutorial/complete_tutorial", post(api::tutorial::complete_tutorial))

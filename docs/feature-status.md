@@ -7,7 +7,7 @@ The following server flows are implemented. Client playthrough testing is ongoin
 ### Accounts, quests, and rewards
 
 - **Account basics:** guest authentication, login/logout, in-memory sessions, and account state restored at login.
-- **Stamina:** balance tracking, regeneration, purchases, and consumption.
+- **Stamina:** authenticated native snapshots, table-priced purchases/key recharges, transactional consumption, persistent recharge counters, and Chicken regeneration.
 - **Tutorial:** rewards, hero recruitment, scripted battle progress, and reconnect support.
 - **Attendance and login rewards:** configurable daily/conditional calendars, accumulated-login milestones, UTC resets, and persistent claims.
 - **Achievements and quests:** extracted achievement/subquest definitions, progress from supported gameplay, reward claims, and login/gameplay notifications.
@@ -47,7 +47,7 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Guild battles:** solo guild-raid boss progression, participant kill mail, shared loot purchases and clear-time rankings; guild-arena registration, defense snapshots, offline attacks, records, rankings and season reward mail, using local rules and configurable schedules.
 - **Mail:** personal/global inboxes, pagination, expiry, and atomic attachment claims.
 - **Friends:** search, invitations, acceptance/removal, daily points, and live notifications.
-- **Chat:** native TCP world/channel messages, whispers, guild messages, and reconnect history.
+- **Chat:** native TCP world/channel messages, whispers, guild messages, reconnect history, verified equipment links, and session-key socket authentication (requires the supplied client patch).
 
 ### Shops, events, and pets
 
@@ -56,6 +56,13 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Events:** configurable calendars, personal/daily/shared step contributions and claims, event crafting, currency/item roulette, equipment forging and exchange.
 - **Pets:** shared collection ownership, selectors/rewards, egg supply and incubation, incubator purchases/slot expansion, feeding/interactions/gifts, awakening/soul tier upgrades, house/avatar selection, and timed exploration.
 - **Persistence and validation:** atomic costs/rewards, ownership/capacity checks, claim replay protection, login/lobby snapshots, and restart recovery. Missing original rules use explicit local definitions.
+
+### Client integration and supporting services
+
+- **Replays:** persistent save/list/fetch APIs, participant visibility, duplicate detection, and bounded native playback data storage.
+- **Community records:** clear-party/equipment snapshots and recommended decks by level/time; score-backed honor rankings, seasons, own ranks, and ranker popups.
+- **Battle-service integration:** authenticated registration/heartbeat, campaign claims and result processing, normal-arena callbacks, duplicate-result protection, and persistent recovery. Local/offline gameplay remains configurable.
+- **Login/lobby integration:** shared stamina balances/counters and service-run recovery state; HTTP/TCP and process-restart tests.
 
 ### Configuration and development tools
 
@@ -66,6 +73,7 @@ Equipment-extension configuration and data limitations are documented in [hero-e
 Battle configuration, supported flows, and remaining limitations are documented in [battle-systems.md](battle-systems.md).
 Arena/guild configuration and client limitations are documented in [arena-guild.md](arena-guild.md).
 Shop, summon, event, and pet configuration is documented in [shops-events-pets.md](shops-events-pets.md).
+Supporting API configuration, the required chat patch, and battle-service contracts are documented in [supporting-services.md](supporting-services.md).
 
 ## Implementing
 
@@ -108,8 +116,8 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 - **Original live data:** restore historical server prices, reward-pool assignments, schedules, and marketing triggers. Other historical summon banners require configuration; promotional web content/artwork is not hosted.
 - **Client integration:** native playthroughs, event/shop visibility settings, and pet combat-bonus integration remain. Missing pet supply/tier/exploration rules and summon pity use configurable local definitions.
 
-### Client integration and supporting services
+### Client integration and supporting services (limitations)
 
-- **Replays and community features:** replay save/list/playback, recommended decks, and records-of-honor rankings (`replay/*`, `recommend_deck/*`, `records_of_honor/*`).
-- **Remaining integration:** equipment links in chat, authenticated socket identity, native stamina purchase/recharge routes, and complete login/lobby state for each newly implemented system.
-- **Battle services and validation:** multiplayer battle-server callbacks, reconnect/recovery, authoritative result processing, and end-to-end client tests for the implemented flows (`internal/b2g_*`, `internal/b2m_*`).
+- **Native client validation:** build/apply the supplied chat SessionKey patch and run Unity playthroughs for replay playback, recommendations, honor UI, stamina, and reconnect flows. Popup dungeon metadata and cross-server honor aggregation remain incomplete.
+- **Battle runtime:** integrate a compatible combat-server executable/adapter; live transport/host transfer, simulation/integrity checks, Eclipse/shared-raid/guild-suppression callbacks, and full combat buff/stat snapshots remain. Unsupported callbacks explicitly fail. Existing local/offline results are not combat-verified.
+- **Stamina fidelity:** reconcile original non-Chicken timed regeneration/reset schedules and temporary/pet stamina-cap buffs with the existing configurable local balances.

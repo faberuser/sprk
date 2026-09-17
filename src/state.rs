@@ -20,6 +20,7 @@ pub struct SessionInfo {
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
+    pub(crate) battle_service_key: Arc<Option<String>>,
     pub chat: Arc<crate::api::community::chat::ChatHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
     pub auth_tokens: Arc<DashMap<String, String>>, // access_token -> device_id
@@ -32,6 +33,7 @@ impl AppState {
     pub fn new(db: DbPool, tables: GameTables) -> Self {
         Self {
             db,
+            battle_service_key: Arc::new(std::env::var("BATTLE_SERVICE_KEY").ok().filter(|s|s.len()>=32)),
             chat: Arc::new(crate::api::community::chat::ChatHub::default()),
             sessions: Arc::new(DashMap::new()),
             auth_tokens: Arc::new(DashMap::new()),
