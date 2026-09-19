@@ -357,6 +357,10 @@ pub async fn login(
             sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, 1, ?, ?, ?)")
                 .bind(account_id).bind(kasel.hero_index).bind(kasel.star).bind(kasel.level)
                 .execute(&mut *tx).await?;
+            // UIAvatarHelper encodes a hero portrait as hero index * 10 + star.
+            sqlx::query("UPDATE user_info SET avatar_hero_index=? WHERE account_id=?")
+                .bind(kasel.hero_index * 10 + kasel.star).bind(account_id)
+                .execute(&mut *tx).await?;
 
             // New users start with empty tutorial progress
             // Tutorials will be triggered by EventTriggers in the client

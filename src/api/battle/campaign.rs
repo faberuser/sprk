@@ -277,10 +277,7 @@ async fn end_inner(
     }
     if !trusted && (entry["ServiceOwned"]==true || entry["ServiceRequired"]==true){return Err(rule("NotCompletedBattle"));}
     let completed = boolean(r, "Completed", false)?;
-    let star = r.number("Star", if completed { 3 } else { 0 })?;
-    if !(0..=3).contains(&star) || completed && star == 0 {
-        return Err(rule("InvalidStar"));
-    }
+    let star = result_star(r, completed)?;
     let party: Vec<i64> = read_value(entry["Heroes"].clone())?;
     let alive = ids(r, "AliveHeroIndices", 32)?;
     if alive.iter().any(|v| !party.contains(v)) {
@@ -315,6 +312,24 @@ async fn end_inner(
         .await?;
     Ok(out)
 }
+pub(super) fn result_star(r: &Request, completed: bool) -> Result<i64> {
+    let raw = r.number("Star", if completed { 3 } else { 0 })?;
+    // BattleInstance.GetCampaignResultStar sends difficulty * 10 + stars.
+    // Internal callers and the legacy API also send the bare star count.
+    let star = if raw > 3 {
+        if !completed || raw / 10 != difficulty(r)? {
+            return Err(rule("InvalidStar"));
+        }
+        raw % 10
+    } else {
+        raw
+    };
+    if !(0..=3).contains(&star) || completed && star == 0 {
+        return Err(rule("InvalidStar"));
+    }
+    Ok(star)
+}
+
 pub(super) async fn complete(
     db: &mut SqliteConnection,
     s: &AppState,

@@ -68,7 +68,12 @@ pub async fn handle(
         .map(Json)
 }
 pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
-    let mut req = Request::parse(&body)?;
+    let array_fields: Vec<&str> = s.tables.battle.contracts.get(path)
+        .and_then(|contract| contract["Request"].as_object())
+        .into_iter().flat_map(|fields| fields.iter())
+        .filter(|(_, typ)| typ.as_str().is_some_and(|typ| typ.ends_with("[]")))
+        .map(|(key, _)| key.as_str()).collect();
+    let mut req = Request::parse_with_arrays(&body, &array_fields)?;
     let a = req.account(s)?;
     if let Some(fields) = s
         .tables
@@ -140,12 +145,17 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     match result {
         Ok(v) => {
             tx.commit().await?;
+            if matches!(action, "begin_campaign" | "end_campaign") {
+                tracing::info!(path, account = a, chapter = req.text("ChapterIndex"),
+                    dungeon = req.text("DungeonIndex"), "Campaign request succeeded");
+            }
             let mut out = response(s, path);
             merge(&mut out, v);
             Ok(out)
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            tracing::warn!(path, account = a, reason = %code, "Battle request rejected");
             let c = s
                 .tables
                 .battle
@@ -160,7 +170,10 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             };
             Ok(json!({"BaseResult":"Success","Result":code}))
         }
-        Err(e) => Err(e),
+        Err(e) => {
+            tracing::error!(path, account = a, error = %e, "Battle request failed");
+            Err(e)
+        }
     }
 }
 fn response(s: &AppState, path: &str) -> Value {
@@ -222,7 +235,16 @@ fn ids(r: &Request, key: &str, max: usize) -> Result<Vec<i64>> {
     if r.text(key).is_empty() {
         return Ok(vec![]);
     }
-    let ids: Vec<i64> = read_json(r.text(key)).map_err(|_| rule("InvalidHero"))?;
+    // BaseJsonMarshaler.EncodeArray serializes client integer arrays as strings.
+    let values: Vec<Value> = read_json(r.text(key)).map_err(|_| rule("InvalidHero"))?;
+    let ids: Vec<i64> = values
+        .iter()
+        .map(|value| {
+            value.as_i64()
+                .or_else(|| value.as_str().and_then(|value| value.parse().ok()))
+                .ok_or_else(|| rule("InvalidHero"))
+        })
+        .collect::<Result<_>>()?;
     if ids.len() > max
         || ids.iter().any(|v| *v <= 0 || *v > i32::MAX as i64)
         || ids.iter().collect::<BTreeSet<_>>().len() != ids.len()

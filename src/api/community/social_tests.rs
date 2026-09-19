@@ -14,6 +14,30 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
+#[tokio::test]
+async fn missing_chat_avatars_are_repaired_without_changing_selected_portraits() {
+    let (s, a, b) = setup().await;
+    let aid = a.user_info.account_id;
+    let bid = b.user_info.account_id;
+    assert!(a.user_info.avatar_hero_index > 0);
+    sqlx::query("UPDATE user_info SET avatar_hero_index=CASE WHEN account_id=? THEN 0 ELSE 10001 END")
+        .bind(aid).execute(&s.db).await.unwrap();
+    for (sender, avatar) in [(aid, 0), (bid, 10002)] {
+        sqlx::query("INSERT INTO chat_messages(sender_id,group_type,channel,guild_id,receiver_id,protocol,content) VALUES(?,'Channel',1,0,0,'ChannelChat',?)")
+            .bind(sender).bind(json!({"Chat":"portrait test","SenderAvatarIndex":avatar}).to_string())
+            .execute(&s.db).await.unwrap();
+    }
+    for _ in 0..2 {
+        database::repair_missing_avatars(&s.db).await.unwrap();
+        let avatars: Vec<i32> = sqlx::query_scalar("SELECT avatar_hero_index FROM user_info ORDER BY account_id")
+            .fetch_all(&s.db).await.unwrap();
+        assert_eq!(avatars, vec![a.user_info.avatar_hero_index, 10001]);
+        let portraits: Vec<i32> = sqlx::query_scalar("SELECT json_extract(content,'$.SenderAvatarIndex') FROM chat_messages ORDER BY message_id")
+            .fetch_all(&s.db).await.unwrap();
+        assert_eq!(portraits, vec![a.user_info.avatar_hero_index, 10002]);
+    }
+}
+
 async fn login(state: &AppState, name: &str) -> user::LoginResponse {
     user::login(State(state.clone()), Bytes::from(format!("LoginId={name}")))
         .await
@@ -705,6 +729,8 @@ async fn native_socket_routes_channels_world_whispers_and_friend_notifications()
     assert_eq!(message["Type"], "ChannelChat");
     let content: Value = serde_json::from_str(message["Content"].as_str().unwrap()).unwrap();
     assert_eq!(content["SenderName"], a.user_info.nick);
+    assert!(a.user_info.avatar_hero_index > 0);
+    assert_eq!(content["SenderAvatarIndex"], a.user_info.avatar_hero_index);
     assert_eq!(content["AdminLevel"], 0);
     assert!(
         tokio::time::timeout(Duration::from_millis(100), sc.0.fill_buf())

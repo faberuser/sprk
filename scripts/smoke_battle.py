@@ -25,7 +25,7 @@ def main():
     base = f"http://127.0.0.1:{port}"
 
     def post(path, **fields):
-        request = urllib.request.Request(base + path, urllib.parse.urlencode(fields).encode())
+        request = urllib.request.Request(base + path, urllib.parse.urlencode(fields, doseq=True).encode())
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)
 
@@ -59,7 +59,7 @@ def main():
                     assert call("/world_boss/get_world_boss_info")["WorldBossInfos"]
                     assert call("/match/get_season_info", ArenaType="Normal")["SeasonData"]["SeasonIndex"] > 0
                     if not restarted:
-                        result = call("/campaign/begin_campaign", **stage, HeroIndices="[1]")
+                        result = call("/campaign/begin_campaign", **stage, HeroIndices=[1])
                         assert result["Result"] == "Success", result
                         assert result == call("/campaign/begin_campaign", **stage, HeroIndices="[1]")
                         result = call("/party_dungeon/create_party_dungeon_room", DungeonType=1,
@@ -70,7 +70,7 @@ def main():
                     else:
                         result = call("/party_dungeon/join_party_dungeon_room", RoomNo=room)
                         assert result["Result"] == "Success", result
-                        result = call("/campaign/end_campaign", **stage, Completed="true", Star=3, AliveHeroIndices="[1]")
+                        result = call("/campaign/end_campaign", **stage, Completed="true", Star=13, AliveHeroIndices=[1])
                         assert result["Result"] == "Success", result
                         assert [h["HeroIndex"] for h in result["HeroExpResults"]] == [1]
                         assert call("/campaign/end_campaign", **stage, Completed="true")["Result"] != "Success"

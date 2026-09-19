@@ -7,6 +7,34 @@ use std::collections::{BTreeSet, HashMap};
 
 pub struct Request(pub HashMap<String, String>);
 impl Request {
+    /// Unity's WWWForm emits one field per array element. Keep every element,
+    /// while also accepting JSON arrays used by API clients and tests.
+    pub fn parse_with_arrays(body: &[u8], array_fields: &[&str]) -> Result<Self> {
+        let pairs: Vec<(String, String)> = serde_urlencoded::from_bytes(body)
+            .map_err(|e| ServerError::InvalidRequest(e.to_string()))?;
+        let mut fields = HashMap::new();
+        let mut arrays: HashMap<String, Vec<String>> = HashMap::new();
+        for (key, value) in pairs {
+            if array_fields.contains(&key.as_str()) {
+                arrays.entry(key).or_default().push(value);
+            } else {
+                fields.insert(key, value);
+            }
+        }
+        for (key, mut values) in arrays {
+            let value = if values.len() == 1
+                && (values[0].trim_start().starts_with('[')
+                    || values[0].is_empty() || values[0] == "null")
+            {
+                values.remove(0)
+            } else {
+                serde_json::to_string(&values)
+                    .map_err(|e| ServerError::InvalidRequest(e.to_string()))?
+            };
+            fields.insert(key, value);
+        }
+        Ok(Self(fields))
+    }
     pub fn parse(body: &[u8]) -> Result<Self> {
         serde_urlencoded::from_bytes(body)
             .map(Self)

@@ -47,6 +47,71 @@ const END: &str =
     "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=true&Star=3&AliveHeroIndices=[1]";
 
 #[tokio::test]
+async fn unity_repeated_form_fields_preserve_the_campaign_party() {
+    let (s, u) = setup().await;
+    for index in 2..=4 {
+        hero::recruit_at(&mut *s.db.acquire().await.unwrap(), &s, account(&u), index, 1, 1, 0)
+            .await.unwrap();
+    }
+    let entry = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=4&LeaderHeroIndex=1&ScenarioDungeon=False&Repeat=False";
+    let duplicate = entry.replace("HeroIndices=4", "HeroIndices=1");
+    let stamina = balance(&s, "stamina").await;
+    assert_ne!(call(&s, &u, "campaign/begin_campaign", &duplicate).await["Result"], "Success");
+    assert_eq!(balance(&s, "stamina").await, stamina);
+    let begin = call(&s, &u, "campaign/begin_campaign", entry).await;
+    assert_eq!(begin["Result"], "Success", "{begin}");
+    let saved: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap();
+    assert_eq!(read_json::<Value>(&saved).unwrap()["Heroes"], json!([1,2,3,4]));
+    let end = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=True&Star=13&AliveHeroIndices=1&AliveHeroIndices=2&AliveHeroIndices=3&AliveHeroIndices=4";
+    let result = call(&s, &u, "campaign/end_campaign", end).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["HeroExpResults"].as_array().unwrap().len(), 4);
+    let progress = campaign::progress(&mut *s.db.acquire().await.unwrap(), &s, account(&u), 1, 1).await.unwrap();
+    assert_eq!(progress["MaxStar"], 13);
+    let single = call(&s, &u, "campaign/begin_campaign", &ENTRY.replace("[1]", "1")).await;
+    assert_eq!(single["Result"], "Success", "{single}");
+}
+
+#[tokio::test]
+async fn native_string_hero_ids_can_enter_and_complete_campaign() {
+    let (s, u) = setup().await;
+    let entry = ENTRY.replace("HeroIndices=[1]", "HeroIndices=[\"1\"]&GroupHeroIndices=[]&LeaderHeroIndex=1");
+    let begin = call(&s, &u, "campaign/begin_campaign", &entry).await;
+    assert_eq!(begin["Result"], "Success", "{begin}");
+    // Numeric and native string representations identify the same retry.
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", ENTRY).await, begin);
+    let end = END.replace("AliveHeroIndices=[1]", "AliveHeroIndices=[\"1\"]");
+    let result = call(&s, &u, "campaign/end_campaign", &end).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["HeroExpResults"][0]["HeroIndex"], 1);
+}
+
+#[test]
+fn campaign_star_encoding_matches_difficulty() {
+    for diff in 0..=3 {
+        for stars in 1..=3 {
+            let request = Request::parse(format!("DungeonDifficulty={diff}&Star={}", diff * 10 + stars).as_bytes()).unwrap();
+            assert_eq!(campaign::result_star(&request, true).unwrap(), stars);
+        }
+    }
+    for raw in [-1, 0, 4, 10, 14, 23, 33, 43, i64::MAX] {
+        let request = Request::parse(format!("DungeonDifficulty=1&Star={raw}").as_bytes()).unwrap();
+        assert!(campaign::result_star(&request, true).is_err(), "{raw}");
+    }
+    let loss = Request::parse(b"DungeonDifficulty=1&Star=0").unwrap();
+    assert_eq!(campaign::result_star(&loss, false).unwrap(), 0);
+}
+
+#[test]
+fn native_hero_ids_still_reject_invalid_and_duplicate_values() {
+    for value in [r#"["1",1]"#, r#"["0"]"#, r#"["-1"]"#, r#"["2147483648"]"#, r#"["bad"]"#, "[true]", "[1.5]", "[null]"] {
+        let request = Request::parse(format!("HeroIndices={value}").as_bytes()).unwrap();
+        assert!(ids(&request, "HeroIndices", 32).is_err(), "{value}");
+    }
+}
+
+#[tokio::test]
 async fn world_boss_hp_scores_and_tickets_change_once_per_entered_battle() {
     let (s, u) = setup().await;
     sqlx::query("UPDATE heroes SET level=60 WHERE account_id=? AND hero_index=1")
