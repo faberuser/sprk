@@ -37,3 +37,15 @@ Omit `--shop-only` for all patches, or use `--chat-only` / `--campaign-only`.
 Omit it to install the result after patching. The patcher creates
 `Assembly-CSharp.dll.backup_before_patch` if absent; full patching uses that backup,
 while the individual patch modes use the active DLL.
+
+## Portal categories
+
+`Patches/Portal.cs` injects the embedded `Resources/Portal.cs.txt` helper into the client DLL. It restores 15 missing categories (23 total including the existing categories) and native destination activities without replacing existing table rows. New panels use the standard Small layout and English fallback labels. Native entry checks remain in effect; exposing a category does not implement its server gameplay. Pet uses the client's single Pet panel route.
+
+Apply only this change to an already patched client:
+
+```powershell
+dotnet run --project scripts/DllPatcher -- <client-root> --portal-only
+```
+
+Add `--stage-only` to write `Assembly-CSharp.dll.patched` without installing. The full patch includes the Portal restoration too. Reapplying is idempotent.

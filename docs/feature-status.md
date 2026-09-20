@@ -131,3 +131,9 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 - Auto equip preserves Unity repeated `HeroPartIndex` / `EquipItemSlotIndex` fields in order, applying every client-selected upgrade in one transaction rather than retaining only the final slot.
 
 - Local campaign policy: successful campaign and campaign-boss clears grant team EXP equal to the stage base hero EXP once per clear (not per hero or hero booster). `ExpResult` refreshes the client immediately; recruitment EXP remains separate. Failed/duplicate completions do not grant it.
+
+### Restored Portal access
+
+The client patcher now adds missing Portal categories: Valance, Arena, Raid, World Boss, God King's Temple, Eclipse, Shakmeh, Challenge Raid, Guild, Guild Territory, Pets, Technomagic Raid, Treasure House, Apocalypsion Raid, and Rune Crafting. Existing categories are preserved. These are reconstructed standard panels wired to native activities, not a recreation of the original promotional layouts. Mode-specific eligibility checks and incomplete server handlers still need gameplay testing. Verified patch compilation, menu merge preservation/idempotence, injected hooks, and byte-identical reapplication; in-game navigation is not yet verified.
+
+Portal Guild Raid badge polling now returns successful empty raid and member-score lists for authenticated accounts without a guild. Other guild raid operations still require membership. Regression checks cover repeated polling, no raid-state creation, membership enforcement, and normal raid data after joining a guild.

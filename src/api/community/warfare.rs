@@ -315,13 +315,33 @@ pub(super) async fn execute(
         }
         return Ok(out);
     }
+    // Portal polls the raid list, then member scores, even without a guild.
+    // An empty list is a valid read result; membership remains mandatory for actions.
+    if matches!(
+        path,
+        "guild_raid/get_guild_raid_list" | "guild_raid/get_guild_raid_member_score_list"
+    ) {
+        let guild_id: Option<i64> =
+            sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
+                .bind(a)
+                .fetch_optional(&mut *db)
+                .await?;
+        if action == "get_guild_raid_list" {
+            out["GuildRaidInfos"] = match guild_id {
+                Some(g) => json!(raid_list(db, s, g).await?),
+                None => json!([]),
+            };
+        } else {
+            out["GuildRaidMemberTotalScores"] = match guild_id {
+                Some(g) => json!(scores(db, s, g, "raid").await?),
+                None => json!([]),
+            };
+        }
+        return Ok(out);
+    }
     let (g, role) = guild::membership(db, a).await?;
     if path.starts_with("guild_raid/") {
         match action {
-            "get_guild_raid_list" => out["GuildRaidInfos"] = json!(raid_list(db, s, g).await?),
-            "get_guild_raid_member_score_list" => {
-                out["GuildRaidMemberTotalScores"] = json!(scores(db, s, g, "raid").await?)
-            }
             "get_guild_raid_guild_ranking" => {
                 let chapter = int(r, "ChapterIndex")?;
                 let difficulty = int(r, "Difficulty")?;

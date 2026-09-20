@@ -26,8 +26,9 @@ namespace DllPatcher
             bool chatOnly = args.Contains("--chat-only");
             bool campaignOnly = args.Contains("--campaign-only");
             bool shopOnly = args.Contains("--shop-only");
+            bool portalOnly = args.Contains("--portal-only");
             bool stageOnly = args.Contains("--stage-only");
-            string sourcePath = chatOnly || campaignOnly || shopOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
+            string sourcePath = chatOnly || campaignOnly || shopOnly || portalOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
 
             if (!File.Exists(sourcePath))
             {
@@ -57,7 +58,12 @@ namespace DllPatcher
             {
                 var module = assembly.MainModule;
 
-                if (shopOnly)
+                if (portalOnly)
+                {
+                    PatchPortal(module);
+                    assembly.Write(patchedPath);
+                }
+                else if (shopOnly)
                 {
                     PatchShopShortcut(module);
                     assembly.Write(patchedPath);
@@ -83,6 +89,7 @@ namespace DllPatcher
                     PatchChatBackground(module);
                     PatchCampaignSurvivors(module);
                     PatchShopShortcut(module);
+                    PatchPortal(module);
                     Console.WriteLine($"\nSaving modified assembly to: {patchedPath}");
                     assembly.Write(patchedPath);
                 }
@@ -97,7 +104,7 @@ namespace DllPatcher
             Console.WriteLine($"Copying to: {dllPath}");
             File.Copy(patchedPath, dllPath, true);
             Console.WriteLine("Done! The DLL has been patched successfully.");
-            if (chatOnly || campaignOnly || shopOnly) return;
+            if (chatOnly || campaignOnly || shopOnly || portalOnly) return;
 
             // Print summary
             Console.WriteLine("\n=== PATCH SUMMARY ===");

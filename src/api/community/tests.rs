@@ -490,3 +490,27 @@ async fn unavailable_suppression_does_not_advertise_or_register_a_battle() {
         "Success"
     );
 }
+
+#[tokio::test]
+async fn portal_guild_raid_polling_without_membership_is_empty() {
+    let s = setup().await;
+    let u = login(&s, "portal_no_guild").await;
+    for _ in 0..2 {
+        let list = call(&s, &u, "guild_raid/get_guild_raid_list", "").await;
+        assert_eq!(list["Result"], "Success", "{list}");
+        assert_eq!(list["GuildRaidInfos"], json!([]));
+        // Native RequestGuildRaidInfo chains this request after the raid list.
+        let scores = call(&s, &u, "guild_raid/get_guild_raid_member_score_list", "").await;
+        assert_eq!(scores["Result"], "Success", "{scores}");
+        assert_eq!(scores["GuildRaidMemberTotalScores"], json!([]));
+    }
+    let denied = call(&s, &u, "guild_raid/ping_guild_raid", "").await;
+    assert_ne!(denied["Result"], "Success", "{denied}");
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_raid'")
+        .fetch_one(&s.db).await.unwrap();
+    assert_eq!(count, 0);
+    create(&s, &u, "Portal", 1).await;
+    let list = call(&s, &u, "guild_raid/get_guild_raid_list", "").await;
+    assert_eq!(list["Result"], "Success", "{list}");
+    assert!(!list["GuildRaidInfos"].as_array().unwrap().is_empty());
+}

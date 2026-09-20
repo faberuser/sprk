@@ -1,0 +1,98 @@
+using System.Collections.Generic;
+using NShared;
+
+// Additive menu reconstruction. Existing table rows and unlock rules take precedence.
+public static class RestoredPortal
+{
+    public static IList<PortalRenewalData> Categories(IList<PortalRenewalData> original)
+    {
+        var result = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);
+        Menu(result, PortalRenewalCategory.Valance, "Valance's Workshop");
+        Menu(result, PortalRenewalCategory.Arena, "Arena");
+        Menu(result, PortalRenewalCategory.Raid, "Raid");
+        Menu(result, PortalRenewalCategory.WorldBoss, "World Boss");
+        Menu(result, PortalRenewalCategory.GodKingTemple, "God King's Temple");
+        Menu(result, PortalRenewalCategory.Eclipse, "Eclipse");
+        Menu(result, PortalRenewalCategory.Shakmeh, "Shakmeh");
+        Menu(result, PortalRenewalCategory.ChallengeRaid, "Challenge Raid");
+        Menu(result, PortalRenewalCategory.Guild, "Guild");
+        Menu(result, PortalRenewalCategory.GuildTerritory, "Guild Territory");
+        Menu(result, PortalRenewalCategory.Pet, "Pets");
+        Menu(result, PortalRenewalCategory.TechnoRaid, "Technomagic Raid");
+        Menu(result, PortalRenewalCategory.TreasureHouse, "Treasure House");
+        Menu(result, PortalRenewalCategory.PunishmentRaid, "Apocalypsion Raid");
+        Menu(result, PortalRenewalCategory.PunishmentRuneCraft, "Rune Crafting");
+        return result;
+    }
+
+    static void Menu(List<PortalRenewalData> rows, PortalRenewalCategory category, string title)
+    {
+        foreach (var row in rows) if (row.Category == category) return;
+        rows.Add(new PortalRenewalData { Category = category, SubCategory = PortalRenewalSubCategory.MENUBUTTON,
+            SubComponentShape = PortalRenewalCompType.Small, MenuShowIndex = 100 + (int)category, MenuButtonLocalkey = title, TitleLocalKey = title });
+    }
+
+    public static IList<PortalRenewalData> Contents(IList<PortalRenewalData> original, PortalRenewalCategory category)
+    {
+        var rows = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);
+        // Do not replace native content panels when another client table already provides them.
+        foreach (var row in rows) if (row.SubCategory != PortalRenewalSubCategory.MENUBUTTON) return rows;
+        foreach (var menu in Categories(rows))
+            if (menu.Category == category && !rows.Contains(menu)) rows.Add(menu);
+        switch (category)
+        {
+            case PortalRenewalCategory.Valance:
+                Add(rows, category, PortalRenewalSubCategory.Identified, "Identification", ClientActivityType.UsingActionContainer, "OpenValanceIndentified");
+                Add(rows, category, PortalRenewalSubCategory.Craft, "Craft", ClientActivityType.UsingActionContainer, "OpenValanceCraft");
+                Add(rows, category, PortalRenewalSubCategory.Management, "Management", ClientActivityType.UsingActionContainer, "OpenValanceManage"); break;
+            case PortalRenewalCategory.Arena:
+                Add(rows, category, PortalRenewalSubCategory.LeagueOfVictory, "League of Victory", ClientActivityType.OpenArena, "Normal");
+                Add(rows, category, PortalRenewalSubCategory.LeagueOfGlory, "League of Honor", ClientActivityType.OpenArena, "BanPick");
+                Add(rows, category, PortalRenewalSubCategory.OrdealArena, "League of Triumph", ClientActivityType.OpenArena, "Ordeal"); break;
+            case PortalRenewalCategory.Raid:
+                Add(rows, category, PortalRenewalSubCategory.DragonRaid, "Dragon Raid", ClientActivityType.OpenRaid, "DragonNormal");
+                Add(rows, category, PortalRenewalSubCategory.DragonRaidHard, "Dragon Raid (Hard)", ClientActivityType.OpenRaid, "DragonHard");
+                Add(rows, category, PortalRenewalSubCategory.FieldRaid, "Field Raid", ClientActivityType.OpenRaid, "FieldRaid"); break;
+            case PortalRenewalCategory.WorldBoss:
+                Add(rows, category, PortalRenewalSubCategory.WorldBoss, "World Boss", ClientActivityType.OpenWorldBoss); break;
+            case PortalRenewalCategory.GodKingTemple:
+                Add(rows, category, PortalRenewalSubCategory.GodkingTrial, "Trial of the God King", ClientActivityType.OpenGodkingTrial);
+                Add(rows, category, PortalRenewalSubCategory.GodkingSanctum, "Soul Weapons", ClientActivityType.UsingActionContainer, "OpenSoulWeapon"); break;
+            case PortalRenewalCategory.Eclipse:
+                Add(rows, category, PortalRenewalSubCategory.Eclipse, "Eclipse", ClientActivityType.OpenEclipse); break;
+            case PortalRenewalCategory.Shakmeh:
+                Add(rows, category, PortalRenewalSubCategory.Shakmeh, "Shakmeh", ClientActivityType.OpenShakmehDungeon); break;
+            case PortalRenewalCategory.ChallengeRaid:
+                Add(rows, category, PortalRenewalSubCategory.ChallengeRaid, "Challenge Raid", ClientActivityType.OpenChallengeRaid); break;
+            case PortalRenewalCategory.Guild:
+                Add(rows, category, PortalRenewalSubCategory.GuildArena, "Guild War", ClientActivityType.OpenGuildArena);
+                Add(rows, category, PortalRenewalSubCategory.GuildSuppress, "Guild Conquest", ClientActivityType.OpenGuildSuppress);
+                Add(rows, category, PortalRenewalSubCategory.GuildRaid, "Guild Raid", ClientActivityType.OpenGuildRaid); break;
+            case PortalRenewalCategory.GuildTerritory:
+                Add(rows, category, PortalRenewalSubCategory.GuildHeadquarter, "Guild Headquarters", ClientActivityType.MoveToNode, "999", "7", "true", "true");
+                Add(rows, category, PortalRenewalSubCategory.GuildTrainingCenter, "Guild Training Center", ClientActivityType.UsingActionContainer, "OpenGuildTrainingCenter");
+                Add(rows, category, PortalRenewalSubCategory.RankingBoard, "Guild Rankings", ClientActivityType.UsingActionContainer, "OpenGuildRankingBoard"); break;
+            case PortalRenewalCategory.Pet:
+                Add(rows, category, PortalRenewalSubCategory.Pet, "Pet House", ClientActivityType.OpenPetHouse);
+                break; // Native portal renders only the Pet row; incubator is available inside Pet House.
+            case PortalRenewalCategory.TechnoRaid:
+                Add(rows, category, PortalRenewalSubCategory.TechnomagicRaid, "Technomagic Raid", ClientActivityType.OpenRaid, "TechnoMagic");
+                Add(rows, category, PortalRenewalSubCategory.TechnoEnchantRaid, "Technomagic Enchantment Raid", ClientActivityType.OpenRaid, "TechnoEnchant"); break;
+            case PortalRenewalCategory.TreasureHouse:
+                Add(rows, category, PortalRenewalSubCategory.TreasureHouse, "Treasure House", ClientActivityType.UsingActionContainer, "OpenTreasureHouse"); break;
+            case PortalRenewalCategory.PunishmentRaid:
+                Add(rows, category, PortalRenewalSubCategory.PunishmentRaid, "Apocalypsion Raid", ClientActivityType.OpenPunishmentRaid); break;
+            case PortalRenewalCategory.PunishmentRuneCraft:
+                Add(rows, category, PortalRenewalSubCategory.PunishmentRuneCraft, "Rune Crafting", ClientActivityType.UsingActionContainer, "OpenPunishmentRuneCraft"); break;
+        }
+        return rows;
+    }
+
+    static void Add(List<PortalRenewalData> rows, PortalRenewalCategory category, PortalRenewalSubCategory sub,
+        string title, ClientActivityType activity, params string[] args)
+    {
+        rows.Add(new PortalRenewalData { Category = category, SubCategory = sub, TitleLocalKey = title,
+            MenuButtonLocalkey = title, ContentsShowIndex = rows.Count, SubComponentShape = PortalRenewalCompType.Small,
+            MoveTaskType = activity, MoveTaskValue = args });
+    }
+}
