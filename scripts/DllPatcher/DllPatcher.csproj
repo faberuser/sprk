@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <EmbeddedResource Include="Resources/CostumeOwnership.cs.txt" WithCulture="false" LogicalName="DllPatcher.CostumeOwnership.cs.txt" />
   </ItemGroup>
 
 </Project>

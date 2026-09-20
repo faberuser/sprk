@@ -8,20 +8,24 @@ The following server flows are implemented. Client playthrough testing is ongoin
 
 - **Account basics:** guest authentication, login/logout, in-memory sessions, and account state restored at login.
 - **Stamina:** authenticated native snapshots, table-priced purchases/key recharges, transactional consumption, persistent recharge counters, and Chicken regeneration.
-- **Tutorial:** rewards, hero recruitment, scripted battle progress, and reconnect support.
+- **Tutorial:** rewards, hero recruitment, scripted battle progress, and reconnect support. Skipping tutorials records the World Tree story gate (14000), allowing the normal map route from 1-17 to 1-18 without granting battle clears or rewards.
 - **Attendance and login rewards:** configurable daily/conditional calendars, accumulated-login milestones, UTC resets, and persistent claims.
 - **Achievements and quests:** extracted achievement/subquest definitions, progress from supported gameplay, reward claims, and login/gameplay notifications.
-- **Completion rewards:** chapter-star rewards, entitlement-checked clear/newcomer missions, and claims for persisted world-map events.
+- **Mission UI:** lobby category availability follows the client table's quest requirements. Achievement and Guideline subquest claims accept native repeated form fields as well as JSON arrays, including Claim All batches. Request `Steps` contains each mission's last claimed step (zero before its first claim); the server validates saved progress and awards the next step.
+- **Completion rewards:** chapter-star rewards, entitlement-checked clear/newcomer missions, and claims for persisted world-map events. Chapter reward claims restore through the native login key `chapterRewardInfos`, preserving GET marks after reconnect.
 
 ### Heroes, equipment, and customization
 
 - **Hero collection:** Hero's Inn recruitment, ruby purchases, hero selectors, multiple-hero selectors, and growth tickets.
 - **Hero management:** skill learning/upgrades/extensions, awakening trials and purification, transcendence and standard skill pages, limit breaks, bookmarks, avatars, and account-wide equipment/skill presets.
 - **Costumes:** normal body-costume purchases and selectors, ownership, equip/unequip, appearance presets, unique-weapon visibility, and gold/EXP bonuses.
+  - Single-costume purchases accept the native client's duplicated `BuyGem`/`BuyGold`/`BuyMileage` quote, validate only table-priced currencies, and debit only those currencies. Forged payable prices still fail.
+  - Full and shop-only patching preserves real body/hair/weapon/accessory ownership checks and enables direct sales of non-default outfits (including event/legend outfits) and accessories. Existing prices remain; unpriced outfits/standalone hair or weapon parts cost 3,000 rubies and unpriced accessories cost 500. Default appearances and parts bundled with body costumes retain their existing unlock rules. Client getters and server table loading apply the same pricing policy; no automatic ownership grants.
+  - Ungrouped outfits can be purchased in the Dressing Room. Only the shop's grouped hero tiles exclude them, preventing missing-group lookup failures.
 - **Equipment:** equip/unequip and swapping, material-based upgrades/awakening, tier changes, option upgrades/rerolls, skill rerolls, enchanting/confirmation, dismantling, and artifact restoration.
 - **Soul weapons:** liberation, grade upgrades, ether injection/reinforcement, option renewal/confirmation, transitions, dismantling, and configurable soul-stone restoration with mileage rewards.
 - **Runes and loadouts:** hero rune pages, equip/removal with paid preservation, equipment loadout slots, punishment-rune crafting/storage/expansion, and equipment-rune dismantling.
-- **Additional progression and customization:** NPC gifts/reward claims, class-buff spending/reset with configurable local point earnings, team-buff upgrades, hair/weapon unlocks from costumes, accessory selectors/positioning, and customization resets.
+- **Additional progression and customization:** NPC gifts/reward claims, class-buff spending/reset with configurable local point earnings, team-buff upgrades, hair/weapon unlocks from costumes, accessory selectors/positioning, and customization resets. Accessory position requests accept the native extra URL-escape layer and string-encoded coordinates as well as plain JSON numbers, with finite-value and positive-scale validation.
 - **Valance equipment:** crafting, identification, awakening, enchanting, and persistent confirmation choices.
 
 ### Inventory, crafting, and shops
@@ -90,7 +94,7 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 
 - **Missing original rules:** supply soul-weapon limit-break definitions and recipe-consumable recipes; these features remain disabled without them. Recover original class-buff point earnings and soul-stone restoration balance.
 - **Client-dependent progression:** enhanced transcendence perk levels (this extracted client's page parser stores only selected skill codes), dyes, and legendary-costume progression need corresponding client contracts/data.
-- **Unavailable shop stock:** all extracted accessory shop rows have `IsOpen=false`; accessory purchases require valid open stock. Separate paid hair/weapon listings are absent from this extraction.
+- **Cosmetic stock:** local table loading opens extracted accessory stock using the pricing policy above. Hair/weapon parts bundled with body costumes retain their ownership prerequisites.
 - **Battle and event dependencies:** event flasks, archive/achievement potions, mode-specific recovery items, and boosters tied to unfinished battle modes/reward calculations remain unsupported.
 - **Valance tier upgrades:** recover usable request fields and upgrade rules; the extracted request has no target/material fields or matching definitions.
 - **Integration testing:** client playthroughs, appearance-preset interactions, class/team-buff effects in unfinished battle modes, and original random distributions still need verification.
@@ -121,3 +125,9 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 - **Native client validation:** build/apply the supplied chat SessionKey patch and run Unity playthroughs for replay playback, recommendations, honor UI, stamina, and reconnect flows. Popup dungeon metadata and cross-server honor aggregation remain incomplete.
 - **Battle runtime:** integrate a compatible combat-server executable/adapter; live transport/host transfer, simulation/integrity checks, Eclipse/shared-raid/guild-suppression callbacks, and full combat buff/stat snapshots remain. Unsupported callbacks explicitly fail. Existing local/offline results are not combat-verified.
 - **Stamina fidelity:** reconcile original non-Chicken timed regeneration/reset schedules and temporary/pet stamina-cap buffs with the existing configurable local balances.
+
+- Campaign reward responses expose Raider EXP through the native `ExpResultsByGetHero` field so the active client applies reward EXP immediately; hero EXP remains in `HeroExpResults`.
+
+- Auto equip preserves Unity repeated `HeroPartIndex` / `EquipItemSlotIndex` fields in order, applying every client-selected upgrade in one transaction rather than retaining only the final slot.
+
+- Local campaign policy: successful campaign and campaign-boss clears grant team EXP equal to the stage base hero EXP once per clear (not per hero or hero booster). `ExpResult` refreshes the client immediately; recruitment EXP remains separate. Failed/duplicate completions do not grant it.

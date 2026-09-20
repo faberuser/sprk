@@ -144,6 +144,37 @@ async fn accumulated_login_uses_days_not_request_count() {
     );
 }
 #[tokio::test]
+async fn native_claim_all_and_lobby_categories() {
+    let (s, u) = setup().await;
+    for (kind, value) in [("ClearDungeon", 5), ("BuyShopItem", 1)] {
+        record(&mut *s.db.acquire().await.unwrap(), u.user_info.account_id, kind, 0, 0, value).await.unwrap();
+    }
+    let batch = "AchievementIndices=1101&Steps=0&AchievementIndices=1102&Steps=0&AchievementIndices=1104&Steps=0&AchievementIndices=1111&Steps=0&AchievementIndices=1112&Steps=0";
+    let a = call(&s, &u, "reward_achievement", batch).await;
+    assert_eq!(a["Result"], "Success");
+    for id in [1101, 1102, 1104, 1111, 1112] {
+        assert_eq!(a["AchievementInfos"].as_array().unwrap().iter().find(|r| r["AchievementIndex"] == id).unwrap()["LastStep"], 1);
+    }
+    let balance = currency(&s, &u).await;
+    assert_eq!(call(&s, &u, "reward_achievement", batch).await["Result"], "InvalidStep");
+    assert_eq!(currency(&s, &u).await, balance);
+    let lobby = crate::api::account::lobby::enter_lobby(State(s.clone()), axum::extract::Form(crate::api::account::lobby::EnterLobbyRequest {
+        session_id: None, session_key: Some(u.user_info.session_key.clone()),
+    })).await.unwrap().0;
+    let wire = serde_json::to_value(lobby).unwrap();
+    let categories = wire["OpendMissionCategories"].as_array().unwrap();
+    assert!(categories.contains(&json!({"MainCategoryIndex":2,"SubCategoryIndex":1})));
+    assert!(categories.contains(&json!({"MainCategoryIndex":2,"SubCategoryIndex":2})));
+    assert!(!categories.contains(&json!({"MainCategoryIndex":4,"SubCategoryIndex":1})));
+    sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'subquest',10110,1,'all')")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let refreshed = login(&s, u.user_info.account_id).await.unwrap();
+    let categories = refreshed["OpendMissionCategories"].as_array().unwrap();
+    assert!(categories.contains(&json!({"MainCategoryIndex":4,"SubCategoryIndex":1})));
+    assert!(!categories.contains(&json!({"MainCategoryIndex":1,"SubCategoryIndex":2})));
+}
+
+#[tokio::test]
 async fn daily_achievement_native_rewards_and_reset() {
     let (s, u) = setup().await;
     let before = currency(&s, &u).await;
@@ -151,7 +182,7 @@ async fn daily_achievement_native_rewards_and_reset() {
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[1101]&Steps=[1]",
+        "AchievementIndices=[1101]&Steps=[0]",
     )
     .await;
     assert_eq!(a["Result"], "Success");
@@ -162,7 +193,7 @@ async fn daily_achievement_native_rewards_and_reset() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1101]&Steps=[1]"
+            "AchievementIndices=[1101]&Steps=[0]"
         )
         .await["Result"],
         "InvalidStep"
@@ -177,7 +208,7 @@ async fn daily_achievement_native_rewards_and_reset() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1101]&Steps=[1]"
+            "AchievementIndices=[1101]&Steps=[0]"
         )
         .await["Result"],
         "Success"
@@ -201,7 +232,7 @@ async fn batch_achievement_error_and_forged_progress_never_grant() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1101,99999999]&Steps=[1,1]"
+            "AchievementIndices=[1101,99999999]&Steps=[0,0]"
         )
         .await["Result"],
         "Success"
@@ -220,7 +251,7 @@ async fn batch_achievement_error_and_forged_progress_never_grant() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1705]&Steps=[1]"
+            "AchievementIndices=[1705]&Steps=[0]"
         )
         .await["Result"],
         "AchievementNotCleared"
@@ -230,7 +261,7 @@ async fn batch_achievement_error_and_forged_progress_never_grant() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1101]&Steps=[1]"
+            "AchievementIndices=[1101]&Steps=[0]"
         )
         .await["Result"],
         "Success"
@@ -256,7 +287,7 @@ async fn currency_metrics_follow_transaction_rollback() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1705]&Steps=[1]"
+            "AchievementIndices=[1705]&Steps=[0]"
         )
         .await["Result"],
         "AchievementNotCleared"
@@ -271,12 +302,39 @@ async fn currency_metrics_follow_transaction_rollback() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1705]&Steps=[1]"
+            "AchievementIndices=[1705]&Steps=[0]"
         )
         .await["Result"],
         "Success"
     );
 }
+#[tokio::test]
+async fn guideline_claim_all_preserves_native_batch_and_rolls_back_invalid_batch() {
+    let (s, u) = setup().await;
+    for dungeon in 1..=3 {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,?,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
+            .bind(u.user_info.account_id).bind(dungeon).execute(&s.db).await.unwrap();
+    }
+    let before = currency(&s, &u).await;
+    let invalid = call(&s, &u, "complete_sub_quest", "SubQuestIndices=10010&SubQuestIndices=99999999").await;
+    assert_ne!(invalid["Result"], "Success");
+    assert_eq!(currency(&s, &u).await, before);
+    let batch = "SubQuestIndices=10010&SubQuestIndices=10020&SubQuestIndices=10030";
+    let result = call(&s, &u, "complete_sub_quest", batch).await;
+    assert_eq!(result["Result"], "Success");
+    let completed: Vec<i64> = result["SucceededSubQuestInfos"].as_array().unwrap().iter()
+        .map(|r| r["SubQuestIndex"].as_i64().unwrap()).collect();
+    assert_eq!(completed, vec![10010, 10020, 10030]);
+    assert_eq!(result["RewardResults"].as_array().unwrap().len(), 3);
+    let after = currency(&s, &u).await;
+    assert_ne!(call(&s, &u, "complete_sub_quest", batch).await["Result"], "Success");
+    assert_eq!(currency(&s, &u).await, after);
+    let restored = relogin(&s).await;
+    for id in completed {
+        assert_eq!(restored.sub_quest_infos.iter().find(|r| r["SubQuestIndex"] == id).unwrap()["LastStep"], 1);
+    }
+}
+
 #[tokio::test]
 async fn subquest_requires_saved_dungeon_and_claims_once() {
     let (s, u) = setup().await;
@@ -316,10 +374,27 @@ async fn chapter_reward_uses_decimal_star_encoding_and_bitmask() {
     let a = call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await;
     assert_eq!(a["Result"], "Success");
     assert_eq!(a["RewardInfo"]["LastRewardDiff"], 2);
+    // Assert the actual wire key: the native login parser uses lower camel case.
+    let restored = serde_json::to_value(relogin(&s).await).unwrap();
+    assert_eq!(restored["chapterRewardInfos"], json!([{"ChapterIndex":1,"LastRewardDiff":2}]));
+    assert!(restored.get("ChapterRewardInfos").is_none());
     assert_eq!(
         call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await["Result"],
         "WrongStep"
     );
+    for id in 9..=20 {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,?,1,13)")
+            .bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
+    }
+    for step in [2, 3] {
+        assert_eq!(call(&s, &u, "reward_clear_chapter", &format!("ChapterIndex=1&Step={step}")).await["Result"], "Success");
+    }
+    let balances = currency(&s, &u).await;
+    for _ in 0..2 {
+        let restored = serde_json::to_value(relogin(&s).await).unwrap();
+        assert_eq!(restored["chapterRewardInfos"], json!([{"ChapterIndex":1,"LastRewardDiff":14}]));
+    }
+    assert_eq!(currency(&s, &u).await, balances);
 }
 #[tokio::test]
 async fn paid_missions_require_entitlement_and_gameplay() {
@@ -446,7 +521,7 @@ async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1002]&Steps=[1]"
+            "AchievementIndices=[1002]&Steps=[0]"
         )
         .await["Result"],
         "AchievementNotCleared"
@@ -471,7 +546,7 @@ async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
             &s,
             &u,
             "reward_achievement",
-            "AchievementIndices=[1002]&Steps=[1]"
+            "AchievementIndices=[1002]&Steps=[0]"
         )
         .await["Result"],
         "Success"
@@ -480,7 +555,7 @@ async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[55]&Steps=[1]",
+        "AchievementIndices=[55]&Steps=[0]",
     )
     .await;
     assert_eq!(r["Result"], "RewardTimeEnded");
@@ -498,7 +573,7 @@ async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[55]&Steps=[1]",
+        "AchievementIndices=[55]&Steps=[0]",
     )
     .await;
     assert_eq!(r["Result"], "Success");
@@ -663,7 +738,7 @@ async fn item_removal_does_not_count_as_use_and_stamina_reward_matches_native_ty
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[1101]&Steps=[1]",
+        "AchievementIndices=[1101]&Steps=[0]",
     )
     .await;
     assert_eq!(r["Result"], "Success");

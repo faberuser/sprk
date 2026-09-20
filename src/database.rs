@@ -428,11 +428,5 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     crate::api::battle::migrate(pool).await?;
     crate::api::services::migrate(pool).await?;
     crate::api::community::migrate(pool).await?;
-    repair_missing_avatars(pool).await?;
-    Ok(())
-}
-
-pub(crate) async fn repair_missing_avatars(pool: &SqlitePool) -> anyhow::Result<()> {
-    sqlx::raw_sql(include_str!("repair_missing_avatars.sql")).execute(pool).await?;
     Ok(())
 }

@@ -414,10 +414,12 @@ pub(crate) async fn execute(
             let mut currencies = vec![];
             for kind in ["Gem", "Gold", "Mileage"] {
                 let cost = n(c, &format!("ReqBuy{kind}"));
-                if req.number(&format!("Buy{kind}"), 0)? != cost {
-                    return Err(rule("InvalidPrice"));
-                }
                 if cost > 0 {
+                    // CostumeRequesterBase copies ReqValue into all three Buy*
+                    // fields. Only currencies priced by the table are payable.
+                    if req.number(&format!("Buy{kind}"), 0)? != cost {
+                        return Err(rule("InvalidPrice"));
+                    }
                     currencies.push(currency(db, account, kind, -cost).await?);
                 }
             }

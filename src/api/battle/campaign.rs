@@ -463,7 +463,14 @@ pub(super) async fn complete(
     }
     sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked,completed_time) VALUES(?,?,?,?,?,1,?) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+excluded.clear_count,best_star=MAX(best_star,excluded.best_star),completed_time=excluded.completed_time").bind(a).bind(c).bind(di).bind(count).bind(star).bind(time(now())).execute(&mut *db).await?;
 
+    // Local campaign policy: one stage's base hero EXP per successful clear.
+    // Apply before recruitment rewards so the client sees chronological balances.
+    let mut clear_exp = Rewards::default();
+    if matches!(n(d, "BattleType"), 1 | 10) {
+        tutorial::team_exp(db, s, a, base_exp, &mut clear_exp).await?;
+    }
     let mut out = rewards(db, s, a, reward).await?;
+    out["ExpResult"] = json!(clear_exp.team_exp.first());
     out["CampaignResults"] = json!([p]);
     out["HeroExpResults"] = json!(hero_exp);
     out["FlaskResults"] = json!(flasks);

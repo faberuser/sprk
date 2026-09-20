@@ -44,38 +44,24 @@ fn parse_set_equip_request(body: &str) -> SetEquipRequest {
         }
     }
     
-    // Fall back to form parsing
-    use std::collections::HashMap;
-    let params: HashMap<String, String> = body
-        .split('&')
-        .filter_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => {
-                    let decoded = urlencoding::decode(value)
-                        .map(|s| s.into_owned())
-                        .unwrap_or_else(|_| value.to_string());
-                    Some((key.to_string(), decoded))
-                }
-                _ => None,
-            }
-        })
-        .collect();
-
-    // Client sends SessionKey, not SessionId
+    // WWWForm repeats each array field; preserve the item/part pairing and order.
+    let params = match crate::api::system::request::Request::parse_with_arrays(
+        body.as_bytes(), &["HeroPartIndex", "EquipItemSlotIndex"],
+    ) {
+        Ok(req) => req.0,
+        Err(_) => return SetEquipRequest { session_id: None, hero_index: None,
+            hero_part_index: None, equip_item_slot_index: None },
+    };
+    let array = |key: &str| -> Option<Vec<i32>> {
+        let values: Vec<serde_json::Value> = serde_json::from_str(params.get(key)?).ok()?;
+        values.iter().map(|v| v.as_i64().and_then(|n| i32::try_from(n).ok())
+            .or_else(|| v.as_str()?.parse().ok())).collect()
+    };
     SetEquipRequest {
         session_id: params.get("SessionKey").or(params.get("SessionId")).cloned(),
         hero_index: params.get("HeroIndex").and_then(|v| v.parse().ok()),
-        hero_part_index: params.get("HeroPartIndex").and_then(|v| {
-            // Try as JSON array first, then as single value
-            serde_json::from_str(v).ok()
-                .or_else(|| v.parse::<i32>().ok().map(|i| vec![i]))
-        }),
-        equip_item_slot_index: params.get("EquipItemSlotIndex").and_then(|v| {
-            // Try as JSON array first, then as single value
-            serde_json::from_str(v).ok()
-                .or_else(|| v.parse::<i32>().ok().map(|i| vec![i]))
-        }),
+        hero_part_index: array("HeroPartIndex"),
+        equip_item_slot_index: array("EquipItemSlotIndex"),
     }
 }
 
@@ -85,7 +71,7 @@ pub async fn set_equip(
     body: Bytes,
 ) -> Result<Json<SetEquipResponse>> {
     let body_str = String::from_utf8_lossy(&body);
-    tracing::info!("SetEquip request: {}", body_str);
+
     
     let req = parse_set_equip_request(&body_str);
     

@@ -45,6 +45,10 @@ def main():
     data['AttendanceInfo'] = rows('AttendanceInfoTable', arrays=['ConditionValue1'])
     data['Chapters'] = rows('CampaignChapterTable')
     data['MissionCategories'] = rows('MissionCategoryTable')
+    mission_pool = string_pool(a.jit/'MissionCategoryTable.jit')
+    for r in data['MissionCategories']:
+        r['OpenConditionName'] = mission_pool[r['OpenConditionType']]
+        r['OpenConditionArgs'] = [mission_pool[x].strip() for x in r['OpenConditionValue'] or []]
     data['MissionVisuals'] = rows('MissionVisualTable')
     (Path(__file__).resolve().parents[1]/'tables/ProgressionSupport.json').write_text(json.dumps(data,separators=(',',':'))+'\n',encoding='utf-8')
     print({k:len(v) for k,v in data.items()})

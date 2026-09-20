@@ -580,6 +580,10 @@ pub async fn skip_tutorial(
     let mut tx = state.db.begin().await?;
     sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
         .bind(account_id).execute(&mut *tx).await?;
+    // Skipping suppresses the World Tree story battle, but the path to 1-18
+    // still requires its completion flag. Grant no battle clears or rewards.
+    sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, 14000, 1, datetime('now')) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
+        .bind(account_id).execute(&mut *tx).await?;
     // A skipped introduction still needs the basic party to play campaign battles.
     let mut rewards = Rewards::default();
     for index in 1..=4 {

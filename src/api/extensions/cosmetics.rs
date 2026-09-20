@@ -216,7 +216,16 @@ pub(super) fn positions(raw: &str) -> Result<Vec<(i64, Value)>> {
     if raw.len() > 16384 {
         return Err(rule("InvalidCostume"));
     }
-    let value: Value = serde_json::from_str(raw).map_err(|_| rule("InvalidCostume"))?;
+    // RequestInternal calls WWW.EscapeURL before WWWForm encodes the body.
+    // Form parsing removes the outer layer; native position JSON still has one.
+    // Parse plain JSON first so already-decoded values are never decoded twice.
+    let value: Value = match serde_json::from_str(raw) {
+        Ok(value) => value,
+        Err(_) => {
+            let decoded = urlencoding::decode(raw).map_err(|_| rule("InvalidCostume"))?;
+            serde_json::from_str(&decoded).map_err(|_| rule("InvalidCostume"))?
+        }
+    };
     // BaseJsonMarshaler encodes integer-keyed dictionaries as JSON objects.
     let object = value.as_object().ok_or_else(|| rule("InvalidCostume"))?;
     if object.len() > 6 {
@@ -237,7 +246,11 @@ pub(super) fn positions(raw: &str) -> Result<Vec<(i64, Value)>> {
             "RotationZ",
             "Scale",
         ] {
-            let number = v[field].as_f64().ok_or_else(|| rule("InvalidCostume"))?;
+            // The native JSON marshaler emits floats with ToString().
+            let number = v[field]
+                .as_f64()
+                .or_else(|| v[field].as_str().and_then(|s| s.parse::<f64>().ok()))
+                .ok_or_else(|| rule("InvalidCostume"))?;
             if !number.is_finite() || (field == "Scale" && number <= 0.0) {
                 return Err(rule("InvalidCostume"));
             }
@@ -245,4 +258,38 @@ pub(super) fn positions(raw: &str) -> Result<Vec<(i64, Value)>> {
         out.push((id, v.clone()));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accessory_positions_accept_native_strings_and_validate_values() {
+        for text in [false, true] {
+            let mut position = json!({"PositionX":0.25,"PositionY":-1,"PositionZ":0,
+                "RotationX":0,"RotationY":90,"RotationZ":0,"Scale":1});
+            if text {
+                for value in position.as_object_mut().unwrap().values_mut() {
+                    *value = json!(value.to_string());
+                }
+            }
+            let raw = json!({"3100013":position}).to_string();
+            assert!(positions(&raw).is_ok());
+            let escaped = urlencoding::encode(&raw);
+            assert!(positions(&escaped).is_ok());
+            // More than the single remaining native escape layer is invalid.
+            assert!(positions(&urlencoding::encode(&escaped)).is_err());
+            for invalid in [json!("NaN"), json!("inf"), json!("garbage"), json!(null), json!(true)] {
+                let mut bad = position.clone();
+                bad["PositionX"] = invalid;
+                assert!(positions(&json!({"3100013":bad}).to_string()).is_err());
+            }
+            for invalid in [json!(0), json!(-1), json!("0"), json!("-1")] {
+                let mut bad = position.clone();
+                bad["Scale"] = invalid;
+                assert!(positions(&json!({"3100013":bad}).to_string()).is_err());
+            }
+        }
+    }
 }

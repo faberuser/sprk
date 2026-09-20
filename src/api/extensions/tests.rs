@@ -357,6 +357,45 @@ async fn costume_unlocks_reject_forged_prices_and_survive_reconnect() {
     let r = call(&s, &u, "reset_all_customizing_costumes", "HeroIndex=1").await;
     assert_eq!(r["HeroCostumeResult"]["HairCostumeIndex"], 0);
 }
+
+#[tokio::test]
+async fn accessory_sale_charges_existing_price_and_persists_without_double_charge() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let data = row(&s, "AccessoryCostume", &[("Index", 3100013)]).unwrap();
+    assert_eq!(data["IsBuy"], true);
+    let price = n(data, "ReqBuyGem");
+    assert_eq!(price, 500); // Preserve the table price, not the unpriced fallback.
+    // JM_NShared_PositionInfo serializes all coordinates as strings.
+    let pos = json!({"3100013":{"PositionX":"0","PositionY":"0","PositionZ":"0",
+        "RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}});
+    // RequestInternal escapes values before WWWForm escapes them again.
+    let escaped = urlencoding::encode(&pos.to_string()).into_owned();
+    let wire = urlencoding::encode(&escaped);
+    let args = format!("HeroIndex=1&AccessoryCostumePositionInfo={wire}&BuyGold=0&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0");
+    let wrong = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=1")).await;
+    assert_ne!(wrong["Result"], "Success");
+    let key = cosmetics::accessory_key(1, 3100013).unwrap();
+    assert!(get(&mut *s.db.acquire().await.unwrap(), a, "accessory", key).await.unwrap().is_null());
+    let bought = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem={price}")).await;
+    assert_eq!(bought["Result"], "Success", "{bought}");
+    let again = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
+    assert_eq!(again["Result"], "Success", "{again}");
+    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 100000 - price as i32);
+    assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3100013));
+    // The body accessory from the reported failure uses the same wire format.
+    let body_pos = pos.to_string().replace("3100013", "3110025");
+    let escaped = urlencoding::encode(&body_pos).into_owned();
+    let wire = urlencoding::encode(&escaped);
+    let bought = call(&s, &login, "hero/buy_customizing_costumes",
+        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
+    assert_eq!(bought["Result"], "Success", "{bought}");
+    assert_eq!(bought["HeroCostumeResultInfo"]["AccessoryCostumeIndex4"], 3110025);
+    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 100000 - price as i32 - 10000);
+    assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
+}
 #[tokio::test]
 async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     let (s, u) = setup().await;

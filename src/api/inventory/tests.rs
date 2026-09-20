@@ -1135,3 +1135,26 @@ async fn soul_stone_selectors_use_stackable_response_and_cannot_fake_equipment()
     assert_eq!(count(&state, &u, 5044).await, 0);
     assert_eq!(count(&state, &u, 111001).await, 1);
 }
+
+#[tokio::test]
+async fn auto_equip_preserves_all_native_slot_pairs() {
+    let (state, u) = setup().await;
+    let mut slots = vec![];
+    for item in [50001, 60001, 70002, 80002] {
+        let slot = sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES (?,?)")
+            .bind(u.user_info.account_id).bind(item).execute(&state.db).await.unwrap().last_insert_rowid();
+        slots.push(slot);
+    }
+    let mut args = "HeroIndex=1".to_string();
+    for (part, slot) in [0,1,2,3].iter().zip(&slots) {
+        args += &format!("&HeroPartIndex={part}&EquipItemSlotIndex={slot}");
+    }
+    let response = super::equip::set_equip(State(state.clone()), form(&u, &args)).await.unwrap().0;
+    assert_eq!(response.result, "Success");
+    assert_eq!(response.equipped_slot_index, slots.iter().map(|v| *v as i32).collect::<Vec<_>>());
+    let saved: (i64,i64,i64,i64) = sqlx::query_as("SELECT equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4 FROM heroes WHERE account_id=? AND hero_index=1")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(saved,(slots[0],slots[1],slots[2],slots[3]));
+    let malformed = args + "&HeroPartIndex=4";
+    assert!(super::equip::set_equip(State(state.clone()), form(&u, &malformed)).await.is_err());
+}

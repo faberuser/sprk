@@ -206,6 +206,7 @@ pub struct LoginResponse {
     #[serde(rename = "freeEquipGachaInfos")]
     pub free_equip_gacha_infos: Vec<serde_json::Value>,
     pub equip_gacha_infos: Vec<serde_json::Value>,
+    #[serde(rename = "chapterRewardInfos")]
     pub chapter_reward_infos: Vec<serde_json::Value>,
     pub class_buff_point_infos: Vec<serde_json::Value>,
     pub class_buff_infos: Vec<serde_json::Value>,

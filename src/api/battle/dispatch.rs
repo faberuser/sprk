@@ -150,6 +150,7 @@ pub(super) async fn execute(
             return Err(rule("NotEnoughCurrency"));
         }
     }
+    out["TeamExpResult"] = out["ExpResult"].clone();
     info["State"] = json!(if cancel { "Cancel" } else { "Complete" });
     info["WinCount"] = json!(count);
     info["CompleteTime"] = json!(time(now()));

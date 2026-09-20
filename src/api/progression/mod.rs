@@ -95,6 +95,12 @@ pub(crate) async fn snapshot(
         "NewbieMissionInfos":view.claims.iter().filter(|c|c.0=="newbie").map(|c|json!({"MissionIndex":c.1,"UpdateTime":c.4})).collect::<Vec<_>>(),
         "ChapterRewardInfos":chapter.into_iter().map(|(id,mask)|json!({"ChapterIndex":id,"LastRewardDiff":mask})).collect::<Vec<_>>(),
         "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":view.claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
+    out["OpendMissionCategories"] = json!(state.tables.progression.mission_categories.iter().filter(|r| {
+        n(r, "OpenConditionType") == 0 ||
+        (r["OpenConditionName"] == "ClearQuestIndex" && r["OpenConditionArgs"][0] == "SubQuest"
+         && r["OpenConditionArgs"][1].as_str().and_then(|s| s.parse::<i64>().ok())
+             .is_some_and(|id| view.last("subquest", id, "all") > 0))
+    }).map(|r| json!({"MainCategoryIndex":r["MainCategoryIndex"],"SubCategoryIndex":r["SubCategoryIndex"]})).collect::<Vec<_>>());
     let main: Option<(i64, i64)> =
         sqlx::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=?")
             .bind(account)
@@ -124,7 +130,7 @@ pub(crate) async fn snapshot(
     Ok(out)
 }
 pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
-    let req = Request::parse(&body)?;
+    let req = Request::parse_with_arrays(&body, &["AchievementIndices", "Steps", "SubQuestIndices"])?;
     let account = req.account(&state)?;
     let mut tx = state.db.begin().await?;
     item::init(&mut tx, &state, account).await?;
@@ -297,7 +303,10 @@ async fn achievement_reward(
     Ok(stamina)
 }
 fn arrays(req: &Request, key: &str) -> Result<Vec<i64>> {
-    let v: Vec<i64> = serde_json::from_str(req.text(key)).map_err(|_| rule("InvalidStep"))?;
+    let raw: Vec<Value> = serde_json::from_str(req.text(key)).map_err(|_| rule("InvalidStep"))?;
+    let v: Vec<i64> = raw.iter().map(|v| v.as_i64()
+        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        .ok_or_else(|| rule("InvalidStep"))).collect::<Result<_>>()?;
     if v.is_empty() || v.len() > 100 {
         return Err(rule("InvalidStep"));
     }
@@ -327,14 +336,18 @@ async fn execute(
             let mut rewards = Rewards::default();
             let mut stamina = vec![];
             let mut booster = None;
-            for (id, step) in ids.into_iter().zip(steps) {
+            for (id, last_step) in ids.into_iter().zip(steps) {
+                // Native GetStepArray sends AchievementInfo.LastStep, not the
+                // next reward step. Match it against saved state before advancing.
+                let step = last_step.checked_add(1).filter(|_| last_step >= 0)
+                    .ok_or_else(|| rule("InvalidStep"))?;
                 let row = table
                     .achievements
                     .iter()
                     .find(|r| n(r, "Index") == id && n(r, "Step") == step)
                     .ok_or_else(|| rule("InvalidAchievementIndex"))?;
                 let p = period(row);
-                if view.last("achievement", id, &p) + 1 != step {
+                if view.last("achievement", id, &p) != last_step {
                     return Err(rule("InvalidStep"));
                 }
                 if matches!(n(row, "Type"), 3 | 7 | 8 | 9) || !view.condition(&row["OpenCondition"])
@@ -368,8 +381,8 @@ async fn execute(
                 .collect::<Vec<_>>());
         }
         "complete_sub_quest" => {
-            let ids = req.ids("SubQuestIndices")?;
-            if ids.is_empty() {
+            let ids = arrays(req, "SubQuestIndices")?;
+            if ids.iter().any(|id| *id <= 0) || ids.iter().collect::<BTreeSet<_>>().len() != ids.len() {
                 return Err(rule("Fail"));
             }
             let mut infos = vec![];

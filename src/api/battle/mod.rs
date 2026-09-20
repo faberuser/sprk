@@ -339,6 +339,9 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
     let mut out = item::reward_response(db, s, a, r).await?;
     out["EquipItemInfos"] = out["EquipItemResults"].clone();
     out["HeroExpResults"] = json!([]);
+    // EndCampaign consumes these fields, not RewardResultInfo.ExpResultInfos.
+    // Recruitment EXP remains separate so the battle reward UI applies it once.
+    out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
     Ok(out)
 }
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {

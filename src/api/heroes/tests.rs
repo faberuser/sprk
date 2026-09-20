@@ -243,8 +243,11 @@ async fn costume_purchase_equip_presets_and_avatar_survive_relogin() {
         .0["Result"],
         "Success"
     );
-    let req = format!("HeroIndex=1&CostumeIndex={id}&BuyGem={cost}&BuyGold=0&BuyMileage=0");
+    // Native client repeats the selected price in every currency field.
+    let req = format!("HeroIndex=1&CostumeIndex={id}&BuyGem={cost}&BuyGold={cost}&BuyMileage={cost}");
     let before = balance(&s, &u, "gem").await;
+    let gold_before = balance(&s, &u, "gold").await;
+    let mileage_before = balance(&s, &u, "mileage").await;
     let r = hero::buy_costume(State(s.clone()), form(&u, &req))
         .await
         .unwrap()
@@ -252,6 +255,8 @@ async fn costume_purchase_equip_presets_and_avatar_survive_relogin() {
     assert_eq!(r["Result"], "Success");
     assert_eq!(r["HeroCostumeResult"]["CostumeIndex"], id);
     assert_eq!(balance(&s, &u, "gem").await, before - cost);
+    assert_eq!(balance(&s, &u, "gold").await, gold_before);
+    assert_eq!(balance(&s, &u, "mileage").await, mileage_before + item::n(&c, "Mileage"));
     assert_eq!(
         hero::buy_costume(State(s.clone()), form(&u, &req))
             .await
@@ -303,6 +308,7 @@ async fn costume_wrong_hero_free_default_and_price_forgery_do_not_charge() {
     let before = balance(&s, &u, "gem").await;
     for req in [
         format!("HeroIndex=1&CostumeIndex={id}&BuyGem=1"),
+        format!("HeroIndex=1&CostumeIndex={id}&BuyGem=1&BuyGold=3000&BuyMileage=3000"),
         format!("HeroIndex=2&CostumeIndex={id}&BuyGem=3000"),
         "HeroIndex=1&CostumeIndex=101&BuyGem=0".into(),
     ] {

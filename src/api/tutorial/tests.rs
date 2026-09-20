@@ -235,6 +235,7 @@ async fn skip_persists_without_overwriting_owned_heroes() {
         .unwrap();
     let current = login(&state).await;
     assert!(current.is_tutorial_skip);
+    assert!(current.tutorials.iter().any(|t| t.tutorial_index == 14000));
     assert_eq!(current.heroes.len(), 4);
     assert_eq!(
         current
@@ -269,6 +270,9 @@ async fn migration_preserves_legacy_skip_and_new_account_opt_in() {
     let legacy: bool = sqlx::query_scalar("SELECT is_skipped FROM tutorial_settings WHERE account_id = (SELECT account_id FROM accounts WHERE login_id = 'legacy')").fetch_one(&state.db).await.unwrap();
     assert!(legacy);
     assert!(!login(&state).await.is_tutorial_skip);
+    let gates: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM tutorial_progress WHERE tutorial_index = 14000 AND is_completed = 1")
+        .fetch_all(&state.db).await.unwrap();
+    assert!(gates.is_empty());
     sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, 10001, 1, '2025-01-01 00:00:00')")
         .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
     let response = complete(&state, &first.user_info.session_key, 10001).await;

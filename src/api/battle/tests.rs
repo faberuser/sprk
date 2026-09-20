@@ -67,6 +67,7 @@ async fn unity_repeated_form_fields_preserve_the_campaign_party() {
     let result = call(&s, &u, "campaign/end_campaign", end).await;
     assert_eq!(result["Result"], "Success", "{result}");
     assert_eq!(result["HeroExpResults"].as_array().unwrap().len(), 4);
+    assert_eq!(result["ExpResultsByGetHero"], result["ExpResultInfos"]);
     let progress = campaign::progress(&mut *s.db.acquire().await.unwrap(), &s, account(&u), 1, 1).await.unwrap();
     assert_eq!(progress["MaxStar"], 13);
     let single = call(&s, &u, "campaign/begin_campaign", &ENTRY.replace("[1]", "1")).await;
@@ -1014,4 +1015,48 @@ async fn selected_rewards_require_completion_and_validate_choices() {
         call(&s, &u, "campaign/get_selected_reward", &args).await["Result"],
         "Success"
     );
+}
+
+#[tokio::test]
+async fn campaign_rewards_expose_raider_exp_in_native_response_fields() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let before: (i32, i64) = sqlx::query_as("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    let mut grant = Rewards::default();
+    grant.team_exp_to_add = 1000;
+    let response = rewards(&mut *s.db.acquire().await.unwrap(), &s, a, grant).await.unwrap();
+    let changes = response["ExpResultsByGetHero"].as_array().unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0]["AddValue"], 1000);
+    assert_eq!(changes[0]["OldLevel"], before.0);
+    let saved: (i32, i64) = sqlx::query_as("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(changes[0]["NewLevel"], saved.0);
+    assert_eq!(changes[0]["NewValue"], saved.1);
+    assert_eq!(response["HeroExpResults"], json!([]));
+    let empty = rewards(&mut *s.db.acquire().await.unwrap(), &s, a, Rewards::default()).await.unwrap();
+    assert_eq!(empty["ExpResultsByGetHero"], json!([]));
+}
+
+#[tokio::test]
+async fn campaign_clear_awards_base_hero_exp_to_team_once_and_persists() {
+    let (s, u) = setup().await;
+    let before = balance(&s, "team_exp").await;
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+    let end = call(&s,&u,"campaign/end_campaign",END).await;
+    assert_eq!(end["Result"],"Success");
+    assert_eq!(end["ExpResult"]["AddValue"], end["HeroExpResults"][0]["AddValue"]);
+    assert!(n(&end["ExpResult"],"AddValue") > 0);
+    assert_eq!(n(&end["ExpResult"],"NewValue"),before+n(&end["ExpResult"],"AddValue"));
+    let saved = balance(&s,"team_exp").await;
+    assert_eq!(saved,n(&end["ExpResult"],"NewValue"));
+    assert_ne!(call(&s,&u,"campaign/end_campaign",END).await["Result"],"Success");
+    assert_eq!(balance(&s,"team_exp").await,saved);
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+    let failed=call(&s,&u,"campaign/end_campaign",&END.replace("Completed=true&Star=3","Completed=false&Star=0")).await;
+    assert_eq!(failed["Result"],"Success");
+    assert_eq!(balance(&s,"team_exp").await,saved);
+    let login=user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
+    assert_eq!(login.user_info.team_exp as i64,saved);
 }
