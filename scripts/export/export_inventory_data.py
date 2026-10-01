@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('decoded', type=Path)
     parser.add_argument('jit', type=Path)
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'tables' / 'InventorySupport.json')
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2] / 'tables' / 'InventorySupport.json')
     args = parser.parse_args()
     def read(name):
         return json.loads((args.decoded / (name + '.json')).read_text(encoding='utf-8'))

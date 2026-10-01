@@ -13,9 +13,10 @@ Raid RaidMultiInfo PunishmentRaid PunishmentRaidReward PunishmentRaidTrigger Sha
 EclipseStart EclipseReward OrdealArenaTier OrdealArenaNode OrdealArenaEvent OrdealArenaBuff
 OrdealArenaRewardArea OrdealArenaRewardRating WorldBoss EventWorldBoss EventWorldBossSeason
 ChallengeRaid WorldBossDailyAchievement WorldBossReward WorldBossScoreReward ChallengeRaidReward
-ChallengeRaidClearReward EventDungeon EventDungeonGroup SelectReward BanRule CurrencyType PunishmentGroup'''.split()
+ChallengeRaidClearReward EventDungeon EventDungeonGroup SelectReward BanRule CurrencyType PunishmentGroup
+KarmaDungeon KarmaGaugeExponential KarmaReward KarmaRewardExponential ShardFlaskItem'''.split()
 FAMILIES = '''campaign sweep dispatch maze_tower dow_dungeon under_prison treasure_house godking_trial
-eclipse ordeal_arena punishment_raid shakmeh_dungeon party_dungeon raid world_boss event_world_boss'''.split()
+eclipse ordeal_arena punishment_raid shakmeh_dungeon party_dungeon raid world_boss event_world_boss contents'''.split()
 
 def keyed_schema(client, name):
     path = client / 'NShared' / (name + '.cs')
@@ -36,7 +37,7 @@ def main():
     parser.add_argument('--profile', choices=['battle', 'arena-guild'], default='battle')
     args = parser.parse_args()
     arena_guild = args.profile == 'arena-guild'
-    names = ('''MatchTier MatchSeason MatchReward MatchBanPickSeason LuckyArenaReward
+    names = ('''MatchTier GlobalBanPickTier MatchSeason MatchReward MatchBanPickSeason LuckyArenaReward
 GuildLevel GuildPenalty GuildContributeReward GuildAttendanceReward GuildSkill GuildSkillLevel GuildBuilding
 GuildRaidChapter GuildRaidDungeon GuildRaidChapterReward GuildRaidBonusDungeon GuildRaidDummyDungeon
 GuildArenaTier GuildArenaSeason GuildArenaSeasonReward GuildArenaServerBuffReward
@@ -47,7 +48,7 @@ GuildSuppressGlobalReward GuildSuppressServerReward'''.split() if arena_guild el
     for name in names:
         rows = json.loads((args.decoded / (name+'Table.json')).read_text(encoding='utf-8'))
         pool = string_pool(args.jit / (name+'Table.jit'))
-        schema_name = {'MatchBanPickSeason':'MatchSeason', 'GuildRaidDummyDungeon':'GuildRaidDungeon',
+        schema_name = {'GlobalBanPickTier':'MatchTier', 'MatchBanPickSeason':'MatchSeason', 'GuildRaidDummyDungeon':'GuildRaidDungeon',
                        'GuildSuppressGlobalReward':'GuildSuppressReward', 'GuildSuppressServerReward':'GuildSuppressReward',
                        'GuildSuppressTotalReward':'GuildSuppressReward'}.get(name, name)
         schema = keyed_schema(args.client, schema_name+'Data') if arena_guild else {}
@@ -68,6 +69,15 @@ GuildSuppressGlobalReward GuildSuppressServerReward'''.split() if arena_guild el
                 elif 'Code' in key and isinstance(value, list): row[key] = [pool[v] for v in value]
                 elif (name == 'BanRule' and key.startswith('BanValue') or name == 'TowerFloor' and key == 'OpenTime') and isinstance(value,int): row[key] = pool[value]
         data[name] = rows
+    if not arena_guild:
+        eclipse_stages = {(r['ChapterIndex'], r['DungeonIndex']) for r in data['CampaignDungeon'] if r['BattleType'] == 36}
+        waves = json.loads((args.decoded / 'CampaignWaveTable.json').read_text(encoding='utf-8'))
+        data['EclipseWave'] = [{k: r[k] for k in ('ChapterIndex', 'DungeonIndex', 'Difficulty', 'Scenario', 'WaveIndex', 'Level')}
+                               for r in waves if (r['ChapterIndex'], r['DungeonIndex']) in eclipse_stages]
+        karma_stages = {(r['ChapterIndex'], r['DungeonIndex']) for r in data['KarmaDungeon']}
+        data['KarmaWave'] = [dict({k: r[k] for k in ('ChapterIndex', 'DungeonIndex', 'Difficulty', 'Scenario', 'WaveIndex')},
+                                 MonsterCount=len(r.get('field_30') or []) + len(r.get('field_31') or []))
+                             for r in waves if (r['ChapterIndex'], r['DungeonIndex']) in karma_stages]
     creatures=json.loads((args.decoded/'CreatureTable.json').read_text(encoding='utf-8'))
     pool=string_pool(args.jit/'CreatureTable.jit')
     data['BattleHero']=[{'Index':r['Index'],'CodeName':pool[r['CodeName']],'TagType':r['TagType'],'AttrType':r['AttrType']} for r in creatures if r.get('PlayableCharacter')]
@@ -98,7 +108,7 @@ GuildSuppressGlobalReward GuildSuppressServerReward'''.split() if arena_guild el
             'Results': re.findall(r'^\s*(\w+)(?:\s*=\s*\d+)?,?\s*$', result, re.M),
             'Response': dict((key,typ) for typ,key in re.findall(r'public ([\w.<>\[\], ?]+) (\w+)\s*\{\s*get', response))
         }
-    target = Path(__file__).resolve().parents[1]/'tables'/('ArenaGuildSupport.json' if arena_guild else 'BattleSupport.json')
+    target = Path(__file__).resolve().parents[2]/'tables'/('ArenaGuildSupport.json' if arena_guild else 'BattleSupport.json')
     target.write_text(json.dumps({'Tables':data,'Contracts':contracts,'Enums':enums}, separators=(',',':'))+'\n',encoding='utf-8')
     print(f'Exported {len(data)} tables and {len(contracts)} contracts')
 

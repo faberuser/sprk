@@ -1,0 +1,20 @@
+{
+  "description": "From campaign dungeon info with an existing valid deck. Uses actual native combat; outcome must reach the victory screen.",
+  "steps": [
+    {"action":"snapshot"},
+    {"action":"clear-errors"},
+    {"action":"click","selector":"Get Ready for Battle"},
+    {"action":"wait-ui","contains":"Button_StartBattle"},
+    {"action":"click","selector":"Start Battle"},
+    {"action":"wait-ui","contains":"StartBattleOnce/Button"},
+    {"action":"click","selector":"Game UI Root/Contents Group/BattleSelectPopup(Clone)/Panel/Root/Grid/StartBattleOnce/Button"},
+    {"action":"wait-ui","contains":"EndBattleWin(Clone)","timeout":300},
+    {"action":"wait","seconds":3},
+    {"action":"screenshot"},
+    {"action":"press","selector":"Game UI Root/Contents Group/EndBattleWin(Clone)/Panel/Root/FullscreenTouch"},
+    {"action":"wait","seconds":2},
+    {"action":"wait-ui","contains":"EndBattleReward(Clone)"},
+    {"action":"snapshot"},
+    {"action":"assert-no-errors"}
+  ]
+}

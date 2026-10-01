@@ -471,12 +471,18 @@ async fn awakening_requires_challenge_battle_purification_then_consumes_essence_
             .await
             .is_err()
     );
+    let next = s.tables.hero_shop.stars.iter()
+        .find(|v| v["Star"] == 2 && v["Transcended"] == 0).unwrap();
+    let amount = item::n(next, "PurifyAmount1");
+    let expected_cost = ((1000 + amount - 1) / amount) * item::n(next, "Gold");
+    let gold_before = balance(&s, &u, "gold").await;
     let r = hero::max_purify_hero(State(s.clone()), form(&u, "HeroIndex=1"))
         .await
         .unwrap()
         .0;
     assert_eq!(r["Result"], "Success");
     assert_eq!(r["PurifyResult"]["NewValue"], 1000);
+    assert_eq!(balance(&s, &u, "gold").await, gold_before - expected_cost);
     assert_eq!(count(&s, &u, essence).await, 1);
     let r = hero::upgrade_hero_star(State(s.clone()), form(&u, "HeroIndex=1"))
         .await
@@ -1129,4 +1135,29 @@ async fn inn_recruitment_uses_table_star_account_local_ids_and_cannot_duplicate_
     );
     assert!(r["HeroResult"]["TeamExpResult"].is_object());
     assert_eq!(login(&s).await.heroes.len(), 3);
+}
+
+
+#[tokio::test]
+async fn fallen_heroes_accept_native_items_but_recruit_at_base_progression() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE user_info SET gem=20000,pay_gem=0,mileage=0 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let wrong=hero::buy_hero(State(s.clone()),form(&u,"HeroIndex=84&ItemIndex=1008510&BuyGem=6000")).await.unwrap().0;
+    assert_eq!(wrong["Result"],"InvalidItemIndex");
+    for (id,item) in [(84,1008410),(85,1008510)] {
+        let bad=hero::buy_hero(State(s.clone()),form(&u,&format!("HeroIndex={id}&ItemIndex={item}&BuyGem=1"))).await.unwrap().0;
+        assert_eq!(bad["Result"],"InvalidPrice");
+        let req=format!("HeroIndex={id}&ItemIndex={item}&BuyGem=6000");
+        let r=hero::buy_hero(State(s.clone()),form(&u,&req)).await.unwrap().0;
+        assert_eq!(r["Result"],"Success","{r}");
+        let h=&r["HeroResult"]["HeroInfo"];
+        assert_eq!(h["HeroIndex"],id);
+        assert_eq!(h["Level"],1);
+        assert_eq!(h["Star"],5);
+        assert_eq!(h["Transcended"],0);
+        assert_eq!(hero::buy_hero(State(s.clone()),form(&u,&req)).await.unwrap().0["Result"],"HeroAlreadyExist");
+    }
+    assert_eq!(balance(&s,&u,"gem").await,8000);
+    assert_eq!(balance(&s,&u,"mileage").await,1200);
 }

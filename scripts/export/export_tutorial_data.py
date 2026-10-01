@@ -1,6 +1,6 @@
 """Export tutorial support data from a locally decoded client table directory.
 
-Usage: python scripts/export_tutorial_data.py PATH_TO_TableJit PATH_TO_TutorialTable.jit
+Usage: python scripts/export/export_tutorial_data.py PATH_TO_TableJit PATH_TO_TutorialTable.jit
 The exporter uses only the Python standard library; no client files are modified.
 """
 import argparse
@@ -42,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('decoded', type=Path)
     parser.add_argument('tutorial_jit', type=Path)
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'tables')
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2] / 'tables')
     args = parser.parse_args()
     def read(name):
         return json.loads((args.decoded / (name + '.json')).read_text(encoding='utf-8'))

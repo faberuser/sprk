@@ -5,6 +5,7 @@ pub(super) async fn ensure_available(
     party: &[i64],
     except: Option<i64>,
 ) -> Result<()> {
+    super::eclipse::ensure_available(db,a).await?;
     super::super::community::ensure_available(db,a,party).await?;
     for v in list(db, a, "dispatch").await? {
         if except == Some(n(&v, "SlotIndex"))
@@ -24,6 +25,9 @@ fn request(v: &Value) -> Request {
 }
 pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Vec<Value>> {
     let mut runs = list(db, a, "dispatch").await?;
+    // Native clients reserve every hero present in this snapshot, regardless of
+    // state. Keep terminal records in storage for duplicate-request protection.
+    runs.retain(|run| !matches!(run["State"].as_str(), Some("Complete" | "Cancel")));
     for run in &mut runs {
         if run["State"] == "Battle" && n(run, "FinishTimestamp") <= now() {
             run["State"] = json!("ReadyToComplete");
@@ -89,7 +93,7 @@ pub(super) async fn execute(
             return Err(rule("NotCompletedDungeon"));
         }
         let count = int(r, "RepeatCount")?;
-        if count < 1 || count > settings(s, "DispatchMaxRepeat", 100) {
+        if count < 1 || count > settings(s, "DispatchMaxRepeat", 200) {
             return Err(rule("InvalidCount"));
         }
         let existing = list(db, a, "dispatch").await?;

@@ -96,7 +96,7 @@ pub struct PlayerHeroFriendlyInfo {
 }
 
 /// Chapter dungeon info matching client's NShared.ChapterDungeonInfo
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChapterDungeonInfo {
     pub chapter_index: i32,
@@ -397,6 +397,8 @@ pub async fn login(
     // Store session in memory
     state.create_session(session_key.clone(), account_id, aes_key.clone());
 
+    crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
+
     // Fetch user info
     let user_info_row = sqlx::query(
         "SELECT * FROM user_info WHERE account_id = ?"
@@ -622,6 +624,9 @@ pub async fn login(
             current.scenario_complete=info["ScenarioComplete"].as_i64().unwrap_or(0) as i16;
             current.daily_completed_count=info["DailyCompletedCount"].as_i64().unwrap_or(0) as i32;
             current.reset_count=info["ResetCount"].as_i64().unwrap_or(0) as i32;
+        } else {
+            chapter_dungeons.push(serde_json::from_value(info.clone())
+                .map_err(|e|ServerError::Internal(e.to_string()))?);
         }
     }
     let mut live = crate::api::live::snapshot(&state,account_id).await?;
@@ -631,6 +636,9 @@ pub async fn login(
     live.as_object_mut().unwrap().remove("PetInfos");
     let supporting=crate::api::services::login(&state,account_id).await?;
     for(k,v)in supporting.as_object().unwrap(){live[k]=v.clone();}
+    for key in ["OpenPunishmentRaidInfos", "PunishmentRaidInfos"] {
+        live[key] = battle[key].clone();
+    }
     let response = LoginResponse {
         live,
         team_level_buff_infos,

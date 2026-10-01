@@ -61,7 +61,9 @@ pub async fn handle(
         .map(Json)
 }
 pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
-    let mut r = Request::parse(&body)?;
+    let mut r = if path.starts_with("match/") || path.starts_with("global_arena/") {
+        Request::parse_with_arrays(&body, &["HeroIndices", "AliveHeroIndices"])?
+    } else { Request::parse(&body)? };
     let a = r.account(s)?;
     let path = match path {
         "guild/info" => "guild/get_guildbasicinfo",
@@ -170,12 +172,15 @@ fn flag(r: &Request, k: &str) -> Result<bool> {
     }
 }
 fn ids(r: &Request, k: &str, max: usize) -> Result<Vec<i64>> {
-    let ids: Vec<i64> = serde_json::from_str(if r.text(k).is_empty() {
+    let values: Vec<Value> = serde_json::from_str(if r.text(k).is_empty() {
         "[]"
     } else {
         r.text(k)
     })
     .map_err(|_| rule("InvalidHero"))?;
+    let ids: Vec<i64> = values.iter().map(|v| v.as_i64()
+        .or_else(|| v.as_str().and_then(|s| s.parse().ok())).ok_or_else(|| rule("InvalidHero")))
+        .collect::<Result<_>>()?;
     if ids.len() > max
         || ids.iter().any(|v| *v <= 0 || *v > i32::MAX as i64)
         || ids.iter().collect::<BTreeSet<_>>().len() != ids.len()

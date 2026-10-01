@@ -218,7 +218,20 @@ pub(super) async fn execute(
                 pending[format!("EnchantOptionIndex{i}")] = json!(id);
                 pending[format!("EnchantOptionStep{i}")] = json!(step);
             }
-            equipment::pending(db, account, eq.slot_index, "valance_enchant", &pending).await?;
+            if eq.enchant_option_index_1 == 0 && eq.enchant_option_index_2 == 0 && eq.enchant_option_index_3 == 0 {
+                // The native first-enchant flow has no confirmation UI. Only
+                // replacing existing options creates a pending choice.
+                let mut value = json!(eq);
+                for i in 1..=3 {
+                    for field in ["Index", "Step"] {
+                        let key = format!("EnchantOption{field}{i}");
+                        value[&key] = pending[&key].clone();
+                    }
+                }
+                eq = serde_json::from_value(value).map_err(|_| rule("InvalidOption"))?;
+            } else {
+                equipment::pending(db, account, eq.slot_index, "valance_enchant", &pending).await?;
+            }
             out["CurrencyResult"] = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;
             out["ItemResultInfo"] = item::consume(db, account, item_id as i32, 1).await?;
             out["NewValanceEnchantOptionInfo"] = pending;
@@ -256,10 +269,10 @@ async fn craft(
         state,
         "ValanceCraft",
         &[
-            ("SetType", req.number("SetType", 0)?),
-            ("CreatureTagType", req.number("CreatureTagType", 0)?),
-            ("EquipPartType", req.number("PartType", 0)?),
-            ("EquipItemSubType", req.number("SubPartType", 0)?),
+            ("SetType", craft_enum(req, "SetType", &["None", "Gargoria", "Siegfried", "Ascalon"])?),
+            ("CreatureTagType", craft_enum(req, "CreatureTagType", &["None", "Warrior", "Archer", "Knight", "Wizard", "Priest", "Assassin", "Mechanic", "End"])?),
+            ("EquipPartType", craft_enum(req, "PartType", &["None", "Weapon", "Armor", "Accessory", "SecondGear", "Artifact", "Orb", "Treasure"])?),
+            ("EquipItemSubType", craft_enum(req, "SubPartType", &["SpecialWeapon", "Spear", "Sword", "Dagger", "Bow", "Cannon", "Staff", "HeavyArmor", "MediumArmor", "LightArmor", "Ring", "Earring", "Necklace", "Bracelet", "SpecialTreasure", "SpecialTreasure_1", "SpecialTreasure_2", "SpecialTreasure_3", "SpecialTreasure_4", "Treasure", "None"])?),
         ],
     )?;
     let chosen = ids(req, "SelectEquipOptionIndices")?;
@@ -278,18 +291,20 @@ async fn craft(
         return Err(rule("InvalidOption"));
     }
     let mut out = item::success();
+    let material_count = discounted_material(db, state, account, n(r, "MaterialItemCount"), 69).await?
+        + if chosen.is_empty() { 0 } else {
+            discounted_material(db, state, account, n(r, "AdditionalMaterialItemCount"), 70).await?
+        };
+    let sub_material_count = if chosen.is_empty() { 0 } else {
+        discounted_material(db, state, account, n(r, "SubMaterialItemCount"), 71).await?
+    };
     out["CurrencyResult"] = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;
     let mut removed = vec![
         item::consume(
             db,
             account,
             n(r, "MaterialItemIndex") as i32,
-            (n(r, "MaterialItemCount")
-                + if chosen.is_empty() {
-                    0
-                } else {
-                    n(r, "AdditionalMaterialItemCount")
-                }) as i32,
+            material_count as i32,
         )
         .await?,
     ];
@@ -299,7 +314,7 @@ async fn craft(
                 db,
                 account,
                 n(r, "SubMaterialItemIndex") as i32,
-                n(r, "SubMaterialItemCount") as i32,
+                sub_material_count as i32,
             )
             .await?,
         );
@@ -331,4 +346,35 @@ async fn craft(
     out["ItemResults"] = json!(removed);
     out["IsAdvanced"] = json!(n(meta(state, id)?, "EquipGrade") == 1);
     Ok(out)
+}
+
+// ValanceCraftWindow multiplies owned-hero discounts independently for base,
+// selected-option and sub-material costs, then rounds to 2 decimals and up.
+async fn discounted_material(db: &mut SqliteConnection, state: &AppState, account: i64, count: i64, kind: i64) -> Result<i64> {
+    let owned = sqlx::query("SELECT hero_index,star,transcend FROM heroes WHERE account_id=? ORDER BY hero_index")
+        .bind(account).fetch_all(&mut *db).await?;
+    let mut ratio = 1.0_f32;
+    for h in owned {
+        if let Some(bonus) = state.tables.hero_shop.hero_bonuses.iter().find(|v|
+            n(v,"HeroIndex") == h.get::<i64,_>("hero_index") &&
+            n(v,"HeroStar") == h.get::<i64,_>("star") &&
+            n(v,"HeroTranscended") == h.get::<i64,_>("transcend")) {
+            for i in 1..=5 {
+                if n(bonus,&format!("BonusType{i}")) == kind {
+                    let percent = bonus[format!("BonusValue{i}")][0].as_str()
+                        .and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+                    ratio *= 1.0 - percent.clamp(0,100) as f32 * 0.01;
+                }
+            }
+        }
+    }
+    Ok((((count as f32 * ratio) as f64 * 100.0).round_ties_even() / 100.0).ceil() as i64)
+}
+
+fn craft_enum(req: &Request, key: &str, names: &[&str]) -> Result<i64> {
+    if let Some(index) = names.iter().position(|name| *name == req.text(key)) {
+        Ok(index as i64)
+    } else {
+        req.number(key, 0)
+    }
 }

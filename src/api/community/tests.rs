@@ -180,6 +180,32 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
     assert_ne!(blocked["Result"], "Success");
 }
 #[tokio::test]
+async fn arena_honor_rank_is_separate_from_victory_and_combat_stays_gated() {
+    let s = setup().await;
+    let u = login(&s, "honor-ranker").await;
+    let a = n(&u["UserInfo"], "AccountId");
+    sqlx::query("UPDATE arena_scores SET score=1600,wins=7 WHERE account=? AND kind=0")
+        .bind(a).execute(&s.db).await.unwrap();
+    let honor = call(&s, &u, "match/get_match_rank", "ArenaType=BanPick").await;
+    assert_eq!(honor["Result"], "Success", "{honor}");
+    assert!(honor["BattleInfo"].is_null());
+    assert_eq!(honor["BattleBanPickInfo"]["MatchScore"], 1000);
+    assert_eq!(honor["BattleBanPickInfo"]["SeasonWin"], 0);
+    let tier = n(&honor["BattleBanPickInfo"], "TierIndex");
+    assert!(s.tables.arena_guild.rows("GlobalBanPickTier").iter().any(|v| n(v, "Index") == tier));
+    sqlx::query("UPDATE arena_scores SET score=1234,wins=2 WHERE account=? AND kind=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    let ranks = call(&s, &u, "global_arena/get_world_ranker", "ArenaType=BanPick&StartRank=0&EndRank=0").await;
+    assert_eq!(ranks["Rankers"][0]["MatchScore"], 1234, "{ranks}");
+    let normal = call(&s, &u, "match/get_match_rank", "ArenaType=Normal").await;
+    assert_eq!(normal["BattleInfo"]["MatchScore"], 1600);
+    assert_eq!(normal["BattleInfo"]["SeasonWin"], 7);
+    assert_ne!(call(&s, &u, "match/register_match", "ArenaType=BanPick&HeroIndices=1").await["Result"], "Success");
+    let relogged = login(&s, "honor-ranker").await;
+    let honor = call(&s, &relogged, "match/get_match_rank", "ArenaType=BanPick").await;
+    assert_eq!(honor["BattleBanPickInfo"]["MatchScore"], 1234);
+}
+#[tokio::test]
 async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     let s = setup().await;
     let u = login(&s, "arena-one").await;
@@ -189,13 +215,17 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
         call(&s, &u, "match/set_offline_match_result", end).await["Result"],
         "Success"
     );
-    let entry = "ArenaType=Normal&HeroIndices=[1]&LeaderHeroIndex=1";
+    let entry = "ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1";
     let first = call(&s, &u, "match/register_match", entry).await;
     assert_eq!(first["Result"], "Success", "{first}");
     assert_eq!(call(&s, &u, "match/register_match", entry).await, first);
     let wait = call(&s, &u, "match/wait_match", "PlayOfflineMatch=true").await;
     assert_eq!(wait["Result"], "WaitMore", "{wait}");
     assert_eq!(wait["SwordResult"]["AddValue"], -1);
+    // Replay creation dereferences the opponent's battle snapshot after combat.
+    assert_eq!(wait["MatchedNpcInfo"]["BattleInfo"]["MatchScore"], 1000);
+    assert!(wait["MatchedNpcInfo"]["TierIndex"].as_i64().unwrap() > 0);
+    assert_eq!(wait["MatchedNpcInfo"]["TierIndex"], wait["MatchedNpcInfo"]["BattleInfo"]["TierIndex"]);
     assert_eq!(
         call(&s, &u, "match/wait_match", "PlayOfflineMatch=true").await,
         wait
@@ -219,6 +249,17 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     );
     let u = login(&s, "arena-one").await;
     assert_eq!(u["BattleInfo"]["MatchScore"], 1020);
+}
+#[tokio::test]
+async fn arena_mirror_opponent_has_distinct_battle_identity() {
+    let s = setup().await;
+    let u = login(&s, "arena-only-account").await;
+    let entry = call(&s, &u, "match/register_match", "HeroIndices=1&LeaderHeroIndex=1").await;
+    assert_eq!(entry["Result"], "Success");
+    let wait = call(&s, &u, "match/wait_match", "PlayOfflineMatch=true").await;
+    assert_eq!(wait["MatchedNpcInfo"]["UserInfo"]["AccountId"], -n(&u["UserInfo"], "AccountId"));
+    assert!(!wait["MatchedNpcInfo"]["HeroInfos"].as_object().unwrap().is_empty());
+    assert_eq!(call(&s, &u, "match/wait_match", "PlayOfflineMatch=true").await, wait);
 }
 #[tokio::test]
 async fn guild_raid_damage_advances_shared_boss_and_charges_once() {

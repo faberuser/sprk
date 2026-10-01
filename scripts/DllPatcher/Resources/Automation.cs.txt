@@ -1,0 +1,198 @@
+using System;
+using System.IO;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+// Separate account preferences for simultaneous test clients. Without both
+// environment variables these wrappers retain the original PlayerPrefs calls.
+public static class SprkTestPrefs {
+    public static string DeviceId() {
+        string prefix=Prefix();
+        return prefix=="" ? SystemInfo.deviceUniqueIdentifier : "sprk-test-"+Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+    }
+    static string Prefix() {
+        if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR"))) return "";
+        string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+        return String.IsNullOrEmpty(profile) ? "" : "SprkAutomation/"+profile+"/";
+    }
+    static string Key(string key) { return Prefix()+key; }
+    public static string GetString(string key) { return PlayerPrefs.GetString(Key(key)); }
+    public static string GetString(string key,string value) { return PlayerPrefs.GetString(Key(key),value); }
+    public static int GetInt(string key) { return PlayerPrefs.GetInt(Key(key)); }
+    public static int GetInt(string key,int value) { return PlayerPrefs.GetInt(Key(key),value); }
+    public static float GetFloat(string key) { return PlayerPrefs.GetFloat(Key(key)); }
+    public static float GetFloat(string key,float value) { return PlayerPrefs.GetFloat(Key(key),value); }
+    public static void SetString(string key,string value) { PlayerPrefs.SetString(Key(key),value); }
+    public static void SetInt(string key,int value) { PlayerPrefs.SetInt(Key(key),value); }
+    public static void SetFloat(string key,float value) { PlayerPrefs.SetFloat(Key(key),value); }
+    public static bool HasKey(string key) { return PlayerPrefs.HasKey(Key(key)); }
+    public static void DeleteKey(string key) { PlayerPrefs.DeleteKey(Key(key)); }
+    public static void Save() { PlayerPrefs.Save(); }
+    public static void DeleteAll() {
+        if(Prefix()!="") throw new InvalidOperationException("DeleteAll is disabled for test profiles; choose a new profile name");
+        PlayerPrefs.DeleteAll();
+    }
+}
+
+// Local, opt-in test instrumentation. No listener, arbitrary eval, or gameplay overrides.
+public sealed class SprkAutomation : MonoBehaviour
+{
+    static SprkAutomation instance;
+    string root;
+    bool busy;
+    float nextPoll;
+    readonly List<Failure> errors = new List<Failure>();
+    [Serializable] public class Command { public string id; public string action; public int target; public string text; }
+    [Serializable] public class Failure { public string type; public string message; public string stack; }
+    [Serializable] public class Element { public int id; public string path; public string kind; public string text; public bool enabled; public float x; public float y; }
+    [Serializable] public class Reply {
+        public string id; public bool ok; public string error; public string scene; public int pid;
+        public int width; public int height; public int frame; public string screenshot;
+        public List<Element> elements = new List<Element>(); public List<string> behaviours = new List<string>();
+        public List<Failure> errors = new List<Failure>();
+        public List<object> materials = new List<object>();
+    }
+    public static void Ensure()
+    {
+        string dir = Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR");
+        if (instance != null || String.IsNullOrEmpty(dir)) return;
+        try {
+            dir = Path.GetFullPath(dir);
+            Directory.CreateDirectory(dir);
+            var go = new GameObject("SprkAutomation");
+            DontDestroyOnLoad(go);
+            instance = go.AddComponent<SprkAutomation>();
+            instance.root = dir;
+            Application.runInBackground = true;
+            Application.logMessageReceived += instance.Log;
+            File.WriteAllText(Path.Combine(dir, "ready.json"), "{\"pid\":" + System.Diagnostics.Process.GetCurrentProcess().Id + "}");
+        } catch (Exception e) { Debug.LogError("SPRK automation init: " + e); }
+    }
+    void Log(string message, string stack, LogType type) {
+        if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
+        if (errors.Count == 100) errors.RemoveAt(0);
+        errors.Add(new Failure { type=type.ToString(), message=message, stack=stack });
+    }
+    static string Hierarchy(Transform t) {
+        string path=t.name; while(t.parent != null) { t=t.parent; path=t.name + "/" + path; } return path;
+    }
+    static Element Describe(Component c, string kind, string text, bool enabled) {
+        Camera camera=NGUITools.FindCameraForLayer(c.gameObject.layer);
+        Vector3 p=camera == null ? Vector3.zero : camera.WorldToScreenPoint(c.transform.position);
+        return new Element { id=c.gameObject.GetInstanceID(), path=Hierarchy(c.transform), kind=kind, text=text,
+            enabled=enabled, x=p.x, y=Screen.height-p.y };
+    }
+    Reply Snapshot(string id) {
+        var r=new Reply {id=id,ok=true,scene=SceneManager.GetActiveScene().name,
+            pid=System.Diagnostics.Process.GetCurrentProcess().Id,width=Screen.width,height=Screen.height,frame=Time.frameCount};
+        foreach(UIButton b in UnityEngine.Object.FindObjectsOfType<UIButton>()) {
+            var labels=b.GetComponentsInChildren<UILabel>(); string text="";
+            foreach(var label in labels) text += label.text + " ";
+            r.elements.Add(Describe(b,"button",text.Trim(),b.isEnabled && b.enabled));
+        }
+        foreach(Collider c in UnityEngine.Object.FindObjectsOfType<Collider>()) {
+            if(c.GetComponent<UIButton>() != null || NGUITools.FindCameraForLayer(c.gameObject.layer) == null) continue;
+            var widget=c.GetComponent<UIWidget>();
+            if(widget == null && c.GetComponent<UIEventListener>() == null) continue;
+            r.elements.Add(Describe(c,"button","",c.enabled && (widget == null || widget.alpha > 0)));
+        }
+        foreach(UILabel l in UnityEngine.Object.FindObjectsOfType<UILabel>())
+            r.elements.Add(Describe(l,"label",l.text,l.enabled && l.alpha > 0));
+        foreach(UIInput i in UnityEngine.Object.FindObjectsOfType<UIInput>())
+            r.elements.Add(Describe(i,"input","",i.enabled)); // Never export input values.
+        var seen=new HashSet<string>();
+        foreach(MonoBehaviour b in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>()) {
+            if(b == null || !b.enabled) continue;
+            string name=b.GetType().FullName;
+            if((name.Contains("Window") || name.Contains("Battle") || name.Contains("Lobby") || name.Contains("State")) && seen.Add(name)) r.behaviours.Add(name);
+        }
+        r.errors.AddRange(errors); return r;
+    }
+    GameObject Target(int id) {
+        foreach(Transform t in UnityEngine.Object.FindObjectsOfType<Transform>()) if(t.gameObject.GetInstanceID()==id) return t.gameObject;
+        throw new InvalidOperationException("Target is no longer active: " + id);
+    }
+    void Update() {
+        if(root == null || busy || Time.realtimeSinceStartup < nextPoll) return;
+        nextPoll=Time.realtimeSinceStartup+0.1f;
+        string inbox=Path.Combine(root,"command.json"); if(!File.Exists(inbox)) return;
+        Command cmd=null; Reply reply=null;
+        try {
+            cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
+            Guid parsed;
+            if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+        if(cmd.action=="click" || cmd.action=="press") {
+                var go=Target(cmd.target); var button=go.GetComponent<UIButton>();
+                var collider=go.GetComponent<Collider>();
+                if(button != null ? (!button.enabled || !button.isEnabled) : (collider == null || !collider.enabled)) throw new InvalidOperationException("Button is disabled");
+                // Some native handlers inspect currentTouch.current to identify
+                // the button. Preserve the real event context outside this call.
+                var oldTouch=UICamera.currentTouch; var oldCamera=UICamera.currentCamera;
+                var oldCurrent=UICamera.current; int oldId=UICamera.currentTouchID;
+                try {
+                    var camera=NGUITools.FindCameraForLayer(go.layer);
+                    UICamera.currentCamera=camera;
+                    UICamera.current=camera == null ? null : camera.GetComponent<UICamera>();
+                    UICamera.currentTouchID=-1;
+                    UICamera.currentTouch=new UICamera.MouseOrTouch {current=go,pressed=go,last=go};
+                    if(cmd.action=="press") {
+                        UICamera.Notify(go,UICamera.ENotifyType.OnPress,true);
+                        UICamera.Notify(go,UICamera.ENotifyType.OnPress,false);
+                    } else UICamera.Notify(go,UICamera.ENotifyType.OnClick,null);
+                } finally { UICamera.currentTouch=oldTouch; UICamera.currentCamera=oldCamera; UICamera.current=oldCurrent; UICamera.currentTouchID=oldId; }
+            } else if(cmd.action=="text") {
+                var input=Target(cmd.target).GetComponent<UIInput>();
+                if(input == null || !input.enabled) throw new InvalidOperationException("Input is disabled");
+                input.value=cmd.text ?? "";
+                input.Submit();
+            } else if(cmd.action=="clear-errors") errors.Clear();
+            else if(cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers") throw new InvalidOperationException("Unknown action");
+            reply=Snapshot(cmd.id);
+            if(cmd.action=="renderers") {
+                foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>()) {
+                    if(!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
+                    foreach(Material material in renderer.sharedMaterials) {
+                        Shader shader=material == null ? null : material.shader;
+                        reply.materials.Add(new Dictionary<string,object> {
+                            {"renderer",Hierarchy(renderer.transform)},
+                            {"material",material == null ? null : material.name},
+                            {"shader",shader == null ? null : shader.name},
+                            {"supported",shader != null && shader.isSupported},
+                            {"visible",renderer.isVisible}
+                        });
+                    }
+                }
+            }
+            if(cmd.action=="screenshot") { busy=true; StartCoroutine(Capture(reply)); return; }
+        } catch(Exception e) { reply=new Reply {id=cmd==null ? "invalid" : cmd.id,ok=false,error=e.ToString()}; }
+        Write(reply);
+        if(cmd != null && cmd.action=="quit" && reply.ok) Application.Quit();
+    }
+    IEnumerator Capture(Reply reply) {
+        yield return new WaitForEndOfFrame();
+        Texture2D image=null;
+        try {
+            image=ScreenCapture.CaptureScreenshotAsTexture();
+            reply.screenshot=reply.id+".png";
+            File.WriteAllBytes(Path.Combine(root,reply.screenshot),image.EncodeToPNG());
+        } catch(Exception e) { reply.ok=false; reply.error=e.ToString(); }
+        finally { if(image!=null) Destroy(image); busy=false; }
+        Write(reply);
+    }
+    void Write(Reply reply) {
+        // Use the client's serializer: Unity's type registry does not include
+        // nested serializable types from this separately loaded helper assembly.
+        var elements=new List<object>();
+        foreach(var e in reply.elements) elements.Add(new Dictionary<string,object> {
+            {"id",e.id},{"path",e.path},{"kind",e.kind},{"text",e.text},{"enabled",e.enabled},{"x",e.x},{"y",e.y} });
+        var failures=new List<object>();
+        foreach(var e in reply.errors) failures.Add(new Dictionary<string,object> { {"type",e.type},{"message",e.message},{"stack",e.stack} });
+        var data=new Dictionary<string,object> { {"id",reply.id},{"ok",reply.ok},{"error",reply.error},
+            {"scene",reply.scene},{"pid",reply.pid},{"width",reply.width},{"height",reply.height},{"frame",reply.frame},
+            {"screenshot",reply.screenshot},{"elements",elements},{"behaviours",reply.behaviours},{"errors",failures},{"materials",reply.materials} };
+        string path=Path.Combine(root,reply.id+".json");
+        File.WriteAllText(path+".tmp",MiniJSON.Json.Serialize(data)); File.Move(path+".tmp",path);
+    }
+}

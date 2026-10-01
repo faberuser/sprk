@@ -342,11 +342,19 @@ pub(crate) async fn execute(
             .items
             .reward_item(id)
             .ok_or_else(|| rule("InvalidItemIndex"))?;
+        // These heroes have only a level-50/T5 recruitment item in the client.
+        // PayShopManagement selects that item by HeroIndex, not StartHeroLevel.
+        let special_recruit = matches!((index, id), (84, 1008410) | (85, 1008510));
+        let (start_level, start_transcend) = if special_recruit {
+            (50, 5)
+        } else {
+            (n(creature, "StartHeroLevel").max(1), 0)
+        };
         if meta.kind != "Hero"
             || meta.hero_index != index
             || meta.star as i64 != n(creature, "StartHeroStar")
-            || meta.transcend != 0
-            || meta.level as i64 != n(creature, "StartHeroLevel").max(1)
+            || meta.transcend != start_transcend
+            || meta.level as i64 != start_level
         {
             return Err(rule("InvalidItemIndex"));
         }
@@ -377,7 +385,19 @@ pub(crate) async fn execute(
             currencies.push(currency(db, account, "Mileage", n(price, "Mileage")).await?);
         }
         let mut rewards = Rewards::default();
-        item::give(db, state, account, id, 1, 0, 0, &mut rewards).await?;
+        if special_recruit {
+            // Shop policy: accept the native T5 item, but recruit at ordinary
+            // starting progression. Other ways of granting that item keep its stats.
+            sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level,transcend) SELECT ?,COALESCE(MAX(hero_id),0)+1,?,?,?,0 FROM heroes WHERE account_id=?")
+                .bind(account).bind(index).bind(meta.star)
+                .bind(n(creature, "StartHeroLevel").max(1)).bind(account)
+                .execute(&mut *db).await?;
+            rewards.team_exp_to_add = state.tables.tutorials.support.hero_stars.iter()
+                .find(|v| v.star == meta.star && v.transcended == 0)
+                .ok_or_else(|| rule("InvalidItemData"))?.get_hero_team_exp;
+        } else {
+            item::give(db, state, account, id, 1, 0, 0, &mut rewards).await?;
+        }
         tutorial::team_exp(db, state, account, rewards.team_exp_to_add, &mut rewards).await?;
         let mut extra = details(db, account, index).await?;
         extra["CreatedTime"] = json!(chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string());
@@ -755,7 +775,24 @@ async fn progress(
             }
             let mut value = old;
             let mut gold = 0;
+            let available: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+                .bind(account).fetch_one(&mut *db).await?;
             while value < max {
+                // MaxPurifyPopup quotes ordinary successes only, capped by the
+                // wallet. Great-success rolls apply to single purification.
+                if action == "max_purify_hero" {
+                    let amount = n(next, "PurifyAmount1");
+                    let cost = n(next, "Gold");
+                    if amount <= 0 || cost < 0 {
+                        return Err(rule("AwakeDataNotFound"));
+                    }
+                    if gold + cost >= available {
+                        break;
+                    }
+                    value = (value + amount).min(max);
+                    gold += cost;
+                    continue;
+                }
                 let roll = rand::random::<u32>() % 100;
                 let mut weight = 0;
                 let mut amount = 0;
@@ -774,6 +811,9 @@ async fn progress(
                 if action == "purify_hero" {
                     break;
                 }
+            }
+            if value == old {
+                return Err(rule("NotEnoughGold"));
             }
             out["CurrencyResult"] = currency(db, account, "Gold", -gold).await?;
             let owned: i64 = sqlx::query_scalar(

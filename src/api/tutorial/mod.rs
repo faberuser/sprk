@@ -517,6 +517,21 @@ pub async fn complete_tutorial(
     let account_id = account(&state, &req)?;
     let (index, data) = definition(&state, &req)?;
     let mut tx = state.db.begin().await?;
+    if index == 20001 && !clause_stage_cleared(&mut tx, account_id).await? {
+        return Err(ServerError::InvalidRequest("Clause requires clearing stage 1-20".into()));
+    }
+    let response = complete_in_transaction(&mut tx, &state, account_id, index, data).await?;
+    tx.commit().await?;
+    Ok(Json(response))
+}
+
+async fn complete_in_transaction(
+    tx: &mut SqliteConnection,
+    state: &AppState,
+    account_id: i64,
+    index: i32,
+    data: &TutorialDefinition,
+) -> Result<Value> {
     let now = state.server_time_str();
     // First statement acquires the SQLite write lock. A concurrent completion must wait.
     let claimed = sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, ?, 1, ?) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
@@ -528,29 +543,48 @@ pub async fn complete_tutorial(
             Some(response) => {
                 let mut response = serde_json::from_str(&response)
                     .map_err(|e| ServerError::Internal(e.to_string()))?;
-                refresh_receipt(&mut tx, account_id, &mut response).await?;
+                refresh_receipt(&mut *tx, account_id, &mut response).await?;
                 response
             }
             None => {
                 json!({"BaseResult": "Success", "Result": "Success", "Info": {"TutorialIndex": index, "CompletedTime": row.get::<Option<String>, _>("completed_time")}})
             }
         };
-        tx.commit().await?;
-        return Ok(Json(response));
+        return Ok(response);
     }
     let mut rewards = Rewards::default();
-    grant_rewards(&mut tx, &state, account_id, data, &mut rewards).await?;
+    grant_rewards(&mut *tx, &state, account_id, data, &mut rewards).await?;
     let mut heroes = Vec::new();
     for hero in &rewards.heroes {
-        heroes.push(hero_info(&mut tx, account_id, *hero).await?);
+        heroes.push(hero_info(&mut *tx, account_id, *hero).await?);
     }
     let response = json!({"BaseResult": "Success", "Result": "Success", "Info": {"TutorialIndex": index, "CompletedTime": now},
         "CurrencyResults": rewards.currencies, "ItemResults": rewards.items, "EquipItemResults": rewards.equipment,
         "HeroInfos": heroes, "TeamExpResultInfos": rewards.team_exp, "StaminaResultInfos": [], "DungeonInfos": rewards.dungeons});
     sqlx::query("UPDATE tutorial_progress SET completion_response = ? WHERE account_id = ? AND tutorial_index = ?")
         .bind(response.to_string()).bind(account_id).bind(index).execute(&mut *tx).await?;
+    Ok(response)
+}
+
+async fn clause_stage_cleared(db: &mut SqliteConnection, account_id: i64) -> Result<bool> {
+    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=? AND chapter_id=1 AND dungeon_id=20 AND clear_count>0)")
+        .bind(account_id).fetch_one(db).await?)
+}
+
+/// Client event 10034 awards tutorial 20001 on lobby entry after 1-20.
+/// Recover missed/skipped triggers even after 2-1; retain the same reward receipt.
+pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> Result<()> {
+    let mut tx = state.db.begin().await?;
+    // Serialize this recovery with native tutorial completion before reading eligibility.
+    sqlx::query("UPDATE accounts SET account_id=account_id WHERE account_id=?")
+        .bind(account_id).execute(&mut *tx).await?;
+    if clause_stage_cleared(&mut tx, account_id).await? {
+        let data = state.tables.tutorials.get(20001)
+            .ok_or_else(|| ServerError::Internal("Missing Clause tutorial 20001".into()))?;
+        complete_in_transaction(&mut tx, state, account_id, 20001, data).await?;
+    }
     tx.commit().await?;
-    Ok(Json(response))
+    Ok(())
 }
 
 pub async fn get_tutorial_progress(

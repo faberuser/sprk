@@ -3,7 +3,7 @@ use crate::api::account::user;
 use crate::database;
 use crate::tables::GameTables;
 use std::{path::Path, sync::OnceLock};
-async fn setup() -> (AppState, Value) {
+pub(super) async fn setup() -> (AppState, Value) {
     static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
@@ -27,7 +27,7 @@ async fn setup() -> (AppState, Value) {
     );
     (s, u)
 }
-async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
+pub(super) async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
     execute_request(
         s,
         path,
@@ -39,7 +39,7 @@ async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
     .await
     .unwrap()
 }
-fn account(u: &Value) -> i64 {
+pub(super) fn account(u: &Value) -> i64 {
     n(&u["UserInfo"], "AccountId")
 }
 const ENTRY: &str = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
@@ -110,6 +110,22 @@ fn native_hero_ids_still_reject_invalid_and_duplicate_values() {
         let request = Request::parse(format!("HeroIndices={value}").as_bytes()).unwrap();
         assert!(ids(&request, "HeroIndices", 32).is_err(), "{value}");
     }
+}
+
+#[tokio::test]
+async fn world_boss_advertises_native_rotation_with_a_previous_boss() {
+    let (s, u) = setup().await;
+    let response = call(&s, &u, "world_boss/get_world_boss_info", "").await;
+    assert_eq!(response["Result"], "Success");
+    let bosses = response["WorldBossInfos"].as_array().unwrap();
+    assert_eq!(bosses.len(), 1);
+    let id = n(&bosses[0], "Index");
+    let cycle = [3, 5, 4];
+    assert_eq!(id, cycle[((seasons::season(&s).0 - 1) % 3) as usize]);
+    let def = row(&s, "WorldBoss", &[("Index", id)]).unwrap();
+    assert_eq!(def["IsGlobal"], true);
+    assert!(s.tables.battle.rows("WorldBoss").iter().any(|previous|
+        n(previous, "NextIndex") == id && previous["IsGlobal"] == def["IsGlobal"]));
 }
 
 #[tokio::test]
@@ -360,18 +376,19 @@ async fn tower_npc_snapshots_follow_enabled_flag_and_survive_relogin() {
 }
 
 #[tokio::test]
-async fn missing_punishment_raid_definitions_do_not_spend_opening_keys() {
-    let (s, u) = setup().await;
-    let before = call(&s, &u, "punishment_raid/get_punishment_raid_info", "").await;
+async fn missing_punishment_raid_definitions_do_not_spend_stamina() {
+    let (mut s, u) = setup().await;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).tables.get_mut("Raid").unwrap().retain(|r| n(r,"Index")!=1005);
+    let before = call(&s, &u, "punishment_raid/get_punishment_raid_info", "GroupIndex=101001").await;
     let result = call(
         &s,
         &u,
         "punishment_raid/open_punishment_raid",
-        "GroupIndex=101001&Level=1&DungeonType=0",
+        "GroupIndex=101001&Level=1&DungeonType=2",
     )
     .await;
     assert_ne!(result["Result"], "Success");
-    let after = call(&s, &u, "punishment_raid/get_punishment_raid_info", "").await;
+    let after = call(&s, &u, "punishment_raid/get_punishment_raid_info", "GroupIndex=101001").await;
     assert_eq!(
         before["StaminaResult"]["NewValue"],
         after["StaminaResult"]["NewValue"]
@@ -497,6 +514,10 @@ async fn dispatch_enforces_time_party_reservation_and_single_collection() {
     let r = call(&s, &u, "dispatch/request_complete_dispatch", &args).await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["DispatchBattleInfo"]["WinCount"], 2);
+    assert_eq!(
+        call(&s, &u, "dispatch/get_dispatch_list", "").await["DispatchBattleInfos"],
+        json!([])
+    );
     let gold = balance(&s, "gold").await;
     assert_ne!(
         call(&s, &u, "dispatch/request_complete_dispatch", &args).await["Result"],
@@ -603,6 +624,191 @@ async fn eclipse_decks_ignore_forged_hero_stats() {
     assert_eq!(r["DeckResults"][0]["CachedHeroInfos"][0]["Level"], 1);
     let r = call(&s, &u, "eclipse/get_eclipse_deck", "").await;
     assert_eq!(r["DeckResults"].as_array().unwrap().len(), 1);
+    assert_eq!(r["DeckResults"][0]["HeroIndices"], "1");
+}
+
+#[tokio::test]
+async fn reconstructed_punishment_raids_enforce_progression_and_grant_rewards_once() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=50000 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    let open="GroupIndex=101001&Level=1&DungeonType=2";
+    let opened=call(&s,&u,"punishment_raid/open_punishment_raid",open).await;
+    assert_eq!(opened["Result"],"Success","{opened}");
+    assert_eq!(opened["StaminaResult"]["AddValue"],-6000);
+    assert_ne!(call(&s,&u,"punishment_raid/open_punishment_raid",open).await["Result"],"Success");
+    for (raid,dungeon) in [(1001,1),(1002,2),(1005,5)] {
+        let affixes=if raid==1005 {"&AffixIndices=5003&AffixIndices=5004"} else {""};
+        let enter=format!("ChapterIndex=70000&DungeonIndex={dungeon}&DungeonDifficulty=0&GroupIndex=101001&DungeonType=2&Level=1&HeroIndices=[1]{affixes}");
+        let end=format!("ChapterIndex=70000&DungeonIndex={dungeon}&DungeonDifficulty=0&GroupIndex=101001&DungeonType=2&Completed=true&AliveHeroIndices=[1]&Star=3");
+        if raid==1005 {
+            assert_ne!(call(&s,&u,"contents/begin_content",&enter.replace(affixes,"")).await["Result"],"Success");
+            assert_ne!(call(&s,&u,"contents/begin_content","ChapterIndex=70000&DungeonIndex=3&DungeonDifficulty=0&GroupIndex=101001&DungeonType=2&Level=1&HeroIndices=[1]").await["Result"],"Success");
+        }
+        let begun=call(&s,&u,"contents/begin_content",&enter).await;
+        assert_eq!(begun["Result"],"Success","{begun}");
+        assert_eq!(call(&s,&u,"contents/begin_content",&enter).await,begun);
+        if raid==1005 {
+            assert_ne!(call(&s,&u,"contents/begin_content",&enter.replace(affixes,"")).await["Result"],"Success");
+        }
+        assert_ne!(call(&s,&u,"punishment_raid/reset_punishment_raid","GroupIndex=101001&DungeonType=2").await["Result"],"Success");
+        let result=call(&s,&u,"contents/end_content",&end).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert!(result["ItemResults"].as_array().is_some_and(|v|!v.is_empty()) || result["CurrencyResults"].as_array().is_some_and(|v|!v.is_empty()) || result["EquipItemInfos"].as_array().is_some_and(|v|!v.is_empty()),"{result}");
+        assert_ne!(call(&s,&u,"contents/end_content",&end).await["Result"],"Success");
+        assert_ne!(call(&s,&u,"contents/begin_content",&enter).await["Result"],"Success");
+    }
+    let info=call(&s,&u,"punishment_raid/get_punishment_raid_info","GroupIndex=101001").await;
+    assert_eq!(info["OpenPunishmentRaidInfo"]["ClearCount"],1);
+    let reopened=call(&s,&u,"punishment_raid/open_punishment_raid",open).await;
+    assert_eq!(reopened["Result"],"Success","{reopened}");
+    assert_eq!(reopened["StaminaResult"]["AddValue"],-9000);
+    assert_eq!(reopened["PunishmentRaidInfos"],json!([]));
+    assert!(info["PunishmentRaidInfos"].as_array().unwrap().iter().any(|v|v["ClearCheckIndex"]==1105));
+}
+
+#[tokio::test]
+async fn punishment_second_group_native_failure_retry_and_group_isolation() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=50000 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    for group in [101001,101002] {
+        assert_eq!(call(&s,&u,"punishment_raid/open_punishment_raid",&format!("GroupIndex={group}&Level=1&DungeonType=2")).await["Result"],"Success");
+    }
+    for dungeon in 1..=3 {
+        let affixes=if dungeon==3 {"&AffixIndices=6001&AffixIndices=6002"} else {""};
+        let entry=format!("ChapterIndex=70001&DungeonIndex={dungeon}&DungeonDifficulty=0&GroupIndex=101002&DungeonType=Boss&Level=1&HeroIndices=1{affixes}");
+        let end=format!("ChapterIndex=70001&DungeonIndex={dungeon}&DungeonDifficulty=0&GroupIndex=101002&DungeonType=Boss&Completed=true&Star=3&AliveHeroIndices=1");
+        assert_ne!(call(&s,&u,"contents/begin_content",&entry.replace("101002","101001")).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"contents/begin_content",&entry).await["Result"],"Success");
+        if dungeon==1 {
+            let loss=call(&s,&u,"contents/end_content",&end.replace("Completed=true&Star=3","Completed=false&Star=0")).await;
+            assert_eq!(loss["Result"],"Success");
+            assert_eq!(loss["PunishmentRaidInfos"],json!([]));
+            assert_eq!(loss["OpenPunishmentRaidInfos"][0]["IsOpen"],1);
+            assert_eq!(call(&s,&u,"contents/begin_content",&entry).await["Result"],"Success");
+        }
+        let result=call(&s,&u,"contents/end_content",&end).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert_eq!(result["PunishmentRaidInfos"].as_array().unwrap().len(),dungeon as usize);
+        assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"],if dungeon==3 {0}else{1});
+    }
+    let first=call(&s,&u,"punishment_raid/get_punishment_raid_info","GroupIndex=101001&DungeonType=2").await;
+    assert_eq!(first["OpenPunishmentRaidInfo"]["IsOpen"],1);
+    assert_eq!(first["PunishmentRaidInfos"].as_array().unwrap().len(),3);
+    let login=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    assert_eq!(login["PunishmentRaidInfos"],first["PunishmentRaidInfos"]);
+    assert_eq!(login["OpenPunishmentRaidInfos"].as_array().unwrap().len(),2);
+}
+
+#[tokio::test]
+async fn karma_native_groups_settle_default_shards_once_and_restore_login() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=50000 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    for (group,chapter,flask,shard) in [(101001,70101,40236,40241),(101002,70201,40246,40251)] {
+        let open=format!("GroupIndex={group}&DungeonType=1");
+        let entry=format!("GroupIndex={group}&DungeonType=Karma&ChapterIndex={chapter}&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=1&FlaskItemIndex={flask}");
+        assert_ne!(call(&s,&u,"contents/begin_content",&entry).await["Result"],"Success");
+        let opened=call(&s,&u,"punishment_raid/open_punishment_raid",&open).await;
+        assert_eq!(opened["Result"],"Success","{opened}");
+        assert_eq!(opened["StaminaResult"]["AddValue"],-3000);
+        let begun=call(&s,&u,"contents/begin_content",&entry).await;
+        assert_eq!(begun["Result"],"Success","{begun}");
+        assert_eq!(call(&s,&u,"contents/begin_content",&entry).await,begun);
+        assert_ne!(call(&s,&u,"punishment_raid/reset_punishment_raid",&open).await["Result"],"Success");
+        sqlx::query("UPDATE battle_runs SET started=started-60 WHERE account=?").bind(account(&u)).execute(&s.db).await.unwrap();
+        let end=format!("GroupIndex={group}&DungeonType=Karma&ChapterIndex={chapter}&DungeonIndex=1&DungeonDifficulty=0&Completed=false&ClearWave=5&EndWave=6&EndKillCount=0&TotalKillCount=31");
+        assert_ne!(call(&s,&u,"contents/end_content",&end.replace("TotalKillCount=31","TotalKillCount=30000")).await["Result"],"Success");
+        assert_ne!(call(&s,&u,"contents/end_content",&end.replace("EndWave=6","EndWave=999")).await["Result"],"Success");
+        assert_ne!(call(&s,&u,"contents/end_content",&end.replace("ClearWave=5","ClearWave=1000")).await["Result"],"Success");
+        let result=call(&s,&u,"contents/end_content",&end).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert!(result["ItemResults"].as_array().unwrap().iter().any(|v|n(v,"ItemIndex")==shard && n(v,"AddCount")>=1),"{result}");
+        assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"],0);
+        assert_ne!(call(&s,&u,"contents/end_content",&end).await["Result"],"Success");
+    }
+    let login=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    assert_eq!(login["OpenPunishmentRaidInfos"].as_array().unwrap().len(),2);
+}
+
+#[tokio::test]
+async fn karma_owned_flasks_convert_at_end_and_reject_changed_retry() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=50000 WHERE account_id=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    {
+        let mut db=s.db.acquire().await.unwrap();
+        let mut grant=Rewards::default();
+        tutorial::grant_item(&mut db,&s,account(&u),40237,1,0,0,&mut grant).await.unwrap();
+    }
+    assert_eq!(call(&s,&u,"punishment_raid/open_punishment_raid","GroupIndex=101001&DungeonType=1").await["Result"],"Success");
+    let entry="GroupIndex=101001&DungeonType=Karma&ChapterIndex=70101&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=1&FlaskItemIndex=40237";
+    assert_ne!(call(&s,&u,"contents/begin_content",&entry.replace("40237","40247")).await["Result"],"Success");
+    let begun=call(&s,&u,"contents/begin_content",entry).await;
+    assert_eq!(begun["Result"],"Success","{begun}");
+    assert_ne!(call(&s,&u,"contents/begin_content",&entry.replace("40237","40236")).await["Result"],"Success");
+    sqlx::query("UPDATE battle_runs SET started=started-60 WHERE account=?").bind(account(&u)).execute(&s.db).await.unwrap();
+    let end="GroupIndex=101001&DungeonType=Karma&ChapterIndex=70101&DungeonIndex=1&DungeonDifficulty=0&Completed=false&ClearWave=12&EndWave=13&EndKillCount=0&TotalKillCount=66";
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=40237").bind(account(&u)).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s,&u,"contents/end_content",end).await["Result"],"Success");
+    let pending:i64=sqlx::query_scalar("SELECT completed FROM battle_runs WHERE account=?").bind(account(&u)).fetch_one(&s.db).await.unwrap();
+    assert_eq!(pending,0);
+    sqlx::query("UPDATE items SET locked=0 WHERE account_id=? AND item_index=40237").bind(account(&u)).execute(&s.db).await.unwrap();
+    let result=call(&s,&u,"contents/end_content",end).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    for (index,count) in [(40237,-1),(40242,1)] {
+        assert!(result["ItemResults"].as_array().unwrap().iter().any(|v|n(v,"ItemIndex")==index && n(v,"AddCount")==count),"{result}");
+    }
+    assert!(result["ItemResults"].as_array().unwrap().iter().any(|v|n(v,"ItemIndex")==40241 && n(v,"AddCount")>0));
+}
+
+#[tokio::test]
+async fn eclipse_native_decks_round_trip_and_invalid_replacements_are_atomic() {
+    let (s, u) = setup().await;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)")
+        .bind(account(&u)).execute(&s.db).await.unwrap();
+    let owned: Vec<i64> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY hero_index LIMIT 2")
+        .bind(account(&u)).fetch_all(&s.db).await.unwrap();
+    assert_eq!(owned.len(), 2);
+    // This is the shape produced by JM_NShared_EclipseDeckResult, including
+    // string DeckIndex and comma-separated HeroIndices (not a JSON array).
+    let native_ids = format!("{},{}", owned[1], owned[0]);
+    let decks = json!([{"DeckIndex":"1","HeroIndices":native_ids,"ClearMaxWaveIndex":"999","CachedHeroInfos":[{"HeroIndex":1,"Level":999}]}]);
+    let args = serde_urlencoded::to_string([("HeroInfos", decks.to_string())]).unwrap();
+    let saved = call(&s, &u, "eclipse/set_eclipse_deck", &args).await;
+    assert_eq!(saved["Result"], "Success", "{saved}");
+    assert_eq!(saved["DeckResults"][0]["HeroIndices"], native_ids);
+    assert_eq!(saved["DeckResults"][0]["CachedHeroInfos"][0]["HeroIndex"], owned[1]);
+    assert_eq!(saved["DeckResults"][0]["CachedHeroInfos"][0]["Level"], 1);
+    assert_eq!(saved["DeckResults"][0]["ClearMaxWaveIndex"], 0);
+    assert_eq!(call(&s, &u, "eclipse/get_eclipse_deck", "").await["DeckResults"], saved["DeckResults"]);
+    assert_eq!(call(&s, &u, "eclipse/get_eclipse_info", "").await["EclipseInfo"]["DeckResults"], saved["DeckResults"]);
+
+    let invalid = vec![
+        json!([{"DeckIndex":"1","HeroIndices":"1,1"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"1,bad"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"1,"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"0"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"2147483648"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"999999"}]),
+        json!([{"DeckIndex":"1","HeroIndices":null}]),
+        json!([{"DeckIndex":"2","HeroIndices":"1"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"1"},{"DeckIndex":"2","HeroIndices":"1"}]),
+        json!([{"DeckIndex":"1","HeroIndices":"1"},{"DeckIndex":"1","HeroIndices":"2"}]),
+    ];
+    for invalid in invalid {
+        let args = serde_urlencoded::to_string([("HeroInfos", invalid.to_string())]).unwrap();
+        let rejected = call(&s, &u, "eclipse/set_eclipse_deck", &args).await;
+        assert_ne!(rejected["Result"], "Success", "{invalid}");
+        assert_eq!(call(&s, &u, "eclipse/get_eclipse_deck", "").await["DeckResults"], saved["DeckResults"], "{invalid}");
+    }
+
+    // Compatibility with decks persisted by older server versions.
+    let mut legacy = saved["DeckResults"][0].clone();
+    legacy["HeroIndices"] = json!(json!([owned[1], owned[0]]).to_string());
+    put(&mut *s.db.acquire().await.unwrap(), account(&u), "eclipse_deck", 1, &legacy).await.unwrap();
+    assert_eq!(call(&s, &u, "eclipse/get_eclipse_deck", "").await["DeckResults"], saved["DeckResults"]);
 }
 
 #[tokio::test]
@@ -721,8 +927,11 @@ async fn world_boss_closed_day_and_season_send_mail_once() {
 #[tokio::test]
 async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
     let (s, u) = setup().await;
+    let unopened = call(&s, &u, "ordeal_arena/ordeal_info", "").await;
+    assert_eq!(unopened["OrdealNodeInfos"], json!([]));
     let selected = call(&s, &u, "ordeal_arena/select_tier", "Tier=0").await;
     assert_eq!(selected["Result"], "Success", "{selected}");
+    assert!(!selected["OrdealNodeInfos"].as_array().unwrap().is_empty());
     let first = s
         .tables
         .battle
@@ -774,6 +983,25 @@ async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
         .as_object()
         .unwrap()
         .is_empty());
+    assert_ne!(n(&npc["AccountInfo"]["UserInfo"], "AccountId"), account(&u));
+    // A previously saved mirror deck must be repaired without resetting it.
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        let mut saved = get(&mut db, account(&u), "ordeal", 0).await.unwrap();
+        for node in saved["OrdealNodeInfos"].as_array_mut().unwrap() {
+            if node["NodeType"] == "Battle" {
+                node["AccountInfo"]["UserInfo"]["AccountId"] = json!(account(&u));
+            }
+        }
+        put(&mut db, account(&u), "ordeal", 0, &saved).await.unwrap();
+    }
+    let repaired = call(&s, &u, "ordeal_arena/ordeal_info", "").await;
+    assert_eq!(repaired["ClearNodeIndices"], event["ClearNodeIndices"]);
+    for node in repaired["OrdealNodeInfos"].as_array().unwrap() {
+        if node["NodeType"] == "Battle" {
+            assert_eq!(node["AccountInfo"]["UserInfo"]["AccountId"], -account(&u));
+        }
+    }
     let finish =
         format!("NodeIndex={id}&ChapterIndex={c}&DungeonIndex={d}&HeroIndices=[1]&Completed=true");
     assert_ne!(
@@ -792,11 +1020,16 @@ async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
     );
     let end = call(&s, &u, "ordeal_arena/end_ordeal_arena", &finish).await;
     assert_eq!(end["Result"], "Success", "{end}");
+    assert_eq!(end["CurrencyResult"]["CurrencyType"], "OrdealArenaPoint");
+    assert_eq!(end["CurrencyResult"]["AddValue"], 100);
+    assert_eq!(end["CurrencyResult"]["NewValue"], 100);
     assert_ne!(
         call(&s, &u, "ordeal_arena/end_ordeal_arena", &finish).await["Result"],
         "Success"
     );
     let buff = end["SelectableBuffIndices"][0].as_i64().unwrap();
+    let balance = hero::currency(&mut *s.db.acquire().await.unwrap(), account(&u), "OrdealArenaPoint", 0).await.unwrap();
+    assert_eq!(balance["NewValue"], 100, "duplicate settlement must not grant currency");
     assert_eq!(
         call(
             &s,
@@ -924,6 +1157,15 @@ async fn cancelling_dispatch_refunds_unplayed_runs_and_restores_party() {
         call(&s, &u, "dispatch/cancel_dispatch", &args).await["Result"],
         "Success"
     );
+    assert_eq!(
+        call(&s, &u, "dispatch/get_dispatch_list", "").await["DispatchBattleInfos"],
+        json!([])
+    );
+    let login = json!(
+        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+            .await.unwrap().0
+    );
+    assert_eq!(login["DispatchBattleInfos"], json!([]));
     assert_eq!(
         call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"],
         "Success"
@@ -1059,4 +1301,213 @@ async fn campaign_clear_awards_base_hero_exp_to_team_once_and_persists() {
     assert_eq!(balance(&s,"team_exp").await,saved);
     let login=user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
     assert_eq!(login.user_info.team_exp as i64,saved);
+}
+
+#[tokio::test]
+async fn dragon_solo_native_raid_type_keeps_party_and_level_guards() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let args = "ChapterIndex=905&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=101&RaidLevel=7&HeroIndices=1";
+    let low = call(&s, &u, "campaign/begin_campaign", args).await;
+    assert_ne!(low["Result"], "Success");
+    sqlx::query("UPDATE heroes SET level=60 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let party = call(&s, &u, "campaign/begin_campaign", "ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&HeroIndices=1").await;
+    assert_ne!(party["Result"], "Success");
+    let entry = call(&s, &u, "campaign/begin_campaign", args).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    assert_eq!(entry["StaminaResult"]["AddValue"], -48);
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", args).await, entry);
+    let loss = call(&s, &u, "campaign/end_campaign", "ChapterIndex=905&DungeonIndex=7&DungeonDifficulty=0&Completed=false").await;
+    assert_eq!(loss["Result"], "Success", "{loss}");
+}
+
+#[tokio::test]
+async fn hard_dragon_solo_requires_unlock_and_keeps_multiplayer_guard() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let args = "ChapterIndex=931&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=111&RaidLevel=1&HeroIndices=1";
+    sqlx::query("UPDATE heroes SET level=70 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "campaign/begin_campaign", args).await["Result"], "Success");
+    put(&mut *s.db.acquire().await.unwrap(), a, "raid", 1,
+        &json!({"RaidIndex":1,"RaidLevel":8})).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=69 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "campaign/begin_campaign", args).await["Result"], "Success");
+    sqlx::query("UPDATE heroes SET level=70 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for bad in [args.replace("RaidIndex=111", "RaidIndex=112"), args.replace("ChapterIndex=931", "ChapterIndex=911").replace("RaidIndex=111", "RaidIndex=11"), args.replace("DungeonIndex=1", "DungeonIndex=2").replace("RaidLevel=1", "RaidLevel=2")] {
+        assert_ne!(call(&s, &u, "campaign/begin_campaign", &bad).await["Result"], "Success");
+    }
+    assert_eq!(balance(&s, "stamina").await, 1000);
+    let entry = call(&s, &u, "campaign/begin_campaign", args).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    assert_eq!(entry["StaminaResult"]["AddValue"], -60);
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", args).await, entry);
+    let loss = call(&s, &u, "campaign/end_campaign", "ChapterIndex=931&DungeonIndex=1&DungeonDifficulty=0&Completed=false").await;
+    assert_eq!(loss["Result"], "Success", "{loss}");
+}
+
+#[tokio::test]
+async fn dragon_solo_wins_unlock_shared_stages_without_downgrading() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    sqlx::query("UPDATE heroes SET level=70 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for (chapter, dungeon, raid, shared, expected) in [(905,7,101,1,8),(931,1,111,11,2),(931,2,111,11,3),(931,1,111,11,3)] {
+        let args = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&RaidIndex={raid}&RaidLevel={dungeon}&HeroIndices=1");
+        let entry = call(&s, &u, "campaign/begin_campaign", &args).await;
+        assert_eq!(entry["Result"], "Success", "{entry}");
+        let end = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1");
+        let win = call(&s, &u, "campaign/end_campaign", &end).await;
+        assert_eq!(win["Result"], "Success", "{win}");
+        assert_eq!(win["CompletedRaidInfo"]["RaidIndex"], shared);
+        assert_eq!(win["CompletedRaidInfo"]["RaidLevel"], expected);
+        let gold = balance(&s, "gold").await;
+        assert_ne!(call(&s, &u, "campaign/end_campaign", &end).await["Result"], "Success");
+        assert_eq!(balance(&s, "gold").await, gold);
+        let saved = get(&mut *s.db.acquire().await.unwrap(), a, "raid", shared).await.unwrap();
+        assert_eq!(saved["RaidLevel"], expected);
+    }
+}
+
+#[tokio::test]
+async fn field_raid_unlock_cost_and_progression_are_scoped_to_solo() {
+    let (mut s, u) = setup().await;
+    let a = account(&u);
+    let args = "ChapterIndex=8&DungeonIndex=101&DungeonDifficulty=0&RaidIndex=121&RaidLevel=1&HeroIndices=1";
+    sqlx::query("UPDATE heroes SET level=80 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s,&u,"campaign/begin_campaign",args).await["Result"], "Success");
+    put(&mut *s.db.acquire().await.unwrap(),a,"dungeon",campaign::key(7,12),
+        &json!({"ChapterIndex":7,"DungeonIndex":12,"FirstRewardedDiff":2,"MaxStar":13,"ScenarioComplete":1,"DailyCompletedCount":0,"ResetCount":0})).await.unwrap();
+    assert_ne!(call(&s,&u,"campaign/begin_campaign",args).await["Result"], "Success");
+    put(&mut *s.db.acquire().await.unwrap(),a,"dungeon",campaign::key(8,26),
+        &json!({"ChapterIndex":8,"DungeonIndex":26,"FirstRewardedDiff":2,"MaxStar":13,"ScenarioComplete":1,"DailyCompletedCount":0,"ResetCount":0})).await.unwrap();
+    for bad in ["ChapterIndex=8&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=1".to_string(),
+        args.replace("DungeonIndex=101", "DungeonIndex=100").replace("RaidIndex=121", "RaidIndex=21"),
+        args.replace("DungeonIndex=101", "DungeonIndex=111").replace("RaidLevel=1", "RaidLevel=2"),
+        args.replace("RaidIndex=121", "RaidIndex=122")] {
+        assert_ne!(call(&s,&u,"campaign/begin_campaign",&bad).await["Result"], "Success");
+    }
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).rules["EnableLegacyFieldRaids"] = json!(false);
+    assert_ne!(call(&s,&u,"campaign/begin_campaign",args).await["Result"], "Success");
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).rules["EnableLegacyFieldRaids"] = json!(true);
+    sqlx::query("UPDATE heroes SET level=79 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s,&u,"campaign/begin_campaign",args).await["Result"], "Success");
+    sqlx::query("UPDATE heroes SET level=80 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(balance(&s,"stamina").await,1000);
+    let entry = call(&s,&u,"campaign/begin_campaign",args).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    assert_eq!(entry["StaminaResult"]["AddValue"], -54);
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",args).await,entry);
+    let equipment_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let win = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=101&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1").await;
+    assert_eq!(win["Result"], "Success", "{win}");
+    assert_eq!(win["CompletedRaidInfo"]["RaidIndex"],21);
+    assert_eq!(win["CompletedRaidInfo"]["RaidLevel"],2);
+    let equipment_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    assert!((4..=5).contains(&(equipment_after-equipment_before)), "Field raid must award its individual loot bundle");
+    let duplicate = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=101&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1").await;
+    assert_ne!(duplicate["Result"], "Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), equipment_after);
+    let next = args.replace("DungeonIndex=101", "DungeonIndex=111").replace("RaidLevel=1", "RaidLevel=2");
+    let entry = call(&s,&u,"campaign/begin_campaign",&next).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    assert_eq!(entry["StaminaResult"]["AddValue"], -70);
+    let loss = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=111&DungeonDifficulty=0&Completed=false").await;
+    assert_eq!(loss["Result"], "Success", "{loss}");
+    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
+    let login = serde_json::to_value(login).unwrap();
+    assert!(login["ChapterDungeons"].as_array().unwrap().iter()
+        .any(|v| v["ChapterIndex"] == 8 && v["DungeonIndex"] == 26 && v["MaxStar"] == 13));
+}
+
+
+#[tokio::test]
+async fn all_field_raid_stages_settle_once_and_cap_shared_progress() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for (chapter, dungeon) in [(7,12),(8,26),(9,23)] {
+        put(&mut *s.db.acquire().await.unwrap(), a, "dungeon", campaign::key(chapter,dungeon),
+            &json!({"ChapterIndex":chapter,"DungeonIndex":dungeon,"FirstRewardedDiff":2,"MaxStar":13,"ScenarioComplete":1,"DailyCompletedCount":0,"ResetCount":0})).await.unwrap();
+    }
+    for (chapter, first, raid, shared) in [(8,101,121,21),(9,103,122,22),(9,104,123,23),(9,105,124,24)] {
+        for stage in [1,2,1] {
+            let dungeon = first + (stage-1)*10;
+            let args = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&RaidIndex={raid}&RaidLevel={stage}&HeroIndices=1");
+            let stamina = balance(&s,"stamina").await;
+            let entry = call(&s,&u,"campaign/begin_campaign",&args).await;
+            assert_eq!(entry["Result"],"Success","raid {raid}/{stage}: {entry}");
+            assert_eq!(balance(&s,"stamina").await,stamina-if stage==1 {54} else {70});
+            assert_eq!(call(&s,&u,"campaign/begin_campaign",&args).await,entry);
+            let count_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+            let points_before = balance(&s,"raid_point").await;
+            let end = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1");
+            let win = call(&s,&u,"campaign/end_campaign",&end).await;
+            assert_eq!(win["Result"],"Success","raid {raid}/{stage}: {win}");
+            assert_eq!(win["CampaignResults"],json!([]),"Field Raids must not trigger story-map unlock effects");
+            assert_eq!(win["CompletedRaidInfo"]["RaidIndex"],shared);
+            assert_eq!(win["CompletedRaidInfo"]["RaidLevel"],2);
+            let count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+            assert!(count_after-count_before>=4,"missing Field Raid equipment: {raid}/{stage}");
+            let points_after = balance(&s,"raid_point").await;
+            assert!(points_after>points_before,"missing Field Raid points: {raid}/{stage}");
+            assert_ne!(call(&s,&u,"campaign/end_campaign",&end).await["Result"],"Success");
+            assert_eq!(balance(&s,"raid_point").await,points_after);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),count_after);
+        }
+    }
+}
+
+
+#[tokio::test]
+async fn world_boss_unranked_entry_and_zero_based_ranking_match_client() {
+    let (s,u) = setup().await;
+    let a = account(&u);
+    let args = format!("WorldBossIndex=3&Season={}",seasons::season(&s).0);
+    let empty = call(&s,&u,"world_boss/get_world_boss_rank_info",&args).await;
+    assert_eq!(empty["Result"],"Success");
+    assert_eq!(empty["RankInfo"]["AccountId"],a);
+    assert_eq!(empty["RankInfo"]["Rank"],-1);
+    assert_eq!(empty["RankInfo"]["Score"],0);
+    assert_eq!(empty["TotalRankerCount"],0);
+    sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,?,?,'2026-10-01',1000)")
+        .bind(seasons::season(&s).0).bind(a).execute(&s.db).await.unwrap();
+    let ranked = call(&s,&u,"world_boss/get_world_boss_rank_info",&args).await;
+    assert_eq!(ranked["RankInfo"]["Rank"],0);
+    assert_eq!(ranked["RankInfo"]["Score"],1000);
+    assert_eq!(ranked["TotalRankerCount"],1);
+    let list = call(&s,&u,"world_boss/get_world_boss_ranker_list",&format!("{args}&PageNo=0")).await;
+    assert_eq!(list["RankerInfos"][0]["Rank"],0);
+}
+
+
+#[tokio::test]
+async fn world_boss_native_creature_damage_settles_once() {
+    let (s,u)=setup().await;
+    sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+    let begin="ChapterIndex=7003&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=4";
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",begin).await["Result"],"Success");
+    for bad in [
+        json!([{"Index":"1","Key":"1_0_0","TeamId":"0","GivedDamage":"12345"}]),
+        json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":"-1"}]),
+        json!([{"Index":"900","Key":"901_0_1","TeamId":"1","GivedDamage":"12345"}]),
+        json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":"1"},{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":"1"}]),
+    ] {
+        let encoded=serde_urlencoded::to_string([("CreatureInfoString",bad.to_string())]).unwrap();
+        let invalid=format!("ChapterIndex=7003&DungeonIndex=1&DungeonDifficulty=0&Completed=false&{encoded}");
+        assert_ne!(call(&s,&u,"campaign/end_campaign",&invalid).await["Result"],"Success");
+    }
+    let record=json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":"12345"}]);
+    let escaped = urlencoding::encode(&record.to_string()).into_owned();
+    let payload=serde_urlencoded::to_string([("CreatureInfoString",escaped)]).unwrap();
+    let end=format!("ChapterIndex=7003&DungeonIndex=1&DungeonDifficulty=0&Completed=false&TotalDamage=0&{payload}");
+    let result=call(&s,&u,"campaign/end_campaign",&end).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["WorldBossInfo"]["TotalDamage"],12345);
+    assert_eq!(result["WorldBossRankInfo"]["Score"],12345);
+    assert_eq!(result["WorldBossRankInfo"]["Rank"],0);
+    assert_ne!(call(&s,&u,"campaign/end_campaign",&end).await["Result"],"Success");
 }

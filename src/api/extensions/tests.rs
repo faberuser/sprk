@@ -36,6 +36,8 @@ async fn setup() -> (AppState, user::LoginResponse) {
 async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -> Value {
     let path = if action.contains('/') {
         format!("/{action}")
+    } else if action.starts_with("valance_") || action == "confirm_valance_enchant" {
+        format!("/valance/{action}")
     } else {
         format!("/equip/{action}")
     };
@@ -112,7 +114,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
     save_equip(&mut *s.db.acquire().await.unwrap(), a, &eq)
         .await
         .unwrap();
-    let args = format!("EquipItemSlotIndices=[{}]", eq.slot_index);
+    let args = format!("EquipItemSlotIndices={}", eq.slot_index);
     let r = call(&s, &u, "valance_identified", &args).await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert!(
@@ -133,7 +135,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         .find(|v| n(v, "PartType") == 3 && n(v, "SubType") == 10)
         .unwrap();
     let enchant_id = n(enchant, "ItemIndex");
-    give(&s, a, enchant_id as i32, 1).await;
+    give(&s, a, enchant_id as i32, 2).await;
     let r = call(
         &s,
         &u,
@@ -144,6 +146,13 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         ),
     )
     .await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ResultEquipItem"]["EnchantOptionIndex1"], r["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"]);
+    let pending_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
+    assert_eq!(pending_count, 0);
+    let r = call(&s, &u, "valance_enchant",
+        &format!("EquipItemSlotIndex={}&ConsumeItemIndex={enchant_id}", eq.slot_index)).await;
     assert_eq!(r["Result"], "Success", "{r}");
     let expected = r["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"].clone();
     let login = user::login(
@@ -505,6 +514,23 @@ async fn rerolls_recover_pending_options_and_reject_forged_confirmation() {
         "Success"
     );
 }
+#[tokio::test]
+async fn valance_craft_honors_owned_hero_material_discount() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES(?,111,111,5)")
+        .bind(a).execute(&s.db).await.unwrap();
+    give(&s, a, 990001, 3400).await;
+    let r = call(&s, &u, "valance_craft",
+        "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None&SelectEquipOptionIndices=[]").await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["EquipItemResult"]["Identified"], 0);
+    let remaining: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=990001")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(remaining, 0);
+    assert_eq!(gold(&s).await, 91000000);
+}
+
 #[tokio::test]
 async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     let (s, u) = setup().await;

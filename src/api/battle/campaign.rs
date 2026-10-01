@@ -67,7 +67,12 @@ pub(super) async fn validate(
     let c = n(d, "ChapterIndex");
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
-    if ch["IsOpen"] != true && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
+    let restored_field = n(d, "BattleType") == 33
+        && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
+        && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
+            .is_some_and(|v| n(v,"Type") == 13 && v["IsOpen"] == true
+                && n(v,"ChapterIndex") == c && n(v,"DungeonIndex") == n(d,"DungeonIndex"));
+    if ch["IsOpen"] != true && !restored_field && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
         return Err(rule("NotOpenedDungeon"));
     }
     if diff > n(ch, "MaxDifficulty") && d["NoDifficulty"] != true {
@@ -136,6 +141,9 @@ pub(super) async fn begin(
     a: i64,
     r: &Request,
 ) -> Result<Value> {
+    if n(dungeon(s, r)?, "BattleType") == 36 {
+        return super::eclipse::begin(db, s, a, r).await;
+    }
     let mut party = ids(r, "HeroIndices", 32)?;
     let group = ids(r, "GroupHeroIndices", 32)?;
     party.extend(group);
@@ -245,6 +253,12 @@ async fn end_inner(
     r: &Request,
     trusted: bool,
 ) -> Result<Value> {
+    if n(dungeon(s, r)?, "BattleType") == 36 {
+        return super::eclipse::end_campaign(db, s, a, r).await;
+    }
+    if n(dungeon(s,r)?,"BattleType")==48 {
+        return super::karma::end(db,s,a,r).await;
+    }
     let saved = sqlx::query("SELECT * FROM battle_runs WHERE account=?")
         .bind(a)
         .fetch_optional(&mut *db)
@@ -471,7 +485,12 @@ pub(super) async fn complete(
     }
     let mut out = rewards(db, s, a, reward).await?;
     out["ExpResult"] = json!(clear_exp.team_exp.first());
-    out["CampaignResults"] = json!([p]);
+    // Field raids reuse legacy story chapters, but their stage unlock is carried
+    // by CompletedRaidInfo. CampaignResults triggers the client's story-node
+    // traversal and camera effects on those closed maps.
+    let field_raid = s.tables.battle.find("Raid", &[("Index", int(r, "RaidIndex")?), ("Level", int(r, "RaidLevel")?)])
+        .is_some_and(|raid| n(raid, "Type") == 13 && n(raid, "ChapterIndex") == c && n(raid, "DungeonIndex") == di);
+    out["CampaignResults"] = if field_raid { json!([]) } else { json!([p]) };
     out["HeroExpResults"] = json!(hero_exp);
     out["FlaskResults"] = json!(flasks);
     out["FlaskItemResults"] = json!(flask_items);

@@ -63,7 +63,7 @@ def main():
                 if key in r: r[key] = strings[r[key]]
             rows.append(r)
         data[name] = rows
-    target = Path(__file__).resolve().parents[1] / 'tables' / 'ExtensionSupport.json'
+    target = Path(__file__).resolve().parents[2] / 'tables' / 'ExtensionSupport.json'
     target.write_text(json.dumps(data, separators=(',', ':')) + '\n', encoding='utf-8')
     print({k: len(v) for k, v in data.items()})
 

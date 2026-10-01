@@ -1,0 +1,10 @@
+{
+  "description": "Existing guest login at the Tap to Play screen; checks scene/UI progress without hiding startup errors.",
+  "steps": [
+    {"action": "wait-ui", "contains": "LoginTouchWait(Clone)", "timeout": 60},
+    {"action": "snapshot"},
+    {"action": "click", "selector": "GameUIRoot/Content Group/LoginTouchWait(Clone)/Panel/Root/TouchScreen"},
+    {"action": "wait-ui", "contains": "Button_Portal", "timeout": 60},
+    {"action": "screenshot"}
+  ]
+}

@@ -53,7 +53,7 @@ pub(crate) async fn charge(
         .get(kind as usize)
         .ok_or_else(|| rule("NotEnoughStamina"))?;
     let value = if kind == 1 {
-        crate::api::account::stamina::chicken(db,s,a).await?;
+        crate::api::account::stamina::chicken(db, s, a).await?;
         sqlx::query_scalar::<_,i64>("UPDATE user_info SET stamina=stamina-? WHERE account_id=? AND stamina>=? RETURNING stamina").bind(cost).bind(a).bind(cost).fetch_optional(&mut *db).await?.ok_or_else(||rule("NotEnoughStamina"))?
     } else if matches!(kind, 3 | 4 | 7) {
         let kind = if kind == 3 {
@@ -178,16 +178,80 @@ pub(super) async fn validate(
     d: &Value,
 ) -> Result<()> {
     let battle_type = n(d, "BattleType");
+    if battle_type == 48 {
+        karma::validate(db,s,a,r).await?;
+    }
+    if battle_type == 47 && int(r, "RaidIndex")? <= 0 {
+        return Err(rule("DungeonNotFound"));
+    }
     if matches!(
         battle_type,
-        4 | 9 | 12 | 20 | 26 | 29 | 30 | 32 | 36 | 43 | 44 | 48
+        4 | 9 | 20 | 26 | 30 | 32 | 36 | 43 | 44
     ) {
         return Err(rule("ContentsDisabled"));
     }
-    if battle_type == 39 {
-        crate::api::live::validate_purchase_dungeon(db,s,a,n(d,"ChapterIndex"),n(d,"DungeonIndex")).await?;
+    if matches!(battle_type, 12 | 29) {
+        // Dragon solo variants still use BattleType.Raid in the client table.
+        // Only their native offline route can use this campaign lifecycle.
+        let raid = raid_data(s, r)?;
+        let solo_type = if battle_type == 29 { 3 } else { 1 };
+        if n(raid, "Type") != solo_type || raid["IsOnlineSingle"] != false {
+            return Err(rule("ContentsDisabled"));
+        }
+        if battle_type == 29 {
+            let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
+                .ok_or_else(|| rule("NotOpenedDungeon"))?;
+            let index = condition[0].as_i64().unwrap_or(0);
+            let required = condition[1].as_i64().unwrap_or(i64::MAX);
+            let cleared = get(db, a, "raid", index).await?;
+            let solo_index = s.tables.battle.rows("Raid").iter()
+                .find(|v| n(v, "Index") == index).map(|v| n(v, "SingleRaidIndex")).unwrap_or(0);
+            let solo_cleared = get(db, a, "raid", solo_index).await?;
+            if n(&cleared, "RaidLevel").max(n(&solo_cleared, "RaidLevel")) < required {
+                return Err(rule("NotOpenedDungeon"));
+            }
+            let shared = n(raid, "ClearRaidIndex");
+            let progress = get(db, a, "raid", shared).await?;
+            let minimum = s.tables.battle.rows("Raid").iter()
+                .filter(|v| n(v, "Index") == shared).map(|v| n(v, "Level")).min()
+                .ok_or_else(|| rule("NotOpenedDungeon"))?;
+            if n(raid, "Level") > n(&progress, "RaidLevel").max(minimum) {
+                return Err(rule("NotOpenedDungeon"));
+            }
+        }
     }
-    if battle_type == 16 { super::super::community::raid_validate(db,s,a,r).await?; }
+    if battle_type == 39 {
+        crate::api::live::validate_purchase_dungeon(
+            db,
+            s,
+            a,
+            n(d, "ChapterIndex"),
+            n(d, "DungeonIndex"),
+        )
+        .await?;
+    }
+    if battle_type == 33 {
+        let raid = raid_data(s, r)?;
+        if n(raid, "Type") != 13 || raid["IsOnlineSingle"] != false {
+            return Err(rule("ContentsDisabled"));
+        }
+        let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
+            .ok_or_else(|| rule("NotOpenedDungeon"))?;
+        let chapter = condition[0].as_i64().unwrap_or(0);
+        let dungeon = condition[1].as_i64().unwrap_or(0);
+        let min_diff = s.tables.tutorials.dungeon_difficulty(chapter as i32, dungeon as i32);
+        if chapter <= 0 || dungeon <= 0 || n(&campaign::progress(db,s,a,chapter,dungeon).await?, "FirstRewardedDiff") >> min_diff == 0 {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
+        let shared = n(raid, "ClearRaidIndex");
+        let progress = get(db, a, "raid", shared).await?;
+        if n(raid, "Level") > n(&progress, "RaidLevel").max(1) {
+            return Err(rule("NotOpenedDungeon"));
+        }
+    }
+    if battle_type == 16 {
+        super::super::community::raid_validate(db, s, a, r).await?;
+    }
     if battle_type == 15 && int(r, "WorldBossIndex")? == 0 {
         return Err(rule("MissingWorldBossIndex"));
     }
@@ -374,13 +438,52 @@ pub(super) async fn validate(
                     ("RaidLevel", int(r, "RaidLevel")?),
                 ],
             )?;
-            let opened = get(db, a, "punishment_open", 0).await?;
+            let opened = get(db, a, "punishment_open", n(def, "GroupIndex")).await?;
             if n(&opened, "IsOpen") != 1
+                || n(&opened, "DungeonType") != 2
                 || opened["Day"] != day()
                 || n(&opened, "GroupIndex") != n(def, "GroupIndex")
                 || n(&opened, "OpenLevel") != int(r, "RaidLevel")?
             {
                 return Err(rule("RaidNotStarted"));
+            }
+            let clear = get(
+                db,
+                a,
+                "punishment_raid",
+                campaign::key(int(r, "RaidIndex")?, int(r, "RaidLevel")?),
+            )
+            .await?;
+            if !clear.is_null() {
+                return Err(rule("AlreadyCompleted"));
+            }
+            let cleared = punishment_clears(db, s, a, n(def, "GroupIndex")).await?;
+            // The original dragon nodes use PunishmentClearDungeonCount < 2.
+            if n(def, "GroupIndex") == 101001 && n(def, "Boss") == 0 && cleared.len() >= 2 {
+                return Err(rule("NotOpenedDungeon"));
+            }
+            let mut expected = Vec::new();
+            if n(def, "Boss") == 1 {
+                for (raid, affix, wanted) in if n(def, "GroupIndex") == 101001 {
+                    vec![
+                        (1001, 5001, false),
+                        (1002, 5002, false),
+                        (1003, 5003, false),
+                        (1004, 5004, false),
+                    ]
+                } else {
+                    vec![(1006, 6001, true), (1007, 6002, true)]
+                } {
+                    if cleared.iter().any(|v| n(v, "RaidIndex") == raid) == wanted {
+                        expected.push(affix);
+                    }
+                }
+            }
+            let mut supplied = ids(r, "AffixIndices", 32)?;
+            supplied.sort();
+            expected.sort();
+            if supplied != expected {
+                return Err(rule("InvalidAffix"));
             }
         }
     }
@@ -451,7 +554,9 @@ pub(super) async fn enter(
         }
     }
     let dungeon = campaign::dungeon(s, r)?;
-    if n(dungeon,"BattleType")==16 {super::super::community::raid_enter(db,s,a,r,entry,out).await?;}
+    if n(dungeon, "BattleType") == 16 {
+        super::super::community::raid_enter(db, s, a, r, entry, out).await?;
+    }
     if n(dungeon, "BattleType") == 38 {
         let def = row(
             s,
@@ -587,8 +692,19 @@ pub(super) async fn finish(
     }
     if int(r, "RaidIndex")? > 0 {
         let data = raid_data(s, r)?;
-        let info = json!({"RaidIndex":n(data,"Index"),"RaidLevel":n(data,"Level"),"BattleScore":end.number("TotalDamage",0)?,"CreatedTime":time(now()),"CompletedTime":time(now())});
-        put(db, a, "raid", n(data, "Index"), &info).await?;
+        let mut index = n(data, "Index");
+        let mut level = n(data, "Level");
+        if matches!(n(data, "Type"), 1 | 3 | 13) {
+            // RaidHelper reads the shared index and treats RaidLevel as the
+            // highest selectable stage, not the last stage just completed.
+            if n(data, "ClearRaidIndex") > 0 { index = n(data, "ClearRaidIndex"); }
+            level = s.tables.battle.rows("Raid").iter()
+                .filter(|v| n(v, "Index") == index && n(v, "Level") > level)
+                .map(|v| n(v, "Level")).min().unwrap_or(level);
+            level = level.max(n(&get(db, a, "raid", index).await?, "RaidLevel"));
+        }
+        let info = json!({"RaidIndex":index,"RaidLevel":level,"BattleScore":end.number("TotalDamage",0)?,"CreatedTime":time(now()),"CompletedTime":time(now())});
+        put(db, a, "raid", index, &info).await?;
         reward_index(db, s, a, n(data, "IndividualReward"), &mut extra).await?;
         out["CompletedRaidInfo"] = info;
     }
@@ -605,11 +721,46 @@ pub(super) async fn finish(
     if bt == 47 {
         let id = int(r, "RaidIndex")?;
         let level = int(r, "RaidLevel")?;
-        let mut p = get(db, a, "punishment_open", 0).await?;
-        p["ClearLevel"] = json!(n(&p, "ClearLevel").max(level));
-        p["ClearCount"] = json!(n(&p, "ClearCount") + 1);
-        put(db, a, "punishment_open", 0, &p).await?;
-        put(db,a,"punishment_raid",campaign::key(id,level),&json!({"RaidIndex":id,"RaidLevel":level,"ClearCheckIndex":id,"ClearedTime":time(now())})).await?;
+        let definition = row(
+            s,
+            "PunishmentRaid",
+            &[("RaidIndex", id), ("RaidLevel", level)],
+        )?;
+        let group = n(definition, "GroupIndex");
+        let mut p = get(db, a, "punishment_open", group).await?;
+        if n(definition, "Boss") == 1 {
+            p["ClearLevel"] = json!(n(&p, "ClearLevel").max(level));
+            p["ClearCount"] = json!(n(&p, "ClearCount") + 1);
+            p["IsOpen"] = json!(0);
+        }
+        put(db, a, "punishment_open", group, &p).await?;
+        let raid = raid_data(s, r)?;
+        let check = n(raid, "ClearRaidIndex");
+        put(db,a,"punishment_raid",campaign::key(id,level),&json!({"RaidIndex":id,"RaidLevel":level,"ClearCheckIndex":check,"ClearedTime":time(now())})).await?;
+        let clears = punishment_clears(db, s, a, group).await?;
+        let selected = s
+            .tables
+            .battle
+            .rows("PunishmentRaidReward")
+            .iter()
+            .filter(|v| {
+                n(v, "RaidIndex") == id
+                    && n(v, "RaidLevel") == level
+                    && (v["Active"] == true || n(v, "RewardType") == 2)
+                    && v["ClearCheckIndex"].as_array().is_some_and(|checks| {
+                        checks
+                            .iter()
+                            .all(|c| clears.iter().any(|v| v["ClearCheckIndex"] == *c))
+                    })
+            })
+            .max_by_key(|v| v["ClearCheckIndex"].as_array().map_or(0, Vec::len));
+        if let Some(selected) = selected {
+            for index in selected["RewardIndex"].as_array().into_iter().flatten() {
+                reward_index(db, s, a, index.as_i64().unwrap_or(0), &mut extra).await?;
+            }
+        }
+        out["PunishmentRaidInfos"] = json!(clears);
+        out["OpenPunishmentRaidInfo"] = p;
     }
     let v = rewards(db, s, a, extra).await?;
     append_rewards(out, &v);
@@ -891,10 +1042,15 @@ pub(super) async fn execute(
         "recharge_underground_prison_key" => {
             let c = int(r, "DungeonIndex")?;
             row(s, "DOWDungeon", &[("DungeonIndex", c)])?;
-            let request=Request(std::collections::HashMap::from([("StaminaType".into(),"UndergroundPrisonKey".into())]));
-            let result=crate::api::account::stamina::execute(db,s,a,&request,"user/recharge_stamina").await?;
+            let request = Request(std::collections::HashMap::from([(
+                "StaminaType".into(),
+                "UndergroundPrisonKey".into(),
+            )]));
+            let result =
+                crate::api::account::stamina::execute(db, s, a, &request, "user/recharge_stamina")
+                    .await?;
             reward.currencies.push(result["CurrencyResult"].clone());
-            out["UndergroundPrisonKeyResult"]=result["StaminaResult"].clone();
+            out["UndergroundPrisonKeyResult"] = result["StaminaResult"].clone();
         }
         "get_treasure_house_info" | "reset_treasure_house_info" => {
             if action.starts_with("reset") {
@@ -1023,26 +1179,35 @@ pub(super) async fn execute(
             out["PassiveInfos"] = shakmeh_passives(db, s, a).await?;
         }
         "get_punishment_raid_info" | "open_punishment_raid" | "reset_punishment_raid" => {
-            let mut p = get(db, a, "punishment_open", 0).await?;
+            if int(r,"DungeonType")?==1 { return karma::opening(db,s,a,r,action).await; }
+            let group = int(r, "GroupIndex")?;
+            let mut p = get(db, a, "punishment_open", group).await?;
+            if action != "get_punishment_raid_info" {
+                let active: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0 AND started>=?)")
+                    .bind(a).bind(now()-settings(s,"BattleExpirySeconds",14400)).fetch_one(&mut *db).await?;
+                if active {
+                    return Err(rule("AlreadyOnBattleHero"));
+                }
+            }
             if action == "open_punishment_raid" {
                 let group = int(r, "GroupIndex")?;
                 let level = int(r, "Level")?;
                 let kind = int(r, "DungeonType")?;
-                row(
+                let group_data = row(
                     s,
                     "PunishmentGroup",
                     &[("GroupIndex", group), ("PunishmentDungeonType", kind)],
                 )?;
                 // The extraction has punishment definitions whose Raid rows are absent.
-                // An unplayable group must not consume its opening key.
-                if kind != 0
+                // An unplayable group must not consume opening stamina.
+                if kind != 2
                     || !s
                         .tables
                         .battle
                         .rows("PunishmentRaid")
                         .iter()
                         .filter(|v| n(v, "GroupIndex") == group && n(v, "RaidLevel") == level)
-                        .any(|v| {
+                        .all(|v| {
                             s.tables
                                 .battle
                                 .find("Raid", &[("Index", n(v, "RaidIndex")), ("Level", level)])
@@ -1063,9 +1228,38 @@ pub(super) async fn execute(
                 if !p.is_null() && p["Day"] == day() && n(&p, "IsOpen") == 1 {
                     return Err(rule("AlreadyCompleted"));
                 }
-                out["StaminaResult"] = charge(db, s, a, 30, 1).await?;
-                p = json!({"GroupIndex":group,"DungeonType":int(r,"DungeonType")?,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time(now()+86400),"OpenLevel":level,"ClearLevel":0,"ClearCount":0,"Day":day()});
-                put(db, a, "punishment_open", 0, &p).await?;
+                let clears = if p["Day"] == day() && n(&p, "GroupIndex") == group {
+                    n(&p, "ClearCount")
+                } else {
+                    0
+                };
+                let previous_level = if p["Day"] == day() && n(&p, "GroupIndex") == group {
+                    n(&p, "ClearLevel")
+                } else {
+                    0
+                };
+                let increases = group_data["StaminaIncreaseCount"].as_array();
+                let cost = (0..clears).try_fold(n(group_data, "OpenStaminaCount"), |cost, i| {
+                    let increase = increases
+                        .and_then(|v| v.get((i as usize).min(v.len().saturating_sub(1))))
+                        .and_then(Value::as_i64)
+                        .unwrap_or(n(group_data, "StaminaIncreaseRate"));
+                    cost.checked_add(increase)
+                        .ok_or_else(|| rule("InvalidCost"))
+                })?;
+                out["StaminaResult"] = charge(db, s, a, 1, cost).await?;
+                for definition in s
+                    .tables
+                    .battle
+                    .rows("PunishmentRaid")
+                    .iter()
+                    .filter(|v| n(v, "GroupIndex") == group)
+                {
+                    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='punishment_raid' AND idx=?")
+                        .bind(a).bind(campaign::key(n(definition,"RaidIndex"),n(definition,"RaidLevel"))).execute(&mut *db).await?;
+                }
+                p = json!({"GroupIndex":group,"DungeonType":kind,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":level,"ClearLevel":previous_level,"ClearCount":clears,"Day":day()});
+                put(db, a, "punishment_open", group, &p).await?;
             }
             if action == "reset_punishment_raid" {
                 if n(&p, "GroupIndex") != int(r, "GroupIndex")?
@@ -1074,12 +1268,12 @@ pub(super) async fn execute(
                     return Err(rule("DungeonNotFound"));
                 }
                 p["IsOpen"] = json!(0);
-                put(db, a, "punishment_open", 0, &p).await?;
+                put(db, a, "punishment_open", group, &p).await?;
             }
             out["OpenPunishmentRaidInfo"] = p;
             out["PunishmentRaidInfos"] = json!(list(db, a, "punishment_raid").await?);
             if out["StaminaResult"].is_null() {
-                out["StaminaResult"] = charge(db, s, a, 30, 0).await?;
+                out["StaminaResult"] = charge(db, s, a, 1, 0).await?;
             }
         }
         _ => return Err(rule("ContentsDisabled")),
@@ -1087,4 +1281,28 @@ pub(super) async fn execute(
     let v = rewards(db, s, a, reward).await?;
     append_rewards(&mut out, &v);
     Ok(out)
+}
+
+pub(super) async fn punishment_clears(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    group: i64,
+) -> Result<Vec<Value>> {
+    Ok(list(db, a, "punishment_raid")
+        .await?
+        .into_iter()
+        .filter(|v| {
+            s.tables
+                .battle
+                .find(
+                    "PunishmentRaid",
+                    &[
+                        ("RaidIndex", n(v, "RaidIndex")),
+                        ("RaidLevel", n(v, "RaidLevel")),
+                    ],
+                )
+                .is_some_and(|def| n(def, "GroupIndex") == group)
+        })
+        .collect())
 }

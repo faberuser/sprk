@@ -50,7 +50,20 @@ pub async fn handle(
     axum::extract::OriginalUri(uri): axum::extract::OriginalUri,
     body: Bytes,
 ) -> Result<Json<Value>> {
-    let req = Request::parse(&body)?;
+    let mut req = if uri.path().starts_with("/valance/") {
+        Request::parse_with_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
+    } else { Request::parse(&body)? };
+    // WWWForm sends repeated scalar fields; keep every slot and normalize the
+    // scalar strings before strict duplicate/count validation in ids().
+    if uri.path().starts_with("/valance/") {
+        for key in ["EquipItemSlotIndices", "SelectEquipOptionIndices"] {
+            if let Ok(values) = serde_json::from_str::<Vec<Value>>(req.text(key)) {
+                let normalized: Option<Vec<i64>> = values.iter().map(|v|
+                    v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).collect();
+                if let Some(values) = normalized { req.0.insert(key.into(), json!(values).to_string()); }
+            }
+        }
+    }
     let account = req.account(&state)?;
     let action = uri.path().rsplit('/').next().unwrap_or("");
     let mut tx = state.db.begin().await?;

@@ -101,9 +101,9 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 
 ### Dungeons, raids, and multiplayer (WIP)
 
-- **Real-time battles:** implement the native battle service and room socket notifications/readiness, shared combat, reconnects, and verified multiplayer reward allocation. Co-op/Eclipse combat remains unavailable (`party_dungeon/*`, `raid/*`, `eclipse/*`).
+- **Real-time battles:** implement the native battle service and room socket notifications/readiness, shared combat, reconnects, and verified multiplayer reward allocation. Co-op and online Eclipse combat remain unavailable (`party_dungeon/*`, `raid/*`, `eclipse/*`). The client's separate native offline Eclipse flow has server lifecycle support; see the Portal audit for remaining fidelity and validation limits.
 - **Missing mode definitions:** supply maze aggregate rewards (empty by default), punishment-raid stage definitions and trigger/bonus rewards, and Karma dungeon rules. Tower NPC battles require matching enabled client/server settings; all extracted towers disable NPCs.
-- **Remaining mode behavior:** Eclipse runs/sweeps and original Ordeal matchmaking, scoring, and event rules.
+- **Remaining mode behavior:** Eclipse online runs, sweeps, combat buffs and native playthroughs; original Ordeal matchmaking, scoring, and event rules.
 - **Boss scheduling and rewards:** recover original boss rotations/phases and challenge-raid scoring/tie rules; implement event-boss daily kill/season rewards and world-boss achievement rewards/server buffs. Multiplayer challenge rankings depend on the battle service.
 - **Further integration and validation:** event-dungeon reset rules, raid dispatch, full battle-mode achievement tracking, and client playthroughs. Combat simulation and verification of client-reported wins/damage remain unimplemented.
 
@@ -134,6 +134,23 @@ This backlog lists remaining implementation, missing data, limitations, and vali
 
 ### Restored Portal access
 
+See the [Portal gameplay restoration audit](portal-gameplay-restoration.md) for
+all 23 categories, verified missing definitions, native Eclipse entry contracts,
+and the remaining original-multiplayer requirements. Eclipse deck saves now
+accept native string DeckIndex/comma-separated HeroIndices and return readable
+native hero lists. Native offline Eclipse entry, team progression, result saving,
+abandonment and reward settlement are implemented and regression-tested. Online
+Eclipse still requires the missing native battle service.
+
 The client patcher now adds missing Portal categories: Valance, Arena, Raid, World Boss, God King's Temple, Eclipse, Shakmeh, Challenge Raid, Guild, Guild Territory, Pets, Technomagic Raid, Treasure House, Apocalypsion Raid, and Rune Crafting. Existing categories are preserved. These are reconstructed standard panels wired to native activities, not a recreation of the original promotional layouts. Mode-specific eligibility checks and incomplete server handlers still need gameplay testing. Verified patch compilation, menu merge preservation/idempotence, injected hooks, and byte-identical reapplication; in-game navigation is not yet verified.
 
 Portal Guild Raid badge polling now returns successful empty raid and member-score lists for authenticated accounts without a guild. Other guild raid operations still require membership. Regression checks cover repeated polling, no raid-state creation, membership enforcement, and normal raid data after joining a guild.
+
+Punishment Boss/Karma restoration now supplies ten inferred Raid definitions through
+`tables/ReconstructedRaids.json`, shared with the client patch. Native contents
+entry/results support both groups at level 1, opening stamina, clear progression,
+boss modifiers and conditional rewards. These use the client's original
+OfflinePlay mode. Karma also has native survival settlement and flask-to-shard
+conversion. Boss shard/infinite options and native playthrough validation remain.
+See [the reconstruction audit](portal-gameplay-restoration.md) for
+assumptions, recovered rules and remaining multiplayer work.

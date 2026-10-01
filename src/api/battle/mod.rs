@@ -18,15 +18,21 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
 mod campaign;
+mod contents;
+mod karma;
 pub mod campaign_handlers;
 mod dispatch;
 mod dungeons;
+mod eclipse;
 mod restrictions;
 mod rooms;
+pub(crate) mod party_messages;
 mod seasons;
 mod special;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod eclipse_tests;
 
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for query in [
@@ -37,6 +43,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS battle_scores(family TEXT NOT NULL,boss INTEGER NOT NULL,season INTEGER NOT NULL,account INTEGER NOT NULL,day TEXT NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(family,boss,season,account,day))",
         "CREATE TABLE IF NOT EXISTS battle_reward_claims(account INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,period TEXT NOT NULL,PRIMARY KEY(account,kind,idx,period))",
         "CREATE TABLE IF NOT EXISTS battle_currencies(account INTEGER NOT NULL,kind TEXT NOT NULL,value INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account,kind))",
+        "CREATE TABLE IF NOT EXISTS eclipse_run_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL)",
     ] { sqlx::query(query).execute(db).await?; }
     Ok(())
 }
@@ -122,6 +129,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     let result = match path.split('/').next().unwrap_or("") {
         "match" => seasons::match_season(s, &req),
         "dispatch" => dispatch::execute(&mut tx, s, a, &req, action).await,
+        "contents" => contents::execute(&mut tx, s, a, &req, action).await,
         "raid" | "party_dungeon" if action.contains("room") => {
             rooms::execute(&mut tx, s, a, &req, path).await
         }
@@ -145,6 +153,11 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     match result {
         Ok(v) => {
             tx.commit().await?;
+            if action.contains("room") && matches!(path.split('/').next(),Some("raid"|"party_dungeon")) {
+                if let Err(error)=party_messages::after_room_request(s,a,&req,action).await {
+                    tracing::warn!(%error,"Room notification failed after commit");
+                }
+            }
             if matches!(action, "begin_campaign" | "end_campaign") {
                 tracing::info!(path, account = a, chapter = req.text("ChapterIndex"),
                     dungeon = req.text("DungeonIndex"), "Campaign request succeeded");
@@ -365,6 +378,8 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     out["TopClearDungeonInfos"] = json!(list(&mut tx, a, "top_clear").await?);
     out["HideoutDungeons"] = json!(list(&mut tx, a, "hideout").await?);
     out["ConquestDungeons"] = json!(list(&mut tx, a, "conquest").await?);
+    out["OpenPunishmentRaidInfos"] = json!(list(&mut tx, a, "punishment_open").await?);
+    out["PunishmentRaidInfos"] = json!(list(&mut tx, a, "punishment_raid").await?);
     if !s.tables.battle.rows("ShakmehBoss").is_empty() {
         out["ShakemehPassiveInfos"] = dungeons::shakmeh_passives(&mut tx, s, a).await?;
     }

@@ -36,6 +36,26 @@ fn source<'a>(s: &'a AppState, family: &str, id: i64) -> Result<&'a Value> {
     };
     row(s, name, &fields)
 }
+// Native WorldBoss consumes the first entry and resolves its previous season
+// through NextIndex. Legacy local and special daily rows are not the live cycle.
+fn active_world_boss(s: &AppState, season: i64) -> Result<i64> {
+    let start = settings(s, "WorldBossRotationStart", 3);
+    let mut cycle = Vec::new();
+    let mut id = start;
+    loop {
+        if cycle.contains(&id) {
+            if id != start { return Err(rule("WorldBossNotActive")); }
+            break;
+        }
+        let def = source(s, "world_boss", id)?;
+        if def["IsGlobal"] != true || n(def, "NextIndex") <= 0 {
+            return Err(rule("WorldBossNotActive"));
+        }
+        cycle.push(id);
+        id = n(def, "NextIndex");
+    }
+    Ok(cycle[((season - 1).max(0) as usize) % cycle.len()])
+}
 async fn boss(db: &mut SqliteConnection, s: &AppState, family: &str, id: i64) -> Result<Value> {
     let def = source(s, family, id)?;
     if family == "event_world_boss" && def["IsOpen"] != true {
@@ -143,6 +163,35 @@ async fn score(
     sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,?,?,?,?,?,?) ON CONFLICT(family,boss,season,account,day) DO UPDATE SET score=score+excluded.score,battle_time=battle_time+excluded.battle_time").bind(family).bind(id).bind(season).bind(a).bind(day()).bind(damage).bind(battle_time).execute(db).await?;
     Ok(())
 }
+// The native campaign client leaves TotalDamage unset and reports received
+// damage on the persistent enemy at wave slot zero instead.
+fn native_world_boss_damage(end: &Request) -> Result<i64> {
+    // WebServiceRequester escapes strings before WWWForm escapes them again.
+    // Accept direct JSON from API callers, or exactly one remaining URL layer.
+    let raw = end.text("CreatureInfoString");
+    let creatures: Vec<Value> = serde_json::from_str(raw).or_else(|_| {
+        let decoded = urlencoding::decode(raw)
+            .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+        serde_json::from_str(&decoded)
+    }).map_err(|_| rule("WorldBossHpError"))?;
+    if creatures.len() > 512 { return Err(rule("WorldBossHpError")); }
+    let mut boss_damage = None;
+    for creature in creatures {
+        let integer = |field: &str| creature[field].as_i64()
+            .or_else(|| creature[field].as_str().and_then(|v|v.parse().ok())).unwrap_or(-1);
+        let key = creature["Key"].as_str().unwrap_or("");
+        let parts: Vec<&str> = key.split('_').collect();
+        if integer("TeamId") != 1 || parts.len()!=3 || parts[1]!="0" { continue; }
+        if parts[2]!="1" || parts[0].parse::<i64>().ok()!=Some(integer("Index")) || integer("Index")<=0 || boss_damage.is_some() {
+            return Err(rule("WorldBossHpError"));
+        }
+        boss_damage = Some(creature["GivedDamage"].as_i64()
+            .or_else(|| creature["GivedDamage"].as_str().and_then(|v|v.parse().ok()))
+            .filter(|v|*v>=0).ok_or_else(||rule("WorldBossHpError"))?);
+    }
+    boss_damage.ok_or_else(||rule("WorldBossHpError"))
+}
+
 pub(super) async fn finish(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -173,6 +222,9 @@ pub(super) async fn finish(
         if n(&entry, "BossSeason") != season(s).0 {
             return Err(rule("WorldBossSeasonChanged"));
         }
+        let damage = if damage == 0 && family == "world_boss" {
+            native_world_boss_damage(end)?
+        } else { damage };
         if damage <= 0
             || damage
                 > elapsed.max(1).saturating_mul(settings(
@@ -199,6 +251,12 @@ pub(super) async fn finish(
         }
         put(db, 0, family, campaign::key(id, season(s).0), &v).await?;
         score(db, family, id, season(s).0, a, dealt, elapsed).await?;
+        if family == "world_boss" {
+            let mut rank = rankers(db, family, id, season(s).0).await?
+                .into_iter().find(|v| n(v,"AccountId")==a).ok_or_else(||rule("InvalidRank"))?;
+            rank["Rank"] = json!(n(&rank,"Rank")-1);
+            out["WorldBossRankInfo"] = rank;
+        }
         out[field] = v;
         out[if family == "world_boss" {
             "WorldBossKilledByMe"
@@ -283,14 +341,16 @@ pub(super) async fn execute(
         } else {
             "EventWorldBoss"
         };
-        let ids = s
+        let ids = if family == "world_boss" {
+            BTreeSet::from([active_world_boss(s, season(s).0)?])
+        } else { s
             .tables
             .battle
             .rows(name)
             .iter()
             .filter(|v| family == "world_boss" || v["IsOpen"] == true && n(v, "BossLevel") == 1)
             .map(|v| n(v, "Index"))
-            .collect::<BTreeSet<_>>();
+            .collect::<BTreeSet<_>>() };
         for id in ids {
             infos.push(boss(db, s, family, id).await?);
         }
@@ -335,7 +395,12 @@ pub(super) async fn execute(
         } else {
             family
         };
-        let rankings = rankers(db, kind, id, season).await?;
+        let mut rankings = rankers(db, kind, id, season).await?;
+        // Native World Boss displays Rank + 1; -1 is its unranked sentinel.
+        // Keep the internal one-based ranks used by reward settlement unchanged.
+        if family == "world_boss" {
+            for rank in &mut rankings { rank["Rank"] = json!(n(rank, "Rank") - 1); }
+        }
         if action.contains("ranker_list") {
             let page = int(r, "PageNo")?;
             if page > 100 {
@@ -352,6 +417,13 @@ pub(super) async fn execute(
                 .into_iter()
                 .find(|v| n(v, "AccountId") == a)
                 .unwrap_or(Value::Null);
+            if family == "world_boss" && out["RankInfo"].is_null() {
+                let player = sqlx::query("SELECT a.nick,a.country_code,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=?")
+                    .bind(a).fetch_one(&mut *db).await?;
+                out["RankInfo"] = json!({"Rank":-1,"AccountId":a,"Nick":player.get::<String,_>("nick"),
+                    "Score":0,"AvatarHeroIndex":player.get::<i64,_>("avatar_hero_index"),
+                    "CountryCode":player.get::<Option<String>,_>("country_code").unwrap_or_default(),"ServerGroup":"Local"});
+            }
         }
         return Ok(out);
     }

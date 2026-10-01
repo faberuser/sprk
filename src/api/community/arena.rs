@@ -143,19 +143,20 @@ pub(super) async fn account(
         json!({"UserInfo":u,"HeroInfos":map,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{},"Host":"","ServerGroup":"local","MatchServerHost":"","IsNpc":npc,"ArenaType":"Normal","TeamType":if npc{"Right"}else{"Left"},"Mmr":1000,"FightingPower":0,"Rank":0,"LeaderHeroIndex":heroes.first().copied().unwrap_or(0),"GuildInfo":[],"GuildSkills":[],"AccountBuffs":[],"ClassBuffDataBases":[],"GuildArenaBuffDataBases":[],"ExtraStatDataBases":[],"PetStatDataBases":[],"BattleInfo":null,"AvgFightingPower":0,"LuckyDeckIndex":0}),
     )
 }
-async fn ensure(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
-    sqlx::query("INSERT OR IGNORE INTO arena_scores(account,kind,season,score) VALUES(?,0,?,?)")
+async fn ensure_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<()> {
+    sqlx::query("INSERT OR IGNORE INTO arena_scores(account,kind,season,score) VALUES(?,?,?,?)")
         .bind(a)
+        .bind(kind)
         .bind(season(s).0)
         .bind(constant(s, "InitialMatchScore", 1000))
         .execute(db)
         .await?;
     Ok(())
 }
-fn tier(s: &AppState, rank: i64, score: i64) -> i64 {
+fn tier(s: &AppState, kind: i64, rank: i64, score: i64) -> i64 {
     s.tables
         .arena_guild
-        .rows("MatchTier")
+        .rows(if kind == 1 { "GlobalBanPickTier" } else { "MatchTier" })
         .iter()
         .find(|v| {
             rank >= n(v, "MinRank")
@@ -165,6 +166,7 @@ fn tier(s: &AppState, rank: i64, score: i64) -> i64 {
         })
         .map(|v| n(v, "Index"))
         .unwrap_or_else(|| {
+            if kind == 1 { return 11; }
             s.tables
                 .arena_guild
                 .rows("MatchReward")
@@ -179,7 +181,10 @@ pub(super) async fn ranking(
     s: &AppState,
     season: i64,
 ) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT account,score,wins,losses FROM arena_scores WHERE kind=0 AND season=? ORDER BY score DESC,wins DESC,account LIMIT 10000").bind(season).fetch_all(&mut *db).await?;
+    ranking_kind(db, s, season, 0).await
+}
+async fn ranking_kind(db: &mut SqliteConnection, s: &AppState, season: i64, kind: i64) -> Result<Vec<Value>> {
+    let rows=sqlx::query("SELECT account,score,wins,losses FROM arena_scores WHERE kind=? AND season=? ORDER BY score DESC,wins DESC,account LIMIT 10000").bind(kind).bind(season).fetch_all(&mut *db).await?;
     let mut out = vec![];
     for (i, r) in rows.iter().enumerate() {
         let mut u = user(db, r.get("account")).await?;
@@ -187,7 +192,7 @@ pub(super) async fn ranking(
         let rank = i as i64 + 1;
         merge(
             &mut u,
-            json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,rank,score),"MatchScore":score,"SeasonWin":r.get::<i64,_>("wins"),"SeasonLose":r.get::<i64,_>("losses"),"ServerGroup":"local","CountryCode":"US"}),
+            json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,kind,rank,score),"MatchScore":score,"SeasonWin":r.get::<i64,_>("wins"),"SeasonLose":r.get::<i64,_>("losses"),"ServerGroup":"local","CountryCode":"US"}),
         );
         u["UserInfo"] = u.clone();
         u["HeroInfos"] = json!([]);
@@ -196,15 +201,19 @@ pub(super) async fn ranking(
     Ok(out)
 }
 pub(super) async fn battle_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
-    ensure(db, s, a).await?;
-    let rank = ranking(db, s, season(s).0)
+    battle_info_kind(db, s, a, 0).await
+}
+async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<Value> {
+    ensure_kind(db, s, a, kind).await?;
+    let rank = ranking_kind(db, s, season(s).0, kind)
         .await?
         .into_iter()
         .find(|v| n(v, "AccountId") == a)
         .ok_or_else(|| rule("MatchResultNotFound"))?;
     let data: String =
-        sqlx::query_scalar("SELECT data FROM arena_scores WHERE account=? AND kind=0 AND season=?")
+        sqlx::query_scalar("SELECT data FROM arena_scores WHERE account=? AND kind=? AND season=?")
             .bind(a)
+            .bind(kind)
             .bind(season(s).0)
             .fetch_one(db)
             .await?;
@@ -234,20 +243,24 @@ async fn execute_inner(
         }
         return Ok(json!({"SeasonData":season_info(s,kind)}));
     }
-    if kind != 0 {
+    // Honor rank reads have their own score partition. Combat remains gated
+    // until its live ban/pick protocol is implemented.
+    if kind != 0 && !(kind == 1 && matches!(action,
+        "get_match_rank" | "get_match_ranker" | "get_server_ranker" |
+        "get_world_ranker" | "get_server_group_ranker")) {
         return Err(rule("ContentsDisabled"));
     }
-    ensure(db, s, a).await?;
+    ensure_kind(db, s, a, kind).await?;
     sqlx::query("UPDATE arena_runs SET status='expired' WHERE account=? AND status IN ('waiting','battle') AND started<?").bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).execute(&mut *db).await?;
     let mut out = item::success();
     match action {
         "get_match_rank" => {
             let target = r.number("RankerAccountId", a)?;
             let target = if target == 0 { a } else { target };
-            let ranks = ranking(db, s, season(s).0).await?;
+            let ranks = ranking_kind(db, s, season(s).0, kind).await?;
             let rank = ranks.iter().find(|v| n(v, "AccountId") == target);
-            out["BattleInfo"] = if target == a {
-                battle_info(db, s, a).await?
+            out[if kind == 1 { "BattleBanPickInfo" } else { "BattleInfo" }] = if target == a {
+                battle_info_kind(db, s, a, kind).await?
             } else {
                 rank.cloned().ok_or_else(|| rule("MatchResultNotFound"))?
             };
@@ -264,7 +277,7 @@ async fn execute_inner(
             if to - from >= 1000 {
                 return Err(rule("RankError"));
             }
-            let ranks = ranking(db, s, old)
+            let ranks = ranking_kind(db, s, old, kind)
                 .await?
                 .into_iter()
                 .filter(|v| n(v, "Rank") - 1 >= from && n(v, "Rank") - 1 <= to)
@@ -277,8 +290,9 @@ async fn execute_inner(
         }
         "get_server_group_ranker" => {
             let score: i64 = sqlx::query_scalar(
-                "SELECT COALESCE(SUM(score),0) FROM arena_scores WHERE kind=0 AND season=?",
+                "SELECT COALESCE(SUM(score),0) FROM arena_scores WHERE kind=? AND season=?",
             )
+            .bind(kind)
             .bind(season(s).0)
             .fetch_one(db)
             .await?;
@@ -355,6 +369,14 @@ async fn execute_inner(
             let heroes:Vec<i64>=sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY level DESC,hero_index LIMIT 4").bind(opponent).fetch_all(&mut *db).await?;
             out["Result"] = json!("WaitMore");
             out["MatchedNpcInfo"] = account(db, opponent, &heroes, true).await?;
+            if opponent == a {
+                out["MatchedNpcInfo"]["UserInfo"]["AccountId"] = json!(-a);
+            }
+            // The native battle-end callback reads this snapshot when saving
+            // the opponent's score and tier in the arena replay.
+            let opponent_battle = battle_info(db, s, opponent).await?;
+            out["MatchedNpcInfo"]["TierIndex"] = opponent_battle["TierIndex"].clone();
+            out["MatchedNpcInfo"]["BattleInfo"] = opponent_battle;
             out["ChapterIndex"] = json!(1000);
             out["DungeonIndex"] = json!(1);
             out["SwordResult"] = tickets(db, s, a, "Sword", -1).await?;

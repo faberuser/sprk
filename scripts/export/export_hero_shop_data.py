@@ -13,7 +13,7 @@ def main():
     parser.add_argument('decoded', type=Path)
     parser.add_argument('jit', type=Path)
     parser.add_argument('source', type=Path, help='Assembly-CSharp directory containing NShared')
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'tables/HeroShopSupport.json')
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2] / 'tables/HeroShopSupport.json')
     args = parser.parse_args()
     def read(name):
         return json.loads((args.decoded / (name + '.json')).read_text(encoding='utf-8'))

@@ -62,6 +62,7 @@ async fn leave(
     if count != 1 {
         return Err(rule("RoomNotExist"));
     }
+    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_member' AND idx=?").bind(target).bind(id).execute(&mut *db).await?;
     let ids = members(db, id).await?;
     if ids.is_empty() {
         sqlx::query("DELETE FROM battle_rooms WHERE id=?")
@@ -291,7 +292,7 @@ pub(super) async fn execute(
     save(db, id, &v).await?;
     Ok(out)
 }
-async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &str) -> Result<Value> {
+pub(super) async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &str) -> Result<Value> {
     let mut v = room(db, id, family).await?;
     let old: Option<i64> =
         sqlx::query_scalar("SELECT room FROM battle_room_members WHERE account=?")
@@ -316,6 +317,7 @@ async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &str) -> Resul
         .execute(&mut *db)
         .await?;
     v["CurPartyMember"] = json!(count + 1);
+    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_member'").bind(a).execute(&mut *db).await?;
     save(db, id, &v).await?;
     Ok(v)
 }

@@ -50,7 +50,7 @@ def main():
         r['OpenConditionName'] = mission_pool[r['OpenConditionType']]
         r['OpenConditionArgs'] = [mission_pool[x].strip() for x in r['OpenConditionValue'] or []]
     data['MissionVisuals'] = rows('MissionVisualTable')
-    (Path(__file__).resolve().parents[1]/'tables/ProgressionSupport.json').write_text(json.dumps(data,separators=(',',':'))+'\n',encoding='utf-8')
+    (Path(__file__).resolve().parents[2]/'tables/ProgressionSupport.json').write_text(json.dumps(data,separators=(',',':'))+'\n',encoding='utf-8')
     print({k:len(v) for k,v in data.items()})
 
 if __name__ == '__main__': main()

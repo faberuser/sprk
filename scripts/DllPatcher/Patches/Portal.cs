@@ -11,10 +11,13 @@ partial class Program
     {
         using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Portal.cs.txt")!;
         using var reader = new StreamReader(stream);
+        using var raidStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.ReconstructedRaids.json")!;
+        using var raidReader = new StreamReader(raidStream);
+        var sourceText = reader.ReadToEnd().Replace("\"__RECONSTRUCTED_RAIDS__\"", System.Text.Json.JsonSerializer.Serialize(raidReader.ReadToEnd()));
         var references = Directory.GetFiles(Path.GetDirectoryName(module.FileName)!, "*.dll")
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("PortalRestore",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, references,
+            new[] { CSharpSyntaxTree.ParseText(sourceText) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
         var result = compilation.Emit(compiled);
@@ -85,8 +88,49 @@ partial class Program
                 il.InsertAfter(ret.Next, Instruction.Create(OpCodes.Ret));
             }
         }
+        var raids = module.Types.Single(t => t.FullName == "NShared.RaidDataContainer");
+        foreach (var pair in new[] { ("GetData", "Raid"), ("GetRaidIndices", "RaidIndices"), ("GetRaidLevels", "RaidLevels"), ("GetRaidDataListByType", "RaidList"), ("GetRaidDataByDungeon", "RaidDungeon"), ("GetMultiRaidIndexBySingleRaidIndex", "MultiRaid") })
+        {
+            var target = raids.Methods.Single(m => m.Name == pair.Item1);
+            var helper = targetType.Methods.Single(m => m.Name == pair.Item2);
+            if (target.Body.Instructions.Any(i => i.Operand is MethodReference m && m.FullName == helper.FullName)) continue;
+            foreach (var ret in target.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Nop;
+                var il = target.Body.GetILProcessor();
+                var cursor = ret;
+                foreach (var parameter in target.Parameters)
+                {
+                    var load = Instruction.Create(OpCodes.Ldarg, parameter);
+                    il.InsertAfter(cursor, load); cursor = load;
+                }
+                var call = Instruction.Create(OpCodes.Call, helper);
+                il.InsertAfter(cursor, call);
+                il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        foreach (var pair in new[] { ("OpenValanceCraft", "OpenValanceCraft"), ("OpenValanceIndentified", "OpenValanceIdentified"), ("OpenValanceManage", "OpenValanceManage") })
+        {
+            var action = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.NEntryMenu.NAction." + pair.Item1);
+            var run = action.Methods.Single(m => m.Name.EndsWith(".Run") && m.Parameters.Count == 3);
+            run.Body = new MethodBody(run);
+            var il = run.Body.GetILProcessor();
+            il.Append(Instruction.Create(OpCodes.Ldarg_1));
+            il.Append(Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == pair.Item2)));
+            il.Append(Instruction.Create(OpCodes.Ret));
+        }
+        var matchSelect = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.MatchManagement")
+            .Methods.Single(m => m.Name == "OpenMatchSelect" && m.Parameters.Count == 3);
+        if (!matchSelect.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "RestoredPortal" && m.Name == "ArenaMenu"))
+        {
+            var il = matchSelect.Body.GetILProcessor();
+            var first = matchSelect.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_3));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == "ArenaMenu")));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Starg, matchSelect.Parameters[2]));
+        }
         if (module.AssemblyReferences.Any(r => r.Name == "PortalRestore"))
             throw new InvalidOperationException("Portal patch leaked a helper assembly reference");
-        Console.WriteLine("Restored 15 missing Portal categories and their native navigation.");
+        Console.WriteLine("Restored missing Portal categories and shared reconstructed raid definitions.");
     }
 }

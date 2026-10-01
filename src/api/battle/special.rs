@@ -20,7 +20,12 @@ async fn eclipse(
     action: &str,
 ) -> Result<Value> {
     let mut decks = list(db, a, "eclipse_deck").await?;
-    let mut run = get(db, a, "eclipse", 0).await?;
+    // Older emulator versions persisted JSON arrays inside this string. The
+    // native client splits it on commas, so normalize saved decks on reads too.
+    for deck in &mut decks {
+        deck["HeroIndices"] = json!(eclipse_hero_string(&eclipse_heroes(&deck["HeroIndices"])?));
+    }
+    let run = get(db, a, "eclipse", 0).await?;
     if action == "get_eclipse_deck" {
         return Ok(json!({"DeckResults":decks}));
     }
@@ -36,15 +41,14 @@ async fn eclipse(
         let mut deck_ids = BTreeSet::new();
         let mut new = vec![];
         for v in values {
-            let index = n(&v, "DeckIndex");
+            // JM_NShared_EclipseDeckResult encodes integer fields as strings.
+            let index = v["DeckIndex"].as_i64()
+                .or_else(|| v["DeckIndex"].as_str().and_then(|v| v.parse().ok()))
+                .ok_or_else(|| rule("Fail"))?;
             if !(1..=10).contains(&index) || !deck_ids.insert(index) {
                 return Err(rule("Fail"));
             }
-            let hero_ids: Vec<i64> =
-                read_json(v["HeroIndices"].as_str().unwrap_or("[]")).map_err(|_| rule("Fail"))?;
-            if hero_ids.len() > 4 {
-                return Err(rule("Fail"));
-            }
+            let hero_ids = eclipse_heroes(&v["HeroIndices"])?;
             let mut heroes = vec![];
             for id in &hero_ids {
                 if *id <= 0 || *id > i32::MAX as i64 || !used.insert(*id) {
@@ -52,7 +56,12 @@ async fn eclipse(
                 }
                 heroes.push(cached_hero(db, a, *id as i32).await?);
             }
-            new.push(json!({"DeckIndex":index,"HeroIndices":json!(hero_ids).to_string(),"CachedHeroInfos":heroes,"UpdatedTime":time(now()),"ClearMaxWaveIndex":0}));
+            new.push(json!({"DeckIndex":index,"HeroIndices":eclipse_hero_string(&hero_ids),"CachedHeroInfos":heroes,"UpdatedTime":time(now()),"ClearMaxWaveIndex":0}));
+        }
+        new.sort_by_key(|v| n(v, "DeckIndex"));
+        // Both battle initialization and the deck UI address decks by index - 1.
+        if new.iter().enumerate().any(|(i, v)| n(v, "DeckIndex") != i as i64 + 1) {
+            return Err(rule("Fail"));
         }
         sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='eclipse_deck'")
             .bind(a)
@@ -65,44 +74,42 @@ async fn eclipse(
         return Ok(json!({"DeckResults":decks}));
     }
     if action == "get_eclipse_info" {
-        let stamina = dungeons::charge(db, s, a, 22, 0).await?;
-        if run.is_null() {
-            run = json!({"MatchIndex":0,"IsPlayEclipse":false,"MaxWaveIndex":0,"CurrentWaveIndex":0,"DeckIndex":1,"LastDeckIndex":0,"ChapterIndex":0,"DungeonIndex":0,"ExpireTime":null});
-        }
-        run["IsDeckSave"] = json!(!decks.is_empty());
-        run["DeckResults"] = json!(decks);
-        run["EclipseStaminaResult"] = stamina;
-        return Ok(json!({"EclipseInfo":run}));
+        return super::eclipse::info(db, s, a, decks).await;
     }
     if action == "begin_eclipse" {
-        if decks.is_empty() || decks.iter().all(|d| d["HeroIndices"] == "[]") {
+        if decks.is_empty() || decks.iter().all(|d| d["HeroIndices"] == "") {
             return Err(rule("HeroNotFound"));
         }
         // A real-time battle service is required by this request's response contract.
         // Decks and collection records remain available while that service is absent.
         return Err(rule("BattleServerNotFound"));
     }
-    if run.is_null()
-        || run["IsPlayEclipse"] != true
-        || int(r, "MatchIndex")? != n(&run, "MatchIndex")
-    {
-        return Err(rule("DungeonNotFound"));
-    }
-    if action == "save_eclipse_result" {
-        if r.number("AccountId", a)? != a {
-            return Err(rule("Fail"));
-        }
-        return Err(rule("BattleServerNotFound"));
-    }
-    if matches!(action, "end_eclipse" | "give_up_eclipse_dungeon") {
-        run["IsPlayEclipse"] = json!(false);
-        run["Status"] = json!("BattleGiveUp");
-        put(db, a, "eclipse", 0, &run).await?;
-        return Ok(json!({"EclipseDungeonInfo":run,"CurrencyResults":[],"ItemResults":[]}));
-    }
-    Err(rule("Fail"))
+    super::eclipse::execute(db, s, a, r, action).await
 }
-async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> Result<Value> {
+pub(super) fn eclipse_heroes(value: &Value) -> Result<Vec<i64>> {
+    let text = value.as_str().ok_or_else(|| rule("Fail"))?.trim();
+    let heroes = if text.starts_with('[') {
+        // Retain compatibility with existing API clients and saved decks.
+        let values: Vec<Value> = read_json(text).map_err(|_| rule("Fail"))?;
+        values.iter().map(|v| v.as_i64()
+            .or_else(|| v.as_str().and_then(|v| v.parse().ok()))
+            .ok_or_else(|| rule("HeroNotFound"))).collect::<Result<Vec<_>>>()?
+    } else if text.is_empty() {
+        vec![]
+    } else {
+        text.split(',').map(|v| v.trim().parse::<i64>()
+            .map_err(|_| rule("HeroNotFound"))).collect::<Result<Vec<_>>>()?
+    };
+    if heroes.len() > 4 || heroes.iter().any(|id| *id <= 0 || *id > i32::MAX as i64)
+        || heroes.iter().collect::<BTreeSet<_>>().len() != heroes.len() {
+        return Err(rule("HeroNotFound"));
+    }
+    Ok(heroes)
+}
+fn eclipse_hero_string(heroes: &[i64]) -> String {
+    heroes.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
+}
+pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> Result<Value> {
     let mut hero = hero::info(db, a, id).await?;
     for part in 1..=10 {
         let slot = n(&hero, &format!("EquipItemSlotIndex{part}"));
@@ -134,7 +141,7 @@ pub(super) async fn opponent(db: &mut SqliteConnection, a: i64, exclude: i64) ->
     }
     let user=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=?").bind(account).fetch_one(db).await?;
     Ok(
-        json!({"UserInfo":{"AccountId":account,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0},"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}}),
+        json!({"UserInfo":{"AccountId":if account == a {-a} else {account},"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0},"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}}),
     )
 }
 async fn nodes(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
@@ -173,6 +180,16 @@ async fn ordeal(
     let period = seasons::season(s).0;
     if info.is_null() || n(&info, "Period") != period {
         info = json!({"SelectedTier":0,"MatchScore":0,"OrdealNodeInfos":nodes(db,s,a).await?,"ClearNodeIndices":[1],"DeadHeroIndices":[],"RemainRefreshCount":s.tables.hero_shop.constant("OrdealArenaChangeOpponent",5),"SelectableBuffIndices":[],"SelectedBuffIndices":[],"Period":period,"Selected":false,"ActiveNode":0});
+    }
+    // The client keys BattlePlayerContainer by account ID; a mirror opponent
+    // must not reuse the local player's ID or its creatures never spawn.
+    // Repair saved maps too, without resetting their progress or hero snapshots.
+    if let Some(nodes) = info["OrdealNodeInfos"].as_array_mut() {
+        for node in nodes {
+            if n(&node["AccountInfo"]["UserInfo"], "AccountId") == a {
+                node["AccountInfo"]["UserInfo"]["AccountId"] = json!(-a);
+            }
+        }
     }
     let mut out = item::success();
     match action {
@@ -364,6 +381,13 @@ async fn ordeal(
                 out["AddMatchScore"] = json!(points);
                 out["ResultMatchScore"] = info["MatchScore"].clone();
                 out["PointResult"] = json!(points);
+                if battle {
+                    // Native results apply this currency separately from arena
+                    // rating. The base win award uses the existing local rule;
+                    // HP/time/survival bonuses still need recovered formulas.
+                    out["CurrencyResult"] =
+                        hero::currency(db, a, "OrdealArenaPoint", points).await?;
+                }
                 info["SelectableBuffIndices"] = if n(node, "NodeType") == 3 {
                     json!([])
                 } else {
@@ -429,7 +453,13 @@ async fn ordeal(
         out[key] = info[key].clone();
     }
     if action != "refresh_node" {
-        out["OrdealNodeInfos"] = info["OrdealNodeInfos"].clone();
+        // The native client treats a nonempty node list as a selected tier.
+        // Publishing the generated map early skips select_tier entirely.
+        out["OrdealNodeInfos"] = if info["Selected"] == true {
+            info["OrdealNodeInfos"].clone()
+        } else {
+            json!([])
+        };
     }
     Ok(out)
 }

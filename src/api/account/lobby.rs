@@ -4,6 +4,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
+use chrono::{Datelike, Duration, NaiveDate, Utc};
 use crate::{
     error::{Result, ServerError},
     models::{
@@ -124,6 +125,9 @@ pub struct EnterLobbyResponse {
     pub server_local_time: String,
     #[serde(rename = "ServerUTCOffsetHour")]
     pub server_utc_offset_hour: i32,
+    pub remain_day_second: i64,
+    pub remain_week_second: i64,
+    pub remain_month_second: i64,
     pub new_mail_count: i32,
     pub friend_request_count: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -143,6 +147,8 @@ pub async fn enter_lobby(
         .ok_or(ServerError::SessionExpired)?;
     
     let account_id = session.account_id;
+
+    crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
 
     // Fetch account info
     let account_row = sqlx::query("SELECT nick FROM accounts WHERE account_id = ?")
@@ -307,6 +313,7 @@ pub async fn enter_lobby(
     battle.as_object_mut().unwrap().remove("BattleKeyResults");
     let supporting=crate::api::services::login(&state,account_id).await?;
     for(k,v)in supporting.as_object().unwrap(){battle[k]=v.clone();}
+    let (remain_day_second, remain_week_second, remain_month_second) = reset_countdowns(Utc::now());
     Ok(Json(EnterLobbyResponse {
         battle,
         attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
@@ -324,8 +331,37 @@ pub async fn enter_lobby(
         server_utc_time: state.server_utc_time_str(),
         server_local_time: state.server_time_str(),
         server_utc_offset_hour: 0,
+        remain_day_second,
+        remain_week_second,
+        remain_month_second,
         new_mail_count: mail_count,
         friend_request_count,
         friendly_info,
     }))
+}
+
+// Match the UTC daily, Monday weekly and calendar-month resets used by towers.
+fn reset_countdowns(now: chrono::DateTime<Utc>) -> (i64, i64, i64) {
+    let date = now.date_naive();
+    let next_day = date + Duration::days(1);
+    let next_week = date + Duration::days(7 - date.weekday().num_days_from_monday() as i64);
+    let (year, month) = if date.month() == 12 { (date.year() + 1, 1) } else { (date.year(), date.month() + 1) };
+    let next_month = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+    let seconds = |d: NaiveDate| d.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp() - now.timestamp();
+    (seconds(next_day), seconds(next_week), seconds(next_month))
+}
+
+#[cfg(test)]
+mod reset_tests {
+    use super::*;
+
+    #[test]
+    fn lobby_reset_countdowns_follow_calendar_boundaries() {
+        let at = |s: &str| chrono::DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc);
+        assert_eq!(reset_countdowns(at("2026-09-30T23:59:59Z")), (1, 345601, 1));
+        assert_eq!(reset_countdowns(at("2026-12-31T23:59:59Z")).2, 1);
+        assert_eq!(reset_countdowns(at("2024-02-28T00:00:00Z")).2, 172800);
+        assert_eq!(reset_countdowns(at("2026-10-05T00:00:00Z")).1, 604800);
+        assert_eq!(reset_countdowns(at("2026-10-04T23:59:59Z")).1, 1);
+    }
 }

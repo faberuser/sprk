@@ -666,6 +666,62 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
 }
 
 struct Socket(BufReader<TcpStream>);
+#[tokio::test]
+async fn native_party_socket_join_deck_ready_and_isolation() {
+    let (state,a,b)=setup().await;
+    let c=login(&state,"party-outsider").await;
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,1).await;let mut sc=Socket::connect(addr,&c,1).await;
+    let created=crate::api::battle::execute_request(&state,"party_dungeon/create_party_dungeon_room",form(&a,"DungeonType=1&ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=2&Opened=1")).await.unwrap();
+    assert_eq!(created["Result"],"Success","{created}");let room=created["RoomNo"].as_i64().unwrap();
+    sb.send("MessageReq",json!({"RequestId":20,"ReceiverIds":[a.user_info.account_id],"Message":format!("JoinPartyReq {}",json!({"RoomNo":room,"SendKey":42,"Accepted":true,"Invitee":{"AccountId":999,"Nick":"forged"}}))})).await;
+    assert_eq!(sb.read().await.1["Result"],"Success");
+    let (_,notice)=sa.read().await;assert_eq!(notice["Type"],"JoinPartyReq");
+    let invite:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(invite["Invitee"]["AccountId"],b.user_info.account_id);
+    assert_eq!(invite["Invitee"]["Nick"],b.user_info.nick);
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    sa.send("MessageReq",json!({"RequestId":21,"ReceiverIds":[b.user_info.account_id],"Message":format!("JoinPartyRes {}",json!({"Result":"Success","SendKey":42,"PartyInfo":{"PartyMembers":[{"AccountId":a.user_info.account_id,"DeckHeros":{"2":{"HeroIndex":2,"Level":999}},"SubDeckHeros":{}}]}}))})).await;
+    assert_eq!(sa.read().await.1["Result"],"Success");
+    let (_,notice)=sb.read().await;assert_eq!(notice["Type"],"JoinPartyRes");
+    let joined:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(joined["PartyInfo"]["PartyMembers"].as_array().unwrap().len(),2);
+    assert_eq!(joined["PartyInfo"]["PartyMembers"][0]["DeckHeros"]["2"]["Level"],1);
+    sb.send("MessageReq",json!({"RequestId":22,"ReceiverIds":[c.user_info.account_id],"Message":"PartyDeckHeroInfo {\"HeroIndex\":1,\"DeckIndex\":0,\"HeroInfo\":{\"HeroIndex\":1,\"Level\":999}}"})).await;
+    assert_eq!(sb.read().await.1["Result"],"Success");
+    assert_eq!(sa.read().await.1["Type"],"PartyRoomReady");
+    let (_,notice)=sa.read().await;assert_eq!(notice["Type"],"PartyDeckHeroInfo");
+    let deck:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(deck["HeroInfo"]["Level"],1);
+    sb.send("MessageReq",json!({"RequestId":23,"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
+    assert_eq!(sb.read().await.1["Result"],"Success");assert_eq!(sa.read().await.1["Type"],"PartyRoomReady");
+    sc.send("MessageReq",json!({"RequestId":24,"ReceiverIds":[a.user_info.account_id],"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
+    assert_eq!(sc.read().await.1["Result"],"Fail");
+    assert!(tokio::time::timeout(Duration::from_millis(100),sc.0.fill_buf()).await.is_err());
+    let saved:String=sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='party_member' AND idx=?").bind(b.user_info.account_id).bind(room).fetch_one(&state.db).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()["IsBattleReady"],true);
+    let delegated=crate::api::battle::execute_request(&state,"party_dungeon/delegate_party_dungeon_room_master",form(&a,&format!("RoomNo={room}&PrevMasterId={}&CurMasterId={}",a.user_info.account_id,b.user_info.account_id))).await.unwrap();
+    assert_eq!(delegated["Result"],"Success","{delegated}");
+    assert_eq!(sa.read().await.1["Type"],"ChangePartyRoomMaster");sa.read().await;
+    assert_eq!(sb.read().await.1["Type"],"ChangePartyRoomMaster");sb.read().await;
+    let left=crate::api::battle::execute_request(&state,"party_dungeon/leave_party_dungeon_room",form(&a,&format!("RoomNo={room}"))).await.unwrap();
+    assert_eq!(left["Result"],"Success");
+    assert_eq!(sb.read().await.1["Type"],"KickedRaidMemberRes");sb.read().await;sb.read().await;
+    sa.send("MessageReq",json!({"RequestId":25,"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
+    assert_eq!(sa.read().await.1["Result"],"Fail");
+    let rejoined=crate::api::battle::execute_request(&state,"party_dungeon/join_party_dungeon_room",form(&a,&format!("RoomNo={room}"))).await.unwrap();
+    assert_eq!(rejoined["Result"],"Success");
+    assert_eq!(sa.read().await.1["Type"],"JoinPartyNotice");
+    assert_eq!(sb.read().await.1["Type"],"JoinPartyNotice");
+    let kicked=crate::api::battle::execute_request(&state,"party_dungeon/leave_party_dungeon_room",form(&b,&format!("RoomNo={room}&AccountId={}",a.user_info.account_id))).await.unwrap();
+    assert_eq!(kicked["Result"],"Success");
+    let (_,notice)=sa.read().await;
+    assert_eq!(notice["Type"],"KickedRaidMemberRes");
+    let kicked:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(kicked["KickedAccountIds"],json!([a.user_info.account_id]));
+    assert_eq!(sb.read().await.1["Type"],"KickedRaidMemberRes");sb.read().await;sb.read().await;
+    server.abort();
+}
 impl Socket {
     async fn send(&mut self, name: &str, body: Value) {
         self.0

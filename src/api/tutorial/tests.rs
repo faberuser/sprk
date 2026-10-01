@@ -189,6 +189,8 @@ async fn unknown_missing_and_unauthenticated_requests_do_not_write() {
 #[tokio::test]
 async fn every_shipped_tutorial_reward_is_supported() {
     let (state, first) = setup().await;
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,1,20,1,1)")
+        .bind(first.user_info.account_id).execute(&state.db).await.unwrap();
     let mut indices: Vec<_> = state.tables.tutorials.definitions.keys().copied().collect();
     indices.sort();
     for index in indices {
@@ -452,4 +454,50 @@ async fn side_tutorial_difficulty_matches_relogin() {
             dungeon["FirstRewardedDiff"]
         );
     }
+}
+
+
+#[tokio::test]
+async fn clause_requires_clear_and_recovers_on_lobby_entry_once() {
+    let (state, first) = setup().await;
+    let key = &first.user_info.session_key;
+    let a = first.user_info.account_id;
+    assert!(complete_tutorial(State(state.clone()), Form(request(key, 20001))).await.is_err());
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES(?,1,20,1)")
+        .bind(a).execute(&state.db).await.unwrap();
+    restore_clause_reward(&state,a).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=15").bind(a).fetch_one(&state.db).await.unwrap(),0);
+    sqlx::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=? AND chapter_id=1 AND dungeon_id=20")
+        .bind(a).execute(&state.db).await.unwrap();
+    let lobby = crate::api::account::lobby::enter_lobby(State(state.clone()), Form(crate::api::account::lobby::EnterLobbyRequest {session_id:None,session_key:Some(key.clone())})).await.unwrap().0;
+    let clause = lobby.heroes.iter().find(|h|h.hero_index==15).unwrap();
+    assert_eq!((clause.star,clause.level),(2,20));
+    let exp: i64 = sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=70,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
+    let receipt = complete(&state,key,20001).await;
+    assert_eq!(receipt["HeroInfos"][0]["Level"],70);
+    let again = login(&state).await;
+    assert_eq!(again.heroes.iter().filter(|h|h.hero_index==15).count(),1);
+    assert_eq!(again.heroes.iter().find(|h|h.hero_index==15).unwrap().level,70);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap(),exp);
+}
+
+#[tokio::test]
+async fn clause_login_catches_up_past_chapter_one_without_resetting_owned_hero() {
+    let (state, first) = setup().await;
+    let a = first.user_info.account_id;
+    for (c,d) in [(1,20),(2,1)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,?,?,1,1)")
+            .bind(a).bind(c).bind(d).execute(&state.db).await.unwrap();
+    }
+    let recovered = login(&state).await;
+    assert!(recovered.heroes.iter().any(|h|h.hero_index==15 && h.level==20 && h.star==2));
+    assert!(recovered.tutorials.iter().any(|t|t.tutorial_index==20001));
+    // An independently recruited Clause must retain upgrades and award no recruitment EXP.
+    sqlx::query("DELETE FROM tutorial_progress WHERE account_id=? AND tutorial_index=20001").bind(a).execute(&state.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=80,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
+    let recovered = login(&state).await;
+    assert!(recovered.heroes.iter().any(|h|h.hero_index==15 && h.level==80 && h.star==5));
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap(),before);
 }

@@ -1,17 +1,22 @@
 {
   "Description": "Local emulator defaults, not recovered production rules. Times are UTC.",
   "BattleExpirySeconds": 14400,
+  "EnableLegacyFieldRaids": true,
   "DispatchSecondsPerBattle": 60,
-  "DispatchMaxRepeat": 100,
+  "DispatchMaxRepeat": 200,
   "DispatchMaxSlots": 5,
   "RoomTimeoutSeconds": 120,
   "SeasonEpoch": "2026-01-05 00:00:00",
   "SeasonDays": 7,
   "WorldBossMaxHp": 1000000000000,
+  "WorldBossRotationStart": 3,
   "WorldBossMaxDamagePerSecond": 1000000000,
   "BossTicketsPerBattle": 1,
   "OrdealArenaWinPoint": 100,
-  "TowerCarryCreatureTypes": [1, 2],
+  "TowerCarryCreatureTypes": [
+    1,
+    2
+  ],
   "DungeonKeyDailyDefaults": {
     "MazeKey": 5,
     "PrisonKey": 5,
@@ -36,5 +41,8 @@
   },
   "MazeTowerRewards": [],
   "PrisonRechargeGem": 100,
-  "UnderPrisonMaxDailyAttempts": 3
+  "UnderPrisonMaxDailyAttempts": 3,
+  "KarmaMaxClearWaves": 100,
+  "KarmaMinSecondsPerWave": 1,
+  "KarmaMaxShardsPerRun": 100000
 }

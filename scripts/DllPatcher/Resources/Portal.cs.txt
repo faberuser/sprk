@@ -4,6 +4,101 @@ using NShared;
 // Additive menu reconstruction. Existing table rows and unlock rules take precedence.
 public static class RestoredPortal
 {
+    public static EntryMenu ArenaMenu(EntryMenu menu)
+    {
+        // Battle return opens the selector without a town entry-menu row.
+        return menu ?? new EntryMenu(0, new string[0], "", new string[0], new int[] { 1, 2 }, 0);
+    }
+    public static void OpenValanceCraft(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenCraftInven(); else manager.OpenCraft();
+    }
+    public static void OpenValanceIdentified(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenIdentifiedInven(null); else manager.OpenIdentified();
+    }
+    public static void OpenValanceManage(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenManageInven(); else manager.OpenManage();
+    }
+    static List<RaidData> ReconstructedRaids()
+    {
+        var rows = (System.Collections.IList)MiniJSON.Json.Deserialize("__RECONSTRUCTED_RAIDS__");
+        var result = new List<RaidData>();
+        foreach (System.Collections.IDictionary row in rows) result.Add(new RaidData {
+            Index=System.Convert.ToInt32(row["Index"]), Level=System.Convert.ToInt32(row["Level"]),
+            Type=(RaidType)System.Convert.ToInt32(row["Type"]), Name=(string)row["Name"],
+            ChapterIndex=System.Convert.ToInt32(row["ChapterIndex"]), DungeonIndex=System.Convert.ToInt32(row["DungeonIndex"]),
+            IsOpen=(bool)row["IsOpen"], PlayerCount=System.Convert.ToInt32(row["PlayerCount"]),
+            DeckCount=System.Convert.ToInt32(row["DeckCount"]), DeckCountPerPlayer=System.Convert.ToInt32(row["DeckCountPerPlayer"]),
+            MainPartyCount=System.Convert.ToInt32(row["MainPartyCount"]), SubPartyCount=System.Convert.ToInt32(row["SubPartyCount"]),
+            ReqHeroLevel=System.Convert.ToInt32(row["ReqHeroLevel"]), IsOnlineSingle=(bool)row["IsOnlineSingle"],
+            AliveDuration=System.Convert.ToInt32(row["AliveDuration"]), ClearRaidIndex=System.Convert.ToInt32(row["ClearRaidIndex"]),
+            IndividualReward=System.Convert.ToInt32(row["IndividualReward"]), ResetGem=System.Convert.ToInt32(row["ResetGem"]),
+            NodeTreePath=(string)row["NodeTreePath"], NodeTreeCode=(string)row["NodeTreeCode"],
+            PreviewBg=(string)row["PreviewBg"], Tactic=(string)row["Tactic"], RaidDesc=(string)row["RaidDesc"],
+            SingleRaidIndex=System.Convert.ToInt32(row["SingleRaidIndex"]),
+            FilterValue=System.Convert.ToInt32(row["FilterValue"]),
+            Step_Name=(string)row["Step_Name"] ?? "", Step_HelpDesc=(string)row["Step_HelpDesc"] ?? "",
+            OccurChapterIndex=System.Convert.ToInt32(row["OccurChapterIndex"]),
+            RaidPoint=System.Convert.ToInt32(row["RaidPoint"]),
+            OpenCondition=IntArray(row["OpenCondition"]),
+            RecommendedHeroIndex=IntArray(row["RecommendedHeroIndex"]), ShowInfoSkill=IntArray(row["ShowInfoSkill"])
+        });
+        return result;
+    }
+    static int[] IntArray(object value)
+    {
+        var list = value as System.Collections.IList;
+        if (list == null) return new int[0];
+        var result = new int[list.Count];
+        for (int i = 0; i < list.Count; i++) result[i] = System.Convert.ToInt32(list[i]);
+        return result;
+    }
+    public static int MultiRaid(int original, int singleIndex)
+    {
+        if (original != 0) return original;
+        foreach (var row in ReconstructedRaids()) if (row.SingleRaidIndex == singleIndex && singleIndex != 0) return row.Index;
+        return 0;
+    }
+    public static RaidData Raid(RaidData original, int index, int level)
+    {
+        if (original != null) return original;
+        foreach (var row in ReconstructedRaids()) if (row.Index == index && row.Level == level) return row;
+        return null;
+    }
+    public static RaidData RaidDungeon(RaidData original, int chapter, int dungeon)
+    {
+        if (original != null) return original;
+        foreach (var row in ReconstructedRaids()) if (row.ChapterIndex == chapter && row.DungeonIndex == dungeon) return row;
+        return null;
+    }
+    public static ICollection<int> RaidIndices(ICollection<int> original, RaidType type)
+    {
+        var result = original == null ? new List<int>() : new List<int>(original);
+        foreach (var row in ReconstructedRaids()) if (row.Type == type && !result.Contains(row.Index)) result.Add(row.Index);
+        return result;
+    }
+    public static ICollection<int> RaidLevels(ICollection<int> original, int index)
+    {
+        var result = original == null ? new List<int>() : new List<int>(original);
+        foreach (var row in ReconstructedRaids()) if (row.Index == index && !result.Contains(row.Level)) result.Add(row.Level);
+        return result;
+    }
+    public static IList<RaidData> RaidList(IList<RaidData> original, RaidType type)
+    {
+        var result = original == null ? new List<RaidData>() : new List<RaidData>(original);
+        foreach (var row in ReconstructedRaids()) {
+            if (row.Type != type) continue;
+            bool exists = false;
+            foreach (var old in result) if (old.Index == row.Index && old.Level == row.Level) exists = true;
+            if (!exists) result.Add(row);
+        }
+        return result;
+    }
     public static IList<PortalRenewalData> Categories(IList<PortalRenewalData> original)
     {
         var result = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);

@@ -18,9 +18,22 @@ impl BattleTable {
     }
     pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
-        data.rules = serde_json::from_reader(std::fs::File::open(
-            path.with_file_name(rules),
-        )?)?;
+        data.rules = serde_json::from_reader(std::fs::File::open(path.with_file_name(rules))?)?;
+        if rules == "BattleRules.json" {
+            let overlay = path.with_file_name("ReconstructedRaids.json");
+            if overlay.exists() {
+                let rows: Vec<Value> = serde_json::from_reader(std::fs::File::open(overlay)?)?;
+                let raids = data.tables.entry("Raid".into()).or_default();
+                for row in rows {
+                    if !raids
+                        .iter()
+                        .any(|v| v["Index"] == row["Index"] && v["Level"] == row["Level"])
+                    {
+                        raids.push(row);
+                    }
+                }
+            }
+        }
         Ok(data)
     }
     pub fn rows(&self, name: &str) -> &[Value] {

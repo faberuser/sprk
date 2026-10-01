@@ -1,4 +1,4 @@
-"""Export non-cash shop, event, summon, and pet rules from the supplied client."""
+"""Export replay, ranking, stamina and battle-service contracts from the supplied client."""
 import argparse
 import json
 import re
@@ -6,11 +6,7 @@ from pathlib import Path
 from export_battle_data import keyed_schema
 from export_tutorial_data import string_pool
 
-TABLES = '''NewEquipGacha EquipGachaClient GachaSelectItem GachaSelectShop
-GachaShopProbability StepUpGachaReward EventCraft EventRoulette EventStep EventForge
-PetEgg PetIncubator PetIncubatorSlot PetAwaken PetTierInteractive PetUpgradeTier
-PetAdventure PetAdventureReward PetBonus PetOption NewPayShopProduct PayShopDiscount
-PayShopDiscountGroup CurrencyType PurchaseDungeon'''.split()
+TABLES = ['Stamina', 'TeamLevel', 'Constant']
 
 
 def main():
@@ -20,7 +16,7 @@ def main():
     parser.add_argument('client', type=Path)
     args = parser.parse_args()
     data = {}
-    for name in TABLES + ['Creature']:
+    for name in TABLES:
         rows = json.loads((args.decoded / (name+'Table.json')).read_text(encoding='utf-8'))
         schema = keyed_schema(args.client, name+'Data')
         pool = string_pool(args.jit / (name+'Table.jit'))
@@ -31,15 +27,13 @@ def main():
             for key in list(row):
                 if key.startswith('field_') and key[6:].isdigit() and int(key[6:]) in schema:
                     row[schema[int(key[6:])][0]] = row.pop(key)
-            if name == 'Creature' and not 7100000 <= row['Index'] < 7500000:
-                continue
             for key, value in list(row.items()):
                 if types.get(key) == 'string' and isinstance(value, int):
                     row[key] = pool[value]
                 elif types.get(key) == 'string[]' and isinstance(value, list):
                     row[key] = [pool[v] for v in value]
             out.append(row)
-        data['Pet' if name == 'Creature' else name] = out
+        data[name] = out
     shared = args.client / 'NShared'
     enums = {}
     for p in shared.glob('*.cs'):
@@ -58,21 +52,22 @@ def main():
     contracts = {}
     for p in shared.glob('*/Request.cs'):
         text = p.read_text(encoding='utf-8-sig')
-        route = re.search(r'"((?:shop|equip_gacha|event|event_step|event_equip|pet)/\w+|item/(?:event_craft_item|reward_event_roulette))"', text)
+        route = re.search(r'"((?:replay|recommend_deck|records_of_honor)/\w+|internal/b2[gm]_\w+|user/(?:get_stamina|get_stamina_infos|buy_stamina|recharge_stamina))"', text)
         if not route:
             continue
         fields = lambda t: {key: typ for typ, key in re.findall(r'public ([\w.<>\[\], ?]+) (\w+)\s*\{\s*get', t)}
         contracts[route[1]] = {
             'Request': fields(text),
-            'Response': fields(p.with_name('Response.cs').read_text(encoding='utf-8-sig')),
-            'Results': re.findall(r'^\s*(\w+)(?:\s*=\s*\d+)?,?\s*$', p.with_name('ResultType.cs').read_text(encoding='utf-8-sig'), re.M),
+            'Response': fields(p.with_name('Response.cs').read_text(encoding='utf-8-sig')) if p.with_name('Response.cs').exists() else {},
+            'Results': re.findall(r'^\s*(\w+)(?:\s*=\s*\d+)?,?\s*$', p.with_name('ResultType.cs').read_text(encoding='utf-8-sig') if p.with_name('ResultType.cs').exists() else '', re.M),
         }
     keep = {typ for c in contracts.values() for typ in c['Request'].values()}
-    keep.update(['CurrencyType', 'ShopCostType', 'PetMiscType', 'PetStatusType', 'CreatureGrade', 'EventStepType', 'GachaType', 'GachaSubType'])
+    keep.update(['StaminaType','StaminaValueType','StaminaUpdateType','RecordsOfHonorContentType','RecordsOfHonorRankingType','ReplayType'])
     enums = {k: v for k, v in enums.items() if k in keep}
-    target = Path(__file__).resolve().parents[1] / 'tables/LiveSupport.json'
+    contracts['internal/b2m_save_replay'] = contracts['replay/save_replay']
+    target = Path(__file__).resolve().parents[2] / 'tables/ServicesSupport.json'
     target.write_text(json.dumps({'Tables': data, 'Contracts': contracts, 'Enums': enums}, separators=(',', ':'))+'\n', encoding='utf-8')
-    print(f'Exported {len(data)} table groups, {len(data["Pet"])} pets, {len(contracts)} contracts')
+    print(f'Exported {len(data)} tables, {len(contracts)} contracts')
 
 
 if __name__ == '__main__':

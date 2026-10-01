@@ -147,6 +147,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                             response["GuildChats"] = history["GuildChats"].clone();
                             socket.write_all(&encode_packet("LoginRes", &response)).await?;
                             for item in history["WorldChats"].as_array().unwrap() { socket.write_all(&encode_packet("MessageNot", item)).await?; }
+                            crate::api::battle::party_messages::reconnect(&state,account_id).await?;
                             continue;
                         }
                         if account_id == 0 || state.get_session(&session_key).is_none() {
@@ -169,6 +170,15 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                                     if matches!(protocol, "Login" | "Logout") {
                                         // Presence targets come from the persisted friend graph.
                                         presence(&state, account_id, protocol).await?;
+                                    } else if crate::api::battle::party_messages::supported(protocol) {
+                                        if let Err(error)=crate::api::battle::party_messages::send(&state,account_id,target,protocol,content).await {
+                                            tracing::debug!(%error,protocol,account_id,"Party message rejected");
+                                            response["Result"]=json!("Fail");
+                                            if protocol=="PartyDeckHeroInfo" {
+                                                let rejected:Value=serde_json::from_str(body).unwrap_or(Value::Null);
+                                                state.chat.notify(account_id,account_id,"PartyDeckHeroCancel",json!({"MemberId":account_id,"HeroIndex":integer(&rejected["HeroIndex"]).unwrap_or(0),"DeckIndex":integer(&rejected["DeckIndex"]).unwrap_or(0),"Result":"DECK_CANCEL_FULL"}));
+                                            }
+                                        }
                                     } else if send_chat(&state, account_id, channel, target, protocol, content).await.is_err() {
                                         response["Result"] = json!("Fail");
                                     }
@@ -193,6 +203,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
     }.await;
     state.chat.peers.remove(&id);
     if account_id > 0 && !state.chat.online(account_id) {
+        let _ = crate::api::battle::party_messages::disconnected(&state,account_id).await;
         let _ = presence(&state, account_id, "Logout").await;
     }
     result

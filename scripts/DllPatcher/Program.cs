@@ -9,6 +9,7 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             // Determine client path: first CLI arg, or prompt, or default
             string clientRoot = args.Length > 0
