@@ -458,6 +458,27 @@ async fn side_tutorial_difficulty_matches_relogin() {
 
 
 #[tokio::test]
+async fn skipped_cave_story_recovers_only_after_both_clears_on_login() {
+    let (state, first) = setup().await;
+    let a = first.user_info.account_id;
+    sqlx::query("INSERT INTO tutorial_settings(account_id,is_skipped) VALUES(?,1) ON CONFLICT(account_id) DO UPDATE SET is_skipped=1")
+        .bind(a).execute(&state.db).await.unwrap();
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(?,117,3,1),(?,117,4,0)")
+        .bind(a).bind(a).execute(&state.db).await.unwrap();
+    assert!(!login(&state).await.tutorials.iter().any(|t|t.tutorial_index==70001));
+    sqlx::query("UPDATE campaign_progress SET clear_count=1 WHERE account_id=? AND chapter_id=117 AND dungeon_id=4")
+        .bind(a).execute(&state.db).await.unwrap();
+    sqlx::query("UPDATE tutorial_settings SET is_skipped=0 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    assert!(!login(&state).await.tutorials.iter().any(|t|t.tutorial_index==70001));
+    sqlx::query("UPDATE tutorial_settings SET is_skipped=1 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    let recovered=login(&state).await;
+    let stamp=&recovered.tutorials.iter().find(|t|t.tutorial_index==70001).unwrap().completed_time;
+    let again=login(&state).await;
+    assert_eq!(&again.tutorials.iter().find(|t|t.tutorial_index==70001).unwrap().completed_time,stamp);
+    assert!(!again.chapter_dungeons.iter().any(|d|d.chapter_index==7 && d.dungeon_index==7));
+}
+
+#[tokio::test]
 async fn clause_requires_clear_and_recovers_on_lobby_entry_once() {
     let (state, first) = setup().await;
     let key = &first.user_info.session_key;

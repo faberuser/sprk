@@ -56,6 +56,12 @@ pub(super) async fn progress(
     }
     Ok(p)
 }
+fn story_party<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
+    if n(d, "BattleType") != 23 { return None; }
+    s.tables.battle.find("SubStoryParty", &[("ChapterIndex", n(d,"ChapterIndex")), ("DungeonIndex", n(d,"DungeonIndex"))])
+        .filter(|row| row["ForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()))
+}
+
 pub(super) async fn validate(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -65,6 +71,9 @@ pub(super) async fn validate(
 ) -> Result<()> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
+    if c == 50000 && n(&progress(db, s, a, 97, 2).await?, "FirstRewardedDiff") == 0 {
+        return Err(rule("NotCompletedReqDungeon"));
+    }
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
     let restored_field = n(d, "BattleType") == 33
@@ -100,8 +109,18 @@ pub(super) async fn validate(
     if heroes.len() as i64 > max {
         return Err(rule("NotMatchHeroIndices"));
     }
-    owned(db, a, heroes).await?;
-    dispatch::ensure_available(db, a, heroes, None).await?;
+    if let Some(preset) = story_party(s, d) {
+        let expected: Vec<i64> = preset["ForcedHeroIndex"].as_array().unwrap().iter().filter_map(Value::as_i64).collect();
+        if heroes != expected { return Err(rule("NotMatchHeroIndices")); }
+        let req_c = n(preset,"ReqChapterIndex");
+        let req_d = n(preset,"ReqDungeonIndex");
+        if req_c > 0 && req_d > 0 && n(&progress(db,s,a,req_c,req_d).await?,"FirstRewardedDiff") == 0 {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
+    } else {
+        owned(db, a, heroes).await?;
+        dispatch::ensure_available(db, a, heroes, None).await?;
+    }
     let p = progress(db, s, a, c, n(d, "DungeonIndex")).await?;
     if n(&p, "FirstRewardedDiff") == 0 && matches!(n(d, "BattleType"), 1 | 2 | 10) {
         let predecessors = s
@@ -174,7 +193,17 @@ pub(super) async fn begin(
             {
                 return Ok(read_json(&old.get::<String, _>("begin_response"))?);
             }
-            return Err(rule("AlreadyOnBattleHero"));
+            // A reconnect may finish/retry its previous battle (handled above), but
+            // choosing a different battle abandons a local run from the old login.
+            // Never replace a live same-session or battle-service-owned run here.
+            let previous_session = saved["Request"]["SessionKey"].as_str().unwrap_or("");
+            let current_session = r.0.get("SessionKey").map(String::as_str).unwrap_or("");
+            if previous_session.is_empty() || current_session.is_empty()
+                || previous_session == current_session
+                || saved["ServiceOwned"] == true || saved["ServiceRequired"] == true
+            {
+                return Err(rule("AlreadyOnBattleHero"));
+            }
         }
     }
     validate(db, s, a, r, &party).await?;
@@ -195,7 +224,10 @@ pub(super) async fn begin(
     let run_id = uuid::Uuid::new_v4().to_string();
     entry["RunId"] = json!(run_id);
     entry["ServiceRequired"] = json!(s.tables.services.rules["RequireBattleService"]==true);
-    entry["DeckSnapshot"] = crate::api::services::records::snapshot(db,a,&party).await?;
+    entry["DeckSnapshot"] = if let Some(preset) = story_party(s, d) {
+        entry["PresetStoryParty"] = preset.clone();
+        json!([]) // Client builds the loaned actors from SubStoryData, not account gear.
+    } else { crate::api::services::records::snapshot(db,a,&party).await? };
     out["RunId"] = json!(run_id);
     sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,?,?,0,?,?) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
     super::super::progression::record(
@@ -358,7 +390,7 @@ pub(super) async fn complete(
     let di = n(d, "DungeonIndex");
     let diff = difficulty(r)?;
     let mut p = progress(db, s, a, c, di).await?;
-    let mut reward = Rewards::default();
+    let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
     for _ in 0..count {
         reward_index(db, s, a, field(d, "DropRewardIndex", diff), &mut reward).await?;
     }
@@ -410,6 +442,8 @@ pub(super) async fn complete(
     let mut flasks = vec![];
     let mut flask_items = vec![];
     for id in party {
+        // Loaned story actors never receive account hero EXP.
+        if story_party(s, d).is_some() { continue; }
         let h = hero::info(db, a, *id as i32).await?;
         let old = n(&h, "Level") as i32;
         let cap = s
@@ -477,14 +511,7 @@ pub(super) async fn complete(
     }
     sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked,completed_time) VALUES(?,?,?,?,?,1,?) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+excluded.clear_count,best_star=MAX(best_star,excluded.best_star),completed_time=excluded.completed_time").bind(a).bind(c).bind(di).bind(count).bind(star).bind(time(now())).execute(&mut *db).await?;
 
-    // Local campaign policy: one stage's base hero EXP per successful clear.
-    // Apply before recruitment rewards so the client sees chronological balances.
-    let mut clear_exp = Rewards::default();
-    if matches!(n(d, "BattleType"), 1 | 10) {
-        tutorial::team_exp(db, s, a, base_exp, &mut clear_exp).await?;
-    }
     let mut out = rewards(db, s, a, reward).await?;
-    out["ExpResult"] = json!(clear_exp.team_exp.first());
     // Field raids reuse legacy story chapters, but their stage unlock is carried
     // by CompletedRaidInfo. CampaignResults triggers the client's story-node
     // traversal and camera effects on those closed maps.
@@ -621,7 +648,7 @@ pub(super) async fn select_reward(
         &[("ChapterIndex", c), ("DungeonIndex", d)],
     )?;
     let codes = selected_codes(r, "ItemCodes")?;
-    let mut reward = Rewards::default();
+    let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
     grant_selection(db, s, a, def, &codes, count, &mut reward).await?;
     put(db, a, "selected_reward", key(c, d), &json!({"Count":0})).await?;
     rewards(db, s, a, reward).await

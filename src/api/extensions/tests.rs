@@ -72,9 +72,11 @@ async fn public_awakening_stones_obey_equipment_type() {
 }
 #[tokio::test]
 async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
-    let (s, u) = setup().await;
+    let (mut s, u) = setup().await;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"] = json!(10000);
     let a = u.user_info.account_id;
     give(&s, a, 45080, 400).await;
+    give(&s, a, 5251, 1).await;
     let r = call(&s, &u, "restore_soul_stone", "SoulStoneRestoreIndex=1").await;
     assert_eq!(r["Result"], "Success", "{r}");
     let ids = r["SelectSoulStoneIndices"].as_array().unwrap();
@@ -86,7 +88,7 @@ async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     .await
     .unwrap()
     .0;
-    assert_eq!(login.misc_info.unwrap().extra["SoulStoneMileage"], 1);
+    assert_eq!(login.misc_info.unwrap().extra["SoulStoneMileage"], 0);
     assert_ne!(
         call(&s, &u, "restore_soul_stone", "SoulStoneRestoreIndex=1").await["Result"],
         "Success"
@@ -858,4 +860,36 @@ async fn rune_pages_consume_preserve_and_restore_without_duplication() {
     )
     .await;
     assert_ne!(r["Result"], "Success", "{r}");
+}
+
+#[tokio::test]
+async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"]=json!(0);
+    give(&s,a,45080,400).await;
+    give(&s,a,5251,1).await;
+    put(&mut *s.db.acquire().await.unwrap(),a,"soul_restore",0,&json!({"Mileage":19,"Choices":[]})).await.unwrap();
+    let args="SoulStoneRestoreIndex=1";
+    let ether=call(&s,&u,"restore_soul_stone",args).await;
+    assert_eq!(ether["Result"],"Success","{ether}");
+    assert_eq!(ether["SoulStoneMileage"],20);
+    assert_eq!(ether["SelectSoulStoneIndices"],json!([]));
+    assert_eq!(ether["ItemResults"][0]["ItemIndex"],5100);
+    let protection: i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(protection,1);
+    assert_ne!(call(&s,&u,"restore_soul_stone",args).await["Result"],"Success");
+    let bonus=call(&s,&u,"get_soul_stone_mileage_reward","SoulStoneRestoreIndex=0").await;
+    assert_eq!(bonus["Result"],"Success","{bonus}");
+    assert_eq!(bonus["SoulStoneMileage"],0);
+    assert_eq!(bonus["SelectSoulStoneIndices"].as_array().unwrap().len(),3);
+    let choice=format!("SoulStoneItemIndex={}",bonus["SelectSoulStoneIndices"][0]);
+    assert_eq!(call(&s,&u,"confirm_soul_stone",&choice).await["Result"],"Success");
+    assert_ne!(call(&s,&u,"get_soul_stone_mileage_reward","SoulStoneRestoreIndex=0").await["Result"],"Success");
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"]=json!(10000);
+    let direct=call(&s,&u,"restore_soul_stone",args).await;
+    assert_eq!(direct["Result"],"Success","{direct}");
+    assert_eq!(direct["SelectSoulStoneIndices"],json!([]));
+    assert_eq!(direct["ItemResults"].as_array().unwrap().len(),1);
+    assert_eq!(direct["SoulStoneMileage"],0);
 }

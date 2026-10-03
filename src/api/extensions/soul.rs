@@ -471,40 +471,34 @@ async fn restore(
         {
             return Err(rule("UnconfirmedSoulStone"));
         }
-        let index = req.number("SoulStoneRestoreIndex", 0)?;
+        let requested_index = req.number("SoulStoneRestoreIndex", 0)?;
+        let index = if action == "get_soul_stone_mileage_reward" && requested_index == 0 { 1 } else { requested_index };
         let r = state
             .tables
             .extensions
             .rows("SoulStoneRestore")
             .get(usize::try_from(index - 1).map_err(|_| rule("InvalidSoulStoneRestoreIndex"))?)
             .ok_or_else(|| rule("InvalidSoulStoneRestoreIndex"))?;
-        if action == "get_soul_stone_mileage_reward" {
-            let max = state.tables.hero_shop.constant("MaxSoulStoneMileage", 20);
-            if n(&progress, "Mileage") < max {
-                return Err(rule("NotEnoughMileage"));
-            }
-            item::reward(
-                db,
-                state,
-                account,
-                state
-                    .tables
-                    .hero_shop
-                    .constant("SoulStoneMileageRewardIndex", 65001) as i32,
-                &mut rewards,
-            )
-            .await?;
+        let bonus = action == "get_soul_stone_mileage_reward";
+        let max = state.tables.hero_shop.constant("MaxSoulStoneMileage", 20);
+        let config = state.tables.extensions.find("LocalSoulStoneRestore", &[("Index", index)])
+            .ok_or_else(|| rule("ItemDataNotFound"))?;
+        let soulstone = if bonus {
+            if n(&progress, "Mileage") < max { return Err(rule("NotEnoughMileage")); }
             progress["Mileage"] = json!(n(&progress, "Mileage") - max);
+            true
         } else {
-            removed.push(
-                item::consume(
-                    db,
-                    account,
-                    n(r, "MaterialItemIndex") as i32,
-                    n(r, "MaterialItemCount") as i32,
-                )
-                .await?,
-            );
+            if n(&progress, "Mileage") >= max { return Err(rule("InvalidSoulStoneRestoreIndex")); }
+            removed.push(item::consume(db, account, n(r, "MaterialItemIndex") as i32,
+                n(r, "MaterialItemCount") as i32).await?);
+            super::super::progression::record(db, account, "SoulRestore", 0, 0, 1).await?;
+            rand::thread_rng().gen_range(0..10000) < n(config, "SoulStoneChancePer10000")
+        };
+        if soulstone {
+            let protection: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=5251),0)")
+                .bind(account).fetch_one(&mut *db).await?;
+            let protected = protection > 0;
+            if protected { removed.push(item::consume(db, account, 5251, 1).await?); }
             let group = r["SoulStoneItemGroup"].as_str().unwrap_or("");
             let local = state
                 .tables
@@ -550,7 +544,7 @@ async fn restore(
                 }
             }
             let mut choices = BTreeSet::new();
-            let needed = state.tables.hero_shop.constant("SelectSoulStoneCount", 3);
+            let needed = if protected { state.tables.hero_shop.constant("SelectSoulStoneCount", 3) } else { 1 };
             for _ in 0..100 {
                 if choices.len() as i64 >= needed {
                     break;
@@ -580,9 +574,16 @@ async fn restore(
             if choices.len() as i64 != needed {
                 return Err(rule("ItemDataNotFound"));
             }
-            progress["Choices"] = json!(choices);
-            progress["Mileage"] = json!(n(&progress, "Mileage") + 1);
-            super::super::progression::record(db, account, "SoulRestore", 0, 0, 1).await?;
+            if protected {
+                progress["Choices"] = json!(choices);
+            } else {
+                item::give(db, state, account, *choices.iter().next().unwrap(), 1, 0, 0, &mut rewards).await?;
+            }
+        } else {
+            item::give(db, state, account, n(config, "EtherItemIndex") as i32,
+                n(config, "EtherCount") as i32, 0, 0, &mut rewards).await?;
+            // Native SoulStoneMileageItemType is Ether, not every judgment.
+            progress["Mileage"] = json!((n(&progress, "Mileage") + 1).min(max));
         }
         let r = item::reward_response(db, state, account, rewards).await?;
         out["CurrencyResults"] = r["CurrencyResults"].clone();

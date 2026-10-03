@@ -1,4 +1,23 @@
 use super::*;
+
+fn dragon_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
+    let kind = match n(d, "BattleType") {
+        12 => 1,
+        29 => 3,
+        _ => return Ok(None),
+    };
+    let mut matches = s.tables.battle.rows("Raid").iter().filter(|raid| {
+        n(raid, "ChapterIndex") == n(d, "ChapterIndex")
+            && n(raid, "DungeonIndex") == n(d, "DungeonIndex")
+            && n(raid, "Type") == kind
+            && raid["IsOnlineSingle"] == false
+    });
+    let raid = matches.next().ok_or_else(|| rule("ContentsDisabled"))?;
+    if matches.next().is_some() {
+        return Err(rule("ContentsDisabled"));
+    }
+    Ok(Some(raid))
+}
 pub(super) async fn ensure_available(
     db: &mut SqliteConnection,
     a: i64,
@@ -59,8 +78,14 @@ pub(super) async fn execute(
             "DungeonDifficulty".into(),
             int(r, "Difficulty")?.to_string(),
         );
-        let request = Request(parameters);
+        let mut request = Request(parameters);
         let d = campaign::dungeon(s, &request)?;
+        // Native dispatch requests identify the dungeon, but omit raid fields.
+        // Derive them from the solo raid table instead of trusting caller extras.
+        if let Some(raid) = dragon_raid(s, d)? {
+            request.0.insert("RaidIndex".into(), n(raid, "Index").to_string());
+            request.0.insert("RaidLevel".into(), n(raid, "Level").to_string());
+        }
         let diff = campaign::difficulty(&request)?;
         if campaign::field(d, "DispatchType", diff) == 0 {
             return Err(rule("DungeonNotFound"));
@@ -82,8 +107,7 @@ pub(super) async fn execute(
                 return Err(rule("AlreadyOnBattleHero"));
             }
         }
-        // Timed dispatch currently uses campaign drops and refunds ordinary stamina.
-        if !matches!(n(d, "BattleType"), 1 | 2 | 10) || !matches!(n(d, "ReqStaminaType"), 0 | 1) {
+        if !matches!(n(d, "BattleType"), 1 | 2 | 10 | 12 | 29) || !matches!(n(d, "ReqStaminaType"), 0 | 1) {
             return Err(rule("ContentsDisabled"));
         }
         campaign::validate(db, s, a, &request, &party).await?;
@@ -106,7 +130,7 @@ pub(super) async fn execute(
             })
             .ok_or_else(|| rule("AlreadyOnBattleHero"))?;
         let cost = campaign::stamina_cost(d, diff) * count;
-        let stamina = dungeons::charge(db, s, a, n(d, "ReqStaminaType"), cost).await?;
+        let stamina = dungeons::charge_reserved(db, s, a, n(d, "ReqStaminaType"), cost).await?;
         let finish = now() + settings(s, "DispatchSecondsPerBattle", 60).max(1) * count;
         let info = json!({"SlotIndex":slot,"ChapterIndex":n(d,"ChapterIndex"),"DungeonIndex":n(d,"DungeonIndex"),"Difficulty":diff,"DeckIndex":int(r,"DeckIndex")?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),"BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,"ServerResult":null,"State":"Battle","WinCount":0,"LoseCount":0,"StaminaDiscountRate":0,"FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost,"CostType":n(d,"ReqStaminaType"),"Request":request.0});
         put(db, a, "dispatch", slot, &info).await?;
@@ -138,6 +162,15 @@ pub(super) async fn execute(
     } else {
         item::success()
     };
+    if count > 0 {
+        if let Some(raid) = dragon_raid(s, campaign::dungeon(s, &req)?)? {
+            let mut extra = Rewards::default();
+            for _ in 0..count {
+                reward_index(db, s, a, n(raid, "IndividualReward"), &mut extra).await?;
+            }
+            dungeons::append_rewards(&mut out, &rewards(db, s, a, extra).await?);
+        }
+    }
     if cancel && count < total {
         let refund = n(&info, "Cost") / total * (total - count);
         let kind = n(&info, "CostType");
@@ -153,6 +186,25 @@ pub(super) async fn execute(
         } else if refund > 0 {
             return Err(rule("NotEnoughCurrency"));
         }
+    }
+    // The native dispatch response has no equipment field. Deliver rolled gear
+    // through mail so collection updates the bag through its supported protocol.
+    let mut equipment: Vec<crate::models::equip::EquipItemInfo> =
+        read_value(out["EquipItemResults"].as_array().cloned().map(Value::Array).unwrap_or(json!([])))?;
+    for equip in &mut equipment {
+        sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+            .bind(a).bind(equip.slot_index).execute(&mut *db).await?;
+        equip.slot_index = 0;
+        equip.uid = String::new();
+    }
+    for attachments in equipment.chunks(100) {
+        sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Dispatch equipment rewards','Equipment earned by your dispatch. Claim it here to add it to your bag.',?)")
+            .bind(a).bind(json!(attachments).to_string()).execute(&mut *db).await?;
+    }
+    out["EquipItemResults"] = json!([]);
+    out["EquipItemInfos"] = json!([]);
+    if n(&info, "CostType") == 1 && count > 0 {
+        out["ExpResult"] = dungeons::stamina_exp(db, s, a, n(&info, "Cost") / total * count).await?;
     }
     out["TeamExpResult"] = out["ExpResult"].clone();
     info["State"] = json!(if cancel { "Cancel" } else { "Complete" });

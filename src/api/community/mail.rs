@@ -250,7 +250,11 @@ async fn claim(
             return Err(ServerError::Internal("Invalid mail equipment".into()));
         }
         item.created_time = state.server_time_str();
+        let identified = item.identified;
         tutorial::equipment(db, account, item, &mut rewards).await?;
+        let granted = rewards.equipment.last_mut().unwrap();
+        granted.identified = identified;
+        crate::api::extensions::save_equip(db, account, granted).await?;
     }
     // The native response has a single HeroAddResult. Reject malformed multi-hero mail atomically.
     if rewards.heroes.len() > 1 {
@@ -305,6 +309,10 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
             Ok(result) => results.push(result),
             Err(error) => {
                 tracing::warn!(%error, "Mail claim rolled back");
+                if matches!(&error, ServerError::InvalidRequest(code) if code == "EquipItemFull") {
+                    return Ok(Json(json!({"BaseResult":"Success","Result":"Fail",
+                        "InternalErrorMessage":"Equipment bag is full. Free space and try claiming the mail again."})));
+                }
                 return Ok(Json(response("Fail")));
             }
         }

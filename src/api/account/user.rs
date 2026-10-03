@@ -398,6 +398,7 @@ pub async fn login(
     state.create_session(session_key.clone(), account_id, aes_key.clone());
 
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
+    crate::api::tutorial::restore_skipped_cave_story(&state, account_id).await?;
 
     // Fetch user info
     let user_info_row = sqlx::query(

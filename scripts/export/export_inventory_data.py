@@ -51,7 +51,9 @@ def main():
     data['Equipment'] = {str(codes[strings[r['EquipCode'][0]]]): dict({'OptionCount': details[r['DetailIndex']]['OptionCount']}, **{k: r[k] for k in ['OptionIndex', 'OptionGroupIndex', 'EnableDuplicationOption', 'MinRuneCount', 'MaxRuneCount', 'UniqueOptionIndex', 'UniqueOptionGroupIndex']}) for r in read('EquipItemTable') if strings[r['EquipCode'][0]] in codes}
     data['OptionGroups'] = {str(r['Index']): r['OptionIndex'] for r in read('EquipOptionGroupTable')}
     data['Options'] = {str(r['Index']): {'Steps': r['OptionValueStep'], 'Ratio': r['Ratio'], 'Type': r['OptionType']} for r in read('EquipOptionTable')}
-    data['Extensions'] = read('InventoryExtendTable')
+    # Local equipment bag cap: 280 base + 90 expansions * 8 = 1000 slots.
+    data['Extensions'] = [r for r in read('InventoryExtendTable')
+                          if r['InventoryType'] != 0 or r['EquipItemExtendCount'] <= 90]
     data['CraftInstantPrices'] = read('CraftInstantGemTable')
     data['TeamLevels'] = read('TeamLevelTable')
     data['CustomEquipment'] = {str(r['Index']): r for r in read('CustomEquipItemTable')}

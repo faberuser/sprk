@@ -173,6 +173,11 @@ def cmd_maxheroes(source_db, output_db):
                                (account,'soul',slot,json.dumps(soul)))
                 equipped.append(dict(part=part,item=item,star=detail['MaxStar'],level=eq_level))
             report['heroes'].append(dict(account=account,hero=hero,level=level,star=star['Star'],transcend=star['Transcended'],skill=skill,perks=choices,runes=rune_page,equipment=equipped))
+        # GM equipment must leave room for ordinary battle rewards.
+        max_extend = max(r['EquipItemExtendCount'] for r in inv['Extensions'] if r['InventoryType'] == 0)
+        for account in sorted({account for account, _ in heroes}):
+            db.execute('INSERT INTO inventory_settings(account_id,inventory_extend) VALUES(?,?) ON CONFLICT(account_id) DO UPDATE SET inventory_extend=excluded.inventory_extend', (account,max_extend))
+        report['inventory_extend'] = max_extend
         db.commit()
     report['scope'] = 'Max core hero progression, skill extensions, recommended perks within native budget, 5-star UW/UT, T8 dragon gear, A2/20 soul weapons. Top-grade compatible attack/HP rune page. Existing artifacts retained.'
     output.with_suffix('.fixture.json').write_text(json.dumps(report,indent=2))

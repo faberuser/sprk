@@ -40,6 +40,17 @@ pub(crate) async fn charge(
     kind: i64,
     cost: i64,
 ) -> Result<Value> {
+    let mut result = charge_reserved(db, s, a, kind, cost).await?;
+    if kind == 1 && cost > 0 {
+        result["RaiderExpResult"] = stamina_exp(db, s, a, cost).await?;
+    }
+    Ok(result)
+}
+
+// Dispatch reserves stamina up front; only completed runs permanently consume it.
+pub(super) async fn charge_reserved(
+    db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64, cost: i64,
+) -> Result<Value> {
     if cost < 0 {
         return Err(rule("InvalidCost"));
     }
@@ -106,6 +117,14 @@ pub(crate) async fn charge(
         json!({"Type":name,"AddValue":-cost,"NewValue":value,"StaminaRechargeTime":time(now()),"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}),
     )
 }
+pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
+    let rate = settings(s, "RaiderExpPerStamina", 200);
+    let amount = cost.checked_mul(rate).filter(|v| *v >= 0 && *v <= i32::MAX as i64)
+        .ok_or_else(|| rule("InvalidCost"))?;
+    let mut rewards = Rewards::default();
+    tutorial::team_exp(db, s, a, amount, &mut rewards).await?;
+    Ok(json!(rewards.team_exp.first()))
+}
 pub(super) async fn key_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
     for k in 5..KEYS.len() {
@@ -170,6 +189,29 @@ fn floor<'a>(s: &'a AppState, r: &Request) -> Option<&'a Value> {
                     .is_some_and(|x| x.contains(&json!(d))))
     })
 }
+// God King's Temple story completion is shared by Trials and Eclipse.
+pub(super) async fn require_godking_unlock(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
+    let progress = campaign::progress(db, s, a, 65, 11).await?;
+    if n(&progress, "FirstRewardedDiff") == 0 {
+        return Err(rule("NotCompletedReqDungeon"));
+    }
+    Ok(())
+}
+
+// Original ContentsOpenCondition/SubQuest rows: 11580, 11790 and 11900.
+pub(super) async fn require_late_raid_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, battle_type: i64) -> Result<()> {
+    let (chapter, dungeon) = match battle_type {
+        40 | 45 | 46 => (10, 9),
+        41 | 42 => (10, 30),
+        47 => (11, 10), // Displayed as X-10.
+        _ => return Ok(()),
+    };
+    if n(&campaign::progress(db, s, a, chapter, dungeon).await?, "FirstRewardedDiff") == 0 {
+        return Err(rule("NotCompletedReqDungeon"));
+    }
+    Ok(())
+}
+
 pub(super) async fn validate(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -178,6 +220,7 @@ pub(super) async fn validate(
     d: &Value,
 ) -> Result<()> {
     let battle_type = n(d, "BattleType");
+    require_late_raid_unlock(db, s, a, battle_type).await?;
     if battle_type == 48 {
         karma::validate(db,s,a,r).await?;
     }
@@ -366,20 +409,17 @@ pub(super) async fn validate(
             }
         }
     }
-    if s.tables
+    if let Some(group) = s.tables
         .battle
         .find("GodkingTrialGroup", &[("ChapterIndex", c)])
-        .is_some()
     {
+        require_godking_unlock(db, s, a).await?;
+        restrictions::party(s, r, n(group, "BanRuleIndex"))?;
         let g = get(db, a, "godking", c).await?;
         if n(&g, "IsOpen") != 1 || g["Day"] != day() {
             return Err(rule("GodkingTrialDungeonNotOpened"));
         }
-        let cleared: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind='godking_clear' AND idx=? AND period=?)")
-            .bind(a).bind(campaign::key(c,n(d,"DungeonIndex"))).bind(day()).fetch_one(&mut *db).await?;
-        if cleared {
-            return Err(rule("AlreadyCompleted"));
-        }
+
     }
     if s.tables
         .battle
@@ -676,9 +716,12 @@ pub(super) async fn finish(
         .battle
         .find("GodkingTrial", &[("ChapterIndex", c), ("DungeonIndex", d)])
     {
-        claim(db, a, "godking_clear", campaign::key(c, d), &day()).await?;
         reward_index(db, s, a, n(g, "RewardIndex"), &mut extra).await?;
-        out["GodkingTrialDungeonInfo"] = get(db, a, "godking", c).await?;
+        let mut state = get(db, a, "godking", c).await?;
+        state["IsOpen"] = json!(0);
+        state["IsOpened"] = json!(false);
+        put(db, a, "godking", c, &state).await?;
+        out["GodkingTrialDungeonInfo"] = state;
     }
     if let Some(t) = s.tables.battle.find(
         "TreasureHouseDungeon",
@@ -1082,19 +1125,17 @@ pub(super) async fn execute(
             out["PlayerTreasureHouseInfo"] = treasure(db, s, a).await?;
         }
         "open_godking_trial_dungeon" => {
+            require_godking_unlock(db, s, a).await?;
             let c = int(r, "ChapterIndex")?;
             row(s, "GodkingTrialGroup", &[("ChapterIndex", c)])?;
-            let current = get(db, a, "godking", c).await?;
-            if current["Day"] == day() && n(&current, "IsOpen") == 1 {
-                return Err(rule("AlreadyCompleted"));
+            // A paid gate stays selected until victory (including retries after loss).
+            for current in list(db, a, "godking").await? {
+                if current["Day"] == day() && n(&current, "IsOpen") == 1 {
+                    return Err(rule("AlreadyCompleted"));
+                }
             }
             out["StaminaResult"] = charge(db, s, a, 21, 1).await?;
-            for mut old in list(db, a, "godking").await? {
-                old["IsOpen"] = json!(0);
-                old["IsOpened"] = json!(false);
-                put(db, a, "godking", n(&old, "ChapterIndex"), &old).await?;
-            }
-            let v = json!({"ChapterIndex":c,"IsOpen":1,"IsOpened":true,"OpenedTime":time(now()),"NextResetRemainTime":86400-now().rem_euclid(86400),"Day":day()});
+            let v = json!({"ChapterIndex":c,"IsOpen":1,"IsOpened":true,"RunVersion":2,"OpenedTime":time(now()),"NextResetRemainTime":86400-now().rem_euclid(86400),"Day":day()});
             put(db, a, "godking", c, &v).await?;
             out["GodkingTrialDungeonInfo"] = v;
         }
@@ -1190,6 +1231,7 @@ pub(super) async fn execute(
                 }
             }
             if action == "open_punishment_raid" {
+                require_late_raid_unlock(db, s, a, 47).await?;
                 let group = int(r, "GroupIndex")?;
                 let level = int(r, "Level")?;
                 let kind = int(r, "DungeonType")?;

@@ -45,6 +45,9 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS battle_currencies(account INTEGER NOT NULL,kind TEXT NOT NULL,value INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account,kind))",
         "CREATE TABLE IF NOT EXISTS eclipse_run_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL)",
     ] { sqlx::query(query).execute(db).await?; }
+    // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
+    sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
+        .execute(db).await?;
     Ok(())
 }
 pub fn routes(tables: &crate::tables::BattleTable) -> axum::Router<AppState> {
@@ -343,6 +346,7 @@ async fn reward_index(
     index: i64,
     r: &mut Rewards,
 ) -> Result<()> {
+    r.mail_overflow = true;
     if index > 0 {
         item::reward(db, s, a, index as i32, r).await?;
     }

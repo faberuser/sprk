@@ -1158,3 +1158,42 @@ async fn auto_equip_preserves_all_native_slot_pairs() {
     let malformed = args + "&HeroPartIndex=4";
     assert!(super::equip::set_equip(State(state.clone()), form(&u, &malformed)).await.is_err());
 }
+
+
+#[tokio::test]
+async fn battle_overflow_mail_preserves_equipment_and_full_claim_is_atomic() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let base=s.tables.inventory.constant("EquipItemMaxCount",280);
+    let mut tx=s.db.begin().await.unwrap();
+    for _ in 0..base {
+        sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)").bind(a).execute(&mut *tx).await.unwrap();
+    }
+    let slot:i64=sqlx::query_scalar("SELECT MIN(slot_index) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&mut *tx).await.unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=?").bind(slot).bind(a).execute(&mut *tx).await.unwrap();
+    item::capacity(&mut tx,&s,a,0,1).await.unwrap(); // Equipped weapons do not fill the bag.
+    let mut r=crate::api::tutorial::Rewards {mail_overflow:true,..Default::default()};
+    item::give(&mut tx,&s,a,1001,3,3,0,&mut r).await.unwrap();
+    assert_eq!(r.equipment.len(),1);
+    let (id,raw):(i64,String)=sqlx::query_as("SELECT mail_id,reward_equipment FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&mut *tx).await.unwrap();
+    let eq:Vec<crate::models::equip::EquipItemInfo>=serde_json::from_str(&raw).unwrap();
+    assert_eq!(eq.len(),2); assert!(eq.iter().all(|e|e.star==3 && e.item_index==1001));
+    tx.commit().await.unwrap();
+    let req=format!("MailIndex={id}");
+    let fail=crate::api::community::mail::receive_mail(State(s.clone()),form(&u,&req)).await.unwrap().0;
+    assert_eq!(fail["Result"],"Fail");
+    assert!(fail["InternalErrorMessage"].as_str().unwrap().contains("Equipment bag is full"));
+    let bulk_fail=crate::api::community::mail::receive_all_mail(State(s.clone()),form(&u,"MaxCount=50")).await.unwrap().0;
+    assert_eq!(bulk_fail["InternalErrorMessage"],fail["InternalErrorMessage"]);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT is_received FROM mails WHERE mail_id=?").bind(id).fetch_one(&s.db).await.unwrap(),0);
+    sqlx::query("INSERT INTO inventory_settings(account_id,inventory_extend) VALUES(?,1) ON CONFLICT(account_id) DO UPDATE SET inventory_extend=1").bind(a).execute(&s.db).await.unwrap();
+    let ok=crate::api::community::mail::receive_mail(State(s.clone()),form(&u,&req)).await.unwrap().0;
+    assert_eq!(ok["Result"],"Success");
+    assert_eq!(ok["MailReceiveResult"]["EquipItemResults"].as_array().unwrap().len(),2);
+    for (expected, actual) in eq.iter().zip(ok["MailReceiveResult"]["EquipItemResults"].as_array().unwrap()) {
+        let mut expected = serde_json::to_value(expected).unwrap();
+        for key in ["SlotIndex", "Uid", "CreatedTime"] { expected[key] = actual[key].clone(); }
+        assert_eq!(&expected, actual);
+    }
+    assert_ne!(crate::api::community::mail::receive_mail(State(s.clone()),form(&u,&req)).await.unwrap().0["Result"],"Success");
+}

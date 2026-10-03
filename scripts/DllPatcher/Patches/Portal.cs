@@ -73,6 +73,260 @@ partial class Program
                     FilterStart = handler.FilterStart == null ? null : instructions[handler.FilterStart]
                 });
         }
+        // Carry the server's authoritative Raider balance alongside every stamina
+        // result, and apply it on the same main-thread path as the stamina balance.
+        var staminaType = module.Types.Single(t => t.FullName == "NShared.StaminaResultInfo");
+        var expType = module.Types.Single(t => t.FullName == "NShared.ExpResultInfo");
+        var expField = staminaType.Fields.SingleOrDefault(f => f.Name == "SprkRaiderExp");
+        if (expField == null)
+        {
+            expField = new FieldDefinition("SprkRaiderExp", FieldAttributes.Public, expType);
+            staminaType.Fields.Add(expField);
+        }
+        var parseStamina = module.Types.Single(t => t.Name == "JM_NShared_StaminaResultInfo").Methods
+            .Single(m => m.Name == "Parse" && m.Parameters.Count == 2 && m.Parameters[0].ParameterType.FullName == "System.Collections.IDictionary");
+        var parseExp = targetType.Methods.Single(m => m.Name == "ParseStaminaExp");
+        if (!parseStamina.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == parseExp.Name))
+        {
+            var il = parseStamina.Body.GetILProcessor(); var first = parseStamina.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, parseExp));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Stfld, expField));
+        }
+        var userManager = module.Types.Single(t => t.FullName == "NGame2.NAccount.UserManager");
+        var applyStamina = userManager.Methods.Single(m => m.Name == "Apply" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == staminaType.FullName);
+        var applyExp = userManager.Methods.Single(m => m.Name == "Apply" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == expType.FullName);
+        if (!applyStamina.Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == expField.Name))
+        {
+            var il = applyStamina.Body.GetILProcessor(); var first = applyStamina.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brfalse, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldfld, expField));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, applyExp));
+        }
+        foreach (var type in module.GetTypes().Where(t => t.FullName.Contains("MailManagement")))
+        foreach (var method in type.Methods.Where(m => m.HasBody && m.ReturnType.FullName == "System.Void"))
+        {
+            var responseParameter = method.Parameters.FirstOrDefault(p => p.ParameterType.FullName is "NShared.ReceiveMail.Response" or "NShared.ReceiveAllMail.Response");
+            if (responseParameter == null || method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "ShowMailCapacityError")) continue;
+            var il = method.Body.GetILProcessor(); var first = method.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg, responseParameter));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == "ShowMailCapacityError")));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brfalse, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var unlockNotice = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.NLobby.LobbyPopupQueue")
+            .Methods.Single(m => m.Name == "ReservedContentsOpenConditionPopup" && m.Parameters.Count == 1);
+        var unlockHelper = targetType.Methods.Single(m => m.Name == "ReserveContentsUnlockNotice");
+        if (!unlockNotice.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == unlockHelper.Name))
+        {
+            var il = unlockNotice.Body.GetILProcessor();
+            var first = unlockNotice.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg, unlockNotice.Parameters[0]));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, unlockHelper));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var emptyScene = module.Types.Single(t => t.FullName == "NGame2.NCutScene.CutSceneManager")
+            .Methods.Single(m => m.Name == "LoadEmptyScript");
+        var missingSceneHelper = targetType.Methods.Single(m => m.Name == "TempleMissingScene");
+        if (!emptyScene.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == missingSceneHelper.Name))
+        {
+            var il = emptyScene.Body.GetILProcessor();
+            foreach (var ret in emptyScene.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+                var call = Instruction.Create(OpCodes.Call, missingSceneHelper);
+                il.InsertAfter(ret, call); il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var shakmehManager = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.ShakmehDungeonManagement");
+        foreach (var method in shakmehManager.Methods.Where(m => m.Name == "OpenShakmehDungeonWindow" && m.IsPublic))
+        {
+            var helper = targetType.Methods.Single(m => m.Name == "ShakmehAccess");
+            if (method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == helper.Name)) continue;
+            var il = method.Body.GetILProcessor(); var first = method.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, helper));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var soulManager = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.NLobby.SoulWeaponManagement");
+        foreach (var method in soulManager.Methods.Where(m => m.Name is "OpenGodkingTrialDungeonList" or "OpenGodkingTrialDungeonInfo" or "OpenEclipseMainWithReqeust"))
+        {
+            var helper = targetType.Methods.Single(m => m.Name == "GodkingAccess");
+            if (method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == helper.Name)) continue;
+            var il = method.Body.GetILProcessor(); var first = method.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, helper));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var moveActivity = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.PortalRenewal")
+            .Methods.Single(m => m.Name == "IsMoveActivityType");
+        var closePortalHelper = targetType.Methods.Single(m => m.Name == "ClosePortalForActivity");
+        if (!moveActivity.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == closePortalHelper.Name))
+        {
+            var il = moveActivity.Body.GetILProcessor();
+            foreach (var ret in moveActivity.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg; ret.Operand = moveActivity.Parameters[0];
+                var call = Instruction.Create(OpCodes.Call, closePortalHelper);
+                il.InsertAfter(ret, call); il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var subStoryHidden = module.Types.Single(t => t.FullName == "NShared.CampaignNodeData")
+            .Methods.Single(m => m.Name == "get_Hidden");
+        var subStoryHelper = targetType.Methods.Single(m => m.Name == "ChapterFiveSubStoryHidden");
+        if (!subStoryHidden.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == subStoryHelper.Name))
+        {
+            var il = subStoryHidden.Body.GetILProcessor();
+            foreach (var ret in subStoryHidden.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+                var call = Instruction.Create(OpCodes.Call, subStoryHelper);
+                il.InsertAfter(ret, call);
+                il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var portalHidden = module.Types.Single(t => t.FullName == "NShared.PortalData")
+            .Methods.Single(m => m.Name == "get_Hidden");
+        var worldMapHelper = targetType.Methods.Single(m => m.Name == "WorldMapHidden");
+        if (!portalHidden.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == worldMapHelper.Name))
+        {
+            var il = portalHidden.Body.GetILProcessor();
+            foreach (var ret in portalHidden.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+                var call = Instruction.Create(OpCodes.Call, worldMapHelper);
+                il.InsertAfter(ret, call);
+                il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var mainChapters = module.Types.Single(t => t.FullName == "NShared.CampaignChapterDataContainer")
+            .Methods.Single(m => m.Name == "GetMainChapterDataDic");
+        var mainHelper = targetType.Methods.Single(m => m.Name == "MainChapters");
+        if (!mainChapters.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == mainHelper.Name))
+        {
+            var il = mainChapters.Body.GetILProcessor();
+            foreach (var ret in mainChapters.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Call; ret.Operand = mainHelper;
+                il.InsertAfter(ret, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var chapterOpen = module.Types.Single(t => t.FullName == "NShared.CampaignChapterData")
+            .Methods.Single(m => m.Name == "get_IsOpen");
+        var chapterHelper = targetType.Methods.Single(m => m.Name == "RestoredCampaignChapterOpen");
+        if (!chapterOpen.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == chapterHelper.Name))
+        {
+            var il = chapterOpen.Body.GetILProcessor();
+            foreach (var ret in chapterOpen.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+                var call = Instruction.Create(OpCodes.Call, chapterHelper);
+                il.InsertAfter(ret, call);
+                il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var bagMax = module.Types.Single(t => t.FullName == "NShared.InventoryExtendDataContainer")
+            .Methods.Single(m => m.Name == "GetExtendMaxCount");
+        var bagHelper = targetType.Methods.Single(m => m.Name == "EquipmentBagMaxExtensions");
+        if (!bagMax.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == bagHelper.Name))
+        {
+            var il = bagMax.Body.GetILProcessor();
+            foreach (var ret in bagMax.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg;
+                ret.Operand = bagMax.Parameters[0];
+                var call = Instruction.Create(OpCodes.Call, bagHelper);
+                il.InsertAfter(ret, call);
+                il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var storyGetter = module.Types.Single(t => t.FullName == "NGame2.NTutorial.TutorialManager")
+            .Methods.Single(m => m.Name == "get_IsTutorialEnabled");
+        var storyHelper = targetType.Methods.Single(m => m.Name == "RequiredBattleStoryEnabled");
+        if (!storyGetter.Body.Instructions.Any(i => i.Operand is MethodReference m && m.FullName == storyHelper.FullName))
+        {
+            var il = storyGetter.Body.GetILProcessor();
+            foreach (var ret in storyGetter.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Call;
+                ret.Operand = storyHelper;
+                il.InsertAfter(ret, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var punishOpen = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.PunishManagment")
+            .Methods.Single(m => m.Name == "OpenPunishMainWindow");
+        var punishAccess = targetType.Methods.Single(m => m.Name == "ApocalypsionAccess");
+        if (!punishOpen.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == punishAccess.Name))
+        {
+            var il = punishOpen.Body.GetILProcessor(); var first = punishOpen.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, punishAccess));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var trialWindow = module.Types.Single(t => t.Name == "ContentUIGodkingTrialDungeonList");
+        foreach (var pair in new[] { ("Open", "GodkingWindowBackground"), ("OnClosing", "GodkingReturnToPortal") })
+        {
+            var method = trialWindow.Methods.Single(m => m.Name == pair.Item1);
+            var helper = targetType.Methods.Single(m => m.Name == pair.Item2);
+            if (method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == helper.Name)) continue;
+            var il = method.Body.GetILProcessor();
+            foreach (var ret in method.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = pair.Item1 == "Open" ? OpCodes.Ldarg_0 : OpCodes.Nop;
+                il.InsertAfter(ret, Instruction.Create(OpCodes.Call, helper));
+                il.InsertAfter(ret.Next, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var dispatchMenu = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.LobbyTopmostMenu")
+            .Methods.Single(m => m.Name == "ShowDispatchBattleMenu");
+        var dispatchVisible = targetType.Methods.Single(m => m.Name == "DispatchShortcutVisible");
+        if (!dispatchMenu.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == dispatchVisible.Name))
+        {
+            var il = dispatchMenu.Body.GetILProcessor(); var first = dispatchMenu.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, dispatchVisible));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Starg, dispatchMenu.Parameters[0]));
+        }
+        var dispatchClick = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.LobbyTopmostMenu")
+            .Methods.Single(m => m.Name == "OnClickDispatchBattleMenu");
+        var dispatchEntries = targetType.Methods.Single(m => m.Name == "DispatchListHasEntries");
+        if (!dispatchClick.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == dispatchEntries.Name))
+        {
+            var il = dispatchClick.Body.GetILProcessor(); var first = dispatchClick.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, dispatchEntries));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        var heroDeck = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.HeroDeck2")
+            .Methods.Single(m => m.Name == "CreateHeroItem" && m.Parameters.Count == 0);
+        var dispatchHeroes = targetType.Methods.Single(m => m.Name == "RefreshHeroDeckDispatch");
+        if (!heroDeck.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == dispatchHeroes.Name))
+        {
+            var il = heroDeck.Body.GetILProcessor();
+            foreach (var ret in heroDeck.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                ret.OpCode = OpCodes.Ldarg_0;
+                il.InsertAfter(ret, Instruction.Create(OpCodes.Call, dispatchHeroes));
+                il.InsertAfter(ret.Next, Instruction.Create(OpCodes.Ret));
+            }
+        }
+        var cardType = module.Types.Single(t => t.FullName == "NGame2.NUI.NComponent2.PortalContentsComponent");
+        var cardBackground = cardType.Methods.Single(m => m.Name == "SetBackgroundTexture");
+        var curveHelper = targetType.Methods.Single(m => m.Name == "SetupCardCurve");
+        if (!cardBackground.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == curveHelper.Name))
+        {
+            var il = cardBackground.Body.GetILProcessor();
+            var first = cardBackground.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, cardType.Methods.Single(m => m.Name == "get__portalRenewalData")));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, curveHelper));
+        }
         var container = module.Types.Single(t => t.FullName == "NShared.PortalRenewalDataContainer");
         foreach (var pair in new[] { ("GetCategoryDatas", "Categories"), ("GetData", "Contents") })
         {
@@ -134,3 +388,4 @@ partial class Program
         Console.WriteLine("Restored missing Portal categories and shared reconstructed raid definitions.");
     }
 }
+

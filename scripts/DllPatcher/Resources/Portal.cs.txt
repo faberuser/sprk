@@ -1,9 +1,241 @@
 using System.Collections.Generic;
 using NShared;
+using UnityEngine;
+using NVespa;
 
 // Additive menu reconstruction. Existing table rows and unlock rules take precedence.
 public static class RestoredPortal
 {
+    public static ExpResultInfo ParseStaminaExp(System.Collections.IDictionary data)
+    {
+        var exp = data == null ? null : data["RaiderExpResult"] as System.Collections.IDictionary;
+        return exp == null ? null : JM_NShared_ExpResultInfo.Parse(exp);
+    }
+    // The single-panel illustrations are rectangular; clip only their small-card mesh.
+    // Keep the source atlases intact because full-size panels use the same artwork.
+    public static void SetupCardCurve(NGame2.NUI.NComponent2.PortalContentsComponent component, PortalRenewalData data)
+    {
+        if (data == null || data.SubComponentShape != PortalRenewalCompType.Small) return;
+        string code = data.MainImagePath;
+        if (code != "Portal_WorldBoss_NotProgress_Image" && code != "Portal_ChallengeRaid_NotProgress_Image"
+            && code != "Portal_PetHouse_Image" && code != "Portal_TreasureHouse_Image"
+            && code != "Portal_Punishment_Image" && code != "Portal_MiddleBossShakmeh_Image") return;
+        UITexture texture = component._basicData.ContentsTexture;
+        if (texture != null) texture.onPostFill = new UIWidget.OnPostFillCallback(CurveCardMesh);
+    }
+
+    public static void CurveCardMesh(UIWidget widget, int offset, RenderingList<Vector3> verts,
+        RenderingList<Vector2> uvs, RenderingList<Color32> colors)
+    {
+        if (offset != 0 || verts.size != 4) return;
+        Vector3 bottom = verts[0], top = verts[2];
+        Vector2 uvBottom = uvs[0], uvTop = uvs[2];
+        Color32 color = colors[0];
+        verts.Clear(); uvs.Clear(); colors.Clear();
+        const int steps = 64;
+        verts.ReserveCount(steps * 4); uvs.ReserveCount(steps * 4);
+        for (int i = 0; i < steps; i++)
+        {
+            float low = i / (float)steps, high = (i + 1) / (float)steps;
+            float rightLow = 0.12f + 0.88f * Mathf.Sqrt(1f - low * low);
+            float rightHigh = 0.12f + 0.88f * Mathf.Sqrt(1f - high * high);
+            verts.AddUnsafe(new Vector3(bottom.x, Mathf.Lerp(bottom.y, top.y, low), bottom.z));
+            verts.AddUnsafe(new Vector3(bottom.x, Mathf.Lerp(bottom.y, top.y, high), bottom.z));
+            verts.AddUnsafe(new Vector3(Mathf.Lerp(bottom.x, top.x, rightHigh), Mathf.Lerp(bottom.y, top.y, high), bottom.z));
+            verts.AddUnsafe(new Vector3(Mathf.Lerp(bottom.x, top.x, rightLow), Mathf.Lerp(bottom.y, top.y, low), bottom.z));
+            uvs.AddUnsafe(new Vector2(uvBottom.x, Mathf.Lerp(uvBottom.y, uvTop.y, low)));
+            uvs.AddUnsafe(new Vector2(uvBottom.x, Mathf.Lerp(uvBottom.y, uvTop.y, high)));
+            uvs.AddUnsafe(new Vector2(Mathf.Lerp(uvBottom.x, uvTop.x, rightHigh), Mathf.Lerp(uvBottom.y, uvTop.y, high)));
+            uvs.AddUnsafe(new Vector2(Mathf.Lerp(uvBottom.x, uvTop.x, rightLow), Mathf.Lerp(uvBottom.y, uvTop.y, low)));
+            colors.AddCount(color, 4);
+        }
+    }
+
+    // Keep the native dispatch list discoverable even when no jobs are running.
+    public static bool DispatchShortcutVisible(bool hasDispatch) { return true; }
+    public static void RefreshHeroDeckDispatch(NGame2.NUI.NWindow.HeroDeck2 window)
+    {
+        foreach (var portrait in window.GetComponentsInChildren<NGame2.NUI.NComponent2.HeroPortraitComponent>(true))
+            if (portrait.HeroInfo != null)
+            {
+                portrait.SetDispatched(NGame2.NDispatchBattle.DispatchHelper.IsDispatchedHero(portrait.HeroInfo),
+                    portrait.PortraitMode == NGame2.NUI.NComponent2.HeroPortraitComponent.EPortraitMode.Icon, "");
+                FitHeroDeckDispatchLabel(portrait);
+            }
+    }
+    public static void FitHeroDeckDispatchLabel(NGame2.NUI.NComponent2.HeroPortraitComponent portrait)
+    {
+        if (!portrait.IsDispatched || portrait.PortraitMode == NGame2.NUI.NComponent2.HeroPortraitComponent.EPortraitMode.Icon) return;
+        var status = portrait.GetSubComponent<NGame2.NUI.NComponent2.NHeroPortraitSub.CustomLabelSubComponent>();
+        if (status == null || status.SpriteDiabled == null || portrait.WidgetThis == null) return;
+        // Fit the native dimmer to the actual card, including cards currently
+        // culled by the scroll view. Anchors follow resizing and list movement.
+        UIWidget backdrop = status.SpriteDiabled;
+        UIWidget bounds = portrait.HeroBundleTex != null ? portrait.HeroBundleTex.UiTex : null;
+        if (bounds == null) bounds = portrait.FrameWidget != null ? portrait.FrameWidget : portrait.WidgetThis;
+        backdrop.SetAnchor(bounds.gameObject, 0, 0, 0, 0);
+        backdrop.UpdateAnchors();
+    }
+
+    public static bool DispatchListHasEntries()
+    {
+        var manager = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.DispatchBattleInfoManager;
+        if (manager != null && manager.Count() > 0) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Dispatch", "No dispatches in progress.");
+        return false;
+    }
+
+
+    public static void TempleMissingScene(NGame2.NCutScene.CutSceneManager scene)
+    {
+        // Only replace the known nine-byte placeholder's fallback, never valid scenes.
+        if (scene.ScriptPath != "CutScene/CH65_Main_4") return;
+        foreach (var group in scene.GroupList)
+            foreach (var holder in group.ScriptList)
+            {
+                var text = holder.Value as NGame2.NCutScene.NScript.DisplayText;
+                if (text == null) continue;
+                text.TitleLink.Key = "Temple of the God King";
+                text.TextLink.Key = "This story scene is unavailable in the recovered game files. Tap to continue to the next stage.";
+            }
+    }
+
+    public static bool ApocalypsionAccess()
+    {
+        if (NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager.IsCompleted(11, 10, DungeonDifficultyType.Easy)) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", UnlockMessage(PortalRenewalCategory.PunishmentRaid));
+        return false;
+    }
+    public static bool ShakmehAccess()
+    {
+        if (NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager.IsCompleted(97, 2, DungeonDifficultyType.Easy)) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Complete Chapter 9's epilogue (97-2) to unlock Shakmeh.");
+        return false;
+    }
+    static string UnlockMessage(PortalRenewalCategory category)
+    {
+        if (category == PortalRenewalCategory.TechnoRaid) return "Clear 10-9 to unlock Technomagic Raid. Siegfried and Ascalon require 10-30.";
+        if (category == PortalRenewalCategory.PunishmentRaid) return "Clear X-10 to unlock Apocalypsion Raid.";
+        return category == PortalRenewalCategory.Shakmeh ? "Complete Chapter 9's epilogue (97-2) to unlock Shakmeh." : "Complete the God King's Temple story after 6-21.";
+    }
+    public static bool GodkingAccess()
+    {
+        RestoreGodkingClassRules();
+        if (NGame2.NUI.NManager.NLobby.SoulWeaponManagement.IsOpenGodKingTemple()) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Clear 6-21 and complete the God King's Temple story to unlock God King's Trial and Eclipse.");
+        return false;
+    }
+    public static void RestoreGodkingClassRules()
+    {
+        foreach (var group in GameRoot.Instance.GodkingTrialGroupDataContainer.GetAllData())
+        {
+            // Recovered verbatim from the reference client's trial group table.
+            if (group.ChapterIndex == 100000) group.BanRuleIndex = 303;
+            else if (group.ChapterIndex == 100001) group.BanRuleIndex = 304;
+            else if (group.ChapterIndex == 100002) group.BanRuleIndex = 305;
+        }
+    }
+    public static void GodkingWindowBackground(ContentUIGodkingTrialDungeonList window)
+    {
+        Transform background = window.transform.Find("Panel/Root/Bg");
+        if (background != null)
+        {
+            UITexture texture = background.GetComponent<UITexture>();
+            if (texture != null)
+            {
+                background.gameObject.SetActive(true);
+                texture.color = Color.white;
+                NGame2.NUI.UIHelper.ResetPlaneAssetTextureAsync(texture, texture,
+                    NGame2.NUI.UIHelper.GetPlainTexture("UI/Tower/GodKing_Bg"),
+                    NGame2.NUI.UIHelper.EAssetTextureAssign.None, null);
+            }
+        }
+        var portal = UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.PortalRenewal>();
+        if (portal != null && portal.IsOpen()) portal.SetEventHide(0f);
+    }
+    public static void GodkingReturnToPortal()
+    {
+        var portal = UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.PortalRenewal>();
+        if (portal != null && portal.IsOpen()) portal.SetEventHide(1f);
+    }
+    public static bool ClosePortalForActivity(bool original, ClientActivityType activity)
+    {
+        return original || activity == ClientActivityType.OpenEclipse;
+    }
+
+    public static bool ChapterFiveSubStoryHidden(bool hidden, CampaignNodeData node)
+    {
+        // Shipped branch 5-21 -> 133 -> 31 leads to hero substory 100017.
+        // Keep the native graph progression and substory entry requirements.
+        if (node.ChapterIndex == 5 && node.DungeonIndex == 31 &&
+            node.Function == NodeFunctionType.MoveSubStory && node.Value != null &&
+            node.Value.Length >= 2 && node.Value[0] == "100017" && node.Value[1] == "1") return false;
+        return hidden;
+    }
+
+    public static bool WorldMapHidden(bool hidden, PortalData portal)
+    {
+        // The illustrated World Map uses PortalTable, independently of PortalRenewal.
+        // Restore chapter landmarks and their centering records, retaining the
+        // original clear-dungeon conditions and leaving special destinations alone.
+        if (portal.ChapterIndex >= 5 && portal.ChapterIndex <= 11 &&
+            (portal.DungeonIndex == -1 || portal.DungeonIndex == 1)) return false;
+        return hidden;
+    }
+
+    public static Dictionary<int, CampaignChapterData> MainChapters(Dictionary<int, CampaignChapterData> original)
+    {
+        var rows = original ?? new Dictionary<int, CampaignChapterData>();
+        foreach (var chapter in GameRoot.Instance.CampaignChapterDataContainer.GetAllData())
+            if (chapter.MainField && chapter.IsOpen) rows[chapter.Index] = chapter;
+        return rows;
+    }
+
+    public static bool RestoredCampaignChapterOpen(bool original, CampaignChapterData chapter)
+    {
+        // Restore shipped story chapters and the 9.5/epilogue prerequisites for 10.
+        // Ice Crystal Cave uses 117 for the first visit and 127 for the return map.
+        return original || (chapter.Index >= 4 && chapter.Index <= 11) || chapter.Index == 95 || chapter.Index == 97
+            || chapter.Index == 117 || chapter.Index == 127;
+    }
+
+    public static bool ReserveContentsUnlockNotice(NShared.ContentsOpenConditionData data)
+    {
+        if (data == null || !NGame2.NAccount.AccountManager.IsLogined()) return false;
+        // Full quest snapshots can report an unclaimed completed quest repeatedly.
+        // Announcements are one-time per content and account, independent of claiming.
+        var seen = new NVespa.LocalAccountBool(false, "Sprk.ContentsUnlockNotice." + data.Index);
+        if (seen.Value) return false;
+        seen.Value = true;
+        return true;
+    }
+
+    public static int EquipmentBagMaxExtensions(int original, NShared.InventoryType inventoryType)
+    {
+        // 280 base slots + 90 extensions of 8 slots = 1000.
+        return inventoryType == NShared.InventoryType.Inventory ? System.Math.Min(original, 90) : original;
+    }
+
+    public static bool ShowMailCapacityError(NShared.Response response)
+    {
+        if (response == null || response.InternalErrorMessage != "Equipment bag is full. Free space and try claiming the mail again.") return false;
+        NGame2.NUI.NWindow.MessagePopup.Open("Equipment bag full", response.InternalErrorMessage);
+        return true;
+    }
+
+    // Boss HP gates require their story sequences even for skipped tutorials:
+    // 2-18 event 20181; 4-21 sequence 40212 removes Malduk's skill 39.
+    public static bool RequiredBattleStoryEnabled(bool enabled)
+    {
+        if (enabled) return true;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Battle2") return false;
+        var context = NVespa.SingletonAuto<NGame2.NBattleContext.CampaignContext>.instance;
+        var dungeon = context.EnterDungeon;
+        return dungeon != null && dungeon.IsScenario &&
+            ((dungeon.Chapter == 2 && dungeon.OriginalDungeon == 18) ||
+             (dungeon.Chapter == 4 && dungeon.OriginalDungeon == 21));
+    }
+
     public static EntryMenu ArenaMenu(EntryMenu menu)
     {
         // Battle return opens the selector without a town entry-menu row.
@@ -124,12 +356,27 @@ public static class RestoredPortal
     {
         foreach (var row in rows) if (row.Category == category) return;
         rows.Add(new PortalRenewalData { Category = category, SubCategory = PortalRenewalSubCategory.MENUBUTTON,
+            OpenCondition = GodkingCondition(category), OpenConditionLocalKey = UnlockMessage(category),
             SubComponentShape = PortalRenewalCompType.Small, MenuShowIndex = 100 + (int)category, MenuButtonLocalkey = title, TitleLocalKey = title });
     }
 
     public static IList<PortalRenewalData> Contents(IList<PortalRenewalData> original, PortalRenewalCategory category)
     {
         var rows = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);
+        if (category == PortalRenewalCategory.Chapter)
+        {
+            for (int chapter = 5; chapter <= 11; chapter++)
+            {
+                bool exists = false;
+                foreach (var row in rows) if (row.ContentsShowIndex == chapter) exists = true;
+                if (!exists) rows.Add(new PortalRenewalData {
+                    Category = category, SubCategory = (PortalRenewalSubCategory)(100 + chapter),
+                    ContentsShowIndex = chapter, SubComponentShape = (PortalRenewalCompType)5,
+                    TitleLocalKey = "PORTAL_CHAPTER_" + chapter + "_NAME",
+                    MainImagePath = "Portal_Chapter" + chapter + "_Image", VisualChapterIndex = chapter.ToString()
+                });
+            }
+        }
         // Do not replace native content panels when another client table already provides them.
         foreach (var row in rows) if (row.SubCategory != PortalRenewalSubCategory.MENUBUTTON) return rows;
         foreach (var menu in Categories(rows))
@@ -183,11 +430,57 @@ public static class RestoredPortal
         return rows;
     }
 
+    static string[] GodkingCondition(PortalRenewalCategory category)
+    {
+        if (category == PortalRenewalCategory.TechnoRaid) return new string[] { "CompleteDungeon", "10", "9", "true" };
+        if (category == PortalRenewalCategory.PunishmentRaid) return new string[] { "CompleteDungeon", "11", "10", "true" };
+        if (category == PortalRenewalCategory.Shakmeh) return new string[] { "CompleteDungeon", "97", "2", "true" };
+        return category == PortalRenewalCategory.GodKingTemple || category == PortalRenewalCategory.Eclipse
+            ? new string[] { "CompleteDungeon", "65", "11", "true" } : null;
+    }
+
+    // Original sprite names from the installed Portal ContentImage atlases.
+    static string CardImage(PortalRenewalSubCategory sub)
+    {
+        switch (sub)
+        {
+            case PortalRenewalSubCategory.Identified: return "Portal_Valance_Identified";
+            case PortalRenewalSubCategory.Craft: return "Portal_Valance_Craft";
+            case PortalRenewalSubCategory.Management: return "Portal_Valance_Management";
+            case PortalRenewalSubCategory.LeagueOfVictory: return "Portal_Arena_Victory_Button";
+            case PortalRenewalSubCategory.LeagueOfGlory: return "Portal_Arena_Honor_Button";
+            case PortalRenewalSubCategory.OrdealArena: return "Portal_Arena_Ordeal_Button";
+            case PortalRenewalSubCategory.DragonRaid: return "Portal_Raid_Dragon_Button";
+            case PortalRenewalSubCategory.DragonRaidHard: return "Portal_Raid_DragonHard_Button";
+            case PortalRenewalSubCategory.FieldRaid: return "Portal_Raid_Field_Button";
+            case PortalRenewalSubCategory.WorldBoss: return "Portal_WorldBoss_NotProgress_Image";
+            case PortalRenewalSubCategory.GodkingTrial: return "Portal_Sanctuary_TrialoftheGodking_Button";
+            case PortalRenewalSubCategory.GodkingSanctum: return "Portal_Sanctuary_KingSanctum_Button";
+            case PortalRenewalSubCategory.Eclipse: return "Portal_Notice_Eclipse_Button";
+            case PortalRenewalSubCategory.Shakmeh: return "Portal_MiddleBossShakmeh_Image";
+            case PortalRenewalSubCategory.ChallengeRaid: return "Portal_ChallengeRaid_NotProgress_Image";
+            case PortalRenewalSubCategory.GuildArena: return "Portal_GuildBattle_GuildArena_Button";
+            case PortalRenewalSubCategory.GuildSuppress: return "Portal_GuildBattle_GuildSuppress_Button";
+            case PortalRenewalSubCategory.GuildRaid: return "Portal_GuildBattle_GuildRaid_Button";
+            case PortalRenewalSubCategory.GuildHeadquarter: return "Portal_Guild_GuildHeadquarter_Button";
+            case PortalRenewalSubCategory.GuildTrainingCenter: return "Portal_Guild_CommandCenter_Button";
+            case PortalRenewalSubCategory.RankingBoard: return "Portal_Guild_Ranking_Button";
+            case PortalRenewalSubCategory.Pet: return "Portal_PetHouse_Image";
+            case PortalRenewalSubCategory.TechnomagicRaid: return "Portal_Raid_Technomagic_Button";
+            case PortalRenewalSubCategory.TechnoEnchantRaid: return "Portal_Raid_TechnoEnchant_Button";
+            case PortalRenewalSubCategory.TreasureHouse: return "Portal_TreasureHouse_Image";
+            case PortalRenewalSubCategory.PunishmentRaid: return "Portal_Punishment_Image";
+            case PortalRenewalSubCategory.PunishmentRuneCraft: return "Portal_Punishment_Button";
+            default: return null;
+        }
+    }
+
     static void Add(List<PortalRenewalData> rows, PortalRenewalCategory category, PortalRenewalSubCategory sub,
         string title, ClientActivityType activity, params string[] args)
     {
         rows.Add(new PortalRenewalData { Category = category, SubCategory = sub, TitleLocalKey = title,
-            MenuButtonLocalkey = title, ContentsShowIndex = rows.Count, SubComponentShape = PortalRenewalCompType.Small,
+            MenuButtonLocalkey = title, MainImagePath = CardImage(sub), ContentsShowIndex = rows.Count, SubComponentShape = PortalRenewalCompType.Small,
+            OpenCondition = GodkingCondition(category), OpenConditionLocalKey = UnlockMessage(category),
             MoveTaskType = activity, MoveTaskValue = args });
     }
 }

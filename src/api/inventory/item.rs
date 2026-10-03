@@ -160,7 +160,7 @@ pub(crate) async fn capacity(
         state.tables.inventory.constant("EquipItemMaxCount", 280)
     };
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM equip_items WHERE account_id=? AND inventory_type=?",
+        "SELECT COUNT(*) FROM equip_items e WHERE account_id=? AND inventory_type=? AND NOT EXISTS(SELECT 1 FROM heroes h WHERE h.account_id=e.account_id AND e.slot_index IN (h.equip_item_slot_index_1,h.equip_item_slot_index_2,h.equip_item_slot_index_3,h.equip_item_slot_index_4,h.equip_item_slot_index_5,h.equip_item_slot_index_6,h.equip_item_slot_index_7,h.equip_item_slot_index_8,h.equip_item_slot_index_9,h.equip_item_slot_index_10))",
     )
     .bind(account)
     .bind(inventory)
@@ -224,7 +224,7 @@ pub(crate) async fn give(
         if count > 1000 {
             return Err(rule("EquipItemFull"));
         }
-        capacity(db, state, account, 0, count as i64).await?;
+        if !rewards.mail_overflow { capacity(db, state, account, 0, count as i64).await?; }
     } else if metadata.kind != "Hero" {
         let cap = n(data(state, index)?, "ItemMaxCap");
         let old: i64 =
@@ -248,6 +248,28 @@ pub(crate) async fn give(
                 equip.identified=0;
                 crate::api::extensions::save_equip(db,account,equip).await?;
             }
+        }
+    }
+    if metadata.kind == "Equip" && rewards.mail_overflow {
+        let mut mailed = Vec::new();
+        // Remove only the newly rolled overflow; preserve its exact options in mail.
+        while rewards.equipment.len() > equip_start {
+            match capacity(db, state, account, 0, 0).await {
+                Ok(()) => break,
+                Err(ServerError::InvalidRequest(code)) if code == "EquipItemFull" => {},
+                Err(error) => return Err(error),
+            }
+            let mut equip = rewards.equipment.pop().unwrap();
+            sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+                .bind(account).bind(equip.slot_index).execute(&mut *db).await?;
+            equip.slot_index = 0;
+            equip.uid = String::new();
+            mailed.push(equip);
+        }
+        if !mailed.is_empty() {
+            sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Battle equipment rewards','Your equipment bag was full. Free bag space to claim these rewards.',?)")
+                .bind(account).bind(serde_json::to_string(&mailed).map_err(|e|ServerError::Internal(e.to_string()))?)
+                .execute(&mut *db).await?;
         }
     }
     sqlx::query("UPDATE items SET created_time=COALESCE(created_time,datetime('now')) WHERE account_id=? AND item_index=?").bind(account).bind(index).execute(&mut *db).await?;

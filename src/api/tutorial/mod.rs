@@ -81,6 +81,7 @@ pub async fn begin_tutorial(
 
 #[derive(Default)]
 pub(crate) struct Rewards {
+    pub(crate) mail_overflow: bool,
     pub(crate) pets: Vec<Value>,
     pub(crate) currencies: Vec<Value>,
     pub(crate) items: Vec<Value>,
@@ -584,6 +585,14 @@ pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> 
         complete_in_transaction(&mut tx, state, account_id, 20001, data).await?;
     }
     tx.commit().await?;
+    Ok(())
+}
+
+/// Tutorial skip suppresses the cave's story sequence, but 7-7 still needs its flag.
+/// Recover only after both real cave battles were cleared; never grant battle progress.
+pub(crate) async fn restore_skipped_cave_story(state: &AppState, account_id: i64) -> Result<()> {
+    sqlx::query("INSERT INTO tutorial_progress (account_id,tutorial_index,is_completed,completed_time) SELECT ?,70001,1,datetime('now') WHERE EXISTS(SELECT 1 FROM tutorial_settings WHERE account_id=? AND is_skipped=1) AND (SELECT COUNT(*) FROM campaign_progress WHERE account_id=? AND chapter_id=117 AND dungeon_id IN (3,4) AND clear_count>0)=2 ON CONFLICT(account_id,tutorial_index) DO UPDATE SET is_completed=1,completed_time=excluded.completed_time WHERE tutorial_progress.is_completed=0")
+        .bind(account_id).bind(account_id).bind(account_id).execute(&state.db).await?;
     Ok(())
 }
 

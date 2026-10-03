@@ -70,6 +70,14 @@ GuildSuppressGlobalReward GuildSuppressServerReward'''.split() if arena_guild el
                 elif (name == 'BanRule' and key.startswith('BanValue') or name == 'TowerFloor' and key == 'OpenTime') and isinstance(value,int): row[key] = pool[value]
         data[name] = rows
     if not arena_guild:
+        story_fields = ('ChapterIndex', 'DungeonIndex', 'ForcedHeroIndex', 'ReqChapterIndex', 'ReqDungeonIndex')
+        data['SubStoryParty'] = [{k: r.get(k) for k in story_fields} for r in
+            json.loads((args.decoded / 'SubStoryTable.json').read_text(encoding='utf-8'))]
+        # Shipped main story plus the connecting prerequisites for Chapter 10.
+        for chapter in data['CampaignChapter']:
+            # Ice Crystal Cave's first-visit and return maps retain their 7-6 prerequisite.
+            if 4 <= chapter['Index'] <= 11 or chapter['Index'] in (95, 97, 117, 127):
+                chapter['IsOpen'] = True
         eclipse_stages = {(r['ChapterIndex'], r['DungeonIndex']) for r in data['CampaignDungeon'] if r['BattleType'] == 36}
         waves = json.loads((args.decoded / 'CampaignWaveTable.json').read_text(encoding='utf-8'))
         data['EclipseWave'] = [{k: r[k] for k in ('ChapterIndex', 'DungeonIndex', 'Difficulty', 'Scenario', 'WaveIndex', 'Level')}

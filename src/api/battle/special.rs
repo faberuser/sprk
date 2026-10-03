@@ -33,7 +33,18 @@ async fn eclipse(
         if run["IsPlayEclipse"] == true {
             return Err(rule("Fail"));
         }
-        let values: Vec<Value> = read_json(r.text("HeroInfos")).map_err(|_| rule("Fail"))?;
+        // Unencrypted native requests EscapeURL before WWWForm encodes again.
+        // Decode only that extra layer; ordinary JSON API requests stay intact.
+        let raw = r.text("HeroInfos").trim();
+        let decoded;
+        let raw = if raw.starts_with('%') {
+            decoded = urlencoding::decode(raw).map_err(|_| rule("Fail"))?;
+            decoded.as_ref()
+        } else { raw };
+        let values: Vec<Value> = read_json(raw).map_err(|error| {
+            tracing::warn!(account=a, bytes=r.text("HeroInfos").len(), %error, "Invalid Eclipse deck JSON");
+            rule("Fail")
+        })?;
         if values.len() > s.tables.hero_shop.constant("EclipseMaxTeam", 10) as usize {
             return Err(rule("Fail"));
         }
@@ -44,7 +55,10 @@ async fn eclipse(
             // JM_NShared_EclipseDeckResult encodes integer fields as strings.
             let index = v["DeckIndex"].as_i64()
                 .or_else(|| v["DeckIndex"].as_str().and_then(|v| v.parse().ok()))
-                .ok_or_else(|| rule("Fail"))?;
+                  .ok_or_else(|| {
+                      tracing::warn!(account=a, deck_index=?v["DeckIndex"], "Invalid Eclipse deck index");
+                      rule("Fail")
+                  })?;
             if !(1..=10).contains(&index) || !deck_ids.insert(index) {
                 return Err(rule("Fail"));
             }
@@ -122,6 +136,12 @@ pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> R
             .as_ref()
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
+        if item.is_some() {
+            // CachedHeroInfo reads Soul Weapons from the equipped item, unlike
+            // login which also sends a separate account-wide SoulWeaponInfos list.
+            hero[format!("EquipItemInfo{part}")]["SoulWeaponInfo"] =
+                crate::api::extensions::get(db, a, "soul", slot).await?;
+        }
     }
     hero["PunishmentRuneOptionInfos"] = json!([]);
     Ok(hero)

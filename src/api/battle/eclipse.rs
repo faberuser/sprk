@@ -97,6 +97,7 @@ pub(super) async fn begin(
     a: i64,
     r: &Request,
 ) -> Result<Value> {
+    dungeons::require_godking_unlock(db, s, a).await?;
     rooms::validate_battle(db, s, a, r).await?;
     if s.tables.services.rules["RequireBattleService"] == true {
         return Err(rule("BattleServerNotFound"));
@@ -104,15 +105,20 @@ pub(super) async fn begin(
     if campaign::difficulty(r)? != 0 || boolean(r, "ScenarioDungeon", false)? {
         return Err(rule("InvalidDiff"));
     }
-    let tickets = r.number("EnterTicketCount", 1)?;
+    let mut run = get(db, a, "eclipse", 0).await?;
+    let continuing = run["IsPlayEclipse"] == true;
+    let requested_tickets = r.number("EnterTicketCount", 1)?;
+    // Native automatic team handoff can send zero from its uninitialized
+    // reward cache. The active run already owns its paid ticket multiplier.
+    let tickets = if continuing && requested_tickets == 0 {
+        n(&run, "EnterTicketCount")
+    } else { requested_tickets };
     let speed = r.number("OnlineGameSpeedRatio", 1)?;
     if !(1..=s.tables.hero_shop.constant("MaxEclipseTicket", 5)).contains(&tickets)
         || !(1..=3).contains(&speed)
     {
         return Err(rule("Fail"));
     }
-    let mut run = get(db, a, "eclipse", 0).await?;
-    let continuing = run["IsPlayEclipse"] == true;
     if continuing {
         if n(&run, "Expires") < now() || n(&run, "EnterTicketCount") != tickets {
             return Err(rule("DungeonNotFound"));
@@ -246,7 +252,15 @@ pub(super) async fn execute(
         ];
         let mut report = json!({});
         for key in fields {
-            report[key] = json!(int(r, key)?);
+            // Native SaveEclipseResult.TotalDamage is a signed 64-bit long.
+            // Maxed parties can exceed Int32.MaxValue during the first team.
+            let value = if key == "TotalDamage" {
+                r.number(key, 0)?
+            } else {
+                int(r, key)?
+            };
+            if value < 0 { return Err(rule("InvalidRequest")); }
+            report[key] = json!(value);
         }
         if run["LastReport"] == report {
             return Ok(item::success());
