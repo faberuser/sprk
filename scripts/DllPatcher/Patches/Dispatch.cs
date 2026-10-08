@@ -40,7 +40,7 @@ partial class Program {
         if(!update.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="Tick"))
             update.Body.GetILProcessor().InsertBefore(update.Body.Instructions[0],Instruction.Create(OpCodes.Call,module.ImportReference(worker.Methods.Single(m=>m.Name=="Tick"))));
         var text=module.Types.Single(t=>t.FullName=="NVespa.NGlobal.LocalizationManager").Methods.Single(m=>m.Name=="GetStringDirect" && m.Parameters.Count==1);
-        if(!text.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="HelpText")) {
+        if(!NativeStaticData.ValidateInstalled(managed) && !text.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="HelpText")) {
             foreach(var ret in text.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
                 ret.OpCode=OpCodes.Call;ret.Operand=module.ImportReference(worker.Methods.Single(m=>m.Name=="HelpText"));
                 text.Body.GetILProcessor().InsertAfter(ret,Instruction.Create(OpCodes.Ret));

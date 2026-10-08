@@ -404,17 +404,45 @@ public static class RestoredPortal
     public static GuildSuppressSessionData ConquestSession(GuildSuppressSessionDataContainer container,int index)
     {
         if(index<10000)return container.GetData(index);
-        var row=(System.Collections.IDictionary)((System.Collections.IList)ConquestContent()["GuildSuppressSession"])[0];
-        var start=new System.DateTime(2026,1,5,16,0,0).AddDays((index-10000)*7);
-        return new GuildSuppressSessionData {SessionIndex=index,SeasonIndex=index,ViewRankSeason=index,ViewSession=1,PortalViewSession=1,
-            GlobalApplyStart=start.ToString("yyyy-MM-dd HH:mm:ss"),GlobalApplyEnd=start.AddHours(47).AddSeconds(-1).ToString("yyyy-MM-dd HH:mm:ss"),
-            GlobalBattleStart=start.AddHours(47.5).ToString("yyyy-MM-dd HH:mm:ss"),GlobalBattleEnd=start.AddDays(7).AddHours(-1).AddSeconds(-1).ToString("yyyy-MM-dd HH:mm:ss"),
-            SuppressDungeonIndex=IntArray(row["SuppressDungeonIndex"]),RaidIndex=Int(row,"RaidIndex"),Level=IntArray(row["Level"]),SingleLevel=IntArray(row["SingleLevel"])};
+        GuildSuppressSessionData result;
+        return serverConquestSessions!=null && serverConquestSessions.TryGetValue(index,out result) ? result : null;
     }
     public static List<GuildSuppressSessionData> ConquestSessions(List<GuildSuppressSessionData> original,int season)
     {
         if(season<10000)return original;
-        var result=new List<GuildSuppressSessionData>();result.Add(ConquestSession(null,season));return result;
+        List<GuildSuppressSessionData> result;
+        return serverConquestSeasons!=null && serverConquestSeasons.TryGetValue(season,out result) ? result : original;
+    }
+    static Dictionary<int,GuildSuppressSessionData> serverConquestSessions;
+    static Dictionary<int,List<GuildSuppressSessionData>> serverConquestSeasons;
+    public static void AcceptServerConquestSessions(System.Collections.IDictionary response)
+    {
+        var definitions=response==null ? null : response["SPRKConquestSessionDefinitions"] as System.Collections.IList;
+        if(definitions==null)return;
+        if(serverConquestSessions==null)serverConquestSessions=new Dictionary<int,GuildSuppressSessionData>();
+        if(serverConquestSeasons==null)serverConquestSeasons=new Dictionary<int,List<GuildSuppressSessionData>>();
+        foreach(System.Collections.IDictionary definition in definitions) {
+            var session=JM_NShared_GuildSuppressSessionData.Parse(definition);
+            if(session.SessionIndex<10000 || session.SeasonIndex<10000)continue;
+            serverConquestSessions[session.SessionIndex]=session;
+            List<GuildSuppressSessionData> season;
+            if(!serverConquestSeasons.TryGetValue(session.SeasonIndex,out season)) {
+                season=new List<GuildSuppressSessionData>();serverConquestSeasons.Add(session.SeasonIndex,season);
+            }
+            bool replaced=false;
+            for(int i=0;i<season.Count;i++)if(season[i].SessionIndex==session.SessionIndex){season[i]=session;replaced=true;break;}
+            if(!replaced)season.Add(session);
+        }
+    }
+    public static bool CheckNativeStoryCondition(string[] condition)
+    {
+        int tutorial,chapter,dungeon;
+        if(condition==null || condition.Length!=5 || condition[0]!="CompleteTutorialOrSkippedDungeon"
+            || condition[2]!="True" || !int.TryParse(condition[1],out tutorial)
+            || !int.TryParse(condition[3],out chapter) || !int.TryParse(condition[4],out dungeon))return false;
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        return account.TutorialManager.IsComplete(tutorial)
+            || (account.IsTutorialSkip && account.CampaignManager.IsCompleted(chapter,dungeon,DungeonDifficultyType.Easy));
     }
     public static GuildSuppressDungeonData ConquestDungeon(GuildSuppressDungeonDataContainer container,int index)
     {

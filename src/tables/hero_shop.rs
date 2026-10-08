@@ -31,21 +31,6 @@ pub struct HeroShopTable {
 impl HeroShopTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
-        let guild = path.with_file_name("RestoredGuildContent.json");
-        if guild.exists() {
-            let restored: Value = serde_json::from_reader(std::fs::File::open(guild)?)?;
-            for shop in restored["Shops"].as_array().into_iter().flatten() {
-                data.shops.insert(shop["Index"].as_i64().unwrap() as i32, shop.clone());
-            }
-            data.shop_items.retain(|r| !matches!(r["ShopIndex"].as_i64(), Some(4 | 20 | 21 | 27)));
-            data.shop_items.extend(restored["ShopItems"].as_array().into_iter().flatten().cloned());
-            for price in restored["ItemPrices"].as_array().into_iter().flatten() {
-                if let Some(item) = data.items.get_mut(&(price["Index"].as_i64().unwrap() as i32)) {
-                    item["BuyGuildPoint"] = price["BuyGuildPoint"].clone();
-                    item["BuyGuildArenaPoint"] = price["BuyGuildArenaPoint"].clone();
-                }
-            }
-        }
         data.apply_archived_cosmetic_flags();
         Ok(data)
     }

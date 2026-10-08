@@ -9,18 +9,18 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/Crafting.cs.txt" WithCulture="false" LogicalName="DllPatcher.Crafting.cs.txt" />
-    <EmbeddedResource Include="../../tables/RestoredCrafting.json" LogicalName="DllPatcher.RestoredCrafting.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredCrafting.json" LogicalName="DllPatcher.RestoredCrafting.json" />
     <EmbeddedResource Include="Resources/Conquest.cs.txt" WithCulture="false" LogicalName="DllPatcher.Conquest.cs.txt" />
-    <EmbeddedResource Include="../../tables/RestoredSelectors.json" LogicalName="DllPatcher.RestoredSelectors.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredSelectors.json" LogicalName="DllPatcher.RestoredSelectors.json" />
     <EmbeddedResource Include="Resources/Dispatch.cs.txt" WithCulture="false" LogicalName="DllPatcher.Dispatch.cs.txt" />
     <EmbeddedResource Include="Resources/Automation.cs.txt" WithCulture="false" LogicalName="DllPatcher.Automation.cs.txt" />
-    <EmbeddedResource Include="../../tables/ReconstructedRaids.json" LogicalName="DllPatcher.ReconstructedRaids.json" />
-    <EmbeddedResource Include="../../tables/RestoredPunishmentSkills.json" LogicalName="DllPatcher.RestoredPunishmentSkills.json" />
-    <EmbeddedResource Include="../../tables/RestoredCombat.json" LogicalName="DllPatcher.RestoredCombat.json" />
-    <EmbeddedResource Include="../../tables/RestoredOrvelMenus.json" LogicalName="DllPatcher.RestoredOrvelMenus.json" />
-    <EmbeddedResource Include="../../tables/RestoredGuildMenus.json" LogicalName="DllPatcher.RestoredGuildMenus.json" />
-    <EmbeddedResource Include="../../tables/RestoredGuildContent.json" LogicalName="DllPatcher.RestoredGuildContent.json" />
-    <EmbeddedResource Include="../../tables/RestoredGuildConquest.json" LogicalName="DllPatcher.RestoredGuildConquest.json" />
+    <EmbeddedResource Include="Resources/LegacyData/ReconstructedRaids.json" LogicalName="DllPatcher.ReconstructedRaids.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredPunishmentSkills.json" LogicalName="DllPatcher.RestoredPunishmentSkills.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredCombat.json" LogicalName="DllPatcher.RestoredCombat.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredOrvelMenus.json" LogicalName="DllPatcher.RestoredOrvelMenus.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredGuildMenus.json" LogicalName="DllPatcher.RestoredGuildMenus.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredGuildContent.json" LogicalName="DllPatcher.RestoredGuildContent.json" />
+    <EmbeddedResource Include="Resources/LegacyData/RestoredGuildConquest.json" LogicalName="DllPatcher.RestoredGuildConquest.json" />
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <EmbeddedResource Include="Resources/CostumeOwnership.cs.txt" WithCulture="false" LogicalName="DllPatcher.CostumeOwnership.cs.txt" />

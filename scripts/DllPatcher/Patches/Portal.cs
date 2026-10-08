@@ -9,6 +9,7 @@ partial class Program
 {
     static void PatchPortal(ModuleDefinition module)
     {
+        bool nativeCombatTables = NativeCombatTables.ValidateInstalled(Path.GetDirectoryName(module.FileName)!);
         using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Portal.cs.txt")!;
         using var reader = new StreamReader(stream);
         using var raidStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.ReconstructedRaids.json")!;
@@ -833,6 +834,8 @@ partial class Program
             throw new InvalidOperationException("Expected one readable perk popup hook");
         if (module.AssemblyReferences.Any(r => r.Name == "PortalRestore"))
             throw new InvalidOperationException("Portal patch leaked a helper assembly reference");
+        if (nativeCombatTables) NativeCombatTables.Apply(module);
+        if (NativeStaticData.ValidateInstalled(Path.GetDirectoryName(module.FileName)!)) NativeStaticData.Apply(module);
         Console.WriteLine("Restored missing Portal categories and shared reconstructed raid definitions.");
     }
 }

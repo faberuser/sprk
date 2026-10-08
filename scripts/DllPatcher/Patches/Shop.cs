@@ -67,6 +67,9 @@ partial class Program
         RestoreCostumeOwnership(module);
         // The PTS costume table also disables buying. The shop filters all
         // heroes out unless they have a priced, buyable costume.
+        if(NativeStaticData.ValidateInstalled(Path.GetDirectoryName(module.FileName)!)) {
+            Console.WriteLine("Custom / Costume shop category flags use native data."); return;
+        }
         PatchCostumeBuying(module);
         var type = module.Types.Single(t => t.FullName == "NShared.NewPayShopGroupData");
         var getter = type.Methods.Single(m => m.Name == "get_IsEnable");

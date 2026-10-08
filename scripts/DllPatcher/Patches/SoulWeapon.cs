@@ -7,6 +7,9 @@ partial class Program
 {
     static void PatchSoulWeaponLimitBreak(ModuleDefinition module)
     {
+        if(NativeStaticData.ValidateInstalled(Path.GetDirectoryName(module.FileName)!)) {
+            Console.WriteLine("Soul weapon limit break uses baked native definitions."); return;
+        }
         // ================================================================
         // PATCH SoulWeaponLimitBreak.TryGetMaxStar & GetAfterDataByCurrent
         // Disables Limit Break (stars 6-15) completely

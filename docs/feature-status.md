@@ -147,7 +147,9 @@ The client patcher now adds missing Portal categories: Valance, Arena, Raid, Wor
 Portal Guild Raid badge polling now returns successful empty raid and member-score lists for authenticated accounts without a guild. Other guild raid operations still require membership. Regression checks cover repeated polling, no raid-state creation, membership enforcement, and normal raid data after joining a guild.
 
 Punishment Boss/Karma restoration now supplies ten inferred Raid definitions through
-`tables/ReconstructedRaids.json`, shared with the client patch. Native contents
+the baked Raid rows in `tables/BattleSupport.json`. The client patcher keeps its
+build-time reconstruction source in `scripts/DllPatcher/Resources/LegacyData`;
+the server loads no restoration overlays. Native contents
 entry/results support both groups at level 1, opening stamina, clear progression,
 boss modifiers and conditional rewards. These use the client's original
 OfflinePlay mode. Karma also has native survival settlement and flask-to-shard

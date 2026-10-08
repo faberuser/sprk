@@ -648,7 +648,7 @@ async fn crafting_spends_table_materials_and_gold_and_rejects_forged_outputs() {
 #[tokio::test]
 async fn restored_crafting_all_active_archive_recipes_pay_exact_costs_and_deliver_outputs() {
     let (state,u)=setup().await;
-    let archived:Vec<Value>=serde_json::from_str(include_str!("../../../tables/RestoredCrafting.json")).unwrap();
+    let archived:Vec<Value>=serde_json::from_str(include_str!("../../../scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json")).unwrap();
     assert_eq!(archived.iter().filter(|r|r["IsOpen"]==true).count(),101);
     for recipe in archived.iter().filter(|r|r["IsOpen"]==true) {
         let id=item::n(recipe,"CraftIndex") as i32;

@@ -8,6 +8,9 @@ const WEEK: i64 = 7 * 86400;
 #[derive(Clone, Copy)]
 struct Session { index: i64, start: i64, apply_end: i64, battle_start: i64, end: i64 }
 impl Session {
+    fn by_index(index: i64) -> Self {
+        Self::at(EPOCH + (index - 10000) * WEEK)
+    }
     fn at(stamp: i64) -> Self {
         let number = (stamp - EPOCH).div_euclid(WEEK).max(0);
         let start = EPOCH + number * WEEK;
@@ -22,6 +25,27 @@ impl Session {
         json!({"SessionIndex":self.index,"State":self.state(stamp),"ApplyEndTime":time(self.apply_end-1),
             "BattleEndTime":time(self.end-1),"SessionStartedTime":time(self.start),"BattleStartedTime":time(self.battle_start)})
     }
+}
+// Calendar definitions belong to the server, alongside registration and battle
+// timing. The client receives ordinary native DTOs, without generating table rows.
+fn session_definitions(s: &AppState, session: Session, requested: i64) -> Result<Value> {
+    let template = row(s, "GuildSuppressSession", &[("RaidIndex", RAID)])?;
+    let mut indices = BTreeSet::from([session.index, requested]);
+    if session.index > 10000 { indices.insert(session.index - 1); }
+    Ok(json!(indices.into_iter().map(|index| {
+        let period = Session::by_index(index);
+        let mut definition = template.clone();
+        definition["SessionIndex"] = json!(index);
+        definition["SeasonIndex"] = json!(index);
+        definition["ViewRankSeason"] = json!(index);
+        definition["ViewSession"] = json!(1);
+        definition["PortalViewSession"] = json!(1);
+        definition["GlobalApplyStart"] = json!(time(period.start));
+        definition["GlobalApplyEnd"] = json!(time(period.apply_end - 1));
+        definition["GlobalBattleStart"] = json!(time(period.battle_start));
+        definition["GlobalBattleEnd"] = json!(time(period.end - 1));
+        definition
+    }).collect::<Vec<_>>()))
 }
 fn stamp(s: &AppState) -> i64 {
     #[cfg(test)]
@@ -180,6 +204,7 @@ pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: 
     if requested!=0 && (requested<10000 || requested>session.index) {return Err(rule("InvalidSessionIndex"));}
     let requested=if requested==0 {session.index} else {requested};
     let mut result=item::success();
+    result["SPRKConquestSessionDefinitions"] = session_definitions(s, session, requested)?;
     match action {
         "apply_guild_suppress" => {
             guild::admin(role)?;

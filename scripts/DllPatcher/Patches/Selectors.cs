@@ -40,6 +40,9 @@ partial class Program
 
     static void PatchSelectorPools(ModuleDefinition module)
     {
+        if(!string.IsNullOrEmpty(module.FileName) && NativeStaticData.ValidateInstalled(Path.GetDirectoryName(module.FileName)!)) {
+            Console.WriteLine("Selectors use baked native pools."); return;
+        }
         using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredSelectors.json")!;
         using var doc = JsonDocument.Parse(stream);
         foreach (var (family, name, field) in new[] {

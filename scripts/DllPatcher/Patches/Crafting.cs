@@ -7,6 +7,7 @@ namespace DllPatcher;
 partial class Program {
     static void InstallCrafting(string clientRoot,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
+        if(NativeStaticData.ValidateInstalled(managed)) { Console.WriteLine("Crafting uses baked native tables; no runtime recipe helper is needed."); return; }
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");
         using var source=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Crafting.cs.txt")!;
         using var reader=new StreamReader(source);

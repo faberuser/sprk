@@ -634,12 +634,33 @@ async fn conquest_registration_and_native_session_are_available() {
     assert_eq!(info["GuildSuppressApplied"], false);
     assert_eq!(info["GuildSuppressPlayInfos"].as_array().unwrap().len(),3);
     assert_eq!(info["GuildSuppressPlayInfos"][0]["MonsterHp0"],100001423152872_i64);
+    let definitions = info["SPRKConquestSessionDefinitions"].as_array().unwrap();
+    assert_eq!(definitions.len(), 1);
+    let definition = &definitions[0];
+    assert_eq!(definition["SessionIndex"], 10000);
+    assert_eq!(definition["SeasonIndex"], 10000);
+    assert_eq!(definition["ViewRankSeason"], 10000);
+    assert_eq!(definition["GlobalApplyStart"], "2026-01-05 16:00:00");
+    assert_eq!(definition["GlobalApplyEnd"], info["GuildSuppressSessionInfo"]["ApplyEndTime"]);
+    assert_eq!(definition["GlobalBattleStart"], info["GuildSuppressSessionInfo"]["BattleStartedTime"]);
+    assert_eq!(definition["GlobalBattleEnd"], info["GuildSuppressSessionInfo"]["BattleEndTime"]);
+    assert_eq!(definition["SuppressDungeonIndex"], json!([290,291,292]));
+    assert_eq!(definition["Level"], json!([1,2,3]));
+    assert_eq!(definition["SingleLevel"], json!([101,102,103]));
     assert_eq!(
         call(&s, &u, "guild_suppress/apply_guild_suppress", "").await["Result"],
         "Success"
     );
     assert_eq!(call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await["GuildSuppressApplied"],true);
     assert_eq!(call(&s,&u,"guild_suppress/apply_guild_suppress","").await["Result"],"AlreadyApplied");
+    // Weekly rollover remains unbounded on the server; archived requests also
+    // carry their definitions so the client never needs a generated table row.
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).arena_guild).rules["GuildConquestTestTime"]=json!(1767628800+3*604800+3600);
+    let later = call(&s, &u, "guild_suppress/get_guild_suppress_session_info", "SessionIndex=10000").await;
+    let definitions = later["SPRKConquestSessionDefinitions"].as_array().unwrap();
+    assert_eq!(definitions.iter().map(|v|n(v,"SessionIndex")).collect::<Vec<_>>(), vec![10000,10002,10003]);
+    assert_eq!(definitions[2]["GlobalApplyStart"], "2026-01-26 16:00:00");
+    assert_eq!(definitions[2]["GlobalApplyEnd"], later["GuildSuppressSessionInfo"]["ApplyEndTime"]);
 }
 
 #[tokio::test]
