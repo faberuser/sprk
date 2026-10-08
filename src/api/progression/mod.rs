@@ -99,7 +99,7 @@ pub(crate) async fn snapshot(
         r["OpenConditionName"].as_str().unwrap_or("").is_empty() ||
         (r["OpenConditionName"] == "ClearQuestIndex" && r["OpenConditionArgs"][0] == "SubQuest"
          && r["OpenConditionArgs"][1].as_str().and_then(|s| s.parse::<i64>().ok())
-             .is_some_and(|id| view.last("subquest", id, "all") > 0))
+             .is_some_and(|id| view.category_subquest_complete(state, id)))
     }).map(|r| json!({"MainCategoryIndex":r["MainCategoryIndex"],"SubCategoryIndex":r["SubCategoryIndex"]})).collect::<Vec<_>>());
     let main: Option<(i64, i64)> =
         sqlx::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=?")

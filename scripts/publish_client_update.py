@@ -4,12 +4,15 @@
 Requires Python 3.10+. Uses only the standard library; no game process is run.
 """
 import argparse
+import base64
 from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
+import subprocess
 import tempfile
 from urllib.parse import quote
 
@@ -79,7 +82,32 @@ def copy_and_hash(source: Path, destination: Path) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
-def publish(client: Path, output: Path, version: str, channel: str, includes: list[str]) -> dict:
+def find_openssl() -> str:
+    executable = shutil.which("openssl")
+    git_openssl = Path("C:/Program Files/Git/usr/bin/openssl.exe")
+    if executable:
+        return executable
+    if git_openssl.exists():
+        return str(git_openssl)
+    raise ValueError("OpenSSL is required for signed releases; install it or add it to PATH")
+
+
+def sign_manifest(manifest: dict, private_key: Path) -> dict:
+    payload = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    result = subprocess.run(
+        [find_openssl(), "dgst", "-sha256", "-sign", str(private_key.resolve(strict=True))],
+        input=payload, capture_output=True, check=True,
+    )
+    # Retain the convenience fields for publishing/removal bookkeeping. The
+    # launcher verifies and uses only the authenticated payload when a key is pinned.
+    return {**manifest, "signature": {
+        "algorithm": "RSA-SHA256",
+        "payload": base64.b64encode(payload).decode("ascii"),
+        "value": base64.b64encode(result.stdout).decode("ascii"),
+    }}
+
+
+def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None) -> dict:
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch(channel) or channel.lower() == "releases":
         raise ValueError("Version/channel must start with a letter or digit and contain only letters, digits, '.', '_', '-' (max 128 characters); channel cannot be 'releases'")
     client = client.resolve(strict=True)
@@ -88,7 +116,14 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     output = output.resolve()
     if output == client or output.is_relative_to(client):
         raise ValueError("Output directory must be outside the client directory")
-    sources = collect_files(client, includes)
+    privacy_path = client / "King's Raid_Data/sprk-privacy.json"
+    privacy = json.loads(privacy_path.read_text(encoding="utf-8")) if privacy_path.exists() else {}
+    if privacy and privacy.get("schema_version") != 1:
+        raise ValueError("Unsupported client privacy policy schema")
+    selected = list(includes)
+    if privacy:
+        selected += privacy.get("required_files", []) + ["King's Raid_Data/sprk-privacy.json"]
+    sources = collect_files(client, selected)
     output.mkdir(parents=True, exist_ok=True)
     # Serialize publishers so two releases cannot race to replace a channel.
     lock = output / ".publish-lock"
@@ -106,6 +141,8 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         # Carry removals forward so clients can skip intermediate versions.
         previous_files = {safe_path(item["path"]) for item in previous.get("files", [])}
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
+        explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
+        removed.update(explicit_removals)
         with tempfile.TemporaryDirectory(prefix=".publish-", dir=output) as staging_name:
             staging = Path(staging_name)
             snapshot = staging / "release"
@@ -119,6 +156,8 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                     "url": f"/updates/releases/{version}/files/{quote(path, safe='/')}",
                 })
             current_files = {item["path"] for item in files}
+            if explicit_removals & current_files:
+                raise ValueError("Explicit deletion also included in release: " + ", ".join(sorted(explicit_removals & current_files)))
             manifest = {
                 "schema_version": 1,
                 "version": version,
@@ -127,6 +166,8 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 "files": files,
                 "deleted_files": sorted((removed | (previous_files - current_files)) - current_files),
             }
+            if signing_key is not None:
+                manifest = sign_manifest(manifest, signing_key)
             payload = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
             (snapshot / "manifest.json").write_bytes(payload)
             release.parent.mkdir(parents=True, exist_ok=True)
@@ -151,10 +192,12 @@ def main() -> None:
     parser.add_argument("--version", required=True, help="New immutable release identifier")
     parser.add_argument("--channel", default="stable")
     parser.add_argument("--include", action="append", help="Client-relative file/directory; repeat to replace the default selection")
+    parser.add_argument("--signing-key", type=Path, help="RSA private key PEM; use for hosted launcher updates")
+    parser.add_argument("--delete", action="append", help="Client-relative obsolete file to remove, including files not previously managed; repeat as needed")
     args = parser.parse_args()
     try:
-        manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES)
-    except (OSError, ValueError, KeyError, TypeError) as error:
+        manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES, args.signing_key, args.delete)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Publish failed: {error}\n")
     size = sum(item["size"] for item in manifest["files"])
     print(f"Published {args.version} to {args.channel}: {len(manifest['files'])} files, {size:,} bytes, {len(manifest['deleted_files'])} removed paths")

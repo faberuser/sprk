@@ -51,6 +51,10 @@ serve client update manifests/files without initializing the game, or `all` to
 run both. See [client updates and Portainer setup](docs/client-updates.md) for the
 publishing script, download endpoints, and shared-image container stack.
 
+The [Windows launcher](launcher/README.md) installs changed client files before
+starting the game. Build it with `scripts/build_launcher.ps1`; the EXE and its
+configuration are placed in `../sprk-client` by default.
+
 ```bash
 # Run the server (default port 8080)
 cargo run --release

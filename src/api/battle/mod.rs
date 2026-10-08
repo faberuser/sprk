@@ -128,7 +128,6 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         {
             let mut out = response(s, path);
             if completed.is_some() {
-                out["HeroInfos"] = trial["HeroInfos"].clone();
                 out["ItemResults"] = trial["ItemResults"].clone();
             }
             return Ok(out);

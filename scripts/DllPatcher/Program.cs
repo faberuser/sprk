@@ -9,6 +9,19 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--verify-no-telemetry"))
+            {
+                int overlay = Array.IndexOf(args, "--overlay");
+                VerifyNoTelemetry(args[0], overlay >= 0 ? args[overlay + 1] : null);
+                return;
+            }
+            if (args.Contains("--remove-telemetry"))
+            {
+                int output = Array.IndexOf(args, "--output");
+                if (output < 0 || output + 1 >= args.Length) throw new ArgumentException("--remove-telemetry requires --output <staging-dir>");
+                RemoveClientTelemetry(args[0], args.Contains("--stage-only"), args[output + 1]);
+                return;
+            }
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
@@ -31,11 +44,13 @@ namespace DllPatcher
             bool chatOnly = args.Contains("--chat-only");
             bool campaignOnly = args.Contains("--campaign-only");
             bool shopOnly = args.Contains("--shop-only");
+            bool dealerPopupOnly = args.Contains("--dealer-popup-only");
+            bool adventureUnlocksOnly = args.Contains("--adventure-unlocks-only");
             bool portalOnly = args.Contains("--portal-only");
             bool stageOnly = args.Contains("--stage-only");
             bool selectorsOnly = args.Contains("--selectors-only");
             bool originalTablesOnly = args.Contains("--original-tables-only");
-            string sourcePath = chatOnly || campaignOnly || shopOnly || portalOnly || selectorsOnly || originalTablesOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
+            string sourcePath = chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly || originalTablesOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
 
             if (!File.Exists(sourcePath))
             {
@@ -65,7 +80,17 @@ namespace DllPatcher
             {
                 var module = assembly.MainModule;
 
-                if (originalTablesOnly)
+                // Full patching can read an old recovery DLL; keep removed telemetry out of every output.
+                RemoveTelemetryFromModule(module);
+                PatchDealerTicketPopup(module);
+                PatchAdventureUnlocks(module);
+                PatchTrialHeroReward(module);
+
+                if (dealerPopupOnly || adventureUnlocksOnly)
+                {
+                    assembly.Write(patchedPath);
+                }
+                else if (originalTablesOnly)
                 {
                     PatchPortal(module);
                     RestoreOriginalTableGetters(module);
@@ -125,7 +150,7 @@ namespace DllPatcher
             Console.WriteLine($"Copying to: {dllPath}");
             File.Copy(patchedPath, dllPath, true);
             Console.WriteLine("Done! The DLL has been patched successfully.");
-            if (chatOnly || campaignOnly || shopOnly || portalOnly || selectorsOnly) return;
+            if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 
             // Print summary
             Console.WriteLine("\n=== PATCH SUMMARY ===");

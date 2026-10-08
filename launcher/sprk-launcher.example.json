@@ -1,0 +1,6 @@
+{
+  "ManifestUrl": "http://127.0.0.1:8081/updates/stable/manifest.json",
+  "GameExecutable": "King's Raid.exe",
+  "ManifestPublicKeyPem": "",
+  "AutoLaunch": true
+}

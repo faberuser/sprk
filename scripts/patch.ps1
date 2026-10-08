@@ -176,6 +176,12 @@ if ($Restore) {
     Write-Host ""
 }
 
+if (-not $Restore) {
+    Write-Host "Removing client telemetry code, SDKs, and startup assets..." -ForegroundColor Yellow
+    python "$ScriptDir\remove_client_telemetry.py" "$ClientPath"
+    if ($LASTEXITCODE -ne 0) { throw "Client telemetry removal failed with exit code $LASTEXITCODE" }
+}
+
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Green
 Write-Host "  Client patching complete!" -ForegroundColor Green

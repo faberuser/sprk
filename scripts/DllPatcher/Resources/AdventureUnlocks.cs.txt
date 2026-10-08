@@ -1,0 +1,45 @@
+using NGame2;
+using NGame2.NAccount;
+using NShared;
+using NVespa.NSingleton;
+
+public static class SprkAdventureUnlocks
+{
+    // Entry prerequisites are checked by the original Portal code before this call.
+    public static bool TutorialSatisfied(bool skipped, NShared.UserTutorialManager manager, int index)
+    {
+        return skipped || (manager != null && manager.IsComplete(index));
+    }
+
+    public static bool PortalTutorial(NShared.UserTutorialManager manager, int index)
+    {
+        return TutorialSatisfied(GlobalAutoBehaviour<AccountManager>.instance.IsTutorialSkip, manager, index);
+    }
+
+    public static bool IsAutomaticDungeonQuest(SubQuestData quest)
+    {
+        int chapter, dungeon;
+        return quest != null && quest.Step == 1 && quest.AutoComplete && !quest.ClientOnly
+            && quest.StateType == QuestActionType.DungeonCleared
+            && quest.StateValue != null && quest.StateValue.Length == 2
+            && int.TryParse(quest.StateValue[0], out chapter) && chapter > 0
+            && int.TryParse(quest.StateValue[1], out dungeon) && dungeon > 0
+            && quest.ReqProgress <= 1;
+    }
+
+    public static bool MissionCategory(bool serverOpen, int main, int sub)
+    {
+        if (serverOpen) return true;
+        var root = GameRoot.Instance;
+        var category = root.MissionCategoryDataContainer.GetData(main, sub);
+        int questIndex;
+        if (category == null || category.OpenConditionType != "ClearQuestIndex"
+            || category.OpenConditionValue == null || category.OpenConditionValue.Length != 2
+            || category.OpenConditionValue[0] != "SubQuest"
+            || !int.TryParse(category.OpenConditionValue[1], out questIndex)) return false;
+        var quest = root.SubQuestDataContainer.GetSubQuestData(questIndex);
+        if (!IsAutomaticDungeonQuest(quest)) return false;
+        return GlobalAutoBehaviour<AccountManager>.instance.CampaignManager.IsCompleted(
+            int.Parse(quest.StateValue[0]), int.Parse(quest.StateValue[1]), DungeonDifficultyType.Easy);
+    }
+}

@@ -520,6 +520,7 @@ async fn awakening_requires_challenge_battle_purification_then_consumes_essence_
     .unwrap()
     .0;
     assert_eq!(r["ItemResults"].as_array().unwrap().len(), 1);
+    assert!(r["HeroInfos"].as_array().is_none_or(|heroes| heroes.is_empty()));
     let essence = r["ItemResults"][0]["ItemIndex"].as_i64().unwrap() as i32;
     assert!(
         hero::trial(&s, u.user_info.account_id, chapter, dungeon, Some(true))
@@ -548,6 +549,47 @@ async fn awakening_requires_challenge_battle_purification_then_consumes_essence_
     assert_eq!(count(&s, &u, essence).await, 0);
     assert_eq!(login(&s).await.heroes[0].star, 2);
 }
+#[tokio::test]
+async fn isolet_light_trial_rewards_material_without_acquiring_hero() {
+    let (s, u) = setup().await;
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        hero::recruit_at(&mut db, &s, u.user_info.account_id, 82, 5, 90, 0).await.unwrap();
+    }
+    let row = s.tables.hero_shop.challenges.iter()
+        .find(|r| r["TagType"] == s.tables.hero_shop.heroes[&82]["TagType"]).unwrap();
+    for i in 1..=3 {
+        put(&s, &u, item::n(row, &format!("TranscendItemIndex{i}")) as i32, 10000).await;
+    }
+    let next = s.tables.hero_shop.stars.iter().find(|r| r["Star"] == 5 && r["Transcended"] == 1).unwrap();
+    let extra_material = item::n(next, "HeroTranscendItemIndex") as i32;
+    if extra_material > 0 { put(&s, &u, extra_material, 10000).await; }
+    let challenge = hero::get_awake_material_challenge(State(s.clone()), form(&u, "HeroIndex=82")).await.unwrap().0;
+    assert_eq!(challenge["Result"], "Success");
+    let awake = s.tables.hero_shop.awake.iter().find(|r| r["HeroIndex"] == 82).unwrap();
+    let chapter = item::n(awake, "AwakeChapter");
+    let dungeon = item::n(awake, "TranscendDungeon0");
+    let essence = item::n(awake, "TranscendMaterialItemIndex0") as i32;
+    assert_eq!((chapter, dungeon), (10082, 10));
+    let before = count(&s, &u, essence).await;
+    let begin = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}");
+    let _ = campaign::begin_campaign(State(s.clone()), form(&u, &begin)).await.unwrap();
+    let lost = campaign::end_campaign(State(s.clone()), form(&u, &format!("{begin}&Completed=false"))).await.unwrap().0;
+    assert!(lost["HeroInfos"].as_array().is_none_or(|heroes| heroes.is_empty()));
+    assert_eq!(count(&s, &u, essence).await, before);
+    let _ = campaign::begin_campaign(State(s.clone()), form(&u, &begin)).await.unwrap();
+    let won = campaign::end_campaign(State(s.clone()), form(&u, &format!("{begin}&Completed=true"))).await.unwrap().0;
+    assert!(won["HeroInfos"].as_array().is_none_or(|heroes| heroes.is_empty()));
+    assert_eq!(won["ItemResults"].as_array().unwrap().len(), 1);
+    assert_eq!(won["ItemResults"][0]["ItemIndex"], essence);
+    assert_eq!(count(&s, &u, essence).await, before + 1);
+    assert!(hero::trial(&s, u.user_info.account_id, chapter as i32, dungeon as i32, Some(true)).await.is_err());
+    let login = login(&s).await;
+    let isolet = login.heroes.iter().find(|h| h.hero_index == 82).unwrap();
+    assert_eq!((isolet.star, isolet.transcend), (5, 0));
+    assert_eq!(isolet.details["EnterDungeon"], 2);
+}
+
 #[tokio::test]
 async fn transcend_pages_parse_native_pairs_enforce_points_and_persist() {
     let (s, u) = setup().await;

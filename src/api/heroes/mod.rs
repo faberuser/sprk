@@ -1167,7 +1167,8 @@ pub(crate) async fn trial(
         extra["TrialStarted"] = json!(true);
     }
     save_details(&mut tx, account, index, &extra).await?;
-    result["HeroInfos"] = json!([info(&mut tx, account, index).await?]);
+    // EndCampaign.HeroInfos means acquired heroes, not an existing hero's trial state.
+    // The client enables purification from the awarded material in ItemResults.
     tx.commit().await?;
     Ok(Some(result))
 }

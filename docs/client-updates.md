@@ -1,5 +1,9 @@
 # Client update service
 
+The Windows launcher is implemented under `launcher/`. See
+[launcher setup](../launcher/README.md) to build `SprkLauncher.exe`, configure
+its update URL, and distribute it alongside the client.
+
 The same `sprk-server` executable/image runs either service, or both. Select the
 mode before starting the process:
 
@@ -19,7 +23,7 @@ works in every mode. Existing installations default to game mode.
 Run from the repository root with Python 3.10+:
 
 ```powershell
-python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0
+python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0 --signing-key update-signing/private.pem
 ```
 
 The default selection includes all files under:
@@ -29,6 +33,13 @@ The default selection includes all files under:
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit`
 
+Generate release-signing keys once with
+`python scripts/create_update_signing_key.py`. Keep `update-signing/private.pem`
+on the publishing machine and give the launcher the public key through its
+configuration. OpenSSL is needed on the publishing machine, not on players'
+machines. Unsigned publishing is supported for localhost development only; omit
+`--signing-key` and leave the launcher's public key empty in that case.
+
 Backup, staged `.patched`/`.eye-patched`, log, and temporary files are excluded.
 Symlinks/junctions in the input are rejected. Stop client patching/baking while
 publishing so the snapshot represents one tested build.
@@ -37,13 +48,20 @@ For other code/assets, use repeated `--include` options. These **replace** the
 defaults, so include the default directories too if they should stay managed:
 
 ```powershell
-python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
+python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
 ```
 
 The first version distributed to players should include every file the launcher
 will manage. Publish a new version identifier every time; an existing release
 cannot be overwritten. Keep the managed selection consistent between releases:
 paths removed from it become deletions in the next manifest.
+
+Clients processed by `scripts/remove_client_telemetry.py` have
+`King's Raid_Data/sprk-privacy.json`. The publisher automatically includes the
+startup assets listed there and adds its obsolete SDK paths to `deleted_files`,
+including native plugins that earlier manifests did not manage. A release cannot
+include a file its privacy policy requires deleting. Use repeated `--delete` options
+for other obsolete files that were never managed by an earlier manifest.
 
 Each release contains a complete snapshot of the selected files. A launcher
 compares local SHA-256 hashes and downloads only changed or missing files, even
@@ -111,11 +129,15 @@ Manifest format (SHA-256 shortened here for readability):
 `path` is relative to the installed client root, using `/`. `url` is a percent
 encoded path on the update server's origin. `deleted_files` carries previously
 managed removals forward so a launcher can also handle skipped versions. Readded
-files are removed from that deletion list. A future launcher must validate paths,
-verify sizes/hashes, stage the complete update, and apply it while the game is
-closed. Hashes validate file contents; manifests are currently unsigned. Before
-shipping executable auto-updates, add manifest signing and pin the verification
-key in the launcher.
+files are removed from that deletion list. The launcher validates paths,
+verifies sizes/hashes, stages the complete update, and applies it while the game
+is closed. With `--signing-key`, the publisher adds a `signature` object with
+`algorithm: "RSA-SHA256"`, a base64 `payload` of the original JSON bytes, and a
+base64 `value` containing the RSA PKCS#1 v1.5 SHA-256 signature. A launcher with
+a configured public key verifies the signature and uses only that payload for
+installation decisions. The outer convenience fields are not trusted for
+installation. Hosted update URLs require HTTPS and a configured public key;
+localhost HTTP can be used for development.
 
 ## Run locally
 

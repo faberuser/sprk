@@ -64,6 +64,17 @@ impl View {
             .max()
             .unwrap_or(0)
     }
+    pub fn category_subquest_complete(&self, state: &AppState, id: i64) -> bool {
+        self.last("subquest", id, "all") > 0
+            || state.tables.progression.sub_quests.iter().any(|row| {
+                n(row, "QuestIndex") == id
+                    && n(row, "Step") == 1
+                    && row["AutoComplete"] == true
+                    && row["ClientOnly"] != true
+                    && row["Kind"] == "DungeonCleared"
+                    && self.quest(state, row) >= n(row, "ReqProgress").max(1)
+            })
+    }
     pub fn metric(&self, kind: &str, p: &str, a: Option<i64>, b: Option<i64>) -> i64 {
         self.metrics
             .iter()

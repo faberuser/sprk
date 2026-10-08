@@ -144,6 +144,32 @@ async fn accumulated_login_uses_days_not_request_count() {
     );
 }
 #[tokio::test]
+async fn automatic_dungeon_milestones_unlock_categories_without_claiming_rewards() {
+    let (s, u) = setup().await;
+    let opened = |wire: &Value, main: i64, sub: i64| {
+        wire["OpendMissionCategories"].as_array().unwrap()
+            .contains(&json!({"MainCategoryIndex":main,"SubCategoryIndex":sub}))
+    };
+    let before = login(&s, u.user_info.account_id).await.unwrap();
+    assert!(!opened(&before, 5, 1));
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,6,1,0,0,1)")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    assert!(!opened(&login(&s, u.user_info.account_id).await.unwrap(), 5, 1));
+    sqlx::query("UPDATE campaign_progress SET clear_count=1,best_star=3 WHERE account_id=? AND chapter_id=6 AND dungeon_id=1")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let balance = currency(&s, &u).await;
+    let refreshed = login(&s, u.user_info.account_id).await.unwrap();
+    assert!(opened(&refreshed, 5, 1));
+    assert!(opened(&refreshed, 5, 3));
+    assert!(!opened(&refreshed, 5, 2)); // 8-26 still required.
+    assert!(!opened(&refreshed, 5, 4)); // 10-9 still required.
+    assert_eq!(currency(&s, &u).await, balance);
+    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='subquest' AND idx=10740")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap();
+    assert_eq!(claims, 0);
+}
+
+#[tokio::test]
 async fn native_claim_all_and_lobby_categories() {
     let (s, u) = setup().await;
     for (kind, value) in [("ClearDungeon", 5), ("BuyShopItem", 1)] {
