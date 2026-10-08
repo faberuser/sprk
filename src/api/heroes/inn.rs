@@ -89,11 +89,12 @@ pub async fn request_new_friendly_hero(
     
     let account_id = session.account_id;
     let current_time = state.server_time_str();
+    let mut tx = state.db.begin().await?;
 
     // Get player's owned heroes to exclude from inn
     let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
         .bind(account_id)
-        .fetch_all(&state.db)
+        .fetch_all(&mut *tx)
         .await?
         .iter()
         .map(|row| row.get("hero_index"))
@@ -108,11 +109,10 @@ pub async fn request_new_friendly_hero(
     // Check if there's an existing friendly info for this account
     let existing = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
         .bind(account_id)
-        .fetch_optional(&state.db)
+        .fetch_optional(&mut *tx)
         .await?;
 
-    let friendly_info = if let Some(row) = existing {
-        // Return existing info
+    let mut friendly_info = if let Some(row) = existing {
         PlayerHeroFriendlyInfo {
             hero_index: row.get("hero_index"),
             selected_hero_index: row.get("selected_hero_index"),
@@ -145,7 +145,7 @@ pub async fn request_new_friendly_hero(
         .bind(first_hero)
         .bind(&current_time)
         .bind(&selected_hero_indices_str)
-        .execute(&state.db)
+        .execute(&mut *tx)
         .await?;
 
         let friendly_info = PlayerHeroFriendlyInfo {
@@ -163,6 +163,46 @@ pub async fn request_new_friendly_hero(
         friendly_info
     };
 
+    // The native Inn polls SelectedTime against the daily reset. Returning an
+    // expired timestamp as Success makes it reopen the scene on every poll,
+    // continually restarting the black transition before it can finish.
+    let today = Utc::now().date_naive();
+    let expired = friendly_info.selected_time.as_deref()
+        .and_then(|time| chrono::NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").ok())
+        .map_or(true, |time| time.date() < today);
+    let visitors: Vec<i32> = friendly_info.selected_hero_indice.as_deref().unwrap_or("")
+        .split(',').filter_map(|id| id.parse().ok()).collect();
+    let invalid_visitors = visitors.is_empty()
+        || visitors.iter().any(|id| !available_heroes.contains(id));
+    let recruited = friendly_info.hero_index != 0 && owned_heroes.contains(&friendly_info.hero_index);
+    if expired || invalid_visitors || recruited {
+        if recruited {
+            friendly_info.hero_index = 0;
+            friendly_info.selected_hero_index = 0;
+            friendly_info.friendly_point = 0;
+            friendly_info.last_greeting_time = None;
+            friendly_info.last_conversation_time = None;
+            friendly_info.last_gift_time = None;
+        }
+        // Keep the hero being befriended, their progress, and action cooldowns.
+        // Refresh only the other visitors and acknowledge this reset.
+        let active = friendly_info.hero_index;
+        let mut selected = if active != 0 && available_heroes.contains(&active) {
+            vec![active]
+        } else { Vec::new() };
+        let candidates: Vec<i32> = available_heroes.iter().copied().filter(|id| *id != active).collect();
+        selected.extend(select_random_heroes(&candidates, 6 - selected.len()));
+        friendly_info.selected_hero_indice = Some(selected.iter().map(i32::to_string).collect::<Vec<_>>().join(","));
+        friendly_info.selected_time = Some(current_time.clone());
+        sqlx::query("UPDATE hero_friendly_info SET hero_index=?,selected_hero_index=?,friendly_point=?,last_greeting_time=?,last_conversation_time=?,last_gift_time=?,selected_time=?,selected_hero_indices=? WHERE account_id=?")
+            .bind(friendly_info.hero_index).bind(friendly_info.selected_hero_index)
+            .bind(friendly_info.friendly_point).bind(&friendly_info.last_greeting_time)
+            .bind(&friendly_info.last_conversation_time).bind(&friendly_info.last_gift_time)
+            .bind(&friendly_info.selected_time).bind(&friendly_info.selected_hero_indice)
+            .bind(account_id).execute(&mut *tx).await?;
+    }
+    tx.commit().await?;
+
     // Check for heroes that reached max closeness (for owned heroes)
     let max_closeness_heroes: Vec<i32> = sqlx::query(
         "SELECT hero_index FROM heroes WHERE account_id = ? AND closeness >= 1000"
@@ -176,7 +216,11 @@ pub async fn request_new_friendly_hero(
 
     let response = RequestNewFriendlyHeroResponse {
         base_result: "Success".to_string(),
-        result: RequestNewFriendlyHeroResult::Success.as_str().to_string(),
+        result: if available_heroes.is_empty() {
+            RequestNewFriendlyHeroResult::CannotRecruitHero
+        } else {
+            RequestNewFriendlyHeroResult::Success
+        }.as_str().to_string(),
         friendly_info: Some(friendly_info),
         max_closeness_hero_indice: if max_closeness_heroes.is_empty() { 
             None 

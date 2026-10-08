@@ -26,9 +26,29 @@ mod progression;
 #[cfg(test)]
 mod social_tests;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod warfare;
+pub(crate) mod conquest;
+#[cfg(test)]
+mod conquest_tests;
+pub(crate) use conquest::{enter as conquest_enter, finish as conquest_finish, validate as conquest_validate, tickets as conquest_tickets};
 pub(crate) use warfare::{raid_enter, raid_finish, raid_validate};
+
+pub(crate) async fn guild_reward_boost(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
+    let guild_id: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
+        .bind(a).fetch_optional(&mut *db).await?;
+    let Some(g) = guild_id else { return Ok((0, 0)); };
+    let info = guild::state(db, s, g).await?;
+    let mut result = (0, 0);
+    for skill in info["SkillInfos"].as_array().into_iter().flatten() {
+        let id = n(skill, "SkillIndex");
+        let Some(def) = s.tables.arena_guild.find("GuildSkill", &[("GuildSkillIndex", id)]) else { continue; };
+        let Some(level) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", n(skill, "SkillLevel"))]) else { continue; };
+        let value = level["Values"][0].as_i64().unwrap_or(0);
+        match n(def, "BonusType") { 3 => result.0 += value, 1 => result.1 += value, _ => {} }
+    }
+    Ok(result)
+}
 
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for q in [
@@ -63,6 +83,8 @@ pub async fn handle(
 pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
     let mut r = if path.starts_with("match/") || path.starts_with("global_arena/") {
         Request::parse_with_arrays(&body, &["HeroIndices", "AliveHeroIndices"])?
+    } else if path.starts_with("guild_arena/") {
+        Request::parse_with_arrays(&body, &["HeroIndices", "AliveHeroIndices", "HeroIndices1", "HeroIndices2", "HeroIndices3", "HeroIndices4", "HeroIndices5", "SkillSlotIndices1", "SkillSlotIndices2", "SkillSlotIndices3", "SkillSlotIndices4", "SkillSlotIndices5"])?
     } else { Request::parse(&body)? };
     let a = r.account(s)?;
     let path = match path {
@@ -317,7 +339,7 @@ pub(crate) async fn validate_shop(
         return Err(rule("ContentsDisabled"));
     }
     let data = row(s, "GuildBuilding", &[("Index", 3), ("Level", level)])?;
-    if shop != n(data, "ShopIndex") {
+    if shop != n(data, "ShopIndex") && !matches!(shop, 20 | 21 | 27) {
         return Err(rule("ContentsDisabled"));
     }
     Ok(level)
@@ -327,6 +349,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     item::init(&mut tx, s, a).await?;
     arena::settle(&mut tx, s, a).await?;
     warfare::settle(&mut tx, s, a).await?;
+    conquest::settle(&mut tx,s,a).await?;
     let mut out = json!({"BattleInfo":arena::battle_info(&mut tx,s,a).await?,"SwordResult":arena::tickets(&mut tx,s,a,"Sword",0).await?,"GuildPoint":hero::currency(&mut tx,a,"GuildPoint",0).await?["NewValue"]});
     out["GuildRaidTicket"] = guild_ticket(&mut tx, s, a, 0).await?;
     let withdrawal = get(&mut tx, a, "withdraw", 0).await?;
@@ -344,22 +367,26 @@ pub(crate) async fn guild_ticket(
     a: i64,
     amount: i64,
 ) -> Result<Value> {
-    let v = get(db, a, "guild_ticket", 0).await?;
-    if v["Day"] != day() {
-        sqlx::query(
-            "UPDATE user_info SET guild_raid_ticket=MAX(guild_raid_ticket,?) WHERE account_id=?",
-        )
-        .bind(constant(s, "GuildRaidEnterCount", 3))
-        .bind(a)
-        .execute(&mut *db)
-        .await?;
-        put(db, a, "guild_ticket", 0, &json!({"Day":day()})).await?;
+    let mut info = get(db,a,"guild_ticket",0).await?;
+    let current:i64 = sqlx::query_scalar("SELECT guild_raid_ticket FROM user_info WHERE account_id=?")
+        .bind(a).fetch_one(&mut *db).await?;
+    info["Count"] = json!(if info.is_null(){current.max(2)}else{current});
+    let def = s.tables.services.find("Stamina", &[("StaminaType",10)])
+        .ok_or_else(||rule("InvalidStaminaType"))?;
+    let overrides = &s.tables.battle.rules["EntryRechargeOverrides"]["GuildRaidTicket"];
+    let (mut saved,mut result) = crate::api::account::recharge::at(
+        &info,def,overrides,current,chrono::Utc::now(),(-amount).max(0))?;
+    if amount>0 {
+        saved["Count"] = json!(n(&saved,"Count").checked_add(amount)
+            .filter(|v|*v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?);
+        let added=n(&result,"AddValue")+amount;
+        let refreshed=crate::api::account::recharge::at(&saved,def,overrides,current,chrono::Utc::now(),0)?;
+        saved=refreshed.0; result=refreshed.1; result["AddValue"]=json!(added);
     }
-    let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET guild_raid_ticket=guild_raid_ticket+? WHERE account_id=? AND guild_raid_ticket+? BETWEEN 0 AND 2147483647 RETURNING guild_raid_ticket").bind(amount).bind(a).bind(amount).fetch_optional(db).await?;
-    let value = value.ok_or_else(|| rule("NotEnoughDungeonKey"))?;
-    Ok(
-        json!({"Type":"GuildRaidTicket","AddValue":amount,"NewValue":value,"StaminaRechargeTime":time(now()),"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}),
-    )
+    sqlx::query("UPDATE user_info SET guild_raid_ticket=? WHERE account_id=?")
+        .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
+    put(db,a,"guild_ticket",0,&saved).await?;
+    Ok(result)
 }
 pub(crate) async fn ensure_available(
     db: &mut SqliteConnection,

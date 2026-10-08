@@ -87,7 +87,7 @@ pub async fn set_equip(
         hero_index, hero_part_indices, equip_slot_indices);
 
     if hero_part_indices.is_empty() || hero_part_indices.len()!=equip_slot_indices.len() || hero_part_indices.len()>10
-        || hero_part_indices.iter().any(|p|!(0..10).contains(p))
+        || hero_part_indices.iter().any(|p|!(1..=10).contains(p))
         || hero_part_indices.iter().collect::<std::collections::HashSet<_>>().len()!=hero_part_indices.len()
         || equip_slot_indices.iter().collect::<std::collections::HashSet<_>>().len()!=equip_slot_indices.len() {
         return Err(ServerError::InvalidRequest("Invalid equipment slots".into()));
@@ -114,7 +114,7 @@ pub async fn set_equip(
         }
         let equip_slot_index = equip_slot_indices[i];
         
-        // part_index is 0-9 for equipment slots 1-10
+        // Native HeroPartIndex is 1-10, matching the database column suffix.
         // equip_slot_index is the SlotIndex of the equipment item from inventory
         
         // First, check if the equipment is currently on another hero and unequip it
@@ -159,7 +159,7 @@ pub async fn set_equip(
         }
 
         // Check if something is currently in the target slot and unequip it
-        let slot_column = format!("equip_item_slot_index_{}", part_index + 1);
+        let slot_column = format!("equip_item_slot_index_{}", part_index);
         let current_in_slot = sqlx::query(&format!(
             "SELECT {} as current_equip FROM heroes WHERE account_id = ? AND hero_index = ?",
             slot_column

@@ -140,6 +140,117 @@ async fn potions_use_client_amounts_and_full_recovery_uses_team_capacity() {
     assert_eq!(response["StaminaResult"]["AddValue"], 200);
 }
 #[tokio::test]
+async fn entry_refill_items_use_native_stamina_types_and_keep_their_timers() {
+    let (state, u) = setup().await;
+    let mut tested = std::collections::HashSet::new();
+    for (&id, potion) in &state.tables.inventory.potions {
+        let Some(name) = potion["ActionSubValue"].as_str().filter(|v| !v.is_empty()) else { continue; };
+        if item::n(potion,"ActionType") != 1 || !tested.insert(name.to_owned()) { continue; }
+        let Some(def) = state.tables.services.rows("Stamina").iter().find(|d| d["AttributeName"] == name) else { continue; };
+        let kind = item::n(def,"StaminaType");
+        let amount = item::n(potion,"ActionValue");
+        assert!(amount > 0);
+        let before = {
+            let mut tx = state.db.begin().await.unwrap();
+            let balance = crate::api::account::stamina::snapshot(&mut tx,&state,u.user_info.account_id,kind).await.unwrap();
+            crate::api::battle::charge_key(&mut tx,&state,u.user_info.account_id,kind,item::n(&balance,"NewValue")).await.unwrap();
+            let result = crate::api::account::stamina::snapshot(&mut tx,&state,u.user_info.account_id,kind).await.unwrap();
+            tx.commit().await.unwrap(); result
+        };
+        put(&state,&u,id,2).await;
+        let result = item::use_potion_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","{name}: {result}");
+        assert_eq!(result["StaminaResult"]["Type"],name);
+        assert_eq!(item::n(&result["StaminaResult"],"NewValue"),item::n(&before,"NewValue")+amount);
+        assert_eq!(count(&state,&u,id).await,1);
+        if item::n(def,"UpdateType") == 2 {
+            assert!(item::n(&result["StaminaResult"],"NextRechargeRemainTime")>0,"{name}: {result}");
+        }
+    }
+    assert!(tested.contains("TechnoEnchantKey"));
+    assert!(tested.contains("GodkingTrialKey"));
+    assert!(tested.contains("ChallengeTowerKey"));
+}
+
+#[tokio::test]
+async fn tower_cubes_share_recovered_entries_and_preserve_the_recharge_timer() {
+    let (state, u) = setup().await;
+    let (&id, cube) = state.tables.inventory.potions.iter()
+        .find(|(_, v)| v["ActionSubValue"] == "ChallengeTowerKey").unwrap();
+    assert_eq!(cube["ActionType"], 1);
+    assert_eq!(cube["ActionValue"], 5);
+    put(&state, &u, id, 3).await;
+    let account = u.user_info.account_id;
+    let anchor = chrono::Utc::now().timestamp() - 7200 - 1800;
+    let mut db = state.db.acquire().await.unwrap();
+    crate::api::battle::put(&mut db, account, "key", 9,
+        &json!({"Count":0,"RechargeTime":anchor,"RechargeCount":0})).await.unwrap();
+    drop(db);
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, &format!("ItemIndex={id}&ItemCount=2"))).await.unwrap().0;
+    assert_eq!(response["Result"], "Success", "{response}");
+    let result = &response["StaminaResult"];
+    assert_eq!(result["Type"], "ChallengeTowerKey");
+    assert_eq!(result["AddValue"], 11); // One elapsed recovery plus two cubes.
+    assert_eq!(result["NewValue"], 11);
+    assert!((5300..=5400).contains(&item::n(result, "NextRechargeRemainTime")));
+    assert_eq!(item::n(result, "FullRechargeRemainTime"),
+        item::n(result, "NextRechargeRemainTime") + 68 * 7200);
+    assert_eq!(count(&state, &u, id).await, 1);
+    let mut db = state.db.acquire().await.unwrap();
+    let stored = crate::api::battle::get(&mut db, account, "key", 9).await.unwrap();
+    assert_eq!(stored["RechargeTime"], anchor + 7200);
+    let refreshed = crate::api::account::stamina::snapshot(&mut db, &state, account, 9).await.unwrap();
+    assert_eq!(refreshed["NewValue"], 11);
+    assert_eq!(refreshed["AddValue"], 0);
+    drop(db);
+    let login = crate::api::account::stamina::login(&state, account).await.unwrap();
+    assert_eq!(login.as_array().unwrap().iter()
+        .find(|v| v["Type"] == "ChallengeTowerKey").unwrap()["NewValue"], 11);
+}
+
+#[tokio::test]
+async fn tower_cubes_allow_overflow_and_failed_uses_preserve_items_and_entries() {
+    let (state, u) = setup().await;
+    let id = *state.tables.inventory.potions.iter()
+        .find(|(_, v)| v["ActionSubValue"] == "ChallengeTowerKey").unwrap().0;
+    assert_eq!(state.tables.services.find("Stamina", &[("StaminaType", 9)]).unwrap()["AllowOverflow"], true);
+    put(&state, &u, id, 2).await;
+    let account = u.user_info.account_id;
+    let initial = json!({"Count":79,"RechargeTime":chrono::Utc::now().timestamp(),"RechargeCount":0});
+    let mut db = state.db.acquire().await.unwrap();
+    crate::api::battle::put(&mut db, account, "key", 9, &initial).await.unwrap();
+    drop(db);
+    for amount in [0, -1, 3] {
+        let response = item::use_potion_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={id}&ItemCount={amount}"))).await.unwrap().0;
+        assert_ne!(response["Result"], "Success");
+        assert_eq!(count(&state, &u, id).await, 2);
+        let mut db = state.db.acquire().await.unwrap();
+        assert_eq!(crate::api::battle::get(&mut db, account, "key", 9).await.unwrap(), initial);
+    }
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, &format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
+    assert_eq!(response["Result"], "Success", "{response}");
+    assert_eq!(response["StaminaResult"]["AddValue"], 5);
+    assert_eq!(response["StaminaResult"]["NewValue"], 84);
+    assert_eq!(response["StaminaResult"]["NextRechargeRemainTime"], 0);
+    assert_eq!(response["StaminaResult"]["FullRechargeRemainTime"], 0);
+    assert_eq!(count(&state, &u, id).await, 1);
+    let mut db = state.db.acquire().await.unwrap();
+    let mut stored = crate::api::battle::get(&mut db, account, "key", 9).await.unwrap();
+    stored["Count"] = json!(i32::MAX);
+    crate::api::battle::put(&mut db, account, "key", 9, &stored).await.unwrap();
+    drop(db);
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, &format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
+    assert_ne!(response["Result"], "Success");
+    assert_eq!(count(&state, &u, id).await, 1);
+    let mut db = state.db.acquire().await.unwrap();
+    assert_eq!(crate::api::battle::get(&mut db, account, "key", 9).await.unwrap(), stored);
+}
+
+#[tokio::test]
 async fn invalid_counts_unknown_items_and_wrong_potion_types_do_not_mutate() {
     let (state, u) = setup().await;
     let (id, _) = potion(&state, 1);
@@ -390,10 +501,10 @@ async fn package_and_selector_rewards_have_native_shapes() {
     .0;
     assert_eq!(opened["Result"], "Success");
     assert_eq!(opened["RewardResults"].as_array().unwrap().len(), 2);
-    assert_eq!(
-        opened["RewardResults"][0]["CurrencyResults"][0]["CurrencyType"],
-        "Gold"
-    );
+    for reward in opened["RewardResults"].as_array().unwrap() {
+        assert!(reward["CurrencyResults"].as_array().unwrap().iter()
+            .any(|currency| currency["CurrencyType"] == "Gold"));
+    }
     assert_eq!(count(&state, &u, package).await, 0);
     let _ = def;
 }
@@ -532,6 +643,62 @@ async fn crafting_spends_table_materials_and_gold_and_rejects_forged_outputs() {
         .unwrap()
         .0;
     assert_eq!(fail["Result"], "NotEnoughMaterial");
+}
+
+#[tokio::test]
+async fn restored_crafting_all_active_archive_recipes_pay_exact_costs_and_deliver_outputs() {
+    let (state,u)=setup().await;
+    let archived:Vec<Value>=serde_json::from_str(include_str!("../../../tables/RestoredCrafting.json")).unwrap();
+    assert_eq!(archived.iter().filter(|r|r["IsOpen"]==true).count(),101);
+    for recipe in archived.iter().filter(|r|r["IsOpen"]==true) {
+        let id=item::n(recipe,"CraftIndex") as i32;
+        assert_eq!(&state.tables.inventory.crafts[&id],recipe);
+        materials(&state,&u,recipe,1).await;
+        sqlx::query("UPDATE user_info SET gold=1000000000 WHERE account_id=?").bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+        let output=item::n(recipe,"ItemIndex") as i32;
+        let before=count(&state,&u,output).await;
+        let equipment_before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=?").bind(u.user_info.account_id).bind(output).fetch_one(&state.db).await.unwrap();
+        let result=craft::craft_item(State(state.clone()),craft_form(&u,recipe,1)).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","recipe {id}: {result}");
+        let gold:i64=sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+        assert_eq!(gold,1000000000-item::n(recipe,"ReqGold"),"recipe {id}");
+        for material in recipe["Materials"].as_array().unwrap() {
+            let material_id=item::n(material,"ItemIndex") as i32;
+            if material_id!=output {assert_eq!(count(&state,&u,material_id).await,0,"recipe {id}");}
+        }
+        let is_equipment=state.tables.items.reward_item(output).unwrap().kind=="Equip";
+        if is_equipment {
+            let after:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=?").bind(u.user_info.account_id).bind(output).fetch_one(&state.db).await.unwrap();
+            assert_eq!(after-equipment_before,item::n(recipe,"ResultItemCount"),"recipe {id}");
+        } else {
+            let own_material=recipe["Materials"].as_array().unwrap().iter().filter(|m|item::n(m,"ItemIndex")==output as i64).map(|m|item::n(m,"Count")).sum::<i64>();
+            assert_eq!(count(&state,&u,output).await as i64,before as i64-own_material+item::n(recipe,"ResultItemCount"),"recipe {id}");
+        }
+    }
+    let refreshed=login(&state).await;
+    for output in [3002,3035,151000,151001,151002,151003] {
+        let kind=state.tables.items.reward_item(output).unwrap().kind.as_str();
+        if kind=="Equip" {assert!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=?").bind(refreshed.user_info.account_id).bind(output).fetch_one(&state.db).await.unwrap()>0);}
+        else {assert!(count(&state,&refreshed,output).await>0);}
+    }
+}
+
+#[tokio::test]
+async fn restored_artifact_crafts_reject_missing_materials_forged_outputs_and_retired_recipes() {
+    let (state,u)=setup().await;
+    for id in [65,106] {
+        let recipe=state.tables.inventory.crafts[&id].clone();
+        let material=&recipe["Materials"][0];let item_id=item::n(material,"ItemIndex") as i32;
+        put(&state,&u,item_id,999).await;
+        let result=craft::craft_item(State(state.clone()),craft_form(&u,&recipe,1)).await.unwrap().0;
+        assert_eq!(result["Result"],"NotEnoughMaterial");assert_eq!(count(&state,&u,item_id).await,999);
+        put(&state,&u,item_id,1000).await;
+        let invalid=form(&u,&format!("SlotIndex=1&CraftIndex={id}&ItemIndex=2013&ItemCount=1"));
+        assert_eq!(craft::craft_item(State(state.clone()),invalid).await.unwrap().0["Result"],"ItemDataNotFound");
+        assert_eq!(count(&state,&u,item_id).await,1000);
+    }
+    let retired=state.tables.inventory.crafts.values().find(|r|r["IsOpen"]==false).unwrap();
+    assert_eq!(craft::craft_item(State(state.clone()),craft_form(&u,retired,1)).await.unwrap().0["Result"],"CraftDataNotOpened");
 }
 #[tokio::test]
 async fn crafting_insufficient_gold_rolls_back_all_materials() {
@@ -673,6 +840,72 @@ async fn expansion_uses_table_prices_and_preserves_paid_ruby_balance() {
         "Success"
     );
 }
+#[tokio::test]
+async fn potion_boosters_preserve_named_durations_and_survive_restart() {
+    for (id, effects, seconds) in [
+        (41010, vec![300001], 1800),
+        (41011, vec![200001], 1800),
+        (41012, vec![300001], 3600),
+        (41013, vec![200001], 3600),
+        (41014, vec![300001, 200001], 3600),
+        (41110, vec![500003], 3600),
+    ] {
+        let (state, u) = setup().await;
+        put(&state, &u, id, 3).await;
+        let response = item::use_potion_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={id}&ItemCount=2"))).await.unwrap().0;
+        assert_eq!(response["Result"], "Success", "{id}: {response}");
+        assert_eq!(count(&state, &u, id).await, 1);
+        assert_eq!(response["ItemTimeDurationInfos"].as_array().unwrap().len(), effects.len());
+        for effect in &effects {
+            let duration: i64 = sqlx::query_scalar("SELECT CAST(strftime('%s',end_time) AS INTEGER)-CAST(strftime('%s',start_time) AS INTEGER) FROM item_boosters WHERE account_id=? AND item_index=?")
+                .bind(u.user_info.account_id).bind(effect).fetch_one(&state.db).await.unwrap();
+            assert_eq!(duration, seconds * 2, "{id}: effect {effect}");
+        }
+        let restarted = AppState::new(state.db.clone(), state.tables.as_ref().clone());
+        let restored = item::booster_login(&restarted, u.user_info.account_id).await.unwrap();
+        assert_eq!(restored.len(), effects.len());
+        for effect in effects {
+            assert!(restored.iter().any(|r| r["ItemIndex"] == effect));
+        }
+    }
+}
+
+#[tokio::test]
+async fn potion_booster_missing_second_definition_rolls_back_the_whole_use() {
+    let (mut state, u) = setup().await;
+    put(&state, &u, 41014, 1).await;
+    let before: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    let mut tables = state.tables.as_ref().clone();
+    Arc::make_mut(&mut tables.inventory).booster_definitions.remove("BOOSTER_EXP_1H");
+    state.tables = Arc::new(tables);
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, "ItemIndex=41014&ItemCount=1")).await.unwrap().0;
+    assert_ne!(response["Result"], "Success");
+    assert_eq!(count(&state, &u, 41014).await, 1);
+    let after: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(after, before);
+    assert!(item::booster_login(&state, u.user_info.account_id).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn original_day_and_week_boosters_use_distinct_inventory_items() {
+    let (state, u) = setup().await;
+    for (id, seconds) in [(110007,604800_i64),(110008,604800),(110013,86400),(110014,86400)] {
+        put(&state, &u, id, 1).await;
+        let result=item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"],"Success","{id}: {result}");
+        let duration: i64=sqlx::query_scalar("SELECT CAST(strftime('%s',end_time) AS INTEGER)-CAST(strftime('%s',start_time) AS INTEGER) FROM item_boosters WHERE account_id=? AND item_index=?")
+            .bind(u.user_info.account_id).bind(id).fetch_one(&state.db).await.unwrap();
+        assert_eq!(duration,seconds,"Booster item {id}");
+        assert_eq!(count(&state,&u,id).await,0);
+    }
+    assert_eq!(login(&state).await.item_time_durations.len(),4);
+}
+
 #[tokio::test]
 async fn boosters_persist_extend_and_apply_campaign_bonuses() {
     let (state, u) = setup().await;
@@ -1023,7 +1256,7 @@ async fn equipping_rejects_another_players_item_and_chest_items() {
         .await
         .unwrap()
         .last_insert_rowid();
-    let fields = format!("HeroIndex=1&HeroPartIndex=[0]&EquipItemSlotIndex=[{slot}]");
+    let fields = format!("HeroIndex=1&HeroPartIndex=[1]&EquipItemSlotIndex=[{slot}]");
     assert!(
         crate::api::inventory::equip::set_equip(State(state.clone()), form(&u, &fields))
             .await
@@ -1137,6 +1370,39 @@ async fn soul_stone_selectors_use_stackable_response_and_cannot_fake_equipment()
 }
 
 #[tokio::test]
+async fn restored_selectors_grant_late_hero_weapons_treasures_and_souls() {
+    let (s, u) = setup().await;
+    // The archived normal UW ticket excludes NPC-only weapons. Universal
+    // treasure/soul selectors keep their separate archived pools.
+    assert_eq!(s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().len(), 91);
+    assert!(!s.tables.inventory.equipment_selectors[&2000]["ItemIndices"].as_array().unwrap().contains(&json!(1111)));
+    assert_eq!(s.tables.inventory.equipment_selectors[&2017]["ItemIndices"].as_array().unwrap().len(), 408);
+    for (ticket, selected) in [(2000, 1083), (2017, 104111)] {
+        put(&s, &u, ticket, 1).await;
+        let bad = item::use_weapon_unique_select_item(State(s.clone()), form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex=1014"))).await.unwrap().0;
+        assert_ne!(bad["Result"], "Success");
+        assert_eq!(count(&s, &u, ticket).await, 1);
+        let result = item::use_weapon_unique_select_item(State(s.clone()), form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex={selected}"))).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipItemResults"][0]["ItemIndex"], selected);
+        assert_eq!(count(&s, &u, ticket).await, 0);
+    }
+    put(&s, &u, 5001, 1).await;
+    let result = item::use_package_select_item(State(s.clone()), form(&u,
+        "ItemIndex=5001&ItemCount=1&SelectItemIndex=111083")).await.unwrap().0;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(count(&s, &u, 111083).await, 1);
+    assert_eq!(count(&s, &u, 5001).await, 0);
+    // Class selectors stay class-bound; named fallen-hero selectors stay narrow.
+    let knight = s.tables.inventory.selectors[&5010]["ItemIndices"].as_array().unwrap();
+    assert!(knight.contains(&json!(111093)));
+    assert!(!knight.contains(&json!(111085)));
+    assert_eq!(s.tables.inventory.equipment_selectors[&5031]["ItemIndices"], json!([111084,111085]));
+}
+
+#[tokio::test]
 async fn auto_equip_preserves_all_native_slot_pairs() {
     let (state, u) = setup().await;
     let mut slots = vec![];
@@ -1146,7 +1412,7 @@ async fn auto_equip_preserves_all_native_slot_pairs() {
         slots.push(slot);
     }
     let mut args = "HeroIndex=1".to_string();
-    for (part, slot) in [0,1,2,3].iter().zip(&slots) {
+    for (part, slot) in [1,2,3,4].iter().zip(&slots) {
         args += &format!("&HeroPartIndex={part}&EquipItemSlotIndex={slot}");
     }
     let response = super::equip::set_equip(State(state.clone()), form(&u, &args)).await.unwrap().0;
@@ -1157,6 +1423,35 @@ async fn auto_equip_preserves_all_native_slot_pairs() {
     assert_eq!(saved,(slots[0],slots[1],slots[2],slots[3]));
     let malformed = args + "&HeroPartIndex=4";
     assert!(super::equip::set_equip(State(state.clone()), form(&u, &malformed)).await.is_err());
+}
+
+#[tokio::test]
+async fn native_equip_replacement_preserves_other_parts_and_accepts_slot_ten() {
+    let (state, u) = setup().await;
+    let mut slots = Vec::new();
+    for _ in 0..11 {
+        slots.push(sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES (?,50001)")
+            .bind(u.user_info.account_id).execute(&state.db).await.unwrap().last_insert_rowid() as i32);
+    }
+    for part in 1..=10 {
+        let response = super::equip::set_equip(State(state.clone()), form(&u,
+            &format!("HeroIndex=1&HeroPartIndex={part}&EquipItemSlotIndex={}", slots[part-1])))
+            .await.unwrap().0;
+        assert!(response.un_equipped_slot_index.is_empty());
+    }
+    let response = super::equip::set_equip(State(state.clone()), form(&u,
+        &format!("HeroIndex=1&HeroPartIndex=5&EquipItemSlotIndex={}", slots[10])))
+        .await.unwrap().0;
+    assert_eq!(response.un_equipped_slot_index, vec![slots[4]]);
+    slots[4] = slots[10];
+    for part in 1..=10 {
+        let saved: i32 = sqlx::query_scalar(&format!("SELECT equip_item_slot_index_{part} FROM heroes WHERE account_id=? AND hero_index=1"))
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+        assert_eq!(saved, slots[part-1], "part {part}");
+    }
+    assert!(super::equip::set_equip(State(state.clone()), form(&u,
+        &format!("HeroIndex=1&HeroPartIndex=0&EquipItemSlotIndex={}", slots[0])))
+        .await.is_err());
 }
 
 
@@ -1196,4 +1491,47 @@ async fn battle_overflow_mail_preserves_equipment_and_full_claim_is_atomic() {
         assert_eq!(&expected, actual);
     }
     assert_ne!(crate::api::community::mail::receive_mail(State(s.clone()),form(&u,&req)).await.unwrap().0["Result"],"Success");
+}
+
+#[tokio::test]
+async fn native_batch_sales_remove_every_selection_and_persist_across_login() {
+    let (state,u)=setup().await;
+    let account=u.user_info.account_id;
+    let (&id, data)=state.tables.inventory.items.iter().find(|(_,v)|
+        item::n(v,"Type")==1 && v["NotForSale"]==false && item::n(v,"SellGold")>0).unwrap();
+    let mut slots=Vec::new();
+    for _ in 0..150 {
+        slots.push(sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES (?,?)")
+            .bind(account).bind(id).execute(&state.db).await.unwrap().last_insert_rowid());
+    }
+    let before:i64=sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(account).fetch_one(&state.db).await.unwrap();
+    let result=item::sell_equip(State(state.clone()),form(&u,&format!(
+        "{}",slots.iter().map(|slot|format!("EquipItemSlotIndices={slot}")).collect::<Vec<_>>().join("&"))))
+        .await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["CurrencyResult"]["AddValue"],item::n(data,"SellGold")*150);
+    let again=login(&state).await;
+    assert!(again.equip_items.iter().all(|eq|!slots.contains(&(eq.slot_index as i64))));
+    assert_eq!(again.user_info.gold as i64,before+item::n(data,"SellGold")*150);
+}
+
+#[tokio::test]
+async fn native_item_batch_sales_keep_item_count_pairing_and_rollback_invalid_entries() {
+    let (state,u)=setup().await;
+    let ids:Vec<_>=state.tables.inventory.items.iter().filter(|(_,v)|
+        item::n(v,"Type")==2 && v["NotForSale"]==false && item::n(v,"SellGold")>0).take(2).map(|(&id,_)|id).collect();
+    assert_eq!(ids.len(),2);
+    for id in &ids {put(&state,&u,*id,5).await;}
+    let fail=item::sell_item(State(state.clone()),form(&u,&format!(
+        "ItemIndices={}&ItemIndices={}&ItemCount=2&ItemCount=6",ids[0],ids[1]))).await.unwrap().0;
+    assert_ne!(fail["Result"],"Success");
+    for id in &ids {assert_eq!(count(&state,&u,*id).await,5);}
+    let result=item::sell_item(State(state.clone()),form(&u,&format!(
+        "ItemIndices={}&ItemIndices={}&ItemCount=2&ItemCount=3",ids[0],ids[1]))).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["ItemResults"].as_array().unwrap().len(),2);
+    let again=login(&state).await;
+    for (id,remaining) in [(ids[0],3),(ids[1],2)] {
+        assert_eq!(again.items.iter().find(|i|i.item_index==id).unwrap().count,remaining);
+    }
 }

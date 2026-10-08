@@ -9,6 +9,61 @@ use crate::{database, state::AppState, tables::GameTables};
 use axum::{body::Bytes, extract::State};
 use serde_json::Value;
 use std::{path::Path, sync::OnceLock};
+
+async fn inn_refresh(s: &AppState, u: &user::LoginResponse) -> hero::inn::RequestNewFriendlyHeroResponse {
+    hero::inn::request_new_friendly_hero(State(s.clone()), axum::extract::Form(hero::inn::RequestNewFriendlyHeroRequest {
+        session_id: None, session_key: Some(u.user_info.session_key.clone()),
+    })).await.unwrap().0
+}
+
+#[tokio::test]
+async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
+    let (s, u) = setup().await;
+    let first = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    sqlx::query("UPDATE hero_friendly_info SET selected_time='2000-01-01 00:00:00',friendly_point=350,last_greeting_time='2000-01-01 00:00:01' WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let response = inn_refresh(&s, &u).await;
+    assert_eq!(response.result, "Success");
+    let refreshed = response.friendly_info.unwrap();
+    assert_eq!(refreshed.hero_index, first.hero_index);
+    assert_eq!(refreshed.selected_hero_index, first.selected_hero_index);
+    assert_eq!(refreshed.friendly_point, 350);
+    assert_eq!(refreshed.last_greeting_time.as_deref(), Some("2000-01-01 00:00:01"));
+    assert_eq!(&refreshed.selected_time.as_ref().unwrap()[..10], s.server_date());
+    let visitors: Vec<i32> = refreshed.selected_hero_indice.as_ref().unwrap().split(',').map(|id| id.parse().unwrap()).collect();
+    assert_eq!(visitors.len(), 6);
+    assert!(visitors.contains(&first.hero_index));
+    let again = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!(again.selected_time, refreshed.selected_time);
+    assert_eq!(again.selected_hero_indice, refreshed.selected_hero_indice);
+    assert_eq!(again.friendly_point, 350);
+    let saved: Option<String> = sqlx::query_scalar("SELECT selected_time FROM hero_friendly_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap();
+    assert_eq!(saved, refreshed.selected_time);
+}
+
+#[tokio::test]
+async fn inn_refresh_repairs_owned_recruit_and_invalid_visitors() {
+    let (s, u) = setup().await;
+    inn_refresh(&s, &u).await;
+    let owned: i32 = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? LIMIT 1")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap();
+    sqlx::query("UPDATE hero_friendly_info SET hero_index=?,selected_hero_index=?,friendly_point=350,selected_time=NULL,selected_hero_indices='999999' WHERE account_id=?")
+        .bind(owned).bind(owned).bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let refreshed = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!(refreshed.hero_index, 0);
+    assert_eq!(refreshed.selected_hero_index, 0);
+    assert_eq!(refreshed.friendly_point, 0);
+    let visitors: Vec<i32> = refreshed.selected_hero_indice.unwrap().split(',').map(|id| id.parse().unwrap()).collect();
+    assert_eq!(visitors.len(), 6);
+    for id in visitors {
+        assert!(crate::models::hero_inn::get_available_inn_hero_indices().contains(&id));
+        let have: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=?")
+            .bind(u.user_info.account_id).bind(id).fetch_one(&s.db).await.unwrap();
+        assert_eq!(have, 0);
+    }
+}
+
 async fn setup() -> (AppState, user::LoginResponse) {
     static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
@@ -1141,11 +1196,11 @@ async fn inn_recruitment_uses_table_star_account_local_ids_and_cannot_duplicate_
 #[tokio::test]
 async fn fallen_heroes_accept_native_items_but_recruit_at_base_progression() {
     let (s,u)=setup().await;
-    sqlx::query("UPDATE user_info SET gem=20000,pay_gem=0,mileage=0 WHERE account_id=?")
+    sqlx::query("UPDATE user_info SET gem=26000,pay_gem=0,mileage=0 WHERE account_id=?")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let wrong=hero::buy_hero(State(s.clone()),form(&u,"HeroIndex=84&ItemIndex=1008510&BuyGem=6000")).await.unwrap().0;
     assert_eq!(wrong["Result"],"InvalidItemIndex");
-    for (id,item) in [(84,1008410),(85,1008510)] {
+    for (id,item) in [(83,1008310),(84,1008410),(85,1008510)] {
         let bad=hero::buy_hero(State(s.clone()),form(&u,&format!("HeroIndex={id}&ItemIndex={item}&BuyGem=1"))).await.unwrap().0;
         assert_eq!(bad["Result"],"InvalidPrice");
         let req=format!("HeroIndex={id}&ItemIndex={item}&BuyGem=6000");
@@ -1159,5 +1214,45 @@ async fn fallen_heroes_accept_native_items_but_recruit_at_base_progression() {
         assert_eq!(hero::buy_hero(State(s.clone()),form(&u,&req)).await.unwrap().0["Result"],"HeroAlreadyExist");
     }
     assert_eq!(balance(&s,&u,"gem").await,8000);
-    assert_eq!(balance(&s,&u,"mileage").await,1200);
+    // Rebel Clause's OpenStatus=1 price grants 700 mileage; the others grant 600.
+    assert_eq!(balance(&s,&u,"mileage").await,1900);
+}
+
+#[tokio::test]
+async fn native_perk_forms_preserve_pairs_points_validation_reset_and_login() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE heroes SET star=5,transcend=5,level=100 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET gold=1000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let mut extra=hero::details(&mut *s.db.acquire().await.unwrap(),a,1).await.unwrap();
+    extra["TranscendPoint"]=serde_json::json!(10);
+    hero::save_details(&mut *s.db.acquire().await.unwrap(),a,1,&extra).await.unwrap();
+    let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,
+        "HeroIndex=1&PageIndex=1&TranscendSkills=10&TranscendSkills=1&TranscendSkills=20&TranscendSkills=1")).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["Hero"]["TranscendSkillPage1"],"[10,20]");
+    let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,
+        "HeroIndex=1&PageIndex=1&TranscendSkills=11&TranscendSkills=1")).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    let saved=get(&s,&u,1).await["TranscendSkillPage1"].clone();
+    for fields in ["TranscendSkills=12", "TranscendSkills=12&TranscendSkills=0",
+        "TranscendSkills=12&TranscendSkills=1&TranscendSkills=12&TranscendSkills=1",
+        "TranscendSkills=30&TranscendSkills=1&TranscendSkills=31&TranscendSkills=1"] {
+        let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,&format!("HeroIndex=1&PageIndex=1&{fields}"))).await.unwrap().0;
+        assert_ne!(result["Result"],"Success","{result}");
+        assert_eq!(get(&s,&u,1).await["TranscendSkillPage1"],saved);
+    }
+    let fields=[12,13,14,21,22].iter().map(|code|format!("TranscendSkills={code}&TranscendSkills=1")).collect::<Vec<_>>().join("&");
+    let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,&format!("HeroIndex=1&PageIndex=1&{fields}"))).await.unwrap().0;
+    assert_eq!(result["Result"],"NotEnoughSkillPoint","{result}");
+    assert_eq!(get(&s,&u,1).await["TranscendSkillPage1"],saved);
+    let result=hero::reset_hero_transcend_skill_page(State(s.clone()),form(&u,"HeroIndex=1&PageIndex=1")).await.unwrap().0;
+    assert_eq!(result["Result"],"Success");
+    assert_eq!(balance(&s,&u,"gold").await,500000);
+    let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,
+        "HeroIndex=1&PageIndex=1&TranscendSkills=12&TranscendSkills=1")).await.unwrap().0;
+    assert_eq!(result["Result"],"Success");
+    let logged=login(&s).await;
+    assert_eq!(logged.heroes.iter().find(|h|h.hero_index==1).unwrap().details["TranscendSkillPage1"],"[12]");
+    assert_eq!(logged.heroes.iter().find(|h|h.hero_index==1).unwrap().details["TranscendPoint"],10);
 }

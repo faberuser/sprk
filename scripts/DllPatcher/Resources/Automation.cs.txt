@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
@@ -72,6 +73,10 @@ public sealed class SprkAutomation : MonoBehaviour
     }
     void Log(string message, string stack, LogType type) {
         if (type != LogType.Error && type != LogType.Exception && type != LogType.Assert) return;
+        // Some original combat diagnostics omit Unity's stack trace. Retain
+        // the synchronous caller chain in this opt-in test client only.
+        if (String.IsNullOrEmpty(stack) && message != null && message.IndexOf("Duplicate passive",StringComparison.OrdinalIgnoreCase)>=0)
+            stack=Environment.StackTrace;
         if (errors.Count == 100) errors.RemoveAt(0);
         errors.Add(new Failure { type=type.ToString(), message=message, stack=stack });
     }
@@ -102,11 +107,17 @@ public sealed class SprkAutomation : MonoBehaviour
             r.elements.Add(Describe(l,"label",l.text,l.enabled && l.alpha > 0));
         foreach(UIInput i in UnityEngine.Object.FindObjectsOfType<UIInput>())
             r.elements.Add(Describe(i,"input","",i.enabled)); // Never export input values.
+        foreach(var node in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWorldMap.NMapLayout.MapNode>()) {
+            var collider=node.GetComponent<Collider>();
+            if(node.NodeData==null || node.NodeData.Hidden) continue;
+            r.elements.Add(Describe(node,"map-node",node.ChapterIndex+":"+node.DungeonIndex+":"+node.NodeData.EntryNPCCode,
+                node.isActiveAndEnabled && collider!=null && collider.enabled));
+        }
         var seen=new HashSet<string>();
         foreach(MonoBehaviour b in UnityEngine.Object.FindObjectsOfType<MonoBehaviour>()) {
             if(b == null || !b.enabled) continue;
             string name=b.GetType().FullName;
-            if((name.Contains("Window") || name.Contains("Battle") || name.Contains("Lobby") || name.Contains("State")) && seen.Add(name)) r.behaviours.Add(name);
+            if((name.Contains("Sprk") || name.Contains("Window") || name.Contains("Battle") || name.Contains("Lobby") || name.Contains("State")) && seen.Add(name)) r.behaviours.Add(name);
         }
         r.errors.AddRange(errors); return r;
     }
@@ -123,7 +134,7 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
-        if(cmd.action=="click" || cmd.action=="press") {
+        if(cmd.action=="click" || cmd.action=="press" || cmd.action=="drag") {
                 var go=Target(cmd.target); var button=go.GetComponent<UIButton>();
                 var collider=go.GetComponent<Collider>();
                 if(button != null ? (!button.enabled || !button.isEnabled) : (collider == null || !collider.enabled)) throw new InvalidOperationException("Button is disabled");
@@ -131,38 +142,361 @@ public sealed class SprkAutomation : MonoBehaviour
                 // the button. Preserve the real event context outside this call.
                 var oldTouch=UICamera.currentTouch; var oldCamera=UICamera.currentCamera;
                 var oldCurrent=UICamera.current; int oldId=UICamera.currentTouchID;
+                var oldWorld=UICamera.lastWorldPosition;
                 try {
                     var camera=NGUITools.FindCameraForLayer(go.layer);
                     UICamera.currentCamera=camera;
                     UICamera.current=camera == null ? null : camera.GetComponent<UICamera>();
                     UICamera.currentTouchID=-1;
                     UICamera.currentTouch=new UICamera.MouseOrTouch {current=go,pressed=go,last=go};
-                    if(cmd.action=="press") {
+                    if(cmd.action=="drag") {
+                        var parts=(cmd.text ?? "").Split(',');
+                        float dx,dy;
+                        if(parts.Length!=2 || !float.TryParse(parts[0],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out dx)
+                            || !float.TryParse(parts[1],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out dy)
+                            || float.IsNaN(dx) || float.IsNaN(dy) || float.IsInfinity(dx) || float.IsInfinity(dy)
+                            || Mathf.Abs(dx)>1000 || Mathf.Abs(dy)>1000 || camera==null)
+                            throw new InvalidOperationException("Expected a drag delta dx,dy within 1000 pixels");
+                        var pos=(Vector2)camera.WorldToScreenPoint(go.transform.position);
+                        UICamera.currentTouch.pos=pos;
+                        UICamera.lastWorldPosition=go.transform.position;
+                        UICamera.Notify(go,UICamera.ENotifyType.OnPress,true);
+                        try {
+                            for(int step=1;step<=12;step++) {
+                                var delta=new Vector2(dx,dy)/12f;
+                                UICamera.currentTouch.pos=pos+delta*step;
+                                UICamera.currentTouch.delta=delta;
+                                UICamera.currentTouch.totalDelta=delta*step;
+                                UICamera.Notify(go,UICamera.ENotifyType.OnDrag,delta);
+                            }
+                        } finally { UICamera.Notify(go,UICamera.ENotifyType.OnPress,false); }
+                    } else if(cmd.action=="press") {
                         UICamera.Notify(go,UICamera.ENotifyType.OnPress,true);
                         UICamera.Notify(go,UICamera.ENotifyType.OnPress,false);
                     } else UICamera.Notify(go,UICamera.ENotifyType.OnClick,null);
-                } finally { UICamera.currentTouch=oldTouch; UICamera.currentCamera=oldCamera; UICamera.current=oldCurrent; UICamera.currentTouchID=oldId; }
+                } finally { UICamera.currentTouch=oldTouch; UICamera.currentCamera=oldCamera; UICamera.current=oldCurrent; UICamera.currentTouchID=oldId; UICamera.lastWorldPosition=oldWorld; }
+            } else if(cmd.action=="enter-raid-node") {
+                var nodes=UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.PunishmentRaidComponent>();
+                NGame2.NUI.NComponent2.PunishmentRaidComponent selected=null;
+                foreach(var node in nodes) if(node.gameObject.activeInHierarchy && node.PunishmentRaidData!=null && node.PunishmentRaidData.RaidIndex==cmd.target) {
+                    if(selected!=null)throw new InvalidOperationException("Ambiguous raid node");
+                    selected=node;
+                }
+                if(selected==null || !selected.OpenRoot.gameObject.activeInHierarchy)
+                    throw new InvalidOperationException("Raid node is not open");
+                selected.OnClickEnter();
             } else if(cmd.action=="text") {
                 var input=Target(cmd.target).GetComponent<UIInput>();
                 if(input == null || !input.enabled) throw new InvalidOperationException("Input is disabled");
                 input.value=cmd.text ?? "";
                 input.Submit();
             } else if(cmd.action=="clear-errors") errors.Clear();
-            else if(cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers") throw new InvalidOperationException("Unknown action");
+            else if(cmd.action=="focus-input") {
+                if(cmd.target==0) UICamera.selectedObject=null;
+                else {
+                    var input=Target(cmd.target).GetComponent<UIInput>();
+                    if(input==null || !input.isActiveAndEnabled) throw new InvalidOperationException("Input is disabled");
+                    input.isSelected=true;
+                }
+            }
+            else if(cmd.action=="scroll") {
+                var go=Target(cmd.target);
+                var scroll=NGUITools.FindInParents<UIScrollView>(go);
+                float amount;
+                if(scroll==null || !float.TryParse(cmd.text,System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,out amount) || float.IsNaN(amount) || float.IsInfinity(amount) || Mathf.Abs(amount)>10f)
+                    throw new InvalidOperationException("Expected a scroll view and an amount between -10 and 10");
+                scroll.Scroll(amount);
+            }
+            else if(cmd.action=="preview-perk") {
+                // Read-only UI preview, including already learned perks. The
+                // confirmation callback intentionally cannot change the save.
+                var icon=Target(cmd.target).GetComponent<NGame2.NUI.NComponent2.HeroTranscendSkillIconComponent>();
+                if(icon==null || icon.TranscendSkill==null) throw new InvalidOperationException("Expected a text perk icon");
+                var hero=(NShared.HeroInfo)icon.GetType().GetField("_heroInfo",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(icon);
+                NGame2.NUI.NWindow.LearnTranscendSkillMessagePopup.Open(hero,icon.TranscendSkill.TranscendSkillIndex,delegate {});
+                if(cmd.text=="repeat-description") {
+                    var popup=UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.LearnTranscendSkillMessagePopup>();
+                    var text=popup.Label_SkillDesc.text;
+                    popup.Label_SkillDesc.text=text+"\n\n"+text+"\n\n"+text;
+                    RestoredPortal.ReadablePerkDescription(popup);
+                }
+            }
+            else if(cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
             reply=Snapshot(cmd.id);
+            if(cmd.action=="combat-table-probe") {
+                var requests=(System.Collections.IList)MiniJSON.Json.Deserialize(cmd.text);
+                if(requests.Count>1000)throw new InvalidOperationException("Too many diagnostic rows");
+                foreach(Dictionary<string,object> request in requests) {
+                    string table=(string)request["table"],key=(string)request["key"];
+                    object container=typeof(NShared.GameRoot).GetProperty(table+"DataContainer").GetValue(NShared.GameRoot.Instance,null);
+                    var lookup=container.GetType().GetMethods().Single(m=>m.Name=="GetData" && m.GetParameters().Length==1);
+                    var type=lookup.GetParameters()[0].ParameterType;object index;
+                    if(table=="CreatureStarGradeStat") {
+                        var parts=key.Split(':');index=new NShared.CreatureStarGradeStatKey(int.Parse(parts[0]),int.Parse(parts[1]),int.Parse(parts[2]));
+                    } else index=type==typeof(string)?(object)key:type.IsEnum?Enum.ToObject(type,int.Parse(key)):(object)int.Parse(key);
+                    object row;
+                    if(request.ContainsKey("enumeration") && (bool)request["enumeration"]) {
+                        var rows=(System.Collections.IEnumerable)container.GetType().GetMethod("GetAllData").Invoke(container,null);
+                        row=null;
+                        foreach(var candidate in rows) {
+                            var property=candidate.GetType().GetProperty(table=="State"?"StateType":"Index");
+                            if(property==null)throw new InvalidOperationException("Unsupported enumeration key: "+table);
+                            if(Convert.ToString(property.GetValue(candidate,null))==key) {row=candidate;break;}
+                        }
+                    } else row=table=="Creature"?(object)RestoredPortal.CombatCreature(NShared.GameRoot.Instance.CreatureDataContainer,(int)index):
+                        table=="State"?(object)RestoredPortal.CombatState(NShared.GameRoot.Instance.StateDataContainer,(string)index):
+                        table=="SkillProjectile"?(object)RestoredPortal.CombatProjectile(NShared.GameRoot.Instance.SkillProjectileDataContainer,(int)index):lookup.Invoke(container,new[]{index});
+                    if(row==null)throw new InvalidOperationException("Missing diagnostic row: "+table+"/"+key);
+                    var values=new Dictionary<string,object>();
+                    foreach(string field in (System.Collections.IList)request["fields"])
+                        values[field]=table=="CreatureStarGradeStat" && Enum.IsDefined(typeof(NShared.StatType),field)?((NShared.CreatureStarGradeStatData)row).GetStat((NShared.StatType)Enum.Parse(typeof(NShared.StatType),field)):
+                            row.GetType().GetProperty(field).GetValue(row,null);
+                    reply.materials.Add(new Dictionary<string,object>{{"table",table},{"key",key},{"values",values}});
+                }
+            }
+            if(cmd.action=="skill-table-probe") {
+                var ids=(cmd.text??"").Split(',').Select(s=>Int32.Parse(s)).ToArray();
+                if(ids.Length>1000)throw new InvalidOperationException("Too many diagnostic rows");
+                foreach(int id in ids) {
+                    var skill=RestoredPortal.PunishmentSkill(NShared.GameRoot.Instance.SkillDataContainer,id);
+                    if(skill==null)continue;
+                    var operations=new List<object>();
+                    for(int op=1;op<=8;op++) {
+                        var data=skill.GetOperationData(op);if(data!=null)operations.Add(TableProperties(data));
+                    }
+                    reply.materials.Add(new Dictionary<string,object>{{"index",id},{"skill",TableProperties(skill)},{"operations",operations}});
+                }
+            }
+            if(cmd.action=="combat-simulation") {
+                int chapter=70000,dungeon=cmd.target,difficulty=0;
+                string heroList=cmd.text??"";
+                if(heroList.Contains(";")) {
+                    var parts=heroList.Split(';');if(parts.Length!=4)throw new InvalidOperationException("Expected chapter;dungeon;difficulty;heroes");
+                    chapter=int.Parse(parts[0]);dungeon=int.Parse(parts[1]);difficulty=int.Parse(parts[2]);heroList=parts[3];
+                } else if(cmd.target<1 || cmd.target>5)throw new InvalidOperationException("Expected Apocalypsion dragon dungeon 1 to 5");
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var ids=heroList.Split(',').Select(s=>Int32.Parse(s)).ToArray();
+                if(ids.Length<1 || ids.Length>8 || ids.Distinct().Count()!=ids.Length) throw new InvalidOperationException("Expected 1 to 8 owned heroes");
+                var heroes=new Dictionary<int,NShared.CachedHeroInfo>();
+                foreach(int id in ids) {
+                    var h=account.GetHeroInfo(id);if(h==null)throw new InvalidOperationException("Hero not owned");
+                    heroes[id]=h;
+                }
+                var simulation=new NShared.BattleSimulationInstance();
+                simulation.Init("automation-diagnostic",new NShared.BattleSimulationInfo{
+                    ChapterIndex=chapter,DungeonIndex=dungeon,DungeonDifficulty=difficulty,
+                    ExtraData=new NShared.BattleInstanceExtraData{InfinityLevel=1},
+                    AccountInfos=new NShared.BattleSimulationAccountInfo[]{new NShared.BattleSimulationAccountInfo{
+                        UserInfo=new NShared.CachedUserInfo{AccountId=account.UserInfo.AccountId},HeroInfos=heroes,
+                        AccountBuffs=account.GetActiveAccountBuffDataBaseList(false).ToArray()}}});
+                // Detached local engine only: no entry, dispatch, reward or result API.
+                try {
+                    simulation.BattleStart(false);long nextSample=0;bool karmaInitialized=false;
+                    var samples=new List<object>();
+                    for(int step=0;step<30000 && !simulation.IsBattleEnd;step++) {
+                        simulation.Update();var battle=simulation.BattleInstance;long time=battle.GlobalTimer.GetCurrentTimeMs();
+                        // Rendered KarmaUpdater normally sends KarmaInitBattleLog
+                        // after player creation. The detached simulator needs the
+                        // same initialization before it can finish a Karma wave.
+                        if(!karmaInitialized && battle.KarmaManager.Enabled && battle.CreatureContainer.GetAllCreaturesOfTeam(0,null).Count>0) {
+                            battle.KarmaManager.InitFilterClassTag();battle.KarmaManager.InitSelectableCardList();karmaInitialized=true;
+                        }
+                        if(time>=nextSample) {
+                            nextSample=time+1000;var creatures=new List<object>();
+                            foreach(var c in battle.CreatureContainer.GetAllCreatures()) {
+                                var stats=new Dictionary<string,object>();
+                                foreach(var stat in CombatStatTypes())stats[stat.ToString()]=c.StatController.GetFinalStat(stat);
+                                creatures.Add(new Dictionary<string,object>{{"hero",c.CreatureIndex},{"level",c.CreateInfo.HeroInfo.Level},
+                                    {"hp",c.StatController.Hp},{"stats",stats},{"initialStats",CombatStats(c.CreateInfo.StatData)},
+                                    {"damage",battle.Snapshot.StatisticsManager.TotalDamageMeter(c.Uid)}});
+                            }
+                            samples.Add(new Dictionary<string,object>{{"timeMs",time},{"creatures",creatures}});
+                        }
+                        if(time>=60000)break;
+                    }
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","combatSimulation"},{"chapter",chapter},{"dungeon",dungeon},{"difficulty",difficulty},{"ended",simulation.IsBattleEnd},
+                        {"win",simulation.IsWin()},{"timeMs",simulation.GetPurePlayTime()},{"samples",samples}});
+                } finally {simulation.Stop();simulation.Clear();}
+            }
+            if(cmd.action=="combat-probe") {
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                foreach(var hero in account.GetHeroInfoList(true)) {
+                    var equipped=NShared.StatCalculator.GetEquippedHeroStat(hero);
+                    var equipment=new List<object>();
+                    foreach(var pair in hero.GetSlotIndexEquipItemPair())
+                        equipment.Add(new Dictionary<string,object>{{"slot",pair.Key},{"item",pair.Value.ItemIndex},{"star",pair.Value.Star}});
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","heroStats"},{"hero",hero.HeroIndex},
+                        {"level",hero.Level},{"star",hero.Star},{"transcended",hero.Transcended},
+                        {"stats",CombatStats(equipped)},{"equipment",equipment}});
+                }
+                if(NVespa.SingletonAuto<NGame2.NBattleField.BattleFacade>.isValidInstance) {
+                    string diagnosticFile=Path.Combine(root,"combat-thread.json");
+                    NVespa.SingletonAuto<NGame2.NBattleField.BattleFacade>.instance.AddThreadCommonAction(delegate(NShared.BattleInstance running) {
+                        try {
+                            var creatures=new List<object>();
+                            foreach(var creature in running.CreatureContainer.GetAllCreatures()) {
+                                var stats=new Dictionary<string,object>();
+                                foreach(var stat in CombatStatTypes()) stats[stat.ToString()]=creature.StatController.GetFinalStat(stat);
+                                creatures.Add(new Dictionary<string,object>{{"hero",creature.CreatureIndex},{"tier",creature.CreateInfo.Tier},
+                                    {"level",creature.CreateInfo.HeroInfo.Level},{"hp",creature.StatController.Hp},
+                                    {"resting",creature.CreateInfo.IsInitialResting},{"isAi",creature.CreateInfo.IsAi},
+                                    {"initialStats",CombatStats(creature.CreateInfo.StatData)},{"stats",stats}});
+                            }
+                            File.WriteAllText(diagnosticFile,MiniJSON.Json.Serialize(new Dictionary<string,object>{
+                                {"chapter",running.ChapterIndex},{"dungeon",running.DungeonIndex},
+                                {"timeMs",running.GlobalTimer.GetCurrentTimeMs()},{"creatures",creatures}}));
+                        } catch(Exception e) { File.WriteAllText(diagnosticFile,MiniJSON.Json.Serialize(new Dictionary<string,object>{{"error",e.ToString()}})); }
+                    });
+                    var battle=NVespa.SingletonAuto<NGame2.NBattleField.BattleFacade>.instance.GetStoppedBattleInstance();
+                    if(battle!=null) {
+                        foreach(var creature in battle.CreatureContainer.GetAllCreatures()) {
+                            var stats=new Dictionary<string,object>();
+                            foreach(var stat in CombatStatTypes()) stats[stat.ToString()]=creature.StatController.GetFinalStat(stat);
+                            reply.materials.Add(new Dictionary<string,object>{{"kind","battleStats"},{"hero",creature.CreatureIndex},
+                                {"tier",creature.CreateInfo.Tier},{"isBoss",creature.CreateInfo.IsBoss},
+                                {"isAi",creature.CreateInfo.IsAi},{"resting",creature.CreateInfo.IsInitialResting},
+                                {"level",creature.CreateInfo.HeroInfo.Level},{"hp",creature.StatController.Hp},
+                                {"initialStats",CombatStats(creature.CreateInfo.StatData)},{"stats",stats}});
+                        }
+                    }
+                }
+                var formula=typeof(NShared.StatController).GetMethod("CalculateDamage",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);
+                var legacy=typeof(NShared.StatController).GetMethod("CalculateDamage_Season1",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);
+                foreach(long defense in new long[]{10000,100000,500000,1000000,5000000})
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","formula"},{"defense",defense},
+                        {"current",formula.Invoke(null,new object[]{1000000L,defense,100,100})},
+                        {"legacy",legacy.Invoke(null,new object[]{1000000L,defense,100,100})}});
+            }
+            if(cmd.action=="skill-probe") {
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                foreach(var hero in account.GetHeroInfoList(true)) {
+                    if(hero==null) continue;
+                    var creature=NShared.GameRoot.Instance.CreatureDataContainer.GetData(hero.HeroIndex);
+                    var slots=new List<object>();
+                    for(int slot=1;slot<=5;slot++) {
+                        var info=NGame2.NAccount.Helper.GetSkillDetailInfo(hero,slot,0);
+                        slots.Add(new Dictionary<string,object>{{"slot",slot},{"index",info.BasicInfo.TableIndex},
+                            {"extend",hero.GetSkillExtend(slot)},{"canEnhance",NGame2.NAccount.Helper.CanSkillExtend(info)}});
+                    }
+                    // Work on a detached copy to check that real enhancement
+                    // reminders still work; no account fields are modified.
+                    var probe=JM_NShared_HeroInfo.Parse(JM_NShared_HeroInfo.EncodeJsonString(hero));
+                    probe.SkillExtend1=0;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","skill"},{"hero",hero.HeroIndex},
+                        {"canEnhance",NGame2.NAccount.Helper.CanAnySkillExtend(hero)},
+                        {"unmaxedReminder",NGame2.NAccount.Helper.CanAnySkillExtend(probe)},{"slots",slots}});
+                }
+            }
+            if(cmd.action=="input-focus" || cmd.action=="focus-input") {
+                var input=UIInput.selection;
+                var helper=typeof(NGame2.NScene.LobbyScene2).Assembly.GetType("RestoredPortal");
+                var shortcut=helper==null?null:helper.GetMethod("MenuShortcutKeyUp");
+                reply.materials.Add(new Dictionary<string,object>{{"kind","inputFocus"},
+                    {"selected",input==null?null:Hierarchy(input.transform)},
+                    {"active",input!=null && input.isActiveAndEnabled},{"cameraFocus",UICamera.inputHasFocus},
+                    {"heroesKey",shortcut==null?null:shortcut.Invoke(null,new object[]{KeyCode.H})},
+                    {"inventoryKey",shortcut==null?null:shortcut.Invoke(null,new object[]{KeyCode.B})},
+                    {"shopKey",shortcut==null?null:shortcut.Invoke(null,new object[]{KeyCode.P})}});
+            }
+            if(cmd.action=="perk-popup") {
+                foreach(var popup in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.LearnTranscendSkillMessagePopup>()) {
+                    var label=popup.Label_SkillDesc;
+                    var scroll=label.GetComponentInParent<UIScrollView>();
+                    var printed=typeof(UILabel).GetField("mPrintedSize",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+                    reply.materials.Add(new Dictionary<string,object>{{"title",popup.Label_SkillName.text},{"text",label.text},
+                        {"fontSize",label.fontSize},{"printedFontSize",printed.GetValue(label)},{"width",label.width},{"height",label.height},
+                        {"overflow",label.overflowMethod.ToString()},{"scroll",scroll!=null},{"canScroll",scroll!=null && scroll.shouldMoveVertically},
+                        {"labelY",label.transform.localPosition.y},{"viewportY",scroll==null?0:scroll.transform.localPosition.y},
+                        {"drag",label.GetComponent<UIDragScrollView>()!=null},{"warning",popup.Label_Warning.gameObject.activeInHierarchy}});
+                }
+            }
+            if(cmd.action=="inn-scene") {
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                foreach(var window in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.HeroInnView>()) {
+                    var facade=typeof(NGame2.NUI.NWindow.HeroRecruitView).GetField("_renderFacade",flags).GetValue(window);
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","inn"},{"path",Hierarchy(window.transform)},
+                        {"hero",window.HeroIndex},{"hasInfo",window.HeroInfo!=null},{"hasModel",facade!=null},
+                        {"state",window.WindowState.ToString()},{"reserved",window.ReservedOpenTask}});
+                }
+                foreach(var manager in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NManager.HeroInnManagement>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","manager"},{"refresh",manager.GetType().GetField("_requestRefresh",flags).GetValue(manager)}});
+            }
+            if(cmd.action=="dispatch-probe") {
+                var helper=AppDomain.CurrentDomain.GetAssemblies().First(a=>a.GetName().Name=="SprkDispatch").GetType("SprkDispatch");
+                var flags=System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic;
+                reply.materials.Add(new Dictionary<string,object>{{"location",helper.Assembly.Location},{"ready",helper.GetMethod("Ready",flags).Invoke(null,null)},{"time",Time.realtimeSinceStartup},{"frame",Time.frameCount},{"lastFrame",helper.GetField("lastFrame",flags).GetValue(null)},{"lastStatus",helper.GetField("LastStatus").GetValue(helper.GetField("instance",flags).GetValue(null))},{"lastError",helper.GetField("LastError").GetValue(helper.GetField("instance",flags).GetValue(null))},{"host",NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.Host}});
+            }
+            if(cmd.action=="soul-scene") {
+                foreach(var window in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.NSoulWeapon.SoulStoneRestoreWindow>()) {
+                    reply.materials.Add(new Dictionary<string,object> {
+                        {"kind","SoulJudgmentScene"},
+                        {"state",window.GetType().GetField("_nodeTreeMainState",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(window).ToString()},
+                        {"pack",window.BgNodeTreeUIPlayer.NodeTreePackCode},
+                        {"tree",window.BgNodeTreeUIPlayer.NodeTreeName}
+                    });
+                    foreach(var stock in window.NodeTreeStocks) reply.materials.Add(new Dictionary<string,object> {
+                        {"kind","SoulJudgmentStock"},{"state",stock.State.ToString()},
+                        {"pack",stock.PackCode},{"tree",stock.TreeName},{"once",stock.IsPlayOnce}
+                    });
+                }
+            }
             if(cmd.action=="renderers") {
                 foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>()) {
                     if(!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                     foreach(Material material in renderer.sharedMaterials) {
                         Shader shader=material == null ? null : material.shader;
+                        var properties=new Dictionary<string,object>();
+                        if(material != null) {
+                            foreach(string key in new string[] {"_MainTex","_MainTex_Color","_NoiseTex_Nor"}) {
+                                if(!material.HasProperty(key)) continue;
+                                Texture tex=material.GetTexture(key);
+                                properties[key]=tex == null ? null : tex.name + " " + tex.width + "x" + tex.height;
+                            }
+                            foreach(string key in new string[] {"_Color","_TintColor"})
+                                if(material.HasProperty(key)) properties[key]=material.GetColor(key).ToString();
+                            foreach(string key in new string[] {"_ExtraAlpha","_MainTex_Color_Str","_MainTex_Color_Pow","_MainTex_Alpha_Str","_MainTex_Alpha_Pow","_Fresnel"})
+                                if(material.HasProperty(key)) properties[key]=material.GetFloat(key);
+                            properties["keywords"]=material.shaderKeywords;
+                            properties["queue"]=material.renderQueue;
+                        }
                         reply.materials.Add(new Dictionary<string,object> {
                             {"renderer",Hierarchy(renderer.transform)},
                             {"material",material == null ? null : material.name},
                             {"shader",shader == null ? null : shader.name},
                             {"supported",shader != null && shader.isSupported},
-                            {"visible",renderer.isVisible}
+                            {"visible",renderer.isVisible},
+                            {"properties",properties}
                         });
                     }
+                }
+            }
+            if(cmd.action=="probe-renderer") {
+                Renderer selected=null;
+                foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>())
+                    if(renderer.enabled && renderer.gameObject.activeInHierarchy && Hierarchy(renderer.transform)==cmd.text) {
+                        if(selected != null) throw new InvalidOperationException("Ambiguous renderer path");
+                        selected=renderer;
+                    }
+                if(selected==null) throw new InvalidOperationException("Active renderer not found");
+                busy=true; StartCoroutine(Capture(reply,selected)); return;
+            }
+            if(cmd.action=="party-ui") {
+                foreach(var party in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.BattlePartySetting>()) {
+                    if(!party.gameObject.activeInHierarchy) continue;
+                    var raid=party as NGame2.NUI.NWindow.RaidPartySetting;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","raid"},{"path",Hierarchy(party.transform)},
+                        {"index",raid==null || raid.RaidData==null ? 0 : raid.RaidData.Index},
+                        {"minimumLevel",raid==null || raid.RaidData==null ? 0 : raid.RaidData.ReqHeroLevel}});
+                    foreach(var portrait in party.GetComponentsInChildren<NGame2.NUI.NComponent2.HeroPortraitComponent>(true))
+                        if(portrait.HeroInfo!=null) reply.materials.Add(new Dictionary<string,object>{{"kind","hero"},
+                            {"id",portrait.gameObject.GetInstanceID()},{"path",Hierarchy(portrait.transform)},
+                            {"hero",portrait.HeroInfo.HeroIndex},{"level",portrait.HeroInfo.Level},
+                            {"active",portrait.gameObject.activeInHierarchy}});
+                    foreach(var sprite in party.GetComponentsInChildren<UISprite>(true))
+                        if(sprite.name.Contains("Frame") || sprite.name=="Sprite_Top") reply.materials.Add(new Dictionary<string,object>{
+                            {"kind","frame"},{"path",Hierarchy(sprite.transform)},{"sprite",sprite.spriteName},
+                            {"active",sprite.gameObject.activeInHierarchy},{"alpha",sprite.alpha}});
                 }
             }
             if(cmd.action=="screenshot") { busy=true; StartCoroutine(Capture(reply)); return; }
@@ -170,7 +504,8 @@ public sealed class SprkAutomation : MonoBehaviour
         Write(reply);
         if(cmd != null && cmd.action=="quit" && reply.ok) Application.Quit();
     }
-    IEnumerator Capture(Reply reply) {
+    IEnumerator Capture(Reply reply,Renderer hidden=null) {
+        if(hidden != null) hidden.enabled=false;
         yield return new WaitForEndOfFrame();
         Texture2D image=null;
         try {
@@ -178,8 +513,29 @@ public sealed class SprkAutomation : MonoBehaviour
             reply.screenshot=reply.id+".png";
             File.WriteAllBytes(Path.Combine(root,reply.screenshot),image.EncodeToPNG());
         } catch(Exception e) { reply.ok=false; reply.error=e.ToString(); }
-        finally { if(image!=null) Destroy(image); busy=false; }
+        finally { if(hidden!=null) hidden.enabled=true; if(image!=null) Destroy(image); busy=false; }
         Write(reply);
+    }
+    static NShared.StatType[] CombatStatTypes() {
+        return new NShared.StatType[]{NShared.StatType.MaxHp,NShared.StatType.PhysicalAttack,NShared.StatType.MagicalAttack,
+            NShared.StatType.PhysicalDefense,NShared.StatType.MagicalDefense,NShared.StatType.PhysicalDodgeChance,
+            NShared.StatType.MagicalDodgeChance,NShared.StatType.PhysicalToughness,NShared.StatType.MagicalToughness};
+    }
+    static Dictionary<string,object> TableProperties(object row) {
+        var result=new Dictionary<string,object>();
+        foreach(var property in row.GetType().GetProperties(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public)) {
+            if(!property.CanRead || property.GetIndexParameters().Length!=0)continue;
+            var type=property.PropertyType;
+            if(!(type.IsPrimitive || type.IsEnum || type==typeof(string) || type.IsArray))continue;
+            var value=property.GetValue(row,null);
+            result[property.Name]=type.IsEnum ? Convert.ToInt64(value) : value;
+        }
+        return result;
+    }
+    static Dictionary<string,object> CombatStats(NShared.StatData data) {
+        var result=new Dictionary<string,object>();
+        if(data!=null) foreach(var stat in CombatStatTypes()) result[stat.ToString()]=data.GetStat(stat);
+        return result;
     }
     void Write(Reply reply) {
         // Use the client's serializer: Unity's type registry does not include

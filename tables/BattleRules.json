@@ -13,6 +13,16 @@
   "WorldBossRotationStart": 3,
   "WorldBossMaxDamagePerSecond": 1000000000,
   "BossTicketsPerBattle": 1,
+  "EntryRechargeOverrides": {
+    "Sword": {"IntervalSeconds": 1800, "InitialCount": 10},
+    "GuildRaidTicket": {"GrantCount": 2, "Accumulate": true},
+    "GodkingTrialKey": {"PeriodDays": 7, "GrantCount": 2, "Accumulate": false},
+    "TechnoEnchantKey": {"PeriodDays": 7, "GrantCount": 5, "Accumulate": true},
+    "PunishmentRaidKey": {"PeriodDays": 7, "GrantCount": 1, "Accumulate": false},
+    "EventHeroDungeonTicket": {"Accumulate": true},
+    "PetFeedKey": {"IntervalSeconds": 3600, "Note": "Local fallback; the extracted client identifies Regen but does not contain the server interval."},
+    "Sword3": {"IntervalSeconds": 1800, "InitialCount": 5, "Note": "Local fallback; the extracted client identifies Regen but does not contain the server interval."}
+  },
   "OrdealArenaWinPoint": 100,
   "TowerCarryCreatureTypes": [
     1,
@@ -28,7 +38,7 @@
     "EventWorldBossTicket": 3,
     "PunishmentRaidKey": 1,
     "TreasureHouseKey": 1,
-    "ShakmehMiddleBossKey": 5,
+    "ShakmehMiddleBossKey": 3,
     "TechnoEnchantKey": 5,
     "UndergroundPrisonKey": 5,
     "UndergroundLabyrinthKey": 5,

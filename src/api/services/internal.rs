@@ -266,12 +266,14 @@ pub(super) async fn execute(
             Ok(json!({}))
         }
         "internal/b2g_battle_cancel" => {
-            let (id, entry) = bound_run(db, s, a, h).await?;
+            let (id, mut entry) = bound_run(db, s, a, h).await?;
             coordinates(r, &entry)?;
             if entry["ServiceOwned"] != true {
                 return Err(rule("Fail"));
             }
-            sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND run_id=?")
+            crate::api::battle::entry_costs::settle(db,s,a,&mut entry,false,&mut json!({})).await?;
+            sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=?")
+                .bind(entry.to_string())
                 .bind(a)
                 .bind(id)
                 .execute(db)

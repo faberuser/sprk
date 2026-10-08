@@ -77,7 +77,7 @@ pub fn encode_packet(name: &str, body: &Value) -> Vec<u8> {
     )
     .into_bytes()
 }
-fn decode_packet(frame: &[u8]) -> Result<(String, Value)> {
+pub(crate) fn decode_packet(frame: &[u8]) -> Result<(String, Value)> {
     let text = std::str::from_utf8(frame)
         .map_err(|_| ServerError::InvalidRequest("Invalid socket text".into()))?;
     let (name, encoded) = text
@@ -170,6 +170,10 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                                     if matches!(protocol, "Login" | "Logout") {
                                         // Presence targets come from the persisted friend graph.
                                         presence(&state, account_id, protocol).await?;
+                                    } else if protocol == "GuildRaidOpen" {
+                                        if announce_guild_raid(&state, account_id, &content).await.is_err() {
+                                            response["Result"] = json!("Fail");
+                                        }
                                     } else if crate::api::battle::party_messages::supported(protocol) {
                                         if let Err(error)=crate::api::battle::party_messages::send(&state,account_id,target,protocol,content).await {
                                             tracing::debug!(%error,protocol,account_id,"Party message rejected");
@@ -226,6 +230,24 @@ async fn guild(state: &AppState, account: i64) -> Result<i64> {
             .await?
             .unwrap_or(0),
     )
+}
+
+async fn announce_guild_raid(state: &AppState, account: i64, content: &Value) -> Result<()> {
+    let mut db = state.db.acquire().await?;
+    let (guild_id, _) = super::guild::membership(&mut db, account).await?;
+    let chapter = integer(&content["OpenedGuildRaidInfo"]["ChapterIndex"]).unwrap_or(0);
+    let raid = super::warfare::raid_list(&mut db, state, guild_id).await?.into_iter()
+        .find(|r| integer(&r["ChapterIndex"]) == Some(chapter) && integer(&r["IsOngoing"]) == Some(1))
+        .ok_or_else(|| ServerError::InvalidRequest("No active guild raid".into()))?;
+    let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+        .bind(account).fetch_one(&mut *db).await?;
+    drop(db);
+    let message = notification(account, "Guild", &[], "GuildRaidOpen", json!({"Nick":nick,"OpenedGuildRaidInfo":raid}));
+    let peers: Vec<_> = state.chat.peers.iter().map(|p| p.value().clone()).collect();
+    for peer in peers {
+        if guild(state, peer.account).await? == guild_id { let _ = peer.sender.try_send(message.clone()); }
+    }
+    Ok(())
 }
 
 async fn send_chat(

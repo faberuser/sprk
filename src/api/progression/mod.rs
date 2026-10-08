@@ -96,7 +96,7 @@ pub(crate) async fn snapshot(
         "ChapterRewardInfos":chapter.into_iter().map(|(id,mask)|json!({"ChapterIndex":id,"LastRewardDiff":mask})).collect::<Vec<_>>(),
         "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":view.claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
     out["OpendMissionCategories"] = json!(state.tables.progression.mission_categories.iter().filter(|r| {
-        n(r, "OpenConditionType") == 0 ||
+        r["OpenConditionName"].as_str().unwrap_or("").is_empty() ||
         (r["OpenConditionName"] == "ClearQuestIndex" && r["OpenConditionArgs"][0] == "SubQuest"
          && r["OpenConditionArgs"][1].as_str().and_then(|s| s.parse::<i64>().ok())
              .is_some_and(|id| view.last("subquest", id, "all") > 0))

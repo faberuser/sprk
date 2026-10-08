@@ -46,7 +46,16 @@ pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Re
         .get::<Option<String>, _>("master_nick")
         .unwrap_or_default());
     if v["GuildBuildingInfos"].is_null() {
-        v["GuildBuildingInfos"]=json!(s.tables.arena_guild.rows("GuildBuilding").iter().filter(|v|n(v,"Level")==1).map(|r|json!({"BuildingIndex":n(r,"Index"),"BuildingLevel":if n(r,"ReqGuildLevel")<=level{1}else{0},"Wood":0,"Stone":0,"Metal":0,"UpdatedTime":null})).collect::<Vec<_>>());
+        v["GuildBuildingInfos"]=json!(s.tables.arena_guild.rows("GuildBuilding").iter().filter(|v|n(v,"Level")==1).map(|r|json!({"BuildingIndex":n(r,"Index"),"BuildingLevel":1,"Wood":0,"Stone":0,"Metal":0,"UpdatedTime":null})).collect::<Vec<_>>());
+    }
+    // Level 1 is the native starting building. ReqGuildLevel gates upgrading
+    // that row, not its existence; zero has no table row and hides construction.
+    if let Some(buildings) = v["GuildBuildingInfos"].as_array_mut() {
+        for building in buildings {
+            if n(building, "BuildingLevel") == 0 {
+                building["BuildingLevel"] = json!(1);
+            }
+        }
     }
     let period = contribution_day(s);
     if v["ContributionDay"] != period {
@@ -55,8 +64,21 @@ pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Re
     }
     let votes=sqlx::query("SELECT json_extract(c.data,'$.ReqGuildSkill') AS skill,COUNT(*) AS votes FROM community_state c JOIN guild_members m ON m.account_id=c.owner AND m.guild_id=c.idx WHERE c.kind='guild_member' AND c.idx=? AND json_extract(c.data,'$.ReqGuildSkill')>0 GROUP BY skill").bind(g).fetch_all(&mut *db).await?;
     let mut skills = v["SkillInfos"].as_array().cloned().unwrap_or_default();
+    for def in s.tables.arena_guild.rows("GuildSkill") {
+        let id = n(def, "GuildSkillIndex");
+        if !skills.iter().any(|v| n(v, "SkillIndex") == id) {
+            skills.push(json!({"SkillIndex":id,"GuildSkillIndex":id,"SkillLevel":1,"GuildSkillLevel":1,"ReqCount":0,"ActivitySpent":0,"SuppressSpent":0}));
+        }
+    }
     for skill in &mut skills {
+        let level = n(skill, "SkillLevel").max(1);
+        skill["SkillLevel"] = json!(level);
+        skill["GuildSkillLevel"] = json!(level);
         skill["ReqCount"] = json!(0);
+        let id = n(skill, "SkillIndex");
+        if let Some(def) = s.tables.arena_guild.find("GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", level)]) {
+            skill["EffectSkillIndex"] = def["SkillIndex"].clone();
+        }
     }
     for vote in votes {
         let id = vote.get::<i64, _>("skill");
@@ -66,6 +88,9 @@ pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Re
         if let Some(skill) = skills.iter_mut().find(|v| n(v, "SkillIndex") == id) {
             skill["ReqCount"] = json!(vote.get::<i64, _>("votes").min(255));
         }
+    }
+    for id in 1..=6 {
+        v[format!("Skill{id}Level")] = json!(skills.iter().find(|skill| n(skill, "SkillIndex") == id).map(|skill| n(skill, "SkillLevel")).unwrap_or(1));
     }
     v["SkillInfos"] = json!(skills);
     put(db, g, "guild", 0, &v).await?;
@@ -177,7 +202,8 @@ fn settings_fields(s: &AppState, r: &Request, create: bool) -> Result<Value> {
     } else {
         r.text(fields[5])
     };
-    if country.len() != 2 || !country.bytes().all(|b| b.is_ascii_alphabetic()) {
+    // The native create-guild window defaults to the neutral VESPA flag.
+    if country != "VESPA" && (country.len() != 2 || !country.bytes().all(|b| b.is_ascii_alphabetic())) {
         return Err(rule("InvalidValue"));
     }
     Ok(

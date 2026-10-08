@@ -167,7 +167,7 @@ async fn member_decks(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result
     Ok(out)
 }
 async fn scores(db: &mut SqliteConnection, s: &AppState, g: i64, kind: &str) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT account,SUM(score) AS score,COUNT(*) AS battles FROM guild_battle_scores WHERE guild_id=? AND kind=? AND season=? GROUP BY account ORDER BY score DESC,account").bind(g).bind(kind).bind(arena::season(s).0).fetch_all(&mut *db).await?;
+    let rows=sqlx::query("SELECT m.account_id AS account,COALESCE(SUM(b.score),0) AS score,COUNT(b.account) AS battles FROM guild_members m LEFT JOIN guild_battle_scores b ON b.guild_id=m.guild_id AND b.account=m.account_id AND b.kind=? AND b.season=? WHERE m.guild_id=? GROUP BY m.account_id ORDER BY score DESC,m.account_id").bind(kind).bind(arena::season(s).0).bind(g).fetch_all(&mut *db).await?;
     let mut out = vec![];
     for (i, r) in rows.iter().enumerate() {
         let a = r.get::<i64, _>("account");
@@ -265,12 +265,23 @@ pub(super) async fn raid_list(
                 .filter(|v| n(v, "ChapterIndex") == c)
                 .min_by_key(|v| n(v, "Step"))
                 .unwrap();
-            v = json!({"GuildId":g,"Season":period,"ChapterIndex":c,"DungeonIndex":n(first,"DungeonIndex"),"Step":n(first,"Step"),"OpenedTime":time(arena::season(s).1),"CompletedTime":null,"ClearMemberId":0,"MonsterHp0":settings(s,"GuildRaidMaxHp",1000000000),"IsOngoing":1,"FinishMode":0,"CurrentChapterIndex":c,"CurrentDungeonIndex":n(first,"DungeonIndex"),"CurrentDungeonStep":n(first,"Step"),"BonusDungeonOpenStep":0,"BonusChapterIndex":0,"BonusDungeonIndex":0,"IsBonusDungeon":0,"IsDummyDungeon":0,"CheckBonusDungeon":false,"CheckDummyDungeon":false,"CheckFinishMode":false});
+            v = json!({"GuildId":g,"Season":period,"ChapterIndex":c,"DungeonIndex":n(first,"DungeonIndex"),"Step":n(first,"Step"),"OpenedTime":time(arena::season(s).1),"CompletedTime":null,"ClearMemberId":0,"MonsterHp0":raid_max_hp(s,c,n(first,"DungeonIndex"))?,"HpSchema":1,"IsOngoing":1,"FinishMode":0,"CurrentChapterIndex":c,"CurrentDungeonIndex":n(first,"DungeonIndex"),"CurrentDungeonStep":n(first,"Step"),"BonusDungeonOpenStep":0,"BonusChapterIndex":0,"BonusDungeonIndex":0,"IsBonusDungeon":0,"IsDummyDungeon":0,"CheckBonusDungeon":false,"CheckDummyDungeon":false,"CheckFinishMode":false});
             put(db, g, "guild_raid", c, &v).await?;
+        }
+        if n(&v,"HpSchema")!=1 {
+            let max=raid_max_hp(s,c,n(&v,"DungeonIndex"))?;
+            let old_max=settings(s,"GuildRaidMaxHp",1000000000).max(1);
+            v["MonsterHp0"]=json!(if n(&v,"IsOngoing")==0 {-1} else {((n(&v,"MonsterHp0")).clamp(0,old_max) as i128 * max as i128 / old_max as i128) as i64});
+            v["HpSchema"]=json!(1);
+            put(db,g,"guild_raid",c,&v).await?;
         }
         out.push(v);
     }
     Ok(out)
+}
+fn raid_max_hp(s:&AppState,c:i64,d:i64)->Result<i64> {
+    s.tables.arena_guild.find("GuildRaidBoss",&[("ChapterIndex",c),("DungeonIndex",d)])
+        .map(|v|n(v,"MaxHp")).filter(|v|*v>0).ok_or_else(||rule("DungeonNotFound"))
 }
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -288,7 +299,8 @@ pub(super) async fn execute(
         {
             return Err(rule("UnknownType"));
         }
-        let ranks = rankers(db, s, "suppress", index).await?;
+        let index = conquest::session_index(s);
+        let ranks = conquest::rankers(db, s, index, None).await?;
         let (g, _) = guild::membership(db, a).await?;
         out["ViewSeasonIndex"] = json!(index);
         out["TotalRankerCount"] = json!(ranks.len());
@@ -296,7 +308,9 @@ pub(super) async fn execute(
             let score: i64 = ranks.iter().map(|v| n(v, "Score")).sum();
             let v = json!({"ServerGroup":"local","Rank":1,"Score":score,"SeasonIndex":index});
             if action.contains("list") {
-                out["RankingInfos"] = json!([v]);
+                let mut listed = v;
+                listed["Rank"] = json!(0); // List rows add one; own-rank panel does not.
+                out["RankingInfos"] = if int(r, "PageNo")? == 0 { json!([listed]) } else { json!([]) };
             } else {
                 out["RankInfo"] = v;
             }
@@ -392,7 +406,8 @@ pub(super) async fn execute(
                 if count <= 0
                     || count > n(&booty, "ItemCount")
                     || int(r, "ItemIndex")? != n(&booty, "ItemIndex")
-                    || int(r, "ShopIndex")? != n(&booty, "ShopIndex")
+                    || !matches!(int(r, "ShopIndex")?, 4 | 20)
+                    || (booty["Equipment"] == true && count != 1)
                 {
                     return Err(rule("WrongItemCount"));
                 }
@@ -411,7 +426,7 @@ pub(super) async fn execute(
                     s,
                     a,
                     n(&booty, "ItemIndex") as i32,
-                    count as i32,
+                    if booty["Equipment"] == true {1} else {count as i32},
                     n(&booty, "Star") as i32,
                     0,
                     &mut rw,
@@ -430,19 +445,7 @@ pub(super) async fn execute(
     }
     let suppress = path.starts_with("guild_suppress/");
     if suppress {
-        // RaidIndex 90001 is missing and party combat is unavailable.
-        match action {
-            "get_guild_suppress_session_info" | "get_guild_suppress_status_board" => {
-                out["GuildSuppressSessionInfo"] = json!({"SessionIndex":index,"State":"NotHeld"});
-                out["GuildSuppressSeasonInfo"] = json!({"SeasonIndex":index});
-                out["GuildSuppressApplied"] = json!(false);
-                return Ok(out);
-            }
-            "get_guild_suppress_member_score_list" | "get_guild_suppress_group_ranker_list" => {
-                return Ok(out)
-            }
-            _ => return Err(rule("ContentsDisabled")),
-        }
+        return conquest::execute(db, s, a, r, action).await;
     }
     let kind = if suppress {
         "guild_suppress"
@@ -511,7 +514,13 @@ pub(super) async fn execute(
             if tg != g && n(&applied, "Peer") != tg {
                 return Err(rule("NoGuild"));
             }
-            out["DeckInfos"] = json!(decks(db, target, index).await?);
+            let saved = decks(db, target, index).await?;
+            // Native SetDefenceDecks indexes all five slots directly, including
+            // an account which has never saved a defense team.
+            out["DeckInfos"] = json!((1..=5).map(|slot| saved.iter()
+                .find(|v| n(v, "DeckIndex") == slot).cloned().unwrap_or_else(||
+                    json!({"AccountId":target,"DeckIndex":slot,"CachedHeroInfos":[],"HeroIndices":[],"SkillSlotIndices":[],"IsShow":1})))
+                .collect::<Vec<_>>());
         }
         "set_guild_arena_deck" => {
             valid_session(s, r, "SeasonIndex")?;
@@ -548,7 +557,10 @@ pub(super) async fn execute(
             for v in &values {
                 sqlx::query("INSERT INTO guild_arena_decks(guild_id,account,season,deck,data) VALUES(?,?,?,?,?)").bind(g).bind(a).bind(index).bind(n(v,"DeckIndex")).bind(v.to_string()).execute(&mut *db).await?;
             }
-            out["DeckInfos"] = json!(values);
+            out["DeckInfos"] = json!((1..=5).map(|slot| values.iter()
+                .find(|v| n(v, "DeckIndex") == slot).cloned().unwrap_or_else(||
+                    json!({"AccountId":a,"DeckIndex":slot,"CachedHeroInfos":[],"HeroIndices":[],"SkillSlotIndices":[],"IsShow":1})))
+                .collect::<Vec<_>>());
         }
         "set_guild_arena_deck_skill" => {
             valid_session(s, r, "SeasonIndex")?;
@@ -557,12 +569,15 @@ pub(super) async fn execute(
             }
             for mut v in decks(db, a, index).await? {
                 let key = format!("SkillSlotIndices{}", n(&v, "DeckIndex"));
-                let slots: Vec<i64> = serde_json::from_str(if r.text(&key).is_empty() {
+                let values: Vec<Value> = serde_json::from_str(if r.text(&key).is_empty() {
                     "[]"
                 } else {
                     r.text(&key)
                 })
                 .map_err(|_| rule("InvalidValue"))?;
+                let slots: Vec<i64> = values.iter().map(|v| v.as_i64()
+                    .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+                    .ok_or_else(|| rule("InvalidValue"))).collect::<Result<_>>()?;
                 if slots.len() > 5 || slots.iter().any(|v| !(0..=4).contains(v)) {
                     return Err(rule("InvalidValue"));
                 }
@@ -873,7 +888,34 @@ pub(crate) async fn raid_enter(
     entry["GuildId"] = json!(g);
     entry["GuildSeason"] = json!(arena::season(s).0);
     entry["GuildBattleStart"] = json!(now());
+    entry["GuildBossStartHp"] = raid["MonsterHp0"].clone();
     Ok(())
+}
+// Native EndCampaign leaves TotalDamage at zero. A killable raid boss instead
+// reports remaining HP in CreatureInfoString (strings, escaped once by Unity).
+fn raid_damage(r: &Request, start_hp: i64) -> Result<i64> {
+    let raw = r.text("CreatureInfoString");
+    if raw.is_empty() { return r.number("TotalDamage", 0); }
+    let creatures: Vec<Value> = serde_json::from_str(raw).or_else(|_| {
+        let decoded = urlencoding::decode(raw)
+            .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+        serde_json::from_str(&decoded)
+    }).map_err(|_| rule("InvalidValue"))?;
+    if creatures.len() > 512 { return Err(rule("InvalidValue")); }
+    let mut remaining = None;
+    for creature in creatures {
+        let integer = |field: &str| creature[field].as_i64()
+            .or_else(|| creature[field].as_str().and_then(|v| v.parse().ok())).unwrap_or(-1);
+        let parts: Vec<&str> = creature["Key"].as_str().unwrap_or("").split('_').collect();
+        if integer("TeamId") != 1 || parts.len() != 3 || parts[1] != "0" { continue; }
+        let hp = integer("Hp");
+        if parts[2] != "1" || parts[0].parse::<i64>().ok() != Some(integer("Index"))
+            || integer("Index") <= 0 || remaining.is_some() || hp < 0 || hp > start_hp {
+            return Err(rule("InvalidValue"));
+        }
+        remaining = Some(hp);
+    }
+    remaining.map(|hp| start_hp - hp).ok_or_else(|| rule("InvalidValue"))
 }
 pub(crate) async fn raid_finish(
     db: &mut SqliteConnection,
@@ -895,12 +937,10 @@ pub(crate) async fn raid_finish(
     if n(&raid, "DungeonIndex") != d || n(&raid, "IsOngoing") != 1 {
         return Err(rule("AlreadyCompleted"));
     }
-    let damage = r.number("TotalDamage", 0)?;
-    if damage < 0
-        || damage
-            > settings(s, "GuildMaxDamagePerSecond", 1000000000)
-                .saturating_mul((now() - n(entry, "GuildBattleStart")).max(1))
-    {
+    let damage = raid_damage(r, n(entry, "GuildBossStartHp"))?;
+    // Bound by the recorded boss HP. A fixed one-billion DPS cap rejected
+    // legitimate attacks against the archived multi-billion-HP bosses.
+    if damage < 0 || damage > n(entry,"GuildBossStartHp") {
         return Err(rule("InvalidValue"));
     }
     let damage = damage.min(n(&raid, "MonsterHp0"));
@@ -969,14 +1009,18 @@ pub(crate) async fn raid_finish(
                 if price <= 0 {
                     continue;
                 }
-                let id_key = season * 1000000000 + c * 10000 + d * 100 + slot as i64;
                 let equipment = s
                     .tables
                     .items
                     .reward_item(id)
                     .is_some_and(|v| v.kind == "Equip");
-                let v = json!({"Id":id_key,"ShopIndex":4,"ItemIndex":id,"ItemCount":count,"Count":count,"Star":star,"Equipment":equipment,"Price":price,"CreatedTime":time(now()),"DestroyTime":time(now()+constant(s,"GuildRaidBootyItemDestroyMin",10080)*60),"Expires":now()+constant(s,"GuildRaidBootyItemDestroyMin",10080)*60});
-                put(db, g, "guild_booty", id_key, &v).await?;
+                // Equipment is sold as individual instances; consumables are one stack.
+                for unit in 0..if equipment {count} else {1} {
+                    let id_key=season*1000000000000+c*10000000+d*100000+slot as i64*1000+unit as i64;
+                    let quantity=if equipment {1} else {count};
+                    let v = json!({"Id":id_key,"ShopIndex":20,"ItemIndex":id,"ItemCount":quantity,"Count":quantity,"Star":star,"Equipment":equipment,"Price":price,"CreatedTime":time(now()),"DestroyTime":time(now()+constant(s,"GuildRaidBootyItemDestroyMin",10080)*60),"Expires":now()+constant(s,"GuildRaidBootyItemDestroyMin",10080)*60});
+                    put(db, g, "guild_booty", id_key, &v).await?;
+                }
             }
         }
         if let Some(next) = s
@@ -991,9 +1035,10 @@ pub(crate) async fn raid_finish(
             raid["Step"] = json!(n(next, "Step"));
             raid["CurrentDungeonIndex"] = raid["DungeonIndex"].clone();
             raid["CurrentDungeonStep"] = raid["Step"].clone();
-            raid["MonsterHp0"] = json!(settings(s, "GuildRaidMaxHp", 1000000000));
+            raid["MonsterHp0"] = json!(raid_max_hp(s,c,n(next,"DungeonIndex"))?);
         } else {
             raid["IsOngoing"] = json!(0);
+            raid["MonsterHp0"] = json!(-1);
             raid["CompletedTime"] = json!(time(now()));
             raid["ClearMemberId"] = json!(a);
             raid["ClearTime"] = json!((now() - n(&raid, "StartedAt")).max(1));

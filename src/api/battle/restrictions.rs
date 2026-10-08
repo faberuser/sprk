@@ -22,9 +22,21 @@ pub(super) fn party(s: &AppState, r: &Request, rule_index: i64) -> Result<()> {
         return Ok(());
     }
     let definition = row(s, "BanRule", &[("Index", rule_index)])?;
-    let main = ids(r, "HeroIndices", 32)?;
-    let mut all = main.clone();
-    all.extend(ids(r, "GroupHeroIndices", 32)?);
+    let mut main = ids(r, "HeroIndices", 32)?;
+    let group = ids(r, "GroupHeroIndices", 32)?;
+    let all = if (r.number("ChapterIndex", 0)? == 10
+            && matches!(n(campaign::dungeon(s, r)?, "BattleType"), 45 | 46))
+        || (r.number("ChapterIndex", 0)? == 50000
+            && n(campaign::dungeon(s, r)?, "BattleType") == 38)
+    {
+        let all = campaign::selected_heroes(s, r)?;
+        main.retain(|id| !group.contains(id));
+        all
+    } else {
+        let mut all = main.clone();
+        all.extend(group);
+        all
+    };
     let heroes = all
         .iter()
         .map(|id| row(s, "BattleHero", &[("Index", *id)]))

@@ -73,6 +73,7 @@ async fn public_awakening_stones_obey_equipment_type() {
 #[tokio::test]
 async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     let (mut s, u) = setup().await;
+    assert_eq!(u.misc_info.as_ref().unwrap().extra["RestoreSoulStoneIndices"], "");
     std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"] = json!(10000);
     let a = u.user_info.account_id;
     give(&s, a, 45080, 400).await;
@@ -88,7 +89,9 @@ async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     .await
     .unwrap()
     .0;
-    assert_eq!(login.misc_info.unwrap().extra["SoulStoneMileage"], 0);
+    let misc = login.misc_info.unwrap().extra;
+    assert_eq!(misc["SoulStoneMileage"], 0);
+    assert_eq!(misc["RestoreSoulStoneIndices"], ids.iter().map(|id| id.as_i64().unwrap().to_string()).collect::<Vec<_>>().join(","));
     assert_ne!(
         call(&s, &u, "restore_soul_stone", "SoulStoneRestoreIndex=1").await["Result"],
         "Success"
@@ -106,6 +109,24 @@ async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
         call(&s, &u, "confirm_soul_stone", &args).await["Result"],
         "Success"
     );
+    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+        .await.unwrap().0;
+    assert_eq!(login.misc_info.unwrap().extra["RestoreSoulStoneIndices"], "");
+}
+
+#[tokio::test]
+async fn soul_judgment_login_without_pending_choices_does_not_show_a_soul_stone() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    // An account with prior judgments still has a restore record, even when
+    // there is no Soul Stone left to choose. Preserve its mileage on reconnect.
+    put(&mut *s.db.acquire().await.unwrap(), a, "soul_restore", 0,
+        &json!({"Mileage":9,"Choices":[]})).await.unwrap();
+    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+        .await.unwrap().0;
+    let misc = login.misc_info.unwrap().extra;
+    assert_eq!(misc["SoulStoneMileage"], 9);
+    assert_eq!(misc["RestoreSoulStoneIndices"], "");
 }
 #[tokio::test]
 async fn valance_identification_and_enchantment_restore_pending_choices() {
@@ -395,17 +416,16 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.user_info.gem, 100000 - price as i32);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3100013));
-    // The body accessory from the reported failure uses the same wire format.
+    // The archived body accessory is unavailable for direct purchase.
     let body_pos = pos.to_string().replace("3100013", "3110025");
     let escaped = urlencoding::encode(&body_pos).into_owned();
     let wire = urlencoding::encode(&escaped);
     let bought = call(&s, &login, "hero/buy_customizing_costumes",
         &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
-    assert_eq!(bought["Result"], "Success", "{bought}");
-    assert_eq!(bought["HeroCostumeResultInfo"]["AccessoryCostumeIndex4"], 3110025);
+    assert_ne!(bought["Result"], "Success", "{bought}");
     let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32 - 10000);
-    assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
+    assert_eq!(login.user_info.gem, 100000 - price as i32);
+    assert!(!login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
 }
 #[tokio::test]
 async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
@@ -413,7 +433,7 @@ async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     let a = u.user_info.account_id;
     let eq = give(&s, a, 1001, 1).await.equipment.remove(0);
     let args = format!(
-        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[0]&EquipItemSlotIndex=[{}]&Name=Weapon",
+        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[1]&EquipItemSlotIndex=[{}]&Name=Weapon",
         eq.slot_index
     );
     let r = call(&s, &u, "add_equip_storage_slot", &args).await;
@@ -739,6 +759,33 @@ async fn gold(s: &AppState) -> i64 {
         .unwrap()
 }
 #[tokio::test]
+async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for quoted in [false,true] {
+        let rewards=give(&s,a,150044,2).await;
+        let x=rewards.equipment[0].slot_index;let y=rewards.equipment[1].slot_index;
+        let materials=if quoted {format!("[\"{y}\"]")} else {y.to_string()};
+        let args=format!("EquipItemSlotIndex={x}&MaterialSlotIndices={materials}");
+        let before=gold(&s).await;
+        let result=call(&s,&u,"awaken_equip",&args).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert_eq!(result["Success"],true);
+        assert_eq!(result["ResultEquipItem"]["Star"],1);
+        assert_eq!(gold(&s).await,before-50000);
+        let saved:i64=sqlx::query_scalar("SELECT star FROM equip_items WHERE slot_index=?").bind(x).fetch_one(&s.db).await.unwrap();
+        assert_eq!(saved,1);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE slot_index=?").bind(y).fetch_one(&s.db).await.unwrap(),0);
+        assert_ne!(call(&s,&u,"awaken_equip",&args).await["Result"],"Success");
+        assert_eq!(gold(&s).await,before-50000);
+    }
+    let target=give(&s,a,1001,1).await.equipment[0].slot_index;
+    give(&s,a,5301,1).await;
+    let result=call(&s,&u,"awaken_equip",&format!("EquipItemSlotIndex={target}&MaterialItemInfors=5301&MaterialItemInfors=1")).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["ResultEquipItem"]["Star"],1);
+}
+
+#[tokio::test]
 async fn awakening_validates_materials_and_charges_once() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -806,6 +853,12 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
             .await
             .is_err()
     );
+    let mut stored = get(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64)
+        .await.unwrap();
+    stored["OptionStat1"] = json!(123456789);
+    stored["OptionStat2"] = json!(123456789);
+    put(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64, &stored)
+        .await.unwrap();
     let login = user::login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
@@ -814,6 +867,12 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     .unwrap()
     .0;
     assert_eq!(login.soul_weapon_infos.len(), 1);
+    // Archived class coefficients use the client's original units. Login must
+    // recalculate cached values without changing the saved progression record.
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4);
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125);
+    assert_eq!(get(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64)
+        .await.unwrap(), stored);
 }
 #[tokio::test]
 async fn all_extended_equipment_columns_survive_database_reload() {
@@ -892,4 +951,42 @@ async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     assert_eq!(direct["SelectSoulStoneIndices"],json!([]));
     assert_eq!(direct["ItemResults"].as_array().unwrap().len(),1);
     assert_eq!(direct["SoulStoneMileage"],0);
+}
+
+#[tokio::test]
+async fn native_equipment_grind_single_and_batch_persist_rewards_and_removal() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    for number in [1,3,150] {
+        let equipment=give(&s,a,1001,number).await.equipment;
+        assert_eq!(equipment.len(),number as usize);
+        let args=equipment.iter().map(|eq|format!("EquipItemSlotIndices={}",eq.slot_index)).collect::<Vec<_>>().join("&");
+        let r=call(&s,&u,"break_equip",&args).await;
+        assert_eq!(r["Result"],"Success","{r}");
+        assert!(!r["ItemResults"].as_array().unwrap().is_empty());
+        let again=user::login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        assert!(again.equip_items.iter().all(|eq|equipment.iter().all(|e|e.slot_index!=eq.slot_index)));
+        let final_counts:std::collections::BTreeMap<_,_> = r["ItemResults"].as_array().unwrap().iter()
+            .map(|reward|(n(reward,"ItemIndex"),n(reward,"NewCount"))).collect();
+        for (id,count) in final_counts {
+            assert_eq!(again.items.iter().find(|i|i.item_index as i64==id).unwrap().count as i64,count);
+        }
+    }
+}
+
+#[tokio::test]
+async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_batch() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let equipment=give(&s,a,1001,2).await.equipment;
+    let first=equipment[0].slot_index;
+    let second=equipment[1].slot_index;
+    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?").bind(a).bind(second).execute(&s.db).await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let result=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={first}&EquipItemSlotIndices={second}")).await;
+    assert_eq!(result["Result"],"LockedEquipItemExists","{result}");
+    let result=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={first}&EquipItemSlotIndices={first}")).await;
+    assert_ne!(result["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)").bind(a).bind(first).bind(second).fetch_one(&s.db).await.unwrap(),2);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
 }

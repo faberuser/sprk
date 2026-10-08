@@ -2,4 +2,5 @@
 pub mod auth;
 pub mod lobby;
 pub mod stamina;
+pub(crate) mod recharge;
 pub mod user;

@@ -46,8 +46,12 @@ fn constant(s: &AppState, key: &str) -> Result<i64> {
 }
 async fn counter(db: &mut SqliteConnection, a: i64, k: i64) -> Result<Value> {
     let v = get(db, a, "stamina_recharges", k).await?;
-    let day = chrono::Utc::now().date_naive().to_string();
-    Ok(if v["Day"] == day {
+    let days = super::recharge::reset_days(k);
+    let day = super::recharge::period(chrono::Utc::now().date_naive(), days).to_string();
+    let previous = v["Day"].as_str()
+        .and_then(|v| chrono::NaiveDate::parse_from_str(v,"%Y-%m-%d").ok())
+        .map(|v| super::recharge::period(v,days).to_string());
+    Ok(if previous.as_deref().is_some_and(|previous| previous >= day.as_str()) {
         v
     } else {
         json!({"Day":day,"Count":0})
@@ -130,6 +134,52 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     }
     tx.commit().await?;
     Ok(json!(out))
+}
+
+pub(crate) async fn add(
+    db: &mut SqliteConnection, s: &AppState, a: i64, k: i64, amount: i64,
+) -> Result<Value> {
+    add_inner(db,s,a,k,amount,false).await
+}
+pub(crate) async fn refund(
+    db: &mut SqliteConnection,s:&AppState,a:i64,k:i64,amount:i64,
+) -> Result<Value> {
+    add_inner(db,s,a,k,amount,true).await
+}
+async fn add_inner(
+    db:&mut SqliteConnection,s:&AppState,a:i64,k:i64,amount:i64,allow_overflow:bool,
+) -> Result<Value> {
+    if amount <= 0 { return Err(rule("InvalidCost")); }
+    let before = snapshot(db,s,a,k).await?;
+    let new = n(&before,"NewValue").checked_add(amount)
+        .filter(|v|*v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?;
+    if let Some(def)=s.tables.services.find("Stamina", &[("StaminaType",k)]) {
+        if !allow_overflow && def["AllowOverflow"] == false && def["MaxCountValue"].as_str()
+            .and_then(|v|v.parse::<i64>().ok()).is_some_and(|cap|new>cap) {
+            return Err(rule("MaxStamina"));
+        }
+    }
+    match k {
+        2 | 20 => { community::tickets(db,s,a,name(s,k)?,amount).await?; }
+        10 => { community::guild_ticket(db,s,a,amount).await?; }
+        15 => {
+            sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',?) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0")
+                .bind(new).bind(a).execute(&mut *db).await?;
+        }
+        1 | 11 | 13 => {
+            let column=match k {1=>"stamina",11=>"world_boss_ticket",_=>"sword2"};
+            sqlx::query(&format!("UPDATE user_info SET {column}=? WHERE account_id=?"))
+                .bind(new).bind(a).execute(&mut *db).await?;
+        }
+        _ => {
+            let mut key=battle::get(db,a,"key",k).await?;
+            key["Count"]=json!(new);
+            battle::put(db,a,"key",k,&key).await?;
+        }
+    }
+    let mut result=snapshot(db,s,a,k).await?;
+    result["AddValue"]=json!(n(&before,"AddValue")+amount+n(&result,"AddValue"));
+    Ok(result)
 }
 pub(crate) async fn execute(
     db: &mut SqliteConnection,
@@ -223,33 +273,12 @@ pub(crate) async fn execute(
         if gem > 0 { -gem } else { 0 },
     )
     .await?;
-    let new = n(&out, "NewValue")
-        .checked_add(amount)
-        .filter(|v| *v <= i32::MAX as i64)
-        .ok_or_else(|| rule("MaxStamina"))?;
-    if k == 1 {
-        sqlx::query("UPDATE user_info SET stamina=? WHERE account_id=?")
-            .bind(new)
-            .bind(a)
-            .execute(&mut *db)
-            .await?;
-    } else if k == 2 {
-        community::tickets(db, s, a, "Sword", amount).await?;
-    } else {
-        let mut v = battle::get(db, a, "key", k).await?;
-        v["Count"] = json!(new);
-        battle::put(db, a, "key", k, &v).await?;
-    }
+    let recovered=n(&out,"AddValue");
+    out=add(db,s,a,k,amount).await?;
+    out["AddValue"]=json!(recovered+n(&out,"AddValue"));
     count["Count"] = json!(n(&count, "Count") + 1);
     put(db, a, "stamina_recharges", k, &count).await?;
-    out["NewValue"] = json!(new);
-    out["AddValue"] = json!(amount);
     out["RechargeCount"] = count["Count"].clone();
-    if k == 1 {
-        let info = chicken(db, s, a).await?;
-        out["NextRechargeRemainTime"] = info["NextRechargeRemainTime"].clone();
-        out["FullRechargeRemainTime"] = info["FullRechargeRemainTime"].clone();
-    }
     Ok(json!({"CurrencyResult":currency,"StaminaResult":out}))
 }
 async fn legacy(s: AppState, body: Bytes, path: &str) -> Result<Json<Value>> {

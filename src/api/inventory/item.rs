@@ -85,7 +85,8 @@ pub(crate) async fn money(
             .await?;
         let free: i64 = row.get("gem");
         let paid: i64 = row.get("pay_gem");
-        if free + paid < -amount {
+        let held=crate::api::battle::entry_costs::held(db,account,"Currency",4).await?;
+        if free + paid-held < -amount {
             return Err(rule("NotEnoughGem"));
         }
         let used_free = free.min(-amount);
@@ -104,6 +105,13 @@ pub(crate) async fn money(
         "Gem" => "gem",
         _ => return Err(rule("Fail")),
     };
+    if amount<0 {
+        let held=crate::api::battle::entry_costs::held(db,account,"Currency",if kind=="Gold" {3}else{4}).await?;
+        if held>0 {
+            let current:i64=sqlx::query_scalar(&format!("SELECT {column} FROM user_info WHERE account_id=?")).bind(account).fetch_one(&mut *db).await?;
+            if current+amount<held {return Err(rule(&format!("NotEnough{kind}")));}
+        }
+    }
     let row=sqlx::query(&format!("UPDATE user_info SET {column}={column}+? WHERE account_id=? AND {column}+?>=0 AND {column}+?<=2147483647 RETURNING {column},pay_gem"))
         .bind(amount).bind(account).bind(amount).bind(amount).fetch_optional(&mut *db).await?.ok_or_else(||rule(if kind=="Gold" {"NotEnoughGold"} else {"NotEnoughGem"}))?;
     Ok(if kind == "Gem" {
@@ -393,7 +401,15 @@ endpoint!(
     unset_chest
 );
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
-    let req = Request::parse(&body)?;
+    let arrays: &[&str] = match action {
+        "sell_equip" => &["EquipItemSlotIndices"],
+        "set_chest" | "unset_chest" => &["EquipItemSlotIndex"],
+        "sell_item" => &["ItemIndices", "ItemCount"],
+        "break_item" => &["ItemIndices", "Counts"],
+        "break_rune" => &["ItemIndices", "Counts", "EquipItemSlotIndices"],
+        _ => &[],
+    };
+    let req = Request::parse_with_integer_arrays(&body, arrays)?;
     let account = req.account(&state)?;
     let mut tx = state.db.begin().await?;
     init(&mut tx, &state, account).await?;
@@ -503,14 +519,11 @@ async fn execute(
             match n(potion, "ActionType") {
                 1 | 2 => {
                     let kind = potion["ActionSubValue"].as_str().unwrap_or("");
-                    let (column, wire) = match kind {
-                        "" | "Stamina" | "Chicken" => ("stamina", "Chicken"),
-                        "Sword" => ("sword", "Sword"),
-                        "Sword2" => ("sword2", "Sword2"),
-                        "GuildRaidTicket" => ("guild_raid_ticket", "GuildRaidTicket"),
-                        "WorldBossTicket" => ("world_boss_ticket", "WorldBossTicket"),
-                        _ => return Err(rule("InvalidStaminaType")),
-                    };
+                    let kind=if matches!(kind,""|"Stamina"){"Chicken"}else{kind};
+                    let stamina_type=state.tables.services.enums.get("StaminaType")
+                        .and_then(|types|types.get(kind)).copied()
+                        .filter(|k|*k>0 && !matches!(*k,3|4|7))
+                        .ok_or_else(||rule("InvalidStaminaType"))?;
                     let amount = if n(potion, "ActionType") == 2 {
                         // StaminaTable uses the team's level-based stamina maximum.
                         let level: i32 = sqlx::query_scalar(
@@ -534,9 +547,8 @@ async fn execute(
                     } else {
                         amount
                     };
-                    let new:i64=sqlx::query_scalar(&format!("UPDATE user_info SET {column}={column}+? WHERE account_id=? AND {column}+?<=2147483647 RETURNING {column}"))
-                        .bind(amount).bind(account).bind(amount).fetch_optional(&mut *db).await?.ok_or_else(||rule("InvalidActionValue"))?;
-                    out["StaminaResult"] = json!({"Type":wire,"AddValue":amount,"NewValue":new,"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false});
+                    out["StaminaResult"] = crate::api::account::stamina::add(
+                        db,state,account,stamina_type,amount).await?;
                 }
                 4 => out["CurrencyResult"] = money(db, account, "Gem", amount).await?,
                 3 => {
@@ -627,6 +639,17 @@ async fn execute(
             }
             let mut buffs = vec![];
             for booster in potion["BoosterCodes"].as_array().into_iter().flatten() {
+                if let Some(code) = booster.as_str() {
+                    let data = state.tables.inventory.booster_definitions.get(code)
+                        .ok_or_else(|| rule("BoosterDataNotFound"))?;
+                    if !matches!(n(data, "Type"), 1 | 2 | 3) || data["IsOnetime"] == true {
+                        return Err(rule("ItemTypeMismatch"));
+                    }
+                    let effect = i32::try_from(n(data, "BoosterItemIndex"))
+                        .ok().filter(|id| *id > 0).ok_or_else(|| rule("BoosterDataNotFound"))?;
+                    buffs.push(activate_booster_definition(db, state, account, effect, count, data).await?);
+                    continue;
+                }
                 buffs.push(
                     activate_booster(
                         db,
@@ -964,11 +987,11 @@ async fn equipment_action(
     let ids = if action == "set_lock_equip_item" {
         vec![req.number("EquipItemSlotIndex", 0)?]
     } else {
-        req.ids(if action == "sell_equip" {
+        req.ids_with_limit(if action == "sell_equip" {
             "EquipItemSlotIndices"
         } else {
             "EquipItemSlotIndex"
-        })?
+        }, 1000)?
     };
     if ids.is_empty() {
         return Err(rule("EquipNotOwned"));
@@ -1131,6 +1154,17 @@ pub(crate) async fn activate_booster(
     if !matches!(n(data, "Type"), 1 | 3) || data["IsOnetime"] == true {
         return Err(rule("ItemTypeMismatch"));
     }
+    activate_booster_definition(db, state, account, index, count, data).await
+}
+
+async fn activate_booster_definition(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    index: i32,
+    count: i32,
+    data: &Value,
+) -> Result<Value> {
     let duration = n(data, "Duration")
         .checked_mul(count as i64)
         .ok_or_else(|| rule("Fail"))?;

@@ -265,8 +265,7 @@ async fn claim(
     tutorial::team_exp(db, state, account, rewards.team_exp_to_add, &mut rewards).await?;
     let mut result = json!({"CurrencyResults":rewards.currencies,"ItemResults":rewards.items,"EquipItemResults":rewards.equipment,"StaminaResults":[]});
     if stamina > 0 {
-        let row=sqlx::query("UPDATE user_info SET stamina=stamina+? WHERE account_id=? RETURNING stamina,stamina_recharge_time").bind(stamina).bind(account).fetch_one(&mut *db).await?;
-        result["StaminaResults"] = json!([{"Type":"Chicken","AddValue":stamina,"NewValue":row.get::<i64,_>("stamina"),"StaminaRechargeTime":chrono::DateTime::from_timestamp(row.get::<i64,_>("stamina_recharge_time"),0).map(|v|v.format("%Y-%m-%d %H:%M:%S").to_string()),"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}]);
+        result["StaminaResults"] = json!([crate::api::account::stamina::add(db,state,account,1,stamina).await?]);
     }
     if let Some(index) = rewards.heroes.first() {
         result["HeroAddResult"] = json!({"HeroInfo":tutorial::hero_info(db,account,*index).await?,"TeamExpResult":rewards.team_exp.first()});

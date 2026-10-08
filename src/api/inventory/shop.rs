@@ -124,7 +124,12 @@ async fn stock(
     let expired = old.as_ref().is_some_and(|r| {
         r.get::<i64, _>("restock_time") > 0 && r.get::<i64, _>("restock_time") <= now
     });
-    let needs = old.is_none() || refresh || expired;
+    let mut expected: Vec<Value> = state.tables.hero_shop.shop_items.iter()
+        .filter(|v| n(v,"ShopIndex")==shop_id as i64 && purchasable(state,shop,v)).cloned().collect();
+    expected.sort_by_key(|r| n(r,"Index"));
+    let catalog_changed = matches!(shop_id,4|20|21|27) && old.as_ref().is_some_and(|r|
+        serde_json::from_str::<Vec<Value>>(&r.get::<String,_>("stock")).ok().as_ref()!=Some(&expected));
+    let needs = old.is_none() || refresh || expired || catalog_changed;
     if needs {
         let rev = old
             .as_ref()
@@ -196,7 +201,7 @@ async fn execute(
     if n(shop, "EventOnly") != 0 {
         return Err(rule("ContentsDisabled"));
     }
-    let guild_level = if n(shop, "BuyCostType") == 4 {
+    let guild_level = if matches!(n(shop, "BuyCostType"), 4 | 17) {
         Some(crate::api::community::validate_shop(db, state, account, id as i64).await?)
     } else { None };
     let mut out = item::success();
@@ -221,7 +226,7 @@ async fn execute(
     }
     let (mut rows, restock) = stock(db, state, account, shop, refresh).await?;
     if let Some(level) = guild_level {
-        if shop["UseGroupIndexForLevel"] == true { rows.retain(|r|n(r,"GroupIndex")<=level); }
+        if shop["UseGroupIndexForLevel"] == true { rows.retain(|r|n(r,"GroupIndex")==level); }
     }
     let rotating = n(shop, "MaxStock") > 0;
     let revision = n(&restock, "ShopItemListIndex");

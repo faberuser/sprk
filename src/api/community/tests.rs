@@ -3,7 +3,7 @@ use crate::api::account::user;
 use crate::database;
 use crate::tables::GameTables;
 use std::{path::Path, sync::OnceLock};
-async fn setup() -> AppState {
+pub(crate) async fn setup() -> AppState {
     static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
@@ -20,7 +20,7 @@ async fn setup() -> AppState {
             .clone(),
     )
 }
-async fn login(s: &AppState, id: &str) -> Value {
+pub(crate) async fn login(s: &AppState, id: &str) -> Value {
     let u = json!(
         user::login(State(s.clone()), Bytes::from(format!("LoginId={id}")))
             .await
@@ -34,7 +34,7 @@ async fn login(s: &AppState, id: &str) -> Value {
         .unwrap();
     u
 }
-async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
+pub(crate) async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
     execute_request(
         s,
         path,
@@ -46,12 +46,12 @@ async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
     .await
     .unwrap()
 }
-async fn create(s: &AppState, u: &Value, name: &str, way: i64) -> i64 {
+pub(crate) async fn create(s: &AppState, u: &Value, name: &str, way: i64) -> i64 {
     let v = call(
         s,
         u,
         "guild/create_guild",
-        &format!("name={name}&logo=1&logoBackground=1&joinWay={way}&reqTeamLevel=1"),
+        &format!("name={name}&logo=1&logoBackground=1&joinWay={way}&reqTeamLevel=1&countryCode=VESPA"),
     )
     .await;
     assert_eq!(v["Result"], "Success", "{v}");
@@ -171,7 +171,7 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
         "Success"
     );
     let body = Bytes::from(format!(
-        "SessionKey={}&ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]",
+        "SessionKey={}&ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]",
         relog["UserInfo"]["SessionKey"].as_str().unwrap()
     ));
     let blocked = super::super::battle::execute_request(&s, "campaign/begin_campaign", body)
@@ -243,6 +243,12 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     let result = call(&s, &u, "match/set_offline_match_result", end).await;
     assert_eq!(result["Result"], "Success", "{result}");
     assert_eq!(result["MatchResult"]["GainedMatchScore"], 20);
+    assert_eq!(result["MatchResult"]["NewTotalRank"], 0);
+    assert_eq!(result["MatchResult"]["NewTierRank"], 0);
+    assert_eq!(result["BattleInfo"]["Rank"], 0);
+    let snapshot: String = sqlx::query_scalar("SELECT data FROM community_state WHERE owner=? AND kind='arena_daily'")
+        .bind(n(&u["UserInfo"], "AccountId")).fetch_one(&s.db).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&snapshot).unwrap()["Rank"], 1);
     assert_ne!(
         call(&s, &u, "match/set_offline_match_result", end).await["Result"],
         "Success"
@@ -266,6 +272,11 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
     let s = setup().await;
     let u = login(&s, "raider").await;
     create(&s, &u, "Raiders", 1).await;
+    let initial = call(&s,&u,"guild_raid/get_guild_raid_list","").await;
+    let boss=initial["GuildRaidInfos"].as_array().unwrap().iter().find(|v|n(v,"ChapterIndex")==6002).unwrap();
+    assert_eq!(boss["MonsterHp0"],53_372_402_134i64);
+    let scores=call(&s,&u,"guild_raid/get_guild_raid_member_score_list","").await;
+    assert_eq!(scores["GuildRaidMemberTotalScores"][0]["Score"],0);
     let invoke = |path: &str, args: &str| {
         let s = s.clone();
         let body = Bytes::from(format!(
@@ -279,16 +290,29 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
                 .unwrap()
         }
     };
-    let entry = "ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]";
+    let entry = "ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
     let first = invoke("campaign/begin_campaign", entry).await;
     assert_eq!(first["Result"], "Success", "{first}");
     assert_eq!(first["StaminaResult"]["AddValue"], -1);
     assert_eq!(invoke("campaign/begin_campaign", entry).await, first);
-    let end="ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=0&Completed=false&TotalDamage=1000000000";
-    let result = invoke("campaign/end_campaign", end).await;
+    // Match Unity's zero TotalDamage, string-valued creature fields and extra
+    // URL escaping. Invalid/duplicate boss records must not consume the entry.
+    for creatures in [
+        json!([{"Index":"900","Key":"900_0_1","TeamId":"1","Hp":"-1"}]),
+        json!([{"Index":"900","Key":"900_0_1","TeamId":"1","Hp":"0"},{"Index":"900","Key":"900_0_1","TeamId":"1","Hp":"0"}]),
+    ] {
+        let encoded = serde_urlencoded::to_string([("CreatureInfoString", creatures.to_string())]).unwrap();
+        let result = invoke("campaign/end_campaign", &format!("ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=1&Completed=true&TotalDamage=0&{encoded}")).await;
+        assert_ne!(result["Result"], "Success", "{result}");
+    }
+    let creatures = json!([{"Index":"900","Key":"900_0_1","TeamId":"1","Hp":"0"}]).to_string();
+    let encoded = serde_urlencoded::to_string([("CreatureInfoString", urlencoding::encode(&creatures).to_string())]).unwrap();
+    let end = format!("ChapterIndex=6002&DungeonIndex=1&DungeonDifficulty=1&Completed=true&TotalDamage=0&{encoded}");
+    let result = invoke("campaign/end_campaign", &end).await;
     assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["GuildRaidMemberTotalScoreInfo"]["Score"],53_372_402_134i64);
     assert_ne!(
-        invoke("campaign/end_campaign", end).await["Result"],
+        invoke("campaign/end_campaign", &end).await["Result"],
         "Success"
     );
     let list = call(&s, &u, "guild_raid/get_guild_raid_list", "").await;
@@ -299,6 +323,7 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
         .find(|v| n(v, "ChapterIndex") == 6002)
         .unwrap();
     assert_eq!(current["DungeonIndex"], 2);
+    assert_eq!(current["MonsterHp0"],104_803_241_581i64);
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM mails WHERE title='Guild raid boss defeated'")
             .fetch_one(&s.db)
@@ -308,6 +333,68 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
     let a = n(&u["UserInfo"], "AccountId");
     let saved: String=sqlx::query_scalar("SELECT reward_currencies FROM mails WHERE account_id=? AND title='Guild raid boss defeated'").bind(a).fetch_one(&s.db).await.unwrap();
     assert!(saved.contains("GuildPoint"));
+}
+
+#[tokio::test]
+async fn guild_raid_placeholder_health_migrates_once_and_dead_boss_stays_dead() {
+    let s=setup().await;let u=login(&s,"hp-migrate").await;let g=create(&s,&u,"Migrate",1).await;
+    call(&s,&u,"guild_raid/get_guild_raid_list","").await;
+    sqlx::query("UPDATE community_state SET data=json_remove(json_set(data,'$.MonsterHp0',500000000),'$.HpSchema') WHERE owner=? AND kind='guild_raid' AND idx=6002").bind(g).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE community_state SET data=json_remove(json_set(data,'$.MonsterHp0',0,'$.IsOngoing',0),'$.HpSchema') WHERE owner=? AND kind='guild_raid' AND idx=6003").bind(g).execute(&s.db).await.unwrap();
+    for _ in 0..2 {
+        let v=call(&s,&u,"guild_raid/get_guild_raid_list","").await;
+        let bosses=v["GuildRaidInfos"].as_array().unwrap();
+        assert_eq!(bosses.iter().find(|v|n(v,"ChapterIndex")==6002).unwrap()["MonsterHp0"],26_686_201_067i64);
+        assert_eq!(bosses.iter().find(|v|n(v,"ChapterIndex")==6003).unwrap()["MonsterHp0"],-1);
+    }
+}
+
+#[tokio::test]
+async fn guild_booty_can_be_bought_from_both_native_shops_and_persists() {
+    let s=setup().await;let u=login(&s,"booty-buyer").await;let g=create(&s,&u,"Booty",1).await;
+    let a=n(&u["UserInfo"],"AccountId");
+    let id=s.tables.get_item_index("STAMINA_POTION_S").unwrap();
+    {
+        let mut db=s.db.acquire().await.unwrap();hero::currency(&mut db,a,"GuildPoint",10000).await.unwrap();
+        for (key,equip) in [(1,false),(2,false)] {
+            put(&mut db,g,"guild_booty",key,&json!({"Id":key,"ShopIndex":4,"ItemIndex":id,"ItemCount":3,"Count":3,"Equipment":equip,"Price":10,"Expires":now()+86400,"CreatedTime":time(now())})).await.unwrap();
+        }
+    }
+    for (key,shop) in [(1,20),(2,4)] {
+        let args=format!("Id={key}&ShopIndex={shop}&ItemIndex={id}&Count=3");
+        let bad=call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&format!("Id={key}&ShopIndex={shop}&ItemIndex={id}&Count=4")).await;
+        assert_ne!(bad["Result"],"Success");
+        let bought=call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&args).await;
+        assert_eq!(bought["Result"],"Success","{bought}");
+        assert_eq!(bought["GuildPointResult"]["AddValue"],-30);
+        assert_ne!(call(&s,&u,"guild_raid/buy_guild_raid_booty_item",&args).await["Result"],"Success");
+    }
+    assert_eq!(call(&s,&u,"guild_raid/get_guild_raid_all_booty_items","").await["ItemInfos"],json!([]));
+    let qty:i64=sqlx::query_scalar("SELECT SUM(json_extract(data,'$.ItemCount')) FROM community_state WHERE owner=? AND kind='guild_booty'").bind(g).fetch_one(&s.db).await.unwrap();
+    assert_eq!(qty,0);
+}
+
+#[tokio::test]
+async fn guild_restored_shop_stock_matches_current_building_level_and_prices() {
+    let s=setup().await;let u=login(&s,"guild-shop-buyer").await;create(&s,&u,"Shopper",1).await;
+    let a=n(&u["UserInfo"],"AccountId");
+    {let mut db=s.db.acquire().await.unwrap();for currency in ["GuildPoint","GuildArenaPoint"] {hero::currency(&mut db,a,currency,1_000_000).await.unwrap();}}
+    let request=|shop|Bytes::from(format!("SessionKey={}&ShopIndex={shop}",u["UserInfo"]["SessionKey"].as_str().unwrap()));
+    for shop in [4,20,21,27] {
+        let v=crate::api::inventory::shop::get_shop_list(State(s.clone()),request(shop)).await.unwrap().0;
+        assert_eq!(v["Result"],"Success","{v}");
+        let items=v["ShopItems"].as_array().unwrap();
+        if shop==20 {assert!(items.is_empty());continue;}
+        assert!(!items.is_empty());
+        if shop==27 {assert_eq!(items.len(),10);}
+        if shop==4 {for row in items {let index=n(row,"ListNo");let def=s.tables.hero_shop.shop_items.iter().find(|v|n(v,"ShopIndex")==4&&n(v,"Index")==index).unwrap();assert_eq!(def["GroupIndex"],1);}}
+        let row=items.iter().find(|v|v["ItemCode"]=="STAMINA_POTION_S"||v["ItemCode"]=="PRESENT_NPC_COMMON_3"||v["ItemCode"]=="CRYSTAL_1").unwrap_or(&items[0]);
+        let body=Bytes::from(format!("SessionKey={}&ShopIndex={shop}&ShopItemIndex={}&ShopItemPurchaseCount=1",u["UserInfo"]["SessionKey"].as_str().unwrap(),n(row,"ListNo")));
+        let bought=crate::api::inventory::shop::buy_shop_item(State(s.clone()),body).await.unwrap().0;
+        assert_eq!(bought["Result"],"Success","shop {shop}: {bought}");
+        let again=crate::api::inventory::shop::get_shop_list(State(s.clone()),request(shop)).await.unwrap().0;
+        assert_eq!(again["ShopItems"].as_array().unwrap().iter().find(|v|n(v,"ListNo")==n(row,"ListNo")).unwrap()["Purchased"],1);
+    }
 }
 #[tokio::test]
 async fn guild_levels_buildings_and_skills_charge_target_level_once() {
@@ -333,7 +420,7 @@ async fn guild_levels_buildings_and_skills_charge_target_level_once() {
         &s,
         &u,
         "guild/level_up_guild_building",
-        "BuildingIndex=3&BuildingLevel=1",
+        "BuildingIndex=3&BuildingLevel=2",
     )
     .await;
     assert_eq!(shop["Result"], "Success", "{shop}");
@@ -342,7 +429,7 @@ async fn guild_levels_buildings_and_skills_charge_target_level_once() {
             &s,
             &u,
             "guild/level_up_guild_building",
-            "BuildingIndex=3&BuildingLevel=1"
+            "BuildingIndex=3&BuildingLevel=2"
         )
         .await["Result"],
         "Success"
@@ -352,7 +439,7 @@ async fn guild_levels_buildings_and_skills_charge_target_level_once() {
             &s,
             &u,
             "guild/level_up_guild_building",
-            "BuildingIndex=2&BuildingLevel=1"
+            "BuildingIndex=2&BuildingLevel=2"
         )
         .await["Result"],
         "Success"
@@ -361,16 +448,25 @@ async fn guild_levels_buildings_and_skills_charge_target_level_once() {
         &s,
         &u,
         "guild/level_up_guild_skill",
-        "SkillIndex=1&SkillLevel=1",
+        "SkillIndex=1&SkillLevel=2",
     )
     .await;
     assert_eq!(skill["Result"], "Success", "{skill}");
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        let info = guild::state(&mut db, &s, g).await.unwrap();
+        assert_eq!(info["Skill1Level"], 2);
+        let skill = info["SkillInfos"].as_array().unwrap().iter().find(|v| n(v,"SkillIndex")==1).unwrap();
+        assert_eq!(skill["ActivitySpent"], 100000);
+        assert_eq!(skill["EffectSkillIndex"], 70000002);
+        assert_eq!(guild_reward_boost(&mut db, &s, n(&u["UserInfo"],"AccountId")).await.unwrap(), (3,3));
+    }
     assert_ne!(
         call(
             &s,
             &u,
             "guild/level_up_guild_skill",
-            "SkillIndex=1&SkillLevel=1"
+            "SkillIndex=1&SkillLevel=2"
         )
         .await["Result"],
         "Success"
@@ -395,14 +491,23 @@ async fn guild_arena_decks_matches_and_replay_protection() {
     let enemy = create(&s, &v, "Defenders", 1).await;
     let season = arena::season(&s).0;
     for player in [&u, &v] {
+        let empty = call(&s, player, "guild_arena/get_guild_arena_deck", &format!("SeasonIndex={season}")).await;
+        assert_eq!(empty["DeckInfos"].as_array().unwrap().len(), 5);
+        assert_eq!(empty["DeckInfos"][0]["HeroIndices"], json!([]));
         let d = call(
             &s,
             player,
             "guild_arena/set_guild_arena_deck",
-            &format!("SeasonIndex={season}&HeroIndices1=[1]"),
+            &format!("SeasonIndex={season}&HeroIndices1=1"),
         )
         .await;
         assert_eq!(d["Result"], "Success", "{d}");
+        let skills = call(&s, player, "guild_arena/set_guild_arena_deck_skill",
+            &format!("SeasonIndex={season}&SkillSlotIndices1=0&SkillSlotIndices1=2")).await;
+        assert_eq!(skills["Result"], "Success", "{skills}");
+        let saved = call(&s, player, "guild_arena/get_guild_arena_deck",
+            &format!("SeasonIndex={season}")).await;
+        assert_eq!(saved["DeckInfos"][0]["SkillSlotIndices"], json!([0, 2]));
         assert_eq!(
             call(
                 &s,
@@ -519,17 +624,22 @@ async fn arena_pages_and_reward_rollover_are_persistent() {
 }
 
 #[tokio::test]
-async fn unavailable_suppression_does_not_advertise_or_register_a_battle() {
-    let s = setup().await;
+async fn conquest_registration_and_native_session_are_available() {
+    let mut s = setup().await;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).arena_guild).rules["GuildConquestTestTime"]=json!(1767628800+3600);
     let u = login(&s, "suppression").await;
     create(&s, &u, "Conquest", 1).await;
     let info = call(&s, &u, "guild_suppress/get_guild_suppress_session_info", "").await;
-    assert_eq!(info["GuildSuppressSessionInfo"]["State"], "NotHeld");
+    assert_eq!(info["GuildSuppressSessionInfo"]["State"], "Apply");
     assert_eq!(info["GuildSuppressApplied"], false);
-    assert_ne!(
+    assert_eq!(info["GuildSuppressPlayInfos"].as_array().unwrap().len(),3);
+    assert_eq!(info["GuildSuppressPlayInfos"][0]["MonsterHp0"],100001423152872_i64);
+    assert_eq!(
         call(&s, &u, "guild_suppress/apply_guild_suppress", "").await["Result"],
         "Success"
     );
+    assert_eq!(call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await["GuildSuppressApplied"],true);
+    assert_eq!(call(&s,&u,"guild_suppress/apply_guild_suppress","").await["Result"],"AlreadyApplied");
 }
 
 #[tokio::test]
@@ -554,4 +664,22 @@ async fn portal_guild_raid_polling_without_membership_is_empty() {
     let list = call(&s, &u, "guild_raid/get_guild_raid_list", "").await;
     assert_eq!(list["Result"], "Success", "{list}");
     assert!(!list["GuildRaidInfos"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn arena_ranks_are_zero_based_and_pages_keep_first_player() {
+    let s = setup().await;
+    let first = login(&s, "rank-first").await;
+    let second = login(&s, "rank-second").await;
+    for (user, rank) in [(&first, 0), (&second, 1)] {
+        let info = call(&s, user, "match/get_match_rank", "").await;
+        assert_eq!(info["RankResult"]["TotalRank"], rank, "{info}");
+        assert_eq!(info["BattleInfo"]["TierRank"], rank);
+        let page = call(&s, user, "match/get_match_ranker", &format!("StartRank={rank}&EndRank={rank}")).await;
+        assert_eq!(page["MatchRankers"].as_array().unwrap().len(), 1);
+        assert_eq!(page["MatchRankers"][0]["Rank"], rank);
+        assert_eq!(page["MatchRankers"][0]["AccountId"], user["UserInfo"]["AccountId"]);
+    }
+    let registered = call(&s, &second, "match/register_match", "ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;
+    assert_eq!(registered["AccountInfo"]["Rank"], 1);
 }

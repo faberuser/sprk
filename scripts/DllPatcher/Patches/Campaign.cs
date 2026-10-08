@@ -52,16 +52,24 @@ partial class Program
 
     static void PatchCampaignSurvivors(ModuleDefinition module)
     {
-        var context = module.Types.Single(t => t.FullName == "NGame2.NBattleContext.CampaignContext");
+        PatchPartySurvivors(module, "NGame2.NBattleContext.CampaignContext", "EndCampaign", "GroupHeroIndices");
+        // Karma and Apocalypsion share a separate result collector, which also
+        // includes surviving enemies unless filtered to the selected party.
+        PatchPartySurvivors(module, "NGame2.NBattleContext.PunishmentRaidContext", "EndContent", "AiHeroIndices");
+    }
+
+    static void PatchPartySurvivors(ModuleDefinition module, string contextName, string methodName, string extraParty)
+    {
+        var context = module.Types.Single(t => t.FullName == contextName);
         if (context.Methods.Any(m => m.Name == "SprkAddPartySurvivor")) return;
-        var endCampaign = context.Methods.Single(m => m.Name == "EndCampaign");
+        var endCampaign = context.Methods.Single(m => m.Name == methodName);
         var addInstruction = endCampaign.Body.Instructions.Single(i => i.Operand is MethodReference m
             && m.Name == "Add" && m.DeclaringType is GenericInstanceType g
             && g.ElementType.FullName == "System.Collections.Generic.List`1"
             && g.GenericArguments[0].FullName == "System.Int32");
         var helper = BuildSurvivorFilter(module, context, (MethodReference)addInstruction.Operand);
         // The native loop already checks HP, but includes creatures from both teams.
-        // Pass only selected main/sub-party heroes, never surviving scenario NPCs.
+        // Pass only selected main/extra-party heroes, never surviving enemies or NPCs.
         var il = endCampaign.Body.GetILProcessor();
         addInstruction.OpCode = OpCodes.Ldarg_0;
         addInstruction.Operand = null;
@@ -69,10 +77,10 @@ partial class Program
         foreach (var instruction in new[] {
             il.Create(OpCodes.Ldfld, context.Fields.Single(f => f.Name == "HeroIndices")),
             il.Create(OpCodes.Ldarg_0),
-            il.Create(OpCodes.Ldfld, context.Fields.Single(f => f.Name == "GroupHeroIndices")),
+            il.Create(OpCodes.Ldfld, context.Fields.Single(f => f.Name == extraParty)),
             il.Create(OpCodes.Call, helper) })
         { il.InsertAfter(last, instruction); last = instruction; }
-        Console.WriteLine("Patched campaign survivor reports to include only selected party heroes");
+        Console.WriteLine($"Patched {context.Name}.{methodName} survivor reports to include only selected party heroes");
     }
 
     static void TestCampaignSurvivors()
@@ -86,12 +94,17 @@ partial class Program
         module.Write(bytes);
         var method = System.Reflection.Assembly.Load(bytes.ToArray()).GetType("SurvivorFilter")!.GetMethod("SprkAddPartySurvivor")!;
         var result = new System.Collections.Generic.List<int>();
-        foreach (int id in new[] { 1, 99999, 4, 1, 3 })
+        foreach (int id in new[] { 1, 99999, 4, 1, 3, 0, -1 })
             method.Invoke(null, new object?[] { result, id, new[] { 1, 2 }, new[] { 4 } });
         if (!result.SequenceEqual(new[] { 1, 4 })) throw new Exception("Invalid survivor filtering");
         method.Invoke(null, new object?[] { result, 7, null, null });
         method.Invoke(null, new object?[] { result, 8, null, new[] { 8 } });
         if (!result.SequenceEqual(new[] { 1, 4, 8 })) throw new Exception("Invalid null-party handling");
-        Console.WriteLine("Survivor IL tests passed: main/sub parties, NPC rejection, duplicates, and null arrays");
+                // A defeat with a living boss must report no selected survivors.
+        var defeated = new System.Collections.Generic.List<int>();
+        foreach (int id in new[] { 99999, 88888 })
+            method.Invoke(null, new object?[] { defeated, id, new[] { 80, 79, 72, 101 }, Array.Empty<int>() });
+        if (defeated.Count != 0) throw new Exception("Living enemies reported as heroes after defeat");
+        Console.WriteLine("Survivor IL tests passed: party/AI survivors, enemy-only defeat, NPC rejection, duplicates, invalid indices, and null arrays");
     }
 }

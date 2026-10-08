@@ -518,7 +518,7 @@ pub async fn complete_tutorial(
     let account_id = account(&state, &req)?;
     let (index, data) = definition(&state, &req)?;
     let mut tx = state.db.begin().await?;
-    if index == 20001 && !clause_stage_cleared(&mut tx, account_id).await? {
+    if matches!(index,20001|20002) && !clause_stage_cleared(&mut tx, account_id).await? {
         return Err(ServerError::InvalidRequest("Clause requires clearing stage 1-20".into()));
     }
     let response = complete_in_transaction(&mut tx, &state, account_id, index, data).await?;
@@ -572,17 +572,19 @@ async fn clause_stage_cleared(db: &mut SqliteConnection, account_id: i64) -> Res
         .bind(account_id).fetch_one(db).await?)
 }
 
-/// Client event 10034 awards tutorial 20001 on lobby entry after 1-20.
-/// Recover missed/skipped triggers even after 2-1; retain the same reward receipt.
+/// Original event 10034 starts 20001, whose last step invokes 20002 to award Clause.
+/// Recover both missed/skipped steps after 1-20, preserving their own receipts.
 pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> Result<()> {
     let mut tx = state.db.begin().await?;
     // Serialize this recovery with native tutorial completion before reading eligibility.
     sqlx::query("UPDATE accounts SET account_id=account_id WHERE account_id=?")
         .bind(account_id).execute(&mut *tx).await?;
     if clause_stage_cleared(&mut tx, account_id).await? {
-        let data = state.tables.tutorials.get(20001)
-            .ok_or_else(|| ServerError::Internal("Missing Clause tutorial 20001".into()))?;
-        complete_in_transaction(&mut tx, state, account_id, 20001, data).await?;
+        for index in [20001,20002] {
+            let data = state.tables.tutorials.get(index)
+                .ok_or_else(|| ServerError::Internal(format!("Missing Clause tutorial {index}")))?;
+            complete_in_transaction(&mut tx, state, account_id, index, data).await?;
+        }
     }
     tx.commit().await?;
     Ok(())

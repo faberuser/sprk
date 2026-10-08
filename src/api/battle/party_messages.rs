@@ -13,6 +13,7 @@ pub(crate) fn supported(name: &str) -> bool {
             | "ChangePartyRoomMaster"
             | "ChangePartyRoomInfo"
             | "LeaveParty"
+            | "PartyBattleStart"
     )
 }
 fn number(v: &Value, key: &str) -> i64 {
@@ -235,6 +236,11 @@ pub(crate) async fn send(
                         json!({"PartyInfo":content["PartyInfo"]}),
                     ));
                 }
+            }
+        } else if protocol=="PartyBattleStart" {
+            content=super::cooperative::party_start(&mut db,s,a,&room).await?;
+            for receiver in recipients.into_iter().filter(|v|*v!=a) {
+                messages.push((receiver,a,protocol.into(),content.clone()));
             }
         } else {
             if n(&room, "Status") != 0 {

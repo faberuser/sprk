@@ -1,0 +1,227 @@
+using System;
+using System.IO;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using NShared;
+using NShared.NCampaign;
+using NGame2.NBattleField;
+using NGameAsset;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+
+// Only the separate service process receives SPRK_CONQUEST_WORKER_KEY.
+// Ordinary game clients use this assembly solely for authenticated login and
+// initial shared boss HP; they cannot submit authoritative combat results.
+public sealed class SprkConquest : MonoBehaviour {
+    static SprkConquest instance;
+    static readonly Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]> seeds=new Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]>();
+    public static Dictionary<string,object> Login(Dictionary<string,object> value) {
+        var web=SingletonUpdater<WebServiceManager>.instance;
+        if(web!=null && web.Requester!=null)value["SessionKey"]=web.Requester.SessionKey;
+        return value;
+    }
+    public static Dictionary<string,object> ReplayStatus(Dictionary<string,object> value) {
+        value["BattleStopped"]=SingletonAuto<BattleFacade>.isValidInstance && SingletonAuto<BattleFacade>.instance.GetStoppedBattleInstance()!=null;
+        return value;
+    }
+    public static WaveReadyBattleLog ReadSeed(WaveReadyBattleLog value,IDictionary data) {
+        if(value!=null && value.ChapterIndex==9900 && data.Contains("ConquestInitialCreatures")) {
+            var list=data["ConquestInitialCreatures"] as IList;
+            if(list!=null)seeds[value]=list.Cast<IDictionary>().Select(JM_NShared_ResultCreatureInfo.Parse).ToArray();
+        }
+        return value;
+    }
+    public static void ApplySeed(WaveReadyBattleLog value,BattleInstance battle) {
+        ResultCreatureInfo[] initial;
+        if(seeds.TryGetValue(value,out initial)) {battle.SetInitialCreatureInfo(initial);seeds.Remove(value);}
+    }
+    public static List<ResultCreatureInfo> ScoreBoss(List<ResultCreatureInfo> infos,BattleInstance battle) {
+        if(battle==null || battle.ChapterIndex!=9900 || (battle.DungeonIndex!=3 && battle.DungeonIndex!=103))return infos;
+        foreach(var info in infos) {
+            if(info.TeamId!=1 || info.Index!=8801)continue;
+            var creature=battle.CreatureContainer.GetCreatureByKey(info.Key);
+            if(creature!=null)info.GivedDamage=battle.Snapshot.StatisticsManager.TotalDamagedMeter(creature.Uid);
+        }
+        return infos;
+    }
+    public static void Tick() {
+        if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")))return;
+        if(instance==null) {
+            var go=new GameObject("SprkConquestService");DontDestroyOnLoad(go);instance=go.AddComponent<SprkConquest>();
+            Application.runInBackground=true;Application.targetFrameRate=60;
+            Debug.Log("SPRK conquest service initialized");
+        }
+    }
+    void Update() {Step();}
+    class Run : IBattleLogListener {
+        public SprkConquest owner;
+        public string id;
+        public CampaignUpdater updater;
+        public long hp;
+        public int boss;
+        public bool ended;
+        public float budget;
+        public Dictionary<int,long> heroes=new Dictionary<int,long>();
+        public HashSet<long> withdrawn=new HashSet<long>();
+        public List<object> logs=new List<object>();
+        public void OnProcessBattleLog(long time,BattleLog log) {
+            if(log.Type==BattleLogType.WaveReady) {
+                var data=MiniJSON.Json.Deserialize(log.Data) as IDictionary;
+                var ready=JM_NShared_WaveReadyBattleLog.Parse(data);
+                var initial=new List<object>();
+                foreach(var monster in ready.MonsterCreateInfos ?? new BattleCreatureCreateInfo[0]) {
+                    if(monster.HeroInfo.HeroIndex==boss)initial.Add(JM_NShared_ResultCreatureInfo.EncodeJsonObject(new ResultCreatureInfo {
+                        Index=boss,TeamId=1,Key=ResultCreatureInfo.GetKey(boss,monster.WaveSlotIndex,1),Hp=hp,
+                        MaxHp=monster.StatData.GetStat(StatType.MaxHp),Mp=0,MaxMp=(int)monster.StatData.GetStat(StatType.MaxMp)}));
+                }
+                data["ConquestInitialCreatures"]=initial;log.BaseBattleLog.Data=MiniJSON.Json.Serialize(data);
+            }
+            logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
+            if(log.Type==BattleLogType.WaveReady || log.Type==BattleLogType.WaveEnd) {
+                Flush();owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name",log.Type==BattleLogType.WaveReady?"WaveReadyNot":"WaveEndNot"},
+                    {"Body",new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}}}});
+            }
+        }
+        public void Flush() {
+            if(logs.Count==0)return;
+            owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name","BattleLogNot"},
+                {"Body",new Dictionary<string,object>{{"BattleLogs",logs.ToArray()},{"ServerTimeMs",updater.BattleInstance.GlobalTimer.GetCurrentTimeMs()}}}});logs.Clear();
+        }
+    }
+    readonly Dictionary<string,Run> runs=new Dictionary<string,Run>();
+    readonly Queue<string> incoming=new Queue<string>();
+    readonly object queueLock=new object(),sendLock=new object();
+    TcpClient socket;StreamWriter writer;float retryAt,lastStep,lastHeartbeat;
+    volatile bool connected;
+    void Connect() {
+        retryAt=Time.realtimeSinceStartup+5;
+        // Data containers load through the ordinary client startup; no player
+        // account or client-supplied stat snapshot is needed by this service.
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        if(GameRoot.Instance.JsonLoader==null) {SingletonAuto<TableDataManager>.instance.Load(true);return;}
+        var creatures=GameRoot.Instance.CreatureDataContainer;
+        if(creatures==null || creatures.GetData(1)==null)return;
+        new Thread(()=> {
+            try {
+                socket=new TcpClient();socket.NoDelay=true;
+                int port; if(!Int32.TryParse(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_PORT"),out port))port=9002;
+                socket.Connect(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_HOST") ?? "127.0.0.1",port);
+                writer=new StreamWriter(socket.GetStream(),new UTF8Encoding(false)){AutoFlush=true,NewLine="\r\n"};connected=true;
+                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")}});
+                using(var reader=new StreamReader(socket.GetStream())) {
+                    string line;while((line=reader.ReadLine())!=null) {
+                        if(line.Length>8*1024*1024)throw new IOException("Oversized worker message");
+                        lock(queueLock)incoming.Enqueue(line);
+                    }
+                }
+            } catch(Exception e) {Debug.LogWarning("SPRK conquest service connection: "+e.Message);}
+            finally {connected=false;if(socket!=null)socket.Close();}
+        }){IsBackground=true}.Start();
+    }
+    void Send(string name,object value) {
+        lock(sendLock) {
+            if(writer==null)return;
+            writer.WriteLine(name+" "+Convert.ToBase64String(Encoding.UTF8.GetBytes(MiniJSON.Json.Serialize(value))));
+        }
+    }
+    void Step() {
+        float now=Time.realtimeSinceStartup;
+        if(!connected) {
+            if(runs.Count>0) {runs.Clear();Debug.LogWarning("SPRK conquest service disconnected; active runs cancelled");}
+            if(now>=retryAt)Connect();lastStep=now;return;
+        }
+        if(now-lastHeartbeat>=5) {lastHeartbeat=now;Send("WorkerPing",new Dictionary<string,object>());}
+        try {
+            for(int count=0;count<100;count++) {
+                string line;lock(queueLock) {if(incoming.Count==0)break;line=incoming.Dequeue();}
+                var pair=line.Split(new[]{' '},2);var data=MiniJSON.Json.Deserialize(Encoding.UTF8.GetString(Convert.FromBase64String(pair[1]))) as IDictionary;
+                if(pair[0]=="WorkerLoginRes") {Debug.Log("SPRK conquest service authenticated");continue;}
+                string id=Convert.ToString(data["RunId"]);Run run;
+                if(pair[0]=="WorkerPrepare")Prepare(id,data);
+                else if(runs.TryGetValue(id,out run)) {
+                    if(pair[0]=="WorkerStart")run.updater.StartBattle(true);
+                    else if(pair[0]=="WorkerResume")run.updater.SetWavePauseFalse();
+                    else if(pair[0]=="WorkerCancel")runs.Remove(id);
+                    else if(pair[0]=="WorkerCommand")Command(run,data);
+                    else if(pair[0]=="WorkerWithdraw") {
+                        long account=Convert.ToInt64(data["AccountId"]);run.withdrawn.Add(account);
+                        run.updater.BattleInstance.BattleLogContainer.AddLog(new CreatureSetAiBattleLog{PlayerId=account,SetAi=true});
+                        if(run.heroes.Values.Distinct().All(run.withdrawn.Contains))run.updater.BattleInstance.BattleLogContainer.AddLog(new WaveWithdrawBattleLog());
+                    }
+                }
+            }
+            float elapsed=System.Math.Max(0,System.Math.Min(now-lastStep,0.5f));lastStep=now;
+            foreach(var run in runs.Values.ToArray()) {
+                if(run.ended)continue;
+                run.budget+=elapsed*1000;
+                while(run.budget>=100 && !run.updater.IsBattleEnd()) {
+                    run.budget-=100;run.updater.Update();run.updater.BattleInstance.UpdateTick(false);SnapshotObjectPoolContainer.FlushPendingRelease();
+                }
+                run.Flush();
+                if(run.updater.IsBattleEnd())Finish(run);
+            }
+        } catch(Exception e) {Debug.LogError("SPRK conquest service: "+e);connected=false;socket.Close();}
+    }
+    void Prepare(string id,IDictionary data) {
+        if(runs.ContainsKey(id))return;
+        GameRoot.Instance.InitForClient();
+        GameRoot.Instance.BattleLogFactory.SetSerializer(new BattleLogFactory.BattleLogSerializer(JsonMarshaler.EncodeJsonString<IBattleLogRuntime>));
+        GameRoot.Instance.BattleLogFactory.SetDeserializer(new BattleLogFactory.BattleLogDeserializer(JsonMarshaler.Parse));
+        GameRoot.Instance.OnDataContainerLoaded(false);
+        var info=JM_NShared_BattleSimulationInfo.Parse(MiniJSON.Json.Serialize(data["Simulation"]));
+        var builder=new BattleInstanceBuilder();builder.SetCampaignDungeon(info.ChapterIndex,info.DungeonIndex,info.DungeonDifficulty,false);builder.EnableSnapshot(false);
+        var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"])};
+        foreach(var account in info.AccountInfos) {
+            var creatures=new List<BattleCreatureCreateInfo>();
+            foreach(var h in account.HeroInfos.Values) {
+                h.Validate();run.heroes[h.HeroIndex]=account.UserInfo.AccountId;
+                creatures.Add(BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,false,false,
+                    new BattleCreatureCreateInfo.BuffSkillInfo{GuildSkillDataBases=account.GuildSkills,AccountBuffDataBases=account.AccountBuffs,ClassBuffDataBasess=account.ClassBuffDataBases},
+                    new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},0));
+            }
+            enter.Add(new PlayerEnterBattleLog{PlayerCreateInfo=new BattlePlayerCreateInfo{Id=account.UserInfo.AccountId,TeamType=TeamType.Left},CreatureCreateInfos=creatures.ToArray()});
+        }
+        builder.SetEnterPlayerBattleLogList(enter);run.updater=builder.BuildUpdater<BattleInstance>(-1,Convert.ToInt32(data["Seed"]),null);
+        run.updater.BattleInstance.BattleLogContainer.SetListener(run);run.updater.BattleInstance.SetDeltaTimeReductionRatio(1);
+        runs[id]=run;Debug.Log("SPRK conquest service prepared "+id+" with "+run.heroes.Count+" heroes");
+    }
+    void Command(Run run,IDictionary data) {
+        var name=Convert.ToString(data["Name"]);var body=data["Body"] as IDictionary;
+        int uid=Convert.ToInt32(body["CreatureUid"]);long account=Convert.ToInt64(data["AccountId"]);
+        var creature=run.updater.BattleInstance.CreatureContainer.GetCreature(uid);
+        if(creature==null || creature.PlayerId!=account)return;
+        IBattleLogRuntime command=null;
+        if(name=="ReserveOnSkillReq")command=JM_NShared_CreatureReserveOnSkillBattleLog.Parse(body);
+        if(name=="ReserveOffSkillReq")command=JM_NShared_CreatureReserveOffSkillBattleLog.Parse(body);
+        if(name=="FireNextSkillReq")command=JM_NShared_CreatureFireNextSkillBattleLog.Parse(body);
+        if(name=="SetManualTargetReq")command=JM_NShared_CreatureManualTargetBattleLog.Parse(body);
+        if(name=="SetManualMoveReq")command=JM_NShared_CreatureManualMoveBattleLog.Parse(body);
+        if(command!=null)run.updater.BattleInstance.BattleLogContainer.AddLog(command);
+    }
+    void Finish(Run run) {
+        run.ended=true;var battle=run.updater.BattleInstance;
+        var infos=BattleInstanceIntegrityChecker.GetCreatureInfoList(battle,-1);
+        var creatures=new List<object>();
+        foreach(var info in infos) {
+            var encoded=JM_NShared_ResultCreatureInfo.EncodeJsonObject(info);long account;
+            encoded["AccountId"]=run.heroes.TryGetValue(info.Index,out account)?account:0;
+            // Native GivedDamage means damage received by an immortal creature.
+            // Keep it intact; contributions use the actual attacker meter.
+            var creature=battle.CreatureContainer.GetCreatureByKey(info.Key);
+            encoded["DealtDamage"]=creature==null?0:battle.Snapshot.StatisticsManager.TotalDamageMeter(creature.Uid);
+            creatures.Add(encoded);
+        }
+        var contributions=new Dictionary<string,object>();
+        foreach(long account in run.heroes.Values.Distinct())contributions[account.ToString()]=battle.Snapshot.StatisticsManager.GetTotalDamageOfAccount(account);
+        Send("WorkerResult",new Dictionary<string,object>{{"RunId",run.id},{"Win",run.updater.GetWinner()==TeamType.Left},
+            {"Creatures",creatures},{"AccountDamage",contributions},{"TimeMs",battle.MainTimer.GetCurrentTimeMs()},{"MaxWaveIndex",run.updater.MaxWaveIndex}});
+        runs.Remove(run.id);
+    }
+    void OnApplicationQuit() {if(socket!=null)socket.Close();}
+}

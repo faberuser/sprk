@@ -54,9 +54,19 @@ pub(super) async fn execute(
         .insert("RaidIndex".into(), n(raid, "Index").to_string());
     request.0.insert("RaidLevel".into(), level.to_string());
     let mut out = if action == "begin_content" {
-        // This reconstructed party has four player-owned heroes and no AI slots.
-        if !ids(r, "AiHeroIndices", 32)?.is_empty()
-            || int(r, "FlaskItemIndex")? != 0
+        // Native Squard includes both owned teams in HeroIndices. For this
+        // contract AiHeroIndices identifies the sub team; it is not an AI roster.
+        let heroes = ids(r, "HeroIndices", 32)?;
+        let sub = ids(r, "AiHeroIndices", 32)?;
+        if sub.iter().collect::<BTreeSet<_>>().len() != sub.len()
+            || sub.iter().any(|id| !heroes.contains(id))
+            || sub.len() as i64 > n(raid, "SubPartyCount")
+            || (heroes.len() - sub.len()) as i64 > n(raid, "MainPartyCount")
+            || !ids(r, "GroupHeroIndices", 32)?.is_empty()
+        {
+            return Err(rule("NotMatchHeroIndices"));
+        }
+        if int(r, "FlaskItemIndex")? != 0
             || int(r, "FlaskItemCount")? != 0
         {
             return Err(rule("ContentsDisabled"));

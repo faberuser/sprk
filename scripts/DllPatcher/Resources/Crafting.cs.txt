@@ -1,0 +1,41 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using NShared;
+
+// Restored archive rows are used by recipe lists, material shortcuts and
+// crafting confirmations. The server loads the same source definitions.
+public static class SprkCrafting {
+    static Dictionary<int,CraftItemData> rows;
+    static Dictionary<int,CraftItemData> Rows() {
+        if(rows!=null)return rows;
+        var result=new Dictionary<int,CraftItemData>();
+        foreach(IDictionary data in (IList)MiniJSON.Json.Deserialize("__RESTORED_CRAFTING__")) {
+            var row=new CraftItemData();
+            foreach(DictionaryEntry field in data) {
+                var property=typeof(CraftItemData).GetProperty((string)field.Key);
+                if(property==null)continue;
+                object value=field.Value;
+                if(value!=null)value=property.PropertyType.IsEnum?Enum.ToObject(property.PropertyType,Convert.ToInt32(value)):Convert.ChangeType(value,property.PropertyType);
+                property.SetValue(row,value,null);
+            }
+            result.Add(row.CraftIndex,row);
+        }
+        rows=result;return rows;
+    }
+    public static CraftItemData Get(CraftItemDataContainer container,int index) {
+        CraftItemData row;
+        return Rows().TryGetValue(index,out row)?row:container.GetData(index);
+    }
+    public static IList<CraftItemData> All(CraftItemDataContainer container) {
+        var result=Rows().Values.ToList();
+        if(container!=null)foreach(var row in container.GetAllData()) {
+            if(!Rows().ContainsKey(row.CraftIndex))result.Add(row);
+        }
+        return result.OrderBy(row=>row.ShowIndex).ThenBy(row=>row.CraftIndex).ToList();
+    }
+    public static IList<CraftItemData> Category(CraftItemDataContainer container,string code) {
+        return All(container).Where(row=>row.IsOpen && row.ItemCode==code).OrderBy(row=>row.CraftIndex).ToList();
+    }
+}

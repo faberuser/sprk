@@ -2,6 +2,21 @@
 //! 
 //! This module loads and provides access to game data from decoded JSON table files.
 
+#[cfg(test)]
+mod restoration_tests {
+    #[test]
+    fn original_table_fixture_loads_without_fallback() {
+        let path=std::env::var("SPRK_TABLE_FIXTURE").unwrap_or_else(|_| "tables".to_string());
+        let tables=super::GameTables::load(std::path::Path::new(&path)).expect("Restored rules must load without fallback");
+        assert!(tables.inventory.items.len()>1000);
+        assert!(tables.hero_shop.heroes.len()>=102);
+        assert!(tables.progression.achievements.len()>1000);
+        assert!(tables.rewards.entries.len()>1000);
+        assert!(tables.item_groups.entries.len()>1000);
+        assert!(tables.battle.tables.contains_key("Raid"));
+    }
+}
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;

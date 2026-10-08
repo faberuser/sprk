@@ -33,6 +33,30 @@ pub(crate) async fn tickets(
     amount: i64,
 ) -> Result<Value> {
     let mut v = get(db, a, "tickets", if kind == "Sword" { 0 } else { 1 }).await?;
+    if kind == "Sword" {
+        let current:i64 = sqlx::query_scalar("SELECT sword FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&mut *db).await?;
+        v["Count"] = json!(current);
+        let def = s.tables.services.find("Stamina", &[("StaminaType",2)])
+            .ok_or_else(||rule("InvalidStaminaType"))?;
+        let overrides = &s.tables.battle.rules["EntryRechargeOverrides"][kind];
+        let (mut saved, mut result) = crate::api::account::recharge::at(
+            &v, def, overrides, current, chrono::Utc::now(), (-amount).max(0))?;
+        if amount > 0 {
+            let value = n(&saved,"Count").checked_add(amount)
+                .filter(|v| *v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?;
+            saved["Count"] = json!(value);
+            let added = n(&result,"AddValue") + amount;
+            let refreshed = crate::api::account::recharge::at(&saved,def,overrides,value,chrono::Utc::now(),0)?;
+            saved = refreshed.0; result = refreshed.1;
+            result["AddValue"] = json!(added);
+        }
+        saved["Value"] = saved["Count"].clone();
+        sqlx::query("UPDATE user_info SET sword=? WHERE account_id=?")
+            .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
+        put(db,a,"tickets",0,&saved).await?;
+        return Ok(result);
+    }
     let defaults = settings(
         s,
         if kind == "Sword" {
@@ -189,10 +213,11 @@ async fn ranking_kind(db: &mut SqliteConnection, s: &AppState, season: i64, kind
     for (i, r) in rows.iter().enumerate() {
         let mut u = user(db, r.get("account")).await?;
         let score = r.get::<i64, _>("score");
-        let rank = i as i64 + 1;
+        // Native Arena ranks are zero-based; table tiers and rewards are one-based.
+        let rank = i as i64;
         merge(
             &mut u,
-            json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,kind,rank,score),"MatchScore":score,"SeasonWin":r.get::<i64,_>("wins"),"SeasonLose":r.get::<i64,_>("losses"),"ServerGroup":"local","CountryCode":"US"}),
+            json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,kind,rank+1,score),"MatchScore":score,"SeasonWin":r.get::<i64,_>("wins"),"SeasonLose":r.get::<i64,_>("losses"),"ServerGroup":"local","CountryCode":"US"}),
         );
         u["UserInfo"] = u.clone();
         u["HeroInfos"] = json!([]);
@@ -280,7 +305,7 @@ async fn execute_inner(
             let ranks = ranking_kind(db, s, old, kind)
                 .await?
                 .into_iter()
-                .filter(|v| n(v, "Rank") - 1 >= from && n(v, "Rank") - 1 <= to)
+                .filter(|v| n(v, "Rank") >= from && n(v, "Rank") <= to)
                 .collect::<Vec<_>>();
             out[if action == "get_match_ranker" {
                 "MatchRankers"
@@ -296,7 +321,7 @@ async fn execute_inner(
             .bind(season(s).0)
             .fetch_one(db)
             .await?;
-            out["Rankers"] = json!([{"ServerGroup":"local","Rank":1,"Score":score}]);
+            out["Rankers"] = json!([{"ServerGroup":"local","Rank":0,"Score":score}]);
         }
         "register_match" => {
             if int(r, "DuelType")? != 0 {
@@ -327,6 +352,7 @@ async fn execute_inner(
             super::ensure_available(db, a, &heroes).await?;
             let mut mine = account(db, a, &heroes, false).await?;
             mine["BattleInfo"] = battle_info(db, s, a).await?;
+            mine["Rank"] = mine["BattleInfo"]["Rank"].clone();
             out["AccountInfo"] = mine;
             out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
             out["DeckInfo"] =
@@ -452,7 +478,8 @@ async fn execute_inner(
                 a,
                 "arena_daily",
                 now()/86400,
-                &json!({"Day":day(),"TierIndex":out["BattleInfo"]["TierIndex"],"Rank":out["BattleInfo"]["Rank"]}),
+                // Preserve the existing one-based daily reward snapshot format.
+                &json!({"Day":day(),"TierIndex":out["BattleInfo"]["TierIndex"],"Rank":n(&out["BattleInfo"], "Rank") + 1}),
             )
             .await?;
         }
@@ -563,7 +590,7 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
             .await?
             .into_iter()
             .find(|v| n(v, "AccountId") == a)
-            .map(|v| n(&v, "Rank"))
+            .map(|v| n(&v, "Rank") + 1)
             .ok_or_else(|| rule("MatchResultNotFound"))?;
         rank_mail(db, s, a, rank, "arena_season_reward", &old.to_string()).await?;
     }

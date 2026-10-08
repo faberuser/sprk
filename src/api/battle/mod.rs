@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
 mod campaign;
+pub(crate) mod entry_costs;
 mod contents;
 mod karma;
 pub mod campaign_handlers;
@@ -26,11 +27,17 @@ mod dungeons;
 mod eclipse;
 mod restrictions;
 mod rooms;
+pub(crate) mod cooperative;
 pub(crate) mod party_messages;
 mod seasons;
+mod treasure;
 mod special;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod entry_cost_tests;
+#[cfg(test)]
+mod dispatch_tests;
 #[cfg(test)]
 mod eclipse_tests;
 
@@ -44,6 +51,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS battle_reward_claims(account INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,period TEXT NOT NULL,PRIMARY KEY(account,kind,idx,period))",
         "CREATE TABLE IF NOT EXISTS battle_currencies(account INTEGER NOT NULL,kind TEXT NOT NULL,value INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account,kind))",
         "CREATE TABLE IF NOT EXISTS eclipse_run_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS battle_entry_holds(account INTEGER NOT NULL,owner TEXT NOT NULL,family TEXT NOT NULL,kind INTEGER NOT NULL,amount INTEGER NOT NULL CHECK(amount>0),expires INTEGER NOT NULL,PRIMARY KEY(account,owner,family,kind))",
     ] { sqlx::query(query).execute(db).await?; }
     // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
     sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
@@ -361,14 +369,68 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
     out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
     Ok(out)
 }
+/// Release local raid runs on lobby return, including Karma results rejected
+/// by an older client. Keep service-owned runs and unrelated reconnects intact.
+pub(crate) async fn abandon_local_run_on_lobby(
+    s: &AppState, a: i64, session: &str,
+) -> Result<()> {
+    let mut tx = s.db.begin().await?;
+    let old = sqlx::query("SELECT run_id,entry FROM battle_runs WHERE account=? AND completed=0")
+        .bind(a).fetch_optional(&mut *tx).await?;
+    if let Some(old) = old {
+        let mut entry: Value = read_json(&old.get::<String, _>("entry"))?;
+        let request = &entry["Request"];
+        let raid_index = request["RaidIndex"].as_str().and_then(|v| v.parse::<i64>().ok());
+        let raid_level = request["RaidLevel"].as_str().and_then(|v| v.parse::<i64>().ok());
+        let solo_technomagic = raid_index.zip(raid_level)
+            .and_then(|(index, level)| s.tables.battle.find("Raid", &[("Index", index), ("Level", level)]))
+            .is_some_and(|raid| matches!(n(raid, "Type"), 15 | 17)
+                && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
+                && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
+        if (solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array())
+            && !session.is_empty()
+            && request["SessionKey"].as_str() == Some(session)
+            && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true
+        {
+            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut json!({})).await?;
+            entry["AbandonedOnLobby"] = json!(true);
+            let run_id: String = old.get("run_id");
+            sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=? AND completed=0")
+                .bind(entry.to_string()).bind(a).bind(&run_id).execute(&mut *tx).await?;
+            tracing::info!(account=a, %run_id, "Released withdrawn local raid on lobby return");
+        }
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
+// The native client restores these managers from FirstLobby, not Login.
+// Keep this snapshot read-only: opening costs and battle cleanup have their
+// own transactional entry points.
+pub(crate) async fn punishment_lobby_snapshot(s: &AppState, a: i64) -> Result<Value> {
+    let mut db = s.db.acquire().await?;
+    Ok(json!({
+        "OpenPunishmentRaidInfos":list(&mut db,a,"punishment_open").await?,
+        "PunishmentRaidInfos":list(&mut db,a,"punishment_raid").await?,
+    }))
+}
+
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     let mut tx = s.db.begin().await?;
     item::init(&mut tx, s, a).await?;
+    entry_costs::abandon_on_login(&mut tx,s,a).await?;
     seasons::settle(&mut tx, s, a).await?;
+    treasure::info(&mut tx, s, a).await?;
     let towers = dungeons::tower_list(&mut tx, s, a).await?;
-    let under = list(&mut tx, a, "under_prison").await?;
+    let mut under = list(&mut tx, a, "under_prison").await?;
+    for info in &mut under {
+        *info = dungeons::under(&mut tx, s, a, n(info, "ChapterIndex")).await?;
+    }
     let raid = list(&mut tx, a, "raid").await?;
-    let god = list(&mut tx, a, "godking").await?;
+    let mut god = list(&mut tx, a, "godking").await?;
+    for gate in &mut god {
+        gate["NextResetRemainTime"] = json!(-1);
+    }
     let mut out = json!({"Towers":towers,"UnderPrisonInfos":under,"RaidInfos":raid,"GodkingTrialDungeonInfos":god});
     let mut progress = vec![];
     for p in list(&mut tx, a, "dungeon").await? {
@@ -379,7 +441,21 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     out["DungeonInfos"] = json!(progress);
     out["BattleKeyResults"] = dungeons::key_snapshot(&mut tx, s, a).await?;
     out["DispatchBattleInfos"] = json!(dispatch::snapshot(&mut tx, a).await?);
-    out["TopClearDungeonInfos"] = json!(list(&mut tx, a, "top_clear").await?);
+    let mut top_clears = list(&mut tx, a, "top_clear").await?;
+    // JM_NShared_TopClearDungeonInfo uses ParseEnum, which only accepts text.
+    // Sending the stored numeric type makes every clear appear to be None.
+    const SWEEP_TYPES: &[&str] = &[
+        "None", "ChallengeTower", "MazeKnight", "MazeWarrior", "MazeAssassin",
+        "MazeArcher", "MazeMechanic", "MazeWizard", "MazePriest",
+        "MiddleShakmeh", "Shakmeh", "Eclipse",
+    ];
+    for info in &mut top_clears {
+        if let Some(kind) = info["SweepDungeonType"].as_i64() {
+            info["SweepDungeonType"] = json!(SWEEP_TYPES.get(kind as usize)
+                .map(|name| name.to_string()).unwrap_or_else(|| kind.to_string()));
+        }
+    }
+    out["TopClearDungeonInfos"] = json!(top_clears);
     out["HideoutDungeons"] = json!(list(&mut tx, a, "hideout").await?);
     out["ConquestDungeons"] = json!(list(&mut tx, a, "conquest").await?);
     out["OpenPunishmentRaidInfos"] = json!(list(&mut tx, a, "punishment_open").await?);

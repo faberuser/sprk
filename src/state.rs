@@ -22,6 +22,7 @@ pub struct AppState {
     pub db: DbPool,
     pub(crate) battle_service_key: Arc<Option<String>>,
     pub chat: Arc<crate::api::community::chat::ChatHub>,
+    pub conquest: Arc<crate::api::battle::cooperative::BattleHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
     pub auth_tokens: Arc<DashMap<String, String>>, // access_token -> device_id
     #[allow(dead_code)]
@@ -33,8 +34,11 @@ impl AppState {
     pub fn new(db: DbPool, tables: GameTables) -> Self {
         Self {
             db,
-            battle_service_key: Arc::new(std::env::var("BATTLE_SERVICE_KEY").ok().filter(|s|s.len()>=32)),
+            battle_service_key: Arc::new(std::env::var("BATTLE_SERVICE_KEY").ok().or_else(||
+                std::fs::read_to_string(std::env::var("BATTLE_SERVICE_KEY_FILE").unwrap_or_else(|_|"conquest-service.key".into())).ok().map(|v|v.trim().to_owned())
+            ).filter(|s|s.len()>=32)),
             chat: Arc::new(crate::api::community::chat::ChatHub::default()),
+            conquest: Arc::new(crate::api::battle::cooperative::BattleHub::default()),
             sessions: Arc::new(DashMap::new()),
             auth_tokens: Arc::new(DashMap::new()),
             server_start_time: chrono::Utc::now(),

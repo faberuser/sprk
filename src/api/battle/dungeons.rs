@@ -47,12 +47,19 @@ pub(crate) async fn charge(
     Ok(result)
 }
 
-// Dispatch reserves stamina up front; only completed runs permanently consume it.
+// Deduct a validated cost without awarding stamina EXP twice.
 pub(super) async fn charge_reserved(
     db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64, cost: i64,
 ) -> Result<Value> {
     if cost < 0 {
         return Err(rule("InvalidCost"));
+    }
+    if cost>0 && kind>0 && !matches!(kind,3|4|7) {
+        let held=super::entry_costs::held(db,a,"Stamina",kind).await?;
+        if held>0 {
+            let current=Box::pin(crate::api::account::stamina::snapshot(db,s,a,kind)).await?;
+            if n(&current,"NewValue")-held<cost {return Err(rule(if kind==1 {"NotEnoughStamina"}else{"NotEnoughDungeonKey"}));}
+        }
     }
     if kind <= 0 {
         if cost != 0 {
@@ -63,59 +70,279 @@ pub(super) async fn charge_reserved(
     let name = *KEYS
         .get(kind as usize)
         .ok_or_else(|| rule("NotEnoughStamina"))?;
-    let value = if kind == 1 {
-        crate::api::account::stamina::chicken(db, s, a).await?;
-        sqlx::query_scalar::<_,i64>("UPDATE user_info SET stamina=stamina-? WHERE account_id=? AND stamina>=? RETURNING stamina").bind(cost).bind(a).bind(cost).fetch_optional(&mut *db).await?.ok_or_else(||rule("NotEnoughStamina"))?
-    } else if matches!(kind, 3 | 4 | 7) {
-        let kind = if kind == 3 {
-            "Gold"
-        } else if kind == 4 {
-            "Gem"
-        } else {
-            "Mileage"
-        };
-        let r = hero::currency(db, a, kind, -cost).await?;
-        n(&r, "NewValue")
-    } else {
+    if kind == 2 || kind == 20 {
+        return crate::api::community::tickets(db, s, a, name, -cost).await;
+    }
+    if kind == 10 {
+        return crate::api::community::guild_ticket(db, s, a, -cost).await;
+    }
+    if kind == 15 {
+        return crate::api::community::conquest_tickets(db,s,a,cost).await;
+    }
+    if kind == 1 {
+        let before = crate::api::account::stamina::chicken(db, s, a).await?;
+        sqlx::query("UPDATE user_info SET stamina=stamina-? WHERE account_id=? AND stamina>=?")
+            .bind(cost).bind(a).bind(cost).execute(&mut *db).await?
+            .rows_affected().eq(&1).then_some(()).ok_or_else(||rule("NotEnoughStamina"))?;
+        let mut result = crate::api::account::stamina::chicken(db, s, a).await?;
+        result["AddValue"] = json!(n(&before,"AddValue") - cost + n(&result,"AddValue"));
+        return Ok(result);
+    }
+    if kind == 9 {
+        let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
+            .ok_or_else(|| rule("InvalidStaminaType"))?;
         let mut info = get(db, a, "key", kind).await?;
-        let default = s.tables.battle.rules["DungeonKeyDailyDefaults"][name]
-            .as_i64()
-            .unwrap_or(0);
-        if info.is_null() || info["Day"] != day() {
-            if kind == 11 {
-                // Keep purchased/recovered tickets in the existing currency column.
-                sqlx::query("UPDATE user_info SET world_boss_ticket=MAX(world_boss_ticket,?) WHERE account_id=?").bind(default).bind(a).execute(&mut *db).await?;
+        // Older saves retained only Day/Count. Recover the last known spend
+        // time when its response agrees with that balance; otherwise start
+        // a timer now without inventing elapsed recovery time.
+        if !info.is_null() && n(&info, "RechargeTime") <= 0 {
+            if let Some(raw) = sqlx::query_scalar::<_, String>(
+                "SELECT begin_response FROM battle_runs WHERE account=?")
+                .bind(a).fetch_optional(&mut *db).await? {
+                let begin: Value = read_json(&raw)?;
+                let previous = &begin["StaminaResult"];
+                if previous["Type"] == name && n(previous, "NewValue") == n(&info, "Count") {
+                    if let Some(stamp) = previous["StaminaRechargeTime"].as_str()
+                        .and_then(|v| chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%d %H:%M:%S").ok()) {
+                        if info["Day"] == stamp.date().to_string() {
+                            info["RechargeTime"] = json!(stamp.and_utc().timestamp());
+                        }
+                    }
+                }
             }
-            info = json!({"Day":day(),"Count":default,"RechargeCount":0});
         }
-        if kind == 11 {
-            info["Count"] = json!(
-                sqlx::query_scalar::<_, i64>(
-                    "SELECT world_boss_ticket FROM user_info WHERE account_id=?"
-                )
-                .bind(a)
-                .fetch_one(&mut *db)
-                .await?
-            );
+        let (info, result) = tower_key_at(&info, def, Utc::now(), cost)?;
+        put(db, a, "key", kind, &info).await?;
+        return Ok(result);
+    }
+    if kind == 26 {
+        // Devourer entries accumulate; the native table specifies 3 per day,
+        // not a daily replacement balance like ordinary dungeon keys.
+        let def = s.tables.services.find("Stamina", &[("StaminaType", kind)])
+            .ok_or_else(|| rule("InvalidStaminaType"))?;
+        let info = get(db, a, "key", kind).await?;
+        let (info, result) = shakmeh_key_at(&info, def, Utc::now(), cost)?;
+        put(db, a, "key", kind, &info).await?;
+        return Ok(result);
+    }
+    if let Some(def) = s.tables.services.find("Stamina", &[("StaminaType", kind)]) {
+        let overrides = &s.tables.battle.rules["EntryRechargeOverrides"][name];
+        let initial = overrides["GrantCount"].as_i64()
+            .or_else(|| def["ResetCount"].as_array().and_then(|v|v.get(
+                if v.len()==7 { Utc::now().weekday().num_days_from_sunday() as usize } else { 0 }
+            )).and_then(Value::as_i64))
+            .or_else(|| s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64()).unwrap_or(0);
+        let mut info = get(db, a, "key", kind).await?;
+        let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
+        if let Some(column) = column {
+            let count:i64 = sqlx::query_scalar(&format!("SELECT {column} FROM user_info WHERE account_id=?"))
+                .bind(a).fetch_one(&mut *db).await?;
+            let initial_record=info.is_null();
+            if initial_record { info = json!({"Day":day()}); }
+            info["Count"] = json!(if initial_record {count.max(initial)}else{count});
         }
-        let count = n(&info, "Count");
-        if cost > count {
-            return Err(rule("NotEnoughDungeonKey"));
-        }
-        info["Count"] = json!(count - cost);
-        if kind == 11 {
-            sqlx::query("UPDATE user_info SET world_boss_ticket=? WHERE account_id=?")
-                .bind(count - cost)
-                .bind(a)
-                .execute(&mut *db)
-                .await?;
+        let (info, result) = crate::api::account::recharge::at(&info, def, overrides, initial, Utc::now(), cost)?;
+        if let Some(column) = column {
+            sqlx::query(&format!("UPDATE user_info SET {column}=? WHERE account_id=?"))
+                .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
         }
         put(db, a, "key", kind, &info).await?;
-        count - cost
-    };
+        return Ok(result);
+    }
+    if !matches!(kind,3 | 4 | 7) {
+        let initial=s.tables.battle.rules["DungeonKeyDailyDefaults"][name].as_i64().unwrap_or(0);
+        let def=json!({"AttributeName":name,"UpdateType":2,"ResetCount":[initial],"MaxCountValue":initial.to_string()});
+        let info=get(db,a,"key",kind).await?;
+        let (info,result)=crate::api::account::recharge::at(&info,&def,&Value::Null,initial,Utc::now(),cost)?;
+        put(db,a,"key",kind,&info).await?;
+        return Ok(result);
+    }
+    let currency = match kind { 3 => "Gold", 4 => "Gem", _ => "Mileage" };
+    let value = n(&hero::currency(db, a, currency, -cost).await?, "NewValue");
     Ok(
         json!({"Type":name,"AddValue":-cost,"NewValue":value,"StaminaRechargeTime":time(now()),"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}),
     )
+}
+
+fn tower_key_at(
+    info: &Value, def: &Value, now: chrono::DateTime<Utc>, cost: i64,
+) -> Result<(Value, Value)> {
+    // Pre-Doomsday tower help: one admission every two hours. StaminaType 9
+    // uses Regen with a fixed maximum of 80; ResetCount is not a daily grant.
+    const INTERVAL: i64 = 2 * 3600;
+    let cap = def["MaxCountValue"].as_str().and_then(|v| v.parse::<i64>().ok())
+        .filter(|v| *v > 0).ok_or_else(|| rule("InvalidStaminaType"))?;
+    let initial = def["ResetCount"].as_array().and_then(|v| v.first())
+        .and_then(Value::as_i64).filter(|v| *v >= 0)
+        .ok_or_else(|| rule("InvalidStaminaType"))?;
+    let timestamp = now.timestamp();
+    let old = if info.is_null() { initial.min(cap) } else { n(info, "Count").max(0) };
+    let last = n(info, "RechargeTime");
+    let last = if last <= 0 || last > timestamp { timestamp } else { last };
+    let added = ((timestamp - last) / INTERVAL).min((cap - old).max(0));
+    let available = old + added;
+    if cost < 0 || cost > available {
+        return Err(rule("NotEnoughDungeonKey"));
+    }
+    // Do not bank recovery while full. Spending from full starts a new timer.
+    let anchor = if available >= cap { timestamp } else { last + added * INTERVAL };
+    let value = available - cost;
+    let next = if value < cap { INTERVAL - (timestamp - anchor) } else { 0 };
+    let full = if value < cap { next + (cap - value - 1) * INTERVAL } else { 0 };
+    Ok((
+        json!({"Day":now.date_naive().to_string(),"Count":value,
+            "RechargeTime":anchor,"RechargeCount":n(info,"RechargeCount")}),
+        json!({"Type":"ChallengeTowerKey","AddValue":added-cost,"NewValue":value,
+            "StaminaRechargeTime":time(anchor),"NextRechargeRemainTime":next,
+            "FullRechargeRemainTime":full,"RechargeCount":n(info,"RechargeCount"),"IsHide":false}),
+    ))
+}
+
+fn shakmeh_key_at(
+    info: &Value, def: &Value, now: chrono::DateTime<Utc>, cost: i64,
+) -> Result<(Value, Value)> {
+    let daily = def["ResetCount"].as_array().and_then(|v| v.first())
+        .and_then(Value::as_i64).filter(|v| *v > 0)
+        .ok_or_else(|| rule("InvalidStaminaType"))?;
+    let cap = def["MaxCountValue"].as_str().and_then(|v| v.parse::<i64>().ok())
+        .filter(|v| *v > 0).ok_or_else(|| rule("InvalidStaminaType"))?;
+    let today = now.date_naive();
+    // Adopt legacy Day/Count records without replacing their remaining charges.
+    let last = info["Day"].as_str()
+        .and_then(|v| chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").ok())
+        .unwrap_or(today);
+    let old = if info.is_null() { daily.min(cap) } else { n(info, "Count").max(0) };
+    let elapsed = (today - last).num_days().max(0);
+    let added = elapsed.saturating_mul(daily).min((cap - old).max(0));
+    let available = old + added;
+    if cost > available {
+        return Err(rule("NotEnoughDungeonKey"));
+    }
+    let value = available - cost;
+    // All emulator daily resets use UTC. Keep a future anchor on clock rollback
+    // so the same day's automatic grant cannot be issued twice.
+    let anchor = last.max(today);
+    let next_at = (anchor + Duration::days(1)).and_hms_opt(0, 0, 0).unwrap().and_utc();
+    let next = (next_at - now).num_seconds();
+    let days_to_full = ((cap - value).max(0) + daily - 1) / daily;
+    let full = if days_to_full == 0 { 0 } else { next + (days_to_full - 1) * 86400 };
+    Ok((
+        json!({"Day":anchor.to_string(),"Count":value,"RechargeCount":0}),
+        json!({"Type":"ShakmehMiddleBossKey","AddValue":added-cost,"NewValue":value,
+            "StaminaRechargeTime":time(now.timestamp()),"NextRechargeRemainTime":next,
+            "FullRechargeRemainTime":full,"RechargeCount":0,"IsHide":false}),
+    ))
+}
+
+#[cfg(test)]
+mod tower_charge_tests {
+    use super::*;
+
+    fn at(info: &Value, stamp: &str, cost: i64) -> (Value, Value) {
+        tower_key_at(info, &json!({"ResetCount":[5],"MaxCountValue":"80"}),
+            stamp.parse().unwrap(), cost).unwrap()
+    }
+
+    #[test]
+    fn tower_recovery_keeps_partial_time_and_catches_up_offline_without_daily_reset() {
+        let start = "2026-10-05T23:00:00Z";
+        let legacy = json!({"Day":"2026-10-05","Count":0,"RechargeCount":0});
+        let (saved, first) = at(&legacy, start, 0);
+        assert_eq!(first["NewValue"], 0);
+        assert_eq!(first["NextRechargeRemainTime"], 7200);
+        assert_eq!(first["FullRechargeRemainTime"], 80 * 7200);
+        let (_, before) = at(&saved, "2026-10-06T00:59:59Z", 0);
+        assert_eq!(before["NewValue"], 0);
+        assert_eq!(before["NextRechargeRemainTime"], 1);
+        let (saved, recovered) = at(&saved, "2026-10-06T01:00:00Z", 0);
+        assert_eq!(recovered["NewValue"], 1);
+        assert_eq!(recovered["AddValue"], 1);
+        let (saved, offline) = at(&saved, "2026-10-06T06:30:00Z", 1);
+        assert_eq!(offline["NewValue"], 2);
+        assert_eq!(offline["AddValue"], 1);
+        assert_eq!(offline["NextRechargeRemainTime"], 1800);
+        assert_eq!(offline["FullRechargeRemainTime"], 1800 + 77 * 7200);
+        assert_eq!(at(&saved, "2026-10-06T06:30:00Z", 0).1["AddValue"], 0);
+        assert!(tower_key_at(&saved, &json!({"ResetCount":[5],"MaxCountValue":"80"}),
+            "2026-10-06T06:30:00Z".parse().unwrap(), 3).is_err());
+    }
+
+    #[test]
+    fn tower_recovery_caps_preserves_overflow_and_starts_timer_on_spending_from_full() {
+        let (saved, _) = at(&json!({"Count":79}), "2026-10-05T00:00:00Z", 0);
+        let (saved, full) = at(&saved, "2026-10-06T00:00:00Z", 0);
+        assert_eq!(full["NewValue"], 80);
+        assert_eq!(full["AddValue"], 1);
+        assert_eq!(full["NextRechargeRemainTime"], 0);
+        assert_eq!(full["FullRechargeRemainTime"], 0);
+        let (saved, spent) = at(&saved, "2026-10-08T00:00:00Z", 1);
+        assert_eq!(spent["NewValue"], 79);
+        assert_eq!(spent["NextRechargeRemainTime"], 7200);
+        assert_eq!(at(&saved, "2026-10-08T00:00:01Z", 0).1["NewValue"], 79);
+        let (saved, _) = at(&json!({"Count":85}), "2026-10-05T00:00:00Z", 0);
+        let (_, overflow) = at(&saved, "2026-10-08T00:00:00Z", 0);
+        assert_eq!(overflow["NewValue"], 85);
+        assert_eq!(overflow["AddValue"], 0);
+        let (_, spent) = at(&saved, "2026-10-08T00:00:00Z", 6);
+        assert_eq!(spent["NewValue"], 79);
+        assert_eq!(spent["NextRechargeRemainTime"], 7200);
+        assert_eq!(at(&Value::Null, "2026-10-05T00:00:00Z", 0).1["NewValue"], 5);
+        assert_eq!(at(&json!({"Count":9,"RechargeTime":1791244800}), "2026-10-05T00:00:00Z", 0).1["NewValue"], 9);
+    }
+}
+
+#[cfg(test)]
+mod shakmeh_charge_tests {
+    use super::*;
+
+    fn at(info: &Value, stamp: &str, cost: i64) -> (Value, Value) {
+        let def = json!({"ResetCount":[3],"MaxCountValue":"60"});
+        shakmeh_key_at(info, &def, stamp.parse().unwrap(), cost).unwrap()
+    }
+
+    #[test]
+    fn shakmeh_daily_charges_preserve_legacy_balance_and_count_down_to_reset() {
+        let legacy = json!({"Day":"2026-10-05","Count":4,"RechargeCount":0});
+        let (saved, result) = at(&legacy, "2026-10-05T17:00:00Z", 0);
+        assert_eq!(saved, legacy);
+        assert_eq!(result["NewValue"], 4);
+        assert_eq!(result["AddValue"], 0);
+        assert_eq!(result["NextRechargeRemainTime"], 7 * 3600);
+        assert_eq!(result["FullRechargeRemainTime"], 7 * 3600 + 18 * 86400);
+        let (saved, result) = at(&saved, "2026-10-06T00:00:00Z", 0);
+        assert_eq!(result["NewValue"], 7);
+        assert_eq!(result["AddValue"], 3);
+        assert_eq!(result["NextRechargeRemainTime"], 86400);
+        assert_eq!(at(&saved, "2026-10-06T00:00:01Z", 0).1["AddValue"], 0);
+        let (_, spent) = at(&saved, "2026-10-06T12:00:00Z", 1);
+        assert_eq!(spent["NewValue"], 6);
+        assert_eq!(spent["AddValue"], -1);
+        assert_eq!(spent["NextRechargeRemainTime"], 12 * 3600);
+    }
+
+    #[test]
+    fn shakmeh_daily_charges_catch_up_offline_stop_at_cap_and_preserve_overflow() {
+        for (count, expected, added) in [(4, 13, 9), (59, 60, 1), (60, 60, 0), (65, 65, 0)] {
+            let old = json!({"Day":"2026-10-02","Count":count});
+            let (saved, result) = at(&old, "2026-10-05T00:00:00Z", 0);
+            assert_eq!(result["NewValue"], expected);
+            assert_eq!(result["AddValue"], added);
+            assert_eq!(saved["Day"], "2026-10-05");
+            if expected >= 60 { assert_eq!(result["FullRechargeRemainTime"], 0); }
+        }
+        let (_, new) = at(&Value::Null, "2026-10-05T00:00:00Z", 0);
+        assert_eq!(new["NewValue"], 3);
+        let full = json!({"Day":"2026-10-02","Count":60});
+        let (saved, spent) = at(&full, "2026-10-05T00:00:00Z", 1);
+        assert_eq!(spent["NewValue"], 59);
+        assert_eq!(spent["FullRechargeRemainTime"], 86400);
+        assert_eq!(at(&saved, "2026-10-05T00:00:01Z", 0).1["NewValue"], 59);
+        assert_eq!(at(&saved, "2026-10-06T00:00:00Z", 0).1["NewValue"], 60);
+        let future = json!({"Day":"2026-10-06","Count":4,"RechargeCount":0});
+        let (saved, result) = at(&future, "2026-10-05T00:00:00Z", 0);
+        assert_eq!(saved, future);
+        assert_eq!(result["NewValue"], 4);
+    }
 }
 pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
     let rate = settings(s, "RaiderExpPerStamina", 200);
@@ -128,7 +355,8 @@ pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64,
 pub(super) async fn key_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
     for k in 5..KEYS.len() {
-        if s.tables.battle.rules["DungeonKeyDailyDefaults"]
+        if s.tables.services.find("Stamina", &[("StaminaType", k as i64)]).is_some()
+            || s.tables.battle.rules["DungeonKeyDailyDefaults"]
             .get(KEYS[k])
             .is_some()
         {
@@ -229,7 +457,7 @@ pub(super) async fn validate(
     }
     if matches!(
         battle_type,
-        4 | 9 | 20 | 26 | 30 | 32 | 36 | 43 | 44
+        4 | 9 | 20 | 30 | 32 | 36 | 43 | 44
     ) {
         return Err(rule("ContentsDisabled"));
     }
@@ -292,8 +520,45 @@ pub(super) async fn validate(
             return Err(rule("NotOpenedDungeon"));
         }
     }
+    if matches!(battle_type, 40 | 41 | 42 | 45 | 46) {
+        let raid = raid_data(s, r)?;
+        let solo = if matches!(battle_type, 45 | 46) { 17 } else { 15 };
+        if n(raid, "Type") != solo || raid["IsOnlineSingle"] != false {
+            return Err(rule("ContentsDisabled"));
+        }
+        let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
+            .ok_or_else(|| rule("NotOpenedDungeon"))?;
+        let chapter = condition[0].as_i64().unwrap_or(0);
+        let dungeon = condition[1].as_i64().unwrap_or(0);
+        // Native IsCompleted(Easy) resolves Easy to this stage's minimum
+        // difficulty; 10-9 starts at Normal, while 10-30 starts at Easy.
+        let min_diff = s.tables.tutorials.dungeon_difficulty(chapter as i32, dungeon as i32);
+        if chapter <= 0 || dungeon <= 0
+            || n(&campaign::progress(db, s, a, chapter, dungeon).await?, "FirstRewardedDiff") >> min_diff == 0
+        {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
+        let shared = n(raid, "ClearRaidIndex");
+        let progress = get(db, a, "raid", shared).await?;
+        if n(raid, "Level") > n(&progress, "RaidLevel").max(1) {
+            return Err(rule("NotOpenedDungeon"));
+        }
+    }
     if battle_type == 16 {
         super::super::community::raid_validate(db, s, a, r).await?;
+    }
+    if battle_type == 26 {
+        let ban=super::super::community::conquest_validate(db,s,a,r).await?;
+        // Conquest's session bans live on its rotating dungeon definition.
+        // RaidData.BanIndex is deliberately zero in the archived table.
+        let definition=s.tables.arena_guild.find("BanRule",&[("Index",ban)])
+            .ok_or_else(||rule("DungeonNotFound"))?;
+        for id in campaign::selected_heroes(s,r)? {
+            let hero=row(s,"BattleHero",&[("Index",id)])?;
+            if definition["BanValue2"].as_str().unwrap_or("").split(',').any(|code|code==hero["CodeName"].as_str().unwrap_or("")) {
+                return Err(rule("NotAvailableHero"));
+            }
+        }
     }
     if battle_type == 15 && int(r, "WorldBossIndex")? == 0 {
         return Err(rule("MissingWorldBossIndex"));
@@ -381,6 +646,16 @@ pub(super) async fn validate(
     }
     let c = n(d, "ChapterIndex");
     if battle_type == 38 {
+        // The Portal's native boss shortcuts require the story's first final
+        // battle (601). That battle itself opens after the story battle 210,
+        // whose first-clear reward fills the Wrath gauge.
+        let story_complete = n(&campaign::progress(db, s, a, 50000, 601).await?, "FirstRewardedDiff") > 0;
+        let first_story_final = n(d, "DungeonIndex") == 601
+            && boolean(r, "ScenarioDungeon", false)?
+            && n(&campaign::progress(db, s, a, 50000, 210).await?, "FirstRewardedDiff") > 0;
+        if !story_complete && !first_story_final {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
         let def = row(
             s,
             "ShakmehDungeon",
@@ -416,10 +691,12 @@ pub(super) async fn validate(
         require_godking_unlock(db, s, a).await?;
         restrictions::party(s, r, n(group, "BanRuleIndex"))?;
         let g = get(db, a, "godking", c).await?;
-        if n(&g, "IsOpen") != 1 || g["Day"] != day() {
+        // A Slate opens one trial until victory. Calendar resets replenish
+        // tickets; they do not invalidate an already-paid dungeon.
+        if n(&g, "IsOpen") != 1 {
             return Err(rule("GodkingTrialDungeonNotOpened"));
         }
-
+        super::entry_costs::restore_godking_gate(db,s,a,c).await?;
     }
     if s.tables
         .battle
@@ -438,11 +715,7 @@ pub(super) async fn validate(
         .iter()
         .any(|v| n(v, "ChapterIndex") == c)
     {
-        let info = treasure(db, s, a).await?;
-        let target = row(s, "TreasureHouseDungeon", &[("Index", n(&info, "Index"))])?;
-        if n(target, "DungeonIndex") != n(d, "DungeonIndex") || n(&info, "ClearCount") >= 1 {
-            return Err(rule("TreasurehouseInitializeEnterPopup"));
-        }
+        super::treasure::validate(db, s, a, d).await?;
     }
     if let Some(dow) = s.tables.battle.find("DOWDungeon", &[("DungeonIndex", c)]) {
         let today = Utc::now().weekday().number_from_monday();
@@ -554,15 +827,15 @@ pub(super) async fn enter(
     entry: &mut Value,
     out: &mut Value,
 ) -> Result<()> {
+    if n(campaign::dungeon(s, r)?, "BattleType") == 27 {
+        entry["TreasurePeriod"] = super::treasure::info(db, s, a).await?["Period"].clone();
+    }
     if let Some(f) = floor(s, r) {
-        let cost = tower_cost(
-            db,
-            a,
-            n(f, "BattleCostType"),
-            n(f, "BattleStartCost") + n(f, "BattleEndCost"),
-        )
-        .await?;
+        let cost = if entry["DeferredEntryCosts"]==true {
+            super::entry_costs::charge_currency(db,s,a,entry,"Currency",match n(f,"BattleCostType") {2=>3,3=>4,6=>7,_=>0},n(f,"BattleStartCost")+n(f,"BattleEndCost")).await?
+        } else {tower_cost(db,a,n(f,"BattleCostType"),n(f,"BattleStartCost")+n(f,"BattleEndCost")).await?};
         if !cost.is_null() {
+            if entry["DeferredEntryCosts"]!=true {super::entry_costs::note(entry,"Currency",match n(f,"BattleCostType") {2=>3,3=>4,6=>7,_=>0}, n(f,"BattleStartCost")+n(f,"BattleEndCost"));}
             out["CurrencyResults2"] = json!([cost]);
         }
         entry["TowerPeriod"] = json!(period(row(
@@ -604,9 +877,14 @@ pub(super) async fn enter(
             &[("DungeonIndex", int(r, "DungeonIndex")?)],
         )?;
         if n(def, "ShakmehIndex") == 2 {
+            entry["ShakmehStoryFinal"] = json!(boolean(r, "ScenarioDungeon", false)?
+                && n(&campaign::progress(db, s, a, 50000, 601).await?, "FirstRewardedDiff") == 0);
             let (_, max) = shakmeh_gauge(db, s, a).await?;
-            out["CurrencyResults2"] =
-                json!([hero::currency(db, a, "ShakmehMiddleBossPoint", -max).await?]);
+            let cost = super::entry_costs::charge_currency(db,s,a,entry,"ShakmehGauge",0,max).await?;
+            out["CurrencyResults2"] = json!([cost.clone()]);
+            // ApplyBeginCampaignResponse ignores CurrencyResults2. The common
+            // response handler applies ReservedCurrencyResults immediately.
+            out["ReservedCurrencyResults"] = json!([cost]);
             entry["ShakmehFinal"] = json!(true);
         }
     }
@@ -625,8 +903,22 @@ pub(super) async fn finish(
     won: bool,
     out: &mut Value,
 ) -> Result<()> {
-    if entry["ShakmehFinal"] == true {
+    if entry["ShakmehStoryFinal"] == true && !won && !entry["VictoryEntryCosts"].is_array() {
+        // Farming is locked until this introduction is won. Preserve its
+        // retry path instead of leaving a new player with an empty gauge.
+        let (gauge, max) = shakmeh_gauge(db, s, a).await?;
+        out["CurrencyResults"] = json!([hero::currency(db, a, "ShakmehMiddleBossPoint", max - gauge).await?]);
+    }
+    if entry["ShakmehFinal"] == true && won {
         put(db, a, "shakmeh_passive", 0, &json!([])).await?;
+    }
+    if entry["ShakmehFinal"] == true {
+        // Also synchronize at settlement, including failure and the story
+        // introduction's refund. This reports the balance without charging again.
+        let snapshot = hero::currency(db, a, "ShakmehMiddleBossPoint", 0).await?;
+        let mut updates = out["ReservedCurrencyResults"].as_array().cloned().unwrap_or_default();
+        updates.push(snapshot);
+        out["ReservedCurrencyResults"] = json!(updates);
     }
     if let Some(f) = floor(s, r) {
         let id = n(f, "TowerIndex");
@@ -698,15 +990,13 @@ pub(super) async fn finish(
         }
         out["TowerInfos"] = json!([t]);
     }
-    if s.tables
+    if let Some(stage) = s.tables
         .battle
-        .rows("UnderPrisonDungeon")
-        .iter()
-        .any(|v| n(v, "ChapterIndex") == c)
+        .find("UnderPrisonDungeon", &[("ChapterIndex", c), ("DungeonIndex", d)])
     {
         let mut p = under(db, s, a, c).await?;
         p["CompletedCount"] = json!(n(&p, "CompletedCount") + 1);
-        p["Diff"] = json!(n(&p, "Diff").max(campaign::difficulty(r)?));
+        p["Diff"] = json!(n(&p, "Diff").max(n(stage, "Diff")));
         p["LastCompletedTime"] = json!(time(now()));
         put(db, a, "under_prison", c, &p).await?;
         out["UnderPrisonInfos"] = json!([p]);
@@ -723,26 +1013,27 @@ pub(super) async fn finish(
         put(db, a, "godking", c, &state).await?;
         out["GodkingTrialDungeonInfo"] = state;
     }
-    if let Some(t) = s.tables.battle.find(
+    if s.tables.battle.find(
         "TreasureHouseDungeon",
         &[("ChapterIndex", c), ("DungeonIndex", d)],
-    ) {
-        let mut info = treasure(db, s, a).await?;
-        info["ClearCount"] = json!(1);
-        info["ClearedTime"] = json!(time(now()));
-        put(db, a, "treasure", 0, &info).await?;
-        reward_index(db, s, a, n(t, "RewardIndex"), &mut extra).await?;
+    ).is_some() {
+        if entry["TreasurePeriod"] != super::treasure::info(db, s, a).await?["Period"] {
+            return Err(rule("TreasurehouseInitializeEnterPopup"));
+        }
+        // CampaignDungeon already grants this monster's drop reward.
+        super::treasure::clear(db, s, a, out).await?;
     }
     if int(r, "RaidIndex")? > 0 {
         let data = raid_data(s, r)?;
         let mut index = n(data, "Index");
         let mut level = n(data, "Level");
-        if matches!(n(data, "Type"), 1 | 3 | 13) {
+        if matches!(n(data, "Type"), 1 | 3 | 13 | 15 | 17) {
             // RaidHelper reads the shared index and treats RaidLevel as the
             // highest selectable stage, not the last stage just completed.
             if n(data, "ClearRaidIndex") > 0 { index = n(data, "ClearRaidIndex"); }
             level = s.tables.battle.rows("Raid").iter()
-                .filter(|v| n(v, "Index") == index && n(v, "Level") > level)
+                .filter(|v| n(v, "Index") == index && n(v, "Level") > level
+                    && (n(data,"Type")!=13 || v["IsOpen"] == true))
                 .map(|v| n(v, "Level")).min().unwrap_or(level);
             level = level.max(n(&get(db, a, "raid", index).await?, "RaidLevel"));
         }
@@ -829,8 +1120,9 @@ pub(super) async fn shakmeh_passives(
     a: i64,
 ) -> Result<Value> {
     let mut passives = get(db, a, "shakmeh_passive", 0).await?;
-    let (gauge, max) = shakmeh_gauge(db, s, a).await?;
-    if gauge >= max && passives.as_array().is_none_or(|v| v.is_empty()) {
+    // Aegina's Protection applies to both bosses throughout the cycle.
+    // The archive's help text specifies a new roll after defeating the final boss.
+    if passives.as_array().is_none_or(|v| v.is_empty()) {
         let def = row(s, "ShakmehBoss", &[("BossType", 2)])?;
         let mut choices = def["SequenceSkillProjectileGroup"]
             .as_array()
@@ -857,6 +1149,7 @@ pub(super) async fn shakmeh_passives(
 pub(super) fn append_rewards(out: &mut Value, v: &Value) {
     for key in [
         "CurrencyResults",
+        "ReservedCurrencyResults",
         "ItemResults",
         "EquipItemInfos",
         "EquipItemResults",
@@ -884,7 +1177,7 @@ async fn daily_attempts(db: &mut SqliteConnection, a: i64, kind: &str, c: i64) -
     }
     Ok(p)
 }
-async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i64) -> Result<Value> {
+pub(super) async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i64) -> Result<Value> {
     let mut p = get(db, a, "under_prison", c).await?;
     if p.is_null() {
         p = json!({"ChapterIndex":c,"CompletedCount":0,"Diff":0,"MaxTryCount":settings(s,"UnderPrisonMaxDailyAttempts",3),"LastCompletedTime":null,"Day":day()});
@@ -893,28 +1186,19 @@ async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i64) -> Resul
         p["Day"] = json!(day());
         p["CompletedCount"] = json!(0);
     }
-    put(db, a, "under_prison", c, &p).await?;
-    Ok(p)
-}
-async fn treasure(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
-    let mut p = get(db, a, "treasure", 0).await?;
-    if p.is_null() || p["Day"] != day() {
-        let choices = s.tables.battle.rows("TreasureHouseDungeon");
-        let total = choices.iter().map(|v| n(v, "Ratio").max(0)).sum::<i64>();
-        if total <= 0 {
-            return Err(rule("DungeonNotFound"));
+    // Older servers stored campaign difficulty (usually zero), not Stockade's
+    // stage tier. Recover only tiers backed by successful, persisted clears.
+    let cleared: Vec<i64> = sqlx::query_scalar(
+        "SELECT dungeon_id FROM campaign_progress WHERE account_id=? AND chapter_id=? AND clear_count>0",
+    ).bind(a).bind(c).fetch_all(&mut *db).await?;
+    for dungeon in cleared {
+        if let Some(stage) = s.tables.battle.find(
+            "UnderPrisonDungeon", &[("ChapterIndex", c), ("DungeonIndex", dungeon)],
+        ) {
+            p["Diff"] = json!(n(&p, "Diff").max(n(stage, "Diff")));
         }
-        let mut roll = (rand::random::<u64>() % (total as u64)) as i64;
-        let t = choices
-            .iter()
-            .find(|v| {
-                roll -= n(v, "Ratio").max(0);
-                roll < 0
-            })
-            .unwrap();
-        p = json!({"Index":n(t,"Index"),"ClearCount":0,"ClearedTime":null,"UpdatedTime":time(now()),"CreatedTime":time(now()),"ResetTime":time(now()),"NextResetTime":format!("{} 00:00:00",Utc::now().date_naive()+Duration::days(1)),"Day":day()});
-        put(db, a, "treasure", 0, &p).await?;
     }
+    put(db, a, "under_prison", c, &p).await?;
     Ok(p)
 }
 pub(super) async fn execute(
@@ -1097,7 +1381,7 @@ pub(super) async fn execute(
         }
         "get_treasure_house_info" | "reset_treasure_house_info" => {
             if action.starts_with("reset") {
-                let current = treasure(db, s, a).await?;
+                let current = super::treasure::info(db, s, a).await?;
                 if n(&current, "ClearCount") > 0 {
                     return Err(rule("AlreadyCompleted"));
                 }
@@ -1120,9 +1404,13 @@ pub(super) async fn execute(
                     )
                     .await?,
                 );
-                put(db, a, "treasure", 0, &Value::Null).await?;
+                super::treasure::reroll(db, s, a).await?;
+                reward.currencies.push(super::treasure::snapshot(db, a).await?);
             }
-            out["PlayerTreasureHouseInfo"] = treasure(db, s, a).await?;
+            out["PlayerTreasureHouseInfo"] = super::treasure::info(db, s, a).await?;
+            if action.starts_with("get") {
+                out["CurrencyResult"] = super::treasure::snapshot(db, a).await?;
+            }
         }
         "open_godking_trial_dungeon" => {
             require_godking_unlock(db, s, a).await?;
@@ -1130,12 +1418,12 @@ pub(super) async fn execute(
             row(s, "GodkingTrialGroup", &[("ChapterIndex", c)])?;
             // A paid gate stays selected until victory (including retries after loss).
             for current in list(db, a, "godking").await? {
-                if current["Day"] == day() && n(&current, "IsOpen") == 1 {
+                if n(&current, "IsOpen") == 1 {
                     return Err(rule("AlreadyCompleted"));
                 }
             }
-            out["StaminaResult"] = charge(db, s, a, 21, 1).await?;
-            let v = json!({"ChapterIndex":c,"IsOpen":1,"IsOpened":true,"RunVersion":2,"OpenedTime":time(now()),"NextResetRemainTime":86400-now().rem_euclid(86400),"Day":day()});
+            out["StaminaResult"] = charge(db,s,a,21,1).await?;
+            let v = json!({"ChapterIndex":c,"IsOpen":1,"IsOpened":true,"RunVersion":2,"OpenedTime":time(now()),"NextResetRemainTime":-1,"Day":day()});
             put(db, a, "godking", c, &v).await?;
             out["GodkingTrialDungeonInfo"] = v;
         }
@@ -1289,7 +1577,8 @@ pub(super) async fn execute(
                     cost.checked_add(increase)
                         .ok_or_else(|| rule("InvalidCost"))
                 })?;
-                out["StaminaResult"] = charge(db, s, a, 1, cost).await?;
+                super::entry_costs::release_gate(db,s,a,"punishment_open",group,&mut p).await?;
+                out["StaminaResult"] = super::entry_costs::opening_charge(db,s,a,1,cost).await?;
                 for definition in s
                     .tables
                     .battle
@@ -1301,9 +1590,12 @@ pub(super) async fn execute(
                         .bind(a).bind(campaign::key(n(definition,"RaidIndex"),n(definition,"RaidLevel"))).execute(&mut *db).await?;
                 }
                 p = json!({"GroupIndex":group,"DungeonType":kind,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":level,"ClearLevel":previous_level,"ClearCount":clears,"Day":day()});
+                super::entry_costs::mark_gate(db,a,&mut p,1,cost).await?;
                 put(db, a, "punishment_open", group, &p).await?;
             }
             if action == "reset_punishment_raid" {
+                let idx=n(&p,"GroupIndex");
+                super::entry_costs::release_gate(db,s,a,"punishment_open",idx,&mut p).await?;
                 if n(&p, "GroupIndex") != int(r, "GroupIndex")?
                     || n(&p, "DungeonType") != int(r, "DungeonType")?
                 {

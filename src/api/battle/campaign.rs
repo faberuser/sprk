@@ -62,6 +62,21 @@ fn story_party<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
         .filter(|row| row["ForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()))
 }
 
+fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i64>> {
+    let scenario = boolean(r, "ScenarioDungeon", false)?;
+    let preset = s.tables.battle.find("DungeonHeroSet", &[
+        ("ChapterIndex", n(d, "ChapterIndex")), ("DungeonIndex", n(d, "DungeonIndex")),
+        ("Difficulty", difficulty(r)?),
+    ]);
+    if !preset.is_some_and(|v| v["IsScenario"] != true || scenario) {
+        return Ok(vec![]);
+    }
+    let forced = if scenario && d["ScenarioForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()) {
+        &d["ScenarioForcedHeroIndex"]
+    } else { &d["ForcedHeroIndex"] };
+    Ok(forced.as_array().into_iter().flatten().filter_map(Value::as_i64).filter(|id| *id > 0).collect())
+}
+
 pub(super) async fn validate(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -74,6 +89,11 @@ pub(super) async fn validate(
     if c == 50000 && n(&progress(db, s, a, 97, 2).await?, "FirstRewardedDiff") == 0 {
         return Err(rule("NotCompletedReqDungeon"));
     }
+    if c == 50000 && n(d, "DungeonIndex") == 210
+        && n(&progress(db, s, a, 50000, 9).await?, "FirstRewardedDiff") == 0
+    {
+        return Err(rule("NotCompletedReqDungeon"));
+    }
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
     let restored_field = n(d, "BattleType") == 33
@@ -84,7 +104,15 @@ pub(super) async fn validate(
     if ch["IsOpen"] != true && !restored_field && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
         return Err(rule("NotOpenedDungeon"));
     }
-    if diff > n(ch, "MaxDifficulty") && d["NoDifficulty"] != true {
+    // GuildManagement2 explicitly sends Normal, although legacy raid chapters
+    // advertise MaxDifficulty=Easy. Their tier is encoded by DungeonIndex.
+    let guild_raid_normal = n(d, "BattleType") == 16 && diff == 1;
+    // Central Neighborhood's purchased dungeons define four modes on the
+    // dungeon itself, although their chapter metadata says MaxDifficulty=Easy.
+    let purchase_dungeon_mode = n(d, "BattleType") == 39
+        && s.tables.live.find("PurchaseDungeon", &[("ChapterIndex", c), ("DungeonIndex", n(d, "DungeonIndex"))]).is_some()
+        && field(d, "ReqStamina", diff) > 0 && field(d, "DropRewardIndex", diff) > 0;
+    if diff > n(ch, "MaxDifficulty") && d["NoDifficulty"] != true && !guild_raid_normal && !purchase_dungeon_mode {
         return Err(rule("InvalidDiff"));
     }
     let req_c = n(ch, "ReqChapterIndex");
@@ -118,8 +146,13 @@ pub(super) async fn validate(
             return Err(rule("NotCompletedReqDungeon"));
         }
     } else {
-        owned(db, a, heroes).await?;
-        dispatch::ensure_available(db, a, heroes, None).await?;
+        let loaned = loaned_campaign_heroes(s, d, r)?;
+        if loaned.iter().any(|id| !heroes.contains(id)) {
+            return Err(rule("NotMatchHeroIndices"));
+        }
+        let selected: Vec<i64> = heroes.iter().copied().filter(|id| !loaned.contains(id)).collect();
+        owned(db, a, &selected).await?;
+        dispatch::ensure_available(db, a, &selected, None).await?;
     }
     let p = progress(db, s, a, c, n(d, "DungeonIndex")).await?;
     if n(&p, "FirstRewardedDiff") == 0 && matches!(n(d, "BattleType"), 1 | 2 | 10) {
@@ -154,6 +187,36 @@ pub(super) async fn validate(
     rooms::validate_battle(db, s, a, r).await?;
     Ok(())
 }
+pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
+    let mut heroes = ids(r, "HeroIndices", 32)?;
+    let group = ids(r, "GroupHeroIndices", 32)?;
+    let d = dungeon(s, r)?;
+    let battle_type = n(d, "BattleType");
+    if matches!(battle_type, 38 | 45 | 46) && !group.is_empty() {
+        // Squard.GetBattlePartyInfo already includes both teams in HeroIndices.
+        // Otherworldly Shakmeh and both Enchantment bosses use GroupHeroIndices
+        // to mark the second team, not to append another roster.
+        if battle_type == 38 {
+            let definition = row(s, "ShakmehDungeon", &[("DungeonIndex", n(d, "DungeonIndex"))])?;
+            if n(definition, "ShakmehIndex") != 2 {
+                return Err(rule("NotMatchHeroIndices"));
+            }
+        }
+        if group.iter().any(|id| !heroes.contains(id))
+            || group.len() as i64 > n(d, "SubSquardCount")
+            || (heroes.len() - group.len()) as i64 > n(d, "MainSquardCount")
+        {
+            return Err(rule("NotMatchHeroIndices"));
+        }
+    } else {
+        heroes.extend(group);
+    }
+    if heroes.iter().collect::<BTreeSet<_>>().len() != heroes.len() {
+        return Err(rule("DuplicatedHero"));
+    }
+    Ok(heroes)
+}
+
 pub(super) async fn begin(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -163,12 +226,10 @@ pub(super) async fn begin(
     if n(dungeon(s, r)?, "BattleType") == 36 {
         return super::eclipse::begin(db, s, a, r).await;
     }
-    let mut party = ids(r, "HeroIndices", 32)?;
-    let group = ids(r, "GroupHeroIndices", 32)?;
-    party.extend(group);
-    if party.iter().collect::<BTreeSet<_>>().len() != party.len() {
-        return Err(rule("DuplicatedHero"));
+    if r.number("RaidIndex",0)?==90001 && (1..=3).contains(&r.number("RaidLevel",0)?) {
+        return super::cooperative::begin(db,s,a,r).await;
     }
+    let party = selected_heroes(s, r)?;
     let mut entry = json!({"ChapterIndex":int(r,"ChapterIndex")?,"DungeonIndex":int(r,"DungeonIndex")?,"DungeonDifficulty":difficulty(r)?,"ScenarioDungeon":boolean(r,"ScenarioDungeon",false)?,"Heroes":party,"Request":r.0});
     let previous = sqlx::query(
         "SELECT started,completed,entry,begin_response FROM battle_runs WHERE account=?",
@@ -177,7 +238,8 @@ pub(super) async fn begin(
     .fetch_optional(&mut *db)
     .await?;
     if let Some(old) = previous {
-        if old.get::<i64, _>("completed") == 0
+        let active = old.get::<i64, _>("completed") == 0;
+        if active
             && now() - old.get::<i64, _>("started") <= settings(s, "BattleExpirySeconds", 14400)
         {
             let saved: Value = read_json(&old.get::<String, _>("entry"))?;
@@ -205,6 +267,13 @@ pub(super) async fn begin(
                 return Err(rule("AlreadyOnBattleHero"));
             }
         }
+        if active {
+            let mut abandoned: Value = read_json(&old.get::<String, _>("entry"))?;
+            if abandoned["ServiceOwned"]==true || abandoned["ServiceRequired"]==true {
+                return Err(rule("AlreadyOnBattleHero"));
+            }
+            super::entry_costs::settle(db,s,a,&mut abandoned,false,&mut json!({})).await?;
+        }
     }
     validate(db, s, a, r, &party).await?;
     let leader = int(r, "LeaderHeroIndex")?;
@@ -213,9 +282,14 @@ pub(super) async fn begin(
     }
     let d = dungeon(s, r)?;
     let mut out = response(s, "campaign/begin_campaign");
+    super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
     let cost = stamina_cost(d, difficulty(r)?);
-    out["StaminaResult"] = dungeons::charge(db, s, a, n(d, "ReqStaminaType"), cost).await?;
+    let stamina=super::entry_costs::charge(db,s,a,&mut entry,n(d,"ReqStaminaType"),cost).await?;
+    if !stamina.is_null() {out["StaminaResult"]=stamina;}
     dungeons::enter(db, s, a, r, &mut entry, &mut out).await?;
+    if n(d,"BattleType")==26 {
+        super::super::community::conquest_enter(db,s,a,r,&mut entry,&mut out).await?;
+    }
     let selected = selected_codes(r, "SelectedRewardItemCodes")?;
     if !selected.is_empty() {
         validate_selection(s, n(d, "ChapterIndex"), n(d, "DungeonIndex"), &selected)?;
@@ -227,6 +301,11 @@ pub(super) async fn begin(
     entry["DeckSnapshot"] = if let Some(preset) = story_party(s, d) {
         entry["PresetStoryParty"] = preset.clone();
         json!([]) // Client builds the loaned actors from SubStoryData, not account gear.
+    } else if !loaned_campaign_heroes(s, d, r)?.is_empty() {
+        // Fixed story actors are built from DungeonHeroSet by the client, not
+        // account gear. Do not publish a player-deck recommendation for them.
+        entry["LoanedHeroIndices"] = json!(loaned_campaign_heroes(s, d, r)?);
+        json!([])
     } else { crate::api::services::records::snapshot(db,a,&party).await? };
     out["RunId"] = json!(run_id);
     sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,?,?,0,?,?) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
@@ -319,6 +398,12 @@ async fn end_inner(
             let result:Option<String>=sqlx::query_scalar("SELECT response FROM service_results WHERE run=? AND account=?").bind(saved.get::<String,_>("run_id")).bind(a).fetch_optional(&mut *db).await?;
             if let Some(result)=result{return read_json(&result);}
         }
+        if let Some(result) = entry.get("StoryEndResponse").filter(|v| v.is_object()) {
+            return Ok(result.clone());
+        }
+        if let Some(result)=entry.get("ConquestEndResponse").filter(|v|v.is_object()) {
+            return Ok(result.clone());
+        }
         return Err(rule("AlreadyCompleted"));
     }
     if !trusted && (entry["ServiceOwned"]==true || entry["ServiceRequired"]==true){return Err(rule("NotCompletedBattle"));}
@@ -337,9 +422,19 @@ async fn end_inner(
         return Err(rule("ModulatedData"));
     }
     let request = Request(read_value(entry["Request"].clone())?);
+    if n(&entry,"ConquestGuildId")>0 {
+        let mut out=response(s,"campaign/end_campaign");
+        super::super::community::conquest_finish(db,s,a,r,&entry,&mut out).await?;
+        let mut settled=entry;
+        settled["ConquestEndResponse"]=out.clone();
+        sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
+            .bind(settled.to_string()).bind(a).execute(db).await?;
+        return Ok(out);
+    }
     if n(&entry,"GuildId")>0 {
         let mut out=item::success();
         super::super::community::raid_finish(db,s,a,r,&entry,&mut out).await?;
+        super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, r)?, "BattleType"), &mut out).await?;
         sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0").bind(a).execute(db).await?;
         return Ok(out);
     }
@@ -351,8 +446,22 @@ async fn end_inner(
     dungeons::finish(db, s, a, &request, r, &entry, completed, &mut out).await?;
     seasons::finish(db, s, a, &request, r, elapsed, &mut out).await?;
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
+    super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, &request)?, "BattleType"), &mut out).await?;
     if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}
-    sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0")
+    // Story and substory battles can submit the ending twice. Persist the
+    // first response with settlement so retries do not reroll or regrant loot.
+    let mut settled_entry = entry;
+    super::entry_costs::settle(db,s,a,&mut settled_entry,completed,&mut out).await?;
+    let battle_type = n(dungeon(s, &request)?, "BattleType");
+    // Substories such as 10-35 send ScenarioDungeon=false despite their
+    // scripted ending, so the request flag alone cannot identify story runs.
+    if matches!(battle_type, 23 | 24)
+        || (settled_entry["ScenarioDungeon"] == true && matches!(battle_type, 1 | 2 | 10))
+    {
+        settled_entry["StoryEndResponse"] = out.clone();
+    }
+    sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
+        .bind(settled_entry.to_string())
         .bind(a)
         .execute(db)
         .await?;
@@ -441,9 +550,10 @@ pub(super) async fn complete(
     let mut hero_exp = vec![];
     let mut flasks = vec![];
     let mut flask_items = vec![];
+    let loaned = loaned_campaign_heroes(s, d, r)?;
     for id in party {
         // Loaned story actors never receive account hero EXP.
-        if story_party(s, d).is_some() { continue; }
+        if story_party(s, d).is_some() || loaned.contains(id) { continue; }
         let h = hero::info(db, a, *id as i32).await?;
         let old = n(&h, "Level") as i32;
         let cap = s
@@ -525,6 +635,7 @@ pub(super) async fn complete(
     Ok(out)
 }
 async fn boost(db: &mut SqliteConnection, s: &AppState, a: i64, battle: i64) -> Result<(i64, i64)> {
+    let guild_bonus = crate::api::community::guild_reward_boost(db, s, a).await?;
     let active: Vec<i32> = sqlx::query_scalar(
         "SELECT item_index FROM item_boosters WHERE account_id=? AND end_time>datetime('now')",
     )
@@ -569,7 +680,7 @@ async fn boost(db: &mut SqliteConnection, s: &AppState, a: i64, battle: i64) -> 
             }
         }
     }
-    Ok((gold, exp))
+    Ok((gold + guild_bonus.0, exp + guild_bonus.1))
 }
 fn selected_codes(r: &Request, key: &str) -> Result<Vec<String>> {
     if matches!(r.text(key), "" | "null") {

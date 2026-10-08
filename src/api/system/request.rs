@@ -40,6 +40,20 @@ impl Request {
             .map(Self)
             .map_err(|e| ServerError::InvalidRequest(e.to_string()))
     }
+    /// Keep native repeated integer arrays without losing their order or pairing.
+    pub fn parse_with_integer_arrays(body: &[u8], array_fields: &[&str]) -> Result<Self> {
+        let mut req = Self::parse_with_arrays(body, array_fields)?;
+        for key in array_fields {
+            if let Ok(values) = serde_json::from_str::<Vec<serde_json::Value>>(req.text(key)) {
+                let normalized: Option<Vec<i64>> = values.iter().map(|v|
+                    v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).collect();
+                if let Some(values) = normalized {
+                    req.0.insert((*key).into(), serde_json::json!(values).to_string());
+                }
+            }
+        }
+        Ok(req)
+    }
     pub fn account(&self, state: &AppState) -> Result<i64> {
         let key = self
             .0
@@ -65,6 +79,9 @@ impl Request {
         }
     }
     pub fn ids(&self, key: &str) -> Result<Vec<i64>> {
+        self.ids_with_limit(key, 100)
+    }
+    pub fn ids_with_limit(&self, key: &str, limit: usize) -> Result<Vec<i64>> {
         let Some(value) = self.0.get(key) else {
             return Ok(Vec::new());
         };
@@ -76,7 +93,7 @@ impl Request {
                     .map_err(<serde_json::Error as serde::de::Error>::custom)
             })
             .map_err(|_| ServerError::InvalidRequest(format!("Invalid {key}")))?;
-        if values.len() > 100 || values.iter().any(|v| *v <= 0) {
+        if values.len() > limit || values.iter().any(|v| *v <= 0) {
             return Err(ServerError::InvalidRequest(format!("Invalid {key}")));
         }
         Ok(values

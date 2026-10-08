@@ -33,7 +33,7 @@ async fn save(db: &mut SqliteConnection, id: i64, v: &Value) -> Result<()> {
 }
 async fn prune(db: &mut SqliteConnection, s: &AppState) -> Result<()> {
     let expired: Vec<i64> =
-        sqlx::query_scalar("SELECT account FROM battle_room_members WHERE updated<?")
+        sqlx::query_scalar("SELECT m.account FROM battle_room_members m JOIN battle_rooms r ON r.id=m.room WHERE m.updated<? AND COALESCE(json_extract(r.data,'$.Status'),0)!=2")
             .bind(now() - settings(s, "RoomTimeoutSeconds", 120))
             .fetch_all(&mut *db)
             .await?;
@@ -294,6 +294,11 @@ pub(super) async fn execute(
 }
 pub(super) async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &str) -> Result<Value> {
     let mut v = room(db, id, family).await?;
+    if family=="raid" && n(&v,"RaidIndex")==90001 {
+        let same:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members a JOIN guild_members b ON a.guild_id=b.guild_id WHERE a.account_id=? AND b.account_id=?)")
+            .bind(a).bind(n(&v,"MasterAccountId")).fetch_one(&mut *db).await?;
+        if !same {return Err(rule("WrongMember"));}
+    }
     let old: Option<i64> =
         sqlx::query_scalar("SELECT room FROM battle_room_members WHERE account=?")
             .bind(a)

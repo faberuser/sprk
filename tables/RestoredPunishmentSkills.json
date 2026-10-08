@@ -1,0 +1,860 @@
+{
+  "Source": "Pre-Doomsday build 1558",
+  "Skills": [
+    {
+      "Index": 441100,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441101,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441110,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441111,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441120,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441121,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441130,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441140,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441141,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441142,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441143,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441144,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441180,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441181,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441182,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441191,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441194,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441195,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441196,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441197,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441200,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441201,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441210,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441211,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441220,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441221,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441230,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441240,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441241,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441242,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441243,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441252,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441253,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441279,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441280,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441281,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441293,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441294,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441296,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441300,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441301,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441310,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441311,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441312,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441320,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441321,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441340,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441341,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441342,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441343,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441344,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441379,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441380,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441381,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441382,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441393,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441394,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441395,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441396,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441397,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441398,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441399,
+      "Changes": {
+        "TriggerType": 1,
+        "TriggerValue": null,
+        "TriggerDisabled": false,
+        "IgnoreStateType": null,
+        "IgnoreBlock": false
+      }
+    },
+    {
+      "Index": 441400,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441401,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441410,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441411,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441420,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441430,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441440,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441441,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441442,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441443,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441444,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441480,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441481,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441482,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441490,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441491,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441492,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441495,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 441496,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000300,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000301,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000302,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000303,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000400,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000401,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000402,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000403,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000404,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000405,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000406,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000500,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000501,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000502,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000503,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000504,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000505,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000600,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000601,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000602,
+      "Changes": {
+        "ViewTargetWhileUse": true
+      }
+    },
+    {
+      "Index": 6000920,
+      "Changes": {
+        "TickTimeValue": [
+          "5700",
+          "5900",
+          "6100",
+          "6300",
+          ""
+        ]
+      }
+    }
+  ],
+  "Operations": [
+    {
+      "SkillIndex": 441399,
+      "OperationNo": 1,
+      "Changes": {
+        "Type": 108,
+        "Value": [
+          "$AddByAllyCount(100)"
+        ],
+        "RecalculateValueByStats": [
+          93
+        ]
+      }
+    },
+    {
+      "SkillIndex": 441399,
+      "OperationNo": 2,
+      "Changes": {
+        "Type": 0,
+        "Value": null,
+        "DurationMs": 0
+      }
+    },
+    {
+      "SkillIndex": 6000100,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1000)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000101,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1000)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000110,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(500)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000131,
+      "OperationNo": 6,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(2000)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000132,
+      "OperationNo": 6,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(2000)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000200,
+      "OperationNo": 2,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1500)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000201,
+      "OperationNo": 6,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(500)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000210,
+      "OperationNo": 6,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1500)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000237,
+      "OperationNo": 5,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(750)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000241,
+      "OperationNo": 2,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(2500)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000301,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "20",
+          "$ByMEHp4(300)",
+          "IgnoreDefence|IgnoreBlock|Unavoidable"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000405,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp4(250)",
+          "NoCritical"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000601,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp4(2000)",
+          "IgnoreDefence|NoCritical|IgnoreBlock"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000911,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(400)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000920,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1700)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000921,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1700)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000934,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(1000)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000935,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(900)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    },
+    {
+      "SkillIndex": 6000936,
+      "OperationNo": 1,
+      "Changes": {
+        "Value": [
+          "0",
+          "$ByMEHp3(550)",
+          "NoCritical|IgnoreDefence|IgnoreBlock|IgnoreToughness"
+        ]
+      }
+    }
+  ]
+}

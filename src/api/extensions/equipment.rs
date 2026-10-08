@@ -412,7 +412,7 @@ async fn break_equipment(
     account: i64,
     req: &Request,
 ) -> Result<Value> {
-    let ids = ids(req, "EquipItemSlotIndices")?;
+    let ids = ids_with_limit(req, "EquipItemSlotIndices", 1000)?;
     if ids.is_empty() {
         return Err(rule("InvalidMaterial"));
     }

@@ -61,6 +61,65 @@ fn headers(run: &str) -> HeaderMap {
     h
 }
 const ENTRY: &str = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
+
+#[tokio::test]
+async fn every_automatic_entry_currency_publishes_a_future_timer_when_depleted() {
+    let (s,u)=setup().await;
+    let a=aid(&u);
+    let now=chrono::Utc::now();
+    let mut db=s.db.acquire().await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=0,stamina_recharge_time=?,sword=0,sword2=0,guild_raid_ticket=0,world_boss_ticket=0 WHERE account_id=?")
+        .bind(now.timestamp()).bind(a).execute(&mut *db).await.unwrap();
+    for def in s.tables.services.rows("Stamina").iter().filter(|d|n(d,"UpdateType")>0) {
+        let k=n(def,"StaminaType");
+        crate::api::battle::put(&mut db,a,"key",k,&json!({"Count":0,"Day":now.date_naive().to_string(),"RechargeTime":now.timestamp()})).await.unwrap();
+    }
+    for (kind, value) in [("tickets", json!({"Value":0,"RechargeTime":now.timestamp()})),
+        ("guild_ticket", json!({"Day":now.date_naive().to_string(),"Count":0}))] {
+        sqlx::query("INSERT INTO community_state(owner,kind,idx,data) VALUES(?,?,0,?) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data")
+            .bind(a).bind(kind).bind(value.to_string()).execute(&mut *db).await.unwrap();
+    }
+    drop(db);
+    for def in s.tables.services.rows("Stamina").iter().filter(|d|n(d,"UpdateType")>0) {
+        let k=n(def,"StaminaType");
+        let result=call(&s,&u,"user/get_stamina",&format!("StaminaType={k}")).await;
+        ok(&result);
+        assert_eq!(result["StaminaResult"]["NewValue"],0,"type {k}: {result}");
+        assert!(n(&result["StaminaResult"],"NextRechargeRemainTime")>0,"type {k}: {result}");
+        assert_eq!(result["StaminaResult"]["Type"],if k == 1 { json!("Chicken") } else { def["AttributeName"].clone() });
+    }
+}
+
+#[tokio::test]
+async fn arcdim_ruby_recharge_limits_reset_weekly_and_preserve_the_countdown() {
+    let (s,u)=setup().await;
+    let a=aid(&u);
+    let today=chrono::Utc::now().date_naive();
+    let monday=crate::api::account::recharge::period(today,7);
+    let mut db=s.db.acquire().await.unwrap();
+    crate::api::battle::put(&mut db,a,"key",29,&json!({"Day":today.to_string(),"Count":0})).await.unwrap();
+    crate::api::extensions::put(&mut db,a,"stamina_recharges",29,&json!({"Day":monday.to_string(),"Count":2})).await.unwrap();
+    sqlx::query("UPDATE user_info SET gem=10000 WHERE account_id=?").bind(a).execute(&mut *db).await.unwrap();
+    drop(db);
+    assert_ne!(call(&s,&u,"user/recharge_stamina","StaminaType=TechnoEnchantKey").await["Result"],"Success");
+    let mut db=s.db.acquire().await.unwrap();
+    crate::api::extensions::put(&mut db,a,"stamina_recharges",29,
+        &json!({"Day":(monday-chrono::Duration::days(7)).to_string(),"Count":2})).await.unwrap();
+    drop(db);
+    for (balance,cost,counter) in [(5,-1000,1),(10,-1500,2)] {
+        let result=call(&s,&u,"user/recharge_stamina","StaminaType=TechnoEnchantKey").await;
+        ok(&result);
+        assert_eq!(result["CurrencyResult"]["AddValue"],cost);
+        assert_eq!(result["StaminaResult"]["NewValue"],balance);
+        assert_eq!(result["StaminaResult"]["RechargeCount"],counter);
+        assert!(n(&result["StaminaResult"],"NextRechargeRemainTime")>0);
+    }
+    assert_ne!(call(&s,&u,"user/recharge_stamina","StaminaType=TechnoEnchantKey").await["Result"],"Success");
+    let result=call(&s,&u,"user/get_stamina","StaminaType=TechnoEnchantKey").await;
+    assert_eq!(result["StaminaResult"]["NewValue"],10);
+    assert_eq!(result["StaminaResult"]["RechargeCount"],2);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),7500);
+}
 #[tokio::test]
 async fn stamina_prices_regeneration_limits_and_rollback() {
     let (s, u) = setup().await;
@@ -92,7 +151,7 @@ async fn stamina_prices_regeneration_limits_and_rollback() {
     )
     .await;
     ok(&v);
-    assert_eq!(v["StaminaResult"]["NewValue"], 8);
+    assert_eq!(v["StaminaResult"]["NewValue"], 6);
     assert_eq!(v["CurrencyResult"]["AddValue"], -100);
     let v = call(&s, &u, "user/recharge_stamina", "StaminaType=5").await;
     ok(&v);
@@ -106,7 +165,7 @@ async fn stamina_prices_regeneration_limits_and_rollback() {
     )
     .await;
     ok(&v);
-    assert_eq!(v["StaminaResults"][1]["NewValue"], 11);
+    assert_eq!(v["StaminaResults"][1]["NewValue"], 9);
     sqlx::query("UPDATE user_info SET gem=0")
         .execute(&s.db)
         .await
@@ -117,7 +176,7 @@ async fn stamina_prices_regeneration_limits_and_rollback() {
     );
     let v = call(&s, &u, "user/get_stamina", "StaminaType=5").await;
     assert_eq!(v["StaminaResult"]["RechargeCount"], 2);
-    assert_eq!(v["StaminaResult"]["NewValue"], 11);
+    assert_eq!(v["StaminaResult"]["NewValue"], 9);
     assert!(execute_request(
         &s,
         "user/get_stamina",
@@ -419,4 +478,18 @@ async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_p
             .await
             .unwrap()
     );
+}
+
+#[tokio::test]
+async fn authoritative_cancel_refunds_pve_reservations_once() {
+    let (s,u)=setup().await;let a=aid(&u);
+    crate::api::battle::put(&mut *s.db.acquire().await.unwrap(),a,"entry_policy",0,&json!({"RefundPveDefeats":true})).await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let begin=battle(&s,&u,"campaign/begin_campaign",ENTRY).await;ok(&begin);
+    let run=begin["RunId"].as_str().unwrap();
+    let started=execute_request(&s,"internal/b2g_battle_start",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();ok(&started);
+    let canceled=execute_request(&s,"internal/b2g_battle_cancel",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();ok(&canceled);
+    let result=execute_request(&s,"internal/b2g_battle_cancel",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();
+    assert_ne!(result["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
 }

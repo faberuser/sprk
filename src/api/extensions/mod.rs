@@ -28,6 +28,11 @@ mod storage;
 mod tests;
 pub(crate) mod valance;
 
+pub(crate) fn refresh_soul_weapon_stats(state: &AppState, infos: &mut [Value]) -> Result<()> {
+    for info in infos { soul::stats(state,info)?; }
+    Ok(())
+}
+
 pub fn routes() -> axum::Router<AppState> {
     let mut router = axum::Router::new();
     for (family,actions) in [
@@ -50,20 +55,13 @@ pub async fn handle(
     axum::extract::OriginalUri(uri): axum::extract::OriginalUri,
     body: Bytes,
 ) -> Result<Json<Value>> {
-    let mut req = if uri.path().starts_with("/valance/") {
-        Request::parse_with_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
+    let req = if uri.path().starts_with("/valance/") {
+        Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
+    } else if uri.path() == "/equip/break_equip" {
+        Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices"])?
+    } else if matches!(uri.path(), "/equip/awaken_equip" | "/equip/upgrade_equip") {
+        Request::parse_with_integer_arrays(&body, &["MaterialSlotIndices", "MaterialItemInfors"])?
     } else { Request::parse(&body)? };
-    // WWWForm sends repeated scalar fields; keep every slot and normalize the
-    // scalar strings before strict duplicate/count validation in ids().
-    if uri.path().starts_with("/valance/") {
-        for key in ["EquipItemSlotIndices", "SelectEquipOptionIndices"] {
-            if let Ok(values) = serde_json::from_str::<Vec<Value>>(req.text(key)) {
-                let normalized: Option<Vec<i64>> = values.iter().map(|v|
-                    v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).collect();
-                if let Some(values) = normalized { req.0.insert(key.into(), json!(values).to_string()); }
-            }
-        }
-    }
     let account = req.account(&state)?;
     let action = uri.path().rsplit('/').next().unwrap_or("");
     let mut tx = state.db.begin().await?;
@@ -107,8 +105,22 @@ pub async fn handle(
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            if action == "break_equip" {
+                let selected = serde_json::from_str::<Vec<Value>>(req.text("EquipItemSlotIndices"))
+                    .map(|v| v.len()).unwrap_or(0);
+                tracing::warn!(account, selected, reason = %code, "Equipment grind rejected");
+            }
+            let code = if action == "break_equip" {
+                match code.as_str() {
+                    "EquipItemNotFound" => "EquipNotOwned",
+                    "LockedEquip" => "LockedEquipItemExists",
+                    "EquippedItem" => "Equipped",
+                    "InvalidMaterial" => "SoulWeaponCanNotBreak",
+                    other => other,
+                }
+            } else { &code };
             Ok(Json(
-                json!({"BaseResult":"Success","Result":state.tables.hero_shop.result(action,&code)}),
+                json!({"BaseResult":"Success","Result":state.tables.hero_shop.result(action,code)}),
             ))
         }
         Err(e) => Err(e),
@@ -210,12 +222,15 @@ async fn remove_equip(db: &mut SqliteConnection, account: i64, slot: i32) -> Res
     Ok(())
 }
 fn ids(req: &Request, key: &str) -> Result<Vec<i64>> {
+    ids_with_limit(req, key, 100)
+}
+fn ids_with_limit(req: &Request, key: &str, limit: usize) -> Result<Vec<i64>> {
     if req.text(key).is_empty() {
         return Ok(vec![]);
     }
     let list: Vec<i64> =
         serde_json::from_str(req.text(key)).map_err(|_| rule("InvalidItemCount"))?;
-    if list.len() > 100
+    if list.len() > limit
         || list.iter().any(|v| *v <= 0)
         || list.iter().collect::<BTreeSet<_>>().len() != list.len()
     {
@@ -285,7 +300,7 @@ pub(crate) async fn misc(
     db: &mut SqliteConnection,
     account: i64,
 ) -> Result<serde_json::Map<String, Value>> {
-    let mut out = json!({"RenewOptionEquipItemSlotIndex":0,"RenewOptionResultIndex":0,"RenewOptionResultStep":0,"RenewOptionSlotIndex":0,"RenewEnchantOptionEquipItemSlotIndex":0,"RenewEnchantOptionResultIndex":0,"RenewEnchantOptionResultStep":0,"SoulStoneMileage":0,"RestoreSoulStoneIndices":"[]"});
+    let mut out = json!({"RenewOptionEquipItemSlotIndex":0,"RenewOptionResultIndex":0,"RenewOptionResultStep":0,"RenewOptionSlotIndex":0,"RenewEnchantOptionEquipItemSlotIndex":0,"RenewEnchantOptionResultIndex":0,"RenewEnchantOptionResultStep":0,"SoulStoneMileage":0,"RestoreSoulStoneIndices":""});
     let pending =
         sqlx::query("SELECT slot_index,kind,data FROM equipment_pending WHERE account_id=?")
             .bind(account)
@@ -318,7 +333,12 @@ pub(crate) async fn misc(
     let restore = get(db, account, "soul_restore", 0).await?;
     if !restore.is_null() {
         out["SoulStoneMileage"] = restore["Mileage"].clone();
-        out["RestoreSoulStoneIndices"] = json!(restore["Choices"].to_string());
+        // The native client treats every nonempty string (including "[]") as
+        // a pending Soul Stone selection. Match SetRestoreSoulStoneIndices:
+        // empty text for no choices, comma-separated indices otherwise.
+        out["RestoreSoulStoneIndices"] = json!(restore["Choices"].as_array()
+            .into_iter().flatten().filter_map(Value::as_i64)
+            .map(|id| id.to_string()).collect::<Vec<_>>().join(","));
     }
     out["PunishmentRuneStorageSlotExtend"] = json!(n(
         &get(db, account, "punishment_storage", 0).await?,

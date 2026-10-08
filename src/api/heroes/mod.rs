@@ -162,8 +162,9 @@ pub(crate) async fn currency(
     if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
         sqlx::query("INSERT OR IGNORE INTO battle_currencies(account,kind,value) VALUES(?,?,0)")
             .bind(account).bind(kind).execute(&mut *db).await?;
-        let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN 0 AND 2147483647 RETURNING value")
-            .bind(amount).bind(account).bind(kind).bind(amount).fetch_optional(db).await?;
+        let held=if kind=="ShakmehMiddleBossPoint" && amount<0 {crate::api::battle::entry_costs::held(db,account,"ShakmehGauge",0).await?} else {0};
+        let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN ? AND 2147483647 RETURNING value")
+            .bind(amount).bind(account).bind(kind).bind(amount).bind(held).fetch_optional(db).await?;
         let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
         return Ok(json!({"CurrencyType":kind,"AddValue":amount,"NewValue":value,"AddDailyAccValue":0,"NewDailyAccValue":0}));
     }
@@ -176,7 +177,8 @@ pub(crate) async fn currency(
         "RaidPoint" => "raid_point",
         _ => return Err(rule("InvalidCost")),
     };
-    let value:Option<i64>=sqlx::query_scalar(&format!("UPDATE user_info SET {col}={col}+? WHERE account_id=? AND {col}+? BETWEEN 0 AND 2147483647 RETURNING {col}")).bind(amount).bind(account).bind(amount).fetch_optional(&mut *db).await?;
+    let held=if kind=="Mileage" && amount<0 {crate::api::battle::entry_costs::held(db,account,"Currency",7).await?} else {0};
+    let value:Option<i64>=sqlx::query_scalar(&format!("UPDATE user_info SET {col}={col}+? WHERE account_id=? AND {col}+? BETWEEN ? AND 2147483647 RETURNING {col}")).bind(amount).bind(account).bind(amount).bind(held).fetch_optional(&mut *db).await?;
     let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
     let daily: i64 = if kind == "FriendshipPoint" {
         sqlx::query_scalar(
@@ -194,7 +196,12 @@ pub(crate) async fn currency(
     )
 }
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
-    let req = Request::parse(&body)?;
+    let arrays: &[&str] = match action {
+        "learn_hero_transcend_skill_page" => &["TranscendSkills"],
+        "upgrade_hero_skill" => &["SkillIndices"],
+        _ => &[],
+    };
+    let req = Request::parse_with_integer_arrays(&body, arrays)?;
     let account = req.account(&state)?;
     let mut tx = state.db.begin().await?;
     item::init(&mut tx, &state, account).await?;
@@ -205,6 +212,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            tracing::warn!(action, account, reason = %code, "Hero request rejected");
             Ok(Json(
                 json!({"BaseResult":"Success","Result":state.tables.hero_shop.result(action,&code)}),
             ))
@@ -333,9 +341,6 @@ pub(crate) async fn execute(
         .get(&index)
         .ok_or_else(|| rule("CreatureDataNotFound"))?;
     if action == "buy_hero" {
-        if creature["Buyable"] != true {
-            return Err(rule("InvalidItemData"));
-        }
         let id = item::item_index(req, "ItemIndex")?;
         let meta = state
             .tables
@@ -344,7 +349,7 @@ pub(crate) async fn execute(
             .ok_or_else(|| rule("InvalidItemIndex"))?;
         // These heroes have only a level-50/T5 recruitment item in the client.
         // PayShopManagement selects that item by HeroIndex, not StartHeroLevel.
-        let special_recruit = matches!((index, id), (84, 1008410) | (85, 1008510));
+        let special_recruit = matches!((index, id), (83, 1008310) | (84, 1008410) | (85, 1008510));
         let (start_level, start_transcend) = if special_recruit {
             (50, 5)
         } else {
@@ -357,6 +362,9 @@ pub(crate) async fn execute(
             || meta.level as i64 != start_level
         {
             return Err(rule("InvalidItemIndex"));
+        }
+        if creature["Buyable"] != true && !(n(creature,"OpenType")==1 && special_recruit) {
+            return Err(rule("InvalidItemData"));
         }
         let exists: bool = sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",

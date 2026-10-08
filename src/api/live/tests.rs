@@ -575,11 +575,18 @@ async fn pickup_step_up_and_native_pet_summon_contracts() {
         .await["Result"],
         "Success"
     );
+    // The archived single special summon is ticket-only; funding a ruby
+    // balance must not bypass that restriction.
+    assert_eq!(call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=4&HighGachaCategory=All").await["Result"],"ItemNotOwned");
+    let ticket=s.tables.live.rows("GachaSelectItem").iter().find(|r|
+        r["GachaIndices"].as_array().is_some_and(|indices|indices.contains(&json!(4))) && n(r,"GachaCategoryType")==0).unwrap();
+    let ticket=n(ticket,"ItemIndex") as i32;
+    seed(&s,&u,ticket,1).await;
     ok(&call(
         &s,
         &u,
         "equip_gacha/exec_equip_gacha",
-        "GachaIndex=4&HighGachaCategory=All",
+        &format!("GachaIndex=4&HighGachaCategory=All&ItemIndex={ticket}"),
     )
     .await);
     let before = balance(&s, &u, "gem").await;

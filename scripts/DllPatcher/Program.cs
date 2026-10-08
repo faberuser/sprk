@@ -9,8 +9,12 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
+            if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }
             // Determine client path: first CLI arg, or prompt, or default
             string clientRoot = args.Length > 0
                 ? args[0].TrimEnd('\\', '/')
@@ -29,7 +33,9 @@ namespace DllPatcher
             bool shopOnly = args.Contains("--shop-only");
             bool portalOnly = args.Contains("--portal-only");
             bool stageOnly = args.Contains("--stage-only");
-            string sourcePath = chatOnly || campaignOnly || shopOnly || portalOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
+            bool selectorsOnly = args.Contains("--selectors-only");
+            bool originalTablesOnly = args.Contains("--original-tables-only");
+            string sourcePath = chatOnly || campaignOnly || shopOnly || portalOnly || selectorsOnly || originalTablesOnly ? dllPath : File.Exists(backupPath) ? backupPath : dllPath;
 
             if (!File.Exists(sourcePath))
             {
@@ -59,7 +65,19 @@ namespace DllPatcher
             {
                 var module = assembly.MainModule;
 
-                if (portalOnly)
+                if (originalTablesOnly)
+                {
+                    PatchPortal(module);
+                    RestoreOriginalTableGetters(module);
+                    PatchSelectorPools(module);
+                    assembly.Write(patchedPath);
+                }
+                else if (selectorsOnly)
+                {
+                    PatchSelectorPools(module);
+                    assembly.Write(patchedPath);
+                }
+                else if (portalOnly)
                 {
                     PatchPortal(module);
                     assembly.Write(patchedPath);
@@ -91,6 +109,8 @@ namespace DllPatcher
                     PatchCampaignSurvivors(module);
                     PatchShopShortcut(module);
                     PatchPortal(module);
+                    PatchSelectorPools(module);
+                    RestoreOriginalTableGetters(module);
                     Console.WriteLine($"\nSaving modified assembly to: {patchedPath}");
                     assembly.Write(patchedPath);
                 }
@@ -105,7 +125,7 @@ namespace DllPatcher
             Console.WriteLine($"Copying to: {dllPath}");
             File.Copy(patchedPath, dllPath, true);
             Console.WriteLine("Done! The DLL has been patched successfully.");
-            if (chatOnly || campaignOnly || shopOnly || portalOnly) return;
+            if (chatOnly || campaignOnly || shopOnly || portalOnly || selectorsOnly) return;
 
             // Print summary
             Console.WriteLine("\n=== PATCH SUMMARY ===");

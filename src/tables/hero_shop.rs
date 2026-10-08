@@ -31,17 +31,27 @@ pub struct HeroShopTable {
 impl HeroShopTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
-        data.enable_cosmetic_sales();
+        let guild = path.with_file_name("RestoredGuildContent.json");
+        if guild.exists() {
+            let restored: Value = serde_json::from_reader(std::fs::File::open(guild)?)?;
+            for shop in restored["Shops"].as_array().into_iter().flatten() {
+                data.shops.insert(shop["Index"].as_i64().unwrap() as i32, shop.clone());
+            }
+            data.shop_items.retain(|r| !matches!(r["ShopIndex"].as_i64(), Some(4 | 20 | 21 | 27)));
+            data.shop_items.extend(restored["ShopItems"].as_array().into_iter().flatten().cloned());
+            for price in restored["ItemPrices"].as_array().into_iter().flatten() {
+                if let Some(item) = data.items.get_mut(&(price["Index"].as_i64().unwrap() as i32)) {
+                    item["BuyGuildPoint"] = price["BuyGuildPoint"].clone();
+                    item["BuyGuildArenaPoint"] = price["BuyGuildArenaPoint"].clone();
+                }
+            }
+        }
+        data.apply_archived_cosmetic_flags();
         Ok(data)
     }
-    fn enable_cosmetic_sales(&mut self) {
+    fn apply_archived_cosmetic_flags(&mut self) {
         for costume in self.costumes.values_mut() {
-            if costume["IsDefault"] == true { continue; }
-            costume["Buyable"] = Value::Bool(true);
-            if ["ReqBuyGem", "ReqBuyGold", "ReqBuyMileage"].iter()
-                .all(|key| costume[*key].as_i64().unwrap_or(0) <= 0) {
-                costume["ReqBuyGem"] = Value::from(3000);
-            }
+            costume["Buyable"] = Value::Bool(costume["IsOpen"] == true && costume["IsBuy"] == true);
         }
     }
     pub fn constant(&self, key: &str, default: i64) -> i64 {
@@ -69,19 +79,20 @@ mod cosmetic_sale_tests {
     use serde_json::json;
 
     #[test]
-    fn costume_sale_prices_preserve_defaults_and_existing_currencies() {
+    fn archived_costume_flags_do_not_invent_prices_or_open_closed_sales() {
         let mut table = HeroShopTable::default();
         table.costumes = [
-            (1, json!({"IsDefault":true,"ReqBuyGem":0,"Buyable":false})),
-            (2, json!({"IsDefault":false,"CostumeType":2,"ReqBuyGem":0})),
-            (3, json!({"IsDefault":false,"ReqBuyGem":6000})),
-            (4, json!({"IsDefault":false,"ReqBuyGem":0,"ReqBuyMileage":2500})),
+            (1, json!({"IsDefault":true,"IsOpen":true,"IsBuy":false,"ReqBuyGem":0})),
+            (2, json!({"IsDefault":false,"IsOpen":false,"IsBuy":true,"ReqBuyGem":0})),
+            (3, json!({"IsDefault":false,"IsOpen":true,"IsBuy":true,"ReqBuyGem":6000})),
+            (4, json!({"IsDefault":false,"IsOpen":true,"IsBuy":true,"ReqBuyGem":0,"ReqBuyMileage":2500})),
         ].into();
-        table.enable_cosmetic_sales();
+        table.apply_archived_cosmetic_flags();
         assert_eq!(table.costumes[&1]["Buyable"], false);
         assert_eq!(table.costumes[&1]["ReqBuyGem"], 0);
-        assert_eq!(table.costumes[&2]["ReqBuyGem"], 3000);
-        assert_eq!(table.costumes[&2]["Buyable"], true);
+        assert_eq!(table.costumes[&2]["ReqBuyGem"], 0);
+        assert_eq!(table.costumes[&2]["Buyable"], false);
+        assert_eq!(table.costumes[&3]["Buyable"], true);
         assert_eq!(table.costumes[&3]["ReqBuyGem"], 6000);
         assert_eq!(table.costumes[&4]["ReqBuyGem"], 0);
         assert_eq!(table.costumes[&4]["ReqBuyMileage"], 2500);

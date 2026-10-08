@@ -66,6 +66,8 @@ pub async fn first_lobby(
     if let Some(fields)=live.as_object(){for(k,v)in fields{extensions[k]=v.clone();}}
     let supporting=crate::api::services::login(&state,session.account_id).await?;
     for(k,v)in supporting.as_object().unwrap(){extensions[k]=v.clone();}
+    let punishment=crate::api::battle::punishment_lobby_snapshot(&state,session.account_id).await?;
+    for(k,v)in punishment.as_object().unwrap(){extensions[k]=v.clone();}
     extensions["StaminaResults"]=crate::api::account::stamina::login(&state,session.account_id).await?;
     Ok(Json(FirstLobbyResponse {
         extensions,
@@ -148,6 +150,7 @@ pub async fn enter_lobby(
     
     let account_id = session.account_id;
 
+    crate::api::battle::abandon_local_run_on_lobby(&state, account_id, &session_id).await?;
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
 
     // Fetch account info

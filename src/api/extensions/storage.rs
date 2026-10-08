@@ -106,12 +106,12 @@ pub(super) async fn execute(
                     v[format!("EquipItemSlotIndex{i}")] = json!(0);
                 }
                 for (part, slot) in parts.into_iter().zip(slots) {
-                    if !(0..10).contains(&part) {
+                    if !(1..=10).contains(&part) {
                         return Err(rule("InvalidEquipItem"));
                     }
                     let eq = equip(db, account, slot).await?;
-                    compatible(state, &h, &eq, part + 1)?;
-                    v[format!("EquipItemSlotIndex{}", part + 1)] = json!(slot);
+                    compatible(state, &h, &eq, part)?;
+                    v[format!("EquipItemSlotIndex{}", part)] = json!(slot);
                 }
                 let old = req.number("OldEquipStorageSlotIndex", 0)?;
                 if old > 0 && old != index {

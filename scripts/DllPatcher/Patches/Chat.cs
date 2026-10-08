@@ -8,6 +8,7 @@ partial class Program
     static void PatchChatBackground(ModuleDefinition module)
     {
         var window = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.NChatting.ChattingWindow");
+        PatchBattleChatLayout(module, window);
         const string helperName = "SprkFixChatBackground";
         if (window.Methods.Any(m => m.Name == helperName)) return;
         var references = module.Types.SelectMany(t => t.Methods).Where(m => m.HasBody)
@@ -54,7 +55,36 @@ partial class Program
             initIl.InsertAfter(ret, initIl.Create(OpCodes.Call, helper));
             initIl.InsertAfter(ret.Next, initIl.Create(OpCodes.Ret));
         }
+        PatchBattleChatLayout(module, window);
         Console.WriteLine("Patched chat background to remove the stretched bottom highlight");
+    }
+
+    static void PatchBattleChatLayout(ModuleDefinition module, TypeDefinition window)
+    {
+        const string lobbyPath = "Resources/Prefab2/Window/Chatting/ChattingWindow";
+        const string battlePath = "Resources/Prefab2/Window/Chatting/BattleChattingWindow";
+        var awake = module.Types.Single(t => t.FullName == "NGame2.NUI.NManager.ChattingManagement")
+            .Methods.Single(m => m.Name == "Awake");
+        var paths = awake.Body.Instructions.Where(i => i.OpCode == OpCodes.Ldstr &&
+            (Equals(i.Operand, lobbyPath) || Equals(i.Operand, battlePath))).ToArray();
+        if (paths.Length != 2 || !Equals(paths[0].Operand, lobbyPath))
+            throw new InvalidOperationException("Unexpected chat window creation paths");
+        paths[1].Operand = battlePath;
+
+        // The older background correction is for the lobby prefab only. Its
+        // cream fill must not replace the battle prefab's native background.
+        var helper = window.Methods.SingleOrDefault(m => m.Name == "SprkFixChatBackground");
+        if (helper != null && !helper.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "get_isValidInstance"))
+        {
+            var lobbyValid = window.Methods.Single(m => m.Name == "Awake").Body.Instructions
+                .Select(i => i.Operand).OfType<MethodReference>()
+                .First(m => m.Name == "get_isValidInstance" && m.DeclaringType.FullName.Contains("LobbyManagement"));
+            var il = helper.Body.GetILProcessor(); var first = helper.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, lobbyValid));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brtrue, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
+        Console.WriteLine("Restored native battle chat prefab with its back control");
     }
 
     static void PatchChatSession(ModuleDefinition module)

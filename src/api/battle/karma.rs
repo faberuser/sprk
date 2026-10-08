@@ -3,6 +3,14 @@ use super::*;
 fn state_key(group: i64) -> i64 {
     group * 10 + 1
 }
+// Karma is a score mode and intentionally has no victory-cost receipt. Its
+// local battle still needs to release the party after withdrawal/relogin.
+pub(super) fn is_entry(s: &AppState, entry: &Value) -> bool {
+    s.tables.battle.find("CampaignDungeon", &[
+        ("ChapterIndex", n(entry, "ChapterIndex")),
+        ("DungeonIndex", n(entry, "DungeonIndex")),
+    ]).is_some_and(|dungeon| n(dungeon, "BattleType") == 48)
+}
 fn group_data<'a>(s: &'a AppState, r: &Request) -> Result<&'a Value> {
     row(
         s,
@@ -365,6 +373,7 @@ pub(super) async fn end(
         .execute(&mut *db)
         .await?;
     let mut out = rewards(db, s, a, grant).await?;
+    super::treasure::record_time(db, s, a, r, saved.get("started"), 48, &mut out).await?;
     out["OpenPunishmentRaidInfos"] = json!([p]);
     out["PunishmentRaidInfos"] = json!(list(db, a, "punishment_raid").await?);
     Ok(out)

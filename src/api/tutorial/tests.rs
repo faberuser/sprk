@@ -484,6 +484,7 @@ async fn clause_requires_clear_and_recovers_on_lobby_entry_once() {
     let key = &first.user_info.session_key;
     let a = first.user_info.account_id;
     assert!(complete_tutorial(State(state.clone()), Form(request(key, 20001))).await.is_err());
+    assert!(complete_tutorial(State(state.clone()), Form(request(key, 20002))).await.is_err());
     sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES(?,1,20,1)")
         .bind(a).execute(&state.db).await.unwrap();
     restore_clause_reward(&state,a).await.unwrap();
@@ -495,7 +496,7 @@ async fn clause_requires_clear_and_recovers_on_lobby_entry_once() {
     assert_eq!((clause.star,clause.level),(2,20));
     let exp: i64 = sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
     sqlx::query("UPDATE heroes SET level=70,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
-    let receipt = complete(&state,key,20001).await;
+    let receipt = complete(&state,key,20002).await;
     assert_eq!(receipt["HeroInfos"][0]["Level"],70);
     let again = login(&state).await;
     assert_eq!(again.heroes.iter().filter(|h|h.hero_index==15).count(),1);
@@ -514,8 +515,9 @@ async fn clause_login_catches_up_past_chapter_one_without_resetting_owned_hero()
     let recovered = login(&state).await;
     assert!(recovered.heroes.iter().any(|h|h.hero_index==15 && h.level==20 && h.star==2));
     assert!(recovered.tutorials.iter().any(|t|t.tutorial_index==20001));
+    assert!(recovered.tutorials.iter().any(|t|t.tutorial_index==20002));
     // An independently recruited Clause must retain upgrades and award no recruitment EXP.
-    sqlx::query("DELETE FROM tutorial_progress WHERE account_id=? AND tutorial_index=20001").bind(a).execute(&state.db).await.unwrap();
+    sqlx::query("DELETE FROM tutorial_progress WHERE account_id=? AND tutorial_index IN (20001,20002)").bind(a).execute(&state.db).await.unwrap();
     sqlx::query("UPDATE heroes SET level=80,star=5 WHERE account_id=? AND hero_index=15").bind(a).execute(&state.db).await.unwrap();
     let before:i64=sqlx::query_scalar("SELECT team_exp FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
     let recovered = login(&state).await;

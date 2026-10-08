@@ -53,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
     
     // Create application state
     let state = AppState::new(db, tables);
+    api::battle::cooperative::recover_orphaned(&state).await?;
     let chat_bind = std::env::var("CHAT_BIND").unwrap_or_else(|_| "127.0.0.1".into());
     let chat_listener = tokio::net::TcpListener::bind((chat_bind.as_str(), state.chat.port)).await?;
     tracing::info!("Message server listening on {}", chat_listener.local_addr()?);
@@ -60,6 +61,43 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         if let Err(error) = api::community::chat::serve(chat_listener, chat_state).await { tracing::error!(%error, "Message server stopped"); }
     });
+    let battle_bind=std::env::var("BATTLE_BIND").unwrap_or_else(|_|"127.0.0.1".into());
+    let battle_listener=tokio::net::TcpListener::bind((battle_bind.as_str(),state.conquest.port)).await?;
+    tracing::info!("Conquest battle server listening on {}",battle_listener.local_addr()?);
+    let battle_state=state.clone();
+    tokio::spawn(async move {
+        if let Err(error)=api::battle::cooperative::serve(battle_listener,battle_state).await {tracing::error!(%error,"Conquest battle server stopped");}
+    });
+    // Optional local native engine. Configuration lives beside sprk.db, so
+    // restarting the server also restarts its worker without exposing the key
+    // in command-line arguments or requiring a game account.
+    if let Some(executable)=std::env::var("BATTLE_WORKER_EXECUTABLE").ok().or_else(|| {
+        let config:serde_json::Value=serde_json::from_str(&std::fs::read_to_string("conquest-service.json").ok()?).ok()?;
+        config["Executable"].as_str().map(str::to_owned)
+    }) {
+        let key=state.battle_service_key.as_ref().as_ref().ok_or_else(||anyhow::anyhow!("Conquest worker configured without a service key"))?.clone();
+        let executable=std::fs::canonicalize(executable)?;
+        let port=state.conquest.port;
+        let log=std::env::current_dir()?.join("conquest-worker.log");
+        tokio::spawn(async move {
+            loop {
+                let mut command=tokio::process::Command::new(&executable);
+                command.current_dir(executable.parent().unwrap()).args(["-batchmode","-nographics","-logFile"]).arg(&log)
+                    .env("SPRK_CONQUEST_WORKER_KEY",&key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1")
+                    .env("SPRK_CONQUEST_WORKER_PORT",port.to_string()).kill_on_drop(true);
+                command.env_remove("SPRK_AUTOMATION_PROFILE").env_remove("SPRK_AUTOMATION_DIR");
+                #[cfg(windows)] command.creation_flags(0x08000000);
+                match command.spawn() {
+                    Ok(mut worker)=> {
+                        tracing::info!(pid=?worker.id(),"Conquest native worker started");
+                        match worker.wait().await {Ok(status)=>tracing::warn!(%status,"Conquest native worker exited"),Err(error)=>tracing::warn!(%error,"Conquest worker wait failed")}
+                    },
+                    Err(error)=>tracing::error!(%error,"Conquest native worker could not start"),
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        });
+    }
 
 
     // Configure CORS (permissive for game client)

@@ -270,8 +270,11 @@ pub(super) async fn execute(
                 .ok_or_else(|| rule("InvalidBuildingIndex"))?;
             let mut building = buildings[pos].clone();
             let level = n(&building, "BuildingLevel");
-            let next = row(s, "GuildBuilding", &[("Index", id), ("Level", level + 1)])
+            let next = row(s, "GuildBuilding", &[("Index", id), ("Level", level)])
                 .map_err(|_| rule("MaxGuildBuildingLevel"))?;
+            if next["CanUpgrade"] != true || s.tables.arena_guild.find("GuildBuilding", &[("Index", id), ("Level", level + 1)]).is_none() {
+                return Err(rule("MaxGuildBuildingLevel"));
+            }
             if n(next, "ReqGuildLevel") > n(&info, "Level") {
                 return Err(rule("InvalidGuildLevel"));
             }
@@ -339,9 +342,11 @@ pub(super) async fn execute(
             let next = row(
                 s,
                 "GuildSkillLevel",
-                &[("GuildSkillIndex", id), ("GuildSkillLevel", level + 1)],
+                &[("GuildSkillIndex", id), ("GuildSkillLevel", level)],
             )
             .map_err(|_| rule("MaxSkillLevel"))?;
+            let target = row(s, "GuildSkillLevel", &[("GuildSkillIndex", id), ("GuildSkillLevel", level + 1)])
+                .map_err(|_| rule("MaxSkillLevel"))?;
             let training = info["GuildBuildingInfos"]
                 .as_array()
                 .into_iter()
@@ -376,7 +381,7 @@ pub(super) async fn execute(
                 previous.map(|v| n(v, "ActivitySpent")).unwrap_or(0) + n(next, "ActivityPoint");
             let sp =
                 previous.map(|v| n(v, "SuppressSpent")).unwrap_or(0) + n(next, "SuppressPoint");
-            skills.push(json!({"GuildSkillIndex":id,"SkillIndex":id,"EffectSkillIndex":n(next,"SkillIndex"),"SkillLevel":level+1,"GuildSkillLevel":level+1,"ReqCount":0,"UpdatedTime":time(now()),"ActivitySpent":ap,"SuppressSpent":sp}));
+            skills.push(json!({"GuildSkillIndex":id,"SkillIndex":id,"EffectSkillIndex":n(target,"SkillIndex"),"SkillLevel":level+1,"GuildSkillLevel":level+1,"ReqCount":0,"UpdatedTime":time(now()),"ActivitySpent":ap,"SuppressSpent":sp}));
             info["SkillInfos"] = json!(skills);
             sqlx::query("UPDATE community_state SET data=json_set(data,'$.ReqGuildSkill',0) WHERE kind='guild_member' AND idx=? AND json_extract(data,'$.ReqGuildSkill')=?").bind(g).bind(id).execute(&mut *db).await?;
             if id <= 6 {
@@ -387,7 +392,7 @@ pub(super) async fn execute(
             guild::admin(role)?;
             if info["SkillInfos"]
                 .as_array()
-                .is_none_or(|v| v.iter().all(|s| n(s, "GuildSkillLevel") == 0))
+                .is_none_or(|v| v.iter().all(|s| n(s, "GuildSkillLevel") <= 1))
             {
                 return Err(rule("AlreadyGuildSkillInit"));
             }
@@ -402,7 +407,7 @@ pub(super) async fn execute(
             info["SuppressPoint"] = json!(n(&info, "SuppressPoint") + sp);
             info["SkillInfos"] = json!([]);
             for id in 1..=6 {
-                info[format!("Skill{id}Level")] = json!(0);
+                info[format!("Skill{id}Level")] = json!(1);
             }
             info["SkillResetAt"] = json!(now());
             info["SkillInitTime"] = json!(time(now()));

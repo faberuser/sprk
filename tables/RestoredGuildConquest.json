@@ -1,0 +1,547 @@
+{
+  "GuildSuppressSession": [
+    {
+      "SessionIndex": 282,
+      "SeasonIndex": 26,
+      "GlobalApplyStart": "2024-01-08 16:00:00",
+      "GlobalApplyEnd": "2024-01-10 14:59:59",
+      "GlobalBattleStart": "2024-01-10 15:30:00",
+      "GlobalBattleEnd": "2024-01-15 14:59:59",
+      "ViewRankSeason": 26,
+      "ViewSession": 7,
+      "SuppressDungeonIndex": [
+        290,
+        291,
+        292
+      ],
+      "RaidIndex": 90001,
+      "Level": [
+        1,
+        2,
+        3
+      ],
+      "SingleLevel": [
+        101,
+        102,
+        103
+      ],
+      "PortalViewSession": 8
+    }
+  ],
+  "GuildSuppressDungeon": [
+    {
+      "Index": 290,
+      "DefaultRewardIndex": 0,
+      "KillRewardIndex": 995146,
+      "KillActivityPoint": 0,
+      "BuyableRewardIndex": 0,
+      "Tactic": "TACTIC_LOCAL_KEY_90001",
+      "RecommendedHeroIndex": [
+        2,
+        26,
+        67
+      ],
+      "BanIndex": 871,
+      "PortraitPath": "Dungeon/Info/GuildSuppress/IceTortoise2",
+      "PreviewBg": "Chapter_7",
+      "FinishModeRatio": 0,
+      "ShowInfoSkill": null,
+      "IconPath": "Icon/Creature/GuildRaid/IceTortoise2",
+      "StatusBoardPortraitPath": "Dungeon/Info/GuildSuppress/GuildSuppressStatusBoard_IceTortoise2"
+    },
+    {
+      "Index": 291,
+      "DefaultRewardIndex": 0,
+      "KillRewardIndex": 995147,
+      "KillActivityPoint": 0,
+      "BuyableRewardIndex": 0,
+      "Tactic": "TACTIC_LOCAL_KEY_90002",
+      "RecommendedHeroIndex": [
+        21,
+        94,
+        22
+      ],
+      "BanIndex": 872,
+      "PortraitPath": "Dungeon/Info/GuildSuppress/Larkreil",
+      "PreviewBg": "Chapter_6",
+      "FinishModeRatio": 0,
+      "ShowInfoSkill": null,
+      "IconPath": "Icon/Creature/GuildRaid/Larkreil",
+      "StatusBoardPortraitPath": "Dungeon/Info/GuildSuppress/GuildSuppressStatusBoard_Larkreil"
+    },
+    {
+      "Index": 292,
+      "DefaultRewardIndex": 0,
+      "KillRewardIndex": 0,
+      "KillActivityPoint": 0,
+      "BuyableRewardIndex": 0,
+      "Tactic": "TACTIC_LOCAL_KEY_90003",
+      "RecommendedHeroIndex": [
+        3,
+        33,
+        66
+      ],
+      "BanIndex": 873,
+      "PortraitPath": "Dungeon/Info/GuildSuppress/Valok2",
+      "PreviewBg": "GuildSuppress",
+      "FinishModeRatio": 0,
+      "ShowInfoSkill": null,
+      "IconPath": "Icon/Creature/GuildRaid/Valok2",
+      "StatusBoardPortraitPath": "Dungeon/Info/GuildSuppress/GuildSuppressStatusBoard_Valok2"
+    }
+  ],
+  "GuildSuppressChapter": [
+    {
+      "RaidIndex": 90001,
+      "Name": "CREATURE_NAME_8801",
+      "Description": "GUILD_RAID_MANTICORE6_DESC",
+      "BossInfoImage": "WorldBoss/BossInfo/GuildRaid_Valok"
+    }
+  ],
+  "GuildSuppressBoss": [
+    {
+      "Level": 1,
+      "DungeonIndex": 1,
+      "CreatureIndex": 11301,
+      "MaxHp": 100001423152872
+    },
+    {
+      "Level": 2,
+      "DungeonIndex": 2,
+      "CreatureIndex": 8803,
+      "MaxHp": 170001105637694
+    },
+    {
+      "Level": 3,
+      "DungeonIndex": 3,
+      "CreatureIndex": 8801,
+      "MaxHp": 200206748198339
+    },
+    {
+      "Level": 101,
+      "DungeonIndex": 101,
+      "CreatureIndex": 11301,
+      "MaxHp": 100001423152872
+    },
+    {
+      "Level": 102,
+      "DungeonIndex": 102,
+      "CreatureIndex": 8803,
+      "MaxHp": 170001105637694
+    },
+    {
+      "Level": 103,
+      "DungeonIndex": 103,
+      "CreatureIndex": 8801,
+      "MaxHp": 200206748198339
+    }
+  ],
+  "GuildSuppressReward": [
+    {
+      "Index": 1,
+      "MinRank": 1,
+      "MaxRank": 1,
+      "Percentage": 0,
+      "RewardIndex": 995318,
+      "DescKey": "PUNITIVE_EXPEDITION_REPEAT_RANK_REWARD_INFO_1",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 2,
+      "MinRank": 2,
+      "MaxRank": 2,
+      "Percentage": 0,
+      "RewardIndex": 995319,
+      "DescKey": "PUNITIVE_EXPEDITION_REPEAT_RANK_REWARD_INFO_2",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 3,
+      "MinRank": 3,
+      "MaxRank": 3,
+      "Percentage": 0,
+      "RewardIndex": 995320,
+      "DescKey": "PUNITIVE_EXPEDITION_REPEAT_RANK_REWARD_INFO_3",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 4,
+      "MinRank": 4,
+      "MaxRank": 4,
+      "Percentage": 0,
+      "RewardIndex": 995321,
+      "DescKey": "PUNITIVE_EXPEDITION_REPEAT_RANK_REWARD_INFO_4",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    }
+  ],
+  "GuildSuppressServerReward": [
+    {
+      "Index": 1,
+      "MinRank": 1,
+      "MaxRank": 1,
+      "Percentage": 0,
+      "RewardIndex": 995111,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 2,
+      "MinRank": 2,
+      "MaxRank": 3,
+      "Percentage": 0,
+      "RewardIndex": 995112,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_02",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 3,
+      "MinRank": 4,
+      "MaxRank": 10,
+      "Percentage": 0,
+      "RewardIndex": 995113,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_03",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 4,
+      "MinRank": 11,
+      "MaxRank": 30,
+      "Percentage": 0,
+      "RewardIndex": 995114,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_04",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 5,
+      "MinRank": 31,
+      "MaxRank": 60,
+      "Percentage": 0,
+      "RewardIndex": 995115,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_05",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 6,
+      "MinRank": 61,
+      "MaxRank": 100,
+      "Percentage": 0,
+      "RewardIndex": 995116,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_06",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 7,
+      "MinRank": 101,
+      "MaxRank": 200,
+      "Percentage": 0,
+      "RewardIndex": 995117,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_07",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 8,
+      "MinRank": 201,
+      "MaxRank": 300,
+      "Percentage": 0,
+      "RewardIndex": 995118,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_08",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 9,
+      "MinRank": 301,
+      "MaxRank": 400,
+      "Percentage": 0,
+      "RewardIndex": 995119,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_09",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 10,
+      "MinRank": 401,
+      "MaxRank": 500,
+      "Percentage": 0,
+      "RewardIndex": 995120,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_10",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 11,
+      "MinRank": 501,
+      "MaxRank": 9999,
+      "Percentage": 0,
+      "RewardIndex": 995121,
+      "DescKey": "PUNITIVE_EXPEDITION_SEASON_RANK_REWARD_INFO_11",
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    }
+  ],
+  "GuildSuppressGlobalReward": [
+    {
+      "Index": 1,
+      "MinRank": 1,
+      "MaxRank": 1,
+      "Percentage": 0,
+      "RewardIndex": 995301,
+      "DescKey": null,
+      "RewardServerBuffType": 1,
+      "RewardServerBuffValue": [
+        "BonusGold",
+        "5"
+      ],
+      "RewardServerBuffCode": "BOOSTER_GOLD_GUILDSUPPRESS_REWARD_1ST"
+    },
+    {
+      "Index": 2,
+      "MinRank": 2,
+      "MaxRank": 2,
+      "Percentage": 0,
+      "RewardIndex": 995302,
+      "DescKey": null,
+      "RewardServerBuffType": 1,
+      "RewardServerBuffValue": [
+        "BonusGold",
+        "3"
+      ],
+      "RewardServerBuffCode": "BOOSTER_GOLD_GUILDSUPPRESS_REWARD_2ND"
+    },
+    {
+      "Index": 3,
+      "MinRank": 3,
+      "MaxRank": 3,
+      "Percentage": 0,
+      "RewardIndex": 995303,
+      "DescKey": null,
+      "RewardServerBuffType": 1,
+      "RewardServerBuffValue": [
+        "BonusGold",
+        "2"
+      ],
+      "RewardServerBuffCode": "BOOSTER_GOLD_GUILDSUPPRESS_REWARD_3RD"
+    },
+    {
+      "Index": 4,
+      "MinRank": 4,
+      "MaxRank": 10,
+      "Percentage": 0,
+      "RewardIndex": 995304,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 5,
+      "MinRank": 11,
+      "MaxRank": 30,
+      "Percentage": 0,
+      "RewardIndex": 995305,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 6,
+      "MinRank": 31,
+      "MaxRank": 60,
+      "Percentage": 0,
+      "RewardIndex": 995306,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 7,
+      "MinRank": 61,
+      "MaxRank": 100,
+      "Percentage": 0,
+      "RewardIndex": 995307,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 8,
+      "MinRank": 101,
+      "MaxRank": 200,
+      "Percentage": 0,
+      "RewardIndex": 995308,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 9,
+      "MinRank": 201,
+      "MaxRank": 300,
+      "Percentage": 0,
+      "RewardIndex": 995309,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 10,
+      "MinRank": 301,
+      "MaxRank": 400,
+      "Percentage": 0,
+      "RewardIndex": 995310,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 11,
+      "MinRank": 401,
+      "MaxRank": 500,
+      "Percentage": 0,
+      "RewardIndex": 995311,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 12,
+      "MinRank": 501,
+      "MaxRank": 1000,
+      "Percentage": 0,
+      "RewardIndex": 995312,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 13,
+      "MinRank": 1001,
+      "MaxRank": 2000,
+      "Percentage": 0,
+      "RewardIndex": 995313,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 14,
+      "MinRank": 2001,
+      "MaxRank": 5000,
+      "Percentage": 0,
+      "RewardIndex": 995314,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 15,
+      "MinRank": 5001,
+      "MaxRank": 10000,
+      "Percentage": 0,
+      "RewardIndex": 995315,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 16,
+      "MinRank": 10001,
+      "MaxRank": 20000,
+      "Percentage": 0,
+      "RewardIndex": 995316,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    },
+    {
+      "Index": 17,
+      "MinRank": 20001,
+      "MaxRank": 99999,
+      "Percentage": 0,
+      "RewardIndex": 995317,
+      "DescKey": null,
+      "RewardServerBuffType": 0,
+      "RewardServerBuffValue": null,
+      "RewardServerBuffCode": null
+    }
+  ],
+  "BanRule": [
+    {
+      "Index": 871,
+      "BanType1": 0,
+      "BanValue1": null,
+      "BanType2": 3,
+      "BanValue2": "Hero.Miruru,Hero.Neraxis,Hero.Kara",
+      "BanType3": 0,
+      "BanValue3": null,
+      "RuleName": null,
+      "RuleTactic": null,
+      "SelectClassType": null,
+      "AcceptedClassType": null
+    },
+    {
+      "Index": 872,
+      "BanType1": 0,
+      "BanValue1": null,
+      "BanType2": 3,
+      "BanValue2": "Hero.ZLucikiel,Hero.Shamilla,Hero.Loman",
+      "BanType3": 0,
+      "BanValue3": null,
+      "RuleName": null,
+      "RuleTactic": null,
+      "SelectClassType": null,
+      "AcceptedClassType": null
+    },
+    {
+      "Index": 873,
+      "BanType1": 0,
+      "BanValue1": null,
+      "BanType2": 3,
+      "BanValue2": "Hero.Mediana,Hero.Lakrak,Hero.Aselica",
+      "BanType3": 0,
+      "BanValue3": null,
+      "RuleName": null,
+      "RuleTactic": null,
+      "SelectClassType": null,
+      "AcceptedClassType": null
+    }
+  ]
+}
