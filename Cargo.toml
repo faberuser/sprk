@@ -9,8 +9,8 @@ authors = ["Private Server Project"]
 # Web framework
 axum = { version = "0.7", features = ["macros", "form"] }
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "fs"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

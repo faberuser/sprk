@@ -1,0 +1,9 @@
+# Keep databases, client releases, native binaries, and build output out of images.
+*
+!Cargo.toml
+!Cargo.lock
+!Dockerfile
+!src/
+!src/**
+!tables/
+!tables/**

@@ -46,6 +46,11 @@ cargo build --release
 
 ### Running the Server
 
+`SPRK_SERVICE_MODE=game` (the default) runs the game services. Use `updates` to
+serve client update manifests/files without initializing the game, or `all` to
+run both. See [client updates and Portainer setup](docs/client-updates.md) for the
+publishing script, download endpoints, and shared-image container stack.
+
 ```bash
 # Run the server (default port 8080)
 cargo run --release

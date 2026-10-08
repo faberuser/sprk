@@ -82,3 +82,6 @@ TestResult.xml
 nunit-*.xml
 
 __pycache__/
+
+# Published client binaries and release manifests are deployment data.
+/client-updates/

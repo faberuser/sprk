@@ -3,8 +3,10 @@ mod crypto;
 mod database;
 mod error;
 mod models;
+mod service_mode;
 mod state;
 mod tables;
+mod updates;
 
 use axum::{
     Router,
@@ -19,6 +21,7 @@ use tower_http::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use crate::service_mode::ServiceMode;
 use crate::state::AppState;
 use crate::tables::GameTables;
 
@@ -32,8 +35,45 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Starting sprk Private Server...");
+    let mode = ServiceMode::from_env()?;
+    tracing::info!(?mode, "Starting sprk Private Server...");
 
+    // Validate update storage before starting any game services in `all` mode.
+    let update_routes = if mode.runs_updates() {
+        Some(updates::routes_from_env().await?)
+    } else {
+        None
+    };
+    let game_routes = if mode.runs_game() {
+        Some(game_router().await?)
+    } else {
+        None
+    };
+    let app = service_router(game_routes, update_routes)
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
+        .layer(TraceLayer::new_for_http());
+
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    tracing::info!("Server listening on http://{}", listener.local_addr()?);
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+    Ok(())
+}
+
+// Game state and middleware are confined to this router. Update downloads never
+// initialize a database, chat/battle listeners, or a native worker.
+async fn game_router() -> anyhow::Result<Router> {
     // Initialize database
     let db = database::init_database().await?;
     
@@ -100,12 +140,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
 
-    // Configure CORS (permissive for game client)
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
     // Build router with all API routes
     let app = Router::new()
         .merge(api::services::routes(&state.tables.services))
@@ -113,8 +147,6 @@ async fn main() -> anyhow::Result<()> {
         .merge(api::live::routes(&state.tables.live))
         .merge(api::battle::routes(&state.tables.battle))
         .merge(api::community::routes(&state.tables.arena_guild))
-        // Health check
-        .route("/health", get(health_check))
         // Initial host query (client fetches this first to get server info)
         // Original path from client config
         .route("/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json", get(api::system::query::get_host_info))
@@ -322,24 +354,46 @@ async fn main() -> anyhow::Result<()> {
         .fallback(api::system::fallback::handle_fallback)
         // Middleware
         .layer(middleware::from_fn_with_state(state.clone(), api::progression::notifications::notify))
-        .layer(cors)
-        .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::decrypt_request))
         .with_state(state);
 
-    // Bind to address - use PORT env var or default to 8080
-    // For production, set PORT=80 (requires admin/root privileges)
-    let port: u16 = std::env::var("PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8080);
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("Server listening on http://{}", addr);
-    
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    Ok(app)
+}
 
-    Ok(())
+fn service_router(game: Option<Router>, updates: Option<Router>) -> Router {
+    let mut app = Router::new().route("/health", get(health_check));
+    if let Some(game) = game {
+        app = app.merge(game);
+    }
+    // An explicit fallback prevents the game's compatibility fallback from
+    // answering unavailable update URLs with a successful game response.
+    app.nest(
+        "/updates",
+        updates.unwrap_or_else(|| {
+            Router::new().fallback(|| async { axum::http::StatusCode::NOT_FOUND })
+        }),
+    )
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
 
 async fn health_check() -> &'static str {
