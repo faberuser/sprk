@@ -6,7 +6,11 @@ in `sprk-server`; the published executable goes beside `King's Raid.exe`.
 On opening the launcher, it checks the current manifest, hashes only the files
 managed by that manifest, downloads changed/missing files, installs the complete
 release, and starts the game. It does not scan/download the entire 20 GB client.
-It shows progress and offers Retry after an error. The game must be closed while
+It shows progress and offers Retry after an error. If a game window is already
+running, opening the launcher starts another window using the installed files.
+Updates are deferred until all game windows are closed. Enable Unity multiple-window
+support with `python scripts/enable_multiple_windows.py ../sprk-client --install`.
+The game must be closed while
 updating. A failed update never automatically starts an unchecked client.
 
 ## Build and install

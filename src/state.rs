@@ -7,6 +7,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct SessionInfo {
     pub account_id: i64,
+    /// Last quest records delivered to this client; reserved quest fields are events.
+    pub(crate) delivered_sub_quests: Arc<std::sync::Mutex<std::collections::BTreeMap<i64, serde_json::Value>>>,
     #[allow(dead_code)]
     pub session_key: String,
     #[allow(dead_code)]
@@ -54,6 +56,7 @@ impl AppState {
         let now = chrono::Utc::now();
         let session = SessionInfo {
             account_id,
+            delivered_sub_quests: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             session_key: session_key.clone(),
             aes_key,
             login_time: now,

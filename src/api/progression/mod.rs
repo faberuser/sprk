@@ -140,13 +140,14 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
             let snapshot = snapshot(&mut tx, &state, account).await?;
             for (wire, field) in [
                 ("AchievementInfos", "AchievementInfos"),
-                ("ReservedSubQuestInfos", "SubQuestInfos"),
                 ("ReservedMainQuestInfo", "MainQuestInfo"),
                 ("ReservedClearMissionInfos", "ClearMissionInfos"),
             ] {
                 out[wire] = snapshot[field].clone();
             }
             tx.commit().await?;
+            let session_key = req.0.get("SessionKey").or(req.0.get("SessionId")).map(String::as_str).unwrap_or("");
+            out["ReservedSubQuestInfos"] = json!(notifications::subquest_updates(&state, session_key, &snapshot["SubQuestInfos"]));
             Ok(Json(out))
         }
         Err(ServerError::InvalidRequest(code)) => {

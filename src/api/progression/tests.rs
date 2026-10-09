@@ -739,6 +739,82 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
 }
 
 #[tokio::test]
+async fn story_mission_notifications_do_not_replay_after_battles_or_lobby_refresh() {
+    use tower::Service;
+    async fn send(app: &mut axum::Router, u: &user::LoginResponse, path: &str, data: &str) -> Value {
+        let response = app.call(axum::http::Request::builder().method("POST").uri(path)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(axum::body::Body::from(form(u, data))).unwrap()).await.unwrap();
+        serde_json::from_slice(&axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap()
+    }
+    async fn lobby(s: &AppState, u: &user::LoginResponse) -> Value {
+        json!(crate::api::account::lobby::enter_lobby(State(s.clone()),
+            axum::extract::Form(crate::api::account::lobby::EnterLobbyRequest {
+                session_id: None, session_key: Some(u.user_info.session_key.clone()),
+            })).await.unwrap().0)
+    }
+    let (s, u) = setup().await;
+    let mut app = axum::Router::new()
+        .route("/campaign/begin", axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign))
+        .route("/campaign/end", axum::routing::post(crate::api::battle::campaign_handlers::end_campaign))
+        .layer(axum::middleware::from_fn_with_state(s.clone(), notifications::notify))
+        .with_state(s.clone());
+    assert_eq!(lobby(&s, &u).await["ReservedSubQuestInfos"], json!([]));
+    let mut completed = BTreeSet::new();
+    for dungeon in [1, 2, 2] {
+        let entry = format!("ChapterIndex=1&DungeonIndex={dungeon}&DungeonDifficulty=1&HeroIndices=[1]");
+        let begin = send(&mut app, &u, "/campaign/begin", &entry).await;
+        assert_eq!(begin["Result"], "Success", "{begin}");
+        for info in begin["ReservedSubQuestInfos"].as_array().unwrap() {
+            assert!(!completed.contains(&n(info, "SubQuestIndex")), "Old completion sent again at battle start: {info}");
+        }
+        let end = send(&mut app, &u, "/campaign/end", &format!("{entry}&Completed=true&Star=3&AliveHeroIndices=[1]")).await;
+        assert_eq!(end["Result"], "Success", "{end}");
+        let quest = 10000 + dungeon * 10;
+        let updates = end["ReservedSubQuestInfos"].as_array().unwrap();
+        for info in updates {
+            assert!(!completed.contains(&n(info, "SubQuestIndex")), "Old completion sent again after battle: {info}");
+        }
+        if completed.insert(quest) {
+            assert!(updates.iter().any(|i| n(i, "SubQuestIndex") == quest && n(i, "Progress") == 1));
+        }
+        // Empty native update arrays preserve the battle's pending popup queue;
+        // the lobby consumes that queue without adding the same quests again.
+        for _ in 0..2 {
+            assert_eq!(lobby(&s, &u).await["ReservedSubQuestInfos"], json!([]));
+        }
+        assert_eq!(call(&s, &u, "get_achievements", "").await["ReservedSubQuestInfos"], json!([]));
+    }
+    // Unclaimed rewards remain available; notification deduplication must not claim them.
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='subquest'")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(), 0);
+    let login = relogin(&s).await;
+    for id in completed {
+        let info = login.sub_quest_infos.iter().find(|i| n(i, "SubQuestIndex") == id).unwrap();
+        assert_eq!(info["Progress"], 1);
+        assert_eq!(info["LastStep"], 0);
+    }
+    assert_eq!(lobby(&s, &login).await["ReservedSubQuestInfos"], json!([]));
+    let claim = call(&s, &login, "complete_sub_quest", "SubQuestIndices=[10010]").await;
+    assert_eq!(claim["Result"], "Success");
+    assert_eq!(claim["SucceededSubQuestInfos"][0]["LastStep"], 1);
+    assert_eq!(lobby(&s, &login).await["ReservedSubQuestInfos"], json!([]));
+}
+
+#[tokio::test]
+async fn mission_notification_baselines_are_isolated_per_session() {
+    let (s, u) = setup().await;
+    let other = relogin(&s).await;
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    for session in [&u, &other] {
+        let update = call(&s, session, "get_achievements", "").await;
+        assert!(update["ReservedSubQuestInfos"].as_array().unwrap().iter().any(|i| i["SubQuestIndex"] == 10010 && i["Progress"] == 1));
+        assert_eq!(call(&s, session, "get_achievements", "").await["ReservedSubQuestInfos"], json!([]));
+    }
+}
+
+#[tokio::test]
 async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
     let (mut s, u) = setup().await;
     let days = s.tables.progression.calendars[0]["Reward"].as_array().unwrap().len() as i64;

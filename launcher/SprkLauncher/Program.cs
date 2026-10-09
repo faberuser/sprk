@@ -40,19 +40,20 @@ static class Program
         }
     }
 
-    public static void EnsureGameClosed(string executable)
+    public static bool IsGameRunning(string executable)
     {
         foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(executable)))
-        {
             using (process)
-            {
-                if (process.HasExited) continue;
-                // Conservatively block another instance even if its executable
-                // location cannot be read (for example, an elevated process).
-                throw new IOException("Close King's Raid before updating, then click Retry.");
-            }
-        }
+                if (!process.HasExited) return true;
+        return false;
     }
+
+    public static void EnsureGameClosed(string executable)
+    {
+        if (IsGameRunning(executable))
+            throw new IOException("Close all King's Raid windows before updating, then click Retry.");
+    }
+
 }
 
 sealed class LauncherForm : Form
@@ -133,6 +134,16 @@ sealed class LauncherForm : Form
             var engine = new UpdateEngine(root, config, http, () => Program.EnsureGameClosed(config.GameExecutable), reporter);
             version.Text = $"Installed: {engine.InstalledVersion}";
             using var updateLock = engine.AcquireLock();
+            // Another game window uses the installed client. Keep the update lock while
+            // launching, but never recover or install files underneath running games.
+            if (Program.IsGameRunning(config.GameExecutable))
+            {
+                status.Text = "A game window is already open.";
+                detail.Text = "Updates will be checked after all game windows are closed.";
+                action.Text = "Open Another Window";
+                if ((launch || config.AutoLaunch) && !closing) LaunchGame();
+                return;
+            }
             var result = await Task.Run(() => engine.UpdateAsync(cancellation.Token));
             version.Text = $"Installed: {result.Version}";
             status.Text = "Your client is up to date.";
@@ -164,7 +175,6 @@ sealed class LauncherForm : Form
     {
         try
         {
-            Program.EnsureGameClosed(config.GameExecutable);
             var game = Path.GetFullPath(Path.Combine(root, config.GameExecutable));
             if (!File.Exists(game)) throw new FileNotFoundException("King's Raid.exe is missing. Put the launcher beside the full game client.");
             Process.Start(new ProcessStartInfo(game) { WorkingDirectory = root, UseShellExecute = true });

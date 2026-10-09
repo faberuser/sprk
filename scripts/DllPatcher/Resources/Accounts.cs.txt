@@ -1,5 +1,8 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using NGame2.NAccount;
 using NGame2.NLogin;
@@ -14,6 +17,31 @@ using UnityEngine.Networking;
 public sealed class SprkAccounts : MonoBehaviour {
     static LoginSuccData pending;
     static GetTokenData pendingTokens;
+    static SprkSavedAccount activeAccount;
+    static bool switchingAccount;
+    static IDisposable accountLease;
+    float nextAccountRefresh;
+    string accountListState="";
+    static void ReleaseAccount() {if(accountLease!=null){accountLease.Dispose();accountLease=null;}}
+    void OnApplicationQuit() {ReleaseAccount();}
+    static SprkAccountStore store;
+    bool choosing;
+    int accountPage;
+    GameObject accountList;
+    UIButton back;
+    const int PageSize=4;
+    static SprkAccountStore Store {
+        get {
+            if(store==null) {
+                string directory=Application.persistentDataPath;
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) && !String.IsNullOrEmpty(profile) && System.Text.RegularExpressions.Regex.IsMatch(profile,@"\A[A-Za-z0-9_-]{1,64}\z"))
+                    directory=Path.Combine(directory,"SprkAutomation",profile);
+                store=new SprkAccountStore(Path.Combine(directory,"sprk-accounts.dat"));
+            }
+            return store;
+        }
+    }
     LoginSelect window;
     LoginSelect.Listener listener;
     AppServerInfo[] servers;
@@ -38,14 +66,17 @@ public sealed class SprkAccounts : MonoBehaviour {
     }
     public static void Open(LoginSelect view, LoginSelect.Listener callback, NShared.LoginMethodType ignored, AppServerInfo[] choices, string lastServer) {
         view.Open();
+        switchingAccount=false;
         var form = view.GetComponent<SprkAccounts>();
         if (form == null) form = view.gameObject.AddComponent<SprkAccounts>();
         form.window = view; form.listener = callback; form.servers = choices;
+        Store.Reload();
+        ReleaseAccount();activeAccount=null;
         form.serverIndex = 0;
         if (choices != null) for (int i=0;i<choices.Length;i++) if (choices[i].Name == lastServer) form.serverIndex=i;
         if (form.root == null) form.Build();
-        form.root.SetActive(true); form.busy=false; form.registering=false; form.Refresh();
-        form.HidePasswords();form.SetMessage(""); form.username.isSelected=true;
+        form.root.SetActive(true); form.busy=false; form.registering=false; form.choosing=Store.Accounts.Count>0;form.accountPage=0; form.Refresh();
+        form.HidePasswords();form.SetMessage(""); if(!form.choosing)form.username.isSelected=true;
         form.root.GetComponent<UIPanel>().alpha=0f;TweenAlpha.Begin(form.root,.18f,1f);
         pending=null;pendingTokens=null;
     }
@@ -75,8 +106,18 @@ public sealed class SprkAccounts : MonoBehaviour {
     public static void CleanLoginInfo(LoginAccountInfo view) {
         if(view.LoginButtonInfoRoot!=null)view.LoginButtonInfoRoot.SetActive(false);
     }
+    public static void SyncRefreshToken() {
+        string token=LoginData.LastRefreshToken;
+        if(activeAccount==null || String.IsNullOrEmpty(token) || activeAccount.RefreshToken==token)return;
+        var updated=new SprkSavedAccount {Username=activeAccount.Username,ServerName=activeAccount.ServerName,Endpoint=activeAccount.Endpoint,RefreshToken=token};
+        try {Store.Upsert(updated);activeAccount=updated;}catch(Exception){Debug.LogWarning("SPRK could not remember the renewed login.");}
+    }
     public static void ClearSession() {
-        Initialize();pending=null;pendingTokens=null;
+        if(activeAccount!=null) {
+            try {Store.Remove(activeAccount);}catch(Exception){Debug.LogWarning("SPRK could not remove the saved account.");}
+            activeAccount=null;
+        }
+        ReleaseAccount();Initialize();pending=null;pendingTokens=null;
     }
     public static void FinishLogout(NShared.Logout.Response response) {
         if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.Logout.ResultType.Success)return;
@@ -86,7 +127,49 @@ public sealed class SprkAccounts : MonoBehaviour {
     static void Hide(Component component) {
         if(component!=null)component.gameObject.SetActive(false);
     }
+    public static void ContinueAccountSwitch(LoginTouchWait view) {
+        if(switchingAccount)view.OnTouchScreen();
+    }
+    static void SwitchAccount() {
+        if(switchingAccount)return;
+        switchingAccount=true;
+        // Keep the encrypted saved login; only discard the currently loaded game session.
+        SyncRefreshToken();activeAccount=null;
+        SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.Reset();
+        ClearSession();LoginData.ClearLastLoginData();
+        SingletonUpdater<LoginManager>.instance.LastLoginVerificationInfo.Value=String.Empty;
+        if(GlobalAutoBehaviour<NGame2.NChatting.ChattingManager>.isValidInstance)
+            GlobalAutoBehaviour<NGame2.NChatting.ChattingManager>.instance.ClearChatList(ChatType.None,0L);
+        AccountManager.Logout();
+        if(GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.isValidInstance)
+            GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.instance.RemoveMyGuild();
+        if(GlobalAutoBehaviour<NGame2.NOrdeal.OrdealArenaManager>.isValidInstance)
+            GlobalAutoBehaviour<NGame2.NOrdeal.OrdealArenaManager>.instance.ResetAll();
+        if(SceneAutoBehaviour<NGame2.NUI.NManager.MailManagement>.isValidInstance)
+            SceneAutoBehaviour<NGame2.NUI.NManager.MailManagement>.instance.Reset();
+        NGame2.NLogin.StateBase.Reset();
+        SingletonUpdater<LoginManager>.instance.ReturnToLogin(NGame2.NScene.LoadingManager.ELoadingType.Default);
+    }
+    static void AddSwitchAccount(GameOptionWindow view) {
+        var info=view.EtcInfo;
+        if(info.Button_Logout==null || info.Button_Coupon==null)return;
+        var parent=info.Button_Logout.parent;
+        if(parent.Find("Button_SwitchAccount")!=null)return;
+        var go=UnityEngine.Object.Instantiate(info.Button_Coupon.gameObject,parent,false);
+        go.name="Button_SwitchAccount";
+        var widget=go.GetComponent<UIWidget>();
+        var position=info.Button_Logout.localPosition;
+        position.x-=(widget!=null?widget.width:350)+24;
+        go.transform.localPosition=position;
+        foreach(var localization in go.GetComponentsInChildren<UILocalize>(true)){localization.enabled=false;UnityEngine.Object.Destroy(localization);}
+        foreach(var localization in go.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true)){localization.enabled=false;UnityEngine.Object.Destroy(localization);}
+        foreach(var label in go.GetComponentsInChildren<UILabel>(true))label.text="Switch Account";
+        var button=go.GetComponent<UIButton>();
+        button.onClick.Clear();EventDelegate.Add(button.onClick,SwitchAccount);
+        go.SetActive(true);
+    }
     public static void CleanSettings(GameOptionWindow view) {
+        AddSwitchAccount(view);
         var info=view.EtcInfo;
         var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
         if(config!=null && info.Label_GameVersionNum!=null)info.Label_GameVersionNum.text=DisplayVersion(config.Version);
@@ -197,20 +280,30 @@ public sealed class SprkAccounts : MonoBehaviour {
         serverLabel.color=new Color(.66f,.77f,.86f);
         UILabel changeLabel;
         changeServerButton=Button("ChangeServer","Change",296,0,96,ChangeServer,out changeLabel,serverStatus.transform,false,40);
-        submit=Button("Submit","Log In",0,0,696,Submit,out submitLabel,null,true);
+        submit=Button("Submit","Log In",0,0,696,Submit,out submitLabel,null,true,52);
         toggle=Button("SwitchMode","Create an Account",0,0,696,SwitchMode,out switchLabel,null,false,52);
         message=Label("Message",root.transform,"",0,0,730,22,22);message.color=new Color(1f,.79f,.48f);
         message.overflowMethod=UILabel.Overflow.ResizeHeight;
+        UILabel backLabel;
+        back=Button("BackToAccounts","Back to Accounts",0,0,696,BackToAccounts,out backLabel,null,false,52);
+        accountList=Child("SavedAccounts",root.transform,0,0);
     }
     void Refresh() {
-        title.text=registering?"Create Your Account":"Welcome Back";
+        username.transform.parent.gameObject.SetActive(!choosing);
+        password.transform.parent.gameObject.SetActive(!choosing);
+        serverStatus.SetActive(!choosing);submit.gameObject.SetActive(!choosing);toggle.gameObject.SetActive(!choosing);
+        back.gameObject.SetActive(!choosing && Store.Accounts.Count>0);back.isEnabled=!busy;
+        back.transform.localPosition=new Vector3(0,registering?-312:-204,0);
+        accountList.SetActive(choosing);
+        title.text=choosing?"Choose an Account":registering?"Create Your Account":"Welcome Back";
+        if(choosing)BuildAccountList();
         submitLabel.text=busy?"Connecting...":registering?"Register":"Log In";
         switchLabel.text=registering?"Already registered? Log in":"Create an Account";
         RefreshLayout();
         serverStatus.transform.localPosition=new Vector3(0,registering?-90:18,0);
-        submit.transform.localPosition=new Vector3(0,registering?-172:-64,0);
+        submit.transform.localPosition=new Vector3(0,registering?-178:-70,0);
         toggle.transform.localPosition=new Vector3(0,registering?-245:-137,0);
-        confirmRow.SetActive(registering);
+        confirmRow.SetActive(!choosing && registering);
         submit.isEnabled=!busy;toggle.isEnabled=!busy;
         bool multipleServers=servers!=null && servers.Length>1;
         changeServerButton.gameObject.SetActive(multipleServers);changeServerButton.isEnabled=!busy;
@@ -225,9 +318,9 @@ public sealed class SprkAccounts : MonoBehaviour {
         // Fit errors to their rendered text with compact, equal padding.
         // Keep the normal panel size unless wrapping needs additional room.
         float messageHeight=Mathf.Max(message.fontSize,Mathf.Ceil(message.printedSize.y));
-        float messageTop=(registering?-245:-137)-26-26;
+        float messageTop=choosing?PickerAddY-53:(registering?-245:-137)-(Store.Accounts.Count>0?67:0)-26-26;
         message.transform.localPosition=new Vector3(0,messageTop-messageHeight*.5f,0);
-        background.height=registering?786:678;
+        background.height=choosing?Mathf.CeilToInt(548-PickerAddY):(registering?786:678)+(Store.Accounts.Count>0?67:0);
         if(!String.IsNullOrEmpty(message.text))
             background.height=Mathf.Max(background.height,Mathf.CeilToInt(440-(messageTop-messageHeight-26)));
         float centerY=440-background.height*.5f;
@@ -236,15 +329,75 @@ public sealed class SprkAccounts : MonoBehaviour {
         border.height=background.height+6;border.transform.localPosition=background.transform.localPosition;
     }
     void SetMessage(string text) {message.text=text;RefreshLayout();}
+    string AccountListState() {
+        var state=new StringBuilder();
+        foreach(var entry in Store.Accounts)state.Append(entry.Endpoint).Append('|').Append(entry.ServerName).Append('|').Append(entry.Username).Append(Store.InUse(entry)).Append(';');
+        return state.ToString();
+    }
     void Update() {
+        if(!busy && root!=null && root.activeInHierarchy && Time.unscaledTime>=nextAccountRefresh) {
+            nextAccountRefresh=Time.unscaledTime+1f;
+            try {
+                Store.Reload();string state=AccountListState();
+                if(state!=accountListState){accountListState=state;if(choosing && Store.Accounts.Count==0)choosing=false;Refresh();}
+            }catch(IOException){}catch(UnauthorizedAccessException){}
+        }
         // The title screen's native camera does not consistently dispatch Tab.
         // Handle it once per form, leaving arrow keys to the text caret.
-        if(busy || root==null || !root.activeInHierarchy || !UnityEngine.Input.GetKeyDown(KeyCode.Tab))return;
+        if(busy || choosing || root==null || !root.activeInHierarchy || !UnityEngine.Input.GetKeyDown(KeyCode.Tab))return;
         bool reverse=UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
         var selected=UIInput.selection;
         if(selected==username)(reverse?(registering?confirm:password):password).isSelected=true;
         else if(selected==password)(reverse?username:(registering?confirm:username)).isSelected=true;
         else if(selected==confirm && registering)(reverse?password:username).isSelected=true;
+    }
+    float PickerAddY {
+        get {return 188-System.Math.Min(PageSize,Store.Accounts.Count-accountPage*PageSize)*86-(Store.Accounts.Count>PageSize?82:0);}
+    }
+    void BuildAccountList() {
+        foreach(Transform child in accountList.transform){child.gameObject.SetActive(false);Destroy(child.gameObject);}
+        accountPage=Mathf.Clamp(accountPage,0,Mathf.Max(0,(Store.Accounts.Count-1)/PageSize));
+        for(int i=accountPage*PageSize;i<System.Math.Min(Store.Accounts.Count,(accountPage+1)*PageSize);i++) {
+            var account=Store.Accounts[i];float y=218-(i%PageSize)*86;UILabel label;
+            bool inUse=Store.InUse(account);
+            var use=Button("Account"+(i%PageSize),account.Username+"  /  "+account.ServerName+(inUse?" (In use)":""),-76,y,544,delegate{UseAccount(account);},out label,accountList.transform);
+            use.isEnabled=!busy && !inUse;
+            var remove=Button("Logout"+(i%PageSize),"Log Out",282,y,132,delegate{RemoveAccount(account);},out label,accountList.transform);
+            remove.isEnabled=!busy && !inUse;
+        }
+        UILabel caption;
+        var add=Button("AddAccount","Add Account",0,PickerAddY,696,AddAccount,out caption,accountList.transform,true);add.isEnabled=!busy && Store.Accounts.Count<SprkAccountStore.MaxAccounts;
+        if(Store.Accounts.Count>PageSize) {
+            var previous=Button("Previous","Previous",-250,PickerAddY+82,180,delegate{if(!busy){accountPage--;Refresh();}},out caption,accountList.transform,false,44);
+            previous.isEnabled=!busy && accountPage>0;
+            Label("Page",accountList.transform,(accountPage+1)+" / "+((Store.Accounts.Count+PageSize-1)/PageSize),0,PickerAddY+82,200,36,22);
+            var next=Button("Next","Next",250,PickerAddY+82,180,delegate{if(!busy){accountPage++;Refresh();}},out caption,accountList.transform,false,44);
+            next.isEnabled=!busy && (accountPage+1)*PageSize<Store.Accounts.Count;
+        }
+    }
+    void AddAccount() {if(busy)return;Store.Reload();if(Store.Accounts.Count>=SprkAccountStore.MaxAccounts){SetMessage("Four accounts are saved. Log out of one to add another.");Refresh();return;}choosing=false;registering=false;username.value="";password.value="";confirm.value="";HidePasswords();SetMessage("");Refresh();username.isSelected=true;}
+    void BackToAccounts() {if(busy)return;choosing=Store.Accounts.Count>0;password.value="";confirm.value="";HidePasswords();UICamera.selectedObject=null;SetMessage("");Refresh();}
+    void RemoveAccount(SprkSavedAccount account) {
+        if(busy)return;
+        try {using(var lease=Store.TryAcquire(account)){if(lease==null){Fail("This account is open in another window.");return;}Store.Remove(account);}}catch(Exception){Fail("Unable to save logout. Please check local storage and try again.");return;}
+        choosing=Store.Accounts.Count>0;SetMessage("");Refresh();
+        if(!choosing){username.value="";username.isSelected=true;}
+    }
+    void UseAccount(SprkSavedAccount account) {
+        if(busy)return;
+        int index=-1;
+        if(servers!=null)for(int i=0;i<servers.Length;i++)if(SprkAccountStore.Endpoint(servers[i].LoginServer)==account.Endpoint && servers[i].Name==account.ServerName){index=i;break;}
+        if(index<0){Fail("This account's server is unavailable. Please try again later.");return;}
+        Store.Reload();
+        var current=Store.Accounts.Find(delegate(SprkSavedAccount entry){return SprkAccountStore.Same(entry,account);});
+        if(current==null){Refresh();return;}
+        accountLease=Store.TryAcquire(current);
+        if(accountLease==null){Fail("This account is open in another window.");return;}
+        // Another window may have renewed/released the account while we acquired it.
+        Store.Reload();
+        current=Store.Accounts.Find(delegate(SprkSavedAccount entry){return SprkAccountStore.Same(entry,account);});
+        if(current==null){ReleaseAccount();Refresh();return;}
+        serverIndex=index;busy=true;SetMessage("Connecting...");Refresh();StartCoroutine(Authenticate(current));
     }
     void SetPasswordVisibility(UIInput input,UILabel label,bool visible) {
         input.inputType=visible?UIInput.InputType.Standard:UIInput.InputType.Password;
@@ -261,37 +414,53 @@ public sealed class SprkAccounts : MonoBehaviour {
         Submit();
     }
     void Submit() {
-        if(busy)return;
+        if(busy || choosing)return;
         if(servers==null || servers.Length==0){Fail("No server available.");return;}
         if(username.value.Trim().Length<3 || password.value.Length<8){Fail("Enter a username (3-32 characters) and password (at least 8 characters).",username.value.Trim().Length<3?username:password);return;}
         if(registering && password.value!=confirm.value){Fail("Passwords do not match.",confirm);return;}
+        Store.Reload();
+        var identity=new SprkSavedAccount {Username=username.value.Trim().ToLowerInvariant(),ServerName=servers[serverIndex].Name,Endpoint=SprkAccountStore.Endpoint(servers[serverIndex].LoginServer)};
+        if(!Store.CanSave(identity)){Fail("Four accounts are saved. Log out of one to add another.");return;}
+        accountLease=Store.TryAcquire(identity);
+        if(accountLease==null){Fail("This account is open in another window.");return;}
         busy=true;SetMessage("");HidePasswords();UICamera.selectedObject=null;Refresh();StartCoroutine(Authenticate());
     }
-    IEnumerator Authenticate() {
+    IEnumerator Authenticate(SprkSavedAccount saved=null) {
         var server=servers[serverIndex];
         SingletonUpdater<LoginManager>.instance.SetServerName(server.Name);
         string endpoint=server.LoginServer.TrimEnd('/')+"/api/auth/";
-        string json=JsonUtility.ToJson(new Request {username=username.value.Trim(),password=password.value});
-        using(var request=new UnityWebRequest(endpoint+(registering?"register":"login"),"POST")) {
+        string json=saved==null?JsonUtility.ToJson(new Request {username=username.value.Trim(),password=password.value}):"{}";
+        using(var request=new UnityWebRequest(endpoint+(saved!=null?"refresh-token":registering?"register":"login"),"POST")) {
             request.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));json=null;
             request.downloadHandler=new DownloadHandlerBuffer();request.timeout=25;
-            request.SetRequestHeader("Content-Type","application/json");yield return request.SendWebRequest();
+            request.SetRequestHeader("Content-Type","application/json");
+            if(saved!=null)request.SetRequestHeader("Authorization","Bearer "+saved.RefreshToken);
+            yield return request.SendWebRequest();
             TokenReply response=null;
             try {response=JsonUtility.FromJson<TokenReply>(request.downloadHandler.text);}catch(Exception){}
-            if(request.result!=UnityWebRequest.Result.Success || response==null || response.data==null || response.status!="success") {
+            if(request.result!=UnityWebRequest.Result.Success || response==null || response.data==null || response.status!="success" || String.IsNullOrEmpty(response.data.access_token) || String.IsNullOrEmpty(response.data.refresh_token)) {
+                if(saved!=null && (request.responseCode==401 || request.responseCode==403)) {
+                    try {Store.Remove(saved);}catch(Exception){Fail("Unable to update saved accounts. Please check local storage.");yield break;}
+                    choosing=false;registering=false;username.value=saved.Username;password.value="";confirm.value="";
+                    Fail("Your saved login has expired. Please enter your password.");yield break;
+                }
                 Debug.LogWarning("SPRK account request failed: HTTP "+request.responseCode+", "+request.error+", "+endpoint);
                 Fail(response!=null && !String.IsNullOrEmpty(response.InternalErrorMessage)?response.InternalErrorMessage:"Unable to sign in. Check the server connection and try again.");yield break;
             }
+            // Refresh tokens rotate: persist the replacement before verifying the game connection.
+            var remembered=new SprkSavedAccount {Username=saved==null?username.value.Trim().ToLowerInvariant():saved.Username,
+                ServerName=server.Name,Endpoint=SprkAccountStore.Endpoint(server.LoginServer),RefreshToken=response.data.refresh_token};
+            try {Store.Upsert(remembered);}catch(InvalidOperationException error){Fail(error.Message);yield break;}catch(Exception){Fail("Unable to remember this login. Please check local storage and try again.");yield break;}
             using(var verify=new UnityWebRequest(endpoint+"token/verify","POST")) {
                 verify.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes("{}"));verify.downloadHandler=new DownloadHandlerBuffer();verify.timeout=25;
                 verify.SetRequestHeader("Content-Type","application/json");verify.SetRequestHeader("Authorization","Bearer "+response.data.access_token);
                 yield return verify.SendWebRequest();SessionReply verified=null;
                 try {verified=JsonUtility.FromJson<SessionReply>(verify.downloadHandler.text);}catch(Exception){}
-                if(verify.result!=UnityWebRequest.Result.Success || verified==null || verified.data==null || String.IsNullOrEmpty(verified.data.session)) {
+                if(verify.result!=UnityWebRequest.Result.Success || verified==null || verified.status!="success" || verified.data==null || String.IsNullOrEmpty(verified.data.session)) {
                     Fail("Account authenticated, but the game connection failed. Please log in again.");yield break;
                 }
                 pending=new LoginSuccData {id=verified.data.id,sessionid=verified.data.session};
-                pendingTokens=response.data;
+                pendingTokens=response.data;activeAccount=remembered;
             }
         }
         busy=false;
@@ -299,19 +468,104 @@ public sealed class SprkAccounts : MonoBehaviour {
         listener.OnSelect(window,NShared.LoginMethodType.Guest,server.Name,true);
     }
     void Fail(string error,UIInput field=null) {
-        busy=false;SetMessage(error);Refresh();
-        StartCoroutine(FocusForRetry(field==null?password:field,registering));
+        ReleaseAccount();busy=false;SetMessage(error);Refresh();
+        if(!choosing)StartCoroutine(FocusForRetry(field==null?password:field,registering));
     }
     IEnumerator FocusForRetry(UIInput field,bool mode) {
         // Let the submitting Enter event finish before restoring focus. Keep
         // the value, selecting it so the next keystroke can replace it.
         yield return null;
-        if(busy || root==null || !root.activeInHierarchy || registering!=mode || field==null || !field.isActiveAndEnabled)yield break;
+        if(busy || choosing || root==null || !root.activeInHierarchy || registering!=mode || field==null || !field.isActiveAndEnabled)yield break;
         field.selectAllTextOnFocus=true;field.isSelected=true;
         field.selectionStart=0;field.selectionEnd=field.value.Length;
         // NGUI initializes the caret in its next Update; retain select-all
         // until that happens, then restore normal mouse/Tab caret behavior.
         yield return null;
         if(field!=null)field.selectAllTextOnFocus=false;
+    }
+}
+
+// Separate from Unity serialization so the store also works with the prebuilt player.
+public sealed class SprkSavedAccount {
+    public string Username, ServerName, Endpoint, RefreshToken;
+}
+public sealed class SprkAccountStore {
+    public const int MaxAccounts=4;
+    readonly string path;
+    public readonly List<SprkSavedAccount> Accounts=new List<SprkSavedAccount>();
+    public static string Endpoint(string value) {return value.TrimEnd('/');}
+    public SprkAccountStore(string file) {path=file;Reload();}
+    List<SprkSavedAccount> Read() {
+        var entries=new List<SprkSavedAccount>();
+        if(!File.Exists(path))return entries;
+        try {
+            var bytes=ProtectedData.Unprotect(File.ReadAllBytes(path),null,DataProtectionScope.CurrentUser);
+            using(var reader=new BinaryReader(new MemoryStream(bytes),Encoding.UTF8)) {
+                if(reader.ReadInt32()!=1)throw new InvalidDataException();
+                int count=reader.ReadInt32();if(count<0 || count>10000)throw new InvalidDataException();
+                for(int i=0;i<count;i++) {
+                    var entry=new SprkSavedAccount {Username=reader.ReadString(),ServerName=reader.ReadString(),Endpoint=reader.ReadString(),RefreshToken=reader.ReadString()};
+                    if(String.IsNullOrEmpty(entry.Username) || String.IsNullOrEmpty(entry.Endpoint) || String.IsNullOrEmpty(entry.RefreshToken))throw new InvalidDataException();
+                    entries.Add(entry);
+                }
+            }
+        }catch(CryptographicException){entries.Clear();}
+         catch(InvalidDataException){entries.Clear();}
+         catch(EndOfStreamException){entries.Clear();}
+        return entries;
+    }
+    public bool Reload() {
+        // Atomic file replacement means readers see either complete version.
+        var next=Read();bool changed=next.Count!=Accounts.Count;
+        if(!changed)for(int i=0;i<next.Count;i++)if(!Same(next[i],Accounts[i]) || next[i].RefreshToken!=Accounts[i].RefreshToken){changed=true;break;}
+        if(changed){Accounts.Clear();Accounts.AddRange(next);}return changed;
+    }
+    public static bool Same(SprkSavedAccount a,SprkSavedAccount b) {return a.Username==b.Username && a.Endpoint==b.Endpoint && a.ServerName==b.ServerName;}
+    public bool CanSave(SprkSavedAccount account) {return Accounts.Count<MaxAccounts || Accounts.Exists(delegate(SprkSavedAccount old){return Same(old,account);});}
+    FileStream LockStore() {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        for(int i=0;;i++) {
+            try {return new FileStream(path+".lock",FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);}
+            catch(IOException){if(i>=100)throw;System.Threading.Thread.Sleep(10);}
+        }
+    }
+    public IDisposable TryAcquire(SprkSavedAccount account) {
+        string key;
+        using(var hash=SHA256.Create())key=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(account.Endpoint+"\n"+account.ServerName+"\n"+account.Username))).Replace("-","");
+        string directory=path+".sessions";Directory.CreateDirectory(directory);
+        try {return new FileStream(Path.Combine(directory,key+".lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);}
+        catch(IOException){return null;}
+    }
+    public bool InUse(SprkSavedAccount account) {using(var lease=TryAcquire(account))return lease==null;}
+    public void Upsert(SprkSavedAccount account) {
+        using(LockStore()) {
+            var next=Read();bool exists=next.Exists(delegate(SprkSavedAccount old){return Same(old,account);});
+            if(!exists && next.Count>=MaxAccounts)throw new InvalidOperationException("Four accounts are already saved. Log out of an account before adding another.");
+            next.RemoveAll(delegate(SprkSavedAccount old){return Same(old,account);});next.Insert(0,account);Save(next);
+        }
+    }
+    public void Remove(SprkSavedAccount account) {
+        using(LockStore()) {
+            var next=Read();next.RemoveAll(delegate(SprkSavedAccount old){return Same(old,account);});Save(next);
+        }
+    }
+    void Save(List<SprkSavedAccount> next) {
+        byte[] clear;
+        using(var buffer=new MemoryStream()) {
+            using(var writer=new BinaryWriter(buffer,Encoding.UTF8,true)) {
+                writer.Write(1);writer.Write(next.Count);
+                foreach(var entry in next){writer.Write(entry.Username);writer.Write(entry.ServerName);writer.Write(entry.Endpoint);writer.Write(entry.RefreshToken);}
+            }
+            clear=buffer.ToArray();
+        }
+        byte[] encrypted=ProtectedData.Protect(clear,null,DataProtectionScope.CurrentUser);
+        Array.Clear(clear,0,clear.Length);
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        string temp=path+".tmp";
+        try {
+            File.WriteAllBytes(temp,encrypted);
+            if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
+            Accounts.Clear();Accounts.AddRange(next);
+        }finally {if(File.Exists(temp))File.Delete(temp);}
     }
 }

@@ -326,7 +326,7 @@ pub async fn enter_lobby(
         attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),
         opend_mission_categories: progression["OpendMissionCategories"].as_array().cloned().unwrap_or_default(),
-        reserved_sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
+        reserved_sub_quest_infos: crate::api::progression::notifications::subquest_updates(&state, &session_id, &progression["SubQuestInfos"]),
         base_result: "Success".to_string(),
         result: "Success".to_string(),
         user_info,

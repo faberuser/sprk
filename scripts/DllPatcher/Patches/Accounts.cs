@@ -37,7 +37,9 @@ partial class Program {
         After("NGame2.NUI.NWindow.LoginBackground","SetPatchVersion","HidePatchVersion");
         After("NGame2.NUI.NWindow.LoginAccountInfo","Refresh_Noraml","CleanLoginInfo");
         After("NGame2.NUI.NWindow.GameOptionWindow","SetupEtc","CleanSettings");
+        After("NGame2.NUI.NWindow.LoginTouchWait","Init","ContinueAccountSwitch");
         After("NGame2.NAccount.AccountManager","Logout","ClearSession",false);
+        After("NGame2.NLogin.LoginData","set_LastRefreshToken","SyncRefreshToken",false);
         // Stop queued lobby traffic as soon as the server confirms logout, before
         // the state coroutine advances. Otherwise it can use the revoked session.
         var logoutCallback=module.GetTypes().Where(t=>t.FullName.StartsWith("NGame2.NLogin.NState.StateBase_Logout/"))

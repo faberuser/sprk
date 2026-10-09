@@ -152,6 +152,39 @@ under `target/settings-layout/staged`. Restart the client after installation.
 
 `--accounts-only` replaces the provider selector with a native login/register form and
 installs `SprkAccounts.dll`. Standard DLL patch modes also retain this account flow.
+Successful login and registration remember each username/server pair. On subsequent
+launches the login selector shows saved accounts, with a per-account **Log Out**
+button and **Add Account**. Selecting an account renews its token and enters the
+game. Add Account opens the existing login/register form; Back to Accounts returns
+to the picker. The saved-account limit is four; Add Account is disabled at the limit and reenabled
+when a saved account is logged out. Existing lists from earlier versions with more
+than four entries remain accessible for removal; new entries are blocked until
+there is space. The picker refreshes across open windows. Accounts currently used
+by another window are marked In use and cannot be selected or removed there. First launch and removing the
+last account show the login form directly. In-game logout forgets only the active
+account; simply closing the game preserves saved logins.
+The Others settings tab also has **Switch Account** beside Logout, styled like the
+existing blue settings buttons. It clears the loaded game session using native
+account/scene cleanup while preserving all saved refresh tokens, then opens the
+account picker directly without requiring a title-screen click or server logout.
+Logout remains a separate action that forgets the active saved login.
+
+Only refresh tokens are saved, encrypted for the current Windows user with DPAPI
+in `Application.persistentDataPath/sprk-accounts.dat`; passwords are never saved.
+Entries are scoped to the configured server name and login endpoint. Renewed tokens
+are saved before game verification, including renewals by the native client.
+Expired/revoked tokens prompt for a password; connection failures retain the saved
+account for retry. Picker logout forgets the login on this device; it does not delete
+the game account or sign out other devices. Corrupt/unreadable storage falls back
+to the login form. Storage failures are reported without claiming a successful save.
+Automation profiles use a separate file beneath `SprkAutomation/<profile>`.
+
+Run the Windows storage regression checks with:
+
+```powershell
+powershell -NoProfile -File scripts/test_saved_accounts.ps1
+```
+
 The larger form includes focus borders, button hover/press feedback, a short fade-in,
 and separate Show/Hide controls for password and confirmation. Tab and Shift+Tab
 cycle through the visible fields; Enter submits from any text field. Passwords
@@ -247,3 +280,20 @@ are stored under `target/payment-removal/`, outside the distributed client.
 The update policy records `real_money_payments: false`, the removed files and the
 required replacement assets; standard account patches retain this configuration.
 Restart the client after installation.
+
+## Multiple game windows
+
+Run `python scripts/enable_multiple_windows.py ../sprk-client --install` to disable
+both Unity single-instance settings (PlayerSettings and boot.config). The script
+validates the known serialization prefix, modifies only the one boolean byte,
+preserves unknown trailing data, and backs up originals under target. The main
+patch script also applies this; default update manifests include both startup files.
+Rebuild the launcher too: it opens another window from the existing installation
+when a game is running, and defers updates until every game window has closed.
+
+Saved-account changes use a cross-process file lock and reload/merge before writing,
+so stale windows cannot overwrite additions/removals or bypass the four-account cap.
+A per-account file handle prevents two windows from consuming the same refresh token
+or displacing each other's game session. Switching releases the account; process exit
+or crash also releases its handle automatically. Different accounts can play at once.
+The four-account cap covers saved logins, not empty game windows.

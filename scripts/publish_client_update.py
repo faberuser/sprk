@@ -18,6 +18,8 @@ from urllib.parse import quote
 
 
 DEFAULT_INCLUDES = [
+    "King's Raid_Data/boot.config",
+    "King's Raid_Data/globalgamemanagers",
     "King's Raid_Data/Managed",
     "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData",
     "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit",

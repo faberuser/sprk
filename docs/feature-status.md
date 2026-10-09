@@ -11,6 +11,7 @@ The following server flows are implemented. Client playthrough testing is ongoin
 - **Tutorial:** rewards, hero recruitment, scripted battle progress, and reconnect support. Skipping tutorials records the World Tree story gate (14000), allowing the normal map route from 1-17 to 1-18 without granting battle clears or rewards.
 - **Attendance and login rewards:** configurable daily/conditional calendars, accumulated-login milestones, UTC resets, and persistent claims.
 - **Achievements and quests:** extracted achievement/subquest definitions, progress from supported gameplay, reward claims, and login/gameplay notifications.
+- **Mission notifications:** login initializes the full quest state; gameplay, reward, and lobby responses send only changed subquests per session. Completed story missions do not replay their popup sequence after later battles, lobby refreshes, or relogin; unclaimed rewards remain available.
 - **Mission UI:** lobby category availability follows the client table's quest requirements. Achievement and Guideline subquest claims accept native repeated form fields as well as JSON arrays, including Claim All batches. Request `Steps` contains each mission's last claimed step (zero before its first claim); the server validates saved progress and awards the next step.
 - **Completion rewards:** chapter-star rewards, entitlement-checked clear/newcomer missions, and claims for persisted world-map events. Chapter reward claims restore through the native login key `chapterRewardInfos`, preserving GET marks after reconnect.
 
