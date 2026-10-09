@@ -1,7 +1,16 @@
-# Build/tag this image once, then paste this stack into Portainer.
+# Deploy from Git on Docker Standalone with Portainer's local Docker socket.
+# Both services build the same image from the checked-out repository.
+x-sprk-image: &sprk-image
+  image: ${SPRK_IMAGE:-sprk-server:latest}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Re-evaluate the build on deployment; unchanged layers use Docker's cache.
+  pull_policy: build
+
 services:
   game:
-    image: ${SPRK_IMAGE:-sprk-server:latest}
+    <<: *sprk-image
     restart: unless-stopped
     init: true
     environment:
@@ -21,7 +30,7 @@ services:
       - game-data:/data
 
   updates:
-    image: ${SPRK_IMAGE:-sprk-server:latest}
+    <<: *sprk-image
     restart: unless-stopped
     init: true
     environment:

@@ -160,7 +160,28 @@ directly.
 
 ## Portainer / Docker
 
-Build the shared image on your Docker host from this repository:
+For a Docker Standalone environment, deploy this repository as a Git stack with
+Compose path `docker-compose.yml` (relative to the repository root). When
+Portainer connects to the Docker socket in your LXC, the LXC's Docker engine
+builds the image from the repository's Dockerfile. No manual image build or
+registry is required. Push your changes to the selected Git branch before
+deploying so Portainer receives the updated Compose file and source.
+
+Both services share the same build context and `SPRK_IMAGE` tag.
+`pull_policy: build` requests a build on deployment, even when an older image
+with that tag exists; unchanged layers use Docker's build cache. Leave
+Portainer's **Re-pull image** disabled. Later source changes take effect when
+you pull and redeploy the Git stack, or configure GitOps updates.
+
+The first build downloads the Rust toolchain image and compiles the server,
+so it needs outbound internet access and may take several minutes. Rust is
+provided by the build container; it does not need installing in the LXC.
+
+This configuration assumes Portainer uses the local Docker socket. Portainer
+documents a [build limitation for remote Docker environments](https://docs.portainer.io/faqs/known-issues/docker-compose-files-including-build-steps-fail).
+For remote/Agent environments or Swarm, build the image on the target host or
+in CI and use an image-only Compose configuration instead. A manual build on
+the target host, from this repository directory, is:
 
 ```sh
 docker build -t sprk-server:latest .
@@ -168,10 +189,9 @@ docker build -t sprk-server:latest .
 
 Create `/srv/sprk/client-updates` on that host and place the published artifacts
 there. Ensure the container user (UID/GID `10001`) can read the releases and
-traverse their directories. In Portainer, create a stack from `compose.yaml`
-and set its variables using `.env.example` as a reference. Both services use
-`SPRK_IMAGE`, so build/load the image onto the target host, or push it to a
-registry the host can pull from. The stack uses a prebuilt image.
+traverse their directories. Set the stack variables using `.env.example` as a
+reference. Client update releases are excluded from the image and must still
+be transferred to this host directory separately.
 
 - `game`: HTTP and player WebSockets on host port 8080; database and
   optional service configuration persist in the `game-data` volume at `/data`.
@@ -205,7 +225,7 @@ rate limits or router traffic shaping separately if updates interfere with play.
 ```sh
 cargo test --locked
 python -m unittest discover -s scripts -p test_publish_client_update.py
-docker compose -f compose.yaml config --quiet
+docker compose -f docker-compose.yml config --quiet
 ```
 
 The tests cover actual startup in all modes, resumable/HEAD downloads, router
