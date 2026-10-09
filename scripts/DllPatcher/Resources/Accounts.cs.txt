@@ -1,0 +1,317 @@
+using System;
+using System.Collections;
+using System.Text;
+using NGame2.NAccount;
+using NGame2.NLogin;
+using NGame2.NUI.NWindow;
+using NShared;
+using NVespa;
+using NVespa.NSingleton;
+using UnityEngine;
+using UnityEngine.Networking;
+
+// Native NGUI account form. Passwords are never written to PlayerPrefs or logs.
+public sealed class SprkAccounts : MonoBehaviour {
+    static LoginSuccData pending;
+    static GetTokenData pendingTokens;
+    LoginSelect window;
+    LoginSelect.Listener listener;
+    AppServerInfo[] servers;
+    int serverIndex;
+    bool registering, busy;
+    GameObject root;
+    UITexture background, border;
+    UILabel template, title, message, switchLabel, submitLabel, serverLabel, passwordVisibilityLabel, confirmVisibilityLabel;
+    UIInput username, password, confirm;
+    GameObject confirmRow, serverStatus;
+    UIButton submit, toggle, changeServerButton, passwordVisibility, confirmVisibility;
+    static readonly Color Accent=new Color(.40f,.79f,.84f);
+    [Serializable] public class Request { public string username, password; }
+    // Reuse native nested DTOs: Unity only populates these registered serialization types.
+    [Serializable] public class TokenReply { public string status, message, InternalErrorMessage; public GetTokenData data; }
+    [Serializable] public class SessionReply { public string status, message, InternalErrorMessage; public GetSessionData data; }
+
+    public static void Initialize() {
+        LoginData.LastAccessToken = "";
+        LoginData.LastRefreshToken = "";
+        LoginData.LastLoginMethod = NShared.LoginMethodType.None;
+    }
+    public static void Open(LoginSelect view, LoginSelect.Listener callback, NShared.LoginMethodType ignored, AppServerInfo[] choices, string lastServer) {
+        view.Open();
+        var form = view.GetComponent<SprkAccounts>();
+        if (form == null) form = view.gameObject.AddComponent<SprkAccounts>();
+        form.window = view; form.listener = callback; form.servers = choices;
+        form.serverIndex = 0;
+        if (choices != null) for (int i=0;i<choices.Length;i++) if (choices[i].Name == lastServer) form.serverIndex=i;
+        if (form.root == null) form.Build();
+        form.root.SetActive(true); form.busy=false; form.registering=false; form.Refresh();
+        form.HidePasswords();form.SetMessage(""); form.username.isSelected=true;
+        form.root.GetComponent<UIPanel>().alpha=0f;TweenAlpha.Begin(form.root,.18f,1f);
+        pending=null;pendingTokens=null;
+    }
+    public static void CleanLoginBackground(LoginBackground view) {
+        HidePatchVersion(view);
+        foreach(var label in view.GetComponentsInChildren<UILabel>(true))
+            if(label.name=="Label_Company")label.gameObject.SetActive(false);
+        var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
+        if(config!=null && view.Label_Version!=null) {
+            // Assign the current version even if the native label contains an older
+            // config/prefab value; exact string replacement can silently miss it.
+            string caption="Ver. "+DisplayVersion(config.Version);
+            int remaining;
+            if(config.GetRemainExpireSecond(out remaining))caption+="."+(remaining/3600);
+            if(!String.IsNullOrEmpty(SingletonUpdater<LoginManager>.instance.BinaryVersionNumber.Value))caption="[FF0000]"+caption+"[-]";
+            view.Label_Version.text=caption;
+        }
+    }
+    public static void HidePatchVersion(LoginBackground view) {
+        if(view.Label_PatchVersion!=null)view.Label_PatchVersion.gameObject.SetActive(false);
+    }
+    static string DisplayVersion(string version) {
+        int major,minor,patch;
+        ClientConfig.ParseVersion(version,out major,out minor,out patch);
+        return String.Format("{0}.{1:D2}.{2:D2}",major,minor,patch);
+    }
+    public static void CleanLoginInfo(LoginAccountInfo view) {
+        if(view.LoginButtonInfoRoot!=null)view.LoginButtonInfoRoot.SetActive(false);
+    }
+    public static void ClearSession() {
+        Initialize();pending=null;pendingTokens=null;
+    }
+    public static void FinishLogout(NShared.Logout.Response response) {
+        if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.Logout.ResultType.Success)return;
+        ClearSession();
+        SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.Reset();
+    }
+    static void Hide(Component component) {
+        if(component!=null)component.gameObject.SetActive(false);
+    }
+    public static void CleanSettings(GameOptionWindow view) {
+        var info=view.EtcInfo;
+        var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
+        if(config!=null && info.Label_GameVersionNum!=null)info.Label_GameVersionNum.text=DisplayVersion(config.Version);
+        Hide(info.Button_CustomerCenter);
+        Hide(info.Button_LocalizedLaw1);Hide(info.Button_LocalizedLaw2);Hide(info.Button_LocalizedLaw3);
+        // The PC prefab has these controls separately from the mobile law fields.
+        var others=view.transform.Find("Panel/Root/EtcOption");
+        if(others!=null) {
+            Hide(others.Find("Button_PrivacyPolicy"));Hide(others.Find("Button_TermOfService"));
+            Hide(others.Find("Button_CustomerCenter (1)")); // Account Link heading.
+        }
+        Hide(info.Label_GuestLogin);Hide(info.Label_FacebookLogin);Hide(info.Label_GPGSLogin);
+        Hide(info.Label_GameCenterLogin);Hide(info.Label_AppleLogin);Hide(info.Label_TwitterLogin);Hide(info.Label_LineLogin);
+        foreach(var group in new[]{info.ConnectFacebook,info.ConnectGPGS,info.ConnectGameCenter,info.ConnectApple,info.ConnectTwitter,info.ConnectLine})
+            if(group!=null)Hide(group.Root);
+        Hide(info.Btn_LinkedSteam);Hide(info.Btn_LinkedGoogle);Hide(info.Btn_LinkedApple);
+        if(info.Obj_ConnectedSteam!=null)info.Obj_ConnectedSteam.SetActive(false);
+        if(info.Obj_ConnectedGoogle!=null)info.Obj_ConnectedGoogle.SetActive(false);
+        if(info.Obj_ConnectedApple!=null)info.Obj_ConnectedApple.SetActive(false);
+        // Hide the whole linking section, including its localized heading.
+        if(info.Btn_LinkedSteam!=null && info.Btn_LinkedGoogle!=null && info.Btn_LinkedApple!=null) {
+            for(var parent=info.Btn_LinkedSteam.transform.parent;parent!=null && parent!=view.transform;parent=parent.parent) {
+                if(!info.Btn_LinkedGoogle.transform.IsChildOf(parent) || !info.Btn_LinkedApple.transform.IsChildOf(parent))continue;
+                if(info.Label_AccountIdNum!=null && info.Label_AccountIdNum.transform.IsChildOf(parent))break;
+                parent.gameObject.SetActive(false);break;
+            }
+        }
+    }
+    // Keep the existing game state machine, but its old guest transition now requires
+    // a password-authenticated, short-lived ticket from this form.
+    public static void Complete(MasangLoginManager.LoginResultCallback callback) {
+        var result=pending;var tokens=pendingTokens;
+        pending=null;pendingTokens=null;
+        bool authenticated=result!=null && tokens!=null && !String.IsNullOrEmpty(tokens.access_token);
+        if(authenticated) {
+            // MasangLoginManager is created lazily and its Awake clears old tokens.
+            // Restore this authenticated session before native progress managers initialize:
+            // AccountManager.IsLogined() depends on LastAccessToken being populated.
+            LoginData.LastAccessToken=tokens.access_token;
+            LoginData.LastRefreshToken=tokens.refresh_token;
+        }
+        callback(authenticated,authenticated?result:null);
+    }
+    public static void Reject(MasangLoginManager.LoginResultCallback callback) { callback(false,null); }
+    GameObject Child(string name, Transform parent, float x, float y) {
+        var go=new GameObject(name); go.layer=window.gameObject.layer;
+        go.transform.SetParent(parent,false); go.transform.localPosition=new Vector3(x,y,0); return go;
+    }
+    UITexture Surface(GameObject go, int width, int height, Color color, int depth) {
+        var texture=go.AddComponent<UITexture>(); texture.mainTexture=Texture2D.whiteTexture;
+        texture.width=width;texture.height=height;texture.color=color;texture.depth=depth;return texture;
+    }
+    UILabel Label(string name, Transform parent, string text, float x,float y,int width,int height,int size) {
+        var label=Child(name,parent,x,y).AddComponent<UILabel>();
+        label.bitmapFont=template.bitmapFont;label.trueTypeFont=template.trueTypeFont;
+        label.fontSize=size;label.width=width;label.height=height;label.depth=12;
+        label.supportEncoding=false;label.overflowMethod=UILabel.Overflow.ShrinkContent;
+        label.alignment=NGUIText.Alignment.Center;label.text=text;label.color=Color.white;return label;
+    }
+    UIButton Button(string name,string text,float x,float y,int width,EventDelegate.Callback action,out UILabel label,Transform parent=null,bool primary=false,int height=64) {
+        var go=Child(name,parent==null?root.transform:parent,x,y);
+        Surface(go,width,height,primary?new Color(.14f,.39f,.47f):new Color(.10f,.16f,.23f),14);
+        go.AddComponent<BoxCollider>().size=new Vector3(width,height,1);
+        var button=go.AddComponent<UIButton>();button.tweenTarget=go;
+        button.hover=primary?new Color(.20f,.54f,.61f):new Color(.17f,.27f,.36f);
+        button.pressed=primary?new Color(.09f,.27f,.34f):new Color(.07f,.12f,.18f);
+        button.disabledColor=new Color(.08f,.12f,.17f);button.duration=.12f;
+        EventDelegate.Add(button.onClick,action);
+        label=Label("Label",go.transform,text,0,0,width-16,height-8,width<120?18:25);label.depth=16;return button;
+    }
+    UIInput Input(string name,string caption,float y,bool secret,out GameObject row) {
+        row=Child(name+"Row",root.transform,0,y);
+        var captionLabel=Label("Caption",row.transform,caption,0,48,696,32,22);
+        captionLabel.alignment=NGUIText.Alignment.Left;captionLabel.color=new Color(.77f,.84f,.91f);
+        var frame=Surface(Child("FocusBorder",row.transform,0,0),700,68,new Color(.22f,.30f,.39f),9);
+        var go=Child(name,row.transform,0,0);
+        Surface(go,696,64,new Color(.07f,.10f,.16f),10);
+        go.AddComponent<BoxCollider>().size=new Vector3(696,64,1);
+        var text=Label("Value",go.transform,"",secret?-58:0,0,secret?548:664,50,26);text.alignment=NGUIText.Alignment.Left;
+        var input=go.AddComponent<UIInput>();input.label=text;input.characterLimit=secret?128:64;
+        input.inputType=secret?UIInput.InputType.Password:UIInput.InputType.Standard;
+        input.onReturnKey=UIInput.OnReturnKey.Submit;input.selectAllTextOnFocus=false;
+        input.validation=UIInput.Validation.None;input.value="";input.caretColor=Accent;
+        input.selectionColor=new Color(.20f,.48f,.60f,.5f);
+        EventDelegate.Add(input.onFocusIn,delegate {frame.color=Accent;});
+        EventDelegate.Add(input.onFocusOut,delegate {frame.color=new Color(.22f,.30f,.39f);});
+        EventDelegate.Add(input.onSubmit,InputSubmitted);return input;
+    }
+    void Build() {
+        template=window.Label_ServerName;
+        // The original provider buttons and account-ID shortcut are no longer exposed.
+        foreach(Transform child in window.transform) child.gameObject.SetActive(false);
+        root=Child("AccountForm",window.transform,0,0);
+        var panel=root.AddComponent<UIPanel>();panel.depth=100;
+        border=Surface(Child("Border",root.transform,0,0),846,0,new Color(.24f,.34f,.43f,.96f),-1);
+        background=Surface(Child("Background",root.transform,0,0),840,0,new Color(.035f,.055f,.09f,.96f),0);
+        title=Label("Title",root.transform,"Welcome Back",0,363,730,60,42);
+        Label("Subtitle",root.transform,"SPRK ACCOUNT",0,313,730,30,19).color=new Color(.61f,.72f,.82f);
+        Surface(Child("Accent",root.transform,0,287),72,4,Accent,1);
+        GameObject row;
+        username=Input("Username","Username",218,false,out row);username.characterLimit=32;
+        password=Input("Password","Password",110,true,out row);
+        passwordVisibility=Button("ShowPassword","Show",290,0,96,ShowPassword,out passwordVisibilityLabel,password.transform,false,48);
+        confirm=Input("ConfirmPassword","Confirm Password",2,true,out confirmRow);
+        confirmVisibility=Button("ShowPassword","Show",290,0,96,ShowConfirmation,out confirmVisibilityLabel,confirm.transform,false,48);
+        serverStatus=Child("ServerStatus",root.transform,0,0);
+        serverLabel=Label("Label",serverStatus.transform,"",0,0,696,36,23);
+        serverLabel.color=new Color(.66f,.77f,.86f);
+        UILabel changeLabel;
+        changeServerButton=Button("ChangeServer","Change",296,0,96,ChangeServer,out changeLabel,serverStatus.transform,false,40);
+        submit=Button("Submit","Log In",0,0,696,Submit,out submitLabel,null,true);
+        toggle=Button("SwitchMode","Create an Account",0,0,696,SwitchMode,out switchLabel,null,false,52);
+        message=Label("Message",root.transform,"",0,0,730,22,22);message.color=new Color(1f,.79f,.48f);
+        message.overflowMethod=UILabel.Overflow.ResizeHeight;
+    }
+    void Refresh() {
+        title.text=registering?"Create Your Account":"Welcome Back";
+        submitLabel.text=busy?"Connecting...":registering?"Register":"Log In";
+        switchLabel.text=registering?"Already registered? Log in":"Create an Account";
+        RefreshLayout();
+        serverStatus.transform.localPosition=new Vector3(0,registering?-90:18,0);
+        submit.transform.localPosition=new Vector3(0,registering?-172:-64,0);
+        toggle.transform.localPosition=new Vector3(0,registering?-245:-137,0);
+        confirmRow.SetActive(registering);
+        submit.isEnabled=!busy;toggle.isEnabled=!busy;
+        bool multipleServers=servers!=null && servers.Length>1;
+        changeServerButton.gameObject.SetActive(multipleServers);changeServerButton.isEnabled=!busy;
+        serverLabel.width=multipleServers?530:696;
+        serverLabel.transform.localPosition=new Vector3(multipleServers?-56:0,0,0);
+        serverLabel.text=servers!=null && servers.Length>0 ? "Server: "+servers[serverIndex].Name : "No server available";
+        username.enabled=!busy;password.enabled=!busy;confirm.enabled=!busy;
+        username.GetComponent<BoxCollider>().enabled=!busy;password.GetComponent<BoxCollider>().enabled=!busy;confirm.GetComponent<BoxCollider>().enabled=!busy;
+        passwordVisibility.isEnabled=!busy;confirmVisibility.isEnabled=!busy;
+    }
+    void RefreshLayout() {
+        // Fit errors to their rendered text with compact, equal padding.
+        // Keep the normal panel size unless wrapping needs additional room.
+        float messageHeight=Mathf.Max(message.fontSize,Mathf.Ceil(message.printedSize.y));
+        float messageTop=(registering?-245:-137)-26-26;
+        message.transform.localPosition=new Vector3(0,messageTop-messageHeight*.5f,0);
+        background.height=registering?786:678;
+        if(!String.IsNullOrEmpty(message.text))
+            background.height=Mathf.Max(background.height,Mathf.CeilToInt(440-(messageTop-messageHeight-26)));
+        float centerY=440-background.height*.5f;
+        root.transform.localPosition=new Vector3(0,-centerY,0);
+        background.transform.localPosition=new Vector3(0,centerY,0);
+        border.height=background.height+6;border.transform.localPosition=background.transform.localPosition;
+    }
+    void SetMessage(string text) {message.text=text;RefreshLayout();}
+    void Update() {
+        // The title screen's native camera does not consistently dispatch Tab.
+        // Handle it once per form, leaving arrow keys to the text caret.
+        if(busy || root==null || !root.activeInHierarchy || !UnityEngine.Input.GetKeyDown(KeyCode.Tab))return;
+        bool reverse=UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
+        var selected=UIInput.selection;
+        if(selected==username)(reverse?(registering?confirm:password):password).isSelected=true;
+        else if(selected==password)(reverse?username:(registering?confirm:username)).isSelected=true;
+        else if(selected==confirm && registering)(reverse?password:username).isSelected=true;
+    }
+    void SetPasswordVisibility(UIInput input,UILabel label,bool visible) {
+        input.inputType=visible?UIInput.InputType.Standard:UIInput.InputType.Password;
+        input.UpdateLabel();label.text=visible?"Hide":"Show";
+    }
+    void HidePasswords() {SetPasswordVisibility(password,passwordVisibilityLabel,false);SetPasswordVisibility(confirm,confirmVisibilityLabel,false);}
+    void ShowPassword() {if(busy)return;SetPasswordVisibility(password,passwordVisibilityLabel,password.inputType==UIInput.InputType.Password);password.isSelected=true;}
+    void ShowConfirmation() {if(busy)return;SetPasswordVisibility(confirm,confirmVisibilityLabel,confirm.inputType==UIInput.InputType.Password);confirm.isSelected=true;}
+    void ChangeServer() { if(!busy && servers!=null && servers.Length>0) {serverIndex=(serverIndex+1)%servers.Length;Refresh();} }
+    void SwitchMode() { if(busy)return;registering=!registering;password.value="";confirm.value="";HidePasswords();SetMessage("");Refresh();username.isSelected=true; }
+    void OnDisable() { if(password!=null){password.value="";confirm.value="";HidePasswords();} }
+    void InputSubmitted() {
+        if(busy)return;
+        Submit();
+    }
+    void Submit() {
+        if(busy)return;
+        if(servers==null || servers.Length==0){Fail("No server available.");return;}
+        if(username.value.Trim().Length<3 || password.value.Length<8){Fail("Enter a username (3-32 characters) and password (at least 8 characters).",username.value.Trim().Length<3?username:password);return;}
+        if(registering && password.value!=confirm.value){Fail("Passwords do not match.",confirm);return;}
+        busy=true;SetMessage("");HidePasswords();UICamera.selectedObject=null;Refresh();StartCoroutine(Authenticate());
+    }
+    IEnumerator Authenticate() {
+        var server=servers[serverIndex];
+        SingletonUpdater<LoginManager>.instance.SetServerName(server.Name);
+        string endpoint=server.LoginServer.TrimEnd('/')+"/api/auth/";
+        string json=JsonUtility.ToJson(new Request {username=username.value.Trim(),password=password.value});
+        using(var request=new UnityWebRequest(endpoint+(registering?"register":"login"),"POST")) {
+            request.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));json=null;
+            request.downloadHandler=new DownloadHandlerBuffer();request.timeout=25;
+            request.SetRequestHeader("Content-Type","application/json");yield return request.SendWebRequest();
+            TokenReply response=null;
+            try {response=JsonUtility.FromJson<TokenReply>(request.downloadHandler.text);}catch(Exception){}
+            if(request.result!=UnityWebRequest.Result.Success || response==null || response.data==null || response.status!="success") {
+                Debug.LogWarning("SPRK account request failed: HTTP "+request.responseCode+", "+request.error+", "+endpoint);
+                Fail(response!=null && !String.IsNullOrEmpty(response.InternalErrorMessage)?response.InternalErrorMessage:"Unable to sign in. Check the server connection and try again.");yield break;
+            }
+            using(var verify=new UnityWebRequest(endpoint+"token/verify","POST")) {
+                verify.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes("{}"));verify.downloadHandler=new DownloadHandlerBuffer();verify.timeout=25;
+                verify.SetRequestHeader("Content-Type","application/json");verify.SetRequestHeader("Authorization","Bearer "+response.data.access_token);
+                yield return verify.SendWebRequest();SessionReply verified=null;
+                try {verified=JsonUtility.FromJson<SessionReply>(verify.downloadHandler.text);}catch(Exception){}
+                if(verify.result!=UnityWebRequest.Result.Success || verified==null || verified.data==null || String.IsNullOrEmpty(verified.data.session)) {
+                    Fail("Account authenticated, but the game connection failed. Please log in again.");yield break;
+                }
+                pending=new LoginSuccData {id=verified.data.id,sessionid=verified.data.session};
+                pendingTokens=response.data;
+            }
+        }
+        busy=false;
+        password.value="";confirm.value="";
+        listener.OnSelect(window,NShared.LoginMethodType.Guest,server.Name,true);
+    }
+    void Fail(string error,UIInput field=null) {
+        busy=false;SetMessage(error);Refresh();
+        StartCoroutine(FocusForRetry(field==null?password:field,registering));
+    }
+    IEnumerator FocusForRetry(UIInput field,bool mode) {
+        // Let the submitting Enter event finish before restoring focus. Keep
+        // the value, selecting it so the next keystroke can replace it.
+        yield return null;
+        if(busy || root==null || !root.activeInHierarchy || registering!=mode || field==null || !field.isActiveAndEnabled)yield break;
+        field.selectAllTextOnFocus=true;field.isSelected=true;
+        field.selectionStart=0;field.selectionEnd=field.value.Length;
+        // NGUI initializes the caret in its next Update; retain select-all
+        // until that happens, then restore normal mouse/Tab caret behavior.
+        yield return null;
+        if(field!=null)field.selectAllTextOnFocus=false;
+    }
+}

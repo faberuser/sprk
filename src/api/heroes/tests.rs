@@ -84,7 +84,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
     (state, u)
 }
 async fn login(s: &AppState) -> user::LoginResponse {
-    user::login(
+    user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=hero-shop-test"),
     )
@@ -787,7 +787,7 @@ async fn npc_shop_discount_preserves_daily_friendship_earnings() {
     assert_eq!(r["FriendshipPointResult"]["NewDailyAccValue"], 340);
 }
 #[tokio::test]
-async fn limits_spend_materials_then_limit_exp_levels_once() {
+async fn legacy_hero_cap_rejects_limit_break_without_spending_materials() {
     let (s, u) = setup().await;
     sqlx::query("UPDATE heroes SET star=5,transcend=5,level=100 WHERE account_id=?")
         .bind(u.user_info.account_id)
@@ -810,7 +810,9 @@ async fn limits_spend_materials_then_limit_exp_levels_once() {
         )
         .await;
     }
-    assert_eq!(
+    let before = get(&s, &u, 1).await;
+    let gold = balance(&s, &u, "gold").await;
+    assert_ne!(
         hero::hero_limit_break_level_up(State(s.clone()), form(&u, "HeroIndex=1"))
             .await
             .unwrap()
@@ -832,10 +834,23 @@ async fn limits_spend_materials_then_limit_exp_levels_once() {
     .await
     .unwrap()
     .0;
-    assert_eq!(r["Result"], "Success");
-    assert_eq!(r["NewHeroLevel"], 101);
-    assert_eq!(count(&s, &u, id as i32).await, 0);
-    assert_eq!(login(&s).await.heroes[0].details["LimitBreakLevel"], 1);
+    assert_ne!(r["Result"], "Success");
+    assert_eq!(count(&s, &u, id as i32).await, qty);
+    for i in 1..=3 {
+        let id=item::n(row, &format!("MaterialItemIndex{i}")) as i32;
+        let qty=item::n(row, &format!("MaterialItemCount{i}"));
+        if qty>0 { assert_eq!(count(&s,&u,id).await,qty); }
+    }
+    assert_eq!(get(&s, &u, 1).await, before);
+    assert_eq!(balance(&s, &u, "gold").await, gold);
+    assert_eq!(login(&s).await.heroes[0].level, 100);
+    // Even a stale record from the later client cannot gain Limit Break EXP.
+    let mut extra=crate::api::heroes::details(&mut *s.db.acquire().await.unwrap(),u.user_info.account_id,1).await.unwrap();
+    extra["LimitBreakLevel"]=serde_json::json!(1);
+    crate::api::heroes::save_details(&mut *s.db.acquire().await.unwrap(),u.user_info.account_id,1,&extra).await.unwrap();
+    assert_ne!(hero::hero_limit_break_exp_up(State(s.clone()),form(&u,&format!("HeroIndex=1&ExpItemIndices=[{id}]&ExpItemCounts=[{qty}]"))).await.unwrap().0["Result"],"Success");
+    assert_eq!(get(&s,&u,1).await["Level"],100);
+    assert_eq!(count(&s,&u,id as i32).await,qty);
 }
 
 #[tokio::test]

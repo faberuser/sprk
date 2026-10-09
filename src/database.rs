@@ -23,6 +23,7 @@ pub async fn init_database() -> anyhow::Result<DbPool> {
 }
 
 pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
+    crate::api::account::auth::create_tables(pool).await?;
     // Users/Accounts table
     sqlx::query(r#"
         CREATE TABLE IF NOT EXISTS accounts (

@@ -302,7 +302,7 @@ async fn dispatch_persisted_mixed_results_complete_offline_and_rewards_follow_wi
     );
     let restarted = AppState::new(s.db.clone(), s.tables.as_ref().clone());
     let login = json!(
-        crate::api::account::user::login(
+        crate::api::account::user::test_login(
             State(restarted.clone()),
             Bytes::from_static(b"LoginId=battle-test")
         )

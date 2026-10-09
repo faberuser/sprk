@@ -6,6 +6,22 @@ using NVespa;
 // Additive menu reconstruction. Existing table rows and unlock rules take precedence.
 public static class RestoredPortal
 {
+    public static void FinishStartupLogo()
+    {
+        // SetupLoginEnvironment opens the background after IsLogoPlayed.
+        // Clear any surviving startup overlay at that handoff, including
+        // instances whose Start/fade was skipped during the scene change.
+        if(!NGame2.NScene.LogoScene.IsLogoPlayed) return;
+        foreach(var logo in UnityEngine.Object.FindObjectsOfType<NGame2.NScene.LogoScene>())
+            if(logo.LogoWidget!=null) logo.LogoWidget.alpha=0f;
+    }
+    public static void EnsureNativeShaderVariables()
+    {
+        // Without the native updater, the projected shadow direction remains
+        // zero and its geometry overlaps the model instead of the ground.
+        var updater=NShader.ShaderVariableUpdater.instance;
+        if(updater!=null) NShader.ShaderVariableUpdater.UpdateGlobalVariable();
+    }
     static readonly Dictionary<string,object> CombatRestoration = (Dictionary<string,object>)MiniJSON.Json.Deserialize("__RESTORED_PUNISHMENT_SKILLS__");
     static readonly Dictionary<string,object> CombatTables = (Dictionary<string,object>)CombatRestoration["Tables"];
     static readonly Dictionary<long,Dictionary<string,object>> PunishmentSkillChanges = PunishmentChanges("Skills");

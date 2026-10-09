@@ -20,7 +20,7 @@ pub(super) async fn setup() -> (AppState, Value) {
             .clone(),
     );
     let u = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -217,7 +217,7 @@ async fn story_10_21_duplicate_completion_returns_saved_rewards_once() {
         .bind(a).fetch_one(&s.db).await.unwrap();
     // A reconnect and repeated Yes clicks must return the same random loot and
     // absolute balances without applying settlement again.
-    let new = json!(user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let new = json!(user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     for _ in 0..3 {
         assert_eq!(call(&s, &new, "campaign/end_campaign", &end).await, first);
     }
@@ -658,7 +658,7 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
         "Success"
     );
     let login = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -919,7 +919,7 @@ async fn tower_npc_snapshots_follow_enabled_flag_and_survive_relogin() {
         .await
         .unwrap();
     let login = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -1003,7 +1003,7 @@ async fn only_selected_heroes_receive_exp_and_entry_survives_login() {
         "Success"
     );
     let new = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -1085,13 +1085,13 @@ async fn dispatch_enforces_time_party_reservation_and_single_collection() {
 async fn party_rooms_enforce_membership_and_transfer_master() {
     let (s, u) = setup().await;
     let v = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=room-second"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=room-second"))
             .await
             .unwrap()
             .0
     );
     let w = json!(
-        user::login(
+        user::test_login(
             State(s.clone()),
             Bytes::from_static(b"LoginId=room-outsider")
         )
@@ -1258,7 +1258,7 @@ async fn punishment_second_group_native_failure_retry_and_group_isolation() {
     let first=call(&s,&u,"punishment_raid/get_punishment_raid_info","GroupIndex=101001&DungeonType=2").await;
     assert_eq!(first["OpenPunishmentRaidInfo"]["IsOpen"],1);
     assert_eq!(first["PunishmentRaidInfos"].as_array().unwrap().len(),3);
-    let login=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let login=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     assert_eq!(login["PunishmentRaidInfos"],first["PunishmentRaidInfos"]);
     assert_eq!(login["OpenPunishmentRaidInfos"].as_array().unwrap().len(),2);
 }
@@ -1323,7 +1323,7 @@ async fn karma_native_groups_settle_default_shards_once_and_restore_login() {
         assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"],0);
         assert_ne!(call(&s,&u,"contents/end_content",&end).await["Result"],"Success");
     }
-    let login=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let login=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     assert_eq!(login["OpenPunishmentRaidInfos"].as_array().unwrap().len(),2);
 }
 
@@ -1344,7 +1344,7 @@ async fn punishment_first_lobby_restores_paid_karma_and_boss_openings_after_relo
     put(&mut *s.db.acquire().await.unwrap(),a,"punishment_raid",campaign::key(1001,1),&boss_clear).await.unwrap();
     // Login alone is insufficient: the native parser consumes these arrays in
     // FirstLobby. Exercise the serialized response actually used by the client.
-    let login=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let login=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     let session=login["UserInfo"]["SessionKey"].as_str().unwrap();
     for _ in 0..2 {
         let first=json!(first_lobby(State(s.clone()),Form(FirstLobbyRequest{
@@ -1414,7 +1414,7 @@ async fn abandoned_karma_releases_party_for_godking_without_refund_or_rewards() 
         put(&mut *s.db.acquire().await.unwrap(), a, "dispatch", 1,
             &json!({"SlotIndex":1,"State":"Complete","HeroIndices":"[1]"})).await.unwrap();
         let current = if relogin {
-            json!(user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0)
+            json!(user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0)
         } else {
             let session = u["UserInfo"]["SessionKey"].as_str().unwrap();
             abandon_local_run_on_lobby(&s, a, session).await.unwrap();
@@ -1648,7 +1648,7 @@ async fn world_boss_closed_day_and_season_send_mail_once() {
     .unwrap();
     assert_eq!(value, 2000);
     let login = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -1898,7 +1898,7 @@ async fn cancelling_dispatch_refunds_unplayed_runs_and_restores_party() {
         json!([])
     );
     let login = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await.unwrap().0
     );
     assert_eq!(login["DispatchBattleInfos"], json!([]));
@@ -1974,7 +1974,7 @@ async fn godking_open_and_keys_survive_relogin_without_double_charge() {
     gate["OpenedTime"] = json!("2020-01-01 12:00:00");
     put(&mut *s.db.acquire().await.unwrap(),account(&u),"godking",100000,&gate).await.unwrap();
     let login = json!(
-        user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
+        user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
@@ -2003,7 +2003,7 @@ async fn godking_open_and_keys_survive_relogin_without_double_charge() {
     let again = call(&s,&u,"campaign/end_campaign",end).await;
     assert_eq!(again["Result"],"Success", "{again}");
     assert_eq!(again["GodkingTrialDungeonInfo"]["IsOpen"],0);
-    let login = json!(user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let login = json!(user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     assert_eq!(login["GodkingTrialDungeons"][0]["IsOpen"],0);
 
 }
@@ -2106,7 +2106,7 @@ async fn stamina_exp_replaces_hero_exp_and_is_transactional() {
     assert_eq!(balance(&s,"team_exp").await,exp);
     assert!(end["ExpResult"].is_null());
     assert_ne!(call(&s,&u,"campaign/end_campaign",END).await["Result"],"Success");
-    let login=user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
+    let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
     assert_eq!(login.user_info.team_exp as i64,exp);
 }
 
@@ -2464,7 +2464,7 @@ async fn field_raid_unlock_cost_and_progression_are_scoped_to_solo() {
     assert_eq!(entry["StaminaResult"]["AddValue"], -70);
     let loss = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=111&DungeonDifficulty=0&Completed=false").await;
     assert_eq!(loss["Result"], "Success", "{loss}");
-    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
     let login = serde_json::to_value(login).unwrap();
     assert!(login["ChapterDungeons"].as_array().unwrap().iter()
         .any(|v| v["ChapterIndex"] == 8 && v["DungeonIndex"] == 26 && v["MaxStar"] == 13));
@@ -2608,7 +2608,7 @@ async fn new_login_can_replace_abandoned_local_battle_without_rewarding_it() {
     assert_eq!(first["Result"],"Success");
     let changed=ENTRY.replace("[1]","[2]");
     assert_ne!(call(&s,&u,"campaign/begin_campaign",&changed).await["Result"],"Success");
-    let new=json!(user::login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let new=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
     let retry=call(&s,&new,"campaign/begin_campaign",ENTRY).await;
     assert_eq!(retry["RunId"],first["RunId"]);
     let replacement=call(&s,&new,"campaign/begin_campaign",&changed).await;

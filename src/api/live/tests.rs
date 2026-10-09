@@ -21,7 +21,7 @@ async fn setup() -> (AppState, Value) {
             .clone(),
     );
     let u = json!(
-        user::login(State(s.clone()), Bytes::from("LoginId=live-test"))
+        user::test_login(State(s.clone()), Bytes::from("LoginId=live-test"))
             .await
             .unwrap()
             .0

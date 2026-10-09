@@ -149,10 +149,9 @@ pub(super) async fn execute(
         let ownership_key = accessory_key(hero_id, id)?;
         let mut owned = get(db, account, "accessory", ownership_key).await?;
         if owned.is_null() {
-            if action != "buy_customizing_costumes"
-                || data["IsOpen"] != true
-                || data["IsBuy"] != true
-            {
+            // All archived accessories are sold directly in this Dressing Room.
+            // Keep the table price, compatibility and per-hero ownership intact.
+            if action != "buy_customizing_costumes" {
                 return Err(rule("CostumeNotOwned"));
             }
             gem += n(data, "ReqBuyGem");

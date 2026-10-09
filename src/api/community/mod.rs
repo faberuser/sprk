@@ -26,6 +26,8 @@ mod progression;
 #[cfg(test)]
 mod social_tests;
 #[cfg(test)]
+mod attendance_tests;
+#[cfg(test)]
 pub(crate) mod tests;
 mod warfare;
 pub(crate) mod conquest;

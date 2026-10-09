@@ -155,6 +155,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/host.json", get(api::system::query::get_host_info))
         // Auth endpoints (Masang login server API)
         .route("/api/auth/login/guest", post(api::account::auth::guest_login))
+        .route("/api/auth/register", post(api::account::auth::register))
+        .route("/api/auth/login", post(api::account::auth::password_login))
         .route("/api/auth/token/verify", post(api::account::auth::verify_token))
         .route("/api/auth/refresh-token", post(api::account::auth::refresh_token))
         // User authentication endpoints

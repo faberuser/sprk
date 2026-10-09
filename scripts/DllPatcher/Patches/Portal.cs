@@ -93,6 +93,22 @@ partial class Program
                     FilterStart = handler.FilterStart == null ? null : instructions[handler.FilterStart]
                 });
         }
+        var loginInit=module.Types.Single(t=>t.FullName=="NGame2.NUI.NWindow.LoginBackground").Methods.Single(m=>m.Name=="Init");
+        if(!loginInit.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="FinishStartupLogo")) {
+            var il=loginInit.Body.GetILProcessor();
+            il.InsertBefore(loginInit.Body.Instructions.First(),il.Create(OpCodes.Call,targetType.Methods.Single(m=>m.Name=="FinishStartupLogo")));
+        }
+        if(loginInit.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="FinishStartupLogo")!=1)
+            throw new InvalidOperationException("Expected one startup logo cleanup hook");
+        var afterLogin=module.Types.Single(t=>t.FullName=="NGame2.NAccount.AccountManager").Methods.Single(m=>m.Name=="AfterTableLoad_OnLoginResponse");
+        if(!afterLogin.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="EnsureNativeShaderVariables")) {
+            var il=afterLogin.Body.GetILProcessor();
+            foreach(var ret in afterLogin.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Call;
+                ret.Operand=targetType.Methods.Single(m=>m.Name=="EnsureNativeShaderVariables");
+                il.InsertAfter(ret,il.Create(OpCodes.Ret));
+            }
+        }
         // One immutable defense policy for every battle, including detached
         // dispatch/Conquest simulations and callers of the public calculator.
         var statController = module.Types.Single(t => t.FullName == "NShared.StatController");

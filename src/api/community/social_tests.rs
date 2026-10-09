@@ -25,7 +25,7 @@ async fn fresh_accounts_have_avatars_without_startup_repairs() {
 }
 
 async fn login(state: &AppState, name: &str) -> user::LoginResponse {
-    user::login(State(state.clone()), Bytes::from(format!("LoginId={name}")))
+    user::test_login(State(state.clone()), Bytes::from(format!("LoginId={name}")))
         .await
         .unwrap()
         .0

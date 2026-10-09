@@ -26,7 +26,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
     (s, u)
 }
 async fn relogin(s: &AppState) -> user::LoginResponse {
-    user::login(
+    user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=progression-test"),
     )
@@ -142,6 +142,41 @@ async fn accumulated_login_uses_days_not_request_count() {
         relogin(&s).await.login_daily_infos[0]["LoginDailyIndex"],
         11
     );
+}
+#[tokio::test]
+async fn lobby_preserves_accumulated_login_days_and_claims() {
+    let (s, u) = setup().await;
+    sqlx::query("UPDATE progression_login SET days=14,last_day=date('now') WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let login = relogin(&s).await;
+    assert_eq!(serde_json::to_value(&login).unwrap()["MiscInfo"]["LoginDailyCount"], 14);
+    for index in [11, 12] {
+        assert_eq!(call(&s, &login, "get_logindaily_reward", &format!("LoginDailyIndex={index}")).await["Result"], "Success");
+    }
+    for _ in 0..2 {
+        let lobby = crate::api::account::lobby::enter_lobby(State(s.clone()), axum::extract::Form(crate::api::account::lobby::EnterLobbyRequest {
+            session_id: None, session_key: Some(login.user_info.session_key.clone()),
+        })).await.unwrap().0;
+        assert_eq!(serde_json::to_value(&lobby).unwrap()["LoginDailyCount"], 14);
+    }
+    let login = relogin(&s).await;
+    assert_eq!(login.login_daily_infos.len(), 2);
+    assert_eq!(login.misc_info.unwrap().login_daily_count, 14);
+    assert_eq!(call(&s, &u, "get_logindaily_reward", "LoginDailyIndex=12").await["Result"], "AlreadyReceived");
+}
+
+#[tokio::test]
+async fn attendance_continues_past_seven_days_without_resetting_claims() {
+    let (s, u) = setup().await;
+    assert_eq!(u.attendance_datas[0]["PageSize"], 28);
+    assert_eq!(u.attendance_datas[0]["RewardEndDay"], 28);
+    assert_eq!(u.attendance_datas[0]["Reward"].as_array().unwrap().len(), 28);
+    sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,7,date('now','-1 day'))")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let response = call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await;
+    assert_eq!(response["Result"], "Success");
+    assert_eq!(response["AttendanceInfos"][0]["LastRewardedDay"], 8);
+    assert_eq!(relogin(&s).await.attendance_infos[0]["LastRewardedDay"], 8);
 }
 #[tokio::test]
 async fn automatic_dungeon_milestones_unlock_categories_without_claiming_rewards() {
@@ -706,8 +741,9 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
 #[tokio::test]
 async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
     let (mut s, u) = setup().await;
-    sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,7,date('now'))")
-        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let days = s.tables.progression.calendars[0]["Reward"].as_array().unwrap().len() as i64;
+    sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,?,date('now'))")
+        .bind(u.user_info.account_id).bind(days).execute(&s.db).await.unwrap();
     assert_eq!(
         call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await["Result"],
         "Fail"

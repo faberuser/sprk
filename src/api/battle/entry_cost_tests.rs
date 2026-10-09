@@ -581,7 +581,7 @@ async fn quit_and_relogin_release_entry_without_spending_then_win_charges_once()
     // Recreate application state against the persisted database, then log in.
     let restarted = AppState::new(s.db.clone(), s.tables.as_ref().clone());
     let login = json!(
-        crate::api::account::user::login(
+        crate::api::account::user::test_login(
             State(restarted.clone()),
             Bytes::from_static(b"LoginId=battle-test")
         )

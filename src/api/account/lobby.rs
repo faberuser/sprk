@@ -110,6 +110,8 @@ pub struct EnterLobbyRequest {
 pub struct EnterLobbyResponse {
     #[serde(flatten)]
     pub battle: serde_json::Value,
+    // The native lobby handler overwrites MiscInfo.LoginDailyCount with this field.
+    pub login_daily_count: i64,
     pub attendance_datas: Vec<serde_json::Value>,
     pub attendance_infos: Vec<serde_json::Value>,
     pub achievement_infos: Vec<serde_json::Value>,
@@ -319,6 +321,7 @@ pub async fn enter_lobby(
     let (remain_day_second, remain_week_second, remain_month_second) = reset_countdowns(Utc::now());
     Ok(Json(EnterLobbyResponse {
         battle,
+        login_daily_count: progression["LoginDailyCount"].as_i64().unwrap_or(0),
         attendance_datas: progression["AttendanceDatas"].as_array().cloned().unwrap_or_default(),
         attendance_infos: progression["AttendanceInfos"].as_array().cloned().unwrap_or_default(),
         achievement_infos: progression["AchievementInfos"].as_array().cloned().unwrap_or_default(),

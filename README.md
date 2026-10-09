@@ -25,8 +25,6 @@ See [feature status](docs/feature-status.md) for implemented capabilities, testi
 
 ## Source layout
 
-API handlers and tests are grouped by feature under `src/api`. See the [API layout guide](src/api/README.md) for the folder responsibilities.
-
 ## Building the Server
 
 ### Prerequisites

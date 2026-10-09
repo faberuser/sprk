@@ -564,14 +564,13 @@ pub(crate) async fn execute(
             .await?;
         }
         "hero_limit_break_level_up" | "hero_limit_break_exp_up" => {
-            limit_break(
-                db, state, account, req, action, index, &h, &mut extra, &mut out,
-            )
-            .await?;
+            // Pre-Doomsday hero growth ends at level 100. Reject stale clients
+            // before spending materials or changing levels/skill points.
+            return Err(rule("InvalidValue"));
         }
         _ => {
             transcend_skills(
-                db, state, account, req, action, index, creature, &h, &mut extra, &mut out,
+                db, state, account, req, action, creature, &h, &mut extra, &mut out,
             )
             .await?;
         }
@@ -873,7 +872,6 @@ async fn transcend_skills(
     account: i64,
     req: &Request,
     action: &str,
-    index: i32,
     c: &Value,
     h: &Value,
     extra: &mut Value,
@@ -991,121 +989,12 @@ async fn transcend_skills(
         .take(t as usize)
         .map(|v| v.as_i64().unwrap_or(0))
         .sum();
-    let limit_points: i64 = table
-        .limit_breaks
-        .iter()
-        .filter(|v| {
-            n(v, "HeroIndex") == index as i64 && n(v, "LimitBreakLevel") <= n(h, "LimitBreakLevel")
-        })
-        .map(|v| n(v, "GetTranscendSkillPoint"))
-        .sum();
-    if spent > total + limit_points + n(h, "TranscendPoint") {
+    if spent > total + n(h, "TranscendPoint") {
         return Err(rule("NotEnoughSkillPoint"));
     }
     extra[&key] = json!(json!(choices).to_string());
     Ok(())
 }
-async fn limit_break(
-    db: &mut SqliteConnection,
-    state: &AppState,
-    account: i64,
-    req: &Request,
-    action: &str,
-    index: i32,
-    h: &Value,
-    extra: &mut Value,
-    out: &mut Value,
-) -> Result<()> {
-    if n(h, "Transcended") != 5 {
-        return Err(rule("InvalidValue"));
-    }
-    let table = &state.tables.hero_shop;
-    let current = n(h, "LimitBreakLevel");
-    if action == "hero_limit_break_level_up" {
-        if n(h, "Level") < 100 + current {
-            return Err(rule("InvalidValue"));
-        }
-        let row = table
-            .limit_breaks
-            .iter()
-            .find(|v| n(v, "HeroIndex") == index as i64 && n(v, "LimitBreakLevel") == current + 1)
-            .ok_or_else(|| rule("InvalidValue"))?;
-        let mut results = vec![];
-        for i in 1..=3 {
-            let count = n(row, &format!("MaterialItemCount{i}"));
-            if count > 0 {
-                results.push(
-                    item::consume(
-                        db,
-                        account,
-                        n(row, &format!("MaterialItemIndex{i}")) as i32,
-                        count as i32,
-                    )
-                    .await?,
-                );
-            }
-        }
-        extra["LimitBreakLevel"] = json!(current + 1);
-        out["NewHeroLimitBreakLevel"] = json!(current + 1);
-        out["ItemResults"] = json!(results);
-    } else {
-        if current <= 0 || n(h, "Level") >= 100 + current {
-            return Err(rule("InvalidValue"));
-        }
-        let ids = array(req, "ExpItemIndices")?;
-        let counts = array(req, "ExpItemCounts")?;
-        if ids.len() != counts.len() {
-            return Err(rule("InvalidValue"));
-        }
-        let mut exp = n(h, "LimitBreakExp");
-        let mut results = vec![];
-        for (id, count) in ids.into_iter().zip(counts) {
-            if !(1..=1000).contains(&count) {
-                return Err(rule("InvalidValue"));
-            }
-            let item = table
-                .limit_exp_items
-                .iter()
-                .find(|v| n(v, "ItemIndex") == id)
-                .ok_or_else(|| rule("InvalidValue"))?;
-            exp = exp
-                .checked_add(n(item, "ExpAmount") * count)
-                .ok_or_else(|| rule("InvalidValue"))?;
-            results.push(item::consume(db, account, id as i32, count as i32).await?);
-        }
-        let mut level = n(h, "Level");
-        while level < 100 + current {
-            let r = table
-                .limit_breaks
-                .iter()
-                .find(|v| {
-                    n(v, "HeroIndex") == index as i64 && n(v, "LimitBreakLevel") == level - 99
-                })
-                .ok_or_else(|| rule("InvalidValue"))?;
-            let needed = n(r, "ReqLocalExp");
-            if needed <= 0 || exp < needed {
-                break;
-            }
-            exp -= needed;
-            level += 1;
-        }
-        if level >= 100 + current {
-            exp = 0;
-        }
-        sqlx::query("UPDATE heroes SET level=? WHERE account_id=? AND hero_index=?")
-            .bind(level)
-            .bind(account)
-            .bind(index)
-            .execute(&mut *db)
-            .await?;
-        extra["LimitBreakExp"] = json!(exp);
-        out["NewHeroLevel"] = json!(level);
-        out["NewHeroLimitBreakExp"] = json!(exp);
-        out["ItemResults"] = json!(results);
-    }
-    Ok(())
-}
-
 /// Trial battles have no normal campaign rewards. The challenge grants one purification essence.
 pub(crate) async fn trial(
     state: &AppState,

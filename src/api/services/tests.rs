@@ -22,7 +22,7 @@ async fn setup() -> (AppState, Value) {
     );
     s.battle_service_key = Arc::new(Some("test-battle-service-secret-32-characters".into()));
     let u = json!(
-        user::login(State(s.clone()), Bytes::from("LoginId=services-test"))
+        user::test_login(State(s.clone()), Bytes::from("LoginId=services-test"))
             .await
             .unwrap()
             .0
@@ -203,7 +203,7 @@ async fn replay_roundtrip_privacy_deduplication_and_retention() {
     Arc::make_mut(&mut Arc::make_mut(&mut s.tables).services).rules["ReplayLimitPerAccount"] =
         json!(2);
     let b = json!(
-        user::login(State(s.clone()), Bytes::from("LoginId=other"))
+        user::test_login(State(s.clone()), Bytes::from("LoginId=other"))
             .await
             .unwrap()
             .0

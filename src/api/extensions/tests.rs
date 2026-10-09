@@ -20,7 +20,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
             })
             .clone(),
     );
-    let u = user::login(
+    let u = user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -82,7 +82,7 @@ async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     assert_eq!(r["Result"], "Success", "{r}");
     let ids = r["SelectSoulStoneIndices"].as_array().unwrap();
     assert_eq!(ids.len(), 3);
-    let login = user::login(
+    let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -109,7 +109,7 @@ async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
         call(&s, &u, "confirm_soul_stone", &args).await["Result"],
         "Success"
     );
-    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
         .await.unwrap().0;
     assert_eq!(login.misc_info.unwrap().extra["RestoreSoulStoneIndices"], "");
 }
@@ -122,7 +122,7 @@ async fn soul_judgment_login_without_pending_choices_does_not_show_a_soul_stone(
     // there is no Soul Stone left to choose. Preserve its mileage on reconnect.
     put(&mut *s.db.acquire().await.unwrap(), a, "soul_restore", 0,
         &json!({"Mileage":9,"Choices":[]})).await.unwrap();
-    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
         .await.unwrap().0;
     let misc = login.misc_info.unwrap().extra;
     assert_eq!(misc["SoulStoneMileage"], 9);
@@ -178,7 +178,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         &format!("EquipItemSlotIndex={}&ConsumeItemIndex={enchant_id}", eq.slot_index)).await;
     assert_eq!(r["Result"], "Success", "{r}");
     let expected = r["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"].clone();
-    let login = user::login(
+    let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -369,7 +369,7 @@ async fn costume_unlocks_reject_forged_prices_and_survive_reconnect() {
     let r = call(&s, &u, "buy_customizing_costumes", args).await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["HairCostumeInfo"]["HairCostumeIndex"], 220114);
-    let login = user::login(
+    let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -413,19 +413,58 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     assert_eq!(bought["Result"], "Success", "{bought}");
     let again = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
     assert_eq!(again["Result"], "Success", "{again}");
-    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.user_info.gem, 100000 - price as i32);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3100013));
-    // The archived body accessory is unavailable for direct purchase.
+    // Previously reward-only accessories are now purchasable at their table price.
     let body_pos = pos.to_string().replace("3100013", "3110025");
     let escaped = urlencoding::encode(&body_pos).into_owned();
     let wire = urlencoding::encode(&escaped);
     let bought = call(&s, &login, "hero/buy_customizing_costumes",
         &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
-    assert_ne!(bought["Result"], "Success", "{bought}");
-    let login = user::login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32);
-    assert!(!login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
+    assert_eq!(bought["Result"], "Success", "{bought}");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem, 100000 - price as i32 - 10000);
+    assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
+}
+
+#[tokio::test]
+async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=10000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let rows=s.tables.extensions.rows("AccessoryCostume");
+    let mut spent=0;
+    let mut acquired=0;
+    for data in rows {
+        if data["UnableHero"].as_array().is_some_and(|v|v.contains(&json!(1))) { continue; }
+        let id=n(data,"Index");let price=n(data,"ReqBuyGem");
+        assert!(price>0,"Accessory {id} must have an explicit price");
+        let position=json!({id.to_string():{"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}}).to_string();
+        let escaped=urlencoding::encode(&position).into_owned();let wire=urlencoding::encode(&escaped);
+        let args=format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGold=0");
+        let key=cosmetics::accessory_key(1,id).unwrap();
+        // A forged quote must roll back the ownership created before payment checks.
+        assert_ne!(call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem=0")).await["Result"],"Success");
+        assert!(get(&mut *s.db.acquire().await.unwrap(),a,"accessory",key).await.unwrap().is_null());
+        let result=call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem={price}")).await;
+        assert_eq!(result["Result"],"Success","Accessory {id}: {result}");
+        spent+=price;acquired+=1;
+        assert_eq!(call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem=0")).await["Result"],"Success");
+    }
+    assert_eq!(acquired,rows.len());
+    let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem as i64,10000000-spent);
+    assert_eq!(login.player_accessory_costume_infos.len(),acquired);
+    // Purchases remain per hero. An empty wallet cannot acquire the same item for hero 2.
+    hero::recruit_at(&mut *s.db.acquire().await.unwrap(), &s, a, 2, 1, 1, 0).await.unwrap();
+    let data=rows.iter().find(|r|r["PreviewableWhenOwned"]==true && n(r,"PartType")==1).unwrap();
+    let id=n(data,"Index");let price=n(data,"ReqBuyGem");
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let position=json!({id.to_string():{"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}}).to_string();let escaped=urlencoding::encode(&position).into_owned();let wire=urlencoding::encode(&escaped);
+    assert_eq!(call(&s,&login,"hero/buy_customizing_costumes",&format!("HeroIndex=2&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGold=0&BuyGem={price}")).await["Result"],"NotEnoughGem");
+    assert!(get(&mut *s.db.acquire().await.unwrap(),a,"accessory",cosmetics::accessory_key(2,id).unwrap()).await.unwrap().is_null());
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
 }
 #[tokio::test]
 async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
@@ -725,7 +764,7 @@ async fn accessory_ownership_is_per_hero_and_compensation_requires_every_eligibl
     )
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
-    let login = user::login(
+    let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -859,7 +898,7 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     stored["OptionStat2"] = json!(123456789);
     put(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64, &stored)
         .await.unwrap();
-    let login = user::login(
+    let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
     )
@@ -964,7 +1003,7 @@ async fn native_equipment_grind_single_and_batch_persist_rewards_and_removal() {
         let r=call(&s,&u,"break_equip",&args).await;
         assert_eq!(r["Result"],"Success","{r}");
         assert!(!r["ItemResults"].as_array().unwrap().is_empty());
-        let again=user::login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let again=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
         assert!(again.equip_items.iter().all(|eq|equipment.iter().all(|e|e.slot_index!=eq.slot_index)));
         let final_counts:std::collections::BTreeMap<_,_> = r["ItemResults"].as_array().unwrap().iter()
             .map(|reward|(n(reward,"ItemIndex"),n(reward,"NewCount"))).collect();

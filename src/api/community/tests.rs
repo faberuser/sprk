@@ -22,7 +22,7 @@ pub(crate) async fn setup() -> AppState {
 }
 pub(crate) async fn login(s: &AppState, id: &str) -> Value {
     let u = json!(
-        user::login(State(s.clone()), Bytes::from(format!("LoginId={id}")))
+        user::test_login(State(s.clone()), Bytes::from(format!("LoginId={id}")))
             .await
             .unwrap()
             .0

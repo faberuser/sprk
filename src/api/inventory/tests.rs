@@ -30,7 +30,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
     (state, user)
 }
 async fn login(state: &AppState) -> user::LoginResponse {
-    user::login(
+    user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=inventory-test"),
     )
@@ -1243,7 +1243,7 @@ async fn dismantle_material_rewards_and_locked_reward_stacks_keep_correct_counts
 #[tokio::test]
 async fn equipping_rejects_another_players_item_and_chest_items() {
     let (state, u) = setup().await;
-    let other = user::login(
+    let other = user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=inventory-other"),
     )

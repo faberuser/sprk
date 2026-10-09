@@ -185,11 +185,11 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(selected==null || !selected.OpenRoot.gameObject.activeInHierarchy)
                     throw new InvalidOperationException("Raid node is not open");
                 selected.OnClickEnter();
-            } else if(cmd.action=="text") {
+            } else if(cmd.action=="text" || cmd.action=="fill-input") {
                 var input=Target(cmd.target).GetComponent<UIInput>();
                 if(input == null || !input.enabled) throw new InvalidOperationException("Input is disabled");
                 input.value=cmd.text ?? "";
-                input.Submit();
+                if(cmd.action=="text")input.Submit();
             } else if(cmd.action=="clear-errors") errors.Clear();
             else if(cmd.action=="focus-input") {
                 if(cmd.target==0) UICamera.selectedObject=null;
@@ -222,8 +222,35 @@ public sealed class SprkAutomation : MonoBehaviour
                     RestoredPortal.ReadablePerkDescription(popup);
                 }
             }
-            else if(cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
+            else if(cmd.action!="hero-growth-probe" && cmd.action!="account-form-probe" && cmd.action!="guild-attendance-probe" && cmd.action!="payment-probe" && cmd.action!="lobby-probe" && cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
             reply=Snapshot(cmd.id);
+            if(cmd.action=="hero-growth-probe") {
+                if(cmd.text=="open-common")foreach(var view in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.Hero3DViewPanel>())
+                    view.SetToggle(NGame2.NUI.NComponent2.Hero3DViewPanel.EToggle.Info);
+                for(int star=1;star<=5;star++)for(int tier=0;tier<=(star==5?5:0);tier++) {
+                    var hero=new NShared.HeroInfo { HeroIndex=1,Star=(sbyte)star,Transcended=(sbyte)tier,Level=100,LimitBreakLevel=10 };
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","heroCap"},{"star",star},{"transcended",tier},
+                        {"maxLevel",hero.GetMaxLevel()},{"canLimitBreak",hero.CanIncLimitBreakLevel()},{"canLimitExp",hero.CanIncLimitBreakExp()}});
+                }
+                foreach(var panel in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.HeroStatPanel>()) {
+                    foreach(var p in panel.GetComponentsInChildren<UIPanel>(true))reply.materials.Add(new Dictionary<string,object>{{"kind","panel"},
+                        {"path",Hierarchy(p.transform)},{"active",p.gameObject.activeInHierarchy},{"alpha",p.alpha},{"clip",p.baseClipRegion.ToString()},{"position",p.transform.localPosition.ToString()}});
+                    foreach(var w in panel.GetComponentsInChildren<UIWidget>(true)) {
+                        if(w.name.StartsWith("Label_Field") || w.name.StartsWith("Label_Value"))continue;
+                        reply.materials.Add(new Dictionary<string,object>{{"kind","widget"},{"path",Hierarchy(w.transform)},
+                            {"active",w.gameObject.activeInHierarchy},{"visible",w.isVisible},{"alpha",w.finalAlpha},{"width",w.width},{"height",w.height},{"position",w.transform.localPosition.ToString()}});
+                    }
+                }
+            }
+            if(cmd.action=="account-form-probe") {
+                foreach(var input in UnityEngine.Object.FindObjectsOfType<UIInput>()) {
+                    if(!Hierarchy(input.transform).Contains("AccountForm"))continue;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","accountInput"},
+                        {"path",Hierarchy(input.transform)},{"length",input.value.Length},
+                        {"selected",input.isSelected},{"type",input.inputType.ToString()},
+                        {"selectionStart",input.selectionStart},{"selectionEnd",input.selectionEnd}});
+                }
+            }
             if(cmd.action=="combat-table-probe") {
                 var requests=(System.Collections.IList)MiniJSON.Json.Deserialize(cmd.text);
                 if(requests.Count>1000)throw new InvalidOperationException("Too many diagnostic rows");
@@ -422,6 +449,74 @@ public sealed class SprkAutomation : MonoBehaviour
                 foreach(var manager in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NManager.HeroInnManagement>())
                     reply.materials.Add(new Dictionary<string,object>{{"kind","manager"},{"refresh",manager.GetType().GetField("_requestRefresh",flags).GetValue(manager)}});
             }
+            if(cmd.action=="guild-attendance-probe") {
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var loginFlags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                var login=typeof(NGame2.NAccount.AccountManager).GetField("loginResponse",loginFlags).GetValue(account) as NShared.Login.Response;
+                reply.materials.Add(new Dictionary<string,object>{{"kind","loginAttendance"},{"wireDays",login==null?null:(object)login.MiscInfo.LoginDailyCount},{"days",account.UserManager.MiscInfo.LoginDailyCount}});
+                var guild=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.instance;
+                var member=guild.GuildMemberAttendanceInfo;
+                reply.materials.Add(new Dictionary<string,object>{{"kind","guildAttendance"},{"inGuild",guild.CheckIsGuild},
+                    {"today",guild.GuildAttendanceToday},{"days",guild.GuildAttendanceDayList},
+                    {"count",member==null?0:member.SuccessiveCount},{"rewardStep",member==null?0:member.Successive},
+                    {"updatedTime",member==null?null:member.UpdatedTime},{"lastAttendance",member==null?null:member.LastAttendanceTime}});
+                foreach(var card in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.NGuildAttendance.GuildAttendanceComponent>()) {
+                    var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                    var todayCard=card.GetType().GetField("_todayDailyAttendanceRewardComponent",flags).GetValue(card) as Component;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","guildAttendanceCard"},
+                        {"today",card.GetType().GetField("_today",flags).GetValue(card)},
+                        {"claimable",todayCard!=null},{"todayCardPath",todayCard==null?null:Hierarchy(todayCard.transform)},
+                        {"countLabel",card.PerfectAttendanceCountLabel==null?null:card.PerfectAttendanceCountLabel.text}});
+                }
+            }
+            if(cmd.action=="payment-probe") {
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var wrapper=NVespa.SingletonAuto<NGame2.IAP.IAPWrapper>.instance;
+                reply.materials.Add(new Dictionary<string,object>{{"kind","billing"},
+                    {"initialized",wrapper.IAPManager!=null},{"ready",wrapper.IsReady},
+                    {"loginReady",NGame2.NLogin.NState.StateBase_InAppBilling.IsReady}});
+                foreach(string provider in new[]{"None","GoogleId","AppleId","OneStoreId","UDPStoreId"}) {
+                    var sample=new NShared.NewPayShopProductInfo {Index=-1,ProductType=NShared.ProductType.Gem,PriceType=NShared.CurrencyType.Gem,Price=10};
+                    if(provider!="None")typeof(NShared.NewPayShopProductInfo).GetProperty(provider).SetValue(sample,"diagnostic.cash",null);
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","purchasePolicy"},{"provider",provider},
+                        {"buyable",NGame2.NUI.NHelper.NPayShop.PayShopHelper.IsBuyable(sample)}});
+                }
+                foreach(var product in account.NewPayShopProductManager.GetValues())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","product"},{"index",product.Index},
+                        {"category",product.Category},{"cash",!String.IsNullOrEmpty(product.InAppPurchaseId)},
+                        {"currency",product.PriceType.ToString()},{"price",product.Price},
+                        {"buyable",NGame2.NUI.NHelper.NPayShop.PayShopHelper.IsBuyable(product)}});
+                foreach(var card in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.NPayShop.PayShopProductComponent>())
+                    if(card.ProductInfo!=null)reply.materials.Add(new Dictionary<string,object>{{"kind","shopCard"},
+                        {"index",card.ProductInfo.Index},{"cash",!String.IsNullOrEmpty(card.ProductInfo.InAppPurchaseId)},
+                        {"buyEnabled",card.Button_Buy!=null && card.Button_Buy.isEnabled}});
+            }
+            if(cmd.action=="lobby-probe") {
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+                foreach(var window in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.LobbyTopmostMenu>()) {
+                    try { window.UpdateDerived(); }
+                    catch(Exception e) { throw new InvalidOperationException("Lobby HUD refresh failed",e); }
+                    var values=new Dictionary<string,object>{{"kind","lobbyHud"},{"path",Hierarchy(window.transform)}};
+                    foreach(var field in window.GetType().GetFields(flags))
+                        if(field.FieldType.IsEnum || field.FieldType==typeof(int) || field.FieldType==typeof(bool))
+                            values[field.Name]=Convert.ToString(field.GetValue(window));
+                    reply.materials.Add(values);
+                }
+                var login=typeof(NGame2.NAccount.AccountManager).GetField("loginResponse",flags).GetValue(account) as NShared.Login.Response;
+                reply.materials.Add(new Dictionary<string,object>{{"kind","loginProgress"},{"dungeons",login==null?0:login.ChapterDungeons.Length},
+                    {"isLogined",NGame2.NAccount.AccountManager.IsLogined()},
+                    {"loginResponseComplete",account.LoginResponseComplete},
+                    {"currentStamina",account.UserManager.Stamina},{"teamLevel",account.UserManager.TeamLevel}});
+                foreach(var contents in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.PortalContentsComponent>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","portalContents"},{"path",Hierarchy(contents.transform)},
+                        {"category",contents.Categry.ToString()},{"lockedState",contents.LockedState.ToString()}});
+                foreach(var marker in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.ChapterMarkerComponent>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","portalChapter"},{"chapter",marker.ChapterIndex},{"locked",marker.IsLocked}});
+                foreach(var menu in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.ContentsMenuComponent>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","portalMenu"},{"category",menu.Category.ToString()},
+                        {"lockedState",menu.LockedState.ToString()}});
+            }
             if(cmd.action=="dispatch-probe") {
                 var helper=AppDomain.CurrentDomain.GetAssemblies().First(a=>a.GetName().Name=="SprkDispatch").GetType("SprkDispatch");
                 var flags=System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic;
@@ -442,11 +537,52 @@ public sealed class SprkAutomation : MonoBehaviour
                 }
             }
             if(cmd.action=="renderers") {
+                foreach(var logo in UnityEngine.Object.FindObjectsOfType<NGame2.NScene.LogoScene>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","startupLogo"},
+                        {"path",Hierarchy(logo.transform)},{"played",NGame2.NScene.LogoScene.IsLogoPlayed},
+                        {"alpha",logo.LogoWidget==null?-1f:logo.LogoWidget.alpha}});
+                foreach(UIWidget widget in UnityEngine.Object.FindObjectsOfType<UIWidget>()) {
+                    if(!Hierarchy(widget.transform).Contains("Login") && widget.color.r+widget.color.g+widget.color.b>.01f) continue;
+                    var texture=widget as UITexture;
+                    var sprite=widget as UISprite;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","loginWidget"},
+                        {"path",Hierarchy(widget.transform)},{"color",widget.color.ToString()},
+                        {"alpha",widget.finalAlpha},{"depth",widget.depth},{"size",widget.width+"x"+widget.height},
+                        {"texture",texture==null || texture.mainTexture==null?null:texture.mainTexture.name},
+                        {"sprite",sprite==null?null:sprite.spriteName},
+                        {"panel",widget.panel==null?null:Hierarchy(widget.panel.transform)}});
+                }
+                foreach(UIPanel panel in UnityEngine.Object.FindObjectsOfType<UIPanel>()) {
+                    if(!Hierarchy(panel.transform).Contains("LoginBackground")) continue;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","loginPanel"},
+                        {"path",Hierarchy(panel.transform)},{"alpha",panel.alpha},{"depth",panel.depth},
+                        {"queue",panel.startingRenderQueue},{"mode",panel.renderQueue.ToString()}});
+                }
+                reply.materials.Add(new Dictionary<string,object>{{"kind","shaderGlobals"},
+                    {"outline",Shader.GetGlobalFloat("_Outline")},{"outlineFactor",Shader.GetGlobalFloat("_OutlineFactor")},
+                    {"shadowDirection",Shader.GetGlobalVector("_ShadowDirection").ToString()},
+                    {"nativeUpdater",NShader.ShaderVariableUpdater.isValidInstance},
+                    {"shaderLOD",Shader.globalMaximumLOD},{"reversedZ",SystemInfo.usesReversedZBuffer},
+                    {"graphics",SystemInfo.graphicsDeviceType.ToString()}});
+                foreach(Camera camera in UnityEngine.Object.FindObjectsOfType<Camera>())
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","camera"},{"path",Hierarchy(camera.transform)},
+                        {"mask",camera.cullingMask},{"near",camera.nearClipPlane},{"far",camera.farClipPlane},
+                        {"depth",camera.depth},{"orthographic",camera.orthographic},{"position",camera.transform.position.ToString()}});
                 foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>()) {
                     if(!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                     foreach(Material material in renderer.sharedMaterials) {
                         Shader shader=material == null ? null : material.shader;
                         var properties=new Dictionary<string,object>();
+                        var block=new MaterialPropertyBlock();renderer.GetPropertyBlock(block);
+                        properties["shaderTransformEnabled"]=block.GetFloat("_ShaderTransform_IsEnable");
+                        properties["shaderTransform"]=block.GetMatrix("_ShaderTransform_NormalTransform").ToString();
+                        var skin=renderer as SkinnedMeshRenderer;
+                        var filter=renderer.GetComponent<MeshFilter>();
+                        var mesh=skin!=null?skin.sharedMesh:filter==null?null:filter.sharedMesh;
+                        properties["mesh"]=mesh==null?null:mesh.name;
+                        properties["submeshes"]=mesh==null?0:mesh.subMeshCount;
+                        properties["materials"]=renderer.sharedMaterials.Length;
+                        properties["layer"]=renderer.gameObject.layer;
                         if(material != null) {
                             foreach(string key in new string[] {"_MainTex","_MainTex_Color","_NoiseTex_Nor"}) {
                                 if(!material.HasProperty(key)) continue;
@@ -461,6 +597,7 @@ public sealed class SprkAutomation : MonoBehaviour
                             properties["queue"]=material.renderQueue;
                         }
                         reply.materials.Add(new Dictionary<string,object> {
+                            {"kind","renderer"},{"id",renderer.GetInstanceID()},
                             {"renderer",Hierarchy(renderer.transform)},
                             {"material",material == null ? null : material.name},
                             {"shader",shader == null ? null : shader.name},

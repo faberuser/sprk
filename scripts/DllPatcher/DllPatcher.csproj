@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/Accounts.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accounts.cs.txt" />
     <EmbeddedResource Include="Resources/AdventureUnlocks.cs.txt" WithCulture="false" LogicalName="DllPatcher.AdventureUnlocks.cs.txt" />
     <EmbeddedResource Include="Resources/Crafting.cs.txt" WithCulture="false" LogicalName="DllPatcher.Crafting.cs.txt" />
     <EmbeddedResource Include="Resources/LegacyData/RestoredCrafting.json" LogicalName="DllPatcher.RestoredCrafting.json" />

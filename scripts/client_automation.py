@@ -148,6 +148,7 @@ def native_input(pid, action, x=0, y=0, key="ESC"):
     user.SetProcessDPIAware()
     user.GetForegroundWindow.restype = wintypes.HWND
     user.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user.BringWindowToTop.argtypes = [wintypes.HWND]
     user.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
     user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
     user.IsWindowVisible.argtypes = [wintypes.HWND]
@@ -173,13 +174,18 @@ def native_input(pid, action, x=0, y=0, key="ESC"):
         # foreground input queue; still verify focus before sending any input.
         foreground = user.GetForegroundWindow()
         foreground_thread = user.GetWindowThreadProcessId(foreground, None)
+        target_thread = user.GetWindowThreadProcessId(hwnd, None)
         current_thread = ctypes.windll.kernel32.GetCurrentThreadId()
-        attached = user.AttachThreadInput(current_thread, foreground_thread, True)
+        attached = []
         try:
+            for thread in set((foreground_thread, target_thread)) - {current_thread, 0}:
+                if user.AttachThreadInput(current_thread, thread, True):
+                    attached.append(thread)
+            user.BringWindowToTop(hwnd)
             user.SetForegroundWindow(hwnd)
         finally:
-            if attached:
-                user.AttachThreadInput(current_thread, foreground_thread, False)
+            for thread in reversed(attached):
+                user.AttachThreadInput(current_thread, thread, False)
     time.sleep(0.2)
     if user.GetForegroundWindow() != hwnd:
         raise RuntimeError("Windows refused game focus; no input sent")
@@ -195,11 +201,17 @@ def native_input(pid, action, x=0, y=0, key="ESC"):
         time.sleep(0.05)
         user.mouse_event(4, 0, 0, 0, 0)
     else:
-        keys = {"ESC": 27, "ENTER": 13, "SPACE": 32, "TAB": 9}
+        keys = {"ESC": 27, "ENTER": 13, "SPACE": 32, "TAB": 9, "SHIFT_TAB": 9}
         vk = keys[key]
-        user.keybd_event(vk, 0, 0, 0)
-        time.sleep(0.05)
-        user.keybd_event(vk, 0, 2, 0)
+        if key == "SHIFT_TAB":
+            user.keybd_event(16, 0, 0, 0)
+        try:
+            user.keybd_event(vk, 0, 0, 0)
+            time.sleep(0.05)
+            user.keybd_event(vk, 0, 2, 0)
+        finally:
+            if key == "SHIFT_TAB":
+                user.keybd_event(16, 0, 2, 0)
 
 
 def launch(args):
@@ -355,7 +367,7 @@ def main():
         if action == "text":
             p.add_argument("text")
     p = sub.add_parser("key")
-    p.add_argument("key", choices=["ESC", "ENTER", "SPACE", "TAB"])
+    p.add_argument("key", choices=["ESC", "ENTER", "SPACE", "TAB", "SHIFT_TAB"])
     p = sub.add_parser("click-at", help="Real mouse click using game-client pixel coordinates")
     p.add_argument("x", type=int)
     p.add_argument("y", type=int)

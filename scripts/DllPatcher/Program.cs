@@ -9,6 +9,16 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if(args.Contains("--remove-payments")) {
+                int output=Array.IndexOf(args,"--output");
+                if(output<0 || output+1>=args.Length)throw new ArgumentException("--remove-payments requires --output <staging-dir>");
+                StagePaymentRemoval(args[0],args[output+1]);return;
+            }
+            if(args.Contains("--remove-login-providers")) {
+                int output=Array.IndexOf(args,"--output");
+                if(output<0 || output+1>=args.Length)throw new ArgumentException("--remove-login-providers requires --output <staging-dir>");
+                StageLoginProviderRemoval(args[0],args[output+1]);return;
+            }
             if (args.Contains("--verify-no-telemetry"))
             {
                 int overlay = Array.IndexOf(args, "--overlay");
@@ -22,6 +32,7 @@ namespace DllPatcher
                 RemoveClientTelemetry(args[0], args.Contains("--stage-only"), args[output + 1]);
                 return;
             }
+            if (args.Contains("--accounts-only")) { InstallAccounts(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
@@ -143,12 +154,15 @@ namespace DllPatcher
 
             if (stageOnly)
             {
+                InstallAccounts(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".accounts-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
 
             Console.WriteLine($"Copying to: {dllPath}");
             File.Copy(patchedPath, dllPath, true);
+            InstallAccounts(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

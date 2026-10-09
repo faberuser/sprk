@@ -63,12 +63,42 @@ async fn attendance(
     if member.is_null() {
         member = json!({"GuildId":g,"AccountId":a,"LastAttendanceTime":null,"Successive":0,"SuccessiveCount":0,"MaxSuccessiveCount":0,"Daily":0,"Weekly":0});
     }
-    if member["Week"] != week() {
-        member["Week"] = json!(week());
+    if n(&member, "AttendanceVersion") < 2 {
+        // Successive is the last claimed perfect-attendance reward step, not the
+        // day count. Recover it from receipts written by the previous server.
+        let targets: Vec<i64> = sqlx::query_scalar("SELECT target FROM community_claims WHERE account=? AND kind='guild_attendance_reward' AND period='all'")
+            .bind(a).fetch_all(&mut *db).await?;
+        let step = s.tables.arena_guild.rows("GuildAttendanceReward").iter()
+            .filter(|def| n(def, "Index") == 4 && targets.contains(&(4000000 + n(def, "Day"))))
+            .map(|def| n(def, "Step")).max().unwrap_or(0);
+        member["Successive"] = json!(step);
+        member["AttendanceVersion"] = json!(2);
+    }
+    let today = chrono::Utc::now().date_naive();
+    let date = |v: &Value| v.as_str().and_then(|text| text.get(..10))
+        .and_then(|text| chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d").ok());
+    let mut start = date(&member["AttendanceCycleStart"]);
+    if start.is_none() && date(&member["LastDay"]).is_some() {
+        // Preserve previously recorded weekday stamps when adopting the native
+        // personal card. Empty legacy records start on day one instead.
+        start = date(&member["Week"]);
+    }
+    let elapsed = start.map(|start| (today - start).num_days());
+    if elapsed.is_none_or(|days| !(0..7).contains(&days)) {
+        start = Some(today);
+        for d in 1..=7 { member[format!("Day{d}")] = json!(0); }
         member["Weekly"] = json!(0);
-        for d in 1..=7 {
-            member[format!("Day{d}")] = json!(0);
-        }
+        member["LastWeekFirstAttendanceTime"] = Value::Null;
+        member["UpdatedTime"] = json!(time(now()));
+    }
+    let start = start.unwrap();
+    member["AttendanceCycleStart"] = json!(start.to_string());
+    if member["UpdatedTime"].as_str().is_none_or(str::is_empty) {
+        member["UpdatedTime"] = json!(format!("{start} 00:00:00"));
+    }
+    let yesterday = (today - chrono::Duration::days(1)).to_string();
+    if member["LastDay"] != day() && member["LastDay"] != yesterday {
+        member["SuccessiveCount"] = json!(0);
     }
     if member["Day"] != day() {
         member["Day"] = json!(day());
@@ -76,21 +106,21 @@ async fn attendance(
     }
     if action == "set_guild_attendance" {
         claim(db, a, "guild_attend", 0, &day()).await?;
-        let yesterday = time(now() - 86400)[..10].to_string();
         let successive = if member["LastDay"] == yesterday {
-            n(&member, "Successive") + 1
+            n(&member, "SuccessiveCount") + 1
         } else {
             1
         };
         member["LastDay"] = json!(day());
         member["LastAttendanceTime"] = json!(time(now()));
         member["UpdatedTime"] = json!(time(now()));
+        member["LastWeekFirstAttendanceTime"] = json!(format!("{start} 00:00:00"));
         member["Daily"] = json!(1);
         member["Weekly"] = json!(n(&member, "Weekly") + 1);
-        member["Successive"] = json!(successive);
         member["SuccessiveCount"] = json!(successive);
         member["MaxSuccessiveCount"] = json!(n(&member, "MaxSuccessiveCount").max(successive));
-        member[format!("Day{}", chrono::Utc::now().weekday().number_from_monday())] = json!(1);
+        let card_day = (today - start).num_days() + 1;
+        member[format!("Day{card_day}")] = json!(1);
         // A separate immutable record keeps totals correct when members leave.
         claim(db, a, "guild_attend_total", g, &day()).await?;
         hero::currency(
@@ -103,6 +133,12 @@ async fn attendance(
         info["ActivityPoint"] =
             json!(n(info, "ActivityPoint") + settings(s, "GuildAttendanceActivity", 100));
         guild::save(db, g, info).await?;
+        // The native daily button calls only set_guild_attendance. Send its
+        // reward now; the separate send endpoint handles milestone rewards.
+        if let Some(def) = s.tables.arena_guild.find("GuildAttendanceReward", &[("Index", 3), ("Day", card_day)]) {
+            claim(db, a, "guild_attendance_reward", 3000000 + card_day, &day()).await?;
+            mail_reward(db, s, a, n(def, "RewardIndex"), "Guild attendance reward").await?;
+        }
     }
     put(db, a, "attendance", g, &member).await?;
     let daily:i64=sqlx::query_scalar("SELECT count(*) FROM community_claims WHERE kind='guild_attend_total' AND target=? AND period=?").bind(g).bind(day()).fetch_one(&mut *db).await?;
@@ -117,8 +153,8 @@ async fn attendance(
             let amount = match kind {
                 1 => daily,
                 2 => weekly,
-                3 => n(&member, "Weekly"),
-                4 => n(&member, "Successive"),
+                3 => (today - start).num_days() + 1,
+                4 => n(&member, "SuccessiveCount"),
                 _ => continue,
             };
             if amount < n(def, "Day") {
@@ -136,8 +172,12 @@ async fn attendance(
             let inserted=sqlx::query("INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,'guild_attendance_reward',?,?)").bind(a).bind(target).bind(period).execute(&mut *db).await?.rows_affected();
             if inserted == 1 {
                 mail_reward(db, s, a, n(def, "RewardIndex"), "Guild attendance reward").await?;
+                if kind == 4 {
+                    member["Successive"] = json!(n(&member, "Successive").max(n(def, "Step")));
+                }
             }
         }
+        put(db, a, "attendance", g, &member).await?;
     }
     Ok(json!({"GuildAttendanceInfo":total,"GuildMemberAttendanceInfo":member}))
 }

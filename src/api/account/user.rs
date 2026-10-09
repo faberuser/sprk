@@ -13,7 +13,6 @@ use crate::{
         hero::HeroInfo,
         item::ItemInfo,
         equip::EquipItemInfo,
-        BaseResultType,
     },
     state::AppState,
 };
@@ -27,6 +26,7 @@ use crate::{
 pub struct LoginRequest {
     pub login_method: Option<String>,
     pub login_id: Option<String>,
+    pub login_verification_info: Option<String>,
     pub legacy_login_id: Option<String>,
     pub selected_account_id: Option<String>,
     pub encrypt_salt: Option<String>,
@@ -256,6 +256,7 @@ fn parse_login_request(body: &str) -> LoginRequest {
     LoginRequest {
         login_method: params.get("LoginMethod").cloned(),
         login_id: params.get("LoginId").cloned(),
+        login_verification_info: params.get("LoginVerificationInfo").cloned(),
         legacy_login_id: params.get("LegacyLoginId").cloned(),
         selected_account_id: params.get("SelectedAccountId").cloned(),
         encrypt_salt: params.get("EncryptSalt").cloned(),
@@ -283,28 +284,12 @@ pub async fn login(
     body: Bytes,
 ) -> Result<Json<LoginResponse>> {
     let body_str = String::from_utf8_lossy(&body);
-    tracing::info!("Login request body: {}", body_str);
-    
     let req = parse_login_request(&body_str);
-    
-    // For guest login, use DeviceId as the unique identifier to allow multiple guest accounts
-    let raw_login_id = req.login_id.clone().unwrap_or_default();
+    let login_id = req.login_id.clone().unwrap_or_default();
     let device_id = req.device_id.clone().unwrap_or_default();
-    
-    let login_id = if raw_login_id.to_lowercase() == "guest" && !device_id.is_empty() {
-        // Use device_id for guest accounts to allow multiple devices to have separate accounts
-        format!("guest_{}", device_id)
-    } else if raw_login_id.is_empty() {
-        // Fallback to device_id or generate new UUID
-        if !device_id.is_empty() {
-            device_id.clone()
-        } else {
-            uuid::Uuid::new_v4().to_string()
-        }
-    } else {
-        raw_login_id
-    };
-    
+    super::auth::consume_game_ticket(&state.db,
+        req.login_verification_info.as_deref().unwrap_or_default(), &login_id).await?;
+
     let login_method: i32 = req.login_method.as_ref()
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
@@ -655,7 +640,9 @@ pub async fn login(
         server_private_ip: "127.0.0.1".to_string(),
         server_port: 8080,
         admin_level: 0,
-        sticky_host: "http://127.0.0.1:8080/".to_string(),
+        sticky_host: format!("{}://{}/",
+            if std::env::var("SERVER_HTTPS").as_deref() == Ok("true") { "https" } else { "http" },
+            std::env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1:8080".into())),
         alternative_host: None,
         is_new_user,
         server_local_time: state.server_time_str(),
@@ -782,7 +769,8 @@ pub struct LogoutRequest {
 #[serde(rename_all = "PascalCase")]
 #[allow(dead_code)]
 pub struct LogoutResponse {
-    pub base_result: i32,
+    pub base_result: &'static str,
+    pub result: &'static str,
 }
 
 /// Handle logout request
@@ -790,34 +778,59 @@ pub async fn logout(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<LogoutResponse>> {
-    let body_str = String::from_utf8_lossy(&body);
-    // Parse session_id from form data
-    let session_id = body_str
-        .split('&')
-        .find_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            if parts.next() == Some("SessionId") {
-                parts.next().map(|s| s.to_string())
-            } else {
-                None
-            }
-        });
+    let request = crate::api::system::request::Request::parse(&body)?;
+    let session_id = request.0.get("SessionKey").or(request.0.get("SessionId"));
     
     if let Some(session_id) = session_id {
-        state.remove_session(&session_id);
-        
         // Clear session in database
         sqlx::query(
             "UPDATE accounts SET session_key = NULL WHERE session_key = ?"
         )
-        .bind(&session_id)
+        .bind(session_id)
         .execute(&state.db)
         .await?;
+        state.remove_session(session_id);
     }
 
     Ok(Json(LogoutResponse {
-        base_result: BaseResultType::Success as i32,
+        // Native JsonMarshaler reads enum names; numbers deserialize as Fail.
+        base_result: "Success",
+        result: "Success",
     }))
+}
+
+#[cfg(test)]
+mod logout_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn native_logout_returns_success_and_invalidates_only_the_requested_session() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
+            .connect("sqlite::memory:").await.unwrap();
+        sqlx::query("CREATE TABLE accounts(account_id INTEGER PRIMARY KEY, session_key TEXT)")
+            .execute(&db).await.unwrap();
+        let state = AppState::new(db, crate::tables::GameTables::empty());
+        // Exercise native SessionKey and legacy SessionId, including URL decoding.
+        for (id, key) in [(1, "native+key"), (2, "legacy/key"), (3, "untouched")] {
+            sqlx::query("INSERT INTO accounts VALUES(?,?)").bind(id).bind(key)
+                .execute(&state.db).await.unwrap();
+            state.create_session(key.into(), id, "aes".into());
+        }
+        for (field, key) in [("SessionKey", "native+key"), ("SessionId", "legacy/key")] {
+            let body = Bytes::from(format!("{field}={}", urlencoding::encode(key)));
+            let response = logout(State(state.clone()), body.clone()).await.unwrap().0;
+            let json = serde_json::to_value(response).unwrap();
+            assert_eq!(json["BaseResult"], "Success");
+            assert_eq!(json["Result"], "Success");
+            assert!(state.get_session(key).is_none());
+            let stored: Option<String> = sqlx::query_scalar("SELECT session_key FROM accounts WHERE account_id=?")
+                .bind(if field == "SessionKey" { 1 } else { 2 }).fetch_one(&state.db).await.unwrap();
+            assert!(stored.is_none());
+            assert_eq!(logout(State(state.clone()), body).await.unwrap().0.result, "Success");
+        }
+        assert!(state.get_session("untouched").is_some());
+        assert_eq!(logout(State(state), Bytes::new()).await.unwrap().0.result, "Success");
+    }
 }
 
 /// Get certificate request (empty, just needs session)
@@ -867,4 +880,17 @@ pub async fn get_certificate(
         salt,
         public_ip: None, // Optional, can redirect to different server
     }))
+}
+
+/// Gameplay fixtures still exercise the real login handler with a valid one-use ticket.
+#[cfg(test)]
+pub(crate) async fn test_login(state: State<AppState>, body: Bytes) -> Result<Json<LoginResponse>> {
+    let form = String::from_utf8_lossy(&body);
+    let req = parse_login_request(&form);
+    let id = req.login_id.unwrap_or_default();
+    let ticket = uuid::Uuid::new_v4().to_string();
+    sqlx::query("INSERT INTO auth_tickets VALUES (?, ?, 'game', ?)")
+        .bind(super::auth::digest(&ticket)).bind(id).bind(chrono::Utc::now().timestamp()+300)
+        .execute(&state.0.db).await?;
+    login(state, Bytes::from(format!("{form}&LoginVerificationInfo={ticket}"))).await
 }

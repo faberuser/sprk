@@ -30,7 +30,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
 }
 
 async fn login(state: &AppState) -> user::LoginResponse {
-    user::login(
+    user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=tutorial-test"),
     )
@@ -411,7 +411,7 @@ async fn failed_new_account_creation_is_atomic() {
         .unwrap();
     database::create_tables(&pool).await.unwrap();
     let state = AppState::new(pool, GameTables::empty());
-    assert!(user::login(
+    assert!(user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=missing-data")
     )
