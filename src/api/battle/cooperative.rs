@@ -20,7 +20,7 @@ pub(crate) struct BattleHub {
 impl Default for BattleHub {
     fn default()->Self {Self{worker:RwLock::new(None),peers:DashMap::new(),runs:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
-        address:std::env::var("BATTLE_ADDRESS").unwrap_or_else(|_|"127.0.0.1".into())}}
+        address:crate::websocket::public_url("battle")}}
 }
 struct Run {
     id:String,worker:String,master:i64,room:i64,members:Vec<i64>,payload:Value,
@@ -192,7 +192,12 @@ pub(crate) async fn recover_orphaned(s:&AppState)->Result<()> {
     db.commit().await?;Ok(())
 }
 async fn connection(socket:TcpStream,s:AppState)->Result<()> {
-    socket.set_nodelay(true).map_err(|_|rule("InvalidValue"))?;let (mut reader,mut writer)=socket.into_split();
+    socket.set_nodelay(true).map_err(|_|rule("InvalidValue"))?;
+    connection_stream(socket,s,true).await
+}
+pub(crate) async fn connection_stream<S>(socket:S,s:AppState,allow_worker:bool)->Result<()>
+where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
+    let (mut reader,mut writer)=tokio::io::split(socket);
     let (tx,mut rx)=mpsc::channel::<Packet>(1024);let connection_id=uuid::Uuid::new_v4().to_string();
     let writer_task=tokio::spawn(async move {
         while let Some((name,body))=rx.recv().await {if writer.write_all(&encode_packet(&name,&body)).await.is_err() {break;}}
@@ -207,6 +212,7 @@ async fn connection(socket:TcpStream,s:AppState)->Result<()> {
                 let frame:Vec<_>=buffer.drain(..=end).collect();let (name,body)=decode_packet(&frame)?;
                 if account==0 && !worker {
                     if name=="WorkerLogin" {
+                        if !allow_worker {return Err(rule("Unauthorized"));}
                         let key=s.battle_service_key.as_ref().as_ref().ok_or_else(||rule("Unauthorized"))?;
                         let supplied=body["Key"].as_str().unwrap_or("");
                         if key.len()!=supplied.len() || !key.as_bytes().iter().zip(supplied.as_bytes()).fold(0_u8,|v,(a,b)|v|(a^b)).eq(&0) {return Err(rule("Unauthorized"));}
@@ -410,6 +416,47 @@ mod tests {
         for a in &members {let tx=s.conquest.peers.get(a).unwrap().sender.clone();player_packet(s,*a,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();}
         for a in &members {let tx=s.conquest.peers.get(a).unwrap().sender.clone();player_packet(s,*a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();}
         id
+    }
+    #[tokio::test]
+    async fn websocket_three_player_battle_and_reconnect() {
+        use crate::websocket::tests::{server, Client};
+        let (s,users,_,mut worker,_clients)=fixture().await;
+        s.conquest.peers.clear();
+        let server=server(s.clone()).await;
+        let master=users[0]["UserInfo"]["AccountId"].clone();
+        let auth=|u:&Value|json!({"AccountId":u["UserInfo"]["AccountId"],"SessionKey":u["UserInfo"]["SessionKey"],"MasterId":master,"RequestId":1});
+        let mut clients=vec![];
+        for u in &users {
+            let mut c=Client::connect(&server,"battle").await;
+            c.send("BattleLoginReq",auth(u)).await;
+            assert_eq!(c.recv("BattleLoginRes").await["Result"],"Success");
+            c.send("BattleEnterReq",json!({"RequestId":2})).await;
+            assert_eq!(c.recv("BattleEnterRes").await["Result"],"Success");
+            clients.push(c);
+        }
+        assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");
+        for c in &mut clients {
+            c.send("BattleStartReq",json!({"RequestId":3})).await;
+            assert_eq!(c.recv("BattleStartRes").await["Result"],"Success");
+        }
+        assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+        let id=s.conquest.runs.iter().next().unwrap().key().clone();
+        worker_packet(&s,"test-worker","WorkerPacket",json!({"RunId":id,"Name":"BattleLogNot","Body":{"ServerTimeMs":42,"Logs":[]}})).await.unwrap();
+        for c in &mut clients {assert_eq!(c.recv("BattleLogNot").await["ServerTimeMs"],42);}
+        clients[0].send("PingReq",json!({"RequestId":4,"ClientTimeMs":123})).await;
+        assert_eq!(clients[0].recv("PingRes").await["ClientTimeMs"],123);
+        let lost=clients.pop().unwrap(); drop(lost);
+        let account=users[2]["UserInfo"]["AccountId"].as_i64().unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(5),async {
+            while s.conquest.peers.contains_key(&account) {tokio::time::sleep(std::time::Duration::from_millis(10)).await;}
+        }).await.unwrap();
+        let mut again=Client::connect(&server,"battle").await;
+        again.send("BattleLoginReq",auth(&users[2])).await;
+        assert_eq!(again.recv("BattleLoginRes").await["Result"],"Success");
+        again.send("BattleEnterReq",json!({"RequestId":5})).await;
+        assert_eq!(again.recv("BattleLogNot").await["ServerTimeMs"],42);
+        assert_eq!(again.recv("BattleEnterRes").await["Result"],"Success");
+        assert!(worker.try_recv().is_err(),"reconnect must not start the battle twice");
     }
     #[tokio::test]
     #[ignore = "Exports a trusted fixture for the isolated native engine integration test"]

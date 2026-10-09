@@ -9,6 +9,7 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--websocket-only")) { InstallWebSockets(args[0], args.Contains("--stage-only")); return; }
             if(args.Contains("--remove-payments")) {
                 int output=Array.IndexOf(args,"--output");
                 if(output<0 || output+1>=args.Length)throw new ArgumentException("--remove-payments requires --output <staging-dir>");
@@ -156,6 +157,8 @@ namespace DllPatcher
             {
                 InstallAccounts(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".accounts-staged", patchedPath, true);
+                InstallWebSockets(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".websocket-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -163,6 +166,7 @@ namespace DllPatcher
             Console.WriteLine($"Copying to: {dllPath}");
             File.Copy(patchedPath, dllPath, true);
             InstallAccounts(clientRoot, false);
+            InstallWebSockets(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

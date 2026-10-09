@@ -7,6 +7,7 @@ mod service_mode;
 mod state;
 mod tables;
 mod updates;
+mod websocket;
 
 use axum::{
     Router,
@@ -74,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
 // Game state and middleware are confined to this router. Update downloads never
 // initialize a database, chat/battle listeners, or a native worker.
 async fn game_router() -> anyhow::Result<Router> {
+    websocket::validate_config()?;
     // Initialize database
     let db = database::init_database().await?;
     
@@ -142,6 +144,8 @@ async fn game_router() -> anyhow::Result<Router> {
 
     // Build router with all API routes
     let app = Router::new()
+        .route("/ws/chat", get(websocket::chat))
+        .route("/ws/battle", get(websocket::battle))
         .merge(api::services::routes(&state.tables.services))
         .merge(api::extensions::routes())
         .merge(api::live::routes(&state.tables.live))
@@ -157,6 +161,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/api/auth/login/guest", post(api::account::auth::guest_login))
         .route("/api/auth/register", post(api::account::auth::register))
         .route("/api/auth/login", post(api::account::auth::password_login))
+        .route("/api/auth/change-password", post(api::account::auth::change_password))
         .route("/api/auth/token/verify", post(api::account::auth::verify_token))
         .route("/api/auth/refresh-token", post(api::account::auth::refresh_token))
         // User authentication endpoints

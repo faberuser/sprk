@@ -47,6 +47,11 @@ public sealed class SprkAccounts : MonoBehaviour {
     AppServerInfo[] servers;
     int serverIndex;
     bool registering, busy;
+    bool changingPassword, passwordChanged;
+    GameOptionWindow settingsWindow;
+    Vector3 formOrigin;
+    UIButton currentVisibility;
+    UILabel currentVisibilityLabel;
     GameObject root;
     UITexture background, border;
     UILabel template, title, message, switchLabel, submitLabel, serverLabel, passwordVisibilityLabel, confirmVisibilityLabel;
@@ -55,6 +60,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     UIButton submit, toggle, changeServerButton, passwordVisibility, confirmVisibility;
     static readonly Color Accent=new Color(.40f,.79f,.84f);
     [Serializable] public class Request { public string username, password; }
+    [Serializable] public class PasswordChangeRequest { public string session_key, current_password, new_password; }
     // Reuse native nested DTOs: Unity only populates these registered serialization types.
     [Serializable] public class TokenReply { public string status, message, InternalErrorMessage; public GetTokenData data; }
     [Serializable] public class SessionReply { public string status, message, InternalErrorMessage; public GetSessionData data; }
@@ -170,6 +176,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     }
     public static void CleanSettings(GameOptionWindow view) {
         AddSwitchAccount(view);
+        AddChangePassword(view);
         var info=view.EtcInfo;
         var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
         if(config!=null && info.Label_GameVersionNum!=null)info.Label_GameVersionNum.text=DisplayVersion(config.Version);
@@ -198,6 +205,36 @@ public sealed class SprkAccounts : MonoBehaviour {
             }
         }
     }
+    static void AddChangePassword(GameOptionWindow view) {
+        var source=view.EtcInfo.Button_Coupon;
+        if(source==null)return;
+        var parent=source.parent;
+        if(parent.Find("Button_ChangePassword")!=null)return;
+        var go=UnityEngine.Object.Instantiate(source.gameObject,parent,false);go.name="Button_ChangePassword";
+        // Reuse the removed Customer Center's position above the coupon row.
+        if(view.EtcInfo.Button_CustomerCenter!=null)go.transform.localPosition=view.EtcInfo.Button_CustomerCenter.localPosition;
+        else go.transform.localPosition=source.localPosition+new Vector3(0,100,0);
+        foreach(var loc in go.GetComponentsInChildren<UILocalize>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var loc in go.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var label in go.GetComponentsInChildren<UILabel>(true))label.text="Change Password";
+        var button=go.GetComponent<UIButton>();button.onClick.Clear();
+        EventDelegate.Add(button.onClick,delegate {OpenPasswordChange(view);});go.SetActive(true);
+    }
+    static void OpenPasswordChange(GameOptionWindow view) {
+        var form=view.GetComponent<SprkAccounts>();
+        if(form==null)form=view.gameObject.AddComponent<SprkAccounts>();
+        if(form.busy)return;
+        form.changingPassword=true;form.settingsWindow=view;form.registering=true;form.choosing=false;
+        form.passwordChanged=false;form.template=view.EtcInfo.Label_GameVersionNum;
+        if(form.root==null)form.Build();
+        form.root.SetActive(true);form.username.value="";form.password.value="";form.confirm.value="";
+        form.HidePasswords();form.SetMessage("");form.Refresh();form.username.isSelected=true;
+    }
+    void ClosePasswordChange() {
+        if(busy)return;
+        username.value="";password.value="";confirm.value="";HidePasswords();
+        UICamera.selectedObject=null;root.SetActive(false);
+    }
     // Keep the existing game state machine, but its old guest transition now requires
     // a password-authenticated, short-lived ticket from this form.
     public static void Complete(MasangLoginManager.LoginResultCallback callback) {
@@ -215,7 +252,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     }
     public static void Reject(MasangLoginManager.LoginResultCallback callback) { callback(false,null); }
     GameObject Child(string name, Transform parent, float x, float y) {
-        var go=new GameObject(name); go.layer=window.gameObject.layer;
+        var go=new GameObject(name); go.layer=gameObject.layer;
         go.transform.SetParent(parent,false); go.transform.localPosition=new Vector3(x,y,0); return go;
     }
     UITexture Surface(GameObject go, int width, int height, Color color, int depth) {
@@ -259,19 +296,30 @@ public sealed class SprkAccounts : MonoBehaviour {
         EventDelegate.Add(input.onSubmit,InputSubmitted);return input;
     }
     void Build() {
-        template=window.Label_ServerName;
+        if(!changingPassword)template=window.Label_ServerName;
         // The original provider buttons and account-ID shortcut are no longer exposed.
-        foreach(Transform child in window.transform) child.gameObject.SetActive(false);
-        root=Child("AccountForm",window.transform,0,0);
+        if(!changingPassword)foreach(Transform child in window.transform) child.gameObject.SetActive(false);
+        root=Child(changingPassword?"ChangePasswordForm":"AccountForm",transform,0,0);
+        if(changingPassword) {
+            var camera=NGUITools.FindCameraForLayer(gameObject.layer);
+            var screen=camera.WorldToScreenPoint(transform.position);screen.x=Screen.width*.5f;screen.y=Screen.height*.5f;
+            formOrigin=transform.InverseTransformPoint(camera.ScreenToWorldPoint(screen));
+        }
         var panel=root.AddComponent<UIPanel>();panel.depth=100;
+        if(changingPassword) {
+            panel.depth=1000;
+            var shade=Surface(Child("ModalShade",root.transform,0,0),4000,4000,new Color(0,0,0,.6f),-2);
+            shade.gameObject.AddComponent<BoxCollider>().size=new Vector3(4000,4000,1);
+        }
         border=Surface(Child("Border",root.transform,0,0),846,0,new Color(.24f,.34f,.43f,.96f),-1);
         background=Surface(Child("Background",root.transform,0,0),840,0,new Color(.035f,.055f,.09f,.96f),0);
         title=Label("Title",root.transform,"Welcome Back",0,363,730,60,42);
         Label("Subtitle",root.transform,"SPRK ACCOUNT",0,313,730,30,19).color=new Color(.61f,.72f,.82f);
         Surface(Child("Accent",root.transform,0,287),72,4,Accent,1);
         GameObject row;
-        username=Input("Username","Username",218,false,out row);username.characterLimit=32;
-        password=Input("Password","Password",110,true,out row);
+        username=Input(changingPassword?"CurrentPassword":"Username",changingPassword?"Current Password":"Username",218,changingPassword,out row);username.characterLimit=changingPassword?128:32;
+        if(changingPassword)currentVisibility=Button("ShowPassword","Show",290,0,96,ShowCurrentPassword,out currentVisibilityLabel,username.transform,false,48);
+        password=Input(changingPassword?"NewPassword":"Password",changingPassword?"New Password":"Password",110,true,out row);
         passwordVisibility=Button("ShowPassword","Show",290,0,96,ShowPassword,out passwordVisibilityLabel,password.transform,false,48);
         confirm=Input("ConfirmPassword","Confirm Password",2,true,out confirmRow);
         confirmVisibility=Button("ShowPassword","Show",290,0,96,ShowConfirmation,out confirmVisibilityLabel,confirm.transform,false,48);
@@ -285,10 +333,11 @@ public sealed class SprkAccounts : MonoBehaviour {
         message=Label("Message",root.transform,"",0,0,730,22,22);message.color=new Color(1f,.79f,.48f);
         message.overflowMethod=UILabel.Overflow.ResizeHeight;
         UILabel backLabel;
-        back=Button("BackToAccounts","Back to Accounts",0,0,696,BackToAccounts,out backLabel,null,false,52);
+        back=Button(changingPassword?"Cancel":"BackToAccounts",changingPassword?"Cancel":"Back to Accounts",0,0,696,BackToAccounts,out backLabel,null,false,52);
         accountList=Child("SavedAccounts",root.transform,0,0);
     }
     void Refresh() {
+        if(changingPassword) {RefreshPasswordChange();return;}
         username.transform.parent.gameObject.SetActive(!choosing);
         password.transform.parent.gameObject.SetActive(!choosing);
         serverStatus.SetActive(!choosing);submit.gameObject.SetActive(!choosing);toggle.gameObject.SetActive(!choosing);
@@ -314,17 +363,27 @@ public sealed class SprkAccounts : MonoBehaviour {
         username.GetComponent<BoxCollider>().enabled=!busy;password.GetComponent<BoxCollider>().enabled=!busy;confirm.GetComponent<BoxCollider>().enabled=!busy;
         passwordVisibility.isEnabled=!busy;confirmVisibility.isEnabled=!busy;
     }
+    void RefreshPasswordChange() {
+        title.text="Change Password";serverStatus.SetActive(false);toggle.gameObject.SetActive(false);accountList.SetActive(false);
+        confirmRow.SetActive(true);back.gameObject.SetActive(true);back.isEnabled=!busy;
+        submitLabel.text=busy?"Saving...":"Change Password";submit.gameObject.SetActive(!passwordChanged);submit.isEnabled=!busy;
+        submit.transform.localPosition=new Vector3(0,-100,0);back.transform.localPosition=new Vector3(0,-168,0);
+        back.GetComponentInChildren<UILabel>().text=passwordChanged?"Close":"Cancel";
+        foreach(var input in new[]{username,password,confirm}) {input.enabled=!busy && !passwordChanged;input.GetComponent<BoxCollider>().enabled=!busy && !passwordChanged;}
+        currentVisibility.isEnabled=passwordVisibility.isEnabled=confirmVisibility.isEnabled=!busy && !passwordChanged;
+        RefreshLayout();
+    }
     void RefreshLayout() {
         // Fit errors to their rendered text with compact, equal padding.
         // Keep the normal panel size unless wrapping needs additional room.
         float messageHeight=Mathf.Max(message.fontSize,Mathf.Ceil(message.printedSize.y));
-        float messageTop=choosing?PickerAddY-53:(registering?-245:-137)-(Store.Accounts.Count>0?67:0)-26-26;
+        float messageTop=changingPassword?-220:choosing?PickerAddY-53:(registering?-245:-137)-(Store.Accounts.Count>0?67:0)-26-26;
         message.transform.localPosition=new Vector3(0,messageTop-messageHeight*.5f,0);
-        background.height=choosing?Mathf.CeilToInt(548-PickerAddY):(registering?786:678)+(Store.Accounts.Count>0?67:0);
+        background.height=changingPassword?744:choosing?Mathf.CeilToInt(548-PickerAddY):(registering?786:678)+(Store.Accounts.Count>0?67:0);
         if(!String.IsNullOrEmpty(message.text))
             background.height=Mathf.Max(background.height,Mathf.CeilToInt(440-(messageTop-messageHeight-26)));
         float centerY=440-background.height*.5f;
-        root.transform.localPosition=new Vector3(0,-centerY,0);
+        root.transform.localPosition=formOrigin+new Vector3(0,-centerY,0);
         background.transform.localPosition=new Vector3(0,centerY,0);
         border.height=background.height+6;border.transform.localPosition=background.transform.localPosition;
     }
@@ -335,7 +394,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         return state.ToString();
     }
     void Update() {
-        if(!busy && root!=null && root.activeInHierarchy && Time.unscaledTime>=nextAccountRefresh) {
+        if(!changingPassword && !busy && root!=null && root.activeInHierarchy && Time.unscaledTime>=nextAccountRefresh) {
             nextAccountRefresh=Time.unscaledTime+1f;
             try {
                 Store.Reload();string state=AccountListState();
@@ -344,7 +403,8 @@ public sealed class SprkAccounts : MonoBehaviour {
         }
         // The title screen's native camera does not consistently dispatch Tab.
         // Handle it once per form, leaving arrow keys to the text caret.
-        if(busy || choosing || root==null || !root.activeInHierarchy || !UnityEngine.Input.GetKeyDown(KeyCode.Tab))return;
+        if(changingPassword && !busy && root!=null && root.activeInHierarchy && UnityEngine.Input.GetKeyDown(KeyCode.Escape)){ClosePasswordChange();return;}
+        if(busy || passwordChanged || choosing || root==null || !root.activeInHierarchy || !UnityEngine.Input.GetKeyDown(KeyCode.Tab))return;
         bool reverse=UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
         var selected=UIInput.selection;
         if(selected==username)(reverse?(registering?confirm:password):password).isSelected=true;
@@ -376,7 +436,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         }
     }
     void AddAccount() {if(busy)return;Store.Reload();if(Store.Accounts.Count>=SprkAccountStore.MaxAccounts){SetMessage("Four accounts are saved. Log out of one to add another.");Refresh();return;}choosing=false;registering=false;username.value="";password.value="";confirm.value="";HidePasswords();SetMessage("");Refresh();username.isSelected=true;}
-    void BackToAccounts() {if(busy)return;choosing=Store.Accounts.Count>0;password.value="";confirm.value="";HidePasswords();UICamera.selectedObject=null;SetMessage("");Refresh();}
+    void BackToAccounts() {if(changingPassword){ClosePasswordChange();return;}if(busy)return;choosing=Store.Accounts.Count>0;password.value="";confirm.value="";HidePasswords();UICamera.selectedObject=null;SetMessage("");Refresh();}
     void RemoveAccount(SprkSavedAccount account) {
         if(busy)return;
         try {using(var lease=Store.TryAcquire(account)){if(lease==null){Fail("This account is open in another window.");return;}Store.Remove(account);}}catch(Exception){Fail("Unable to save logout. Please check local storage and try again.");return;}
@@ -403,17 +463,19 @@ public sealed class SprkAccounts : MonoBehaviour {
         input.inputType=visible?UIInput.InputType.Standard:UIInput.InputType.Password;
         input.UpdateLabel();label.text=visible?"Hide":"Show";
     }
-    void HidePasswords() {SetPasswordVisibility(password,passwordVisibilityLabel,false);SetPasswordVisibility(confirm,confirmVisibilityLabel,false);}
+    void HidePasswords() {SetPasswordVisibility(password,passwordVisibilityLabel,false);SetPasswordVisibility(confirm,confirmVisibilityLabel,false);if(changingPassword)SetPasswordVisibility(username,currentVisibilityLabel,false);}
+    void ShowCurrentPassword() {if(busy)return;SetPasswordVisibility(username,currentVisibilityLabel,username.inputType==UIInput.InputType.Password);username.isSelected=true;}
     void ShowPassword() {if(busy)return;SetPasswordVisibility(password,passwordVisibilityLabel,password.inputType==UIInput.InputType.Password);password.isSelected=true;}
     void ShowConfirmation() {if(busy)return;SetPasswordVisibility(confirm,confirmVisibilityLabel,confirm.inputType==UIInput.InputType.Password);confirm.isSelected=true;}
     void ChangeServer() { if(!busy && servers!=null && servers.Length>0) {serverIndex=(serverIndex+1)%servers.Length;Refresh();} }
     void SwitchMode() { if(busy)return;registering=!registering;password.value="";confirm.value="";HidePasswords();SetMessage("");Refresh();username.isSelected=true; }
-    void OnDisable() { if(password!=null){password.value="";confirm.value="";HidePasswords();} }
+    void OnDisable() { if(password!=null){password.value="";confirm.value="";if(changingPassword)username.value="";HidePasswords();if(changingPassword && root!=null)root.SetActive(false);} }
     void InputSubmitted() {
         if(busy)return;
         Submit();
     }
     void Submit() {
+        if(changingPassword){SubmitPasswordChange();return;}
         if(busy || choosing)return;
         if(servers==null || servers.Length==0){Fail("No server available.");return;}
         if(username.value.Trim().Length<3 || password.value.Length<8){Fail("Enter a username (3-32 characters) and password (at least 8 characters).",username.value.Trim().Length<3?username:password);return;}
@@ -425,6 +487,33 @@ public sealed class SprkAccounts : MonoBehaviour {
         if(accountLease==null){Fail("This account is open in another window.");return;}
         busy=true;SetMessage("");HidePasswords();UICamera.selectedObject=null;Refresh();StartCoroutine(Authenticate());
     }
+    void SubmitPasswordChange() {
+        if(busy || passwordChanged)return;
+        if(String.IsNullOrEmpty(username.value)){PasswordChangeFailed("Enter your current password.",username);return;}
+        if(Encoding.UTF8.GetByteCount(password.value)<8 || Encoding.UTF8.GetByteCount(password.value)>128){PasswordChangeFailed("New password must be 8-128 bytes.",password);return;}
+        if(password.value!=confirm.value){PasswordChangeFailed("Passwords do not match.",confirm);return;}
+        if(username.value==password.value){PasswordChangeFailed("Choose a different new password.",password);return;}
+        busy=true;HidePasswords();SetMessage("");UICamera.selectedObject=null;Refresh();StartCoroutine(ChangePassword());
+    }
+    IEnumerator ChangePassword() {
+        string endpoint=activeAccount!=null?activeAccount.Endpoint:null;
+        if(String.IsNullOrEmpty(endpoint)){PasswordChangeFailed("Please log in again before changing your password.",username);yield break;}
+        var user=GlobalAutoBehaviour<AccountManager>.instance.UserManager.UserInfo;
+        string json=JsonUtility.ToJson(new PasswordChangeRequest {session_key=user.SessionKey,current_password=username.value,new_password=password.value});
+        using(var request=new UnityWebRequest(endpoint.TrimEnd('/')+"/api/auth/change-password","POST")) {
+            request.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));json=null;
+            request.downloadHandler=new DownloadHandlerBuffer();request.timeout=25;request.SetRequestHeader("Content-Type","application/json");
+            yield return request.SendWebRequest();TokenReply reply=null;
+            try {reply=JsonUtility.FromJson<TokenReply>(request.downloadHandler.text);}catch(Exception){}
+            if(request.result!=UnityWebRequest.Result.Success || reply==null || reply.status!="success" || reply.data==null || String.IsNullOrEmpty(reply.data.refresh_token)) {
+                PasswordChangeFailed(reply!=null && !String.IsNullOrEmpty(reply.InternalErrorMessage)?reply.InternalErrorMessage:"Unable to change password. Check the connection and try again.",username);yield break;
+            }
+            LoginData.LastAccessToken=reply.data.access_token;LoginData.LastRefreshToken=reply.data.refresh_token;
+            SyncRefreshToken();busy=false;passwordChanged=true;username.value="";password.value="";confirm.value="";
+            SetMessage("Password changed successfully.");Refresh();
+        }
+    }
+    void PasswordChangeFailed(string error,UIInput field) {busy=false;SetMessage(error);Refresh();StartCoroutine(FocusForRetry(field,true));}
     IEnumerator Authenticate(SprkSavedAccount saved=null) {
         var server=servers[serverIndex];
         SingletonUpdater<LoginManager>.instance.SetServerName(server.Name);

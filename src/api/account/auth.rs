@@ -64,16 +64,67 @@ pub struct TokenData { pub id: String, pub access_token: String, pub refresh_tok
 #[derive(Serialize)]
 pub struct TokenResponse { pub status: String, pub message: String, pub data: TokenData }
 async fn issue(db: &DbPool, login_id: &str) -> Result<TokenResponse> {
-    let access = secret(); let refresh = secret();
     let mut tx = db.begin().await?;
-    sqlx::query("DELETE FROM auth_tickets WHERE expires_at <= ?").bind(now()).execute(&mut *tx).await?;
-    for (token, kind, ttl) in [(&access, "access", ACCESS_SECONDS), (&refresh, "refresh", REFRESH_SECONDS)] {
-        sqlx::query("INSERT INTO auth_tickets VALUES (?, ?, ?, ?)").bind(digest(token)).bind(login_id).bind(kind).bind(now()+ttl).execute(&mut *tx).await?;
-    }
+    let response = issue_in(&mut tx, login_id).await?;
     tx.commit().await?;
+    Ok(response)
+}
+async fn issue_in(db: &mut sqlx::SqliteConnection, login_id: &str) -> Result<TokenResponse> {
+    let access = secret(); let refresh = secret();
+    sqlx::query("DELETE FROM auth_tickets WHERE expires_at <= ?").bind(now()).execute(&mut *db).await?;
+    for (token, kind, ttl) in [(&access, "access", ACCESS_SECONDS), (&refresh, "refresh", REFRESH_SECONDS)] {
+        sqlx::query("INSERT INTO auth_tickets VALUES (?, ?, ?, ?)").bind(digest(token)).bind(login_id).bind(kind).bind(now()+ttl).execute(&mut *db).await?;
+    }
     Ok(TokenResponse { status: "success".into(), message: String::new(), data: TokenData {
         id: login_id.into(), access_token: access, refresh_token: refresh, expires_in: ACCESS_SECONDS.to_string(),
     }})
+}
+
+#[derive(Deserialize)]
+pub struct ChangePassword {
+    session_key: String,
+    current_password: String,
+    new_password: String,
+}
+pub async fn change_password(State(state): State<AppState>, Json(body): Json<ChangePassword>) -> Result<Json<TokenResponse>> {
+    let session = state.get_session(&body.session_key).filter(|s| s.account_id > 0).ok_or(ServerError::SessionExpired)?;
+    if body.current_password.is_empty() || body.current_password.len() > 128 {
+        return Err(ServerError::InvalidRequest("Enter your current password.".into()));
+    }
+    if !(8..=128).contains(&body.new_password.len()) {
+        return Err(ServerError::InvalidRequest("New password must be 8-128 bytes.".into()));
+    }
+    if body.current_password == body.new_password {
+        return Err(ServerError::InvalidRequest("Choose a different new password.".into()));
+    }
+    let row = sqlx::query("SELECT c.username,c.login_id,c.password_hash FROM credentials c JOIN accounts a ON a.login_id=c.login_id WHERE a.account_id=? AND a.is_banned=0")
+        .bind(session.account_id).fetch_optional(&state.db).await?.ok_or_else(denied)?;
+    let username: String = row.get("username");
+    let login_id: String = row.get("login_id");
+    let stored: String = row.get("password_hash");
+    throttle(&state.db, &username).await?;
+    let permit = PASSWORD_WORK.try_acquire().map_err(|_| ServerError::Authentication("Server busy. Please try again.".into()))?;
+    let previous = stored.clone();
+    let hash = tokio::task::spawn_blocking(move || {
+        if !PasswordHash::new(&previous).map(|h| Argon2::default().verify_password(body.current_password.as_bytes(), &h).is_ok()).unwrap_or(false) {
+            return Err(ServerError::Authentication("Current password is incorrect.".into()));
+        }
+        Argon2::default().hash_password(body.new_password.as_bytes(), &SaltString::generate(&mut OsRng))
+            .map(|h| h.to_string()).map_err(|_| ServerError::Internal("Password service unavailable".into()))
+    }).await.map_err(|_| ServerError::Internal("Password service unavailable".into()))??;
+    drop(permit);
+    let mut tx = state.db.begin().await?;
+    if state.get_session(&body.session_key).is_none() { return Err(ServerError::SessionExpired); }
+    // Compare the verified hash again so two simultaneous changes cannot overwrite each other.
+    let changed = sqlx::query("UPDATE credentials SET password_hash=? WHERE login_id=? AND password_hash=?")
+        .bind(hash).bind(&login_id).bind(stored).execute(&mut *tx).await?.rows_affected();
+    if changed != 1 { return Err(ServerError::Authentication("Password changed elsewhere. Please try again.".into())); }
+    sqlx::query("DELETE FROM auth_tickets WHERE login_id=?").bind(&login_id).execute(&mut *tx).await?;
+    let response = issue_in(&mut tx, &login_id).await?;
+    tx.commit().await?;
+    state.sessions.retain(|key, s| s.account_id != session.account_id || key == &body.session_key);
+    state.touch_session(&body.session_key);
+    Ok(Json(response))
 }
 
 pub async fn register(State(state): State<AppState>, Json(body): Json<Credentials>) -> Result<Json<TokenResponse>> {
@@ -167,6 +218,44 @@ mod tests {
     }
     fn headers(token: &str) -> HeaderMap {
         let mut h=HeaderMap::new();h.insert("Authorization",HeaderValue::from_str(&format!("Bearer {}",token)).unwrap());h
+    }
+    fn change(session: &str, current: &str, new: &str) -> Json<ChangePassword> {
+        Json(ChangePassword { session_key: session.into(), current_password: current.into(), new_password: new.into() })
+    }
+    #[tokio::test]
+    async fn password_change_verifies_current_password_rotates_tokens_and_preserves_account() {
+        let s=state().await;
+        let original=register(State(s.clone()),Json(credentials("changing","original password",""))).await.unwrap().0;
+        sqlx::query("INSERT INTO accounts VALUES(42,?,'Veteran',0)").bind(&original.data.id).execute(&s.db).await.unwrap();
+        let other=register(State(s.clone()),Json(credentials("other","another password",""))).await.unwrap().0;
+        sqlx::query("INSERT INTO accounts VALUES(43,?,'Other',0)").bind(&other.data.id).execute(&s.db).await.unwrap();
+        s.create_session("current-game".into(),42,"aes".into());
+        s.create_session("other-device".into(),42,"aes".into());
+        s.create_session("other-account".into(),43,"aes".into());
+        let before:String=sqlx::query_scalar("SELECT password_hash FROM credentials WHERE username='changing'").fetch_one(&s.db).await.unwrap();
+        assert!(change_password(State(s.clone()),change("forged","original password","replacement password")).await.is_err());
+        assert!(change_password(State(s.clone()),change("current-game","incorrect password","replacement password")).await.is_err());
+        assert!(change_password(State(s.clone()),change("current-game","original password","short")).await.is_err());
+        assert!(change_password(State(s.clone()),change("current-game","original password","original password")).await.is_err());
+        let unchanged:String=sqlx::query_scalar("SELECT password_hash FROM credentials WHERE username='changing'").fetch_one(&s.db).await.unwrap();
+        assert_eq!(before,unchanged);
+        assert!(refresh_token(State(s.clone()),headers(&original.data.refresh_token)).await.is_ok());
+        let game_ticket=verify_token(State(s.clone()),headers(&original.data.access_token)).await.unwrap().0;
+        let changed=change_password(State(s.clone()),change("current-game","original password","replacement password")).await.unwrap().0;
+        assert_eq!(changed.data.id,original.data.id);
+        let stored:String=sqlx::query_scalar("SELECT password_hash FROM credentials WHERE username='changing'").fetch_one(&s.db).await.unwrap();
+        assert_ne!(before,stored);assert!(stored.starts_with("$argon2id$"));assert!(!stored.contains("replacement password"));
+        assert!(s.get_session("current-game").is_some());assert!(s.get_session("other-device").is_none());assert!(s.get_session("other-account").is_some());
+        assert!(verify_token(State(s.clone()),headers(&original.data.access_token)).await.is_err());
+        assert!(consume_game_ticket(&s.db,&game_ticket.data.session,&original.data.id).await.is_err());
+        assert!(verify_token(State(s.clone()),headers(&changed.data.access_token)).await.is_ok());
+        assert!(refresh_token(State(s.clone()),headers(&changed.data.refresh_token)).await.is_ok());
+        assert!(refresh_token(State(s.clone()),headers(&other.data.refresh_token)).await.is_ok());
+        assert!(password_login(State(s.clone()),Json(credentials("changing","original password",""))).await.is_err());
+        let login=password_login(State(s.clone()),Json(credentials("changing","replacement password",""))).await.unwrap().0;
+        assert_eq!(login.data.id,original.data.id);
+        let account:(i64,String)=sqlx::query_as("SELECT account_id,nick FROM accounts WHERE login_id=?").bind(login.data.id).fetch_one(&s.db).await.unwrap();
+        assert_eq!(account,(42,"Veteran".into()));
     }
     #[tokio::test]
     async fn registration_login_tickets_and_refresh() {

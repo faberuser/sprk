@@ -17,7 +17,7 @@ COPY tables /app/tables
 ENV SPRK_SERVICE_MODE=game GAME_TABLES_PATH=/app/tables PORT=8080
 WORKDIR /data
 USER sprk
-EXPOSE 8080 9001 9002
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl --fail --silent "http://127.0.0.1:${PORT}/health" || exit 1
 ENTRYPOINT ["sprk-server"]

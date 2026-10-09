@@ -11,16 +11,12 @@ services:
       SERVER_HOST: ${SPRK_GAME_HOST:-127.0.0.1:8080}
       SERVER_HTTPS: ${SPRK_GAME_HTTPS:-false}
       SERVER_NAME: ${SPRK_SERVER_NAME:-SPRK}
-      CHAT_BIND: 0.0.0.0
-      CHAT_PORT: ${SPRK_CHAT_PORT:-9001}
-      CHAT_ADDRESS: ${SPRK_PUBLIC_ADDRESS:-127.0.0.1}
-      BATTLE_BIND: 0.0.0.0
-      BATTLE_PORT: ${SPRK_BATTLE_PORT:-9002}
-      BATTLE_ADDRESS: ${SPRK_PUBLIC_ADDRESS:-127.0.0.1}
+      # Player chat/battle use /ws/chat and /ws/battle on this HTTP service.
+      # TCP is retained inside the container for the native battle worker.
+      CHAT_BIND: 127.0.0.1
+      BATTLE_BIND: 127.0.0.1
     ports:
       - "${SPRK_GAME_PORT:-8080}:8080"
-      - "${SPRK_CHAT_PORT:-9001}:${SPRK_CHAT_PORT:-9001}"
-      - "${SPRK_BATTLE_PORT:-9002}:${SPRK_BATTLE_PORT:-9002}"
     volumes:
       - game-data:/data
 

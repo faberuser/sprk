@@ -141,10 +141,11 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
     // Get server host from environment or use default
     let host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
     let use_https = std::env::var("SERVER_HTTPS").map(|v| v == "true").unwrap_or(false);
+    let scheme = if use_https { "https" } else { "http" };
     let server_name = std::env::var("SERVER_NAME").unwrap_or_else(|_| "Local".to_string());
     // LoginServer must end with / as client appends paths directly
     let login_server = std::env::var("LOGIN_SERVER")
-        .unwrap_or_else(|_| format!("http://{}/", host));
+        .unwrap_or_else(|_| format!("{scheme}://{host}/"));
 
     Json(vec![
         VersionedHost {
@@ -157,7 +158,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),  // Accept any version >= this
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("http://{}/cdn/", host)),
+                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
                 },
                 // Also support Android just in case
                 AppVersionInfo {
@@ -165,7 +166,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("http://{}/cdn/", host)),
+                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
                 },
                 // iOS
                 AppVersionInfo {
@@ -173,7 +174,7 @@ pub async fn get_host_info() -> Json<Vec<VersionedHost>> {
                     min_version: "00.00.001".to_string(),
                     hotfix_version: None,
                     patch_version_url: None,
-                    cdn_proxy_url: Some(format!("http://{}/cdn/", host)),
+                    cdn_proxy_url: Some(format!("{scheme}://{host}/cdn/")),
                 },
             ],
             server: vec![

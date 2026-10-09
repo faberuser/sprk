@@ -1,4 +1,4 @@
-//! Native client TCP chat: `<packet-name> <base64 JSON>\r\n`.
+//! Shared chat protocol over WebSocket and private legacy TCP streams.
 use crate::api::system::request::Request;
 use crate::{
     error::{Result, ServerError},
@@ -38,7 +38,7 @@ impl Default for ChatHub {
     fn default() -> Self {
         Self {
             peers: DashMap::new(),
-            address: std::env::var("CHAT_ADDRESS").unwrap_or_else(|_| "127.0.0.1".into()),
+            address: crate::websocket::public_url("chat"),
             port: std::env::var("CHAT_PORT")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -104,8 +104,13 @@ pub async fn serve(listener: TcpListener, state: AppState) -> std::io::Result<()
     }
 }
 
-async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()> {
+async fn connection(socket: TcpStream, state: AppState) -> anyhow::Result<()> {
     socket.set_nodelay(true)?;
+    connection_stream(socket, state).await
+}
+
+pub(crate) async fn connection_stream<S>(mut socket: S, state: AppState) -> anyhow::Result<()>
+where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
     let id = uuid::Uuid::new_v4().to_string();
     let (sender, mut receiver) = mpsc::channel::<Value>(128);
     let mut incoming = Vec::new();
@@ -135,7 +140,7 @@ async fn connection(mut socket: TcpStream, state: AppState) -> anyhow::Result<()
                             if !valid || !allowed {
                                 response["Result"] = json!("Fail");
                                 socket.write_all(&encode_packet("LoginRes", &response)).await?;
-                                break;
+                                return Ok(());
                             }
                             account_id = requested;
                             session_key = key.unwrap();

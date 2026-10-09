@@ -38,6 +38,10 @@ impl Server {
             .envs((mode != "default").then_some(("SPRK_SERVICE_MODE", mode)))
             .env("SPRK_UPDATES_DIR", root.join("client-updates"))
             .env("PORT", port.to_string())
+            .env("SERVER_HOST", "play.example.test")
+            .env("SERVER_HTTPS", "true")
+            .env_remove("LOGIN_SERVER")
+            .env_remove("SPRK_WEBSOCKET_ORIGIN")
             .env("GAME_TABLES_PATH", root.join("missing-tables"))
             .env(
                 "CHAT_BIND",
@@ -99,6 +103,18 @@ impl Server {
         stream.read_to_string(&mut response).unwrap();
         response
     }
+
+    fn upgrade(&self, path: &str) {
+        let mut stream = TcpStream::connect(("127.0.0.1", self.port)).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        write!(stream, "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n").unwrap();
+        let mut headers = vec![];
+        while !headers.ends_with(b"\r\n\r\n") {
+            let mut byte = [0]; stream.read_exact(&mut byte).unwrap(); headers.push(byte[0]);
+            assert!(headers.len() < 8192);
+        }
+        assert!(String::from_utf8(headers).unwrap().starts_with("HTTP/1.1 101"));
+    }
 }
 
 impl Drop for Server {
@@ -117,6 +133,8 @@ fn updates_mode_runs_without_a_database_tables_or_game_transports() {
         .get("/updates/stable/manifest.json")
         .contains("{\"version\":\"test\"}"));
     assert!(server.get("/host.json").starts_with("HTTP/1.1 404"));
+    assert!(server.get("/ws/chat").starts_with("HTTP/1.1 404"));
+    assert!(server.get("/ws/battle").starts_with("HTTP/1.1 404"));
     assert!(server.root.join("sprk.db").is_dir());
     let log = std::fs::read_to_string(server.root.join("server.log")).unwrap();
     assert!(!log.contains("Database initialized"));
@@ -130,6 +148,9 @@ fn game_and_all_modes_expose_the_expected_endpoints() {
         let server = Server::start(mode);
         assert!(server.get("/health").starts_with("HTTP/1.1 200"));
         assert!(server.get("/host.json").starts_with("HTTP/1.1 200"));
+        assert!(server.get("/host.json").contains("https://play.example.test/cdn/"));
+        server.upgrade("/ws/chat");
+        server.upgrade("/ws/battle");
         assert!(server.root.join("sprk.db").is_file());
         let expected = if mode == "all" {
             "HTTP/1.1 200"

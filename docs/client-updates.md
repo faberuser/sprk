@@ -40,7 +40,8 @@ configuration. OpenSSL is needed on the publishing machine, not on players'
 machines. Unsigned publishing is supported for localhost development only; omit
 `--signing-key` and leave the launcher's public key empty in that case.
 
-Backup, staged `.patched`/`.eye-patched`, log, and temporary files are excluded.
+Backup (`.backup`, `.before-*`), staged (`.patched`, `.eye-patched`, `.staged`,
+`*-staged`), log, and temporary files are excluded.
 Symlinks/junctions in the input are rejected. Stop client patching/baking while
 publishing so the snapshot represents one tested build.
 
@@ -172,14 +173,14 @@ and set its variables using `.env.example` as a reference. Both services use
 `SPRK_IMAGE`, so build/load the image onto the target host, or push it to a
 registry the host can pull from. The stack uses a prebuilt image.
 
-- `game`: HTTP on host port 8080; chat/battle TCP on 9001/9002; database and
+- `game`: HTTP and player WebSockets on host port 8080; database and
   optional service configuration persist in the `game-data` volume at `/data`.
 - `updates`: HTTP on host port 8081; published artifacts mounted read-only at
   `/client-updates`; no database volume. Default limits are one CPU and 256 MB.
 
-Set `SPRK_GAME_HOST` to the game HTTP hostname/port advertised to players, and
-`SPRK_PUBLIC_ADDRESS` to their reachable chat/battle hostname or IP. Raw TCP
-chat/battle need reachable ports separately from the HTTP reverse proxy. Tables
+Set `SPRK_GAME_HOST` to the game HTTP hostname/port advertised to players.
+Chat and battle use `/ws/chat` and `/ws/battle` on that same host. Private TCP
+listeners are bound to container loopback and have no published ports. Tables
 are included at `/app/tables`; a read-only mount can override that directory if
 you maintain server tables outside the image.
 
@@ -191,10 +192,10 @@ the proxy. Publishing new release files needs no container rebuild or restart.
 If copying releases from another machine, transfer the full release directory
 first, then atomically replace `stable/manifest.json` on the host.
 
-For a game API behind HTTPS, set `SPRK_GAME_HTTPS=true` and configure the existing
-`LOGIN_SERVER` variable on the game container to the externally reachable HTTPS
-login URL with a trailing `/`. The existing game host response's login/CDN
-defaults use HTTP; this update feature does not change that client behavior.
+For a game API behind HTTPS, set `SPRK_GAME_HTTPS=true`. The advertised login/CDN
+defaults then use HTTPS, and player sockets use WSS. `LOGIN_SERVER` can override
+the login URL (include a trailing `/`). See [WebSocket hosting](websocket-hosting.md)
+for the client patch and Cloudflare Tunnel configuration.
 
 CPU/memory limits do not reserve your home upload bandwidth. Configure download
 rate limits or router traffic shaping separately if updates interfere with play.

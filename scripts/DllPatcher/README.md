@@ -200,7 +200,14 @@ The native company footer and account sign-in instruction are hidden at their re
 The Others settings tab hides guest/provider account labels, Account Link and its
 provider controls, Customer Center, Terms of Service, and Privacy Policy. Game ID,
 Copy, Language, Use Coupon, and Logout remain available. Provider status lookups
-are skipped. Successful native logout cancels queued lobby requests and clears password-account tokens and pending
+are skipped.
+The Change Password button opens a centered form with Current Password, New
+Password, and Confirm Password, Show/Hide controls, Tab navigation, Enter submission,
+and retained values/focus after errors. The authenticated server endpoint verifies
+the current password, atomically changes its Argon2 hash and rotates login tokens.
+The current game session stays active; older tickets and other game sessions for
+that account are revoked. The encrypted saved login receives the replacement token.
+Successful native logout cancels queued lobby requests and clears password-account tokens and pending
 tickets before returning to the login scene; the server must return both
 `BaseResult: "Success"` and `Result: "Success"` and invalidate the supplied game session.
 Both the new server and client must be installed. Existing saves can be linked with a

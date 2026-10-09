@@ -42,7 +42,9 @@ def safe_path(value: str) -> str:
 
 def ignored(path: Path) -> bool:
     name = path.name.lower()
-    return ".backup" in name or name.endswith((".patched", ".eye-patched", ".log", ".tmp", ".bak"))
+    return ".backup" in name or ".before-" in name or name.endswith(
+        (".patched", ".eye-patched", ".staged", "-staged", ".log", ".tmp", ".bak")
+    )
 
 
 def collect_files(client: Path, includes: list[str]) -> list[Path]:
