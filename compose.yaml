@@ -1,0 +1,44 @@
+# Build/tag this image once, then paste this stack into Portainer.
+services:
+  game:
+    image: ${SPRK_IMAGE:-sprk-server:latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      SPRK_SERVICE_MODE: game
+      PORT: "8080"
+      GAME_TABLES_PATH: /app/tables
+      SERVER_HOST: ${SPRK_GAME_HOST:-127.0.0.1:8080}
+      SERVER_HTTPS: ${SPRK_GAME_HTTPS:-false}
+      SERVER_NAME: ${SPRK_SERVER_NAME:-SPRK}
+      # Player chat/battle use /ws/chat and /ws/battle on this HTTP service.
+      # TCP is retained inside the container for the native battle worker.
+      CHAT_BIND: 127.0.0.1
+      BATTLE_BIND: 127.0.0.1
+    ports:
+      - "${SPRK_GAME_PORT:-8080}:8080"
+    volumes:
+      - game-data:/data
+
+  updates:
+    image: ${SPRK_IMAGE:-sprk-server:latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      SPRK_SERVICE_MODE: updates
+      PORT: "8080"
+      SPRK_UPDATES_DIR: /client-updates
+    ports:
+      - "${SPRK_UPDATE_PORT:-8081}:8080"
+    volumes:
+      - type: bind
+        source: ${SPRK_UPDATES_HOST_DIR:-/srv/sprk/client-updates}
+        target: /client-updates
+        read_only: true
+        bind:
+          create_host_path: false
+    cpus: "${SPRK_UPDATE_CPUS:-1.0}"
+    mem_limit: ${SPRK_UPDATE_MEMORY:-256m}
+
+volumes:
+  game-data:

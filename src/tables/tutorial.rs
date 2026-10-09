@@ -1,70 +1,162 @@
-//! Tutorial table data
-//!
-//! Loads TutorialTable.json and provides access to tutorial dungeon rewards.
-
+//! Tutorial rewards are attached to sequence rows, keyed by tutorial index.
+use super::StringPool;
+use crate::models::equip::EquipItemInfo;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
-/// Raw tutorial entry from TutorialTable.json
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct TutorialEntry {
-    pub index: i32,
-    /// [chapter_index, dungeon_index] - the dungeon to unlock when this tutorial completes
+struct TutorialEntry {
+    index: i32,
+    sequence: i32,
     #[serde(default)]
-    pub reward_dungeon_index: Option<Vec<i32>>,
+    reward_gold: i64,
+    #[serde(default)]
+    reward_gem: i64,
+    #[serde(default)]
+    reward_index: i32,
+    reward_action: Option<Vec<serde_json::Value>>,
+    reward_dungeon_index: Option<Vec<i32>>,
 }
 
-/// Processed tutorial dungeon reward info
-#[derive(Debug, Clone)]
-pub struct TutorialDungeonReward {
-    pub chapter_index: i32,
-    pub dungeon_index: i32,
+#[derive(Debug, Clone, Default)]
+pub struct TutorialDefinition {
+    pub gold: i64,
+    pub gem: i64,
+    pub rewards: Vec<i32>,
+    pub actions: Vec<Vec<String>>,
+    /// Campaign nodes cleared by scripted battles, not the next node to unlock.
+    pub dungeons: Vec<(i32, i32)>,
 }
 
-/// Tutorial table - maps tutorial index to dungeon rewards
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TutorialItem {
+    #[serde(default)]
+    pub duplicate_reward_index: i32,
+    pub kind: String,
+    #[serde(default)]
+    pub hero_index: i32,
+    #[serde(default)]
+    pub star: i32,
+    #[serde(default)]
+    pub level: i32,
+    #[serde(default)]
+    pub transcend: i32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TutorialLevel {
+    pub level: i32,
+    pub local_exp: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TutorialStar {
+    pub star: i32,
+    pub transcended: i32,
+    pub get_hero_team_exp: i64,
+    pub max_hero_level: i32,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TutorialSupport {
+    pub dungeon_difficulties: HashMap<String, i32>,
+    pub items: HashMap<i32, TutorialItem>,
+    pub hero_levels: Vec<TutorialLevel>,
+    pub hero_stars: Vec<TutorialStar>,
+    pub team_levels: Vec<TutorialLevel>,
+    pub custom_equipment: HashMap<i32, EquipItemInfo>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct TutorialTable {
-    /// Map of tutorial_index -> dungeon that gets UNLOCKED
-    pub dungeon_rewards: HashMap<i32, TutorialDungeonReward>,
+    pub definitions: HashMap<i32, TutorialDefinition>,
+    pub support: TutorialSupport,
 }
 
 impl TutorialTable {
-    /// Load tutorial table from JSON file
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let entries: Vec<TutorialEntry> = serde_json::from_reader(reader)?;
-        
-        let mut dungeon_rewards: HashMap<i32, TutorialDungeonReward> = HashMap::new();
-        
-        for entry in entries {
-            if let Some(ref reward) = entry.reward_dungeon_index {
-                if reward.len() >= 2 {
-                    let chapter = reward[0];
-                    let dungeon = reward[1];
-                    
-                    // Only add if not already present (first occurrence wins)
-                    if !dungeon_rewards.contains_key(&entry.index) {
-                        dungeon_rewards.insert(entry.index, TutorialDungeonReward {
-                            chapter_index: chapter,
-                            dungeon_index: dungeon,
-                        });
-                    }
+        let mut rows: Vec<TutorialEntry> =
+            serde_json::from_reader(BufReader::new(File::open(path)?))?;
+        let dir = path.parent().unwrap_or(Path::new("."));
+        let pool = StringPool::load(&dir.join("TutorialStringPool.json"))?;
+        let support = serde_json::from_reader(BufReader::new(File::open(
+            dir.join("TutorialSupport.json"),
+        )?))?;
+        let mut table = Self {
+            support,
+            ..Self::default()
+        };
+        rows.sort_by_key(|row| (row.index, row.sequence));
+        for row in rows {
+            let definition = table.definitions.entry(row.index).or_default();
+            definition.gold += row.reward_gold;
+            definition.gem += row.reward_gem;
+            if row.reward_index != 0 {
+                definition.rewards.push(row.reward_index);
+            }
+            if let Some(indices) = row.reward_dungeon_index {
+                if indices.len() != 2 {
+                    return Err(format!("Invalid dungeon reward for tutorial {}", row.index).into());
+                }
+                if !definition.dungeons.contains(&(indices[0], indices[1])) {
+                    definition.dungeons.push((indices[0], indices[1]));
+                }
+            }
+            if let Some(action) = row.reward_action {
+                let mut decoded = Vec::new();
+                for value in action {
+                    let text = value
+                        .as_str()
+                        .or_else(|| value.as_u64().and_then(|i| pool.get(i as usize)))
+                        .ok_or_else(|| {
+                            format!("Invalid action reference in tutorial {}", row.index)
+                        })?;
+                    decoded.push(text.trim().to_string());
+                }
+                if !decoded.is_empty() {
+                    definition.actions.push(decoded);
                 }
             }
         }
-        
-        Ok(Self {
-            dungeon_rewards,
-        })
+        Ok(table)
     }
-    
-    /// Get the dungeon that a tutorial unlocks
-    pub fn get_reward_dungeon(&self, tutorial_index: i32) -> Option<&TutorialDungeonReward> {
-        self.dungeon_rewards.get(&tutorial_index)
+
+    pub fn get(&self, index: i32) -> Option<&TutorialDefinition> {
+        self.definitions.get(&index)
     }
+
+    pub fn dungeon_difficulty(&self, chapter: i32, dungeon: i32) -> i32 {
+        self.support
+            .dungeon_difficulties
+            .get(&format!("{chapter}:{dungeon}"))
+            .copied()
+            .unwrap_or(if chapter <= 10 { 1 } else { 0 })
+    }
+}
+
+/// EXP in the client is local to the current level.
+pub fn add_exp(
+    levels: &[TutorialLevel],
+    mut level: i32,
+    exp: i64,
+    add: i64,
+    cap: i32,
+) -> (i32, i64) {
+    let mut remaining = exp + add;
+    while level < cap {
+        let Some(data) = levels.iter().find(|data| data.level == level) else {
+            break;
+        };
+        if data.local_exp <= 0 || remaining < data.local_exp {
+            break;
+        }
+        remaining -= data.local_exp;
+        level += 1;
+    }
+    (level, if level >= cap { 0 } else { remaining })
 }

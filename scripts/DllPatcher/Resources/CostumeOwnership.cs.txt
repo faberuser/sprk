@@ -1,0 +1,396 @@
+// Client ownership methods restored after legacy preview overrides, with the
+// local direct-sale policy for non-default outfits. Ownership is never fabricated.
+
+namespace NGame2.NUtil.NCostume {
+using System;
+using System.Collections.Generic;
+using NGame2.NAccount;
+using NGame2.NDropBonusEvent;
+using NShared;
+using NVespa.NSingleton;
+
+public class HeroCostume : BaseCostume {
+		public static CostumeState GetCostumeState(HeroInfo heroInfo, CostumeData costumeData)
+		{
+			return HeroCostume.GetCostumeState((heroInfo == null) ? null : GameRoot.Instance.CostumeDataContainer.GetData(heroInfo.CostumeIndex), costumeData, true);
+		}
+		public static CostumeState GetCostumeState(CostumeData equippedCostumeData, CostumeData costumeData, bool checkHeroOwn = true)
+		{
+			if (costumeData == null)
+			{
+				return CostumeState.None;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(costumeData.HeroIndex);
+			if (equippedCostumeData != null && cachedHeroInfo != null && equippedCostumeData.CostumeIndex == costumeData.CostumeIndex)
+			{
+				if (GameRoot.Instance.CostumeDataContainer.GetDataByHeroStar(cachedHeroInfo.HeroIndex, (int)cachedHeroInfo.Star).EQUALS(costumeData))
+				{
+					return CostumeState.UnEquipSelect;
+				}
+				return CostumeState.Equipped;
+			}
+			else
+			{
+                // Local shop: sell non-default cosmetics directly, including event/legend outfits.
+                // Keep real ownership and equipped-state checks; no auto-grants.
+                if (!costumeData.IsDefault)
+                {
+                    if (checkHeroOwn && cachedHeroInfo == null) return CostumeState.NeedHero;
+                    return GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null
+                        ? CostumeState.Owned : CostumeState.Buyable;
+                }
+				if (costumeData.CostumeType != EHeroCostumeType.Legend)
+				{
+					if (checkHeroOwn && cachedHeroInfo == null)
+					{
+						return CostumeState.NeedHero;
+					}
+					if (cachedHeroInfo == null)
+					{
+						return CostumeState.NeedAwaken;
+					}
+					if (costumeData.EquipCondition == EEquipCondition.NeedAwaken)
+					{
+						if (costumeData.HeroStar > 0 && (int)cachedHeroInfo.Star < costumeData.HeroStar)
+						{
+							return CostumeState.NeedAwaken;
+						}
+					}
+					else if (costumeData.EquipCondition == EEquipCondition.NeedSubStory && !HeroCostume.CanBuySubStoryCostume(costumeData))
+					{
+						return CostumeState.NeedSubStory;
+					}
+				}
+				if (GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null)
+				{
+					return CostumeState.Owned;
+				}
+				if (cachedHeroInfo != null && equippedCostumeData == null)
+				{
+					if (!costumeData.IsCoupleCostume())
+					{
+						if (GameRoot.Instance.CostumeDataContainer.GetDataByHeroStar(cachedHeroInfo.HeroIndex, (int)cachedHeroInfo.Star).EQUALS(costumeData))
+						{
+							return CostumeState.UnEquipSelect;
+						}
+					}
+					else
+					{
+						List<CostumeData> costumeDataListByHeroStar = GameRoot.Instance.CostumeDataContainer.GetCostumeDataListByHeroStar(cachedHeroInfo.HeroIndex, (int)cachedHeroInfo.Star, true);
+						if (costumeDataListByHeroStar.COUNT<CostumeData>() > 0 && !costumeData.IsBonusCostume())
+						{
+							for (int i = 0; i < costumeDataListByHeroStar.COUNT<CostumeData>(); i++)
+							{
+								if (costumeDataListByHeroStar[i].EQUALS(costumeData))
+								{
+									return CostumeState.UnEquipSelect;
+								}
+							}
+						}
+					}
+				}
+				if (costumeData.IsFreeCostume())
+				{
+					return CostumeState.Owned;
+				}
+				if (costumeData.CostumeType == EHeroCostumeType.Legend)
+				{
+					if (costumeData.IsBonusCostume())
+					{
+						CostumeData data = GameRoot.Instance.CostumeDataContainer.GetData(costumeData.MainIndex);
+						if (!data.IsBonusCostume())
+						{
+							return HeroCostume.GetCostumeState(equippedCostumeData, data, checkHeroOwn);
+						}
+					}
+					EventBonusType eventBonusType = EventBonusType.PayShopDiscount;
+					if (!GlobalAutoBehaviour<DropBonusEventManager>.instance.AnyEffectiveEventByEventBonusType(eventBonusType))
+					{
+						return CostumeState.LegendNotBuyable;
+					}
+					if (costumeData.ProductIndex == 0)
+					{
+						return CostumeState.LegendNotBuyable;
+					}
+					if (GlobalAutoBehaviour<AccountManager>.instance.PayShopDiscountProductManager.Get(costumeData.ProductIndex) == null)
+					{
+						return CostumeState.LegendNotBuyable;
+					}
+					if (GlobalAutoBehaviour<AccountManager>.instance.NewPayShopProductManager.Get(costumeData.ProductIndex) == null)
+					{
+						return CostumeState.LegendNotBuyable;
+					}
+					if (GlobalAutoBehaviour<DropBonusEventManager>.instance.GetPayshopDiscountEffectiveEvent(costumeData.ProductIndex) == null)
+					{
+						return CostumeState.LegendNotBuyable;
+					}
+					return CostumeState.LegendBuyable;
+				}
+				else
+				{
+					if (!costumeData.IsBuy)
+					{
+						return CostumeState.CannotBuy;
+					}
+					return CostumeState.Buyable;
+				}
+			}
+		}
+		private static bool CanBuySubStoryCostume(CostumeData costumeData)
+		{
+			if (costumeData == null)
+			{
+				return false;
+			}
+			if (costumeData.CostumeIndex == 0)
+			{
+				return false;
+			}
+			IList<SubStoryData> allData = GameRoot.Instance.SubStoryDataContainer.GetAllData();
+			for (int i = 0; i < allData.COUNT<SubStoryData>(); i++)
+			{
+				if (allData[i].UnlockCostumeIndex == costumeData.CostumeIndex && allData[i].CreatureIndex == costumeData.HeroIndex)
+				{
+					return GlobalAutoBehaviour<AccountManager>.instance.CampaignManager.IsCompleted(allData[i].ChapterIndex, allData[i].DungeonIndex, DungeonDifficultyType.Easy);
+				}
+			}
+			return false;
+		}
+}}
+
+namespace NGame2.NUtil.NCostume {
+using System;
+using NGame2.NAccount;
+using NGame2.NUI.NComponent2.NCostume;
+using NShared;
+using NVespa.NSingleton;
+
+public class HairCostume : BaseCostume {
+		public static CostumeState GetCostumeState(HeroInfo heroInfo, HairCostumeComponent.OpenData openData, bool checkHeroOwn = true)
+		{
+			if (!openData.IsValid())
+			{
+				return CostumeState.None;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(heroInfo.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			if (openData.ComponentType != HairCostumeComponent.ComponentType.SelectThema)
+			{
+				return HairCostume.GetCostumeState(heroInfo, openData.HairCostumeData, checkHeroOwn);
+			}
+			if (heroInfo.HairCostumeIndex == 0)
+			{
+				return CostumeState.UnEquipSelect;
+			}
+			return CostumeState.Owned;
+		}
+		private static CostumeState GetCostumeState(HeroInfo heroInfo, HairCostumeData costumeData, bool checkHeroOwn)
+		{
+			return HairCostume.GetCostumeState(GameRoot.Instance.HairCostumeDataContainer.GetData(heroInfo.HairCostumeIndex), costumeData, checkHeroOwn);
+		}
+		private static CostumeState GetCostumeState(HairCostumeData equippedCostumeData, HairCostumeData costumeData, bool checkHeroOwn)
+		{
+			if (costumeData == null)
+			{
+				return CostumeState.None;
+			}
+			if (equippedCostumeData != null && equippedCostumeData.Index == costumeData.Index)
+			{
+				return CostumeState.Equipped;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(costumeData.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			if (cachedHeroInfo == null)
+			{
+				return CostumeState.NeedAwaken;
+			}
+			if (costumeData.IsDefault)
+			{
+				if ((int)cachedHeroInfo.Star < costumeData.Star)
+				{
+					return CostumeState.NeedAwaken;
+				}
+				return CostumeState.Owned;
+			}
+			else if (!costumeData.NeedCostume.IsNullOrEmpty<int>())
+			{
+				if (BaseCostume.IsOwnedCostume(costumeData.NeedCostume))
+				{
+					return CostumeState.Owned;
+				}
+				CostumeData data = GameRoot.Instance.CostumeDataContainer.GetData(costumeData.NeedCostume[0]);
+				return HeroCostume.GetCostumeState(cachedHeroInfo, data);
+			}
+			else
+			{
+				if (costumeData.ReqBuyGem > 0 && GlobalAutoBehaviour<AccountManager>.instance.HairCostumeManager.Get(costumeData.Index) != null)
+				{
+					return CostumeState.Owned;
+				}
+				return CostumeState.Buyable;
+			}
+		}
+}}
+
+namespace NGame2.NUtil.NCostume {
+using System;
+using NGame2.NAccount;
+using NGame2.NUI.NComponent2.NCostume;
+using NShared;
+using NVespa.NSingleton;
+
+public class WeaponCostume : BaseCostume {
+		public static CostumeState GetCostumeState(HeroInfo heroInfo, WeaponCostumeComponent.OpenData openData, bool checkHeroOwn = true)
+		{
+			if (!openData.IsValid())
+			{
+				return CostumeState.None;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(heroInfo.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			if (openData.ComponentType == WeaponCostumeComponent.ComponentType.SelectUnique)
+			{
+				if (heroInfo.WeaponCostumeIndex == 0 && heroInfo.HideUniqueWeapon == 0)
+				{
+					return CostumeState.UnEquipSelect;
+				}
+				return CostumeState.Owned;
+			}
+			else
+			{
+				if (openData.ComponentType != WeaponCostumeComponent.ComponentType.SelectThema)
+				{
+					return WeaponCostume.GetCostumeState(heroInfo, openData.WeaponCostumeData, checkHeroOwn);
+				}
+				CostumeData data = GameRoot.Instance.CostumeDataContainer.GetData(heroInfo.CostumeIndex);
+				if (data != null && data.CostumeType == EHeroCostumeType.Legend)
+				{
+					return CostumeState.UnEquipSelect;
+				}
+				if (heroInfo.WeaponCostumeIndex == 0 && heroInfo.HideUniqueWeapon == 1)
+				{
+					return CostumeState.Equipped;
+				}
+				return CostumeState.Owned;
+			}
+		}
+		public static CostumeState GetCostumeState(HeroInfo heroInfo, WeaponCostumeData costumeData, bool checkHeroOwn = true)
+		{
+			return WeaponCostume.GetCostumeState((heroInfo == null) ? null : GameRoot.Instance.WeaponCostumeDataContainer.GetData(heroInfo.WeaponCostumeIndex), costumeData, checkHeroOwn);
+		}
+		private static CostumeState GetCostumeState(WeaponCostumeData equippedCostumeData, WeaponCostumeData costumeData, bool checkHeroOwn = true)
+		{
+			if (costumeData == null)
+			{
+				return CostumeState.None;
+			}
+			if (equippedCostumeData != null && equippedCostumeData.Index == costumeData.Index)
+			{
+				return CostumeState.Equipped;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(costumeData.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			if (cachedHeroInfo == null)
+			{
+				return CostumeState.NeedAwaken;
+			}
+			if (costumeData.IsDefault)
+			{
+				if ((int)cachedHeroInfo.Star < costumeData.Star)
+				{
+					return CostumeState.NeedAwaken;
+				}
+				return CostumeState.Owned;
+			}
+			else if (!costumeData.NeedCostume.IsNullOrEmpty<int>() && costumeData.NeedCostume.COUNT<int>() > 0)
+			{
+				if (BaseCostume.IsOwnedCostume(costumeData.NeedCostume))
+				{
+					return CostumeState.Owned;
+				}
+				CostumeData data = GameRoot.Instance.CostumeDataContainer.GetData(costumeData.NeedCostume[0]);
+				return HeroCostume.GetCostumeState(cachedHeroInfo, data);
+			}
+			else
+			{
+				if (costumeData.ReqBuyGem > 0 && GlobalAutoBehaviour<AccountManager>.instance.WeaponCostumeManager.Get(costumeData.Index) != null)
+				{
+					return CostumeState.Owned;
+				}
+				return CostumeState.Buyable;
+			}
+		}
+}}
+
+namespace NGame2.NUtil.NCostume {
+using System;
+using NGame2.NAccount;
+using NGame2.NUI.NComponent2.NCostume;
+using NShared;
+using NVespa;
+using NVespa.NSingleton;
+
+public class AccessoryCostume : BaseCostume {
+		public static CostumeState GetCostumeState(HeroInfo heroInfo, AccessoryCostumeComponent.OpenData openData, bool checkHeroOwn = true)
+		{
+			if (!openData.IsValid())
+			{
+				return CostumeState.None;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(heroInfo.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			if (openData.ComponentType != AccessoryCostumeComponent.ComponentType.SelectUnset)
+			{
+				return AccessoryCostume.GetCostumeState(heroInfo, openData.AccessoryCostumeData, checkHeroOwn);
+			}
+			if (heroInfo.GetAccessoryIndex(openData.AccessoryPartType) == 0)
+			{
+				return CostumeState.UnEquipSelect;
+			}
+			return CostumeState.Owned;
+		}
+		private static CostumeState GetCostumeState(HeroInfo heroInfo, AccessoryCostumeData accessoryCostumeData, bool checkHeroOwn)
+		{
+			if (heroInfo == null || accessoryCostumeData == null)
+			{
+				VespaDebug.LogError(" heroInfo == null || costumeData == null");
+				return CostumeState.None;
+			}
+			CachedHeroInfo cachedHeroInfo = GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(heroInfo.HeroIndex);
+			if (checkHeroOwn && cachedHeroInfo == null)
+			{
+				return CostumeState.NeedHero;
+			}
+			int accessoryIndex = heroInfo.GetAccessoryIndex(accessoryCostumeData.PartType);
+			AccessoryCostumeData data = GameRoot.Instance.AccessoryCostumeDataContainer.GetData(accessoryIndex);
+			if (data != null && data.Index == accessoryCostumeData.Index)
+			{
+				return CostumeState.Equipped;
+			}
+			PlayerAccessoryCostumeInfoKey key = new PlayerAccessoryCostumeInfoKey(heroInfo.HeroIndex, accessoryCostumeData.Index);
+			if (GlobalAutoBehaviour<AccountManager>.instance.AccessoryCostumeManager.Get(key) != null)
+			{
+				return CostumeState.Owned;
+			}
+			if (!accessoryCostumeData.IsBuy)
+			{
+				return CostumeState.CannotBuy;
+			}
+			return CostumeState.Buyable;
+		}
+}}

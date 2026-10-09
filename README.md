@@ -10,33 +10,20 @@ This project is for educational and preservation purposes only.
 - This repository does not include any copyrighted game assets, binaries, or master data.
 - Use this software at your own risk. The authors assume no responsibility for any damages or legal consequences resulting from its use.
 
-## Progress
-
-- Guest authentication
-- Equipment system
-- Campaign battles
-- Tutorial system (WIP), not implemented:
-    - Rewards during tutorial
-    - Get hero animation (Kasel, Frey, Cleo, Roi, Clause?)
-- Stamina management
-- Mail system (WIP)
-- Friend system (WIP)
-
 ## Features
 
-- User authentication and session management
-- Hero collection and management
-- Equipment system
-- Inventory system
-- Campaign battles
-- Guild system
-- Mail system
-- Friend system
-- Attendance/daily rewards
-- Achievement tracking
-- Stamina management
-- Tutorial system
-- GM/Cheat commands for testing
+- Accounts, quests, and rewards
+- Heroes, equipment, and customization
+- Inventory, crafting, and shops
+- Events, summons, and pets
+- Dungeons, raids, and multiplayer
+- Arena, guilds, and community
+- Replays, rankings, and supporting services
+- Configuration and development tools
+
+See [feature status](docs/feature-status.md) for implemented capabilities, testing status, limitations, and remaining work.
+
+## Source layout
 
 ## Building the Server
 
@@ -48,9 +35,6 @@ This project is for educational and preservation purposes only.
 ### Build Steps
 
 ```bash
-# Navigate to the server directory
-cd server
-
 # Build in release mode
 cargo build --release
 
@@ -59,6 +43,15 @@ cargo build --release
 ```
 
 ### Running the Server
+
+`SPRK_SERVICE_MODE=game` (the default) runs the game services. Use `updates` to
+serve client update manifests/files without initializing the game, or `all` to
+run both. See [client updates and Portainer setup](docs/client-updates.md) for the
+publishing script, download endpoints, and shared-image container stack.
+
+The [Windows launcher](launcher/README.md) installs changed client files before
+starting the game. Build it with `scripts/build_launcher.ps1`; the EXE and its
+configuration are placed in `../sprk-client` by default.
 
 ```bash
 # Run the server (default port 8080)

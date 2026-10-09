@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UserInfo {
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String,serde_json::Value>,
     pub session_key: String,
     pub account_id: i64,
     pub nick: String,
@@ -45,6 +47,7 @@ pub struct UserInfo {
     pub last_chapter_index: i32,
     pub last_dungeon_index: i32,
     pub raid_point: i64,
+    pub event_dungeon_point: i64,
     pub guild_raid_ticket: i32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub guild_raid_ticket_recharge_time: Option<String>,
@@ -62,6 +65,7 @@ impl UserInfo {
     /// Create a new user with default values
     pub fn new_user(account_id: i64, nick: &str, session_key: &str) -> Self {
         Self {
+            extra: Default::default(),
             session_key: session_key.to_string(),
             account_id,
             nick: nick.to_string(),
@@ -96,6 +100,7 @@ impl UserInfo {
             last_chapter_index: 1,
             last_dungeon_index: 1,
             raid_point: 0,
+            event_dungeon_point: 0,
             guild_raid_ticket: 3,
             guild_raid_ticket_recharge_time: None,
             world_boss_ticket: 3,
@@ -113,6 +118,13 @@ impl UserInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerMiscInfo {
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
+    pub login_daily_count: i64,
+    pub inventory_extend: i64,
+    pub chest_extend: i64,
+    pub daily_acc_friendship_point: i64,
+    pub daily_acc_friendship_point_reset_time: String,
     pub nick_change_count: i32,
     pub inventory_expand_count: i32,
     pub last_login_time: String,
@@ -125,9 +137,14 @@ pub struct PlayerMiscInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlayerBattleInfo {
-    pub tier: i32,
-    pub score: i32,
-    pub rank: i32,
-    pub win_count: i32,
-    pub lose_count: i32,
+    pub match_score: i32,
+    pub season_win: i32,
+    pub season_lose: i32,
+    #[serde(default)]
+    pub successive_win: i32,
+    #[serde(default)]
+    pub successive_lose: i32,
+    pub tier_index: i32,
+    pub world_tier_index: i32,
+    pub last_match_time: Option<String>,
 }

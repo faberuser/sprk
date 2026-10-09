@@ -1,0 +1,1428 @@
+using System.Collections.Generic;
+using NShared;
+using UnityEngine;
+using NVespa;
+
+// Additive menu reconstruction. Existing table rows and unlock rules take precedence.
+public static class RestoredPortal
+{
+    public static void FinishStartupLogo()
+    {
+        // SetupLoginEnvironment opens the background after IsLogoPlayed.
+        // Clear any surviving startup overlay at that handoff, including
+        // instances whose Start/fade was skipped during the scene change.
+        if(!NGame2.NScene.LogoScene.IsLogoPlayed) return;
+        foreach(var logo in UnityEngine.Object.FindObjectsOfType<NGame2.NScene.LogoScene>())
+            if(logo.LogoWidget!=null) logo.LogoWidget.alpha=0f;
+    }
+    public static void EnsureNativeShaderVariables()
+    {
+        // Without the native updater, the projected shadow direction remains
+        // zero and its geometry overlaps the model instead of the ground.
+        var updater=NShader.ShaderVariableUpdater.instance;
+        if(updater!=null) NShader.ShaderVariableUpdater.UpdateGlobalVariable();
+    }
+    static readonly Dictionary<string,object> CombatRestoration = (Dictionary<string,object>)MiniJSON.Json.Deserialize("__RESTORED_PUNISHMENT_SKILLS__");
+    static readonly Dictionary<string,object> CombatTables = (Dictionary<string,object>)CombatRestoration["Tables"];
+    static readonly Dictionary<long,Dictionary<string,object>> PunishmentSkillChanges = PunishmentChanges("Skills");
+    static readonly Dictionary<long,Dictionary<string,object>> PunishmentOperationChanges = PunishmentChanges("Operations");
+    static readonly Dictionary<long,Dictionary<string,object>> MissingCombatOperations = PunishmentChanges("MissingOperations");
+    static readonly Dictionary<long,OperationData> MissingCombatOperationCache = new Dictionary<long,OperationData>();
+    static readonly object PunishmentSkillSync = new object();
+    static readonly Dictionary<int,SkillData> RestoredCombatSkillCache = new Dictionary<int,SkillData>();
+    static readonly Dictionary<int,CreatureData> RestoredCombatCreatureCache = new Dictionary<int,CreatureData>();
+    static readonly Dictionary<int,Dictionary<string,object>> CombatCreatureChanges = BuildCombatCreatureChanges();
+    static readonly Dictionary<string,Dictionary<string,object>> CombatStateChanges = BuildCombatStateChanges();
+    static readonly Dictionary<string,StateData> RestoredCombatStateCache = new Dictionary<string,StateData>();
+    static readonly Dictionary<int,SkillProjectileData> RestoredProjectileCache = new Dictionary<int,SkillProjectileData>();
+    public static void FinalizeCombatContainer(object container)
+    {
+        // Whole-table readers bypass GetData. Correct their rows at load time,
+        // and also correct dictionary rows if JIT uses a separate object graph.
+        var skills=container as SkillDataContainer;
+        if(skills!=null) {
+            var rows=skills.GetAllData();if(rows==null)return;
+            foreach(var row in rows) {
+                Dictionary<string,object> changes;
+                if(PunishmentSkillChanges.TryGetValue(row.Index,out changes)) {
+                    ApplyPunishmentChanges(row,changes);PunishmentSkill(skills,row.Index);
+                }
+            }
+            // Serialized rage lists can hold their own row instances.
+            var rage=skills.GetOnRageSkillList();
+            if(rage!=null)foreach(var row in rage) {
+                Dictionary<string,object> changes;
+                if(PunishmentSkillChanges.TryGetValue(row.Index,out changes))ApplyPunishmentChanges(row,changes);
+            }
+            return;
+        }
+        var creatures=container as CreatureDataContainer;
+        if(creatures!=null) {
+            var rows=creatures.GetAllData();if(rows==null)return;
+            foreach(var row in rows) {
+                Dictionary<string,object> changes;
+                if(CombatCreatureChanges.TryGetValue(row.Index,out changes)) {
+                    ApplyPunishmentChanges(row,changes);CombatCreature(creatures,row.Index);
+                }
+            }
+            return;
+        }
+        var states=container as StateDataContainer;
+        if(states!=null) {
+            var rows=states.GetAllData();if(rows==null)return;
+            var present=new HashSet<string>();
+            foreach(var row in rows) {
+                present.Add(row.StateType);Dictionary<string,object> changes;
+                if(CombatStateChanges.TryGetValue(row.StateType,out changes)) {
+                    ApplyPunishmentChanges(row,changes);SynchronizeCombatStateFlags(row);CombatState(states,row.StateType);
+                }
+            }
+            foreach(var pair in CombatStateChanges)
+                if(!present.Contains(pair.Key))rows.Add(CombatState(states,pair.Key));
+            return;
+        }
+        var projectiles=container as SkillProjectileDataContainer;
+        if(projectiles!=null) {
+            var rows=projectiles.GetAllData();if(rows==null)return;
+            foreach(var row in rows) {
+                var corrected=CombatProjectile(projectiles,row.Index);
+                if(object.ReferenceEquals(row,corrected))continue;
+                object table;
+                if(CombatTables.TryGetValue("SkillProjectile",out table)) {
+                    var changes=new Dictionary<string,object>();string prefix=row.Index+":";
+                    foreach(var entry in (Dictionary<string,object>)table)
+                        if(entry.Key.StartsWith(prefix))changes[entry.Key.Substring(prefix.Length)]=entry.Value;
+                    ApplyPunishmentChanges(row,changes);
+                }
+            }
+        }
+    }
+    public static SkillProjectileData CombatProjectile(NShared.NJit.JitDataContainerDefault<int,SkillProjectileData> container,int index)
+    {
+        var row=container.GetData(index);object table;
+        if(row==null || !CombatTables.TryGetValue("SkillProjectile",out table))return row;
+        lock(PunishmentSkillSync) {
+            SkillProjectileData cached;
+            if(!RestoredProjectileCache.TryGetValue(index,out cached) || !object.ReferenceEquals(cached,row)) {
+                var changes=new Dictionary<string,object>();string prefix=index+":";
+                foreach(var entry in (Dictionary<string,object>)table)
+                    if(entry.Key.StartsWith(prefix))changes[entry.Key.Substring(prefix.Length)]=entry.Value;
+                ApplyPunishmentChanges(row,changes);RestoredProjectileCache[index]=row;
+            }
+        }
+        return row;
+    }
+    static Dictionary<string,Dictionary<string,object>> BuildCombatStateChanges()
+    {
+        var rows=new Dictionary<string,Dictionary<string,object>>();object table;
+        if(CombatTables.TryGetValue("State",out table))
+            foreach(var entry in (Dictionary<string,object>)table) {
+                int split=entry.Key.LastIndexOf(':');string key=entry.Key.Substring(0,split);
+                Dictionary<string,object> changes;
+                if(!rows.TryGetValue(key,out changes))rows[key]=changes=new Dictionary<string,object>();
+                changes[entry.Key.Substring(split+1)]=entry.Value;
+            }
+        object missing;
+        if(CombatRestoration.TryGetValue("MissingStates",out missing))
+            foreach(Dictionary<string,object> row in (System.Collections.IList)missing)
+                rows[(string)row["Key"]]=(Dictionary<string,object>)row["Values"];
+        return rows;
+    }
+    public static void SynchronizeCombatStateFlags(StateData row)
+    {
+        // StateDataContainer's original initializer derives this bit mask from
+        // Boolean properties. Restore both forms to keep fast filters coherent.
+        StateFlag flags=StateFlag.None;
+        foreach(string name in System.Enum.GetNames(typeof(StateFlag))) {
+            var property=typeof(StateData).GetProperty(name);
+            if(property!=null && property.PropertyType==typeof(bool) && (bool)property.GetValue(row,null))
+                flags|=(StateFlag)System.Enum.Parse(typeof(StateFlag),name);
+        }
+        row.StateFlag=flags;
+    }
+    public static StateData CombatState(NShared.NJit.JitDataContainerDefault<string,StateData> container,string key)
+    {
+        var row=container.GetData(key);Dictionary<string,object> changes;
+        if(!CombatStateChanges.TryGetValue(key,out changes))return row;
+        lock(PunishmentSkillSync) {
+            StateData cached;
+            if(row==null && RestoredCombatStateCache.TryGetValue(key,out cached))return cached;
+            if(row==null)row=new StateData();
+            if(!RestoredCombatStateCache.TryGetValue(key,out cached) || !object.ReferenceEquals(cached,row)) {
+                ApplyPunishmentChanges(row,changes);SynchronizeCombatStateFlags(row);
+                RestoredCombatStateCache[key]=row;
+            }
+            return row;
+        }
+    }
+    static Dictionary<int,Dictionary<string,object>> BuildCombatCreatureChanges()
+    {
+        var rows=new Dictionary<int,Dictionary<string,object>>();
+        foreach(var entry in (Dictionary<string,object>)CombatTables["Creature"]) {
+            int split=entry.Key.IndexOf(':');int index=int.Parse(entry.Key.Substring(0,split));
+            Dictionary<string,object> changes;
+            if(!rows.TryGetValue(index,out changes))rows[index]=changes=new Dictionary<string,object>();
+            changes[entry.Key.Substring(split+1)]=entry.Value;
+        }
+        return rows;
+    }
+    static Dictionary<long,Dictionary<string,object>> PunishmentChanges(string category)
+    {
+        var result = new Dictionary<long,Dictionary<string,object>>();
+        var root = CombatRestoration;
+        foreach(var value in (System.Collections.IList)root[category]) {
+            var row = (Dictionary<string,object>)value;
+            long key = category == "Skills" ? System.Convert.ToInt64(row["Index"])
+                : System.Convert.ToInt64(row["SkillIndex"]) * 100 + System.Convert.ToInt64(row["OperationNo"]);
+            result[key] = (Dictionary<string,object>)row["Changes"];
+        }
+        return result;
+    }
+    static object PunishmentPropertyValue(object value, System.Type type)
+    {
+        if(value == null) return null;
+        if(type.IsArray) {
+            var list = (System.Collections.IList)value;var element = type.GetElementType();
+            var array = System.Array.CreateInstance(element,list.Count);
+            for(int i=0;i<list.Count;i++)array.SetValue(PunishmentPropertyValue(list[i],element),i);
+            return array;
+        }
+        if(type.IsEnum)return System.Enum.ToObject(type,System.Convert.ToInt64(value));
+        return System.Convert.ChangeType(value,type,System.Globalization.CultureInfo.InvariantCulture);
+    }
+    static void ApplyPunishmentChanges(object row, Dictionary<string,object> changes)
+    {
+        foreach(var change in changes) {
+            var property = row.GetType().GetProperty(change.Key);
+            if(property == null || !property.CanWrite)throw new System.InvalidOperationException("Unknown restored skill field: "+change.Key);
+            property.SetValue(row,PunishmentPropertyValue(change.Value,property.PropertyType),null);
+        }
+    }
+    public static SkillData PunishmentSkill(NShared.NJit.JitDataContainerDefault<int,SkillData> container,int index)
+    {
+        var skill = container.GetData(index);Dictionary<string,object> changes;
+        if(skill != null && PunishmentSkillChanges.TryGetValue(index,out changes))
+            lock(PunishmentSkillSync) {
+                SkillData cached;
+                if(!RestoredCombatSkillCache.TryGetValue(index,out cached) || !object.ReferenceEquals(cached,skill)) {
+                    ApplyPunishmentChanges(skill,changes);RestoredCombatSkillCache[index]=skill;
+                }
+            }
+        return skill;
+    }
+    public static void RestorePunishmentOperation(OperationData.LoadData load)
+    {
+        Dictionary<string,object> changes;
+        if(load != null && PunishmentOperationChanges.TryGetValue((long)load.SkillIndex*100+load.OperationNo,out changes))
+            ApplyPunishmentChanges(load,changes);
+    }
+    public static bool IsRemovedPunishmentOperation(int skillIndex,int operationNo)
+    {
+        Dictionary<string,object> changes;object type;
+        return PunishmentOperationChanges.TryGetValue((long)skillIndex*100+operationNo,out changes)
+            && changes.TryGetValue("Type",out type) && System.Convert.ToInt32(type)==0;
+    }
+    public static OperationData RestoreMissingCombatOperation(OperationData actual,int skillIndex,int operationNo)
+    {
+        if(actual != null)return actual;
+        long key=(long)skillIndex*100+operationNo;
+        Dictionary<string,object> changes;
+        if(!MissingCombatOperations.TryGetValue(key,out changes))return null;
+        lock(PunishmentSkillSync) {
+            OperationData result;
+            if(MissingCombatOperationCache.TryGetValue(key,out result))return result;
+            var load=new OperationData.LoadData { SkillIndex=skillIndex,OperationNo=operationNo };
+            ApplyPunishmentChanges(load,changes);
+            result=new OperationData(load);
+            MissingCombatOperationCache[key]=result;
+            return result;
+        }
+    }
+    static long CombatNumber(long actual,string table,string key,string field)
+    {
+        object values,value;
+        if(CombatTables.TryGetValue(table,out values) && ((Dictionary<string,object>)values).TryGetValue(key+":"+field,out value))
+            return System.Convert.ToInt64(value);
+        return actual;
+    }
+    public static long CombatRowNumber(long actual,object row,string table,string field)
+    {
+        string key;
+        var factor=row as SkillLevelFactorData;
+        var soul=row as SoulWeaponOptionData;
+        var tier=row as MonsterTierData;
+        var define=row as BattleDefineData;
+        if(factor!=null)key=factor.Level.ToString();
+        else if(soul!=null)key=((int)soul.TagType).ToString();
+        else if(tier!=null)key=tier.Index.ToString();
+        else if(define!=null)key=define.Code.ToString();
+        else throw new System.InvalidOperationException("Unknown restored combat row: "+table);
+        return CombatNumber(actual,table,key,field);
+    }
+    public static long CombatGradeStat(long actual,CreatureStarGradeStatData row,StatType stat)
+    {
+        if(stat!=StatType.MpOnTime)return actual;
+        return CombatNumber(actual,"CreatureStarGradeStat",row.CreatureIndex+":"+row.Star+":"+row.Transcended,"MpOnTime");
+    }
+    public static string CombatConstant(string actual,ConstantData row)
+    {
+        object value;
+        var values=(Dictionary<string,object>)CombatTables["Constant"];
+        return values.TryGetValue(row.Key+":Value",out value)?(string)value:actual;
+    }
+    public static CreatureData CombatCreature(NShared.NJit.JitDataContainerDefault<int,CreatureData> container,int index)
+    {
+        var row=container.GetData(index);
+        if(row==null)return null;
+        Dictionary<string,object> changes;
+        if(CombatCreatureChanges.TryGetValue(index,out changes))lock(PunishmentSkillSync) {
+            CreatureData cached;
+            if(!RestoredCombatCreatureCache.TryGetValue(index,out cached) || !object.ReferenceEquals(cached,row)) {
+                ApplyPunishmentChanges(row,changes);RestoredCombatCreatureCache[index]=row;
+            }
+        }
+        return row;
+    }
+    public static void InitializeCombatConstants()
+    {
+        BattleConstant.DefenceCalcLevelBaseFactor=1047294;
+        BattleConstant.LevelDamageAttenuationMaxLevel=80;
+    }
+    static readonly NShared.NUtil.ExponentialTable PunishmentDefenseRatios = new NShared.NUtil.ExponentialTable(1000000);
+    public static bool UsesLegacyPunishmentDefense(int chapter)
+    {
+        return true;
+    }
+    public static long LegacyPunishmentDamage(long attack, long defense, int attackerLevel, int damagedLevel)
+    {
+        // Build 1558 has the original exponential defense constants and no
+        // DefenceLevelTable. The retained Season1 routine must use those
+        // constants, not the later client's 1013959 level growth factor.
+        attackerLevel = System.Math.Min(attackerLevel, 80);
+        damagedLevel = System.Math.Min(damagedLevel, 80);
+        long ratio = PunishmentDefenseRatios.GetAccRatio(1047294, attackerLevel * 3 - damagedLevel * 2 - 1);
+        long divisor = defense * 2 * 1000000 / System.Math.Max(ratio, 1) + 1000;
+        return attack * (20 + 980 * 1000 / System.Math.Max(divisor, 1)) / 1000;
+    }
+    public static long PunishmentDamage(long attack, long defense, int attackerLevel, int damagedLevel, StatController receiver)
+    {
+        return LegacyPunishmentDamage(attack, defense, attackerLevel, damagedLevel);
+    }
+    public static bool HasEnhanceableSkill(NGame2.NAccount.Helper.SkillDetailInfo info)
+    {
+        // HeroInfo.GetSkillLevel supplies a default level even for an unused
+        // fifth slot. Its empty table entry must not advertise an enhancement.
+        return info.BasicInfo.TableIndex > 0 && info.BasicInfo.TableData != null;
+    }
+    public static void ReadablePerkDescription(NGame2.NUI.NWindow.LearnTranscendSkillMessagePopup popup)
+    {
+        if (popup == null || popup.Label_SkillDesc == null) return;
+        var root = popup.transform.Find("Panel/Root");
+        if (root == null) return;
+        var label = popup.Label_SkillDesc;
+        label.leftAnchor.target = null; label.rightAnchor.target = null;
+        label.topAnchor.target = null; label.bottomAnchor.target = null;
+        label.pivot = UIWidget.Pivot.TopLeft;
+        label.width = 594;
+        label.fontSize = 30;
+        label.useFloatSpacing = false;
+        label.spacingY = 4;
+        label.maxLineCount = 0;
+        label.overflowMethod = UILabel.Overflow.ResizeHeight;
+        label.ProcessText();
+        float visibleHeight = Mathf.Clamp(label.height + 8, 130, 320);
+        int frameHeight = (int)visibleHeight + 400 + (popup.Label_Warning.gameObject.activeInHierarchy ? 100 : 0);
+        float top = frameHeight * .5f;
+        float descriptionCenter = top - 115 - (visibleHeight + 40) * .5f;
+        float pointCenter = top - visibleHeight - 195;
+        // Keep the native icon, point cost and confirmation callbacks. Only
+        // text-based perks need this layout; stat-only perks keep their layout.
+        foreach (var name in new string[] { "Sprite_Frame", "Sprite_Frame/Sprite_Bg" })
+        {
+            var frame = root.Find(name);
+            if (frame != null) frame.GetComponent<UIWidget>().height = frameHeight;
+        }
+        var title = root.Find("Sprite_Title");
+        if (title != null) title.localPosition = new Vector3(0, top - 55, 0);
+        var icon = root.Find("WidgetSkillIconName");
+        if (icon != null) icon.localPosition = new Vector3(-337.96f, top - 195, 0);
+        popup.Label_NeedSkillPoint.transform.localPosition = new Vector3(-7, pointCenter, 0);
+        foreach (var name in new string[] { "Button_Ok", "Button_Cancel" })
+        {
+            var button = root.Find(name);
+            if (button != null) button.localPosition = new Vector3(button.localPosition.x, -top + 80, 0);
+        }
+        var warning = root.Find("LearnSkillLabelBG");
+        if (warning != null) warning.localPosition = new Vector3(-1, pointCenter - 90, 0);
+        var descRoot = root.Find("WidgetSkillDesc");
+        if (descRoot == null) return;
+        descRoot.localPosition = new Vector3(139, 0, 0);
+        var back = descRoot.Find("Sprite_Back");
+        if (back != null)
+        {
+            back.localPosition = new Vector3(-52.8f, descriptionCenter, 0);
+            back.GetComponent<UIWidget>().height = (int)visibleHeight + 40;
+        }
+        var viewport = descRoot.Find("ReadablePerkScroll");
+        if (viewport == null)
+        {
+            var go = new GameObject("ReadablePerkScroll");
+            go.layer = descRoot.gameObject.layer;
+            viewport = go.transform;
+            viewport.SetParent(descRoot, false);
+            var panel = go.AddComponent<UIPanel>();
+            panel.depth = popup.GetComponentInChildren<UIPanel>().depth + 1;
+            panel.clipping = UIDrawCall.Clipping.SoftClip;
+            panel.clipSoftness = new Vector2(2, 2);
+            var scroll = go.AddComponent<UIScrollView>();
+            scroll.movement = UIScrollView.Movement.Vertical;
+            scroll.contentPivot = UIWidget.Pivot.TopLeft;
+            scroll.restrictWithinPanel = true;
+            scroll.disableDragIfFits = true;
+        }
+        viewport.localPosition = new Vector3(-52.8f, descriptionCenter, 0);
+        viewport.GetComponent<UIPanel>().baseClipRegion = new Vector4(0, 0, 594, visibleHeight);
+        label.transform.SetParent(viewport, false);
+        label.leftAnchor.target = null; label.rightAnchor.target = null;
+        label.topAnchor.target = null; label.bottomAnchor.target = null;
+        label.pivot = UIWidget.Pivot.TopLeft;
+        label.transform.localPosition = new Vector3(-297, visibleHeight * .5f, 0);
+        var view = viewport.GetComponent<UIScrollView>();
+        view.DisableSpring();
+        view.currentMomentum = Vector3.zero;
+        view.InvalidateBounds();
+        view.ResetPosition();
+        NGUITools.AddWidgetCollider(label.gameObject);
+        var drag = label.GetComponent<UIDragScrollView>();
+        if (drag == null) drag = label.gameObject.AddComponent<UIDragScrollView>();
+        drag.scrollView = view;
+    }
+    public static void WorkshopOptionDrag(NGame2.NUI.NComponent2.NStat.StatGaugeInfo info)
+    {
+        if (info == null || info.GetComponentInParent<NGame2.NUI.NWindow.ValanceOptionRenewWindow>() == null) return;
+        // The gauge root lives in the main options list. A skill card's own
+        // description scroll view is a child, so resolve from the gauge root.
+        var list = NGUITools.FindInParents<UIScrollView>(info.gameObject);
+        if (list == null) return;
+        foreach (var collider in info.GetComponentsInChildren<Collider>(true))
+        {
+            var drag = collider.GetComponent<UIDragScrollView>();
+            if (drag == null) drag = collider.gameObject.AddComponent<UIDragScrollView>();
+            drag.scrollView = list;
+        }
+    }
+    static System.Collections.IDictionary conquestContent;
+    static System.Collections.IDictionary ConquestContent()
+    {
+        if(conquestContent==null)conquestContent=MiniJSON.Json.Deserialize("__RESTORED_GUILD_CONQUEST__") as System.Collections.IDictionary;
+        return conquestContent;
+    }
+    public static GuildSuppressSessionData ConquestSession(GuildSuppressSessionDataContainer container,int index)
+    {
+        if(index<10000)return container.GetData(index);
+        GuildSuppressSessionData result;
+        return serverConquestSessions!=null && serverConquestSessions.TryGetValue(index,out result) ? result : null;
+    }
+    public static List<GuildSuppressSessionData> ConquestSessions(List<GuildSuppressSessionData> original,int season)
+    {
+        if(season<10000)return original;
+        List<GuildSuppressSessionData> result;
+        return serverConquestSeasons!=null && serverConquestSeasons.TryGetValue(season,out result) ? result : original;
+    }
+    static Dictionary<int,GuildSuppressSessionData> serverConquestSessions;
+    static Dictionary<int,List<GuildSuppressSessionData>> serverConquestSeasons;
+    public static void AcceptServerConquestSessions(System.Collections.IDictionary response)
+    {
+        var definitions=response==null ? null : response["SPRKConquestSessionDefinitions"] as System.Collections.IList;
+        if(definitions==null)return;
+        if(serverConquestSessions==null)serverConquestSessions=new Dictionary<int,GuildSuppressSessionData>();
+        if(serverConquestSeasons==null)serverConquestSeasons=new Dictionary<int,List<GuildSuppressSessionData>>();
+        foreach(System.Collections.IDictionary definition in definitions) {
+            var session=JM_NShared_GuildSuppressSessionData.Parse(definition);
+            if(session.SessionIndex<10000 || session.SeasonIndex<10000)continue;
+            serverConquestSessions[session.SessionIndex]=session;
+            List<GuildSuppressSessionData> season;
+            if(!serverConquestSeasons.TryGetValue(session.SeasonIndex,out season)) {
+                season=new List<GuildSuppressSessionData>();serverConquestSeasons.Add(session.SeasonIndex,season);
+            }
+            bool replaced=false;
+            for(int i=0;i<season.Count;i++)if(season[i].SessionIndex==session.SessionIndex){season[i]=session;replaced=true;break;}
+            if(!replaced)season.Add(session);
+        }
+    }
+    public static bool CheckNativeStoryCondition(string[] condition)
+    {
+        int tutorial,chapter,dungeon;
+        if(condition==null || condition.Length!=5 || condition[0]!="CompleteTutorialOrSkippedDungeon"
+            || condition[2]!="True" || !int.TryParse(condition[1],out tutorial)
+            || !int.TryParse(condition[3],out chapter) || !int.TryParse(condition[4],out dungeon))return false;
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        return account.TutorialManager.IsComplete(tutorial)
+            || (account.IsTutorialSkip && account.CampaignManager.IsCompleted(chapter,dungeon,DungeonDifficultyType.Easy));
+    }
+    public static GuildSuppressDungeonData ConquestDungeon(GuildSuppressDungeonDataContainer container,int index)
+    {
+        foreach(System.Collections.IDictionary row in (System.Collections.IList)ConquestContent()["GuildSuppressDungeon"]) {
+            if(Int(row,"Index")!=index)continue;
+            return new GuildSuppressDungeonData {Index=index,DefaultRewardIndex=Int(row,"DefaultRewardIndex"),KillRewardIndex=Int(row,"KillRewardIndex"),
+                KillActivityPoint=Int(row,"KillActivityPoint"),BuyableRewardIndex=Int(row,"BuyableRewardIndex"),Tactic=Str(row,"Tactic"),
+                RecommendedHeroIndex=IntArray(row["RecommendedHeroIndex"]),BanIndex=Int(row,"BanIndex"),PortraitPath=Str(row,"PortraitPath"),
+                PreviewBg=Str(row,"PreviewBg"),FinishModeRatio=Int(row,"FinishModeRatio")};
+        }
+        return container.GetData(index);
+    }
+    static int Int(System.Collections.IDictionary row,string key) {return System.Convert.ToInt32(row[key]);}
+    static bool Bool(System.Collections.IDictionary row,string key) {return System.Convert.ToBoolean(row[key]);}
+    static string Str(System.Collections.IDictionary row,string key) {return row[key] as string;}
+    static System.Collections.IDictionary guildContent;
+    static System.Collections.IDictionary GuildContent()
+    {
+        if(guildContent==null)guildContent=MiniJSON.Json.Deserialize("__RESTORED_GUILD_CONTENT__") as System.Collections.IDictionary;
+        return guildContent;
+    }
+    static List<ShopItemData> GuildShopRows(int shopIndex)
+    {
+        if(shopIndex!=4 && shopIndex!=20 && shopIndex!=21 && shopIndex!=27) return null;
+        var result=new List<ShopItemData>();
+        var data=GuildContent();
+        foreach(System.Collections.IDictionary row in (System.Collections.IList)data["ShopItems"]) {
+            if(Int(row,"ShopIndex")!=shopIndex) continue;
+            result.Add(new ShopItemData {ShopIndex=shopIndex,Index=Int(row,"Index"),GroupIndex=Int(row,"GroupIndex"),
+                ShowIndex=Int(row,"ShowIndex"),ItemCode=Str(row,"ItemCode"),Count=Int(row,"Count"),Star=Int(row,"Star"),
+                PurchasableCount=Int(row,"PurchasableCount"),DailyReset=Bool(row,"DailyReset"),WeeklyReset=Bool(row,"WeeklyReset"),
+                MonthlyResetDate=row["MonthlyResetDate"]==null?null:IntArray(row["MonthlyResetDate"]),Condition=Str(row,"Condition"),
+                BuyCostTypeForItem=(ShopCostType)Int(row,"BuyCostTypeForItem"),TargetPrice=Int(row,"TargetPrice")});
+        }
+        return result;
+    }
+    public static ShopItemData RestoreGuildShopItem(ShopItemData original,int shop,int index)
+    {
+        var rows=GuildShopRows(shop);if(rows==null)return original;
+        foreach(var row in rows)if(row.Index==index)return row;
+        return null;
+    }
+    public static List<ShopItemData> RestoreGuildShopList(List<ShopItemData> original,int shop)
+    {
+        var rows=GuildShopRows(shop);if(rows==null)return original;
+        var result=new List<ShopItemData>();foreach(var row in rows)if(row.GroupIndex==0)result.Add(row);
+        return result;
+    }
+    public static List<ShopItemData> RestoreGuildShopGroup(List<ShopItemData> original,int shop,int group)
+    {
+        var rows=GuildShopRows(shop);if(rows==null)return original;
+        var result=new List<ShopItemData>();foreach(var row in rows)if(row.GroupIndex==group)result.Add(row);
+        return result;
+    }
+    public static bool AllowAutoGuildAttendance()
+    {
+        var guild=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.instance;
+        if(guild==null || !guild.CheckGuildAttendanceRewardable) return false;
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var date=account.GetCurrentServerLocalTime().ToString("yyyy-MM-dd");
+        var key="SprkGuildAttendanceShown/"+account.UserInfo.AccountId+"/"+guild.JoinedGuildId;
+        if(PlayerPrefs.GetString(key,"")==date)return false;
+        PlayerPrefs.SetString(key,date);PlayerPrefs.Save();return true;
+    }
+    public static int GuildItemPrice(int original,ItemBaseData item,string currency)
+    {
+        if(item==null)return original;
+        var data=GuildContent();
+        foreach(System.Collections.IDictionary row in (System.Collections.IList)data["ItemPrices"])
+            if(Int(row,"Index")==item.Index)return Int(row,currency);
+        return original;
+    }
+    public static void SeedGuildRaidScore(NShared.EndCampaign.Response response)
+    {
+        if(response==null || response.GuildRaidMemberTotalScoreInfo==null)return;
+        var guild=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.instance;
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        if(guild==null || guild.MyGuildManager==null || account==null)return;
+        var manager=guild.MyGuildManager.GuildRaidManager;
+        var score=response.GuildRaidMemberTotalScoreInfo;
+        if(score.AccountId==account.UserInfo.AccountId && manager.GetGuildRaidScoreInfo(score.AccountId)==null)
+            manager.Apply(new GuildRaidMemberTotalScoreInfo {AccountId=score.AccountId,GuildId=score.GuildId,Score=0});
+    }
+    public static bool MenuShortcutKeyUp(KeyCode key)
+    {
+        // Lobby shortcuts run independently of NGUI's keyboard handling.
+        // Let a focused text field receive letters without opening a menu.
+        var input = UIInput.selection;
+        if (UICamera.inputHasFocus || (input != null && input.isActiveAndEnabled)) return false;
+        return Input.GetKeyUp(key);
+    }
+
+    public static bool MeetsRaidHeroLevel(RaidData raid, int heroLevel)
+    {
+        return raid == null || raid.ReqHeroLevel <= 0 || heroLevel >= raid.ReqHeroLevel;
+    }
+
+    public static bool CheckRaidHeroLevel(NGame2.NUI.NWindow.BattlePartySetting setting,
+        NGame2.NUI.NComponent2.HeroPortraitComponent portrait)
+    {
+        var raidSetting = setting as NGame2.NUI.NWindow.RaidPartySetting;
+        if (raidSetting == null || portrait == null || portrait.HeroInfo == null) return true;
+        if (MeetsRaidHeroLevel(raidSetting.RaidData, portrait.HeroInfo.Level)) return true;
+        NGame2.NUI.NWindow.CenterMessage.Open("Requires a hero of level " + raidSetting.RaidData.ReqHeroLevel + " or higher.");
+        return false;
+    }
+
+    public static List<CachedHeroInfo> EligibleRaidSavedHeroes(List<CachedHeroInfo> heroes,
+        NGame2.NUI.NWindow.BattlePartySetting setting)
+    {
+        var raidSetting = setting as NGame2.NUI.NWindow.RaidPartySetting;
+        if (raidSetting == null || heroes == null) return heroes;
+        var result = new List<CachedHeroInfo>();
+        foreach (var hero in heroes)
+            if (hero != null && MeetsRaidHeroLevel(raidSetting.RaidData, hero.Level)) result.Add(hero);
+        return result;
+    }
+
+    public static void RestorePunishmentPartyFrames(NGame2.NUI.NWindow.NPunish.PunishmentRaidPartySetting setting)
+    {
+        if (setting == null || setting.RaidData == null) return;
+        var root = setting.transform.Find("Panel/Root/Widget_SelectHeroList");
+        if (root == null) return;
+        bool twoTeams = setting.RaidData.Type == RaidType.PunishmentRaid && setting.RaidData.SubPartyCount > 0;
+        // The serialized RaidDeco reference still points into the unused previous layout.
+        var deco = root.Find(twoTeams ? "Deco/MainSubDeco/Panel_BG/RaidDeco" : "Deco/OnlyMainDeco/Panel_BG/RaidDeco");
+        if (deco != null) { setting.RaidDeco = deco; deco.gameObject.SetActive(true); }
+        if (!twoTeams)
+        {
+            // The single-team layout has a background but no frame sprite.
+            // Reuse this prefab's standard team frame and fit its existing background.
+            var background = root.Find("Deco/OnlyMainDeco/Sprite_Bg");
+            var template = root.Find("Squard/MainSubSquard/MainSquard/Sprite_Bg/Sprite_Frame_Right");
+            if (background == null || template == null || background.Find("SprkPartyFrame") != null) return;
+            var sourceSprite = template.GetComponent<UISprite>();
+            var backgroundSprite = background.GetComponent<UISprite>();
+            if (sourceSprite == null || backgroundSprite == null) return;
+            var border = Object.Instantiate(template.gameObject);
+            border.name = "SprkPartyFrame";
+            border.transform.SetParent(background, false);
+            border.transform.localPosition = Vector3.zero;
+            border.transform.localRotation = Quaternion.identity;
+            border.transform.localScale = Vector3.one;
+            var sprite = border.GetComponent<UISprite>();
+            sprite.width = backgroundSprite.width;
+            sprite.height = backgroundSprite.height;
+            sprite.depth = backgroundSprite.depth + 1;
+            foreach (var collider in border.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            border.SetActive(true);
+            return;
+        }
+        foreach (var team in new string[] { "MainSquard", "SubSquard" })
+        {
+            var frame = root.Find("Squard/MainSubSquard/" + team + "/Sprite_Bg/Sprite_Frame_Right");
+            if (frame != null) frame.gameObject.SetActive(true);
+        }
+    }
+
+    public static OptionSellData[] RestoreInventoryFilterOptions(OptionSellData[] original, OptionSellCategory category)
+    {
+        if (category != OptionSellCategory.Tier && category != OptionSellCategory.Grade) return original;
+        var rows = new List<OptionSellData>(original ?? new OptionSellData[0]);
+        int start = category == OptionSellCategory.Tier ? 1 : 6;
+        int end = category == OptionSellCategory.Tier ? 10 : 7;
+        for (int value = start; value <= end; value++)
+        {
+            bool found = false;
+            for (int i = 0; i < rows.Count; i++) if (rows[i].Value == value) found = true;
+            if (found) continue;
+            int[] dependencies = new int[category == OptionSellCategory.Tier ? 7 : 0];
+            for (int d = 0; d < dependencies.Length; d++) dependencies[d] = d + 1;
+            rows.Add(new OptionSellData {
+                Category = category, Value = value, BackGroundIndex = 0,
+                GradeStringKey = value == 6 ? "GRADE_ORANGE2" : "GRADE_TECHNOMAGIC",
+                ReplaceKey = "", SelectType = value == 7 && category == OptionSellCategory.Grade
+                    ? OptionSellSelectType.OnlyOne : OptionSellSelectType.Multi,
+                GradeDependency = dependencies
+            });
+        }
+        return rows.ToArray();
+    }
+
+    public static void RestoreInventoryGradeLabel(NGame2.NUI.NComponent2.OptionGradeComponent component)
+    {
+        if (component.OptionData.Category != OptionSellCategory.Grade) return;
+        if (component.OptionData.Value == 6) component.ComponentLabel.text = "[FF8200]Legendary[-]";
+        if (component.OptionData.Value == 7) component.ComponentLabel.text = "Technomagic";
+    }
+
+    public static void UpdateGuildBuilding(MyGuildInfo guild, GuildBuildingInfo update)
+    {
+        if (guild == null || update == null) return;
+        var buildings = new List<GuildBuildingInfo>(guild.GuildBuildingInfos ?? new GuildBuildingInfo[0]);
+        for (int i = 0; i < buildings.Count; i++)
+        {
+            if (buildings[i].BuildingIndex != update.BuildingIndex) continue;
+            buildings[i] = update;
+            guild.GuildBuildingInfos = buildings.ToArray();
+            return;
+        }
+        buildings.Add(update);
+        guild.GuildBuildingInfos = buildings.ToArray();
+    }
+
+    public static void RefreshGuildConstruction()
+    {
+        foreach (var panel in Object.FindObjectsOfType<NGame2.NUI.NWindow.GuildConstruction>())
+            if (panel.gameObject.activeInHierarchy) panel.RefreshUI();
+    }
+
+    public static void OpenPortalGuildRankings()
+    {
+        NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.GuildManagement2>.instance
+            .OpenGuildRankingBoard(GuildRankingBoardType.SuppressRanking);
+    }
+
+    // Restore archived town and Guild menus before NPCData caches EntryMenu objects.
+    public static void RestoreOrvelNpcMenus(NPCData npc)
+    {
+        RestoreNpcMenuRows(npc, "__RESTORED_ORVEL_MENUS__");
+        RestoreNpcMenuRows(npc, "__RESTORED_GUILD_MENUS__");
+    }
+
+    static void RestoreNpcMenuRows(NPCData npc, string json)
+    {
+        if (npc == null) return;
+        var rows = (System.Collections.IList)MiniJSON.Json.Deserialize(json);
+        foreach (System.Collections.IDictionary row in rows)
+        {
+            if ((string)row["Code"] != npc.Code) continue;
+            npc.EntryMenuButton1 = OrvelMenuStrings(row["EntryMenuButton1"]);
+            npc.EntryMenuCondition1 = (string)row["EntryMenuCondition1"];
+            npc.EntryMenuEvent1 = OrvelMenuStrings(row["EntryMenuEvent1"]);
+            npc.ChildIndices1 = IntArray(row["ChildIndices1"]);
+            npc.ParentIndex1 = System.Convert.ToInt32(row["ParentIndex1"]);
+            npc.EntryMenuButton2 = OrvelMenuStrings(row["EntryMenuButton2"]);
+            npc.EntryMenuCondition2 = (string)row["EntryMenuCondition2"];
+            npc.EntryMenuEvent2 = OrvelMenuStrings(row["EntryMenuEvent2"]);
+            npc.ChildIndices2 = IntArray(row["ChildIndices2"]);
+            npc.ParentIndex2 = System.Convert.ToInt32(row["ParentIndex2"]);
+            npc.EntryMenuButton3 = OrvelMenuStrings(row["EntryMenuButton3"]);
+            npc.EntryMenuCondition3 = (string)row["EntryMenuCondition3"];
+            npc.EntryMenuEvent3 = OrvelMenuStrings(row["EntryMenuEvent3"]);
+            npc.ChildIndices3 = IntArray(row["ChildIndices3"]);
+            npc.ParentIndex3 = System.Convert.ToInt32(row["ParentIndex3"]);
+            npc.EntryMenuButton4 = OrvelMenuStrings(row["EntryMenuButton4"]);
+            npc.EntryMenuCondition4 = (string)row["EntryMenuCondition4"];
+            npc.EntryMenuEvent4 = OrvelMenuStrings(row["EntryMenuEvent4"]);
+            npc.ChildIndices4 = IntArray(row["ChildIndices4"]);
+            npc.ParentIndex4 = System.Convert.ToInt32(row["ParentIndex4"]);
+            npc.EntryMenuButton5 = OrvelMenuStrings(row["EntryMenuButton5"]);
+            npc.EntryMenuCondition5 = (string)row["EntryMenuCondition5"];
+            npc.EntryMenuEvent5 = OrvelMenuStrings(row["EntryMenuEvent5"]);
+            npc.ChildIndices5 = IntArray(row["ChildIndices5"]);
+            npc.ParentIndex5 = System.Convert.ToInt32(row["ParentIndex5"]);
+            npc.EntryMenuButton6 = OrvelMenuStrings(row["EntryMenuButton6"]);
+            npc.EntryMenuCondition6 = (string)row["EntryMenuCondition6"];
+            npc.EntryMenuEvent6 = OrvelMenuStrings(row["EntryMenuEvent6"]);
+            npc.ChildIndices6 = IntArray(row["ChildIndices6"]);
+            npc.ParentIndex6 = System.Convert.ToInt32(row["ParentIndex6"]);
+            npc.EntryMenuButton7 = OrvelMenuStrings(row["EntryMenuButton7"]);
+            npc.EntryMenuCondition7 = (string)row["EntryMenuCondition7"];
+            npc.EntryMenuEvent7 = OrvelMenuStrings(row["EntryMenuEvent7"]);
+            npc.ChildIndices7 = IntArray(row["ChildIndices7"]);
+            npc.ParentIndex7 = System.Convert.ToInt32(row["ParentIndex7"]);
+            npc.EntryMenuButton8 = OrvelMenuStrings(row["EntryMenuButton8"]);
+            npc.EntryMenuCondition8 = (string)row["EntryMenuCondition8"];
+            npc.EntryMenuEvent8 = OrvelMenuStrings(row["EntryMenuEvent8"]);
+            npc.ChildIndices8 = IntArray(row["ChildIndices8"]);
+            npc.ParentIndex8 = System.Convert.ToInt32(row["ParentIndex8"]);
+            npc.BottomEntryMenuButton1 = OrvelMenuStrings(row["BottomEntryMenuButton1"]);
+            npc.BottomEntryMenuCondition1 = (string)row["BottomEntryMenuCondition1"];
+            npc.BottomEntryMenuEvent1 = OrvelMenuStrings(row["BottomEntryMenuEvent1"]);
+            npc.BottomEntryMenuButton2 = OrvelMenuStrings(row["BottomEntryMenuButton2"]);
+            npc.BottomEntryMenuCondition2 = (string)row["BottomEntryMenuCondition2"];
+            npc.BottomEntryMenuEvent2 = OrvelMenuStrings(row["BottomEntryMenuEvent2"]);
+            npc.BottomEntryMenuButton3 = OrvelMenuStrings(row["BottomEntryMenuButton3"]);
+            npc.BottomEntryMenuCondition3 = (string)row["BottomEntryMenuCondition3"];
+            npc.BottomEntryMenuEvent3 = OrvelMenuStrings(row["BottomEntryMenuEvent3"]);
+            return;
+        }
+    }
+
+    static string[] OrvelMenuStrings(object value)
+    {
+        var list = value as System.Collections.IList;
+        if (list == null) return null;
+        var result = new string[list.Count];
+        for (int i = 0; i < list.Count; i++) result[i] = (string)list[i];
+        return result;
+    }
+
+    public static CampaignNodeData OrvelNode(CampaignNodeData original, int chapter, int dungeon)
+    {
+        if (original != null || chapter != 99 || (dungeon != 4 && dungeon != 5 && dungeon != 26 && dungeon != 41)) return original;
+        var node = new CampaignNodeData { ChapterIndex = 99, DungeonIndex = dungeon, Opened = true };
+        if (dungeon == 4)
+        {
+            node.Function = (NodeFunctionType)2; node.NodePrefab = "Arena"; node.FunctionButton = "Arena";
+            node.Code = new string[] { "PVP_TEXT" }; node.Value = new string[] { "Arena" };
+            node.UiPositionX = 2928; node.UiPositionY = 1772; node.EntryNPCCode = "ArenaShop";
+            node.PortalPositionX = 2210; node.PortalPositionY = 1485; node.PortalNameCode = "PVP_TEXT";
+            node.PortalImageCode = "Shop.Arena"; node.PortalListScore = 1; node.ContentsType = (ContentsStatusType)4;
+        }
+        else if (dungeon == 5)
+        {
+            node.Function = (NodeFunctionType)14; node.NodePrefab = "Guild"; node.FunctionButton = "Guild";
+            node.Code = new string[] { "CONTENT_GUILD" }; node.Value = new string[] { "995", "9" };
+            node.SwitchCondition = new string[] { "GuildExist", "MoveChapter", "EntryMenu" };
+            node.UiPositionX = 2224; node.UiPositionY = 1886; node.EntryNPCCode = "GuildOffice";
+            node.ContentsType = (ContentsStatusType)7;
+        }
+        else if (dungeon == 26)
+        {
+            node.Function = (NodeFunctionType)17; node.NodePrefab = "HonoraryChamber"; node.FunctionButton = "HonoraryChamber";
+            node.Code = new string[] { "HONORARY_TEXT" }; node.UiPositionX = 2278; node.UiPositionY = 1233;
+        }
+        else
+        {
+            node.Function = (NodeFunctionType)2; node.NodePrefab = "Side_Quest"; node.FunctionButton = "PurchaseDungeon";
+            node.Code = new string[] { "NODE_SQUARE_SIDE_NAME" }; node.EntryNPCCode = "Square_SideQuest_Quadruple";
+            node.UiPositionX = 1815; node.UiPositionY = 2255; node.NextNodeIndex = new int[] { 115, 119 };
+            node.OpenBackgroundDownloading = true; node.ContentsType = (ContentsStatusType)23;
+        }
+        return node;
+    }
+
+    public static IList<CampaignNodeData> OrvelNodes(IList<CampaignNodeData> original, int chapter)
+    {
+        if (chapter != 99) return original;
+        var result = new List<CampaignNodeData>(original);
+        for (int i = 0; i < 4; i++)
+        {
+            int id = i == 0 ? 4 : i == 1 ? 5 : i == 2 ? 26 : 41;
+            bool found = false;
+            foreach (var node in result) if (node.DungeonIndex == id) found = true;
+            if (!found) result.Add(OrvelNode(null, 99, id));
+        }
+        return result;
+    }
+
+    public static string[] ArchiveReplayCondition(string[] condition, MainStoryData story)
+    {
+        if (condition == null || condition.Length != 3 || condition[0] != "CompleteTutorial"
+            || condition[2] != "True") return condition;
+        var account = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        if (!account.IsTutorialSkip) return condition;
+        int chapter = 0, dungeon = 0;
+        // Chapter-entry tutorial triggers and conservative equivalents for
+        // story-only bridge nodes. Scoped to archive replay conditions only.
+        switch (condition[1])
+        {
+            case "40000": chapter = 3; dungeon = 22; break;
+            case "50000": chapter = 4; dungeon = 21; break;
+            case "60000": chapter = 5; dungeon = 21; break;
+            case "70000": chapter = 6; dungeon = 21; break;
+            case "80000": chapter = 7; dungeon = 12; break;
+            case "90000": chapter = 8; dungeon = 26; break;
+            case "100000": case "110000": chapter = 97; dungeon = 5; break;
+            case "200000": chapter = 97; dungeon = 2; break;
+            case "12000": chapter = 1; dungeon = 11; break;
+            case "14000": chapter = 1; dungeon = 18; break;
+            case "20080": chapter = 2; dungeon = 8; break;
+            case "30290": chapter = 3; dungeon = 22; break;
+            case "60290": chapter = 6; dungeon = 21; break;
+            case "70002": chapter = 117; dungeon = 3; break;
+            case "70005": case "70001": chapter = 117; dungeon = 4; break;
+            case "11000": chapter = 10; dungeon = 9; break;
+            default: return condition;
+        }
+        if (!account.CampaignManager.IsCompleted(chapter, dungeon, DungeonDifficultyType.Easy)) return condition;
+        return null;
+    }
+
+    // Tutorial 95009 also performs a required map transition after Orvel's
+    // prologue. Tutorial skip must not strand the player on peaceful chapter 96.
+    public static bool NeedsOrvelTransition(int tutorialIndex)
+    {
+        if (tutorialIndex != 95009 || NGame2.NAccount.UserCampaignManager.ChapterIndex != 96) return false;
+        var account = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        return account.IsTutorialSkip && account.CampaignManager.IsCompleted(96, 2, DungeonDifficultyType.Easy);
+    }
+
+    public static bool OrvelTutorialAvailable(bool available, EventTriggerData data)
+    {
+        return available || (data != null && data.Index == 95009 && NeedsOrvelTransition(95009));
+    }
+
+    public static bool TrySkippedOrvelTransition(NGame2.NTutorial.TutorialManager manager,
+        int tutorialIndex, System.Action onComplete, System.Action onCompleteLoad)
+    {
+        if (!NeedsOrvelTransition(tutorialIndex) || manager.CurrentTutorialRuntime != null) return false;
+        // Match tutorial command WorldMapPlayerMove(95, 2, false), retaining
+        // the event queue's completion callback until the map has loaded.
+        if (onCompleteLoad != null) onCompleteLoad();
+        NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.LobbyManagement>.instance
+            .MoveMap(95, 2, onComplete, null);
+        return true;
+    }
+
+    public static ExpResultInfo ParseStaminaExp(System.Collections.IDictionary data)
+    {
+        var exp = data == null ? null : data["RaiderExpResult"] as System.Collections.IDictionary;
+        return exp == null ? null : JM_NShared_ExpResultInfo.Parse(exp);
+    }
+    // The single-panel illustrations are rectangular; clip only their small-card mesh.
+    // Keep the source atlases intact because full-size panels use the same artwork.
+    public static void SetupCardCurve(NGame2.NUI.NComponent2.PortalContentsComponent component, PortalRenewalData data)
+    {
+        if (data == null || data.SubComponentShape != PortalRenewalCompType.Small) return;
+        string code = data.MainImagePath;
+        if (code != "Portal_WorldBoss_NotProgress_Image" && code != "Portal_ChallengeRaid_NotProgress_Image"
+            && code != "Portal_PetHouse_Image" && code != "Portal_TreasureHouse_Image"
+            && code != "Portal_Punishment_Image" && code != "Portal_MiddleBossShakmeh_Image") return;
+        UITexture texture = component._basicData.ContentsTexture;
+        if (texture != null) texture.onPostFill = new UIWidget.OnPostFillCallback(CurveCardMesh);
+    }
+
+    public static void CurveCardMesh(UIWidget widget, int offset, RenderingList<Vector3> verts,
+        RenderingList<Vector2> uvs, RenderingList<Color32> colors)
+    {
+        if (offset != 0 || verts.size != 4) return;
+        Vector3 bottom = verts[0], top = verts[2];
+        Vector2 uvBottom = uvs[0], uvTop = uvs[2];
+        Color32 color = colors[0];
+        verts.Clear(); uvs.Clear(); colors.Clear();
+        const int steps = 64;
+        verts.ReserveCount(steps * 4); uvs.ReserveCount(steps * 4);
+        for (int i = 0; i < steps; i++)
+        {
+            float low = i / (float)steps, high = (i + 1) / (float)steps;
+            float rightLow = 0.12f + 0.88f * Mathf.Sqrt(1f - low * low);
+            float rightHigh = 0.12f + 0.88f * Mathf.Sqrt(1f - high * high);
+            verts.AddUnsafe(new Vector3(bottom.x, Mathf.Lerp(bottom.y, top.y, low), bottom.z));
+            verts.AddUnsafe(new Vector3(bottom.x, Mathf.Lerp(bottom.y, top.y, high), bottom.z));
+            verts.AddUnsafe(new Vector3(Mathf.Lerp(bottom.x, top.x, rightHigh), Mathf.Lerp(bottom.y, top.y, high), bottom.z));
+            verts.AddUnsafe(new Vector3(Mathf.Lerp(bottom.x, top.x, rightLow), Mathf.Lerp(bottom.y, top.y, low), bottom.z));
+            uvs.AddUnsafe(new Vector2(uvBottom.x, Mathf.Lerp(uvBottom.y, uvTop.y, low)));
+            uvs.AddUnsafe(new Vector2(uvBottom.x, Mathf.Lerp(uvBottom.y, uvTop.y, high)));
+            uvs.AddUnsafe(new Vector2(Mathf.Lerp(uvBottom.x, uvTop.x, rightHigh), Mathf.Lerp(uvBottom.y, uvTop.y, high)));
+            uvs.AddUnsafe(new Vector2(Mathf.Lerp(uvBottom.x, uvTop.x, rightLow), Mathf.Lerp(uvBottom.y, uvTop.y, low)));
+            colors.AddCount(color, 4);
+        }
+    }
+
+    // Follow the native dispatch list; hide the shortcut when the list is empty.
+    public static bool DispatchShortcutVisible(bool hasDispatch) { return hasDispatch; }
+    public static void RefreshHeroDeckDispatch(NGame2.NUI.NWindow.HeroDeck2 window)
+    {
+        foreach (var portrait in window.GetComponentsInChildren<NGame2.NUI.NComponent2.HeroPortraitComponent>(true))
+            if (portrait.HeroInfo != null)
+            {
+                portrait.SetDispatched(NGame2.NDispatchBattle.DispatchHelper.IsDispatchedHero(portrait.HeroInfo),
+                    portrait.PortraitMode == NGame2.NUI.NComponent2.HeroPortraitComponent.EPortraitMode.Icon, "");
+                FitHeroDeckDispatchLabel(portrait);
+            }
+    }
+    public static void FitHeroDeckDispatchLabel(NGame2.NUI.NComponent2.HeroPortraitComponent portrait)
+    {
+        if (!portrait.IsDispatched || portrait.PortraitMode == NGame2.NUI.NComponent2.HeroPortraitComponent.EPortraitMode.Icon) return;
+        var status = portrait.GetSubComponent<NGame2.NUI.NComponent2.NHeroPortraitSub.CustomLabelSubComponent>();
+        if (status == null || status.SpriteDiabled == null || portrait.WidgetThis == null) return;
+        // Fit the native dimmer to the actual card, including cards currently
+        // culled by the scroll view. Anchors follow resizing and list movement.
+        UIWidget backdrop = status.SpriteDiabled;
+        UIWidget bounds = portrait.HeroBundleTex != null ? portrait.HeroBundleTex.UiTex : null;
+        if (bounds == null) bounds = portrait.FrameWidget != null ? portrait.FrameWidget : portrait.WidgetThis;
+        backdrop.SetAnchor(bounds.gameObject, 0, 0, 0, 0);
+        backdrop.UpdateAnchors();
+    }
+
+    public static bool DispatchListHasEntries()
+    {
+        var manager = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.DispatchBattleInfoManager;
+        if (manager != null && manager.Count() > 0) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Dispatch", "No dispatches in progress.");
+        return false;
+    }
+
+
+    public static void TempleMissingScene(NGame2.NCutScene.CutSceneManager scene)
+    {
+        // Only replace the known nine-byte placeholder's fallback, never valid scenes.
+        if (scene.ScriptPath != "CutScene/CH65_Main_4") return;
+        foreach (var group in scene.GroupList)
+            foreach (var holder in group.ScriptList)
+            {
+                var text = holder.Value as NGame2.NCutScene.NScript.DisplayText;
+                if (text == null) continue;
+                text.TitleLink.Key = "Temple of the God King";
+                text.TextLink.Key = "This story scene is unavailable in the recovered game files. Tap to continue to the next stage.";
+            }
+    }
+
+    public static bool ApocalypsionAccess()
+    {
+        if (NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager.IsCompleted(11, 10, DungeonDifficultyType.Easy)) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", UnlockMessage(PortalRenewalCategory.PunishmentRaid));
+        return false;
+    }
+    public static bool ShakmehAccess()
+    {
+        var campaign = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager;
+        if (!campaign.IsCompleted(97, 2, DungeonDifficultyType.Easy))
+        {
+            NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina.");
+            return false;
+        }
+        if (campaign.IsCompleted(50000, 210, DungeonDifficultyType.Easy)) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Continue The Shadow of Aegina story and clear its Devourer Shakmeh battle first.");
+        return false;
+    }
+    public static bool ShakmehBossAccess(int chapter, int dungeon)
+    {
+        if (chapter != 50000 || (dungeon != 10 && dungeon != 11)) return true;
+        var campaign = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager;
+        // The map must still open the first Otherworldly story fight.
+        if (dungeon == 10 && !campaign.IsCompleted(50000, 601, DungeonDifficultyType.Easy))
+        {
+            NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Finish The Shadow of Aegina story by defeating Otherworldly Darkness Shakmeh first.");
+            return false;
+        }
+        return ShakmehGaugeAccess(dungeon == 11);
+    }
+    public static bool ShakmehGaugeAccess(bool final)
+    {
+        var user = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.UserManager;
+        var currency = GameRoot.Instance.CurrencyTypeDataContainer.GetData(CurrencyType.ShakmehMiddleBossPoint);
+        long wrath = user.GetUserStat(NGame2.NAccount.UserManager.UserStatType.ShakmehMiddleBossPoint);
+        bool ready = currency != null && wrath >= currency.MaxValue;
+        if (final == ready) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Shakmeh", final
+            ? "Shakmeh's Wrath is " + wrath + "/" + (currency == null ? "600" : currency.MaxValue.ToString()) + ". Defeat Devourer Shakmeh to fill it before challenging Otherworldly Darkness Shakmeh."
+            : "Otherworldly Darkness Shakmeh has appeared. Challenge him before returning to Devourer Shakmeh.");
+        return false;
+    }
+    public static bool OpenShakmehBranch(string[] values)
+    {
+        if (values == null || values.Length == 0 || (values[0] != "Middle" && values[0] != "Final")) return false;
+        if (!ShakmehAccess()) return true;
+        if (!NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager.IsCompleted(50000, 601, DungeonDifficultyType.Easy))
+        {
+            NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Complete The Shadow of Aegina story to unlock the Shakmeh boss shortcuts.");
+            return true;
+        }
+        bool final = values[0] == "Final";
+        if (!ShakmehGaugeAccess(final)) return true;
+        // This manager is internal in the recovered DLL. Use its native singleton
+        // and explicit chapter/node overload; the boss-type overload ignores its argument.
+        var type = typeof(GameRoot).Assembly.GetType("NGame2.NUI.NManager.ShakmehDungeonManagement", true);
+        var singleton = typeof(NVespa.NSingleton.SceneAutoBehaviour<>).MakeGenericType(type);
+        var manager = singleton.GetProperty("instance").GetValue(null, null);
+        NGame2.NAccount.UserCampaignManager.ChapterIndex = 50000;
+        NGame2.NAccount.UserCampaignManager.DungeonIndex = final ? 11 : 10;
+        type.GetMethod("OpenShakmehDungeonWindow", new System.Type[] { typeof(int), typeof(int) })
+            .Invoke(manager, new object[] { 50000, final ? 11 : 10 });
+        return true;
+    }
+    public static bool UseShakmehWindow(PortalRenewalData menu)
+    {
+        return menu.Category == PortalRenewalCategory.Shakmeh && menu.SubComponentShape == PortalRenewalCompType.Window;
+    }
+    static string UnlockMessage(PortalRenewalCategory category)
+    {
+        if (category == PortalRenewalCategory.TechnoRaid) return "Clear 10-9 to unlock Technomagic Raid. Siegfried and Ascalon require 10-30.";
+        if (category == PortalRenewalCategory.PunishmentRaid) return "Clear X-10 to unlock Apocalypsion Raid.";
+        return category == PortalRenewalCategory.Shakmeh ? "Complete the World Tree story in Chapter 9.5 to access The Shadow of Aegina." : "Complete the God King's Temple story after 6-21.";
+    }
+    public static bool GodkingAccess()
+    {
+        RestoreGodkingClassRules();
+        if (NGame2.NUI.NManager.NLobby.SoulWeaponManagement.IsOpenGodKingTemple()) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open("Content locked", "Clear 6-21 and complete the God King's Temple story to unlock God King's Trial and Eclipse.");
+        return false;
+    }
+    public static void RestoreGodkingClassRules()
+    {
+        foreach (var group in GameRoot.Instance.GodkingTrialGroupDataContainer.GetAllData())
+        {
+            // Recovered verbatim from the reference client's trial group table.
+            if (group.ChapterIndex == 100000) group.BanRuleIndex = 303;
+            else if (group.ChapterIndex == 100001) group.BanRuleIndex = 304;
+            else if (group.ChapterIndex == 100002) group.BanRuleIndex = 305;
+        }
+    }
+    public static void GodkingWindowBackground(ContentUIGodkingTrialDungeonList window)
+    {
+        Transform background = window.transform.Find("Panel/Root/Bg");
+        if (background != null)
+        {
+            UITexture texture = background.GetComponent<UITexture>();
+            if (texture != null)
+            {
+                background.gameObject.SetActive(true);
+                texture.color = Color.white;
+                NGame2.NUI.UIHelper.ResetPlaneAssetTextureAsync(texture, texture,
+                    NGame2.NUI.UIHelper.GetPlainTexture("UI/Tower/GodKing_Bg"),
+                    NGame2.NUI.UIHelper.EAssetTextureAssign.None, null);
+            }
+        }
+        var portal = UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.PortalRenewal>();
+        if (portal != null && portal.IsOpen()) portal.SetEventHide(0f);
+    }
+    public static void GodkingReturnToPortal()
+    {
+        var portal = UnityEngine.Object.FindObjectOfType<NGame2.NUI.NWindow.PortalRenewal>();
+        if (portal != null && portal.IsOpen()) portal.SetEventHide(1f);
+    }
+    public static bool ClosePortalForActivity(bool original, ClientActivityType activity)
+    {
+        return original || activity == ClientActivityType.OpenEclipse
+            || activity == ClientActivityType.OpenPunishmentRaid;
+    }
+
+    public static bool ChapterFiveSubStoryHidden(bool hidden, CampaignNodeData node)
+    {
+        if (node == null) return hidden;
+        // Both territory NPCs are visible in the pre-Doomsday Guild map.
+        if (node.ChapterIndex == 995 &&
+            ((node.DungeonIndex == 5 && node.EntryNPCCode == "GuildSuppress") ||
+             (node.DungeonIndex == 6 && node.EntryNPCCode == "GuildRankingBoard"))) return false;
+        if (node.ChapterIndex == 99 && node.DungeonIndex == 41) return false;
+        // Shipped branch 5-21 -> 133 -> 31 leads to hero substory 100017.
+        // Keep the native graph progression and substory entry requirements.
+        if (node.ChapterIndex == 5 && node.DungeonIndex == 31 &&
+            node.Function == NodeFunctionType.MoveSubStory && node.Value != null &&
+            node.Value.Length >= 2 && node.Value[0] == "100017" && node.Value[1] == "1") return false;
+        return hidden;
+    }
+
+    public static bool WorldMapHidden(bool hidden, PortalData portal)
+    {
+        // The illustrated World Map uses PortalTable, independently of PortalRenewal.
+        // Restore chapter landmarks and their centering records, retaining the
+        // original clear-dungeon conditions and leaving special destinations alone.
+        if (portal.ChapterIndex >= 5 && portal.ChapterIndex <= 11 &&
+            (portal.DungeonIndex == -1 || portal.DungeonIndex == 1)) return false;
+        return hidden;
+    }
+
+    public static Dictionary<int, CampaignChapterData> MainChapters(Dictionary<int, CampaignChapterData> original)
+    {
+        var rows = original ?? new Dictionary<int, CampaignChapterData>();
+        foreach (var chapter in GameRoot.Instance.CampaignChapterDataContainer.GetAllData())
+            if (chapter.MainField && chapter.IsOpen) rows[chapter.Index] = chapter;
+        return rows;
+    }
+
+    public static bool RestoredCampaignChapterOpen(bool original, CampaignChapterData chapter)
+    {
+        // Restore shipped story chapters and the 9.5/epilogue prerequisites for 10.
+        // Ice Crystal Cave uses 117 for the first visit and 127 for the return map.
+        return original || (chapter.Index >= 4 && chapter.Index <= 11) || chapter.Index == 95 || chapter.Index == 97
+            || chapter.Index == 117 || chapter.Index == 127;
+    }
+
+    public static bool ReserveContentsUnlockNotice(NShared.ContentsOpenConditionData data)
+    {
+        if (data == null || !NGame2.NAccount.AccountManager.IsLogined()) return false;
+        // Full quest snapshots can report an unclaimed completed quest repeatedly.
+        // Announcements are one-time per content and account, independent of claiming.
+        var seen = new NVespa.LocalAccountBool(false, "Sprk.ContentsUnlockNotice." + data.Index);
+        if (seen.Value) return false;
+        seen.Value = true;
+        return true;
+    }
+
+    public static int EquipmentBagMaxExtensions(int original, NShared.InventoryType inventoryType)
+    {
+        // 280 base slots + 90 extensions of 8 slots = 1000.
+        return inventoryType == NShared.InventoryType.Inventory ? System.Math.Min(original, 90) : original;
+    }
+
+    public static bool ShowMailCapacityError(NShared.Response response)
+    {
+        if (response == null || response.InternalErrorMessage != "Equipment bag is full. Free space and try claiming the mail again.") return false;
+        NGame2.NUI.NWindow.MessagePopup.Open("Equipment bag full", response.InternalErrorMessage);
+        return true;
+    }
+
+    // Boss HP gates require their story sequences even for skipped tutorials:
+    // 2-18 event 20181; 4-21 sequence 40212 removes Malduk's skill 39.
+    public static bool RequiredBattleStoryEnabled(bool enabled)
+    {
+        if (enabled) return true;
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Battle2") return false;
+        var context = NVespa.SingletonAuto<NGame2.NBattleContext.CampaignContext>.instance;
+        var dungeon = context.EnterDungeon;
+        return dungeon != null && dungeon.IsScenario &&
+            ((dungeon.Chapter == 2 && dungeon.OriginalDungeon == 18) ||
+             (dungeon.Chapter == 4 && dungeon.OriginalDungeon == 21));
+    }
+
+    public static EntryMenu ArenaMenu(EntryMenu menu)
+    {
+        // The archived town menu has no selector slots. Desktop MatchSelect
+        // interprets an empty array as removing every card from its grid.
+        if (menu != null && menu.ChildIndices != null && menu.ChildIndices.Length > 0) return menu;
+        var slots = new int[3];
+        for (int i = 0; i < slots.Length; i++) slots[i] = i + 1;
+        return new EntryMenu(menu == null ? 0 : menu.Index,
+            menu == null ? new string[0] : menu.EntryMenuButton,
+            menu == null ? "" : menu.EntryMenuCondition,
+            menu == null ? new string[0] : menu.EntryMenuEvent,
+            slots, menu == null ? 0 : menu.ParentIndex);
+    }
+    public static void OpenValanceCraft(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenCraftInven(); else manager.OpenCraft();
+    }
+    public static void OpenValanceIdentified(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenIdentifiedInven(null); else manager.OpenIdentified();
+    }
+    public static void OpenValanceManage(CampaignNodeData node)
+    {
+        var manager = NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ValanceManagement>.instance;
+        if (node == null) manager.OpenManageInven(); else manager.OpenManage();
+    }
+    static List<RaidData> ReconstructedRaids()
+    {
+        var rows = (System.Collections.IList)MiniJSON.Json.Deserialize("__RECONSTRUCTED_RAIDS__");
+        var result = new List<RaidData>();
+        foreach (System.Collections.IDictionary row in rows) result.Add(new RaidData {
+            Index=System.Convert.ToInt32(row["Index"]), Level=System.Convert.ToInt32(row["Level"]),
+            Type=(RaidType)System.Convert.ToInt32(row["Type"]), Name=(string)row["Name"],
+            ChapterIndex=System.Convert.ToInt32(row["ChapterIndex"]), DungeonIndex=System.Convert.ToInt32(row["DungeonIndex"]),
+            IsOpen=(bool)row["IsOpen"], PlayerCount=System.Convert.ToInt32(row["PlayerCount"]),
+            DeckCount=System.Convert.ToInt32(row["DeckCount"]), DeckCountPerPlayer=System.Convert.ToInt32(row["DeckCountPerPlayer"]),
+            MainPartyCount=System.Convert.ToInt32(row["MainPartyCount"]), SubPartyCount=System.Convert.ToInt32(row["SubPartyCount"]),
+            ReqHeroLevel=System.Convert.ToInt32(row["ReqHeroLevel"]), IsOnlineSingle=(bool)row["IsOnlineSingle"],
+            AliveDuration=System.Convert.ToInt32(row["AliveDuration"]), ClearRaidIndex=System.Convert.ToInt32(row["ClearRaidIndex"]),
+            IndividualReward=System.Convert.ToInt32(row["IndividualReward"]), ResetGem=System.Convert.ToInt32(row["ResetGem"]),
+            BanIndex=System.Convert.ToInt32(row["BanIndex"]),
+            RaidMultiInfoGroupIndex=System.Convert.ToInt32(row["RaidMultiInfoGroupIndex"]),
+            HideRaidInfoSkillTab=System.Convert.ToBoolean(row["HideRaidInfoSkillTab"]),
+            // Older reconstructed rows use numeric zero for no custom animation.
+            RaidInfoCustomIdle=row["RaidInfoCustomIdle"] as string,
+            NodeTreePath=(string)row["NodeTreePath"], NodeTreeCode=(string)row["NodeTreeCode"],
+            PreviewBg=(string)row["PreviewBg"], Tactic=(string)row["Tactic"], RaidDesc=(string)row["RaidDesc"],
+            SingleRaidIndex=System.Convert.ToInt32(row["SingleRaidIndex"]),
+            FilterValue=System.Convert.ToInt32(row["FilterValue"]),
+            Step_Name=(string)row["Step_Name"] ?? "", Step_HelpDesc=(string)row["Step_HelpDesc"] ?? "",
+            OccurChapterIndex=System.Convert.ToInt32(row["OccurChapterIndex"]),
+            RaidPoint=System.Convert.ToInt32(row["RaidPoint"]),
+            OpenCondition=IntArray(row["OpenCondition"]),
+            RecommendedHeroIndex=IntArray(row["RecommendedHeroIndex"]), ShowInfoSkill=IntArray(row["ShowInfoSkill"])
+        });
+        return result;
+    }
+    static int[] IntArray(object value)
+    {
+        var list = value as System.Collections.IList;
+        if (list == null) return new int[0];
+        var result = new int[list.Count];
+        for (int i = 0; i < list.Count; i++) result[i] = System.Convert.ToInt32(list[i]);
+        return result;
+    }
+    public static int MultiRaid(int original, int singleIndex)
+    {
+        if (original != 0) return original;
+        foreach (var row in ReconstructedRaids()) if (row.SingleRaidIndex == singleIndex && singleIndex != 0) return row.Index;
+        return 0;
+    }
+    public static RaidData Raid(RaidData original, int index, int level)
+    {
+        if (original != null) return original;
+        foreach (var row in ReconstructedRaids()) if (row.Index == index && row.Level == level) return row;
+        return null;
+    }
+    public static RaidData RaidDungeon(RaidData original, int chapter, int dungeon)
+    {
+        if (original != null) return original;
+        foreach (var row in ReconstructedRaids()) if (row.ChapterIndex == chapter && row.DungeonIndex == dungeon) return row;
+        return null;
+    }
+    public static ICollection<int> RaidIndices(ICollection<int> original, RaidType type)
+    {
+        var result = original == null ? new List<int>() : new List<int>(original);
+        foreach (var row in ReconstructedRaids()) if (row.Type == type && !result.Contains(row.Index)) result.Add(row.Index);
+        return result;
+    }
+    public static ICollection<int> RaidLevels(ICollection<int> original, int index)
+    {
+        var result = original == null ? new List<int>() : new List<int>(original);
+        foreach (var row in ReconstructedRaids()) if (row.Index == index && !result.Contains(row.Level)) result.Add(row.Level);
+        return result;
+    }
+    public static IList<RaidData> RaidList(IList<RaidData> original, RaidType type)
+    {
+        var result = original == null ? new List<RaidData>() : new List<RaidData>(original);
+        foreach (var row in ReconstructedRaids()) {
+            if (row.Type != type) continue;
+            bool exists = false;
+            foreach (var old in result) if (old.Index == row.Index && old.Level == row.Level) exists = true;
+            if (!exists) result.Add(row);
+        }
+        return result;
+    }
+    public static IList<PortalRenewalData> Categories(IList<PortalRenewalData> original)
+    {
+        var result = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);
+        Menu(result, PortalRenewalCategory.Valance, "Valance's Workshop");
+        Menu(result, PortalRenewalCategory.Arena, "Arena");
+        Menu(result, PortalRenewalCategory.Raid, "Raid");
+        Menu(result, PortalRenewalCategory.WorldBoss, "World Boss");
+        Menu(result, PortalRenewalCategory.GodKingTemple, "God King's Temple");
+        Menu(result, PortalRenewalCategory.Eclipse, "Eclipse");
+        Menu(result, PortalRenewalCategory.Shakmeh, "Shakmeh");
+        Menu(result, PortalRenewalCategory.ChallengeRaid, "Challenge Raid");
+        Menu(result, PortalRenewalCategory.Guild, "Guild");
+        Menu(result, PortalRenewalCategory.GuildTerritory, "Guild Territory");
+        Menu(result, PortalRenewalCategory.Pet, "Pets");
+        Menu(result, PortalRenewalCategory.TechnoRaid, "Technomagic Raid");
+        Menu(result, PortalRenewalCategory.TreasureHouse, "Treasure House");
+        Menu(result, PortalRenewalCategory.PunishmentRaid, "Apocalypsion Raid");
+        Menu(result, PortalRenewalCategory.PunishmentRuneCraft, "Rune Crafting");
+        return result;
+    }
+
+    static void Menu(List<PortalRenewalData> rows, PortalRenewalCategory category, string title)
+    {
+        foreach (var row in rows) if (row.Category == category) return;
+        rows.Add(new PortalRenewalData { Category = category, SubCategory = PortalRenewalSubCategory.MENUBUTTON,
+            OpenCondition = GodkingCondition(category), OpenConditionLocalKey = UnlockMessage(category),
+            SubComponentShape = PortalRenewalCompType.Small, MenuShowIndex = 100 + (int)category, MenuButtonLocalkey = title, TitleLocalKey = title });
+    }
+
+    public static IList<PortalRenewalData> Contents(IList<PortalRenewalData> original, PortalRenewalCategory category)
+    {
+        var rows = original == null ? new List<PortalRenewalData>() : new List<PortalRenewalData>(original);
+        if (category == PortalRenewalCategory.Chapter)
+        {
+            for (int chapter = 5; chapter <= 11; chapter++)
+            {
+                bool exists = false;
+                foreach (var row in rows) if (row.ContentsShowIndex == chapter) exists = true;
+                if (!exists) rows.Add(new PortalRenewalData {
+                    Category = category, SubCategory = (PortalRenewalSubCategory)(100 + chapter),
+                    ContentsShowIndex = chapter, SubComponentShape = (PortalRenewalCompType)5,
+                    TitleLocalKey = "PORTAL_CHAPTER_" + chapter + "_NAME",
+                    MainImagePath = "Portal_Chapter" + chapter + "_Image", VisualChapterIndex = chapter.ToString()
+                });
+            }
+        }
+        // Do not replace native content panels when another client table already provides them.
+        foreach (var row in rows) if (row.SubCategory != PortalRenewalSubCategory.MENUBUTTON) return rows;
+        foreach (var menu in Categories(rows))
+            if (menu.Category == category && !rows.Contains(menu)) rows.Add(menu);
+        switch (category)
+        {
+            case PortalRenewalCategory.Valance:
+                Add(rows, category, PortalRenewalSubCategory.Identified, "Identification", ClientActivityType.UsingActionContainer, "OpenValanceIndentified");
+                Add(rows, category, PortalRenewalSubCategory.Craft, "Craft", ClientActivityType.UsingActionContainer, "OpenValanceCraft");
+                Add(rows, category, PortalRenewalSubCategory.Management, "Management", ClientActivityType.UsingActionContainer, "OpenValanceManage"); break;
+            case PortalRenewalCategory.Arena:
+                Add(rows, category, PortalRenewalSubCategory.LeagueOfVictory, "League of Victory", ClientActivityType.OpenArena, "Normal");
+                Add(rows, category, PortalRenewalSubCategory.LeagueOfGlory, "League of Honor", ClientActivityType.OpenArena, "BanPick");
+                Add(rows, category, PortalRenewalSubCategory.OrdealArena, "League of Triumph", ClientActivityType.OpenArena, "Ordeal"); break;
+            case PortalRenewalCategory.Raid:
+                Add(rows, category, PortalRenewalSubCategory.DragonRaid, "Dragon Raid", ClientActivityType.OpenRaid, "DragonNormal");
+                Add(rows, category, PortalRenewalSubCategory.DragonRaidHard, "Dragon Raid (Hard)", ClientActivityType.OpenRaid, "DragonHard");
+                Add(rows, category, PortalRenewalSubCategory.FieldRaid, "Field Raid", ClientActivityType.OpenRaid, "FieldRaid"); break;
+            case PortalRenewalCategory.WorldBoss:
+                Add(rows, category, PortalRenewalSubCategory.WorldBoss, "World Boss", ClientActivityType.OpenWorldBoss); break;
+            case PortalRenewalCategory.GodKingTemple:
+                Add(rows, category, PortalRenewalSubCategory.GodkingTrial, "Trial of the God King", ClientActivityType.OpenGodkingTrial);
+                Add(rows, category, PortalRenewalSubCategory.GodkingSanctum, "Soul Weapons", ClientActivityType.UsingActionContainer, "OpenSoulWeapon"); break;
+            case PortalRenewalCategory.Eclipse:
+                Add(rows, category, PortalRenewalSubCategory.Eclipse, "Eclipse", ClientActivityType.OpenEclipse); break;
+            case PortalRenewalCategory.Shakmeh:
+                Add(rows, category, PortalRenewalSubCategory.ShadowOfAegina, "The Shadow of Aegina", ClientActivityType.MoveToNode, "50000", "50", "false", "true", "true");
+                Add(rows, category, PortalRenewalSubCategory.ShakmehMiddle, "Devourer Shakmeh", ClientActivityType.OpenShakmehDungeon, "Middle");
+                Add(rows, category, PortalRenewalSubCategory.ShakmehFinal, "Otherworldly Darkness Shakmeh", ClientActivityType.OpenShakmehDungeon, "Final"); break;
+            case PortalRenewalCategory.ChallengeRaid:
+                Add(rows, category, PortalRenewalSubCategory.ChallengeRaid, "Challenge Raid", ClientActivityType.OpenChallengeRaid); break;
+            case PortalRenewalCategory.Guild:
+                Add(rows, category, PortalRenewalSubCategory.GuildArena, "Guild War", ClientActivityType.OpenGuildArena);
+                Add(rows, category, PortalRenewalSubCategory.GuildSuppress, "Guild Conquest", ClientActivityType.OpenGuildSuppress);
+                Add(rows, category, PortalRenewalSubCategory.GuildRaid, "Guild Raid", ClientActivityType.OpenGuildRaid); break;
+            case PortalRenewalCategory.GuildTerritory:
+                Add(rows, category, PortalRenewalSubCategory.GuildHeadquarter, "Guild Headquarters", ClientActivityType.MoveToNode, "995", "1", "true", "true");
+                Add(rows, category, PortalRenewalSubCategory.GuildTrainingCenter, "Guild Training Center", ClientActivityType.UsingActionContainer, "OpenGuildTrainingCenter");
+                Add(rows, category, PortalRenewalSubCategory.RankingBoard, "Guild Rankings", ClientActivityType.UsingActionContainer, "OpenGuildRankingBoard"); break;
+            case PortalRenewalCategory.Pet:
+                Add(rows, category, PortalRenewalSubCategory.Pet, "Pet House", ClientActivityType.OpenPetHouse);
+                break; // Native portal renders only the Pet row; incubator is available inside Pet House.
+            case PortalRenewalCategory.TechnoRaid:
+                Add(rows, category, PortalRenewalSubCategory.TechnomagicRaid, "Technomagic Raid", ClientActivityType.OpenRaid, "TechnoMagic");
+                Add(rows, category, PortalRenewalSubCategory.TechnoEnchantRaid, "Technomagic Enchantment Raid", ClientActivityType.OpenRaid, "TechnoEnchant"); break;
+            case PortalRenewalCategory.TreasureHouse:
+                Add(rows, category, PortalRenewalSubCategory.TreasureHouse, "Treasure House", ClientActivityType.UsingActionContainer, "OpenTreasureHouse"); break;
+            case PortalRenewalCategory.PunishmentRaid:
+                Add(rows, category, PortalRenewalSubCategory.PunishmentRaid, "Apocalypsion Raid", ClientActivityType.OpenPunishmentRaid, "11", "700"); break;
+            case PortalRenewalCategory.PunishmentRuneCraft:
+                Add(rows, category, PortalRenewalSubCategory.PunishmentRuneCraft, "Rune Crafting", ClientActivityType.UsingActionContainer, "OpenPunishmentRuneCraft"); break;
+        }
+        return rows;
+    }
+
+    static string[] GodkingCondition(PortalRenewalCategory category)
+    {
+        if (category == PortalRenewalCategory.TechnoRaid) return new string[] { "CompleteDungeon", "10", "9", "true" };
+        if (category == PortalRenewalCategory.PunishmentRaid) return new string[] { "CompleteDungeon", "11", "10", "true" };
+        if (category == PortalRenewalCategory.Shakmeh) return new string[] { "CompleteDungeon", "97", "2", "true" };
+        return category == PortalRenewalCategory.GodKingTemple || category == PortalRenewalCategory.Eclipse
+            ? new string[] { "CompleteDungeon", "65", "11", "true" } : null;
+    }
+
+    // Original sprite names from the installed Portal ContentImage atlases.
+    static string CardImage(PortalRenewalSubCategory sub)
+    {
+        switch (sub)
+        {
+            case PortalRenewalSubCategory.Identified: return "Portal_Valance_Identified";
+            case PortalRenewalSubCategory.Craft: return "Portal_Valance_Craft";
+            case PortalRenewalSubCategory.Management: return "Portal_Valance_Management";
+            case PortalRenewalSubCategory.LeagueOfVictory: return "Portal_Arena_Victory_Button";
+            case PortalRenewalSubCategory.LeagueOfGlory: return "Portal_Arena_Honor_Button";
+            case PortalRenewalSubCategory.OrdealArena: return "Portal_Arena_Ordeal_Button";
+            case PortalRenewalSubCategory.DragonRaid: return "Portal_Raid_Dragon_Button";
+            case PortalRenewalSubCategory.DragonRaidHard: return "Portal_Raid_DragonHard_Button";
+            case PortalRenewalSubCategory.FieldRaid: return "Portal_Raid_Field_Button";
+            case PortalRenewalSubCategory.WorldBoss: return "Portal_WorldBoss_NotProgress_Image";
+            case PortalRenewalSubCategory.GodkingTrial: return "Portal_Sanctuary_TrialoftheGodking_Button";
+            case PortalRenewalSubCategory.GodkingSanctum: return "Portal_Sanctuary_KingSanctum_Button";
+            case PortalRenewalSubCategory.Eclipse: return "Portal_Notice_Eclipse_Button";
+            case PortalRenewalSubCategory.Shakmeh: return "Portal_MiddleBossShakmeh_Image";
+            case PortalRenewalSubCategory.ShadowOfAegina: return "Portal_MiddleBossShakmeh_Image";
+            case PortalRenewalSubCategory.ShakmehMiddle: return "Portal_Notice_MiddleBossShakmeh_Button";
+            case PortalRenewalSubCategory.ShakmehFinal: return "Portal_Notice_FinalBossShakmeh_Button";
+            case PortalRenewalSubCategory.ChallengeRaid: return "Portal_ChallengeRaid_NotProgress_Image";
+            case PortalRenewalSubCategory.GuildArena: return "Portal_GuildBattle_GuildArena_Button";
+            case PortalRenewalSubCategory.GuildSuppress: return "Portal_GuildBattle_GuildSuppress_Button";
+            case PortalRenewalSubCategory.GuildRaid: return "Portal_GuildBattle_GuildRaid_Button";
+            case PortalRenewalSubCategory.GuildHeadquarter: return "Portal_Guild_GuildHeadquarter_Button";
+            case PortalRenewalSubCategory.GuildTrainingCenter: return "Portal_Guild_CommandCenter_Button";
+            case PortalRenewalSubCategory.RankingBoard: return "Portal_Guild_Ranking_Button";
+            case PortalRenewalSubCategory.Pet: return "Portal_PetHouse_Image";
+            case PortalRenewalSubCategory.TechnomagicRaid: return "Portal_Raid_Technomagic_Button";
+            case PortalRenewalSubCategory.TechnoEnchantRaid: return "Portal_Raid_TechnoEnchant_Button";
+            case PortalRenewalSubCategory.TreasureHouse: return "Portal_TreasureHouse_Image";
+            case PortalRenewalSubCategory.PunishmentRaid: return "Portal_Punishment_Image";
+            case PortalRenewalSubCategory.PunishmentRuneCraft: return "Portal_Punishment_Button";
+            default: return null;
+        }
+    }
+
+    static void Add(List<PortalRenewalData> rows, PortalRenewalCategory category, PortalRenewalSubCategory sub,
+        string title, ClientActivityType activity, params string[] args)
+    {
+        if ((category == PortalRenewalCategory.Guild || category == PortalRenewalCategory.GuildTerritory)
+            && NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NGuild.GuildManager>.instance.MyGuildManager.GetGuildId() == 0)
+        {
+            activity = ClientActivityType.MoveToNode;
+            args = new string[] { "99", "5", "true", "true" };
+        }
+        bool shakmehBoss = category == PortalRenewalCategory.Shakmeh && (sub == PortalRenewalSubCategory.ShakmehMiddle || sub == PortalRenewalSubCategory.ShakmehFinal);
+        rows.Add(new PortalRenewalData { Category = category, SubCategory = sub, TitleLocalKey = title,
+            MenuButtonLocalkey = title, MainImagePath = CardImage(sub), ContentsShowIndex = rows.Count, SubComponentShape = PortalRenewalCompType.Small,
+            OpenCondition = shakmehBoss ? new string[] { "CompleteDungeon", "50000", "601", "true" } : GodkingCondition(category),
+            OpenConditionLocalKey = shakmehBoss ? "Complete The Shadow of Aegina story to unlock Shakmeh boss battles." : UnlockMessage(category),
+            MoveTaskType = activity, MoveTaskValue = args });
+    }
+}

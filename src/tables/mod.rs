@@ -2,12 +2,37 @@
 //! 
 //! This module loads and provides access to game data from decoded JSON table files.
 
+#[cfg(test)]
+mod restoration_tests {
+    #[test]
+    fn original_table_fixture_loads_without_fallback() {
+        let path=std::env::var("SPRK_TABLE_FIXTURE").unwrap_or_else(|_| "tables".to_string());
+        let tables=super::GameTables::load(std::path::Path::new(&path)).expect("Restored rules must load without fallback");
+        assert!(tables.inventory.items.len()>1000);
+        assert!(tables.hero_shop.heroes.len()>=102);
+        assert!(tables.progression.achievements.len()>1000);
+        assert!(tables.rewards.entries.len()>1000);
+        assert!(tables.item_groups.entries.len()>1000);
+        assert!(tables.battle.tables.contains_key("Raid"));
+    }
+}
+
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::sync::Arc;
 
 mod campaign_dungeon;
+mod inventory;
+mod hero_shop;
+mod progression;
+mod extensions;
+mod battle;
+pub use battle::BattleTable;
+pub use extensions::ExtensionTable;
+pub use progression::ProgressionTable;
+pub use hero_shop::HeroShopTable;
+pub use inventory::InventoryTable;
 pub mod item;
 mod item_group;
 mod reward;
@@ -52,6 +77,14 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub services: Arc<BattleTable>,
+    pub live: Arc<BattleTable>,
+    pub arena_guild: Arc<BattleTable>,
+    pub battle: Arc<BattleTable>,
+    pub extensions: Arc<ExtensionTable>,
+    pub progression: Arc<ProgressionTable>,
+    pub hero_shop: Arc<HeroShopTable>,
+    pub inventory: Arc<InventoryTable>,
     pub campaign_dungeons: Arc<CampaignDungeonTable>,
     pub rewards: Arc<RewardTable>,
     pub item_groups: Arc<ItemGroupTable>,
@@ -65,6 +98,7 @@ impl GameTables {
     /// Load all game tables from the specified directory
     pub fn load(table_dir: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         tracing::info!("Loading game tables from: {:?}", table_dir);
+        let battle = Arc::new(BattleTable::load(&table_dir.join("BattleSupport.json"))?);
         
         let campaign_dungeons = CampaignDungeonTable::load(
             &table_dir.join("CampaignDungeonTable.json")
@@ -77,9 +111,13 @@ impl GameTables {
         tracing::info!("Loaded {} reward entries", rewards.entries.len());
         
         // Load the resolved item group table (keyed by string codes)
-        let item_groups = ItemGroupTable::load(
+        let mut item_groups = ItemGroupTable::load(
             &table_dir.join("ItemGroupTableResolved.json")
         )?;
+        let live = Arc::new(BattleTable::load_with_rules(&table_dir.join("LiveSupport.json"), "LiveRules.json")?);
+        if let Some(groups) = live.rules["LocalGroups"].as_object() {
+            for (code, group) in groups { item_groups.entries.insert(code.clone(), serde_json::from_value(group.clone())?); }
+        }
         tracing::info!("Loaded {} item group entries", item_groups.entries.len());
         
         // Load the item group string pool (for resolving integer indices to string codes in ItemGroupTable)
@@ -104,9 +142,17 @@ impl GameTables {
         let tutorials = TutorialTable::load(
             &table_dir.join("TutorialTable.json")
         )?;
-        tracing::info!("Loaded {} tutorial dungeon rewards", tutorials.dungeon_rewards.len());
+        tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            services: Arc::new(BattleTable::load_with_rules(&table_dir.join("ServicesSupport.json"), "ServicesRules.json")?),
+            live,
+            arena_guild: Arc::new(BattleTable::load_with_rules(&table_dir.join("ArenaGuildSupport.json"), "ArenaGuildRules.json")?),
+            battle,
+            extensions: Arc::new(ExtensionTable::load(&table_dir.join("ExtensionSupport.json"))?),
+            progression: Arc::new(ProgressionTable::load(table_dir)?),
+            hero_shop: Arc::new(HeroShopTable::load(&table_dir.join("HeroShopSupport.json"))?),
+            inventory: Arc::new(InventoryTable::load(&table_dir.join("InventorySupport.json"))?),
             campaign_dungeons: Arc::new(campaign_dungeons),
             rewards: Arc::new(rewards),
             item_groups: Arc::new(item_groups),
@@ -120,6 +166,14 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            services: Arc::new(BattleTable::default()),
+            live: Arc::new(BattleTable::default()),
+            arena_guild: Arc::new(BattleTable::default()),
+            battle: Arc::new(BattleTable::default()),
+            extensions: Arc::new(ExtensionTable::default()),
+            progression: Arc::new(ProgressionTable::default()),
+            hero_shop: Arc::new(HeroShopTable::default()),
+            inventory: Arc::new(InventoryTable::default()),
             campaign_dungeons: Arc::new(CampaignDungeonTable::default()),
             rewards: Arc::new(RewardTable::default()),
             item_groups: Arc::new(ItemGroupTable::default()),

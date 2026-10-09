@@ -1,0 +1,148 @@
+using System;
+using System.Collections;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using NVespa.NSocket;
+
+// Adapt the native connector's byte stream to WebSockets. Native framing,
+// callbacks, authenticated logins, ping timers and reconnects remain intact.
+public static class SprkWebSocketTransport
+{
+    static readonly MethodInfo NativeConnect = typeof(SocketConnector).GetMethod(
+        "SprkConnectTcpCoroutine", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    public static IEnumerator Connect(SocketConnector connector, string address, int port, Action<bool> callback, float timeout)
+    {
+        Uri uri;
+        if (!Uri.TryCreate(address, UriKind.Absolute, out uri) || (uri.Scheme != "ws" && uri.Scheme != "wss"))
+            return (IEnumerator)NativeConnect.Invoke(connector, new object[] { address, port, callback, timeout });
+        return ConnectWebSocket(connector, uri, callback, timeout);
+    }
+
+    static IEnumerator ConnectWebSocket(SocketConnector connector, Uri uri, Action<bool> callback, float timeout)
+    {
+        connector.Close();
+        typeof(SocketConnector).GetProperty("State").GetSetMethod(true).Invoke(connector, new object[] { ConnectState.Connecting });
+        var session = new Bridge();
+        bool connected = false;
+        try {
+        Task opening;
+        try { opening = session.Open(uri, TimeSpan.FromSeconds(Math.Max(1, timeout))); }
+        catch (Exception error) { session.Dispose(); Fail(connector, callback, error); yield break; }
+        while (!opening.IsCompleted) {
+            if (connector.State != ConnectState.Connecting) yield break;
+            yield return null;
+        }
+        if (connector.State != ConnectState.Connecting) yield break;
+        if (opening.IsFaulted || opening.IsCanceled)
+        {
+            var error = opening.Exception;
+            session.Dispose(); Fail(connector, callback, error); yield break;
+        }
+        var native = (IEnumerator)NativeConnect.Invoke(connector, new object[] {
+            "127.0.0.1", session.Port, new Action<bool>(success => {
+                connected = success;
+                if (success) {
+                    typeof(SocketConnector).GetProperty("Address").GetSetMethod(true).Invoke(connector, new object[] { uri.AbsoluteUri });
+                    typeof(SocketConnector).GetProperty("Port").GetSetMethod(true).Invoke(connector, new object[] { uri.Port });
+                }
+                if (callback != null) callback(success);
+            }), timeout
+        });
+        while (native.MoveNext()) yield return native.Current;
+        }
+        finally { if (!connected) session.Dispose(); }
+        // After native connect, TCP closure (including application quit) owns
+        // cleanup. The relay closes both sides whenever either side disconnects.
+    }
+
+    static void Fail(SocketConnector connector, Action<bool> callback, Exception error)
+    {
+        connector.Close();
+        UnityEngine.Debug.LogWarning("SPRK WebSocket connection failed: " + (error == null ? "timeout" : error.GetBaseException().Message));
+        if (callback != null) callback(false);
+    }
+
+    public sealed class Bridge : IDisposable
+    {
+        readonly ClientWebSocket websocket = new ClientWebSocket();
+        readonly CancellationTokenSource stop = new CancellationTokenSource();
+        TcpListener listener;
+        TcpClient client;
+        int disposed;
+        public int Port { get; private set; }
+        public Task Completion { get; private set; }
+
+        public async Task Open(Uri uri, TimeSpan timeout)
+        {
+            // No certificate bypass: WSS uses the runtime's normal trust checks.
+            websocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+            using (var opening = CancellationTokenSource.CreateLinkedTokenSource(stop.Token)) {
+                opening.CancelAfter(timeout);
+                await websocket.ConnectAsync(uri, opening.Token).ConfigureAwait(false);
+            }
+            listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start(1);
+            Port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            Completion = Relay(timeout);
+        }
+
+        async Task Relay(TimeSpan timeout)
+        {
+            try {
+                var accept = listener.AcceptTcpClientAsync();
+                if (await Task.WhenAny(accept, Task.Delay(timeout, stop.Token)).ConfigureAwait(false) != accept) {
+                    listener.Stop();
+                    try { var late = await accept.ConfigureAwait(false); late.Close(); } catch { }
+                    throw new TimeoutException("Native connector did not attach to WebSocket adapter");
+                }
+                client = await accept.ConfigureAwait(false);
+                listener.Stop();
+                client.NoDelay = true;
+                var stream = client.GetStream();
+                var upload = Upload(stream);
+                var download = Download(stream);
+                await Task.WhenAny(upload, download).ConfigureAwait(false);
+                Dispose();
+                try { await Task.WhenAll(upload, download).ConfigureAwait(false); } catch { }
+            }
+            catch { Dispose(); }
+            finally { Dispose(); }
+        }
+
+        async Task Upload(NetworkStream stream)
+        {
+            var buffer = new byte[32768];
+            while (!stop.IsCancellationRequested) {
+                var count = await stream.ReadAsync(buffer, 0, buffer.Length, stop.Token).ConfigureAwait(false);
+                if (count == 0) return;
+                await websocket.SendAsync(new ArraySegment<byte>(buffer, 0, count), WebSocketMessageType.Binary, true, stop.Token).ConfigureAwait(false);
+            }
+        }
+
+        async Task Download(NetworkStream stream)
+        {
+            var buffer = new byte[32768];
+            while (!stop.IsCancellationRequested) {
+                var received = await websocket.ReceiveAsync(new ArraySegment<byte>(buffer), stop.Token).ConfigureAwait(false);
+                if (received.MessageType == WebSocketMessageType.Close) return;
+                await stream.WriteAsync(buffer, 0, received.Count, stop.Token).ConfigureAwait(false);
+            }
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+            stop.Cancel();
+            if (listener != null) listener.Stop();
+            if (client != null) client.Close();
+            websocket.Abort();
+            websocket.Dispose();
+        }
+    }
+}

@@ -15,6 +15,7 @@ pub struct ItemDrop {
     pub count: i32,         // Number of items
     pub star_min: i32,      // Min star level (for equipment)
     pub star_max: i32,      // Max star level (for equipment)
+    pub custom_option_index: i32,
 }
 
 /// Reward data entry from RewardTable.json
@@ -171,6 +172,7 @@ impl RewardData {
                             count,
                             star_min,
                             star_max,
+                            custom_option_index: arr.get(8).and_then(|v| v.as_i64()).unwrap_or(0) as i32,
                         });
                     }
                 }

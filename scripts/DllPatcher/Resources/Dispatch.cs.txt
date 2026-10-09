@@ -1,0 +1,163 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using NGame2.NAccount;
+using NGame2.NDispatchBattle;
+using NGame2.NBattleSimulator;
+using NShared;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+using UnityEngine.Networking;
+
+// Dispatch preparation uses the game's battle engine. Persisted outcomes then
+// progress on the server while the client is offline.
+public sealed class SprkDispatch : MonoBehaviour {
+    static SprkDispatch instance;
+    bool busy;
+    float nextPoll;
+    bool loggedReady;
+    public string LastStatus, LastError;
+    BattleSimulationInstance active;
+    [Serializable] public class Job {
+        public int SlotIndex, ChapterIndex, DungeonIndex, Difficulty, RepeatCount, SimulationVersion;
+        public string State, HeroIndices, SimulationJobId;
+    }
+    class Prepared {public int[] Outcomes, Times;}
+    readonly Dictionary<string,Prepared> prepared=new Dictionary<string,Prepared>();
+    long owner;
+    public static void Ensure() {
+        if(instance!=null) return;
+        var go=new GameObject("SprkDispatch");
+        DontDestroyOnLoad(go);instance=go.AddComponent<SprkDispatch>();
+        Debug.Log("SPRK dispatch simulator initialized");
+    }
+    public static string HelpText(string text) {
+        if(text==null)return text;
+        return text.Replace("In Dispatch Battle, you cannot regain Stamina for the battles you have lost.","In Dispatch Battle, only victories consume Stamina.")
+            .Replace("You cannot regain Stamina for battles you have lost.","Defeated and unfinished battles consume no Stamina.");
+    }
+    public static void StartRejected(NShared.StartDispatch.Response response) {
+        if(response==null) {
+            NGame2.NUI.NWindow.MessagePopup.OpenError("Unable to start dispatch. Please try again.");
+        } else if(response.BaseResult!=BaseResultType.Success) {
+            NGame2.NUI.NWindow.MessagePopup.OpenError(response.BaseResult);
+        } else if(response.Result==NShared.StartDispatch.ResultType.Fail) {
+            NGame2.NUI.NWindow.MessagePopup.Open("Dispatch", "Unable to start dispatch. Check the stage requirements, selected Heroes and available Stamina, then try again.");
+        } else {
+            NGame2.NUI.NWindow.MessagePopup.OpenError(response.Result);
+        }
+    }
+    public static int Seed(int original,string uid) {
+        if(uid==null || !uid.StartsWith("sprk-dispatch:")) return original;
+        // Each persisted job/run gets an independent, reproducible combat seed.
+        unchecked {uint hash=2166136261;foreach(char c in uid)hash=(hash^c)*16777619;
+            return (int)((hash^(uint)original)&0x7fffffff);}
+    }
+    static AccountManager Account() {return GlobalAutoBehaviour<AccountManager>.instance;}
+    static bool Ready() {return Account()!=null && Account().LoginResponseComplete && Account().UserInfo!=null
+        && SingletonUpdater<WebServiceManager>.instance.Requester!=null && !String.IsNullOrEmpty(SingletonUpdater<WebServiceManager>.instance.Requester.SessionKey);}
+    static string Host() {return SingletonUpdater<WebServiceManager>.instance.Requester.Host.TrimEnd('/');}
+    static string Session() {return SingletonUpdater<WebServiceManager>.instance.Requester.SessionKey;}
+    static int lastFrame=-1;
+    public static void Tick() {
+        if(lastFrame==Time.frameCount)return;lastFrame=Time.frameCount;
+        Ensure();instance.PollIfReady();
+    }
+    void PollIfReady() {
+
+        if(busy || Time.realtimeSinceStartup<nextPoll || !Ready())return;
+        if(!loggedReady) {loggedReady=true;Debug.Log("SPRK dispatch simulator ready");}
+        nextPoll=Time.realtimeSinceStartup+3f;StartCoroutine(Poll());
+    }
+    void OnDestroy() {if(active!=null) active.Stop();instance=null;}
+    void OnApplicationQuit() {if(active!=null) active.Stop();}
+    IEnumerator Post(string path,Dictionary<string,string> fields,Action<string> done) {
+        fields["SessionKey"]=Session();
+        string encoded=String.Join("&",fields.Select(p=>UnityWebRequest.EscapeURL(p.Key)+"="+UnityWebRequest.EscapeURL(p.Value)).ToArray());
+        using(var web=new UnityWebRequest(Host()+"/"+path,"POST")) {
+            web.uploadHandler=new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(encoded));
+            web.downloadHandler=new DownloadHandlerBuffer();
+            web.SetRequestHeader("Content-Type","application/x-www-form-urlencoded");
+            web.timeout=20;yield return web.SendWebRequest();
+            done(web.isNetworkError || web.isHttpError ? null : web.downloadHandler.text);
+        }
+    }
+    IEnumerator Poll() {
+        busy=true;
+        try {
+            long accountId=Account().UserInfo.AccountId;
+            if(owner!=accountId) {prepared.Clear();owner=accountId;}
+            string body=null;
+            yield return Post("dispatch/get_dispatch_list",new Dictionary<string,string>(),v=>body=v);
+            if(body==null) {Debug.LogWarning("SPRK dispatch list request failed");yield break;}
+            var reply=LitJson.JsonMapper.ToObject(body);
+            if(reply==null || reply["Result"].valueStr!="Success" || !reply["DispatchBattleInfos"].IsArray())yield break;
+            var array=reply["DispatchBattleInfos"];var jobs=new Job[array.Count];
+            for(int index=0;index<jobs.Length;index++) {
+                var j=array.GetFromArray(index);
+                jobs[index]=new Job {SlotIndex=j["SlotIndex"].valueInt,ChapterIndex=j["ChapterIndex"].valueInt,DungeonIndex=j["DungeonIndex"].valueInt,
+                    Difficulty=j["Difficulty"].valueInt,RepeatCount=j["RepeatCount"].valueInt,SimulationVersion=j["SimulationVersion"].valueInt,
+                    State=j["State"].valueStr,HeroIndices=j["HeroIndices"].valueStr,SimulationJobId=j["SimulationJobId"].valueStr};
+            }
+            reply.ReleaseAll();
+            if(jobs.Any(j=>j.State=="Battle" || j.State=="ReadyToComplete"))DispatchHelper.SendRQGetDispatchList(null);
+            LastStatus="Received "+jobs.Length+" jobs";
+            var pending=new HashSet<string>(jobs.Where(j=>j!=null && j.State=="Simulation" && j.SimulationVersion==1).Select(j=>j.SimulationJobId));
+            foreach(var key in prepared.Keys.ToArray())if(!pending.Contains(key))prepared.Remove(key);
+            foreach(var job in jobs) {
+                if(job==null || job.State!="Simulation" || job.SimulationVersion!=1 || !Ready() || Account().UserInfo.AccountId!=owner)continue;
+                yield return Prepare(job);
+            }
+        } finally {busy=false;}
+    }
+    IEnumerator Prepare(Job job) {
+        Prepared result;
+        if(!prepared.TryGetValue(job.SimulationJobId,out result)) {
+            var heroArray=LitJson.JsonMapper.ToObject(job.HeroIndices);var ids=new int[heroArray.Count];
+            for(int h=0;h<ids.Length;h++)ids[h]=heroArray.GetFromArray(h).valueInt;
+            heroArray.ReleaseAll();
+            if(ids==null || ids.Length==0 || job.RepeatCount<1 || job.RepeatCount>200)yield break;
+            result=new Prepared {Outcomes=new int[job.RepeatCount],Times=new int[job.RepeatCount]};
+            for(int i=0;i<job.RepeatCount;i++) {
+                string uid="sprk-dispatch:"+job.SimulationJobId+":"+i;
+                try {active=BattleSimulationFacade.RunBattleSimulation(uid,ids,job.ChapterIndex,job.DungeonIndex,job.Difficulty,false);}
+                catch(Exception e) {LastError=e.ToString();Debug.LogWarning("SPRK dispatch preparation: "+e.GetType().Name+": "+e.Message);nextPoll=Time.realtimeSinceStartup+30f;yield break;}
+                LastStatus="Simulating run "+(i+1)+" of "+job.RepeatCount;
+                float deadline=Time.realtimeSinceStartup+90f;
+                while(!active.IsBattleEnd) {
+                    if(!Ready() || Account().UserInfo.AccountId!=owner || Time.realtimeSinceStartup>deadline) {
+                        BattleSimulationFacade.RemoveInstance(active);active=null;
+                        nextPoll=Time.realtimeSinceStartup+30f;yield break;
+                    }
+                    yield return null;
+                }
+                var battleResult=active.GetBattleSimulationResultInfo();
+                if(battleResult==null || active.IsBattleStopped) {
+                    BattleSimulationFacade.RemoveInstance(active);active=null;
+                    nextPoll=Time.realtimeSinceStartup+30f;yield break;
+                }
+                result.Outcomes[i]=battleResult.IsWin?1:0;
+                result.Times[i]=(int)System.Math.Max(1000,System.Math.Min(3600000,battleResult.RealTime));
+                BattleSimulationFacade.RemoveInstance(active);active=null;
+                yield return null;
+            }
+            prepared[job.SimulationJobId]=result;
+        }
+        if(!Ready() || Account().UserInfo.AccountId!=owner)yield break;
+        string answer=null;
+        yield return Post("dispatch/complete_calculate_dispatch_result",new Dictionary<string,string>{
+            {"SlotIndex",job.SlotIndex.ToString()}, {"SimulationJobId",job.SimulationJobId},
+            {"Results","["+String.Join(",",result.Outcomes.Select(v=>v.ToString()).ToArray())+"]"},
+            {"TimesMs","["+String.Join(",",result.Times.Select(v=>v.ToString()).ToArray())+"]"}},v=>answer=v);
+        if(answer==null)yield break; // Reuse prepared outcomes after a lost response.
+        var accepted=LitJson.JsonMapper.ToObject(answer);
+        if(accepted!=null && accepted["Result"].valueStr=="Success") {
+            prepared.Remove(job.SimulationJobId);
+            DispatchHelper.SendRQGetDispatchList(null);
+            Debug.Log("SPRK dispatch prepared "+job.RepeatCount+" battles ("+result.Outcomes.Count(v=>v==1)+" wins, "+result.Outcomes.Count(v=>v==0)+" losses)");
+        }
+    }
+}

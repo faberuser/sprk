@@ -1,0 +1,17 @@
+{
+  "description": "Run from the logged-in lobby. Saves existing errors before starting a new error checkpoint. UI-event clicks do not prove pointer hit testing.",
+  "steps": [
+    {"action": "snapshot"},
+    {"action": "clear-errors"},
+    {"action": "wait-ui", "contains": "Button_Portal"},
+    {"action": "click", "selector": "Portal"},
+    {"action": "wait-ui", "contains": "MenuGrid/Eclipse"},
+    {"action": "assert-ui-count", "path_contains_any": ["/MenuScrollView/MenuGrid/", "/PosTweenGroup/PinMenuGrid/"], "expected": 23},
+    {"action": "wait", "seconds": 2},
+    {"action": "screenshot"},
+    {"action": "assert-no-errors"},
+    {"action": "click", "selector": "Game UI Root/Contents Group/PortalRenewal(Clone)/Panel/Root/TopPanel/Widget_ButtonTitle/Group_UITransform/Button_Exit"},
+    {"action": "wait-ui", "contains": "Button_Portal"},
+    {"action": "assert-no-errors"}
+  ]
+}

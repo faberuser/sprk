@@ -7,6 +7,8 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct SessionInfo {
     pub account_id: i64,
+    /// Last quest records delivered to this client; reserved quest fields are events.
+    pub(crate) delivered_sub_quests: Arc<std::sync::Mutex<std::collections::BTreeMap<i64, serde_json::Value>>>,
     #[allow(dead_code)]
     pub session_key: String,
     #[allow(dead_code)]
@@ -20,8 +22,10 @@ pub struct SessionInfo {
 #[derive(Clone)]
 pub struct AppState {
     pub db: DbPool,
+    pub(crate) battle_service_key: Arc<Option<String>>,
+    pub chat: Arc<crate::api::community::chat::ChatHub>,
+    pub conquest: Arc<crate::api::battle::cooperative::BattleHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
-    pub auth_tokens: Arc<DashMap<String, String>>, // access_token -> device_id
     #[allow(dead_code)]
     pub server_start_time: chrono::DateTime<chrono::Utc>,
     pub tables: Arc<GameTables>,
@@ -31,8 +35,12 @@ impl AppState {
     pub fn new(db: DbPool, tables: GameTables) -> Self {
         Self {
             db,
+            battle_service_key: Arc::new(std::env::var("BATTLE_SERVICE_KEY").ok().or_else(||
+                std::fs::read_to_string(std::env::var("BATTLE_SERVICE_KEY_FILE").unwrap_or_else(|_|"conquest-service.key".into())).ok().map(|v|v.trim().to_owned())
+            ).filter(|s|s.len()>=32)),
+            chat: Arc::new(crate::api::community::chat::ChatHub::default()),
+            conquest: Arc::new(crate::api::battle::cooperative::BattleHub::default()),
             sessions: Arc::new(DashMap::new()),
-            auth_tokens: Arc::new(DashMap::new()),
             server_start_time: chrono::Utc::now(),
             tables: Arc::new(tables),
         }
@@ -48,6 +56,7 @@ impl AppState {
         let now = chrono::Utc::now();
         let session = SessionInfo {
             account_id,
+            delivered_sub_quests: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             session_key: session_key.clone(),
             aes_key,
             login_time: now,
@@ -88,26 +97,4 @@ impl AppState {
         chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
     }
 
-    /// Store an auth token mapping to device_id
-    pub fn store_auth_token(&self, token: &str, device_id: &str) {
-        self.auth_tokens.insert(token.to_string(), device_id.to_string());
-    }
-
-    /// Get device_id from auth token
-    pub fn get_auth_token(&self, token: &str) -> Option<String> {
-        self.auth_tokens.get(token).map(|v| v.clone())
-    }
-
-    /// Create a simple session (for auth flow)
-    pub fn create_session_simple(&self, session_key: &str, device_id: &str) {
-        let now = chrono::Utc::now();
-        let session = SessionInfo {
-            account_id: 0, // Will be set later when actual login happens
-            session_key: session_key.to_string(),
-            aes_key: device_id.to_string(), // Use device_id as temp identifier
-            login_time: now,
-            last_activity: now,
-        };
-        self.sessions.insert(session_key.to_string(), session);
-    }
 }

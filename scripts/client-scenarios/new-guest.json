@@ -1,0 +1,12 @@
+{
+  "description": "Create/login a fresh automation profile using the native guest-login UI. Tutorial remains active.",
+  "steps": [
+    {"action": "wait-ui", "contains": "LoginTouchWait(Clone)", "timeout": 60},
+    {"action": "click", "selector": "GameUIRoot/Content Group/LoginTouchWait(Clone)/Panel/Root/TouchScreen"},
+    {"action": "wait-ui", "contains": "07Button_Guest"},
+    {"action": "click", "selector": "Guest Login"},
+    {"action": "wait-ui", "contains": "If you log on as a Guest", "timeout": 60},
+    {"action": "screenshot"},
+    {"action": "snapshot"}
+  ]
+}
