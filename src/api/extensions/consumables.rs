@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 
 pub(crate) async fn execute(
     db: &mut SqliteConnection,
@@ -384,10 +385,12 @@ async fn ability(
             db,
             state,
             account,
-            item_id,
-            refund["ItemCountList"][i].as_i64().unwrap_or(0) as i32,
-            0,
-            0,
+            ItemGrant {
+                index: item_id,
+                count: refund["ItemCountList"][i].as_i64().unwrap_or(0) as i32,
+                star: 0,
+                custom: 0,
+            },
             &mut rewards,
         )
         .await?;
@@ -430,7 +433,19 @@ async fn flask(
             return Err(rule("CannotUnequip"));
         }
         let mut rewards = Rewards::default();
-        item::give(db, state, account, old as i32, 1, 0, 0, &mut rewards).await?;
+        item::give(
+            db,
+            state,
+            account,
+            ItemGrant {
+                index: old as i32,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
         out["ItemResult"] = rewards.items.first().cloned().unwrap_or(Value::Null);
         details["FlaskItemIndex"] = json!(0);
         details["FlaskExp"] = json!(0);
@@ -477,10 +492,12 @@ pub(crate) async fn fill_flask(
             db,
             state,
             account,
-            n(r, "PotionItemIndex") as i32,
-            1,
-            0,
-            0,
+            ItemGrant {
+                index: n(r, "PotionItemIndex") as i32,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
             &mut rewards,
         )
         .await?;

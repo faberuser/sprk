@@ -1,4 +1,5 @@
 //! Persistent native attendance, achievements, and quest rewards.
+use crate::models::item::ItemGrant;
 use crate::api::{
     heroes as hero,
     inventory::item::{self, n, rule},
@@ -177,10 +178,12 @@ pub(super) async fn db_reward(
             db,
             state,
             account,
-            i32::try_from(id).map_err(|_| rule("InvalidRewardData"))?,
-            i32::try_from(count).map_err(|_| rule("InvalidRewardData"))?,
-            n(r, "Star") as i32,
-            0,
+            ItemGrant {
+                index: i32::try_from(id).map_err(|_| rule("InvalidRewardData"))?,
+                count: i32::try_from(count).map_err(|_| rule("InvalidRewardData"))?,
+                star: n(r, "Star") as i32,
+                custom: 0,
+            },
             rewards,
         )
         .await?;
@@ -259,10 +262,12 @@ async fn achievement_reward(
                     db,
                     state,
                     account,
-                    id,
-                    i32::try_from(amount).map_err(|_| rule("InvalidRewardData"))?,
-                    0,
-                    0,
+                    ItemGrant {
+                        index: id,
+                        count: i32::try_from(amount).map_err(|_| rule("InvalidRewardData"))?,
+                        star: 0,
+                        custom: 0,
+                    },
                     rewards,
                 )
                 .await?;

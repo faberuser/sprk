@@ -1,4 +1,5 @@
 //! Non-cash offers, summons, events and pets. Each request holds one inventory transaction.
+use crate::models::item::ItemGrant;
 use crate::api::{
     extensions::{get, list, put},
     heroes as hero,
@@ -243,7 +244,19 @@ async fn group(
         .tables
         .roll_item_from_group_code(code, &[])
         .ok_or_else(|| rule("ItemDataNotFound"))?;
-    item::give(db, s, a, i, c, star, custom, r).await
+    item::give(
+        db,
+        s,
+        a,
+        ItemGrant {
+            index: i,
+            count: c,
+            star,
+            custom,
+        },
+        r,
+    )
+    .await
 }
 async fn reward(
     db: &mut SqliteConnection,

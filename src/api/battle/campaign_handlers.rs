@@ -222,12 +222,6 @@ pub async fn start_campaign_battle(
 // BEGIN CAMPAIGN - Called when entering a battle (deducts stamina)
 // =====================================================
 
-/// Stamina result info matching client's NShared.StaminaResultInfo
-
-/// Begin campaign request
-
-/// Begin campaign response matching client's NShared.BeginCampaign.Response
-
 /// Handle begin campaign request - deducts stamina and prepares battle
 pub async fn begin_campaign(
     State(state): State<AppState>,
@@ -241,8 +235,6 @@ pub async fn begin_campaign(
 // =====================================================
 // END CAMPAIGN - Called when battle completes
 // =====================================================
-
-/// Hero EXP result info matching client's NShared.HeroExpResultInfo
 
 /// Currency result info matching client's NShared.CurrencyResultInfo3
 /// CurrencyType enum: None, Gold, Gem, Stamina, PvpCoin, TeamExp, etc.

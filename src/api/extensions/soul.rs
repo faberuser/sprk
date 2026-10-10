@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::Rng;
 
 pub(super) async fn execute(
@@ -339,10 +340,12 @@ async fn break_soul(
                     db,
                     state,
                     account,
-                    n(reward, "ItemIndex") as i32,
-                    count as i32,
-                    0,
-                    0,
+                    ItemGrant {
+                        index: n(reward, "ItemIndex") as i32,
+                        count: count as i32,
+                        star: 0,
+                        custom: 0,
+                    },
                     &mut rewards,
                 )
                 .await?;
@@ -460,7 +463,19 @@ async fn restore(
         {
             return Err(rule("InvalidSoulStoneIndex"));
         }
-        item::give(db, state, account, id as i32, 1, 0, 0, &mut rewards).await?;
+        item::give(
+            db,
+            state,
+            account,
+            ItemGrant {
+                index: id as i32,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
         progress["Choices"] = json!([]);
         let r = item::reward_response(db, state, account, rewards).await?;
         out["ResultSoulStoneItemInfo"] = r["ItemResults"].get(0).cloned().unwrap_or(Value::Null);
@@ -577,11 +592,34 @@ async fn restore(
             if protected {
                 progress["Choices"] = json!(choices);
             } else {
-                item::give(db, state, account, *choices.iter().next().unwrap(), 1, 0, 0, &mut rewards).await?;
+                item::give(
+                    db,
+                    state,
+                    account,
+                    ItemGrant {
+                        index: *choices.iter().next().unwrap(),
+                        count: 1,
+                        star: 0,
+                        custom: 0,
+                    },
+                    &mut rewards,
+                )
+                .await?;
             }
         } else {
-            item::give(db, state, account, n(config, "EtherItemIndex") as i32,
-                n(config, "EtherCount") as i32, 0, 0, &mut rewards).await?;
+            item::give(
+                db,
+                state,
+                account,
+                ItemGrant {
+                    index: n(config, "EtherItemIndex") as i32,
+                    count: n(config, "EtherCount") as i32,
+                    star: 0,
+                    custom: 0,
+                },
+                &mut rewards,
+            )
+            .await?;
             // Native SoulStoneMileageItemType is Ether, not every judgment.
             progress["Mileage"] = json!((n(&progress, "Mileage") + 1).min(max));
         }

@@ -83,10 +83,10 @@ pub async fn request_new_friendly_hero(
 ) -> Result<Json<RequestNewFriendlyHeroResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let account_id = session.account_id;
     let current_time = state.server_time_str();
     let mut tx = state.db.begin().await?;
@@ -148,7 +148,7 @@ pub async fn request_new_friendly_hero(
         .execute(&mut *tx)
         .await?;
 
-        let friendly_info = PlayerHeroFriendlyInfo {
+        PlayerHeroFriendlyInfo {
             hero_index: first_hero,
             selected_hero_index: first_hero,
             friendly_point: 0,
@@ -158,9 +158,7 @@ pub async fn request_new_friendly_hero(
             selected_time: Some(current_time.clone()),
             selected_hero_indice: Some(selected_hero_indices_str),
             last_roulette_time: None,
-        };
-        
-        friendly_info
+        }
     };
 
     // The native Inn polls SelectedTime against the daily reset. Returning an
@@ -169,7 +167,7 @@ pub async fn request_new_friendly_hero(
     let today = Utc::now().date_naive();
     let expired = friendly_info.selected_time.as_deref()
         .and_then(|time| chrono::NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").ok())
-        .map_or(true, |time| time.date() < today);
+        .is_none_or(|time| time.date() < today);
     let visitors: Vec<i32> = friendly_info.selected_hero_indice.as_deref().unwrap_or("")
         .split(',').filter_map(|id| id.parse().ok()).collect();
     let invalid_visitors = visitors.is_empty()
@@ -222,13 +220,13 @@ pub async fn request_new_friendly_hero(
             RequestNewFriendlyHeroResult::Success
         }.as_str().to_string(),
         friendly_info: Some(friendly_info),
-        max_closeness_hero_indice: if max_closeness_heroes.is_empty() { 
-            None 
-        } else { 
-            Some(max_closeness_heroes) 
+        max_closeness_hero_indice: if max_closeness_heroes.is_empty() {
+            None
+        } else {
+            Some(max_closeness_heroes)
         },
     };
-    
+
     Ok(Json(response))
 }
 
@@ -326,10 +324,10 @@ pub async fn do_hero_friendly(
 ) -> Result<Json<DoHeroFriendlyResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let account_id = session.account_id;
     let hero_index: i32 = req.hero_index.as_ref()
         .and_then(|s| s.parse().ok())
@@ -396,17 +394,17 @@ pub async fn do_hero_friendly(
     // ActionCostType: 0 = Free, 1 = Gold, 7 = Friendship Points
     let mut friendship_point_result = None;
     let mut currency_result = None;
-    
+
     // Conversation costs Friendship Points (ActionCostType=7, ActionCostValue=160)
     if action == FriendlyActionType::Conversation {
         let user_row = sqlx::query("SELECT friendship_point FROM user_info WHERE account_id = ?")
             .bind(account_id)
             .fetch_one(&state.db)
             .await?;
-        
+
         let current_friendship: i64 = user_row.get("friendship_point");
         let conversation_cost: i64 = 160; // From table: ActionCostValue2
-        
+
         if current_friendship < conversation_cost {
             return Ok(Json(DoHeroFriendlyResponse {
                 base_result: "Success".to_string(),
@@ -417,7 +415,7 @@ pub async fn do_hero_friendly(
                 friendship_point_result: None,
             }));
         }
-        
+
         // Deduct friendship points
         let new_friendship = current_friendship - conversation_cost;
         sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
@@ -425,7 +423,7 @@ pub async fn do_hero_friendly(
             .bind(account_id)
             .execute(&state.db)
             .await?;
-        
+
         friendship_point_result = Some(FriendshipPointResultInfo {
             add_value: -conversation_cost,
             add_daily_acc_value: 0,
@@ -433,17 +431,17 @@ pub async fn do_hero_friendly(
             new_daily_acc_value: 0,
         });
     }
-    
+
     // Gift costs Gold (ActionCostType=1, ActionCostValue=40000)
     if action == FriendlyActionType::Gift {
         let user_row = sqlx::query("SELECT gold FROM user_info WHERE account_id = ?")
             .bind(account_id)
             .fetch_one(&state.db)
             .await?;
-        
+
         let current_gold: i64 = user_row.get("gold");
         let gift_gold_cost: i64 = 40000; // From table: ActionCostValue3
-        
+
         if current_gold < gift_gold_cost {
             return Ok(Json(DoHeroFriendlyResponse {
                 base_result: "Success".to_string(),
@@ -454,7 +452,7 @@ pub async fn do_hero_friendly(
                 friendship_point_result: None,
             }));
         }
-        
+
         // Deduct gold
         let new_gold = current_gold - gift_gold_cost;
         sqlx::query("UPDATE user_info SET gold = ? WHERE account_id = ?")
@@ -462,7 +460,7 @@ pub async fn do_hero_friendly(
             .bind(account_id)
             .execute(&state.db)
             .await?;
-        
+
         currency_result = Some(CurrencyResultInfo3 {
             currency_type: "Gold".to_string(),
             add_value: -gift_gold_cost,
@@ -470,17 +468,17 @@ pub async fn do_hero_friendly(
             ..Default::default()
         });
     }
-    
+
     // Closeness Conversation costs Friendship Points (ActionCostType=7, ActionCostValue=50)
     if action == FriendlyActionType::ClosenessConversation {
         let user_row = sqlx::query("SELECT friendship_point FROM user_info WHERE account_id = ?")
             .bind(account_id)
             .fetch_one(&state.db)
             .await?;
-        
+
         let current_friendship: i64 = user_row.get("friendship_point");
         let conversation_cost: i64 = 50; // From table: ActionCostValue5
-        
+
         if current_friendship < conversation_cost {
             return Ok(Json(DoHeroFriendlyResponse {
                 base_result: "Success".to_string(),
@@ -491,14 +489,14 @@ pub async fn do_hero_friendly(
                 friendship_point_result: None,
             }));
         }
-        
+
         let new_friendship = current_friendship - conversation_cost;
         sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
             .bind(new_friendship)
             .bind(account_id)
             .execute(&state.db)
             .await?;
-        
+
         friendship_point_result = Some(FriendshipPointResultInfo {
             add_value: -conversation_cost,
             add_daily_acc_value: 0,
@@ -506,17 +504,17 @@ pub async fn do_hero_friendly(
             new_daily_acc_value: 0,
         });
     }
-    
+
     // Closeness Gift costs Gold (ActionCostType=1, ActionCostValue=25000)
     if action == FriendlyActionType::ClosenessGift {
         let user_row = sqlx::query("SELECT gold FROM user_info WHERE account_id = ?")
             .bind(account_id)
             .fetch_one(&state.db)
             .await?;
-        
+
         let current_gold: i64 = user_row.get("gold");
         let gift_gold_cost: i64 = 25000; // From table: ActionCostValue6
-        
+
         if current_gold < gift_gold_cost {
             return Ok(Json(DoHeroFriendlyResponse {
                 base_result: "Success".to_string(),
@@ -527,14 +525,14 @@ pub async fn do_hero_friendly(
                 friendship_point_result: None,
             }));
         }
-        
+
         let new_gold = current_gold - gift_gold_cost;
         sqlx::query("UPDATE user_info SET gold = ? WHERE account_id = ?")
             .bind(new_gold)
             .bind(account_id)
             .execute(&state.db)
             .await?;
-        
+
         currency_result = Some(CurrencyResultInfo3 {
             currency_type: "Gold".to_string(),
             add_value: -gift_gold_cost,
@@ -576,14 +574,14 @@ pub async fn do_hero_friendly(
         let hero_row = owned_hero.unwrap();
         let current_closeness: i32 = hero_row.get("closeness");
         let new_closeness = (current_closeness + points_gained).min(1000);
-        
+
         sqlx::query("UPDATE heroes SET closeness = ? WHERE account_id = ? AND hero_index = ?")
             .bind(new_closeness)
             .bind(account_id)
             .bind(hero_index)
             .execute(&state.db)
             .await?;
-        
+
         Some(HeroInfo {
             hero_id: hero_row.get("hero_id"),
             hero_index,
@@ -699,10 +697,10 @@ pub async fn change_recruit_hero(
 ) -> Result<Json<ChangeRecruitHeroResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let account_id = session.account_id;
     let hero_index = req.hero_index.unwrap_or(0);
 
@@ -788,7 +786,7 @@ pub async fn change_recruit_hero(
         .bind(account_id)
         .fetch_optional(&state.db)
         .await?;
-    
+
     let selected_hero_indice: Option<String> = current_row.as_ref().and_then(|row| row.get("selected_hero_indices"));
 
     // Update selected hero
@@ -888,7 +886,7 @@ pub async fn hero_inn_reset_time(
 ) -> Result<Json<HeroInnResetTimeResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let _session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
 
@@ -938,10 +936,10 @@ pub async fn give_reward_max_closeness_hero(
 ) -> Result<Json<GiveRewardMaxClosenessHeroResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let _account_id = session.account_id;
 
     // For now, just return success - rewards would be distributed based on hero indices
@@ -985,10 +983,10 @@ pub async fn request_hero_inn_roulette(
 ) -> Result<Json<RequestHeroInnRouletteResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let account_id = session.account_id;
     let roulette_index: i32 = req.roulette_index.as_ref()
         .and_then(|s| s.parse().ok())
@@ -1003,12 +1001,12 @@ pub async fn request_hero_inn_roulette(
         .bind(account_id)
         .fetch_optional(&state.db)
         .await?;
-    
+
     let selected_hero_indices: Vec<i32> = friendly_row
         .and_then(|row| row.get::<Option<String>, _>("selected_hero_indices"))
         .map(|s| s.split(',').filter_map(|x| x.parse().ok()).collect())
         .unwrap_or_default();
-    
+
     // Get owned heroes
     let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
         .bind(account_id)
@@ -1017,12 +1015,12 @@ pub async fn request_hero_inn_roulette(
         .iter()
         .map(|row| row.get("hero_index"))
         .collect();
-    
+
     // Count how many heroes in the inn are owned
     let owned_heroes_in_inn = selected_hero_indices.iter()
         .filter(|h| owned_heroes.contains(h))
         .count() as i32;
-    
+
     // Max spins = 1 base + owned heroes in inn
     let max_spins = 1 + owned_heroes_in_inn;
 
@@ -1092,10 +1090,10 @@ pub async fn give_reward_hero_inn_roulette(
 ) -> Result<Json<GiveRewardHeroInnRouletteResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
-    
+
     let session = state.get_session(&session_id)
         .ok_or(ServerError::SessionExpired)?;
-    
+
     let account_id = session.account_id;
     let roulette_index: i32 = req.roulette_index.as_ref()
         .and_then(|s| s.parse().ok())
@@ -1109,12 +1107,12 @@ pub async fn give_reward_hero_inn_roulette(
         .bind(account_id)
         .fetch_optional(&state.db)
         .await?;
-    
+
     let selected_hero_indices: Vec<i32> = friendly_row
         .and_then(|row| row.get::<Option<String>, _>("selected_hero_indices"))
         .map(|s| s.split(',').filter_map(|x| x.parse().ok()).collect())
         .unwrap_or_default();
-    
+
     let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
         .bind(account_id)
         .fetch_all(&state.db)
@@ -1122,11 +1120,11 @@ pub async fn give_reward_hero_inn_roulette(
         .iter()
         .map(|row| row.get("hero_index"))
         .collect();
-    
+
     let owned_heroes_in_inn = selected_hero_indices.iter()
         .filter(|h| owned_heroes.contains(h))
         .count() as i32;
-    
+
     let max_spins = 1 + owned_heroes_in_inn;
 
     // Check how many spins the player has done today
@@ -1157,8 +1155,8 @@ pub async fn give_reward_hero_inn_roulette(
 
     // Update spin count
     sqlx::query(
-        "INSERT INTO hero_inn_roulette_spins (account_id, spin_date, spin_count) 
-         VALUES (?, ?, 1) 
+        "INSERT INTO hero_inn_roulette_spins (account_id, spin_date, spin_count)
+         VALUES (?, ?, 1)
          ON CONFLICT(account_id, spin_date) DO UPDATE SET spin_count = spin_count + 1"
     )
     .bind(account_id)
@@ -1185,7 +1183,7 @@ pub async fn give_reward_hero_inn_roulette(
 
     if let Some(reward) = winning_reward {
         let amount = reward.value1 as i64;
-        
+
         match reward.type1.as_str() {
             "Gold" => {
                 // Get current gold and update
@@ -1284,4 +1282,3 @@ pub async fn give_reward_hero_inn_roulette(
 
     Ok(Json(response))
 }
-

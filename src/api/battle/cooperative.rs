@@ -52,12 +52,17 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
     if r.number("MultiplayMasterId",0)?!=master || n(&room,"RaidIndex")!=90001 || n(&room,"RaidLevel")!=r.number("RaidLevel",0)? {
         return Err(rule("InvalidRoomInfo"));
     }
-    if let Some(id)=room["ConquestRunId"].as_str() {
-        let saved:Option<(String,String)>=sqlx::query_as("SELECT entry,begin_response FROM battle_runs WHERE account=?")
-            .bind(a).fetch_optional(&mut *db).await?;
-        if let Some((entry,response))=saved {if read_json::<Value>(&entry)?["CoopRunId"]==id {
-            return Ok(read_json(&response)?);
-        }}
+    if let Some(id) = room["ConquestRunId"].as_str() {
+        let saved: Option<(String, String)> =
+            sqlx::query_as("SELECT entry,begin_response FROM battle_runs WHERE account=?")
+                .bind(a)
+                .fetch_optional(&mut *db)
+                .await?;
+        if let Some((entry, response)) = saved {
+            if read_json::<Value>(&entry)?["CoopRunId"] == id {
+                return read_json(&response);
+            }
+        }
         return Err(rule("AlreadyOnBattleHero"));
     }
     if a!=master || n(&room,"Status")!=0 {return Err(rule("WrongMember"));}

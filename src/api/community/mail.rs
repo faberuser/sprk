@@ -1,4 +1,5 @@
 //! Persistent inboxes and atomic attachment claims using the native mail protocol.
+use crate::models::item::ItemGrant;
 use crate::api::{
     system::request::Request,
     tutorial::{self, Rewards},
@@ -211,10 +212,12 @@ async fn claim(
                     db,
                     state,
                     account,
-                    index,
-                    drop.count,
-                    drop.star_min,
-                    drop.custom_option_index,
+                    ItemGrant {
+                        index,
+                        count: drop.count,
+                        star: drop.star_min,
+                        custom: drop.custom_option_index,
+                    },
                     &mut rewards,
                 )
                 .await?;
@@ -224,10 +227,12 @@ async fn claim(
                 db,
                 state,
                 account,
-                item.item_index,
-                item.item_count,
-                0,
-                0,
+                ItemGrant {
+                    index: item.item_index,
+                    count: item.item_count,
+                    star: 0,
+                    custom: 0,
+                },
                 &mut rewards,
             )
             .await?;
@@ -241,11 +246,11 @@ async fn claim(
     }
     if !equipment.is_empty() {crate::api::inventory::item::capacity(db,state,account,0,equipment.len() as i64).await?;}
     for mut item in equipment {
-        if !state
+        if state
             .tables
             .items
             .reward_item(item.item_index)
-            .is_some_and(|m| m.kind == "Equip")
+            .is_none_or(|m| m.kind != "Equip")
         {
             return Err(ServerError::Internal("Invalid mail equipment".into()));
         }

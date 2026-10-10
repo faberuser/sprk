@@ -28,7 +28,7 @@ partial class Program
             }
 
             // Find the heroSelectedIndices variable (int[] type, should be V_0)
-            VariableDefinition heroIndicesVar = null;
+            VariableDefinition? heroIndicesVar = null;
             foreach (var v in initHeroPortraits.Body.Variables)
             {
                 if (v.VariableType.IsArray && v.VariableType.GetElementType().FullName == "System.Int32")
@@ -108,7 +108,7 @@ partial class Program
 
                             // Find the loop variable - look for what's loaded before ldarg.0
                             // It should be: ldloc.s V_3, ldarg.0, ldfld...
-                            VariableDefinition loopVarDef = null;
+                            VariableDefinition? loopVarDef = null;
                             if (i > 0)
                             {
                                 var prevInstr = initInstrs[i - 1];

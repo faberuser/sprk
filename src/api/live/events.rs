@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::Rng;
 
 async fn progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
@@ -270,7 +271,19 @@ pub(super) async fn execute(
                                 .tables
                                 .get_item_index(code)
                                 .ok_or_else(|| rule("ItemDataNotFound"))?;
-                            item::give(db, s, a, id, 1, 0, 0, &mut rewards).await?;
+                            item::give(
+                                db,
+                                s,
+                                a,
+                                ItemGrant {
+                                    index: id,
+                                    count: 1,
+                                    star: 0,
+                                    custom: 0,
+                                },
+                                &mut rewards,
+                            )
+                            .await?;
                         }
                     } else {
                         out["ResultEquipItem"] = json!(eq);

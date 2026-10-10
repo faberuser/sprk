@@ -328,8 +328,9 @@ pub async fn login(
             let account_id = result.last_insert_rowid();
             
             // Create user_info entry with starting friendship points for Hero's Inn
+            // Explicit balances also override legacy defaults in existing databases.
             sqlx::query(
-                "INSERT INTO user_info (account_id, friendship_point) VALUES (?, 6000)"
+                "INSERT INTO user_info (account_id, gold, gem, stamina, friendship_point) VALUES (?, 0, 0, 200, 6000)"
             )
             .bind(account_id)
             .execute(&mut *tx)

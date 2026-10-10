@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::Rng;
 
 pub(super) fn unique_options(state: &AppState, data: &Value, eq: &mut EquipItemInfo) -> Result<()> {
@@ -327,7 +328,19 @@ async fn craft(
         return Err(rule("InvalidRewardData"));
     }
     let mut rewards = Rewards::default();
-    item::give(db, state, account, id, 1, star, 0, &mut rewards).await?;
+    item::give(
+        db,
+        state,
+        account,
+        ItemGrant {
+            index: id,
+            count: 1,
+            star,
+            custom: 0,
+        },
+        &mut rewards,
+    )
+    .await?;
     let eq = rewards
         .equipment
         .get_mut(0)

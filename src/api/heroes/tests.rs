@@ -5,10 +5,10 @@ use crate::api::{
     heroes as hero,
     inventory::{item, shop},
 };
-use crate::{database, state::AppState, tables::GameTables};
+use crate::models::item::ItemGrant;
+use crate::{database, state::AppState};
 use axum::{body::Bytes, extract::State};
 use serde_json::Value;
-use std::{path::Path, sync::OnceLock};
 
 async fn inn_refresh(s: &AppState, u: &user::LoginResponse) -> hero::inn::RequestNewFriendlyHeroResponse {
     hero::inn::request_new_friendly_hero(State(s.clone()), axum::extract::Form(hero::inn::RequestNewFriendlyHeroRequest {
@@ -65,22 +65,15 @@ async fn inn_refresh_repairs_owned_recruit_and_invalid_visitors() {
 }
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&db).await.unwrap();
-    let state = AppState::new(
-        db,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    );
+    let state = AppState::new(db, crate::tables::test_tables());
     let u = login(&state).await;
+    sqlx::query("UPDATE user_info SET gold=100000000,gem=100000").execute(&state.db).await.unwrap();
     (state, u)
 }
 async fn login(s: &AppState) -> user::LoginResponse {
@@ -117,7 +110,7 @@ async fn balance(s: &AppState, u: &user::LoginResponse, key: &str) -> i64 {
 }
 async fn get(s: &AppState, u: &user::LoginResponse, id: i32) -> Value {
     hero::info(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         u.user_info.account_id,
         id,
     )
@@ -125,14 +118,16 @@ async fn get(s: &AppState, u: &user::LoginResponse, id: i32) -> Value {
     .unwrap()
 }
 fn buy_data(s: &AppState) -> (i32, i32, i64) {
-    for (id, h) in &s.tables.hero_shop.heroes {
-        if *id == 1 || h["Buyable"] != true {
-            continue;
-        }
-        for (item_id, meta) in &s.tables.hero_shop.items {
-            if let Some(m) = s.tables.items.reward_item(*item_id) {
+    s.tables
+        .hero_shop
+        .heroes
+        .iter()
+        .filter(|(id, h)| **id != 1 && h["Buyable"] == true)
+        .find_map(|(&id, h)| {
+            s.tables.hero_shop.items.iter().find_map(|(&item_id, meta)| {
+                let m = s.tables.items.reward_item(item_id)?;
                 if m.kind == "Hero"
-                    && m.hero_index == *id
+                    && m.hero_index == id
                     && m.star as i64 == item::n(h, "StartHeroStar")
                     && m.transcend == 0
                     && m.level as i64 == item::n(h, "StartHeroLevel").max(1)
@@ -147,12 +142,13 @@ fn buy_data(s: &AppState) -> (i32, i32, i64) {
                             v["Star"] == h["StartHeroStar"] && v["OpenStatus"] == h["OpenStatus"]
                         })
                         .unwrap();
-                    return (*id, *item_id, item::n(p, "BuyGem"));
+                    Some((id, item_id, item::n(p, "BuyGem")))
+                } else {
+                    None
                 }
-            }
-        }
-    }
-    panic!("no purchasable hero")
+            })
+        })
+        .expect("no purchasable hero")
 }
 #[tokio::test]
 async fn ruby_hero_purchase_uses_native_contract_prices_and_rejects_duplicates() {
@@ -240,6 +236,8 @@ async fn competing_purchases_charge_and_recruit_once() {
     let s = AppState::new(pool.clone(), template.tables.as_ref().clone());
     let u = login(&s).await;
     let (id, item, cost) = buy_data(&s);
+    sqlx::query("UPDATE user_info SET gem=? WHERE account_id=?")
+        .bind(cost).bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let before = balance(&s, &u, "gem").await;
     let req = format!("HeroIndex={id}&ItemIndex={item}&BuyGem={cost}");
     let (a, b) = tokio::join!(
@@ -845,16 +843,41 @@ async fn legacy_hero_cap_rejects_limit_break_without_spending_materials() {
     assert_eq!(balance(&s, &u, "gold").await, gold);
     assert_eq!(login(&s).await.heroes[0].level, 100);
     // Even a stale record from the later client cannot gain Limit Break EXP.
-    let mut extra=crate::api::heroes::details(&mut *s.db.acquire().await.unwrap(),u.user_info.account_id,1).await.unwrap();
-    extra["LimitBreakLevel"]=serde_json::json!(1);
-    crate::api::heroes::save_details(&mut *s.db.acquire().await.unwrap(),u.user_info.account_id,1,&extra).await.unwrap();
-    assert_ne!(hero::hero_limit_break_exp_up(State(s.clone()),form(&u,&format!("HeroIndex=1&ExpItemIndices=[{id}]&ExpItemCounts=[{qty}]"))).await.unwrap().0["Result"],"Success");
-    assert_eq!(get(&s,&u,1).await["Level"],100);
-    assert_eq!(count(&s,&u,id as i32).await,qty);
+    let mut extra = crate::api::heroes::details(
+        &mut s.db.acquire().await.unwrap(),
+        u.user_info.account_id,
+        1,
+    )
+    .await
+    .unwrap();
+    extra["LimitBreakLevel"] = serde_json::json!(1);
+    crate::api::heroes::save_details(
+        &mut s.db.acquire().await.unwrap(),
+        u.user_info.account_id,
+        1,
+        &extra,
+    )
+    .await
+    .unwrap();
+    assert_ne!(
+        hero::hero_limit_break_exp_up(
+            State(s.clone()),
+            form(
+                &u,
+                &format!("HeroIndex=1&ExpItemIndices=[{id}]&ExpItemCounts=[{qty}]")
+            )
+        )
+        .await
+        .unwrap()
+        .0["Result"],
+        "Success"
+    );
+    assert_eq!(get(&s, &u, 1).await["Level"], 100);
+    assert_eq!(count(&s, &u, id as i32).await, qty);
 }
 
 #[tokio::test]
-async fn selectors_growth_items_and_costume_bonuses_validate_allowed_targets() {
+async fn selectors_and_growth_items_validate_allowed_targets() {
     let (s, u) = setup().await;
     let selector = s
         .tables
@@ -891,16 +914,15 @@ async fn selectors_growth_items_and_costume_bonuses_validate_allowed_targets() {
         .0["Result"],
         "Success"
     );
-    let bonus = hero::costume_boost(&s, u.user_info.account_id)
-        .await
-        .unwrap();
+    let bonus = crate::api::battle::bonuses::calculate(
+        &mut s.db.acquire().await.unwrap(),
+        &s,
+        u.user_info.account_id,
+        1,
+    )
+    .await
+    .unwrap();
     assert!(bonus.0 > 0 || bonus.1 > 0);
-    assert_eq!(
-        item::campaign_boost(&s, u.user_info.account_id)
-            .await
-            .unwrap(),
-        bonus
-    );
     let growth = s
         .tables
         .hero_shop
@@ -1041,9 +1063,20 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
             .unwrap();
         let mut tx = s.db.begin().await.unwrap();
         let mut r = crate::api::tutorial::Rewards::default();
-        item::give(&mut tx, &s, u.user_info.account_id, id, 1, 0, 0, &mut r)
-            .await
-            .unwrap();
+        item::give(
+            &mut tx,
+            &s,
+            u.user_info.account_id,
+            ItemGrant {
+                index: id,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
+            &mut r,
+        )
+        .await
+        .unwrap();
         tx.commit().await.unwrap();
         r.equipment[0].slot_index
     };
@@ -1277,13 +1310,27 @@ async fn fallen_heroes_accept_native_items_but_recruit_at_base_progression() {
 
 #[tokio::test]
 async fn native_perk_forms_preserve_pairs_points_validation_reset_and_login() {
-    let (s,u)=setup().await;
-    let a=u.user_info.account_id;
-    sqlx::query("UPDATE heroes SET star=5,transcend=5,level=100 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET gold=1000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-    let mut extra=hero::details(&mut *s.db.acquire().await.unwrap(),a,1).await.unwrap();
-    extra["TranscendPoint"]=serde_json::json!(10);
-    hero::save_details(&mut *s.db.acquire().await.unwrap(),a,1,&extra).await.unwrap();
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query(
+        "UPDATE heroes SET star=5,transcend=5,level=100 WHERE account_id=? AND hero_index=1",
+    )
+    .bind(a)
+    .execute(&s.db)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE user_info SET gold=1000000 WHERE account_id=?")
+        .bind(a)
+        .execute(&s.db)
+        .await
+        .unwrap();
+    let mut extra = hero::details(&mut s.db.acquire().await.unwrap(), a, 1)
+        .await
+        .unwrap();
+    extra["TranscendPoint"] = serde_json::json!(10);
+    hero::save_details(&mut s.db.acquire().await.unwrap(), a, 1, &extra)
+        .await
+        .unwrap();
     let result=hero::learn_hero_transcend_skill_page(State(s.clone()),form(&u,
         "HeroIndex=1&PageIndex=1&TranscendSkills=10&TranscendSkills=1&TranscendSkills=20&TranscendSkills=1")).await.unwrap().0;
     assert_eq!(result["Result"],"Success","{result}");

@@ -1,27 +1,15 @@
 use super::*;
 use crate::api::account::user;
 use crate::database;
-use crate::tables::GameTables;
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use std::sync::Arc;
 async fn setup() -> (AppState, user::LoginResponse) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&pool).await.unwrap();
-    let s = AppState::new(
-        pool,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    );
+    let s = AppState::new(pool, crate::tables::test_tables());
     let u = relogin(&s).await;
     (s, u)
 }
@@ -208,7 +196,16 @@ async fn automatic_dungeon_milestones_unlock_categories_without_claiming_rewards
 async fn native_claim_all_and_lobby_categories() {
     let (s, u) = setup().await;
     for (kind, value) in [("ClearDungeon", 5), ("BuyShopItem", 1)] {
-        record(&mut *s.db.acquire().await.unwrap(), u.user_info.account_id, kind, 0, 0, value).await.unwrap();
+        record(
+            &mut s.db.acquire().await.unwrap(),
+            u.user_info.account_id,
+            kind,
+            0,
+            0,
+            value,
+        )
+        .await
+        .unwrap();
     }
     let batch = "AchievementIndices=1101&Steps=0&AchievementIndices=1102&Steps=0&AchievementIndices=1104&Steps=0&AchievementIndices=1111&Steps=0&AchievementIndices=1112&Steps=0";
     let a = call(&s, &u, "reward_achievement", batch).await;
@@ -338,6 +335,7 @@ async fn batch_achievement_error_and_forged_progress_never_grant() {
 #[tokio::test]
 async fn currency_metrics_follow_transaction_rollback() {
     let (s, u) = setup().await;
+    sqlx::query("UPDATE user_info SET gold=2000000").execute(&s.db).await.unwrap();
     let mut tx = s.db.begin().await.unwrap();
     item::money(&mut tx, u.user_info.account_id, "Gold", -1000000)
         .await

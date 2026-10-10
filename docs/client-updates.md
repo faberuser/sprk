@@ -23,7 +23,7 @@ works in every mode. Existing installations default to game mode.
 Run from the repository root with Python 3.10+:
 
 ```powershell
-python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0 --signing-key update-signing/private.pem
+python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.0 --signing-key client-updates/update-signing/private.pem
 ```
 
 The default selection includes all files under:
@@ -34,7 +34,7 @@ The default selection includes all files under:
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit`
 
 Generate release-signing keys once with
-`python scripts/create_update_signing_key.py`. Keep `update-signing/private.pem`
+`python scripts/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`
 on the publishing machine and give the launcher the public key through its
 configuration. OpenSSL is needed on the publishing machine, not on players'
 machines. Unsigned publishing is supported for localhost development only; omit
@@ -49,7 +49,7 @@ For other code/assets, use repeated `--include` options. These **replace** the
 defaults, so include the default directories too if they should stay managed:
 
 ```powershell
-python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
+python scripts/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key client-updates/update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"
 ```
 
 The first version distributed to players should include every file the launcher
@@ -63,6 +63,11 @@ startup assets listed there and adds its obsolete SDK paths to `deleted_files`,
 including native plugins that earlier manifests did not manage. A release cannot
 include a file its privacy policy requires deleting. Use repeated `--delete` options
 for other obsolete files that were never managed by an earlier manifest.
+
+When present, `SPRK-NativeData.json` and `SPRK-NativeCombat.json` under the native
+patch directory are included automatically, so table changes and their integrity
+metadata are installed together. For Hard dragon route migrations, see
+[RaidTableSync](../scripts/RaidTableSync/README.md).
 
 Each release contains a complete snapshot of the selected files. A launcher
 compares local SHA-256 hashes and downloads only changed or missing files, even

@@ -20,12 +20,16 @@ services:
       SERVER_HOST: ${SPRK_GAME_HOST:-127.0.0.1:8080}
       SERVER_HTTPS: ${SPRK_GAME_HTTPS:-false}
       SERVER_NAME: ${SPRK_SERVER_NAME:-SPRK}
+      SPRK_GM_KEY: ${SPRK_GM_KEY:-}
+      SPRK_GM_BIND: 0.0.0.0:8082
       # Player chat/battle use /ws/chat and /ws/battle on this HTTP service.
       # TCP is retained inside the container for the native battle worker.
       CHAT_BIND: 127.0.0.1
       BATTLE_BIND: 127.0.0.1
     ports:
       - "${SPRK_GAME_PORT:-8080}:8080"
+      # Private admin listener. Keep loopback, or choose the Docker host's LAN/VPN IP.
+      - "${SPRK_GM_BIND_IP:-127.0.0.1}:${SPRK_GM_PORT:-8082}:8082"
     volumes:
       - game-data:/data
 

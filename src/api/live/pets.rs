@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 
 pub(crate) async fn add(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
     let data = row(s, "Pet", &[("Index", id)])?;
@@ -22,7 +23,19 @@ pub(crate) async fn add(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64
             .get_item_index(code)
             .ok_or_else(|| rule("PetSoulDataError"))?;
         let mut rewards = Rewards::default();
-        item::give(db, s, a, index, 1, 0, 0, &mut rewards).await?;
+        item::give(
+            db,
+            s,
+            a,
+            ItemGrant {
+                index,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
         return Ok(json!({"PetResult":null,"PetSoulResults":rewards.items}));
     }
     let v = json!({"PetIndex":id,"Star":0,"CreatedTime":time(now()),"HappinessPoint":0,"LastPlayTime":null,"LastPatTime":null,"LastFeedTime":null,"MaxRewardedTime":null,"FullPoint":0,"Status":0,"EndPenaltyTime":null});
@@ -170,7 +183,19 @@ pub(super) async fn execute(
                 return Err(rule("NotYet"));
             }
             let id = setting(s, "EggSupplierItem", 7500010);
-            item::give(db, s, a, id as i32, 1, 0, 0, &mut rewards).await?;
+            item::give(
+                db,
+                s,
+                a,
+                ItemGrant {
+                    index: id as i32,
+                    count: 1,
+                    star: 0,
+                    custom: 0,
+                },
+                &mut rewards,
+            )
+            .await?;
             put(db, a, "pet_supplier", 0, &json!({"Next":now()+cooldown})).await?;
             misc(db, a, 5, time(now() + cooldown)).await?;
             out["ItemResults"] = json!(rewards.items);
@@ -359,7 +384,19 @@ pub(super) async fn execute(
                             out["PetAddResultInfos"] = json!([add(db, s, a, pet as i64).await?]);
                             increment(db, a, 6, 1).await?;
                         } else {
-                            item::give(db, s, a, egg as i32, 1, 0, 0, &mut rewards).await?;
+                            item::give(
+                                db,
+                                s,
+                                a,
+                                ItemGrant {
+                                    index: egg as i32,
+                                    count: 1,
+                                    star: 0,
+                                    custom: 0,
+                                },
+                                &mut rewards,
+                            )
+                            .await?;
                             out["ItemResult"] = json!(rewards.items.first());
                         }
                         v["SetItemIndex"] = json!(0);
@@ -462,10 +499,12 @@ pub(super) async fn execute(
                         db,
                         s,
                         a,
-                        n(rd, "RewardItemIndex") as i32,
-                        n(&v, "RewardCount") as i32,
-                        0,
-                        0,
+                        ItemGrant {
+                            index: n(rd, "RewardItemIndex") as i32,
+                            count: n(&v, "RewardCount") as i32,
+                            star: 0,
+                            custom: 0,
+                        },
                         &mut rewards,
                     )
                     .await?;

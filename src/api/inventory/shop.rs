@@ -1,4 +1,5 @@
 //! Table-priced shops with persistent stock and atomic purchase limits.
+use crate::models::item::ItemGrant;
 use crate::api::{
     heroes as hero,
     inventory::item::{self, n, rule},
@@ -341,10 +342,12 @@ async fn execute(
             db,
             state,
             account,
-            item_id,
-            amount,
-            n(row, "Star") as i32,
-            0,
+            ItemGrant {
+                index: item_id,
+                count: amount,
+                star: n(row, "Star") as i32,
+                custom: 0,
+            },
             &mut rewards,
         )
         .await?;

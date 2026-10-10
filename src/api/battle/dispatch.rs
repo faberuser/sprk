@@ -12,7 +12,9 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
             && n(raid, "DungeonIndex") == n(d, "DungeonIndex")
             && n(raid, "Type") == kind
             && raid["IsOnlineSingle"] == false
-            && raid["IsOpen"] == true
+            // Dragon stage availability is checked against player progress by
+            // dungeons::validate; IsOpen only marks the initial stages.
+            && (raid["IsOpen"] == true || matches!(kind, 1 | 3))
     });
     let raid = matches.next().ok_or_else(|| rule("ContentsDisabled"))?;
     if matches.next().is_some() {
@@ -395,7 +397,7 @@ pub(super) async fn sweep(
     let d = campaign::dungeon(s, r)?;
     let diff = campaign::difficulty(r)?;
     let count = int(r, "SweepCount")?;
-    if n(d, "SweepDungeonType") == 0 || count < 1 || count > 100 {
+    if n(d, "SweepDungeonType") == 0 || !(1..=100).contains(&count) {
         return Err(rule("DungeonNotFound"));
     }
     // Eclipse needs battle-service proof before it can establish a sweep record.
@@ -450,9 +452,11 @@ pub(super) async fn sweep(
             s,
             a,
             &request,
-            &Request(Default::default()),
+            dungeons::BattleOutcome {
+                request: &Request(Default::default()),
+                won: true,
+            },
             &entry,
-            true,
             &mut result,
         )
         .await?;

@@ -3,18 +3,10 @@ use crate::api::account::user;
 use crate::database;
 use crate::tables::GameTables;
 use axum::body::Bytes;
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use std::sync::Arc;
 
 fn tables() -> GameTables {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
-    TABLES
-        .get_or_init(|| {
-            GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-        })
-        .clone()
+    crate::tables::test_tables()
 }
 
 async fn setup() -> (AppState, user::LoginResponse) {
@@ -373,6 +365,7 @@ async fn gm_reset_restarts_tutorial_with_kasel() {
     let _ = gm_unlock_all(
         State(state.clone()),
         Form(GmUnlockAllRequest {
+            account_id: None,
             session_id: Some(key.clone()),
         }),
     )
@@ -382,6 +375,7 @@ async fn gm_reset_restarts_tutorial_with_kasel() {
     let _ = gm_reset_account(
         State(state.clone()),
         Form(GmResetAccountRequest {
+            account_id: None,
             session_id: Some(key.clone()),
             keep_heroes: Some(false),
         }),

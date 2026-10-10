@@ -572,7 +572,7 @@ pub(super) async fn execute(
                         .execute(db)
                         .await?;
                 }
-                _ => return progression::execute(db, s, a, g, role, r, action, info).await,
+                _ => return progression::execute(db, s, a, (g, role), r, action, info).await,
             }
         }
     }

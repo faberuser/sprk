@@ -29,22 +29,3 @@ impl From<BaseResultType> for i32 {
         val as i32
     }
 }
-
-/// Currency change result
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "PascalCase")]
-pub struct CurrencyResultInfo {
-    pub currency_type: i32,
-    pub before_value: i64,
-    pub after_value: i64,
-    pub change_value: i64,
-}
-
-/// Reward item info for mail attachments etc.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "PascalCase")]
-pub struct RewardItemInfo {
-    pub reward_type: i32,
-    pub item_index: i32,
-    pub count: i32,
-}

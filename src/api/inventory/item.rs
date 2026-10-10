@@ -1,4 +1,5 @@
 //! Inventory mutations use client table rules and one database transaction per request.
+use crate::models::item::ItemGrant;
 use crate::api::{
     battle::campaign_handlers::CurrencyResultInfo3,
     system::request::Request,
@@ -32,7 +33,7 @@ pub(crate) fn positive(req: &Request, key: &str) -> Result<i32> {
 pub(crate) fn item_index(req: &Request, key: &str) -> Result<i32> {
     i32::try_from(req.number(key, 0)?).map_err(|_| rule("ItemDataNotFound"))
 }
-pub(crate) fn data<'a>(state: &'a AppState, index: i32) -> Result<&'a Value> {
+pub(crate) fn data(state: &AppState, index: i32) -> Result<&Value> {
     state
         .tables
         .inventory
@@ -157,8 +158,7 @@ pub(crate) async fn capacity(
                 .inventory
                 .extensions
                 .iter()
-                .filter(|v| n(v, "InventoryType") == inventory as i64)
-                .last()
+                .rfind(|v| n(v, "InventoryType") == inventory as i64)
         })
         .map(|v| n(v, "EquipItemExtendSize"))
         .unwrap_or(8);
@@ -183,12 +183,15 @@ pub(crate) async fn give(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
-    index: i32,
-    count: i32,
-    star: i32,
-    custom: i32,
+    grant: ItemGrant,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    let ItemGrant {
+        index,
+        count,
+        star,
+        custom,
+    } = grant;
     if count <= 0 {
         return Err(rule("InvalidItemCount"));
     }
@@ -247,7 +250,19 @@ pub(crate) async fn give(
         }
     }
     let equip_start = rewards.equipment.len();
-    tutorial::grant_item(db, state, account, index, count, star, custom, rewards).await?;
+    tutorial::grant_item(
+        db,
+        state,
+        account,
+        ItemGrant {
+            index,
+            count,
+            star,
+            custom,
+        },
+        rewards,
+    )
+    .await?;
     if metadata.kind == "Equip" && custom == 0 {
         for equip in &mut rewards.equipment[equip_start..] {
             make_options(state, index, equip, &[])?;
@@ -354,10 +369,12 @@ pub(crate) async fn reward(
             db,
             state,
             account,
-            index,
-            count,
-            star,
-            drop.custom_option_index,
+            ItemGrant {
+                index,
+                count,
+                star,
+                custom: drop.custom_option_index,
+            },
             rewards,
         )
         .await?;
@@ -642,7 +659,7 @@ async fn execute(
                 if let Some(code) = booster.as_str() {
                     let data = state.tables.inventory.booster_definitions.get(code)
                         .ok_or_else(|| rule("BoosterDataNotFound"))?;
-                    if !matches!(n(data, "Type"), 1 | 2 | 3) || data["IsOnetime"] == true {
+                    if !matches!(n(data, "Type"), 1..=3) || data["IsOnetime"] == true {
                         return Err(rule("ItemTypeMismatch"));
                     }
                     let effect = i32::try_from(n(data, "BoosterItemIndex"))
@@ -721,7 +738,19 @@ async fn execute(
             }
             out["ItemResult"] = consume(db, account, index, count).await?;
             let mut r = Rewards::default();
-            give(db, state, account, selected, count, 0, 0, &mut r).await?;
+            give(
+                db,
+                state,
+                account,
+                ItemGrant {
+                    index: selected,
+                    count,
+                    star: 0,
+                    custom: 0,
+                },
+                &mut r,
+            )
+            .await?;
             out["RewardItemResult"] = r.items[0].clone();
         }
         "use_weapon_unique_select_item" | "use_equip_option_select_item" => {
@@ -788,10 +817,12 @@ async fn execute(
                 db,
                 state,
                 account,
-                selected,
-                count,
-                n(selector, "Star") as i32,
-                0,
+                ItemGrant {
+                    index: selected,
+                    count,
+                    star: n(selector, "Star") as i32,
+                    custom: 0,
+                },
                 &mut r,
             )
             .await?;
@@ -1006,7 +1037,9 @@ async fn equipment_action(
             .await?
             .ok_or_else(|| rule("EquipNotOwned"))?;
         let in_use:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?)").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
-        if (row.get::<i32,_>("inventory_type")>1 && action!="set_lock_equip_item") || (action!="set_lock_equip_item" && in_use) {return Err(rule("Equipped"));}
+        if (row.get::<i32, _>("inventory_type") > 1 || in_use) && action != "set_lock_equip_item" {
+            return Err(rule("Equipped"));
+        }
         let preset:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM extension_state s,json_each(s.data) j WHERE s.account_id=? AND s.kind='equip_storage' AND j.key LIKE 'EquipItemSlotIndex%' AND j.value=?)").bind(account).bind(id).fetch_one(&mut *db).await?;
         if preset && action!="set_lock_equip_item" {return Err(rule("Equipped"));}
         if action == "set_lock_equip_item" {
@@ -1186,34 +1219,6 @@ pub(crate) async fn booster_login(state: &AppState, account: i64) -> Result<Vec<
             .await?;
     Ok(rows.iter().map(|r|json!({"ItemIndex":r.get::<i32,_>("item_index"),"StartTime":r.get::<String,_>("start_time"),"EndTime":r.get::<String,_>("end_time")})).collect())
 }
-pub(crate) async fn campaign_boost(state: &AppState, account: i64) -> Result<(i32, i32)> {
-    let rows = booster_login(state, account).await?;
-    let mut gold = 0;
-    let mut exp = 0;
-    for row in rows {
-        if let Some(data) = state
-            .tables
-            .inventory
-            .boosters
-            .get(&(n(&row, "ItemIndex") as i32))
-        {
-            if !data["BattleTypes"]
-                .as_array()
-                .is_some_and(|v| v.contains(&json!(1)))
-            {
-                continue;
-            }
-            match n(data, "Type") {
-                1 => exp = exp.max(n(data, "Value") as i32),
-                3 => gold = gold.max(n(data, "Value") as i32),
-                _ => {}
-            }
-        }
-    }
-    let (costume_gold,costume_exp)=crate::api::heroes::costume_boost(state,account).await?;
-    Ok((gold+costume_gold, exp+costume_exp))
-}
-
 fn option_pool(state: &AppState, eq: &Value) -> Vec<i32> {
     let mut pool = std::collections::BTreeSet::new();
     for id in eq["OptionIndex"].as_array().into_iter().flatten() {
@@ -1382,10 +1387,12 @@ async fn dismantle_runes(
                 db,
                 state,
                 account,
-                n(drop, "ItemIndex") as i32,
-                i32::try_from(total).map_err(|_| rule("InvalidItemCount"))?,
-                0,
-                0,
+                ItemGrant {
+                    index: n(drop, "ItemIndex") as i32,
+                    count: i32::try_from(total).map_err(|_| rule("InvalidItemCount"))?,
+                    star: 0,
+                    custom: 0,
+                },
                 &mut rewards,
             )
             .await?;

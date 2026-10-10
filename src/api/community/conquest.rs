@@ -282,19 +282,42 @@ pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &R
     entry["ConquestBossIndex"]=boss(s,level)?["CreatureIndex"].clone();
     Ok(())
 }
-pub(crate) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, entry: &Value, out: &mut Value) -> Result<()> {
-    let g=n(entry,"ConquestGuildId");let session=n(entry,"ConquestSession");let level=n(entry,"ConquestLevel");
-    if guild::membership(db,a).await?.0!=g || current(s).index!=session {return Err(rule("NotOpenedDungeon"));}
-    let mut plays=plays(db,s,g,session).await?;
-    let mut play=plays[(level-1) as usize].clone();
-    let damage=damage(r,entry)?;
-    let credited=if level==3 {damage} else {damage.min(n(&play,"MonsterHp0").max(0))};
-    let total=n(&play,"TotalDamage").checked_add(credited).ok_or_else(||rule("InvalidValue"))?;
-    play["TotalDamage"]=json!(total);
-    let killed=level!=3 && n(&play,"MonsterHp0")>0 && credited==n(&play,"MonsterHp0");
-    if level!=3 {play["MonsterHp0"]=json!(if killed {-1} else if n(&play,"MonsterHp0")<0 {-1} else {n(&play,"MonsterHp0")-credited});}
-    play["KilledByMe"]=json!(false);
-    put(db,g,"guild_conquest_play",session*10+level,&play).await?;
+pub(crate) async fn finish(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    entry: &Value,
+    out: &mut Value,
+) -> Result<()> {
+    let g = n(entry, "ConquestGuildId");
+    let session = n(entry, "ConquestSession");
+    let level = n(entry, "ConquestLevel");
+    if guild::membership(db, a).await?.0 != g || current(s).index != session {
+        return Err(rule("NotOpenedDungeon"));
+    }
+    let mut plays = plays(db, s, g, session).await?;
+    let mut play = plays[(level - 1) as usize].clone();
+    let damage = damage(r, entry)?;
+    let credited = if level == 3 {
+        damage
+    } else {
+        damage.min(n(&play, "MonsterHp0").max(0))
+    };
+    let total = n(&play, "TotalDamage")
+        .checked_add(credited)
+        .ok_or_else(|| rule("InvalidValue"))?;
+    play["TotalDamage"] = json!(total);
+    let killed = level != 3 && n(&play, "MonsterHp0") > 0 && credited == n(&play, "MonsterHp0");
+    if level != 3 {
+        play["MonsterHp0"] = json!(if killed || n(&play, "MonsterHp0") < 0 {
+            -1
+        } else {
+            n(&play, "MonsterHp0") - credited
+        });
+    }
+    play["KilledByMe"] = json!(false);
+    put(db, g, "guild_conquest_play", session * 10 + level, &play).await?;
     sqlx::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES(?,?,'suppress',?,?,?) ON CONFLICT(guild_id,account,kind,season,stage) DO UPDATE SET score=score+excluded.score")
         .bind(g).bind(a).bind(session).bind(level).bind(credited).execute(&mut *db).await?;
     let user=user(db,a).await?;

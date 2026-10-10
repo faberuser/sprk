@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::Rng;
 
 pub(crate) async fn attached(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<bool> {
@@ -203,10 +204,12 @@ pub(crate) async fn dismantle(
                     db,
                     state,
                     account,
-                    n(drop, &format!("ItemIndex{i}")) as i32,
-                    count as i32,
-                    0,
-                    0,
+                    ItemGrant {
+                        index: n(drop, &format!("ItemIndex{i}")) as i32,
+                        count: count as i32,
+                        star: 0,
+                        custom: 0,
+                    },
                     rewards,
                 )
                 .await?;

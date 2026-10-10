@@ -2,7 +2,7 @@ use super::tests::{account, call, setup, unlock_godking};
 use super::*;
 async fn enable(s: &AppState, a: i64) {
     put(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         a,
         "entry_policy",
         0,
@@ -150,7 +150,7 @@ async fn technomagic_lobby_withdrawal_releases_hold_and_retries_keep_balance() {
             .unwrap();
         for (c, d) in [(97, 5), (10, 9)] {
             put(
-                &mut *s.db.acquire().await.unwrap(),
+                &mut s.db.acquire().await.unwrap(),
                 a,
                 "dungeon",
                 campaign::key(c, d),
@@ -171,7 +171,7 @@ async fn technomagic_lobby_withdrawal_releases_hold_and_retries_keep_balance() {
             .await
             .unwrap();
         assert_eq!(
-            get(&mut *s.db.acquire().await.unwrap(), a, "key", 29)
+            get(&mut s.db.acquire().await.unwrap(), a, "key", 29)
                 .await
                 .unwrap()["Count"],
             5
@@ -218,13 +218,13 @@ async fn godking_opening_cost_is_kept_on_defeat_with_pve_refunds_enabled() {
     .await;
     assert!(loss["StaminaResult"].is_null(), "{loss}");
     assert_eq!(
-        get(&mut *s.db.acquire().await.unwrap(), a, "godking", 100000)
+        get(&mut s.db.acquire().await.unwrap(), a, "godking", 100000)
             .await
             .unwrap()["IsOpen"],
         1
     );
     assert_eq!(
-        get(&mut *s.db.acquire().await.unwrap(), a, "key", 21)
+        get(&mut s.db.acquire().await.unwrap(), a, "key", 21)
             .await
             .unwrap()["Count"],
         1
@@ -241,7 +241,7 @@ async fn godking_opening_cost_is_kept_on_defeat_with_pve_refunds_enabled() {
     .await;
     assert_eq!(loss_again["Result"], "Success");
     assert_eq!(
-        get(&mut *s.db.acquire().await.unwrap(), a, "key", 21)
+        get(&mut s.db.acquire().await.unwrap(), a, "key", 21)
             .await
             .unwrap()["Count"],
         1
@@ -260,7 +260,7 @@ async fn godking_opening_cost_is_kept_on_defeat_with_pve_refunds_enabled() {
     assert_eq!(won["Result"], "Success", "{won}");
     assert_eq!(won["GodkingTrialDungeonInfo"]["IsOpen"], 0);
     assert_eq!(
-        get(&mut *s.db.acquire().await.unwrap(), a, "key", 21)
+        get(&mut s.db.acquire().await.unwrap(), a, "key", 21)
             .await
             .unwrap()["Count"],
         1
@@ -292,7 +292,7 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
         .unwrap();
         let mut receipt = json!({});
         entry_costs::prepare(
-            &mut *s.db.acquire().await.unwrap(),
+            &mut s.db.acquire().await.unwrap(),
             &s,
             a,
             &r,
@@ -308,6 +308,7 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
         .execute(&s.db)
         .await
         .unwrap();
+    sqlx::query("UPDATE user_info SET world_boss_ticket=2").execute(&s.db).await.unwrap();
     let request =
         "ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1";
     let begin = call(&s, &u, "campaign/begin_campaign", request).await;
@@ -330,7 +331,7 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
     enable(&s, a).await;
     for (c, d) in [(97, 2), (50000, 601)] {
         put(
-            &mut *s.db.acquire().await.unwrap(),
+            &mut s.db.acquire().await.unwrap(),
             a,
             "dungeon",
             campaign::key(c, d),
@@ -414,7 +415,7 @@ async fn apocalypsion_opening_stamina_is_deducted_on_first_victory() {
     let a = account(&u);
     enable(&s, a).await;
     put(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         a,
         "dungeon",
         campaign::key(11, 10),
@@ -520,7 +521,7 @@ async fn legacy_refunded_godking_gate_is_paid_once_and_receipts_cannot_refund_it
     let a = account(&u);
     enable(&s, a).await;
     unlock_godking(&s, &u).await;
-    put(&mut *s.db.acquire().await.unwrap(),a,"godking",100000,
+    put(&mut s.db.acquire().await.unwrap(),a,"godking",100000,
         &json!({"ChapterIndex":100000,"Day":"2020-01-01","IsOpen":1,"IsOpened":true,"RunVersion":2,
             "VictoryRefund":true,"EntryPaid":false,"CostSettled":false,"EntryCostType":21,"EntryCost":1})).await.unwrap();
     let entry = "ChapterIndex=100000&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]";
@@ -555,7 +556,7 @@ async fn legacy_refunded_godking_gate_is_paid_once_and_receipts_cannot_refund_it
         "Success"
     );
     assert_eq!(
-        get(&mut *s.db.acquire().await.unwrap(), a, "key", 21)
+        get(&mut s.db.acquire().await.unwrap(), a, "key", 21)
             .await
             .unwrap()["Count"],
         1
@@ -573,7 +574,7 @@ async fn quit_and_relogin_release_entry_without_spending_then_win_charges_once()
     assert_eq!(begin["Result"], "Success");
     assert_eq!(balance(&s, a, "stamina").await, before);
     assert!(
-        entry_costs::held(&mut *s.db.acquire().await.unwrap(), a, "Stamina", 1)
+        entry_costs::held(&mut s.db.acquire().await.unwrap(), a, "Stamina", 1)
             .await
             .unwrap()
             > 0
@@ -591,7 +592,7 @@ async fn quit_and_relogin_release_entry_without_spending_then_win_charges_once()
     );
     assert_eq!(balance(&restarted, a, "stamina").await, before);
     assert_eq!(
-        entry_costs::held(&mut *s.db.acquire().await.unwrap(), a, "Stamina", 1)
+        entry_costs::held(&mut s.db.acquire().await.unwrap(), a, "Stamina", 1)
             .await
             .unwrap(),
         0
@@ -694,7 +695,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
     let a = account(&u);
     enable(&s, a).await;
     put(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         a,
         "dungeon",
         campaign::key(1, 1),
@@ -714,7 +715,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
     assert_eq!(canceled["Result"], "Success", "{canceled}");
     assert_eq!(balance(&s, a, "stamina").await, before);
     assert_eq!(
-        entry_costs::held(&mut *s.db.acquire().await.unwrap(), a, "Stamina", 1)
+        entry_costs::held(&mut s.db.acquire().await.unwrap(), a, "Stamina", 1)
             .await
             .unwrap(),
         0
@@ -742,6 +743,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
 #[tokio::test]
 async fn tower_currency_fee_stays_available_on_defeat_and_deducts_on_victory() {
     let (s, u) = setup().await;
+    sqlx::query("UPDATE user_info SET team_level=100").execute(&s.db).await.unwrap();
     let a = account(&u);
     enable(&s, a).await;
     let entry="ChapterIndex=3001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&TowerIndex=1&TowerFloor=1";
@@ -778,7 +780,7 @@ async fn tower_currency_fee_stays_available_on_defeat_and_deducts_on_victory() {
         .iter()
         .any(|v| v["CurrencyType"] == "Gold" && v["AddValue"] == -5000));
     assert_eq!(
-        entry_costs::held(&mut *s.db.acquire().await.unwrap(), a, "Currency", 3)
+        entry_costs::held(&mut s.db.acquire().await.unwrap(), a, "Currency", 3)
             .await
             .unwrap(),
         0

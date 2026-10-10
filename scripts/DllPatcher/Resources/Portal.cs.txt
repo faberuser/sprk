@@ -6,6 +6,78 @@ using NVespa;
 // Additive menu reconstruction. Existing table rows and unlock rules take precedence.
 public static class RestoredPortal
 {
+    public static bool IsOpenedDragonHard(RaidData raid)
+    {
+        if (raid == null || (raid.Type != RaidType.DragonHard && raid.Type != RaidType.DragonHardSingle)
+            || raid.OpenCondition == null || raid.OpenCondition.Length < 2) return false;
+        int index = raid.OpenCondition[0], required = raid.OpenCondition[1];
+        if (index <= 0 || required <= 0) return false;
+        if (NGame2.NUI.NWindow.RaidHelper.GetRaidMaxLevel(index) >= required) return true;
+        // Older solo clears can be saved under the solo ID. Match the server's
+        // compatibility check without granting progress or bypassing the prerequisite.
+        foreach (var normal in GameRoot.Instance.RaidDataContainer.GetAllData())
+            if (normal.Index == index && normal.SingleRaidIndex > 0
+                && NGame2.NUI.NWindow.RaidHelper.GetRaidMaxLevel(normal.SingleRaidIndex) >= required)
+                return true;
+        return false;
+    }
+
+    public static string DragonHardRequirement(RaidData raid)
+    {
+        if (raid == null || (raid.Type != RaidType.DragonHard && raid.Type != RaidType.DragonHardSingle)
+            || IsOpenedDragonHard(raid)) return null;
+        RaidData prerequisite = null;
+        if (raid.OpenCondition != null && raid.OpenCondition.Length >= 2)
+            foreach (var normal in GameRoot.Instance.RaidDataContainer.GetAllData())
+                // RaidLevel records the highest selectable stage, so reaching
+                // the required level means clearing the preceding normal stage.
+                if (normal.Index == raid.OpenCondition[0] && normal.Level < raid.OpenCondition[1]
+                    && (prerequisite == null || normal.Level > prerequisite.Level)) prerequisite = normal;
+        if (prerequisite == null)
+            return "This Hard raid is locked. Its normal raid prerequisite is unavailable.";
+        string dragon = NVespa.NGlobal.LocalizationManager.GetStringDirect(prerequisite.Name);
+        string stage = NVespa.NGlobal.LocalizationManager.GetStringDirect(prerequisite.Step_Name);
+        return "Clear " + dragon + " (Normal), " + stage + " once to unlock this Hard raid.";
+    }
+
+    public static bool CheckDragonHardEntry(RaidData raid)
+    {
+        string requirement = DragonHardRequirement(raid);
+        if (requirement == null) return true;
+        NGame2.NUI.NWindow.MessagePopup.Open(
+            NVespa.NGlobal.LocalizationManager.GetString(NShared.NLocalization.Common.INFORM), requirement);
+        return false;
+    }
+
+    public static bool CheckDragonHardEntryByIndex(int raidIndex, int raidLevel)
+    {
+        return CheckDragonHardEntry(GameRoot.Instance.RaidDataContainer.GetData(raidIndex, raidLevel));
+    }
+
+    public static void LogRaidEntryFailure(NShared.BeginCampaign.Request request, NShared.BeginCampaign.Response response)
+    {
+        if (request == null || request.RaidIndex <= 0) return;
+        // Record only routing/progress fields. Never serialize the request:
+        // it also contains the account's session credentials.
+        try
+        {
+            var raid = GameRoot.Instance.RaidDataContainer.GetData(request.RaidIndex, request.RaidLevel);
+            string heroes = "";
+            if (request.HeroIndices != null)
+                foreach (var hero in request.HeroIndices) heroes += (heroes.Length == 0 ? "" : ",") + hero;
+            UnityEngine.Debug.LogWarning("SPRK raid entry rejected: chapter=" + request.ChapterIndex
+                + " dungeon=" + request.DungeonIndex + " linkedDungeon=" + request.LinkedDungeonIndex
+                + " difficulty=" + request.DungeonDifficulty + " raid=" + request.RaidIndex
+                + " level=" + request.RaidLevel + " heroes=" + heroes
+                + " baseResult=" + (response == null ? "null" : response.BaseResult.ToString())
+                + " result=" + (response == null ? "null" : response.Result.ToString())
+                + " clientRaidType=" + (raid == null ? "missing" : raid.Type.ToString())
+                + " clientChapter=" + (raid == null ? 0 : raid.ChapterIndex)
+                + " clientDungeon=" + (raid == null ? 0 : raid.DungeonIndex));
+        }
+        catch (System.Exception) { /* Diagnostics must not interfere with the native error handler. */ }
+    }
+
     public static void FinishStartupLogo()
     {
         // SetupLoginEnvironment opens the background after IsLogoPlayed.

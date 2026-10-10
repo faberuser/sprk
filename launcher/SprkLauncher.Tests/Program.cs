@@ -15,9 +15,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Authenticates signed payload and rejects unsigned or forged manifests", Signatures),
     ("Concurrent launchers cannot update the same installation", Locking),
     ("Repairs PowerShell PEM metadata without changing configuration preferences", ConfigRepair),
+    ("Profiles preserve legacy settings and persist selection and signing keys", ProfileConfiguration),
+    ("Switching profiles checks the selected endpoint and replaces shared files", ProfileUpdates),
 };
 foreach (var test in tests) { await test.Run(); Console.WriteLine($"PASS {test.Name}"); }
 Console.WriteLine($"{tests.Length} launcher checks passed.");
+if (args.Length == 2 && args[0] == "--verify-client")
+{
+    ClientProfileSupport.EnsureInstalled(args[1]);
+    Console.WriteLine("PASS installed client supports per-process server selection");
+}
 
 static void Require(bool value, string message) { if (!value) throw new Exception(message); }
 static async Task Reject(Func<Task> action)
@@ -169,6 +176,56 @@ static Task Locking()
     return Task.CompletedTask;
 }
 
+static async Task ProfileConfiguration()
+{
+    using var fixture = new Fixture();
+    var config = new LauncherConfig { ManifestPublicKeyPem = "shared key" };
+    config.EnsureProfiles();
+    Require(config.SelectedProfile == "local", "Legacy local installation changed servers");
+    Require(config.ForProfile().ManifestUrl.Contains("127.0.0.1:8081"), "Local update URL lost");
+    config.SelectedProfile = "public";
+    Require(config.ForProfile().ManifestPublicKeyPem == "shared key", "Pinned key not inherited");
+    config.CurrentProfile.ManifestPublicKeyPem = "public key";
+    config.Save(fixture.Path("sprk-launcher.json"));
+    config = LauncherConfig.Load(fixture.Path("sprk-launcher.json"));
+    Require(config.SelectedProfile == "public" && config.ForProfile().ManifestPublicKeyPem == "public key", "Profile selection/key not saved");
+    Require(config.CurrentProfile.HostUrl == "https://play.krinfo.net/host.json", "Game bootstrap URL lost");
+    foreach (var url in new[] { "http://public.example/host.json", "https://user:secret@public.example/host.json", "file:///tmp/host.json" })
+    {
+        config.CurrentProfile.HostUrl = url;
+        await Reject(() => { config.ForProfile(); return Task.CompletedTask; });
+    }
+    var custom = new LauncherConfig { ManifestUrl = "https://custom.example/stable/manifest.json" };
+    custom.EnsureProfiles();
+    Require(custom.CurrentProfile.ManifestUrl == custom.ManifestUrl, "Custom manifest was replaced");
+    Require(custom.ForProfile(requireHost: false).ManifestUrl == custom.ManifestUrl, "Legacy headless update requires a game URL");
+    await Reject(() => { custom.ForProfile(); return Task.CompletedTask; });
+    config.SelectedProfile = "unknown";
+    await Reject(() => { config.ForProfile(); return Task.CompletedTask; });
+}
+
+static async Task ProfileUpdates()
+{
+    using var fixture = new Fixture();
+    var config = new LauncherConfig(); config.EnsureProfiles();
+    // Two localhost fixtures stand in for independently signed public/local servers.
+    config.Profiles[1].HostUrl = "http://localhost:8090/host.json";
+    config.Profiles[1].ManifestUrl = "http://localhost:8091/updates/stable/manifest.json";
+    foreach (var profile in new[] { "local", "public", "local" })
+    {
+        config.SelectedProfile = profile;
+        fixture.Server.Files["Managed/shared.dll"] = Encoding.UTF8.GetBytes(profile);
+        fixture.Server.Refresh();
+        fixture.Server.Requests.Clear();
+        var engine = new UpdateEngine(fixture.Root, config.ForProfile(), fixture.Http);
+        using var updateLock = engine.AcquireLock();
+        await engine.UpdateAsync();
+        Require(fixture.Read("Managed/shared.dll") == profile, "Same version on another server skipped hash checks");
+        Require(fixture.Server.Requests[0] == config.CurrentProfile.ManifestUrl, "Wrong server checked");
+        Require(fixture.Server.Requests.All(url => new Uri(url).Authority == new Uri(config.CurrentProfile.ManifestUrl).Authority), "Downloads crossed server origins");
+    }
+}
+
 sealed class Fixture : IDisposable
 {
     public string Root { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sprk-launcher-tests-" + Guid.NewGuid());
@@ -189,6 +246,7 @@ sealed class Server : HttpMessageHandler
     public int Downloads;
     public string? CorruptPath;
     public List<long> Ranges { get; } = [];
+    public List<string> Requests { get; } = [];
     public void Refresh() => Manifest.Files = Files.Select(pair => new UpdateFile
     {
         Path = pair.Key, Size = pair.Value.Length, Sha256 = Convert.ToHexString(SHA256.HashData(pair.Value)).ToLowerInvariant(),
@@ -196,6 +254,7 @@ sealed class Server : HttpMessageHandler
     }).ToList();
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        Requests.Add(request.RequestUri!.AbsoluteUri);
         if (request.RequestUri!.AbsolutePath.EndsWith("manifest.json"))
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(Manifest)) });
         Downloads++;

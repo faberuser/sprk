@@ -58,16 +58,27 @@ async fn peek(
         hero::currency(db, a, currency(family, kind)?, 0).await
     }
 }
+struct Reservation<'a> {
+    owner: &'a str,
+    family: &'a str,
+    kind: i64,
+    total: i64,
+    expires: i64,
+}
+
 async fn reserve(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
-    owner: &str,
-    family: &str,
-    kind: i64,
-    total: i64,
-    expires: i64,
+    reservation: Reservation<'_>,
 ) -> Result<Value> {
+    let Reservation {
+        owner,
+        family,
+        kind,
+        total,
+        expires,
+    } = reservation;
     let value = peek(db, s, a, family, kind).await?;
     let (family, kind) = resource(family, kind);
     let available = n(&value, "NewValue");
@@ -145,11 +156,13 @@ pub(super) async fn prepare(
                 db,
                 s,
                 a,
-                &owner,
-                "Stamina",
-                kind,
-                amount,
-                now() + settings(s, "BattleExpirySeconds", 14400),
+                Reservation {
+                    owner: &owner,
+                    family: "Stamina",
+                    kind,
+                    total: amount,
+                    expires: now() + settings(s, "BattleExpirySeconds", 14400),
+                },
             )
             .await?;
             gate["DeferredOpening"] = json!(true);
@@ -194,11 +207,13 @@ pub(super) async fn charge(
             db,
             s,
             a,
-            &owner,
-            "Stamina",
-            kind,
-            total,
-            now() + settings(s, "BattleExpirySeconds", 14400),
+            Reservation {
+                owner: &owner,
+                family: "Stamina",
+                kind,
+                total,
+                expires: now() + settings(s, "BattleExpirySeconds", 14400),
+            },
         )
         .await?;
         note(entry, "Stamina", kind, amount);
@@ -234,11 +249,13 @@ pub(super) async fn charge_currency(
             db,
             s,
             a,
-            &owner,
-            family,
-            kind,
-            total,
-            now() + settings(s, "BattleExpirySeconds", 14400),
+            Reservation {
+                owner: &owner,
+                family,
+                kind,
+                total,
+                expires: now() + settings(s, "BattleExpirySeconds", 14400),
+            },
         )
         .await?
     } else {

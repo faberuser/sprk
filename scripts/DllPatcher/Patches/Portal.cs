@@ -109,6 +109,54 @@ partial class Program
                 il.InsertAfter(ret,il.Create(OpCodes.Ret));
             }
         }
+        var hardUnlock = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.RaidHelper")
+            .Methods.Single(m => m.Name == "IsOpenedHardMode");
+        hardUnlock.Body = new MethodBody(hardUnlock) { MaxStackSize = 1 };
+        var unlockIl = hardUnlock.Body.GetILProcessor();
+        unlockIl.Append(unlockIl.Create(OpCodes.Ldarg_0));
+        unlockIl.Append(unlockIl.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == "IsOpenedDragonHard")));
+        unlockIl.Append(unlockIl.Create(OpCodes.Ret));
+
+        // Block locked Hard dragons before opening a party window. Cover direct
+        // links/return routes as well as the raid list, and recheck at battle start.
+        var raidManagement = module.GetType("NGame2.NUI.NManager.NLobby.RaidManagement");
+        var raidParty = module.GetType("NGame2.NUI.NWindow.RaidPartySetting");
+        var raidGetter = raidParty.Methods.Single(m => m.Name == "get_RaidData");
+        void GuardDragonEntry(MethodDefinition method, string helperName, params Instruction[] arguments)
+        {
+            if (method.Body.Instructions.Any(i => i.Operand is MethodReference m
+                && m.DeclaringType.Name == "RestoredPortal" && m.Name == helperName)) return;
+            var il = method.Body.GetILProcessor();
+            var original = method.Body.Instructions[0];
+            foreach (var argument in arguments) il.InsertBefore(original, argument);
+            il.InsertBefore(original, Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == helperName)));
+            il.InsertBefore(original, Instruction.Create(OpCodes.Brtrue, original));
+            il.InsertBefore(original, Instruction.Create(OpCodes.Ret));
+            method.Body.MaxStackSize = System.Math.Max(method.Body.MaxStackSize, 2);
+        }
+        foreach (var method in raidManagement.Methods.Where(m => m.Name == "EnterRaidInternal"
+            || (m.Name == "OpenSingleRaidPartySetting" && m.Parameters[0].ParameterType.Name == "RaidData")))
+            GuardDragonEntry(method, "CheckDragonHardEntry", Instruction.Create(OpCodes.Ldarg_1));
+        foreach (var method in raidManagement.Methods.Where(m => (m.Name == "OpenSingleRaidPartySetting"
+            || m.Name == "OpenRaidPartySetting") && m.Parameters[0].ParameterType.MetadataType == MetadataType.Int32))
+            GuardDragonEntry(method, "CheckDragonHardEntryByIndex", Instruction.Create(OpCodes.Ldarg_1), Instruction.Create(OpCodes.Ldarg_2));
+        GuardDragonEntry(raidParty.Methods.Single(m => m.Name == "OnClickStartBattleButton"), "CheckDragonHardEntry",
+            Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Call, raidGetter));
+        GuardDragonEntry(module.GetType("NGame2.NUI.NWindow.RaidSinglePartySetting").Methods.Single(m => m.Name == "RequestStartBattle"),
+            "CheckDragonHardEntry", Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Call, raidGetter));
+
+        var entryError = module.GetType("NGame2.NBattleContext.BattleContext").Methods.Single(m => m.Name == "BeginCampaignOnErrorCallback");
+        if (!entryError.Body.Instructions.Any(i => i.Operand is MethodReference m
+            && m.DeclaringType.Name == "RestoredPortal" && m.Name == "LogRaidEntryFailure"))
+        {
+            var errorIl = entryError.Body.GetILProcessor();
+            var original = entryError.Body.Instructions[0];
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Ldarg_1));
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Ldarg_2));
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == "LogRaidEntryFailure")));
+            entryError.Body.MaxStackSize = System.Math.Max(entryError.Body.MaxStackSize, 2);
+        }
+
         // One immutable defense policy for every battle, including detached
         // dispatch/Conquest simulations and callers of the public calculator.
         var statController = module.Types.Single(t => t.FullName == "NShared.StatController");

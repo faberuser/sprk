@@ -2,31 +2,22 @@ use crate::api::{
     account::user,
     inventory::{craft, item},
 };
-use crate::{database, state::AppState, tables::GameTables};
+use crate::models::item::ItemGrant;
+use crate::{database, state::AppState};
 use axum::{body::Bytes, extract::State};
 use serde_json::{json, Value};
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use std::sync::Arc;
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&pool).await.unwrap();
-    let state = AppState::new(
-        pool,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    );
+    let state = AppState::new(pool, crate::tables::test_tables());
     let user = login(&state).await;
+    sqlx::query("UPDATE user_info SET gold=100000000,gem=100000").execute(&state.db).await.unwrap();
     (state, user)
 }
 async fn login(state: &AppState) -> user::LoginResponse {
@@ -943,11 +934,16 @@ async fn boosters_persist_extend_and_apply_campaign_bonuses() {
             > one["ItemTimeDurationInfo"]["EndTime"].as_str().unwrap()
     );
     assert_eq!(
-        item::campaign_boost(&state, u.user_info.account_id)
-            .await
-            .unwrap()
-            .1,
-        item::n(b, "Value") as i32
+        crate::api::battle::bonuses::calculate(
+            &mut state.db.acquire().await.unwrap(),
+            &state,
+            u.user_info.account_id,
+            1
+        )
+        .await
+        .unwrap()
+        .1,
+        item::n(b, "Value")
     );
     let again = login(&state).await;
     assert_eq!(again.item_time_durations.len(), 1);
@@ -956,9 +952,14 @@ async fn boosters_persist_extend_and_apply_campaign_bonuses() {
         .await
         .unwrap();
     assert_eq!(
-        item::campaign_boost(&state, u.user_info.account_id)
-            .await
-            .unwrap(),
+        crate::api::battle::bonuses::calculate(
+            &mut state.db.acquire().await.unwrap(),
+            &state,
+            u.user_info.account_id,
+            1
+        )
+        .await
+        .unwrap(),
         (0, 0)
     );
 }
@@ -991,11 +992,16 @@ async fn gold_booster_uses_bonus_gold_enum_and_loot_boosters_are_not_consumed() 
         "Success"
     );
     assert_eq!(
-        item::campaign_boost(&state, u.user_info.account_id)
-            .await
-            .unwrap()
-            .0,
-        item::n(data, "Value") as i32
+        crate::api::battle::bonuses::calculate(
+            &mut state.db.acquire().await.unwrap(),
+            &state,
+            u.user_info.account_id,
+            1
+        )
+        .await
+        .unwrap()
+        .0,
+        item::n(data, "Value")
     );
     let loot = *state
         .tables
@@ -1464,12 +1470,38 @@ async fn battle_overflow_mail_preserves_equipment_and_full_claim_is_atomic() {
     for _ in 0..base {
         sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)").bind(a).execute(&mut *tx).await.unwrap();
     }
-    let slot:i64=sqlx::query_scalar("SELECT MIN(slot_index) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&mut *tx).await.unwrap();
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=?").bind(slot).bind(a).execute(&mut *tx).await.unwrap();
-    item::capacity(&mut tx,&s,a,0,1).await.unwrap(); // Equipped weapons do not fill the bag.
-    let mut r=crate::api::tutorial::Rewards {mail_overflow:true,..Default::default()};
-    item::give(&mut tx,&s,a,1001,3,3,0,&mut r).await.unwrap();
-    assert_eq!(r.equipment.len(),1);
+    let slot: i64 =
+        sqlx::query_scalar("SELECT MIN(slot_index) FROM equip_items WHERE account_id=?")
+            .bind(a)
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=?")
+        .bind(slot)
+        .bind(a)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    item::capacity(&mut tx, &s, a, 0, 1).await.unwrap(); // Equipped weapons do not fill the bag.
+    let mut r = crate::api::tutorial::Rewards {
+        mail_overflow: true,
+        ..Default::default()
+    };
+    item::give(
+        &mut tx,
+        &s,
+        a,
+        ItemGrant {
+            index: 1001,
+            count: 3,
+            star: 3,
+            custom: 0,
+        },
+        &mut r,
+    )
+    .await
+    .unwrap();
+    assert_eq!(r.equipment.len(), 1);
     let (id,raw):(i64,String)=sqlx::query_as("SELECT mail_id,reward_equipment FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&mut *tx).await.unwrap();
     let eq:Vec<crate::models::equip::EquipItemInfo>=serde_json::from_str(&raw).unwrap();
     assert_eq!(eq.len(),2); assert!(eq.iter().all(|e|e.star==3 && e.item_index==1001));
@@ -1504,15 +1536,40 @@ async fn native_batch_sales_remove_every_selection_and_persist_across_login() {
         slots.push(sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES (?,?)")
             .bind(account).bind(id).execute(&state.db).await.unwrap().last_insert_rowid());
     }
-    let before:i64=sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(account).fetch_one(&state.db).await.unwrap();
-    let result=item::sell_equip(State(state.clone()),form(&u,&format!(
-        "{}",slots.iter().map(|slot|format!("EquipItemSlotIndices={slot}")).collect::<Vec<_>>().join("&"))))
-        .await.unwrap().0;
-    assert_eq!(result["Result"],"Success","{result}");
-    assert_eq!(result["CurrencyResult"]["AddValue"],item::n(data,"SellGold")*150);
-    let again=login(&state).await;
-    assert!(again.equip_items.iter().all(|eq|!slots.contains(&(eq.slot_index as i64))));
-    assert_eq!(again.user_info.gold as i64,before+item::n(data,"SellGold")*150);
+    let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+        .bind(account)
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+    let result = item::sell_equip(
+        State(state.clone()),
+        form(
+            &u,
+            &slots
+                .iter()
+                .map(|slot| format!("EquipItemSlotIndices={slot}"))
+                .collect::<Vec<_>>()
+                .join("&")
+                .to_string(),
+        ),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(
+        result["CurrencyResult"]["AddValue"],
+        item::n(data, "SellGold") * 150
+    );
+    let again = login(&state).await;
+    assert!(again
+        .equip_items
+        .iter()
+        .all(|eq| !slots.contains(&(eq.slot_index as i64))));
+    assert_eq!(
+        again.user_info.gold as i64,
+        before + item::n(data, "SellGold") * 150
+    );
 }
 
 #[tokio::test]

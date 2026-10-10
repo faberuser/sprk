@@ -456,9 +456,11 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
                     db,
                     s,
                     a,
-                    "world_boss_daily",
-                    id,
-                    &format!("{old}:{date}"),
+                    SeasonClaim {
+                        kind: "world_boss_daily",
+                        id,
+                        period: &format!("{old}:{date}"),
+                    },
                     n(reward, "RewardIndex"),
                     "World boss daily reward",
                 )
@@ -493,9 +495,11 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
                 db,
                 s,
                 a,
-                &format!("{family}_season"),
-                id,
-                &old.to_string(),
+                SeasonClaim {
+                    kind: &format!("{family}_season"),
+                    id,
+                    period: &old.to_string(),
+                },
                 n(reward, "RewardIndex"),
                 "Battle season ranking reward",
             )
@@ -504,16 +508,21 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     }
     Ok(())
 }
+struct SeasonClaim<'a> {
+    kind: &'a str,
+    id: i64,
+    period: &'a str,
+}
+
 async fn deliver(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
-    kind: &str,
-    id: i64,
-    period: &str,
+    identity: SeasonClaim<'_>,
     reward: i64,
     title: &str,
 ) -> Result<()> {
+    let SeasonClaim { kind, id, period } = identity;
     let exists:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind=? AND idx=? AND period=?)").bind(a).bind(kind).bind(id).bind(period).fetch_one(&mut *db).await?;
     if exists {
         return Ok(());

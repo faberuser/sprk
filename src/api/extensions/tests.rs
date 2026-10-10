@@ -1,25 +1,16 @@
+use crate::models::item::ItemGrant;
 use super::*;
 use crate::api::account::user;
 use crate::database;
-use crate::tables::GameTables;
-use std::{path::Path, sync::OnceLock};
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&db).await.unwrap();
-    let state = AppState::new(
-        db,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    );
+    let state = AppState::new(db, crate::tables::test_tables());
     let u = user::test_login(
         State(state.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
@@ -120,10 +111,22 @@ async fn soul_judgment_login_without_pending_choices_does_not_show_a_soul_stone(
     let a = u.user_info.account_id;
     // An account with prior judgments still has a restore record, even when
     // there is no Soul Stone left to choose. Preserve its mileage on reconnect.
-    put(&mut *s.db.acquire().await.unwrap(), a, "soul_restore", 0,
-        &json!({"Mileage":9,"Choices":[]})).await.unwrap();
-    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
-        .await.unwrap().0;
+    put(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        "soul_restore",
+        0,
+        &json!({"Mileage":9,"Choices":[]}),
+    )
+    .await
+    .unwrap();
+    let login = user::test_login(
+        State(s.clone()),
+        Bytes::from_static(b"LoginId=extensions-test"),
+    )
+    .await
+    .unwrap()
+    .0;
     let misc = login.misc_info.unwrap().extra;
     assert_eq!(misc["SoulStoneMileage"], 9);
     assert_eq!(misc["RestoreSoulStoneIndices"], "");
@@ -134,7 +137,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
     let a = u.user_info.account_id;
     let mut eq = give(&s, a, 911301, 1).await.equipment.remove(0);
     eq.identified = 0;
-    save_equip(&mut *s.db.acquire().await.unwrap(), a, &eq)
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq)
         .await
         .unwrap();
     let args = format!("EquipItemSlotIndices={}", eq.slot_index);
@@ -308,7 +311,7 @@ async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() 
     let result = item::break_rune(State(s.clone()), body).await.unwrap().0;
     assert_eq!(result["Result"], "Success", "{result}");
     assert!(
-        punishment::available(&mut *s.db.acquire().await.unwrap(), a, slot)
+        punishment::available(&mut s.db.acquire().await.unwrap(), a, slot)
             .await
             .is_err()
     );
@@ -362,7 +365,7 @@ async fn costume_unlocks_reject_forged_prices_and_survive_reconnect() {
         .await["Result"],
         "Success"
     );
-    assert!(get(&mut *s.db.acquire().await.unwrap(), a, "hair", 220114)
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "hair", 220114)
         .await
         .unwrap()
         .is_null());
@@ -408,8 +411,17 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let wrong = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=1")).await;
     assert_ne!(wrong["Result"], "Success");
     let key = cosmetics::accessory_key(1, 3100013).unwrap();
-    assert!(get(&mut *s.db.acquire().await.unwrap(), a, "accessory", key).await.unwrap().is_null());
-    let bought = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem={price}")).await;
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", key)
+        .await
+        .unwrap()
+        .is_null());
+    let bought = call(
+        &s,
+        &u,
+        "hero/buy_customizing_costumes",
+        &format!("{args}&BuyGem={price}"),
+    )
+    .await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let again = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
     assert_eq!(again["Result"], "Success", "{again}");
@@ -421,11 +433,38 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let escaped = urlencoding::encode(&body_pos).into_owned();
     let wire = urlencoding::encode(&escaped);
     let bought = call(&s, &login, "hero/buy_customizing_costumes",
-        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
+        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=4000&BuyGold=0")).await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32 - 10000);
+    assert_eq!(login.user_info.gem, 100000 - price as i32 - 4000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
+    let selected = hero::change_avatar_hero(State(s.clone()),
+        Bytes::from(format!("SessionKey={}&HeroIndex=1&AvatarHeroIndex=11", u.user_info.session_key)))
+        .await.unwrap().0;
+    assert_eq!(selected["Result"], "Success");
+    let part = n(data, "PartType");
+    let position_key = format!("PositionInfo{part}");
+    let slot_key = format!("AccessoryCostumeIndex{part}");
+    let expected = &pos["3100013"];
+    assert_eq!(selected["PlayerAvatarHeroInfo"][&slot_key], 3100013);
+    assert_eq!(serde_json::from_str::<Value>(selected["PlayerAvatarHeroInfo"][&position_key].as_str().unwrap()).unwrap(), *expected);
+    // A position-only edit must be reflected in the next login's lobby snapshot.
+    let mut edited = pos.clone();
+    edited["3100013"]["Scale"] = json!("1.5");
+    edited["3100013"]["PositionX"] = json!("0.2");
+    let encoded = urlencoding::encode(&edited.to_string()).into_owned();
+    let edited_result = call(&s, &login, "hero/edit_accessory_costume_position",
+        &format!("HeroIndex=1&AccessoryCostumePositionInfo={}", urlencoding::encode(&encoded))).await;
+    assert_eq!(edited_result["Result"], "Success");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(serde_json::from_str::<Value>(login.player_avatar_hero_info[&position_key].as_str().unwrap()).unwrap(), edited["3100013"]);
+    let unset = call(&s, &login, "hero/buy_customizing_costumes",
+        "HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&UnsetAccessoryCostumeIndices=3100013&BuyGold=0&BuyGem=0").await;
+    assert_eq!(unset["Result"], "Success");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.player_avatar_hero_info[&slot_key], 0);
+    assert_eq!(login.player_avatar_hero_info[&position_key], "");
+    assert!(login.player_accessory_costume_infos.iter().any(|v| v["AccessoryCostumeIndex"] == 3100013));
 }
 
 #[tokio::test]
@@ -445,26 +484,81 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
         let args=format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGold=0");
         let key=cosmetics::accessory_key(1,id).unwrap();
         // A forged quote must roll back the ownership created before payment checks.
-        assert_ne!(call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem=0")).await["Result"],"Success");
-        assert!(get(&mut *s.db.acquire().await.unwrap(),a,"accessory",key).await.unwrap().is_null());
-        let result=call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem={price}")).await;
-        assert_eq!(result["Result"],"Success","Accessory {id}: {result}");
-        spent+=price;acquired+=1;
-        assert_eq!(call(&s,&u,"hero/buy_customizing_costumes",&format!("{args}&BuyGem=0")).await["Result"],"Success");
+        assert_ne!(
+            call(
+                &s,
+                &u,
+                "hero/buy_customizing_costumes",
+                &format!("{args}&BuyGem=0")
+            )
+            .await["Result"],
+            "Success"
+        );
+        assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", key)
+            .await
+            .unwrap()
+            .is_null());
+        let result = call(
+            &s,
+            &u,
+            "hero/buy_customizing_costumes",
+            &format!("{args}&BuyGem={price}"),
+        )
+        .await;
+        assert_eq!(result["Result"], "Success", "Accessory {id}: {result}");
+        spent += price;
+        acquired += 1;
+        assert_eq!(
+            call(
+                &s,
+                &u,
+                "hero/buy_customizing_costumes",
+                &format!("{args}&BuyGem=0")
+            )
+            .await["Result"],
+            "Success"
+        );
     }
     assert_eq!(acquired,rows.len());
     let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.user_info.gem as i64,10000000-spent);
     assert_eq!(login.player_accessory_costume_infos.len(),acquired);
     // Purchases remain per hero. An empty wallet cannot acquire the same item for hero 2.
-    hero::recruit_at(&mut *s.db.acquire().await.unwrap(), &s, a, 2, 1, 1, 0).await.unwrap();
-    let data=rows.iter().find(|r|r["PreviewableWhenOwned"]==true && n(r,"PartType")==1).unwrap();
-    let id=n(data,"Index");let price=n(data,"ReqBuyGem");
-    sqlx::query("UPDATE user_info SET gem=0,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-    let position=json!({id.to_string():{"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}}).to_string();let escaped=urlencoding::encode(&position).into_owned();let wire=urlencoding::encode(&escaped);
+    hero::recruit_at(&mut s.db.acquire().await.unwrap(), &s, a, 2, 1, 1, 0)
+        .await
+        .unwrap();
+    let data = rows
+        .iter()
+        .find(|r| r["PreviewableWhenOwned"] == true && n(r, "PartType") == 1)
+        .unwrap();
+    let id = n(data, "Index");
+    let price = n(data, "ReqBuyGem");
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=0 WHERE account_id=?")
+        .bind(a)
+        .execute(&s.db)
+        .await
+        .unwrap();
+    let position=json!({id.to_string():{"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}}).to_string();
+    let escaped = urlencoding::encode(&position).into_owned();
+    let wire = urlencoding::encode(&escaped);
     assert_eq!(call(&s,&login,"hero/buy_customizing_costumes",&format!("HeroIndex=2&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGold=0&BuyGem={price}")).await["Result"],"NotEnoughGem");
-    assert!(get(&mut *s.db.acquire().await.unwrap(),a,"accessory",cosmetics::accessory_key(2,id).unwrap()).await.unwrap().is_null());
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    assert!(get(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        "accessory",
+        cosmetics::accessory_key(2, id).unwrap()
+    )
+    .await
+    .unwrap()
+    .is_null());
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT gem FROM user_info WHERE account_id=?")
+            .bind(a)
+            .fetch_one(&s.db)
+            .await
+            .unwrap(),
+        0
+    );
 }
 #[tokio::test]
 async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
@@ -478,7 +572,7 @@ async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     let r = call(&s, &u, "add_equip_storage_slot", &args).await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert!(
-        material(&mut *s.db.acquire().await.unwrap(), a, eq.slot_index as i64)
+        material(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64)
             .await
             .is_err()
     );
@@ -566,7 +660,7 @@ async fn rerolls_recover_pending_options_and_reject_forged_confirmation() {
         .await["Result"],
         "Success"
     );
-    let pending = misc(&mut *s.db.acquire().await.unwrap(), a).await.unwrap();
+    let pending = misc(&mut s.db.acquire().await.unwrap(), a).await.unwrap();
     assert_eq!(pending["RenewOptionResultIndex"], option);
     let r = call(&s, &u, "renew_confirm_equip_option", &args).await;
     assert_eq!(r["ResultEquipItem"]["OptionIndex1"], option, "{r}");
@@ -648,7 +742,7 @@ async fn tickets_change_names_and_awakenings_without_replay() {
     let mut source = give(&s, a, 1001, 1).await.equipment.remove(0);
     let target = give(&s, a, 1002, 1).await.equipment.remove(0);
     source.star = 4;
-    save_equip(&mut *s.db.acquire().await.unwrap(), a, &source)
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &source)
         .await
         .unwrap();
     give(&s, a, 2210, 1).await;
@@ -696,9 +790,20 @@ async fn give(s: &AppState, account: i64, id: i32, count: i32) -> Rewards {
     let mut tx = s.db.begin().await.unwrap();
     item::init(&mut tx, s, account).await.unwrap();
     let mut rewards = Rewards::default();
-    item::give(&mut tx, s, account, id, count, 0, 0, &mut rewards)
-        .await
-        .unwrap();
+    item::give(
+        &mut tx,
+        s,
+        account,
+        ItemGrant {
+            index: id,
+            count,
+            star: 0,
+            custom: 0,
+        },
+        &mut rewards,
+    )
+    .await
+    .unwrap();
     tx.commit().await.unwrap();
     rewards
 }
@@ -716,7 +821,7 @@ async fn accessory_ownership_is_per_hero_and_compensation_requires_every_eligibl
         .find(|v| n(v, "ItemIndex") == 3100017)
         .unwrap();
     selector["TargetHero"] = json!([1, 2]);
-    hero::recruit_at(&mut *s.db.acquire().await.unwrap(), &s, a, 2, 1, 1, 0)
+    hero::recruit_at(&mut s.db.acquire().await.unwrap(), &s, a, 2, 1, 1, 0)
         .await
         .unwrap();
     give(&s, a, 3100017, 3).await;
@@ -887,17 +992,22 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
         "Success"
     );
     assert_eq!(gold(&s).await, 90000000);
-    assert!(
-        material(&mut *s.db.acquire().await.unwrap(), a, slot as i64)
-            .await
-            .is_err()
-    );
-    let mut stored = get(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64)
+    assert!(material(&mut s.db.acquire().await.unwrap(), a, slot as i64)
+        .await
+        .is_err());
+    let mut stored = get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64)
         .await.unwrap();
     stored["OptionStat1"] = json!(123456789);
     stored["OptionStat2"] = json!(123456789);
-    put(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64, &stored)
-        .await.unwrap();
+    put(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        "soul",
+        slot as i64,
+        &stored,
+    )
+    .await
+    .unwrap();
     let login = user::test_login(
         State(s.clone()),
         Bytes::from_static(b"LoginId=extensions-test"),
@@ -910,8 +1020,12 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     // recalculate cached values without changing the saved progression record.
     assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4);
     assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125);
-    assert_eq!(get(&mut *s.db.acquire().await.unwrap(), a, "soul", slot as i64)
-        .await.unwrap(), stored);
+    assert_eq!(
+        get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64)
+            .await
+            .unwrap(),
+        stored
+    );
 }
 #[tokio::test]
 async fn all_extended_equipment_columns_survive_database_reload() {
@@ -962,34 +1076,74 @@ async fn rune_pages_consume_preserve_and_restore_without_duplication() {
 
 #[tokio::test]
 async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
-    let (mut s,u)=setup().await;
-    let a=u.user_info.account_id;
-    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"]=json!(0);
-    give(&s,a,45080,400).await;
-    give(&s,a,5251,1).await;
-    put(&mut *s.db.acquire().await.unwrap(),a,"soul_restore",0,&json!({"Mileage":19,"Choices":[]})).await.unwrap();
-    let args="SoulStoneRestoreIndex=1";
-    let ether=call(&s,&u,"restore_soul_stone",args).await;
-    assert_eq!(ether["Result"],"Success","{ether}");
-    assert_eq!(ether["SoulStoneMileage"],20);
-    assert_eq!(ether["SelectSoulStoneIndices"],json!([]));
-    assert_eq!(ether["ItemResults"][0]["ItemIndex"],5100);
-    let protection: i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251").bind(a).fetch_one(&s.db).await.unwrap();
-    assert_eq!(protection,1);
-    assert_ne!(call(&s,&u,"restore_soul_stone",args).await["Result"],"Success");
-    let bonus=call(&s,&u,"get_soul_stone_mileage_reward","SoulStoneRestoreIndex=0").await;
-    assert_eq!(bonus["Result"],"Success","{bonus}");
-    assert_eq!(bonus["SoulStoneMileage"],0);
-    assert_eq!(bonus["SelectSoulStoneIndices"].as_array().unwrap().len(),3);
-    let choice=format!("SoulStoneItemIndex={}",bonus["SelectSoulStoneIndices"][0]);
-    assert_eq!(call(&s,&u,"confirm_soul_stone",&choice).await["Result"],"Success");
-    assert_ne!(call(&s,&u,"get_soul_stone_mileage_reward","SoulStoneRestoreIndex=0").await["Result"],"Success");
-    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0.get_mut("LocalSoulStoneRestore").unwrap()[0]["SoulStoneChancePer10000"]=json!(10000);
-    let direct=call(&s,&u,"restore_soul_stone",args).await;
-    assert_eq!(direct["Result"],"Success","{direct}");
-    assert_eq!(direct["SelectSoulStoneIndices"],json!([]));
-    assert_eq!(direct["ItemResults"].as_array().unwrap().len(),1);
-    assert_eq!(direct["SoulStoneMileage"],0);
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions)
+        .0
+        .get_mut("LocalSoulStoneRestore")
+        .unwrap()[0]["SoulStoneChancePer10000"] = json!(0);
+    give(&s, a, 45080, 400).await;
+    give(&s, a, 5251, 1).await;
+    put(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        "soul_restore",
+        0,
+        &json!({"Mileage":19,"Choices":[]}),
+    )
+    .await
+    .unwrap();
+    let args = "SoulStoneRestoreIndex=1";
+    let ether = call(&s, &u, "restore_soul_stone", args).await;
+    assert_eq!(ether["Result"], "Success", "{ether}");
+    assert_eq!(ether["SoulStoneMileage"], 20);
+    assert_eq!(ether["SelectSoulStoneIndices"], json!([]));
+    assert_eq!(ether["ItemResults"][0]["ItemIndex"], 5100);
+    let protection: i64 =
+        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
+            .bind(a)
+            .fetch_one(&s.db)
+            .await
+            .unwrap();
+    assert_eq!(protection, 1);
+    assert_ne!(
+        call(&s, &u, "restore_soul_stone", args).await["Result"],
+        "Success"
+    );
+    let bonus = call(
+        &s,
+        &u,
+        "get_soul_stone_mileage_reward",
+        "SoulStoneRestoreIndex=0",
+    )
+    .await;
+    assert_eq!(bonus["Result"], "Success", "{bonus}");
+    assert_eq!(bonus["SoulStoneMileage"], 0);
+    assert_eq!(bonus["SelectSoulStoneIndices"].as_array().unwrap().len(), 3);
+    let choice = format!("SoulStoneItemIndex={}", bonus["SelectSoulStoneIndices"][0]);
+    assert_eq!(
+        call(&s, &u, "confirm_soul_stone", &choice).await["Result"],
+        "Success"
+    );
+    assert_ne!(
+        call(
+            &s,
+            &u,
+            "get_soul_stone_mileage_reward",
+            "SoulStoneRestoreIndex=0"
+        )
+        .await["Result"],
+        "Success"
+    );
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions)
+        .0
+        .get_mut("LocalSoulStoneRestore")
+        .unwrap()[0]["SoulStoneChancePer10000"] = json!(10000);
+    let direct = call(&s, &u, "restore_soul_stone", args).await;
+    assert_eq!(direct["Result"], "Success", "{direct}");
+    assert_eq!(direct["SelectSoulStoneIndices"], json!([]));
+    assert_eq!(direct["ItemResults"].as_array().unwrap().len(), 1);
+    assert_eq!(direct["SoulStoneMileage"], 0);
 }
 
 #[tokio::test]

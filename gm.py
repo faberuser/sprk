@@ -7,7 +7,10 @@ Usage (interactive menu):
     python gm.py
 
 Usage (one-shot commands):
-    python gm.py session <SESSION_ID>        -- save session ID for future calls
+    python gm.py server http://127.0.0.1:8082
+    python gm.py players [SEARCH]
+    python gm.py account <ACCOUNT_ID>        -- save permanent player ID
+    python gm.py --account-id 42 currency --gold 1000
     python gm.py allheroes [--level N] [--star N]
     python gm.py unlock
     python gm.py currency [--gold N] [--gem N] [--stamina N]
@@ -16,9 +19,13 @@ Usage (one-shot commands):
     python gm.py reset [--keep-heroes]
 
 Config is saved to gm_config.json next to this script.
+Set SPRK_GM_KEY in your environment or enter it at the hidden prompt. Keys are not saved.
+Use the private admin listener, not the game port or Cloudflare hostname.
 """
 
 import sys
+import os
+import getpass
 import json
 import urllib.request
 import urllib.parse
@@ -31,32 +38,54 @@ from pathlib import Path
 # Config persistence
 # ---------------------------------------------------------------------------
 CONFIG_FILE = Path(__file__).parent / "gm_config.json"
-DEFAULT_SERVER = "http://127.0.0.1:8080"
+DEFAULT_SERVER = "http://127.0.0.1:8082"
 
 
 def load_config() -> dict:
     if CONFIG_FILE.exists():
         try:
-            return json.loads(CONFIG_FILE.read_text())
+            saved = json.loads(CONFIG_FILE.read_text())
+            return {"server": saved.get("server", DEFAULT_SERVER), "account_id": saved.get("account_id")}
         except Exception:
             pass
-    return {"server": DEFAULT_SERVER, "session_id": ""}
+    return {"server": DEFAULT_SERVER, "account_id": None}
 
 
 def save_config(cfg: dict):
-    CONFIG_FILE.write_text(json.dumps(cfg, indent=2))
+    CONFIG_FILE.write_text(json.dumps({"server": cfg["server"], "account_id": cfg.get("account_id")}, indent=2))
 
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
 # ---------------------------------------------------------------------------
-def post(server: str, path: str, fields: dict) -> dict:
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def target(cfg):
+    if not cfg.get("account_id"):
+        raise ValueError("Select an AccountId before running a player command.")
+    return {"AccountId": cfg["account_id"]}
+
+
+def cmd_players(cfg, query="", after=0):
+    pretty(post(cfg, "/cheat/players", {"Query": query, "After": after}))
+
+
+def post(cfg: dict, path: str, fields: dict) -> dict:
+    server = cfg["server"]
+    key = os.environ.get("SPRK_GM_KEY") or getpass.getpass("GM administrator key: ")
+    if not key:
+        print("An administrator key is required.")
+        return {}
     url = server.rstrip("/") + path
     data = urllib.parse.urlencode(fields).encode()
     req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    req.add_header("Authorization", "Bearer " + key)
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.build_opener(NoRedirect).open(req, timeout=15) as resp:
             body = resp.read().decode()
             try:
                 return json.loads(body)
@@ -185,8 +214,8 @@ def cmd_maxheroes(source_db, output_db):
 
 def cmd_allheroes(cfg, level=90, star=5):
     print(f"\n>> Grant all heroes (level={level}, star={star}) ...")
-    result = post(cfg["server"], "/cheat/allheroes", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/allheroes", {
+        **target(cfg),
         "Level": level,
         "Star": star,
     })
@@ -197,8 +226,8 @@ def cmd_allheroes(cfg, level=90, star=5):
 
 def cmd_uwut(cfg):
     print("\n>> Equip UW + UT1-4 on all heroes ...")
-    result = post(cfg["server"], "/cheat/uwut", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/uwut", {
+        **target(cfg),
     })
     pretty(result)
     if "SlotsEquipped" in result:
@@ -208,8 +237,8 @@ def cmd_uwut(cfg):
 
 def cmd_unlock(cfg):
     print("\n>> Unlock all chapters (1-11) + skip tutorials + set team level 90 ...")
-    result = post(cfg["server"], "/cheat/unlock", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/unlock", {
+        **target(cfg),
     })
     pretty(result)
 
@@ -220,8 +249,8 @@ def cmd_currency(cfg, gold=0, gem=0, stamina=0):
         return
     print(
         f"\n>> Add currency (gold={gold:,}, gem={gem:,}, stamina={stamina:,}) ...")
-    result = post(cfg["server"], "/cheat/currency", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/currency", {
+        **target(cfg),
         "Gold": gold,
         "Gem": gem,
         "Stamina": stamina,
@@ -234,8 +263,8 @@ def cmd_currency(cfg, gold=0, gem=0, stamina=0):
 
 def cmd_hero(cfg, hero_id, level=1, star=1):
     print(f"\n>> Add hero {hero_id} (level={level}, star={star}) ...")
-    result = post(cfg["server"], "/cheat/hero", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/hero", {
+        **target(cfg),
         "HeroId": hero_id,
         "Level": level,
         "Star": star,
@@ -245,8 +274,8 @@ def cmd_hero(cfg, hero_id, level=1, star=1):
 
 def cmd_level(cfg, level):
     print(f"\n>> Set team level to {level} ...")
-    result = post(cfg["server"], "/cheat/level", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/level", {
+        **target(cfg),
         "Level": level,
     })
     pretty(result)
@@ -254,8 +283,8 @@ def cmd_level(cfg, level):
 
 def cmd_reset(cfg, keep_heroes=False):
     print(f"\n>> Reset account (keep_heroes={keep_heroes}) ...")
-    result = post(cfg["server"], "/cheat/reset", {
-        "SessionId": cfg["session_id"],
+    result = post(cfg, "/cheat/reset", {
+        **target(cfg),
         "KeepHeroes": "true" if keep_heroes else "false",
     })
     pretty(result)
@@ -264,10 +293,10 @@ def cmd_reset(cfg, keep_heroes=False):
 # ---------------------------------------------------------------------------
 # Interactive menu
 # ---------------------------------------------------------------------------
-def require_session(cfg) -> bool:
-    if not cfg.get("session_id"):
-        print("\n  No session ID set. Log into the game first, then run:")
-        print("    python gm.py session <YOUR_SESSION_ID>")
+def require_account(cfg) -> bool:
+    if not cfg.get("account_id"):
+        print("\n  No player selected. Find a player with: python gm.py players")
+        print("    python gm.py account <ACCOUNT_ID>")
         return False
     return True
 
@@ -282,8 +311,7 @@ def interactive(cfg):
     print("  sprk GM CLI")
     print("========================================")
     print(f"  Server  : {cfg['server']}")
-    sid = cfg.get("session_id") or "(not set)"
-    print(f"  Session : {sid}")
+    print(f"  Account : {cfg.get('account_id') or '(not selected)'}")
     print()
 
     MENU = [
@@ -294,8 +322,9 @@ def interactive(cfg):
         ("5", "Add a single hero",                "hero"),
         ("6", "Set team level",                   "level"),
         ("7", "Reset account",                    "reset"),
-        ("8", "Change session ID",                "session"),
         ("9", "Change server URL",                "server"),
+        ("a", "Select account ID", "account"),
+        ("p", "Find players", "players"),
         ("q", "Quit",                             "quit"),
     ]
 
@@ -308,9 +337,9 @@ def interactive(cfg):
     if action is None or action == "quit":
         return
 
-    # Commands that need a session
-    if action not in ("session", "server", "quit"):
-        if not require_session(cfg):
+    # Commands that need an account
+    if action not in ("server", "quit", "account", "players"):
+        if not require_account(cfg):
             return
 
     if action == "allheroes":
@@ -352,13 +381,15 @@ def interactive(cfg):
         keep = input("  Keep heroes? [y/N]: ").strip().lower() == "y"
         cmd_reset(cfg, keep)
 
-    elif action == "session":
-        raw = input("  New session ID: ").strip()
-        if raw:
-            cfg["session_id"] = raw
-            save_config(cfg)
-            print(f"  Session saved.")
-
+    elif action == "players":
+        cmd_players(cfg, input("  Username, nickname or account ID (blank lists first 100): ").strip())
+    elif action == "account":
+        account = prompt_int("Account ID", 0)
+        if account <= 0:
+            print("Account ID must be positive.")
+            return
+        cfg["account_id"] = account
+        save_config(cfg)
     elif action == "server":
         raw = input(f"  Server URL [{cfg['server']}]: ").strip()
         if raw:
@@ -377,13 +408,17 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("--server", help="Private admin URL, e.g. http://192.168.1.27:8082")
+    p.add_argument("--account-id", type=int, help="Target permanent account ID for this command")
     sub = p.add_subparsers(dest="command")
+    sub.add_parser("account", help="Save target account ID").add_argument("id", type=int)
+    sub.add_parser("server", help="Save private admin URL").add_argument("url")
+    players = sub.add_parser("players", help="Search account ID, username or nickname")
+    players.add_argument("query", nargs="?", default="")
+    players.add_argument("--after", type=int, default=0)
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
     mh.add_argument('--source-db', required=True)
     mh.add_argument('--output-db', required=True)
-
-    sub.add_parser("session", help="Save a session ID").add_argument(
-        "id", help="Session ID from game login")
 
     ah = sub.add_parser("allheroes", help="Grant all 103 core heroes")
     ah.add_argument("--level", type=int, default=90)
@@ -394,9 +429,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("unlock", help="Unlock chapters 1-11 + skip tutorials")
 
     cur = sub.add_parser("currency", help="Add currency")
-    cur.add_argument("--gold",    type=int, default=999999)
-    cur.add_argument("--gem",     type=int, default=9999)
-    cur.add_argument("--stamina", type=int, default=999)
+    cur.add_argument("--gold",    type=int, default=0)
+    cur.add_argument("--gem",     type=int, default=0)
+    cur.add_argument("--stamina", type=int, default=0)
 
     h = sub.add_parser("hero", help="Add a single hero by ID")
     h.add_argument("hero_id", type=int)
@@ -425,19 +460,30 @@ def main():
         return
 
     args = parser.parse_args()
+    if args.server:
+        cfg["server"] = args.server.rstrip("/")
+    if args.account_id is not None:
+        if args.account_id <= 0: parser.error("Account ID must be positive")
+        cfg["account_id"] = args.account_id
+    if args.command == "server":
+        cfg["server"] = args.url.rstrip("/")
+        save_config(cfg)
+        return
+    if args.command == "account":
+        if args.id <= 0: parser.error("Account ID must be positive")
+        cfg["account_id"] = args.id
+        save_config(cfg)
+        return
+    if args.command == "players":
+        cmd_players(cfg, args.query, args.after)
+        return
 
     if args.command == 'maxheroes':
         cmd_maxheroes(args.source_db, args.output_db)
         return
 
-    if args.command == "session":
-        cfg["session_id"] = args.id
-        save_config(cfg)
-        print(f"Session ID saved: {args.id}")
-        return
-
-    if not cfg.get("session_id"):
-        print("No session ID configured. Run: python gm.py session <SESSION_ID>")
+    if not cfg.get("account_id"):
+        print("No player selected. Run: python gm.py players, then python gm.py account <ACCOUNT_ID>")
         sys.exit(1)
 
     if args.command == "allheroes":

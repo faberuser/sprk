@@ -22,7 +22,7 @@ partial class Program
 
         // Find the nested state machine class (compiler-generated for the coroutine)
         // It's typically named something like "<coRun>d__X"
-        TypeDefinition stateMachineType = null;
+        TypeDefinition? stateMachineType = null;
         foreach (var nestedType in stateBaseType.NestedTypes)
         {
             if (nestedType.Name.StartsWith("<coRun>"))
@@ -118,7 +118,7 @@ partial class Program
         // Find instruction: ldstr "[{0}] Success all!!!!"
         // That's the success path we want everything to go to
 
-        Instruction successAllTarget = null;
+        Instruction? successAllTarget = null;
         for (int i = 0; i < instructions.Count; i++)
         {
             if (instructions[i].OpCode == OpCodes.Ldstr)

@@ -19,7 +19,9 @@ async fn eclipse_snapshots_include_only_the_equipped_soul_weapon() {
     let plain = deck(&s, &u, json!([{"DeckIndex":1,"HeroIndices":"1"}])).await;
     assert!(plain["DeckResults"][0]["CachedHeroInfos"][0]["EquipItemInfo1"]["SoulWeaponInfo"].is_null());
     let soul = json!({"EquipItemSlotIndex":90001,"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,"OptionRatio1":500,"OptionRatio2":500});
-    crate::api::extensions::put(&mut *s.db.acquire().await.unwrap(), a, "soul", 90001, &soul).await.unwrap();
+    crate::api::extensions::put(&mut s.db.acquire().await.unwrap(), a, "soul", 90001, &soul)
+        .await
+        .unwrap();
     let saved = deck(&s, &u, json!([{"DeckIndex":1,"HeroIndices":"1"}])).await;
     assert_eq!(saved["DeckResults"][0]["CachedHeroInfos"][0]["EquipItemInfo1"]["SoulWeaponInfo"], soul);
     let begin = call(&s, &u, "campaign/begin_campaign", ENTER).await;
@@ -234,7 +236,7 @@ async fn eclipse_rejects_forged_progress_and_can_abandon_expired_sessions() {
         );
     }
     let mut run = get(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         account(&u),
         "eclipse",
         0,
@@ -243,7 +245,7 @@ async fn eclipse_rejects_forged_progress_and_can_abandon_expired_sessions() {
     .unwrap();
     run["Expires"] = json!(now() - 1);
     put(
-        &mut *s.db.acquire().await.unwrap(),
+        &mut s.db.acquire().await.unwrap(),
         account(&u),
         "eclipse",
         0,

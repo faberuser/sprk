@@ -181,33 +181,6 @@ impl ItemGroupTable {
     }
 }
 
-/// ItemGroup StringPool - maps integer indices to string group codes
-/// This is needed because campaign tables reference groups by integer index
-#[derive(Debug, Clone, Default)]
-pub struct ItemGroupStringPool {
-    strings: Vec<String>,
-}
-
-impl ItemGroupStringPool {
-    /// Load from JSON array of strings
-    pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let strings: Vec<String> = serde_json::from_reader(reader)?;
-        Ok(Self { strings })
-    }
-    
-    /// Get string by index
-    pub fn get(&self, index: usize) -> Option<&str> {
-        self.strings.get(index).map(|s| s.as_str())
-    }
-    
-    /// Get the number of strings in the pool
-    pub fn len(&self) -> usize {
-        self.strings.len()
-    }
-}
-
 /// Parse an item code string like "1100[1:2:4]" or "100[2]" or "251"
 /// Returns (base_code, grade_filter)
 pub fn parse_item_code(code: &str) -> (String, Vec<i32>) {

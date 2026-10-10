@@ -170,33 +170,30 @@ pub async fn enter_lobby(
         .fetch_optional(&state.db)
         .await?;
 
-    let mut user_info = match user_info_row {
-        Some(row) => Some(UserInfo {
-            session_key: session_id.clone(),
-            account_id,
-            nick,
-            gold: row.get("gold"),
-            gem: row.get("gem"),
-            pay_gem: row.get("pay_gem"),
-            pvp_coin: row.get("pvp_coin"),
-            stamina: row.get("stamina"),
-            stamina_recharge_time: None, // Handled separately if needed
-            team_level: row.get("team_level"),
-            team_exp: row.get("team_exp"),
-            sword: row.get("sword"),
-            sword_recharge_time: None, // Handled separately if needed
-            sword2: row.get("sword2"),
-            avatar_hero_index: row.get("avatar_hero_index"),
-            royal_point: row.get("royal_point"),
-            raid_point: row.get("raid_point"),
-            mileage: row.get("mileage"),
-            friendship_point: row.get("friendship_point"),
-            guild_raid_ticket: row.get("guild_raid_ticket"),
-            world_boss_ticket: row.get("world_boss_ticket"),
-            ..Default::default()
-        }),
-        None => None,
-    };
+    let mut user_info = user_info_row.map(|row| UserInfo {
+        session_key: session_id.clone(),
+        account_id,
+        nick,
+        gold: row.get("gold"),
+        gem: row.get("gem"),
+        pay_gem: row.get("pay_gem"),
+        pvp_coin: row.get("pvp_coin"),
+        stamina: row.get("stamina"),
+        stamina_recharge_time: None, // Handled separately if needed
+        team_level: row.get("team_level"),
+        team_exp: row.get("team_exp"),
+        sword: row.get("sword"),
+        sword_recharge_time: None, // Handled separately if needed
+        sword2: row.get("sword2"),
+        avatar_hero_index: row.get("avatar_hero_index"),
+        royal_point: row.get("royal_point"),
+        raid_point: row.get("raid_point"),
+        mileage: row.get("mileage"),
+        friendship_point: row.get("friendship_point"),
+        guild_raid_ticket: row.get("guild_raid_ticket"),
+        world_boss_ticket: row.get("world_boss_ticket"),
+        ..Default::default()
+    });
 
     // Fetch heroes
     let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;

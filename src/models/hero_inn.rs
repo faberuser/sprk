@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use crate::models::hero::HeroInfo;
 
 /// Friendly action types matching the client's FriendlyActionType enum
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
@@ -65,32 +64,6 @@ pub struct PlayerHeroFriendlyInfo {
     pub selected_hero_indice: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_roulette_time: Option<String>,
-}
-
-/// Hero add result info - returned when recruiting a hero
-/// Matches the client's HeroAddResultInfo class
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "PascalCase")]
-pub struct HeroAddResultInfo {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hero_info: Option<HeroInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub team_exp_result: Option<ExpResultInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stamina_result: Option<StaminaResultInfo>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hero_friendly_info: Option<PlayerHeroFriendlyInfo>,
-}
-
-/// Experience result info
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "PascalCase")]
-pub struct ExpResultInfo {
-    pub before_level: i32,
-    pub after_level: i32,
-    pub before_exp: i64,
-    pub after_exp: i64,
-    pub exp_change: i64,
 }
 
 /// Stamina result info

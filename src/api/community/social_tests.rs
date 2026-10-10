@@ -3,12 +3,12 @@ use crate::api::{
     account::user,
     community::{chat, friend, mail},
 };
-use crate::{database, state::AppState, tables::GameTables};
+use crate::{database, state::AppState};
 use axum::{body::Bytes, extract::State};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 use sqlx::Row;
-use std::{path::Path, sync::OnceLock, time::Duration};
+use std::time::Duration;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
@@ -31,18 +31,13 @@ async fn login(state: &AppState, name: &str) -> user::LoginResponse {
         .0
 }
 async fn setup() -> (AppState, user::LoginResponse, user::LoginResponse) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&pool).await.unwrap();
-    let tables = TABLES
-        .get_or_init(|| {
-            GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-        })
-        .clone();
+    let tables = crate::tables::test_tables();
     let state = AppState::new(pool, tables);
     let a = login(&state, "social-a").await;
     let b = login(&state, "social-b").await;

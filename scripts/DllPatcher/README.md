@@ -13,6 +13,7 @@ Patch implementations are partial members of `Program` under `Patches/`:
 | `SoulWeapon.cs` | Disables unsupported limit-break stars |
 | `HeroLevels.cs` | Restores Pre-Doomsday hero growth caps and removes hero Limit Break |
 | `AccessorySales.cs` | Shows all accessories and enables direct ruby purchases in the Dressing Room |
+| `LobbyAccessories.cs` | Uses equipped accessories and their transforms for the lobby avatar, and refreshes accessory edits |
 | `Campaign.cs` | Campaign survivor filtering and its self-test |
 | `Chat.cs` | Chat session and background repairs |
 | `Shop.cs` | Shop shortcut, opening, and category visibility |
@@ -22,7 +23,7 @@ Patch implementations are partial members of `Program` under `Patches/`:
 | `CostumeOwnership.cs` | Restores native ownership checks from embedded source |
 | `PatchHelpers.cs` | Shared IL helpers |
 | `TelemetryRemoval.cs` | Deletes telemetry types/call sites and removes telemetry SDK references |
-| `DealerTicketPopup.cs` | Blocks Recommended Dealer and Support Ticket promotion eligibility and popup opening |
+| `DealerTicketPopup.cs` | Blocks all Recommended ticket promotion eligibility and popup opening |
 | `TrialHeroReward.cs` | Prevents hero recruitment animation after awakening/transcendence trial rewards |
 | `AdventureUnlocks.cs` | Honors Portal tutorial skip and saved automatic dungeon milestones for mission categories |
 
@@ -240,6 +241,13 @@ the 123 originally available only after acquiring reward items. Archived ruby
 prices remain intact (those 123 cost 10,000 each). The server accepts their direct
 purchase while validating ownership, compatibility, quoted prices and balances.
 Acquisitions remain per hero, and accessory selector items continue to work.
+
+`LobbyAccessories.cs` also runs in account and standard patch modes. The lobby
+avatar keeps the selected portrait costume and uses the hero's equipped accessory
+slots with their current position, rotation and scale. Accessory changes refresh
+that avatar; chapter-forced story avatars remain under native control. The server
+includes `PositionInfo1` through `PositionInfo4` in avatar selection and login
+responses so the native avatar snapshot retains saved accessory transforms.
 
 ## Client version
 

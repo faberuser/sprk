@@ -10,7 +10,7 @@ async fn room(db: &mut SqliteConnection, id: i64, family: &str) -> Result<Value>
             .bind(family)
             .fetch_optional(db)
             .await?;
-    v.map(|s| read_json(&s).map_err(Into::into))
+    v.map(|s| read_json(&s))
         .unwrap_or_else(|| Err(rule("RoomNotExist")))
 }
 async fn members(db: &mut SqliteConnection, id: i64) -> Result<Vec<i64>> {

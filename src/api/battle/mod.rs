@@ -40,6 +40,7 @@ mod entry_cost_tests;
 mod dispatch_tests;
 #[cfg(test)]
 mod eclipse_tests;
+pub(crate) mod bonuses;
 
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for query in [
@@ -315,9 +316,7 @@ async fn list(db: &mut SqliteConnection, a: i64, kind: &str) -> Result<Vec<Value
             .bind(kind)
             .fetch_all(db)
             .await?;
-    rows.iter()
-        .map(|v| read_json(v).map_err(Into::into))
-        .collect()
+    rows.iter().map(|v| read_json(v)).collect()
 }
 async fn owned(db: &mut SqliteConnection, a: i64, heroes: &[i64]) -> Result<()> {
     for h in heroes {
