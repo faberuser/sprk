@@ -125,6 +125,12 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     if privacy and privacy.get("schema_version") != 1:
         raise ValueError("Unsupported client privacy policy schema")
     selected = list(includes)
+    # Native table migrations update their integrity metadata alongside the JIT
+    # files. Keep it in subsequent releases too, even when using default includes.
+    for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json"):
+        path = "King's Raid_Data/Documents/Patch/StandaloneWindows/" + name
+        if (client / path).is_file():
+            selected.append(path)
     if privacy:
         selected += privacy.get("required_files", []) + ["King's Raid_Data/sprk-privacy.json"]
     sources = collect_files(client, selected)

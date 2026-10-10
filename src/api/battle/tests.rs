@@ -2656,6 +2656,10 @@ async fn hard_dragon_solo_requires_unlock_and_keeps_multiplayer_guard() {
         .execute(&s.db)
         .await
         .unwrap();
+    // The stale native client linked Fire Hard to 21, now a field raid.
+    // Reject that route without charging; the canonical 111 route below works.
+    let stale_route = args.replace("RaidIndex=111", "RaidIndex=21");
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", &stale_route).await["Result"], "ContentsDisabled");
     for bad in [
         args.replace("RaidIndex=111", "RaidIndex=112"),
         args.replace("ChapterIndex=931", "ChapterIndex=911")

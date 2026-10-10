@@ -64,6 +64,11 @@ including native plugins that earlier manifests did not manage. A release cannot
 include a file its privacy policy requires deleting. Use repeated `--delete` options
 for other obsolete files that were never managed by an earlier manifest.
 
+When present, `SPRK-NativeData.json` and `SPRK-NativeCombat.json` under the native
+patch directory are included automatically, so table changes and their integrity
+metadata are installed together. For Hard dragon route migrations, see
+[RaidTableSync](../scripts/RaidTableSync/README.md).
+
 Each release contains a complete snapshot of the selected files. A launcher
 compares local SHA-256 hashes and downloads only changed or missing files, even
 when a player skips versions. The publisher copies all selected files to the

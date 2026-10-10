@@ -54,6 +54,30 @@ public static class RestoredPortal
         return CheckDragonHardEntry(GameRoot.Instance.RaidDataContainer.GetData(raidIndex, raidLevel));
     }
 
+    public static void LogRaidEntryFailure(NShared.BeginCampaign.Request request, NShared.BeginCampaign.Response response)
+    {
+        if (request == null || request.RaidIndex <= 0) return;
+        // Record only routing/progress fields. Never serialize the request:
+        // it also contains the account's session credentials.
+        try
+        {
+            var raid = GameRoot.Instance.RaidDataContainer.GetData(request.RaidIndex, request.RaidLevel);
+            string heroes = "";
+            if (request.HeroIndices != null)
+                foreach (var hero in request.HeroIndices) heroes += (heroes.Length == 0 ? "" : ",") + hero;
+            UnityEngine.Debug.LogWarning("SPRK raid entry rejected: chapter=" + request.ChapterIndex
+                + " dungeon=" + request.DungeonIndex + " linkedDungeon=" + request.LinkedDungeonIndex
+                + " difficulty=" + request.DungeonDifficulty + " raid=" + request.RaidIndex
+                + " level=" + request.RaidLevel + " heroes=" + heroes
+                + " baseResult=" + (response == null ? "null" : response.BaseResult.ToString())
+                + " result=" + (response == null ? "null" : response.Result.ToString())
+                + " clientRaidType=" + (raid == null ? "missing" : raid.Type.ToString())
+                + " clientChapter=" + (raid == null ? 0 : raid.ChapterIndex)
+                + " clientDungeon=" + (raid == null ? 0 : raid.DungeonIndex));
+        }
+        catch (System.Exception) { /* Diagnostics must not interfere with the native error handler. */ }
+    }
+
     public static void FinishStartupLogo()
     {
         // SetupLoginEnvironment opens the background after IsLogoPlayed.

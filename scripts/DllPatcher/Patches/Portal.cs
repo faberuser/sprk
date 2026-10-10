@@ -145,6 +145,18 @@ partial class Program
         GuardDragonEntry(module.GetType("NGame2.NUI.NWindow.RaidSinglePartySetting").Methods.Single(m => m.Name == "RequestStartBattle"),
             "CheckDragonHardEntry", Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Call, raidGetter));
 
+        var entryError = module.GetType("NGame2.NBattleContext.BattleContext").Methods.Single(m => m.Name == "BeginCampaignOnErrorCallback");
+        if (!entryError.Body.Instructions.Any(i => i.Operand is MethodReference m
+            && m.DeclaringType.Name == "RestoredPortal" && m.Name == "LogRaidEntryFailure"))
+        {
+            var errorIl = entryError.Body.GetILProcessor();
+            var original = entryError.Body.Instructions[0];
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Ldarg_1));
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Ldarg_2));
+            errorIl.InsertBefore(original, Instruction.Create(OpCodes.Call, targetType.Methods.Single(m => m.Name == "LogRaidEntryFailure")));
+            entryError.Body.MaxStackSize = System.Math.Max(entryError.Body.MaxStackSize, 2);
+        }
+
         // One immutable defense policy for every battle, including detached
         // dispatch/Conquest simulations and callers of the public calculator.
         var statController = module.Types.Single(t => t.FullName == "NShared.StatController");
