@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::{seq::SliceRandom, Rng};
 
 pub(super) async fn execute(
@@ -26,7 +27,19 @@ pub(super) async fn execute(
             .tables
             .roll_item_from_group_code(r["ArtifactItemGroup"].as_str().unwrap_or(""), &[])
             .ok_or_else(|| rule("ItemDataNotFound"))?;
-        item::give(db, state, account, id, count, star, 0, &mut rewards).await?;
+        item::give(
+            db,
+            state,
+            account,
+            ItemGrant {
+                index: id,
+                count,
+                star,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
         if rewards.equipment.len() != 1 {
             return Err(rule("InvalidRewardData"));
         }
@@ -391,7 +404,7 @@ pub(super) fn item_pairs(req: &Request, key: &str) -> Result<Vec<(i64, i64)>> {
     }
     let values: Vec<i64> =
         serde_json::from_str(req.text(key)).map_err(|_| rule("InvalidMaterial"))?;
-    if values.len() % 2 != 0 || values.len() > 200 {
+    if !values.len().is_multiple_of(2) || values.len() > 200 {
         return Err(rule("InvalidMaterial"));
     }
     let mut seen = BTreeSet::new();
@@ -460,10 +473,12 @@ async fn break_equipment(
                     db,
                     state,
                     account,
-                    n(r, &format!("ItemIndex{i}")) as i32,
-                    count as i32,
-                    0,
-                    0,
+                    ItemGrant {
+                        index: n(r, &format!("ItemIndex{i}")) as i32,
+                        count: count as i32,
+                        star: 0,
+                        custom: 0,
+                    },
                     &mut rewards,
                 )
                 .await?;

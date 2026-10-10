@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 
 fn state_key(group: i64) -> i64 {
     group * 10 + 1
@@ -317,10 +318,12 @@ pub(super) async fn end(
                 db,
                 s,
                 a,
-                n(flask, "ShardItemIndex") as i32,
-                count as i32,
-                0,
-                0,
+                ItemGrant {
+                    index: n(flask, "ShardItemIndex") as i32,
+                    count: count as i32,
+                    star: 0,
+                    custom: 0,
+                },
                 &mut grant,
             )
             .await?;
@@ -343,10 +346,12 @@ pub(super) async fn end(
             db,
             s,
             a,
-            n(default, "ShardItemIndex") as i32,
-            count as i32,
-            0,
-            0,
+            ItemGrant {
+                index: n(default, "ShardItemIndex") as i32,
+                count: count as i32,
+                star: 0,
+                custom: 0,
+            },
             &mut grant,
         )
         .await?;

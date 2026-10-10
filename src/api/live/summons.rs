@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 use rand::seq::SliceRandom;
 
 fn definition(s: &AppState, id: i64) -> Result<(&Value, &Value)> {
@@ -202,7 +203,19 @@ pub(super) async fn execute(
             if starter && n(cfg, "StarterRewardIndex") > 0 {
                 reward(db, s, a, n(cfg, "StarterRewardIndex"), &mut rewards).await?;
             } else {
-                item::give(db, s, a, item as i32, 1, 0, 0, &mut rewards).await?;
+                item::give(
+                    db,
+                    s,
+                    a,
+                    ItemGrant {
+                        index: item as i32,
+                        count: 1,
+                        star: 0,
+                        custom: 0,
+                    },
+                    &mut rewards,
+                )
+                .await?;
             }
             out["ItemResults"] = json!(rewards.items);
             out["RewardResult"] = item::reward_response(db, s, a, rewards).await?;
@@ -332,7 +345,19 @@ pub(super) async fn execute(
                 }
             } else {
                 let mut roll = Rewards::default();
-                item::give(db, s, a, index, c, star, custom, &mut roll).await?;
+                item::give(
+                    db,
+                    s,
+                    a,
+                    ItemGrant {
+                        index,
+                        count: c,
+                        star,
+                        custom,
+                    },
+                    &mut roll,
+                )
+                .await?;
                 items.push(json!({"ItemResult":roll.items.first(),"EquipItemResult":roll.equipment.first(),"PetItemResult":null,"StaminaResult":null}));
             }
         }

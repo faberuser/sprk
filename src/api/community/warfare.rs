@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 // Local seasons contain one guild-war session. Reward eligibility is frozen at pairing.
 pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
     let rows=sqlx::query("SELECT owner,idx,data FROM community_state c WHERE kind='guild_arena' AND idx<? AND COALESCE(json_extract(data,'$.Peer'),0)>0 AND EXISTS(SELECT 1 FROM json_each(c.data,'$.Members') WHERE value=?) AND NOT EXISTS(SELECT 1 FROM community_claims x WHERE x.account=? AND x.kind='guild_arena_season_reward' AND x.period=CAST(c.idx AS TEXT)) ORDER BY idx LIMIT 100").bind(arena::season(s).0).bind(a).bind(a).fetch_all(&mut *db).await?;
@@ -213,7 +214,7 @@ async fn rankers(
             .find(|v| {
                 1000 + score >= n(v, "MinScore")
                     && 1000 + score <= n(v, "MaxScore")
-                    && (n(v, "MaxRank") == 0 || i as i64 + 1 <= n(v, "MaxRank"))
+                    && (n(v, "MaxRank") == 0 || (i as i64) < n(v, "MaxRank"))
             })
             .map(|v| n(v, "Index"))
             .unwrap_or(10);
@@ -425,10 +426,16 @@ pub(super) async fn execute(
                     db,
                     s,
                     a,
-                    n(&booty, "ItemIndex") as i32,
-                    if booty["Equipment"] == true {1} else {count as i32},
-                    n(&booty, "Star") as i32,
-                    0,
+                    ItemGrant {
+                        index: n(&booty, "ItemIndex") as i32,
+                        count: if booty["Equipment"] == true {
+                            1
+                        } else {
+                            count as i32
+                        },
+                        star: n(&booty, "Star") as i32,
+                        custom: 0,
+                    },
                     &mut rw,
                 )
                 .await?;

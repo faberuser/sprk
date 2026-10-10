@@ -354,11 +354,11 @@ pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64,
 }
 pub(super) async fn key_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
-    for k in 5..KEYS.len() {
+    for (k, key) in KEYS.iter().enumerate().skip(5) {
         if s.tables.services.find("Stamina", &[("StaminaType", k as i64)]).is_some()
             || s.tables.battle.rules["DungeonKeyDailyDefaults"]
-            .get(KEYS[k])
-            .is_some()
+                .get(*key)
+                .is_some()
         {
             out.push(charge(db, s, a, k as i64, 0).await?);
         }
@@ -481,6 +481,10 @@ pub(super) async fn validate(
             if n(&cleared, "RaidLevel").max(n(&solo_cleared, "RaidLevel")) < required {
                 return Err(rule("NotOpenedDungeon"));
             }
+        }
+        // Dragon IsOpen flags identify initially open stages. Later stages
+        // become selectable through CompletedRaidInfo, including normal raids.
+        {
             let shared = n(raid, "ClearRaidIndex");
             let progress = get(db, a, "raid", shared).await?;
             let minimum = s.tables.battle.rows("Raid").iter()
@@ -736,7 +740,10 @@ pub(super) async fn validate(
                 return Err(rule("NotAvailableHero"));
             }
         }
-        if raid["IsOpen"] != true
+        let progression_unlocked_dragon = matches!(battle_type, 12 | 29)
+            && matches!(n(raid, "Type"), 1 | 3)
+            && raid["IsOnlineSingle"] == false;
+        if (raid["IsOpen"] != true && !progression_unlocked_dragon)
             || n(raid, "ChapterIndex") != c
             || n(raid, "DungeonIndex") != n(d, "DungeonIndex")
         {
@@ -893,16 +900,21 @@ pub(super) async fn enter(
     }
     Ok(())
 }
+pub(super) struct BattleOutcome<'a> {
+    pub request: &'a Request,
+    pub won: bool,
+}
+
 pub(super) async fn finish(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
     r: &Request,
-    end: &Request,
+    outcome: BattleOutcome<'_>,
     entry: &Value,
-    won: bool,
     out: &mut Value,
 ) -> Result<()> {
+    let BattleOutcome { request: end, won } = outcome;
     if entry["ShakmehStoryFinal"] == true && !won && !entry["VictoryEntryCosts"].is_array() {
         // Farming is locked until this introduction is won. Preserve its
         // retry path instead of leaving a new player with an empty gauge.

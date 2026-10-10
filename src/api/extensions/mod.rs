@@ -59,6 +59,8 @@ pub async fn handle(
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
     } else if uri.path() == "/equip/break_equip" {
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices"])?
+    } else if uri.path() == "/hero/buy_customizing_costumes" {
+        Request::parse_with_integer_arrays(&body, &["UnsetAccessoryCostumeIndices"])?
     } else if matches!(uri.path(), "/equip/awaken_equip" | "/equip/upgrade_equip") {
         Request::parse_with_integer_arrays(&body, &["MaterialSlotIndices", "MaterialItemInfors"])?
     } else { Request::parse(&body)? };

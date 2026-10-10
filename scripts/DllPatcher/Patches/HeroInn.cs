@@ -15,7 +15,7 @@ partial class Program
         var gameObjectType = unityAssembly.MainModule.Types.FirstOrDefault(t => t.FullName == "UnityEngine.GameObject");
 
         // Load UnityEngine.dll for Debug.Log
-        TypeDefinition debugType = null;
+        TypeDefinition? debugType = null;
         try
         {
             var unityEngineAssembly = AssemblyDefinition.ReadAssembly(unityEnginePath, new ReaderParameters { AssemblyResolver = resolver });
@@ -31,7 +31,7 @@ partial class Program
             debugType = unityAssembly.MainModule.Types.FirstOrDefault(t => t.FullName == "UnityEngine.Debug");
         }
 
-        MethodReference debugLogRef = null;
+        MethodReference? debugLogRef = null;
         if (debugType != null)
         {
             var debugLog = debugType.Methods.FirstOrDefault(m => m.Name == "Log" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "System.Object");

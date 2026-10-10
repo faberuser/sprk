@@ -3,18 +3,10 @@ use crate::api::account::user;
 use crate::database;
 use crate::tables::GameTables;
 use axum::body::Bytes;
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use std::sync::Arc;
 
 fn tables() -> GameTables {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
-    TABLES
-        .get_or_init(|| {
-            GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-        })
-        .clone()
+    crate::tables::test_tables()
 }
 
 async fn setup() -> (AppState, user::LoginResponse) {

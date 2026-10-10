@@ -15,7 +15,7 @@ async fn call(router: Router, path: &str, key: Option<&str>, body: &str) -> (Sta
 async fn private_admin_requires_key_and_targets_offline_accounts() {
     let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
     crate::database::create_tables(&db).await.unwrap();
-    let tables = crate::tables::GameTables::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap();
+    let tables = crate::tables::test_tables();
     let state = AppState::new(db, tables);
     for id in [1i64,2] {
         sqlx::query("INSERT INTO accounts(account_id,login_id,nick) VALUES(?,?,?)").bind(id).bind(format!("player{id}")).bind(format!("Raider{id}")).execute(&state.db).await.unwrap();

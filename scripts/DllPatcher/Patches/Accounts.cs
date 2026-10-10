@@ -18,8 +18,10 @@ partial class Program {
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var assembly=AssemblyDefinition.ReadAssembly(sourcePath ?? dll,new ReaderParameters{AssemblyResolver=resolver});
         var module=assembly.MainModule;
+        PatchDealerTicketPopup(module);
         PatchLegacyHeroLevels(module);
         PatchDirectAccessorySales(module);
+        PatchPetContentsAvatarLookup(module);
         // Pet House deep-links to this native Summon subcategory, which the
         // archived category flags hide. Keep every other category flag intact.
         var shopGroup=module.GetType("NShared.NewPayShopGroupData");
@@ -37,6 +39,7 @@ partial class Program {
         }
 
         var bridge=helper.MainModule.Types.Single(t=>t.Name=="SprkAccounts");
+        PatchLobbyAccessories(module,bridge);
         MethodReference Bridge(string name)=>module.ImportReference(bridge.Methods.Single(m=>m.Name==name));
         // Replace the legacy host:port parser and separate HTTPS-port convention.
         var requester=module.GetType("NVespa.NWeb.WebServiceRequester");

@@ -15,6 +15,20 @@ using UnityEngine.Networking;
 
 // Native NGUI account form. Passwords are never written to PlayerPrefs or logs.
 public sealed class SprkAccounts : MonoBehaviour {
+    public static CachedHeroInfo CreateLobbyAvatarHeroInfo(CachedHeroInfo hero, PlayerAvatarHeroInfo avatar) {
+        var copy=hero.CreatePlayerAvatarHeroInfo(avatar);
+        if(copy==null)return null;
+        // The portrait's body costume stays independent; lobby accessories follow
+        // the hero's equipped items and their current position, rotation and scale.
+        foreach(var part in AccessoryPartTypeHelper.PartTypes())
+            copy.SetAccessoryCostume(part,hero.GetAccessoryIndex(part),hero.GetAccessoryPositionInfo(part)??PositionInfo.Create());
+        return copy;
+    }
+    public static bool ShouldRefreshLobbyAccessories(NGame2.NAccount.UserHeroManager.ChangeHeroInfo change) {
+        if(change==null || change.ChangeType!=NGame2.NAccount.UserHeroManager.HeroChangeType.AccessoryCostume)return false;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        return account!=null && new NGame2.NUI.UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex==change.HeroIndex;
+    }
     bool deletingAccount;
     [Serializable] public class DeleteAccountRequest {public string session_key,current_password,confirmation;}
     public static void HideGuestNickname(NickMessagePopup view) {Hide(view.Label_LoginMethod);}

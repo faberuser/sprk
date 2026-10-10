@@ -185,12 +185,12 @@ pub(super) async fn execute(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
-    g: i64,
-    role: i64,
+    membership: (i64, i64),
     r: &Request,
     action: &str,
     mut info: Value,
 ) -> Result<Value> {
+    let (g, role) = membership;
     let mut out = item::success();
     match action {
         "get_guild_attendance" | "set_guild_attendance" | "send_guild_attendance_reward" => {

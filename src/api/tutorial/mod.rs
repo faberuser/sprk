@@ -1,5 +1,6 @@
 //! Client-driven tutorial completion with atomic, replayable rewards.
 use crate::api::battle::campaign_handlers::CurrencyResultInfo3;
+use crate::models::item::ItemGrant;
 use crate::{
     error::{Result, ServerError},
     models::equip::EquipItemInfo,
@@ -188,12 +189,15 @@ pub(crate) async fn grant_item(
     db: &mut SqliteConnection,
     state: &AppState,
     account_id: i64,
-    index: i32,
-    count: i32,
-    star: i32,
-    custom: i32,
+    grant: ItemGrant,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    let ItemGrant {
+        index,
+        count,
+        star,
+        custom,
+    } = grant;
     let support = &state.tables.tutorials.support;
     let data = support
         .items
@@ -383,10 +387,12 @@ async fn grant_rewards(
                 db,
                 state,
                 account_id,
-                item_index,
-                count,
-                star,
-                drop.custom_option_index,
+                ItemGrant {
+                    index: item_index,
+                    count,
+                    star,
+                    custom: drop.custom_option_index,
+                },
                 rewards,
             )
             .await?;
@@ -554,7 +560,7 @@ async fn complete_in_transaction(
         return Ok(response);
     }
     let mut rewards = Rewards::default();
-    grant_rewards(&mut *tx, &state, account_id, data, &mut rewards).await?;
+    grant_rewards(&mut *tx, state, account_id, data, &mut rewards).await?;
     let mut heroes = Vec::new();
     for hero in &rewards.heroes {
         heroes.push(hero_info(&mut *tx, account_id, *hero).await?);
@@ -632,7 +638,19 @@ pub async fn skip_tutorial(
     // A skipped introduction still needs the basic party to play campaign battles.
     let mut rewards = Rewards::default();
     for index in 1..=4 {
-        grant_item(&mut tx, &state, account_id, index, 1, 0, 0, &mut rewards).await?;
+        grant_item(
+            &mut tx,
+            &state,
+            account_id,
+            ItemGrant {
+                index,
+                count: 1,
+                star: 0,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
     }
     team_exp(
         &mut tx,

@@ -1,4 +1,5 @@
 //! Native hero ownership, appearance, and progression operations.
+use crate::models::item::ItemGrant;
 pub mod inn;
 pub mod presets;
 
@@ -239,7 +240,7 @@ pub(crate) fn appearance(hero: &Value) -> Value {
     }
     r
 }
-fn star<'a>(state: &'a AppState, s: i64, t: i64) -> Result<&'a Value> {
+fn star(state: &AppState, s: i64, t: i64) -> Result<&Value> {
     state
         .tables
         .hero_shop
@@ -310,7 +311,7 @@ pub(crate) async fn execute(
             return Err(rule("InvalidHeroIndex"));
         }
         for i in &indices {
-            info(db, account, *i as i32)
+            info(db, account, *i)
                 .await
                 .map_err(|_| rule("InvalidHeroIndex"))?;
         }
@@ -404,7 +405,19 @@ pub(crate) async fn execute(
                 .find(|v| v.star == meta.star && v.transcended == 0)
                 .ok_or_else(|| rule("InvalidItemData"))?.get_hero_team_exp;
         } else {
-            item::give(db, state, account, id, 1, 0, 0, &mut rewards).await?;
+            item::give(
+                db,
+                state,
+                account,
+                ItemGrant {
+                    index: id,
+                    count: 1,
+                    star: 0,
+                    custom: 0,
+                },
+                &mut rewards,
+            )
+            .await?;
         }
         tutorial::team_exp(db, state, account, rewards.team_exp_to_add, &mut rewards).await?;
         let mut extra = details(db, account, index).await?;
@@ -510,7 +523,7 @@ pub(crate) async fn execute(
                 .bind(account)
                 .execute(&mut *db)
                 .await?;
-            let mut avatar = appearance(&h);
+            let mut avatar = avatar_appearance(db, account, &h).await?;
             avatar["CostumeIndex"] = json!(avatar_costume);
             avatar["AccountId"] = json!(account);
             out["PlayerAvatarHeroInfo"] = avatar;
@@ -549,7 +562,17 @@ pub(crate) async fn execute(
         }
         "learn_hero_skill" | "upgrade_hero_skill" | "extend_hero_skill" => {
             skills(
-                db, state, account, req, action, creature, &h, &mut extra, &mut out,
+                db,
+                state,
+                account,
+                req,
+                action,
+                HeroUpdate {
+                    creature,
+                    hero: &h,
+                    extra: &mut extra,
+                    out: &mut out,
+                },
             )
             .await?;
         }
@@ -559,7 +582,17 @@ pub(crate) async fn execute(
         | "upgrade_hero_star"
         | "transcend_hero" => {
             progress(
-                db, state, account, index, action, creature, &h, &mut extra, &mut out,
+                db,
+                state,
+                account,
+                index,
+                action,
+                HeroUpdate {
+                    creature,
+                    hero: &h,
+                    extra: &mut extra,
+                    out: &mut out,
+                },
             )
             .await?;
         }
@@ -570,7 +603,17 @@ pub(crate) async fn execute(
         }
         _ => {
             transcend_skills(
-                db, state, account, req, action, creature, &h, &mut extra, &mut out,
+                db,
+                state,
+                account,
+                req,
+                action,
+                HeroUpdate {
+                    creature,
+                    hero: &h,
+                    extra: &mut extra,
+                    out: &mut out,
+                },
             )
             .await?;
         }
@@ -589,17 +632,27 @@ fn array(req: &Request, key: &str) -> Result<Vec<i64>> {
     }
     Ok(v)
 }
+struct HeroUpdate<'a> {
+    creature: &'a Value,
+    hero: &'a Value,
+    extra: &'a mut Value,
+    out: &'a mut Value,
+}
+
 async fn skills(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
     req: &Request,
     action: &str,
-    c: &Value,
-    h: &Value,
-    extra: &mut Value,
-    out: &mut Value,
+    update: HeroUpdate<'_>,
 ) -> Result<()> {
+    let HeroUpdate {
+        creature: c,
+        hero: h,
+        extra,
+        out,
+    } = update;
     let table = &state.tables.hero_shop;
     let ids = if action == "upgrade_hero_skill" {
         array(req, "SkillIndices")?
@@ -710,11 +763,14 @@ async fn progress(
     account: i64,
     index: i32,
     action: &str,
-    c: &Value,
-    h: &Value,
-    extra: &mut Value,
-    out: &mut Value,
+    update: HeroUpdate<'_>,
 ) -> Result<()> {
+    let HeroUpdate {
+        creature: c,
+        hero: h,
+        extra,
+        out,
+    } = update;
     let table = &state.tables.hero_shop;
     let next = next_star(state, h)?;
     let awake = table
@@ -872,11 +928,14 @@ async fn transcend_skills(
     account: i64,
     req: &Request,
     action: &str,
-    c: &Value,
-    h: &Value,
-    extra: &mut Value,
-    out: &mut Value,
+    update: HeroUpdate<'_>,
 ) -> Result<()> {
+    let HeroUpdate {
+        creature: c,
+        hero: h,
+        extra,
+        out,
+    } = update;
     let t = n(h, "Transcended");
     if t < 1 {
         return Err(rule("NotHeroTanscended"));
@@ -1042,10 +1101,12 @@ pub(crate) async fn trial(
                 &mut tx,
                 state,
                 account,
-                n(awake, &suffix) as i32,
-                1,
-                0,
-                0,
+                ItemGrant {
+                    index: n(awake, &suffix) as i32,
+                    count: 1,
+                    star: 0,
+                    custom: 0,
+                },
                 &mut rewards,
             )
             .await?;
@@ -1060,6 +1121,21 @@ pub(crate) async fn trial(
     // The client enables purification from the awarded material in ItemResults.
     tx.commit().await?;
     Ok(Some(result))
+}
+
+async fn avatar_appearance(db: &mut SqliteConnection, account: i64, h: &Value) -> Result<Value> {
+    let mut out = appearance(h);
+    let accessories = crate::api::extensions::list(db, account, "accessory").await?;
+    // The native PlayerAvatarHeroInfo carries four slots and serialized transforms.
+    for slot in 1..=4 {
+        let id = n(h, &format!("AccessoryCostumeIndex{slot}"));
+        out[format!("PositionInfo{slot}")] = accessories
+            .iter()
+            .find(|v| id > 0 && n(v, "HeroIndex") == n(h, "HeroIndex") && n(v, "AccessoryCostumeIndex") == id)
+            .and_then(|v| v["PositionInfo"].as_str())
+            .map_or_else(|| json!(""), |v| json!(v));
+    }
+    Ok(out)
 }
 
 pub(crate) async fn avatar_info(
@@ -1087,7 +1163,7 @@ pub(crate) async fn avatar_info(
         avatar.max(1) as i32
     };
     let h = info(db, account, index).await?;
-    let mut out = appearance(&h);
+    let mut out = avatar_appearance(db, account, &h).await?;
     out["AccountId"] = json!(account);
     if avatar >= 10000 {
         out["CostumeIndex"] = json!(avatar - 10000);
@@ -1326,31 +1402,4 @@ async fn collection_item(
     out["EquipItemResults"] = json!(rewards.equipment);
     out["ItemUseResults"] = json!([]);
     Ok(out)
-}
-pub(crate) async fn costume_boost(state: &AppState, account: i64) -> Result<(i32, i32)> {
-    let ids: Vec<i32> = sqlx::query_scalar("SELECT costume_index FROM costumes WHERE account_id=?")
-        .bind(account)
-        .fetch_all(&state.db)
-        .await?;
-    let (mut gold, mut exp) = (0, 0);
-    for id in ids {
-        if let Some(c) = state.tables.hero_shop.costumes.get(&id) {
-            for i in 1..=3 {
-                if n(c, &format!("AbilityType{i}")) != 1 {
-                    continue;
-                }
-                let values = &c[format!("AbilityValue{i}")];
-                let amount = values[1]
-                    .as_str()
-                    .and_then(|s| s.parse::<i32>().ok())
-                    .unwrap_or(0);
-                match values[0].as_str().unwrap_or("") {
-                    "BonusGold" => gold += amount,
-                    "BonusExp" => exp += amount,
-                    _ => {}
-                }
-            }
-        }
-    }
-    Ok((gold, exp))
 }

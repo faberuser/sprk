@@ -21,10 +21,13 @@ pub struct HeroShopTable {
     pub shops: HashMap<i32, Value>,
     pub shop_items: Vec<Value>,
     pub books: Vec<Value>,
+    // Later-client fixtures are retained only to test rejection of limit breaks.
+    #[cfg(test)]
     pub limit_exp_items: Vec<Value>,
+    #[cfg(test)]
+    pub limit_breaks: Vec<Value>,
     pub challenges: Vec<Value>,
     pub awake: Vec<Value>,
-    pub limit_breaks: Vec<Value>,
     pub constants: HashMap<String, String>,
     pub results: HashMap<String, Vec<String>>,
 }
@@ -65,13 +68,12 @@ mod cosmetic_sale_tests {
 
     #[test]
     fn archived_costume_flags_do_not_invent_prices_or_open_closed_sales() {
-        let mut table = HeroShopTable::default();
-        table.costumes = [
+        let mut table = HeroShopTable { costumes: [
             (1, json!({"IsDefault":true,"IsOpen":true,"IsBuy":false,"ReqBuyGem":0})),
             (2, json!({"IsDefault":false,"IsOpen":false,"IsBuy":true,"ReqBuyGem":0})),
             (3, json!({"IsDefault":false,"IsOpen":true,"IsBuy":true,"ReqBuyGem":6000})),
             (4, json!({"IsDefault":false,"IsOpen":true,"IsBuy":true,"ReqBuyGem":0,"ReqBuyMileage":2500})),
-        ].into();
+        ].into(), ..Default::default() };
         table.apply_archived_cosmetic_flags();
         assert_eq!(table.costumes[&1]["Buyable"], false);
         assert_eq!(table.costumes[&1]["ReqBuyGem"], 0);

@@ -113,9 +113,6 @@ const ALL_HERO_INDICES: &[i32] = &[
     101, 102, 111,
 ];
 
-/// Cheat codes for development/testing
-/// These endpoints allow GM/admin commands for testing purposes
-
 /// GM add currency request
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]

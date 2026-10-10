@@ -25,11 +25,20 @@ See [feature status](docs/feature-status.md) for implemented capabilities, testi
 
 ## Source layout
 
+- `src/api/`: account, gameplay, GM, and protocol handlers
+- `src/models/` and `src/tables/`: client response types and table loading
+- `src/updates.rs`: launcher update delivery
+- `launcher/`: Windows launcher and its checks
+- `scripts/`: client patching, publishing, and local server tools
+- `tests/`: Python tool and Windows process-lifetime checks
+
+See [development checks](docs/development.md) before changing server behavior.
+
 ## Building the Server
 
 ### Prerequisites
 
-- Rust 1.9+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
+- Rust 1.93+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
 - SQLite ([bundled with the project](https://www.sqlite.org/download.html))
 
 ### Build Steps

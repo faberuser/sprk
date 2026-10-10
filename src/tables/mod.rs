@@ -2,19 +2,19 @@
 //! 
 //! This module loads and provides access to game data from decoded JSON table files.
 
+/// Share immutable fixture data; each test still owns its database and can
+/// isolate table changes with Arc::make_mut.
 #[cfg(test)]
-mod restoration_tests {
-    #[test]
-    fn original_table_fixture_loads_without_fallback() {
-        let path=std::env::var("SPRK_TABLE_FIXTURE").unwrap_or_else(|_| "tables".to_string());
-        let tables=super::GameTables::load(std::path::Path::new(&path)).expect("Restored rules must load without fallback");
-        assert!(tables.inventory.items.len()>1000);
-        assert!(tables.hero_shop.heroes.len()>=102);
-        assert!(tables.progression.achievements.len()>1000);
-        assert!(tables.rewards.entries.len()>1000);
-        assert!(tables.item_groups.entries.len()>1000);
-        assert!(tables.battle.tables.contains_key("Raid"));
-    }
+pub(crate) fn test_tables() -> GameTables {
+    static TABLES: std::sync::OnceLock<GameTables> = std::sync::OnceLock::new();
+    TABLES
+        .get_or_init(|| {
+            let path = std::env::var_os("SPRK_TABLE_FIXTURE")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("tables"));
+            GameTables::load(&path).expect("Test table fixtures must load without fallback")
+        })
+        .clone()
 }
 
 use std::fs::File;
@@ -88,7 +88,6 @@ pub struct GameTables {
     pub campaign_dungeons: Arc<CampaignDungeonTable>,
     pub rewards: Arc<RewardTable>,
     pub item_groups: Arc<ItemGroupTable>,
-    pub item_group_string_pool: Arc<ItemGroupStringPool>,
     pub reward_string_pool: Arc<RewardStringPool>,
     pub items: Arc<ItemTable>,
     pub tutorials: Arc<TutorialTable>,
@@ -120,12 +119,6 @@ impl GameTables {
         }
         tracing::info!("Loaded {} item group entries", item_groups.entries.len());
         
-        // Load the item group string pool (for resolving integer indices to string codes in ItemGroupTable)
-        let item_group_string_pool = ItemGroupStringPool::load(
-            &table_dir.join("ItemGroupStringPool.json")
-        )?;
-        tracing::info!("Loaded ItemGroup string pool with {} entries", item_group_string_pool.len());
-        
         // Load the reward string pool (for resolving field_15 indices in RewardTable)
         let reward_string_pool = RewardStringPool::load(
             &table_dir.join("RewardStringPool.json")
@@ -133,9 +126,7 @@ impl GameTables {
         tracing::info!("Loaded Reward string pool with {} entries", reward_string_pool.len());
         
         // Load item code→index mapping
-        let items = ItemTable::load(
-            &table_dir.join("ItemCodeToIndex.json")
-        )?;
+        let items = ItemTable::load(table_dir.join("ItemCodeToIndex.json"))?;
         tracing::info!("Loaded {} item code→index mappings", items.len());
         
         // Load tutorial table
@@ -156,7 +147,6 @@ impl GameTables {
             campaign_dungeons: Arc::new(campaign_dungeons),
             rewards: Arc::new(rewards),
             item_groups: Arc::new(item_groups),
-            item_group_string_pool: Arc::new(item_group_string_pool),
             reward_string_pool: Arc::new(reward_string_pool),
             items: Arc::new(items),
             tutorials: Arc::new(tutorials),
@@ -177,7 +167,6 @@ impl GameTables {
             campaign_dungeons: Arc::new(CampaignDungeonTable::default()),
             rewards: Arc::new(RewardTable::default()),
             item_groups: Arc::new(ItemGroupTable::default()),
-            item_group_string_pool: Arc::new(ItemGroupStringPool::default()),
             reward_string_pool: Arc::new(RewardStringPool::default()),
             items: Arc::new(ItemTable::default()),
             tutorials: Arc::new(TutorialTable::default()),
@@ -194,34 +183,10 @@ impl GameTables {
         self.rewards.get(index)
     }
     
-    /// Get item group by string code
-    pub fn get_item_group(&self, code: &str) -> Option<&ItemGroupData> {
-        self.item_groups.get(code)
-    }
-    
-    /// Resolve an integer group code to its string code via ItemGroup StringPool
-    pub fn resolve_group_code(&self, index: i32) -> Option<&str> {
-        self.item_group_string_pool.get(index as usize)
-    }
-    
     /// Get item index by item code
     /// The game uses string codes in reward tables which need to be resolved to integer indices
     pub fn get_item_index(&self, code: &str) -> Option<i32> {
         self.items.get_index(code)
-    }
-    
-    /// Roll from an item group given an integer code (from ItemGroupTable)
-    /// First resolves the integer to a string code via the ItemGroup StringPool,
-    /// then recursively rolls from item groups until we get an actual item.
-    /// 
-    /// Returns (item_index, count, star_min, star_max) or None
-    pub fn roll_item_from_group(&self, group_code_index: i32, grade_filter: &[i32]) -> Option<(i32, i32, i32, i32)> {
-        // First, resolve the integer code to a string code
-        let group_code = self.item_group_string_pool.get(group_code_index as usize)?;
-        
-        tracing::debug!("Rolling from group: {} → '{}'", group_code_index, group_code);
-        
-        self.roll_item_recursive(group_code, grade_filter, 0)
     }
     
     /// Roll from an item group given a string code directly

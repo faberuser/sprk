@@ -1,4 +1,5 @@
 //! Crafting costs and outcomes come from the installed client's tables.
+use crate::models::item::ItemGrant;
 use crate::api::{
     inventory::item::{self, n, rule},
     system::request::Request,
@@ -168,7 +169,19 @@ async fn execute(
                 .ok_or_else(|| rule("InvalidItemCount"))?;
             if duration == 0 {
                 let mut r = Rewards::default();
-                item::give(db, state, account, index, output, 0, 0, &mut r).await?;
+                item::give(
+                    db,
+                    state,
+                    account,
+                    ItemGrant {
+                        index,
+                        count: output,
+                        star: 0,
+                        custom: 0,
+                    },
+                    &mut r,
+                )
+                .await?;
                 consumed.extend(r.items);
                 out["EquipItemResults"] = json!(r.equipment);
             } else {
@@ -192,10 +205,12 @@ async fn execute(
                         db,
                         state,
                         account,
-                        row.get("item_index"),
-                        row.get("item_count"),
-                        0,
-                        0,
+                        ItemGrant {
+                            index: row.get("item_index"),
+                            count: row.get("item_count"),
+                            star: 0,
+                            custom: 0,
+                        },
                         &mut r,
                     )
                     .await?;
@@ -217,10 +232,12 @@ async fn execute(
                             db,
                             state,
                             account,
-                            n(&material, "ItemIndex") as i32,
-                            n(&material, "Count") as i32,
-                            0,
-                            0,
+                            ItemGrant {
+                                index: n(&material, "ItemIndex") as i32,
+                                count: n(&material, "Count") as i32,
+                                star: 0,
+                                custom: 0,
+                            },
                             &mut r,
                         )
                         .await?;

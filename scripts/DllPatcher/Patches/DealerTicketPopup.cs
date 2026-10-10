@@ -9,8 +9,11 @@ partial class Program
     {
         var popupData = module.GetType("NShared.PurchaseMarketingPopupData");
         var marketingType = module.GetType("NShared.MarketingType");
-        var ticketTypes = new[] { "RecommendDealer_2019", "RecommendDealer_2020", "RecommendSupporter_2019", "RecommendSupporter_2020" }
-            .Select(name => Convert.ToInt32(marketingType.Fields.Single(f => f.Name == name).Constant)).ToArray();
+        var ticketTypes = marketingType.Fields
+            .Where(f => f.HasConstant && f.Name.StartsWith("Recommend", StringComparison.Ordinal))
+            .Select(f => Convert.ToInt32(f.Constant)).OrderBy(value => value).ToArray();
+        if (ticketTypes.Length == 0)
+            throw new InvalidOperationException("Recommended ticket promotion types were not found.");
         var getter = popupData.Methods.Single(m => m.Name == "get_Type");
         var manager = module.GetType("NGame2.PurchaseMarketingManager");
         var window = module.GetType("NGame2.NUI.NWindow.PurchaseMarketingPopup");
@@ -27,7 +30,7 @@ partial class Program
             if (first.Length == 5 && first[0].OpCode == OpCodes.Ldarg_0 && first[1].OpCode == OpCodes.Brfalse
                 && first[3].Operand is MethodReference call && call.FullName == getter.FullName && first[4].OpCode == OpCodes.Stloc)
             {
-                // Replace our earlier dealer-only guard, retaining the original method body.
+                // Extend earlier promotion guards, retaining the original method body.
                 var originalStart = (Instruction)first[1].Operand;
                 var existing = method.Body.Instructions.TakeWhile(i => i != originalStart).ToArray();
                 if (existing.Where(i => i.OpCode == OpCodes.Ldc_I4).Select(i => (int)i.Operand).SequenceEqual(ticketTypes)) continue;
@@ -61,6 +64,6 @@ partial class Program
             var il = method.Body.GetILProcessor();
             foreach (var instruction in guard) il.InsertBefore(original, instruction);
         }
-        Console.WriteLine("Removed Recommended Dealer and Support Ticket popup triggers and direct opening (2019/2020 promotions).");
+        Console.WriteLine($"Removed all {ticketTypes.Length} Recommended ticket promotion types from popup triggers and direct opening.");
     }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -64,7 +65,19 @@ pub(super) async fn execute(
                     if old_equip > 0 {
                         // Equipment runes remain in their dedicated storage; clearing the page releases them.
                     } else {
-                        item::give(db, state, account, old as i32, 1, 0, 0, &mut rewards).await?;
+                        item::give(
+                            db,
+                            state,
+                            account,
+                            ItemGrant {
+                                index: old as i32,
+                                count: 1,
+                                star: 0,
+                                custom: 0,
+                            },
+                            &mut rewards,
+                        )
+                        .await?;
                     }
                 } else if old_equip > 0 {
                     remove_equip(db, account, old_equip as i32).await?;

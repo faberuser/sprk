@@ -1,25 +1,14 @@
 use super::*;
-use crate::{api::account::user, database, tables::GameTables};
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use crate::{api::account::user, database};
+use std::sync::Arc;
 async fn setup() -> (AppState, Value) {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&db).await.unwrap();
-    let mut s = AppState::new(
-        db,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    );
+    let mut s = AppState::new(db, crate::tables::test_tables());
     s.battle_service_key = Arc::new(Some("test-battle-service-secret-32-characters".into()));
     let u = json!(
         user::test_login(State(s.clone()), Bytes::from("LoginId=services-test"))
@@ -482,14 +471,58 @@ async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_p
 
 #[tokio::test]
 async fn authoritative_cancel_refunds_pve_reservations_once() {
-    let (s,u)=setup().await;let a=aid(&u);
-    crate::api::battle::put(&mut *s.db.acquire().await.unwrap(),a,"entry_policy",0,&json!({"RefundPveDefeats":true})).await.unwrap();
-    let before:i64=sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
-    let begin=battle(&s,&u,"campaign/begin_campaign",ENTRY).await;ok(&begin);
-    let run=begin["RunId"].as_str().unwrap();
-    let started=execute_request(&s,"internal/b2g_battle_start",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();ok(&started);
-    let canceled=execute_request(&s,"internal/b2g_battle_cancel",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();ok(&canceled);
-    let result=execute_request(&s,"internal/b2g_battle_cancel",&headers(run),form(&u,&format!("AccountId={a}&{ENTRY}"))).await.unwrap();
-    assert_ne!(result["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    let (s, u) = setup().await;
+    let a = aid(&u);
+    crate::api::battle::put(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        "entry_policy",
+        0,
+        &json!({"RefundPveDefeats":true}),
+    )
+    .await
+    .unwrap();
+    let before: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?")
+        .bind(a)
+        .fetch_one(&s.db)
+        .await
+        .unwrap();
+    let begin = battle(&s, &u, "campaign/begin_campaign", ENTRY).await;
+    ok(&begin);
+    let run = begin["RunId"].as_str().unwrap();
+    let started = execute_request(
+        &s,
+        "internal/b2g_battle_start",
+        &headers(run),
+        form(&u, &format!("AccountId={a}&{ENTRY}")),
+    )
+    .await
+    .unwrap();
+    ok(&started);
+    let canceled = execute_request(
+        &s,
+        "internal/b2g_battle_cancel",
+        &headers(run),
+        form(&u, &format!("AccountId={a}&{ENTRY}")),
+    )
+    .await
+    .unwrap();
+    ok(&canceled);
+    let result = execute_request(
+        &s,
+        "internal/b2g_battle_cancel",
+        &headers(run),
+        form(&u, &format!("AccountId={a}&{ENTRY}")),
+    )
+    .await
+    .unwrap();
+    assert_ne!(result["Result"], "Success");
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT stamina FROM user_info WHERE account_id=?")
+            .bind(a)
+            .fetch_one(&s.db)
+            .await
+            .unwrap(),
+        before
+    );
 }

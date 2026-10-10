@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::item::ItemGrant;
 fn products(s: &AppState) -> impl Iterator<Item = &Value> {
     s.tables.live.rules["Products"]
         .as_array()
@@ -227,10 +228,12 @@ pub(super) async fn execute(
                     db,
                     s,
                     a,
-                    n(i, "ItemIndex") as i32,
-                    n(i, "ItemCount") as i32,
-                    0,
-                    0,
+                    ItemGrant {
+                        index: n(i, "ItemIndex") as i32,
+                        count: n(i, "ItemCount") as i32,
+                        star: 0,
+                        custom: 0,
+                    },
                     &mut rewards,
                 )
                 .await?;

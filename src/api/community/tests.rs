@@ -1,24 +1,14 @@
 use super::*;
 use crate::api::account::user;
 use crate::database;
-use crate::tables::GameTables;
-use std::{path::Path, sync::OnceLock};
 pub(crate) async fn setup() -> AppState {
-    static TABLES: OnceLock<GameTables> = OnceLock::new();
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&db).await.unwrap();
-    AppState::new(
-        db,
-        TABLES
-            .get_or_init(|| {
-                GameTables::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tables")).unwrap()
-            })
-            .clone(),
-    )
+    AppState::new(db, crate::tables::test_tables())
 }
 pub(crate) async fn login(s: &AppState, id: &str) -> Value {
     let u = json!(

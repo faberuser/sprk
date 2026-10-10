@@ -139,7 +139,8 @@ impl RewardData {
                     
                     // Parse item code [StringPoolIdx, StringLen] - HashString format
                     let item_code = if let Some(code_arr) = code.and_then(|c| c.as_array()) {
-                        let string_pool_idx = code_arr.get(0).and_then(|v| v.as_i64()).unwrap_or(0) as usize;
+                        let string_pool_idx =
+                            code_arr.first().and_then(|v| v.as_i64()).unwrap_or(0) as usize;
                         // Resolve from string pool
                         string_pool.get(string_pool_idx).map(|s| s.to_string())
                     } else {
