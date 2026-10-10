@@ -19,6 +19,7 @@ partial class Program {
         using var assembly=AssemblyDefinition.ReadAssembly(sourcePath ?? dll,new ReaderParameters{AssemblyResolver=resolver});
         var module=assembly.MainModule;
         PatchDealerTicketPopup(module);
+        PatchAppReviewPopup(module);
         PatchLegacyHeroLevels(module);
         PatchDirectAccessorySales(module);
         PatchPetContentsAvatarLookup(module);

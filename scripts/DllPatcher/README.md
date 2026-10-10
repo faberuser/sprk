@@ -24,6 +24,7 @@ Patch implementations are partial members of `Program` under `Patches/`:
 | `PatchHelpers.cs` | Shared IL helpers |
 | `TelemetryRemoval.cs` | Deletes telemetry types/call sites and removes telemetry SDK references |
 | `DealerTicketPopup.cs` | Blocks all Recommended ticket promotion eligibility and popup opening |
+| `AppReview.cs` | Disables automatic and forced app-store review prompts |
 | `TrialHeroReward.cs` | Prevents hero recruitment animation after awakening/transcendence trial rewards |
 | `AdventureUnlocks.cs` | Honors Portal tutorial skip and saved automatic dungeon milestones for mission categories |
 
@@ -44,6 +45,17 @@ Omit `--shop-only` for all patches, or use `--chat-only` / `--campaign-only`.
 Omit it to install the result after patching. The patcher creates
 `Assembly-CSharp.dll.backup_before_patch` if absent; full patching uses that backup,
 while the individual patch modes use the active DLL.
+
+`--background-chat-only` applies only the background-processing repair to the
+installed DLL, preserving all other patches. With `--stage-only`, it writes
+`Assembly-CSharp.dll.background-chat-staged`. Normal chat initialization enables
+`Application.runInBackground` so incoming whispers and previews are processed
+while another game instance/window has focus. Restart the client after installation.
+
+`--remove-app-review-only` disables `AppReviewPopup.Open` and `ForceOpen` in the
+active DLL while preserving other patches. Add `--stage-only` to write
+`Assembly-CSharp.dll.app-review-staged` without installation. Standard patch modes
+also apply this change. Restart the client after installation.
 
 `--portal-only` also initializes the native `NShader.ShaderVariableUpdater` after
 login tables and account managers load. Its normal per-frame updates restore the

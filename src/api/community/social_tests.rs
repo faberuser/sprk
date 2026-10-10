@@ -96,6 +96,169 @@ async fn add_mail(
 }
 
 #[tokio::test]
+async fn friend_recommendations_exclude_existing_relationships_and_allow_empty_lists() {
+    let (state, a, b) = setup().await;
+    let incoming = login(&state, "incoming").await;
+    let accepted = login(&state, "accepted").await;
+    let banned = login(&state, "banned").await;
+    befriend(&state, &a, &accepted).await;
+    let request = friend::request_friend(
+        State(state.clone()),
+        form(&incoming, &format!("FriendId={}", a.user_info.account_id)),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(request["Result"], "Success");
+    sqlx::query("UPDATE accounts SET is_banned=1 WHERE account_id=?")
+        .bind(banned.user_info.account_id)
+        .execute(&state.db)
+        .await
+        .unwrap();
+
+    // Opening Accept/Request omits Keyword; blank and whitespace are equivalent.
+    for fields in ["", "Keyword=", "Keyword=+++%09"] {
+        let result = friend::search_friend(State(state.clone()), form(&a, fields))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(result["Result"], "Success");
+        assert_eq!(result["FriendInfos"].as_array().unwrap().len(), 1);
+        assert_eq!(result["FriendInfos"][0]["AccountId"], b.user_info.account_id);
+    }
+
+    let request = friend::request_friend(
+        State(state.clone()),
+        form(&a, &format!("FriendId={}", b.user_info.account_id)),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(request["Result"], "Success");
+    let empty = friend::search_friend(State(state.clone()), form(&a, ""))
+        .await
+        .unwrap()
+        .0;
+    assert_eq!(empty["Result"], "Success");
+    assert_eq!(empty["FriendInfos"], json!([]));
+    let pending_search = friend::search_friend(
+        State(state.clone()),
+        form(&a, &format!("Keyword={}", b.user_info.account_id)),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(pending_search["Result"], "FriendNotFound");
+    assert_eq!(pending_search["FriendInfos"], json!([]));
+}
+
+#[tokio::test]
+async fn friend_recommendations_sample_the_player_pool_with_a_limit() {
+    let (state, a, b) = setup().await;
+    let mut eligible = std::collections::BTreeSet::from([b.user_info.account_id]);
+    for index in 0..30 {
+        let id: i64 = sqlx::query_scalar(
+            "INSERT INTO accounts(login_id,nick,last_login) VALUES(?,?,datetime('now')) RETURNING account_id",
+        )
+        .bind(format!("candidate-{index}"))
+        .bind(format!("Candidate {index}"))
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+        sqlx::query("INSERT INTO user_info(account_id) VALUES(?)")
+            .bind(id)
+            .execute(&state.db)
+            .await
+            .unwrap();
+        eligible.insert(id);
+    }
+    let mut samples = std::collections::BTreeSet::new();
+    for _ in 0..4 {
+        let result = friend::search_friend(State(state.clone()), form(&a, ""))
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(result["Result"], "Success");
+        let ids: std::collections::BTreeSet<_> = result["FriendInfos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|info| info["AccountId"].as_i64().unwrap())
+            .collect();
+        assert_eq!(ids.len(), 20);
+        assert!(ids.is_subset(&eligible));
+        samples.insert(ids);
+    }
+    // Four identical subsets out of 31 choose 20 would be vanishingly unlikely.
+    assert!(
+        samples.len() > 1,
+        "recommendations must sample beyond the first 20 IDs"
+    );
+}
+
+#[tokio::test]
+async fn friend_search_matches_username_nickname_and_exact_player_id() {
+    let (state, a, b) = setup().await;
+    sqlx::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=?")
+        .bind(b.user_info.account_id)
+        .execute(&state.db)
+        .await
+        .unwrap();
+    // Launcher usernames are stored separately from the internal login ID.
+    sqlx::query("INSERT INTO credentials(username,login_id,password_hash,created_at) VALUES('launcher_name','social-b','unused-test-hash',0)")
+        .execute(&state.db)
+        .await
+        .unwrap();
+    for keyword in [
+        "friend with space".to_string(),
+        "WITH SPACE".to_string(),
+        "LAUNCHER_NAME".to_string(),
+        "launcher_".to_string(),
+        b.user_info.account_id.to_string(),
+        format!("  {}  ", b.user_info.account_id),
+    ] {
+        let result = friend::search_friend(
+            State(state.clone()),
+            form(&a, &format!("Keyword={}", urlencoding::encode(&keyword))),
+        )
+        .await
+        .unwrap()
+        .0;
+        assert_eq!(result["Result"], "Success", "keyword: {keyword}");
+        assert_eq!(result["FriendInfos"].as_array().unwrap().len(), 1);
+        assert_eq!(result["FriendInfos"][0]["AccountId"], b.user_info.account_id);
+        assert!(result["FriendInfos"][0].get("username").is_none());
+        assert!(result["FriendInfos"][0].get("login_id").is_none());
+    }
+    for keyword in ["social-b", "%", "_", "!", "no-match", "9223372036854775808"] {
+        let result = friend::search_friend(
+            State(state.clone()),
+            form(&a, &format!("Keyword={}", urlencoding::encode(keyword))),
+        )
+        .await
+        .unwrap()
+        .0;
+        // '_' is literal and does match the launcher username.
+        assert_eq!(
+            result["Result"],
+            if keyword == "_" { "Success" } else { "FriendNotFound" }
+        );
+    }
+    let oversized = friend::search_friend(
+        State(state.clone()),
+        form(&a, &format!("Keyword={}", "a".repeat(51))),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(oversized["Result"], "FriendNotFound");
+    assert_eq!(oversized["FriendInfos"], json!([]));
+    assert!(friend::search_friend(State(state.clone()), Bytes::from_static(b"Keyword="))
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn invitations_search_acceptance_and_removal_survive_login() {
     let (state, a, b) = setup().await;
     sqlx::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=?")
