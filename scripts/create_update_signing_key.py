@@ -9,7 +9,7 @@ from publish_client_update import find_openssl
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=Path("update-signing"))
+    parser.add_argument("--output", type=Path, default=Path("client-updates/update-signing"))
     args = parser.parse_args()
     try:
         args.output.mkdir(parents=True, exist_ok=True)

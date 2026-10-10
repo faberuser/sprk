@@ -16,6 +16,19 @@ impl ExtensionTable {
                 data.0.insert(key, rows);
             }
         }
+        if let Some(rows) = data.0.get_mut("AccessoryCostume") {
+            for row in rows {
+                if row["IsBuy"] == false && row["PreviewableWhenOwned"] == true && row["ReqBuyGem"] == 10000 {
+                    let price = match row["PartType"].as_i64() {
+                        Some(1) => 1000,
+                        Some(2 | 3) => 500,
+                        Some(4) => 4000,
+                        _ => continue,
+                    };
+                    row["ReqBuyGem"] = serde_json::json!(price);
+                }
+            }
+        }
         Ok(data)
     }
     pub fn rows(&self, name: &str) -> &[Value] {

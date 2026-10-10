@@ -421,10 +421,10 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let escaped = urlencoding::encode(&body_pos).into_owned();
     let wire = urlencoding::encode(&escaped);
     let bought = call(&s, &login, "hero/buy_customizing_costumes",
-        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=10000&BuyGold=0")).await;
+        &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=4000&BuyGold=0")).await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32 - 10000);
+    assert_eq!(login.user_info.gem, 100000 - price as i32 - 4000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
 }
 

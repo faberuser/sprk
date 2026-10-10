@@ -645,3 +645,40 @@ async fn concurrent_purchase_limit_and_capacity_failure_do_not_spend() {
     );
     assert_eq!(balance(&s, &u, "gold").await, before);
 }
+
+#[tokio::test]
+async fn native_summon_gauges_count_purchases_grant_milestones_and_preserve_overflow() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    // Three old 10+1 purchases are three gauge points, not 33.
+    put(&mut *s.db.acquire().await.unwrap(),a,"summon",25,&json!({"GachaCount":33,"Claimed":0,"Day":day()})).await.unwrap();
+    let v=call(&s,&u,"equip_gacha/get_equip_gacha","").await;
+    assert_eq!(v["PetGachaCountInfos"].as_array().unwrap().iter().find(|x|n(x,"GachaIndex")==25).unwrap()["GachaCount"],3);
+    let v=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=25").await;ok(&v);
+    assert_eq!(v["PetGachaCountInfo"]["GachaCount"],4);
+    assert_eq!(v["GachaItemResults"].as_array().unwrap().len(),11);
+    // Reach the original ten-purchase milestone. Reward comes from RewardIndices.
+    put(&mut *s.db.acquire().await.unwrap(),a,"summon",25,&json!({"GachaCount":99,"RewardGauge":9,"Day":day()})).await.unwrap();
+    let v=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=25").await;ok(&v);
+    assert_eq!(v["PetGachaCountInfo"]["GachaCount"],0);
+    assert!(!v["PetRewardInfo"]["ItemResults"].as_array().unwrap().is_empty());
+    assert_ne!(call(&s,&u,"pet/pet_gacha_roof_reward","GachaIndex=25").await["Result"],"Success");
+    // Existing overflow can be recovered without a purchase, exactly once.
+    put(&mut *s.db.acquire().await.unwrap(),a,"summon",25,&json!({"RewardGauge":23,"Day":day()})).await.unwrap();
+    let v=call(&s,&u,"pet/pet_gacha_roof_reward","GachaIndex=25").await;ok(&v);
+    assert_eq!(v["PetGachaCountInfo"]["GachaCount"],3);
+    assert_ne!(call(&s,&u,"pet/pet_gacha_roof_reward","GachaIndex=25").await["Result"],"Success");
+    // All-In-One rewards at 10, keeps its gauge, then rewards/reset at 20.
+    for (before,after) in [(9,10),(19,0)] {
+        put(&mut *s.db.acquire().await.unwrap(),a,"summon",11,&json!({"RewardGauge":before,"RewardGaugePaid":if before==19 {1}else{0},"Day":day()})).await.unwrap();
+        let v=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=11").await;ok(&v);
+        assert!(!v["GachaCeilingRewardInfo"]["ItemResults"].as_array().unwrap().is_empty());
+        assert_eq!(v["GachaCeilingCountInfos"].as_array().unwrap().iter().find(|x|n(x,"GachaIndex")==11).unwrap()["GachaCount"],after);
+        assert_ne!(call(&s,&u,"equip_gacha/equip_gacha_ceiling_reward","GachaIndex=11").await["Result"],"Success");
+    }
+    // Ticket draws grant the items but no ruby-purchase gauge point.
+    let ticket=s.tables.live.rows("GachaSelectItem").iter().find(|r|r["GachaIndices"].as_array().is_some_and(|v|v.contains(&json!(25))) && n(r,"GachaCategoryType")==0).unwrap();
+    let ticket=n(ticket,"ItemIndex") as i32;seed(&s,&u,ticket,1).await;
+    let v=call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex=25&ItemIndex={ticket}")).await;ok(&v);
+    assert_eq!(v["PetGachaCountInfo"]["GachaCount"],3);
+}

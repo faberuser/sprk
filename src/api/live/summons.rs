@@ -19,6 +19,65 @@ async fn state(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
     }
     Ok(v)
 }
+// Native reward gauges count paid summon purchases, not the 10+1 results.
+fn native_gauge(d: &Value) -> bool {
+    matches!(n(d, "Type"), 4 | 6)
+        && n(d, "MileageAmountForReward") > 0
+        && d["RewardIndices"].as_array().is_some_and(|v| !v.is_empty())
+}
+fn gauge(d: &Value, v: &Value) -> i64 {
+    if !native_gauge(d) {
+        return (n(v, "GachaCount") - n(v, "Claimed")).max(0);
+    }
+    if v.get("RewardGauge").is_some() {
+        return n(v, "RewardGauge").max(0);
+    }
+    // Legacy state retained result counts and no payment history. Convert
+    // outstanding results once; do not erase progress or reissue claimed rewards.
+    (n(v, "GachaCount") - n(v, "Claimed")).max(0) / (n(d, "Bid") + n(d, "BonusBid")).max(1)
+}
+async fn settle_gauge(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    d: &Value,
+    v: &mut Value,
+) -> Result<Option<Value>> {
+    let step = n(d, "MileageAmountForReward");
+    let indices = d["RewardIndices"]
+        .as_array()
+        .ok_or_else(|| rule("GachaDataNotFound"))?;
+    let cycle = step * indices.len() as i64;
+    let mut points = gauge(d, v);
+    let mut paid = n(v, "RewardGaugePaid");
+    let mut rewards = Rewards::default();
+    let mut granted = false;
+    while points >= step * (paid + 1) {
+        reward(
+            db,
+            s,
+            a,
+            indices[paid as usize]
+                .as_i64()
+                .ok_or_else(|| rule("GachaDataNotFound"))?,
+            &mut rewards,
+        )
+        .await?;
+        granted = true;
+        paid += 1;
+        if paid == indices.len() as i64 {
+            points -= cycle;
+            paid = 0;
+        }
+    }
+    v["RewardGauge"] = json!(points);
+    v["RewardGaugePaid"] = json!(paid);
+    if granted {
+        Ok(Some(item::reward_response(db, s, a, rewards).await?))
+    } else {
+        Ok(None)
+    }
+}
 fn free(d: &Value, v: &Value) -> Value {
     json!({"GachaIndex":d["Index"],"LastGachaTime":if n(v,"LastFree")>0{json!(time(n(v,"LastFree")))}else{Value::Null},"LastGachaResetTime":time(day()*86400),"RemainDayGachaChance":(n(d,"DailyMaxFree")-n(v,"DailyFree")).max(0),"ResetRemainTime":((day()+1)*86400-now()).max(0)})
 }
@@ -39,7 +98,7 @@ pub(super) async fn snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) ->
             let v = state(db, a, id).await?;
             infos.push(info(d, cfg));
             frees.push(free(d, &v));
-            let count = json!({"GachaIndex":id,"GachaCount":n(&v,"GachaCount")-n(&v,"Claimed")});
+            let count = json!({"GachaIndex":id,"GachaCount":gauge(d,&v)});
             if n(d, "Type") == 6 {
                 pets.push(count);
             } else {
@@ -102,44 +161,52 @@ pub(super) async fn execute(
         if !starter && pet != (n(d, "Type") == 6) {
             return Err(rule("InvalidValue"));
         }
-        let threshold = n(
-            cfg,
-            if starter {
-                "StarterCount"
-            } else {
-                "CeilingCount"
-            },
-        );
-        if threshold <= 0
-            || if starter {
-                n(&v, "StarterDraws")
-            } else {
-                n(&v, "GachaCount") - n(&v, "Claimed")
-            } < threshold
-            || starter && v["IsTakeLastReward"] == true
-        {
-            return Err(rule("NotEnoughCount"));
-        }
-        if starter {
-            v["IsTakeLastReward"] = json!(true);
+        if !starter && native_gauge(d) {
+            let rr = settle_gauge(db, s, a, d, &mut v)
+                .await?
+                .ok_or_else(|| rule("NotEnoughCount"))?;
+            out["ItemResults"] = rr["ItemResults"].clone();
+            out["RewardResult"] = rr;
         } else {
-            v["Claimed"] = json!(n(&v, "Claimed") + threshold);
-        }
-        let item = n(
-            cfg,
+            let threshold = n(
+                cfg,
+                if starter {
+                    "StarterCount"
+                } else {
+                    "CeilingCount"
+                },
+            );
+            if threshold <= 0
+                || if starter {
+                    n(&v, "StarterDraws")
+                } else {
+                    n(&v, "GachaCount") - n(&v, "Claimed")
+                } < threshold
+                || starter && v["IsTakeLastReward"] == true
+            {
+                return Err(rule("NotEnoughCount"));
+            }
             if starter {
-                "StarterItem"
+                v["IsTakeLastReward"] = json!(true);
             } else {
-                "CeilingItem"
-            },
-        );
-        if starter && n(cfg, "StarterRewardIndex") > 0 {
-            reward(db, s, a, n(cfg, "StarterRewardIndex"), &mut rewards).await?;
-        } else {
-            item::give(db, s, a, item as i32, 1, 0, 0, &mut rewards).await?;
+                v["Claimed"] = json!(n(&v, "Claimed") + threshold);
+            }
+            let item = n(
+                cfg,
+                if starter {
+                    "StarterItem"
+                } else {
+                    "CeilingItem"
+                },
+            );
+            if starter && n(cfg, "StarterRewardIndex") > 0 {
+                reward(db, s, a, n(cfg, "StarterRewardIndex"), &mut rewards).await?;
+            } else {
+                item::give(db, s, a, item as i32, 1, 0, 0, &mut rewards).await?;
+            }
+            out["ItemResults"] = json!(rewards.items);
+            out["RewardResult"] = item::reward_response(db, s, a, rewards).await?;
         }
-        out["ItemResults"] = json!(rewards.items);
-        out["RewardResult"] = item::reward_response(db, s, a, rewards).await?;
     } else if matches!(action, "exec_equip_gacha" | "exec_pet_gacha") {
         if n(cfg, "StarterCount") > 0 && n(&v, "StarterDraws") >= n(cfg, "StarterCount") {
             return Err(rule("StartPickupLimitOver"));
@@ -269,6 +336,17 @@ pub(super) async fn execute(
                 items.push(json!({"ItemResult":roll.items.first(),"EquipItemResult":roll.equipment.first(),"PetItemResult":null,"StaminaResult":null}));
             }
         }
+        if native_gauge(d) {
+            let points = gauge(d, &v);
+            v["RewardGauge"] = json!(points + if ticket == 0 && !is_free { 1 } else { 0 });
+            if let Some(rr) = settle_gauge(db, s, a, d, &mut v).await? {
+                out[if is_pet {
+                    "PetRewardInfo"
+                } else {
+                    "GachaCeilingRewardInfo"
+                }] = rr;
+            }
+        }
         v["GachaCount"] = json!(n(&v, "GachaCount") + count);
         if n(cfg, "StarterCount") > 0 {
             v["StarterDraws"] = json!(n(&v, "StarterDraws") + 1);
@@ -298,8 +376,7 @@ pub(super) async fn execute(
     put(db, a, "summon", id, &v).await?;
     let snap = snapshot(db, s, a).await?;
     merge(&mut out, snap.clone());
-    out["PetGachaCountInfo"] =
-        json!({"GachaIndex":id,"GachaCount":n(&v,"GachaCount")-n(&v,"Claimed")});
+    out["PetGachaCountInfo"] = json!({"GachaIndex":id,"GachaCount":gauge(d,&v)});
     out["StarterPickupEquipGachaInfo"] = snap["StarterPickupEquipGachaInfos"]
         .as_array()
         .and_then(|v| v.iter().find(|v| n(v, "GachaIndex") == id))

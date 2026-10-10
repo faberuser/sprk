@@ -373,6 +373,7 @@ async fn gm_reset_restarts_tutorial_with_kasel() {
     let _ = gm_unlock_all(
         State(state.clone()),
         Form(GmUnlockAllRequest {
+            account_id: None,
             session_id: Some(key.clone()),
         }),
     )
@@ -382,6 +383,7 @@ async fn gm_reset_restarts_tutorial_with_kasel() {
     let _ = gm_reset_account(
         State(state.clone()),
         Form(GmResetAccountRequest {
+            account_id: None,
             session_id: Some(key.clone()),
             keep_heroes: Some(false),
         }),

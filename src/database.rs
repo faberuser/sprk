@@ -45,11 +45,11 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     sqlx::query(r#"
         CREATE TABLE IF NOT EXISTS user_info (
             account_id INTEGER PRIMARY KEY,
-            gold INTEGER NOT NULL DEFAULT 999999999,
-            gem INTEGER NOT NULL DEFAULT 999999,
+            gold INTEGER NOT NULL DEFAULT 0,
+            gem INTEGER NOT NULL DEFAULT 0,
             pay_gem INTEGER NOT NULL DEFAULT 0,
             pvp_coin INTEGER NOT NULL DEFAULT 0,
-            stamina INTEGER NOT NULL DEFAULT 999999,
+            stamina INTEGER NOT NULL DEFAULT 200,
             stamina_recharge_time INTEGER NOT NULL DEFAULT 0,
             team_level INTEGER NOT NULL DEFAULT 1,
             team_exp INTEGER NOT NULL DEFAULT 0,

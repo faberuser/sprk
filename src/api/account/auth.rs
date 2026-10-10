@@ -86,6 +86,69 @@ pub struct ChangePassword {
     current_password: String,
     new_password: String,
 }
+
+#[derive(Deserialize)]
+pub struct DeleteAccount { session_key: String, current_password: String, confirmation: String }
+
+pub async fn delete_account(State(state): State<AppState>, Json(body): Json<DeleteAccount>) -> Result<Json<serde_json::Value>> {
+    let session=state.get_session(&body.session_key).filter(|s|s.account_id>0).ok_or(ServerError::SessionExpired)?;
+    if body.confirmation!="DELETE" || body.current_password.is_empty() || body.current_password.len()>128 {
+        return Err(ServerError::InvalidRequest("Enter your current password and type DELETE to permanently delete this account.".into()));
+    }
+    let row=sqlx::query("SELECT c.username,c.login_id,c.password_hash FROM credentials c JOIN accounts a ON a.login_id=c.login_id WHERE a.account_id=? AND a.is_banned=0")
+        .bind(session.account_id).fetch_optional(&state.db).await?.ok_or_else(denied)?;
+    let username:String=row.get("username");let login:String=row.get("login_id");let stored:String=row.get("password_hash");
+    throttle(&state.db,&username).await?;
+    let permit=PASSWORD_WORK.try_acquire().map_err(|_|ServerError::Authentication("Server busy. Please try again.".into()))?;
+    let hash=stored.clone();
+    let valid=tokio::task::spawn_blocking(move || PasswordHash::new(&hash).map(|h|Argon2::default().verify_password(body.current_password.as_bytes(),&h).is_ok()).unwrap_or(false))
+        .await.map_err(|_|ServerError::Internal("Password service unavailable".into()))?;
+    drop(permit);
+    if !valid {return Err(ServerError::Authentication("Current password is incorrect.".into()));}
+    let mut tx=state.db.begin().await?;
+    if state.get_session(&body.session_key).is_none(){return Err(ServerError::SessionExpired);}
+    // Acquire the write lock and re-check credentials before any deletion.
+    let changed=sqlx::query("UPDATE credentials SET password_hash=password_hash WHERE login_id=? AND password_hash=?")
+        .bind(&login).bind(&stored).execute(&mut *tx).await?.rows_affected();
+    if changed!=1{return Err(denied());}
+    let busy:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members WHERE account_id=?) OR EXISTS(SELECT 1 FROM guilds WHERE master_account_id=?) OR EXISTS(SELECT 1 FROM battle_room_members WHERE account=?) OR EXISTS(SELECT 1 FROM battle_rooms WHERE master=?)")
+        .bind(session.account_id).bind(session.account_id).bind(session.account_id).bind(session.account_id).fetch_one(&mut *tx).await?;
+    if busy{return Err(ServerError::InvalidRequest("Leave your guild and party before deleting your account.".into()));}
+    // The schema is server-owned. Remove per-player rows across all content tables,
+    // including features added after this endpoint; never touch shared global rows.
+    sqlx::query("PRAGMA defer_foreign_keys=ON").execute(&mut *tx).await?;
+    let tables:Vec<String>=sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetch_all(&mut *tx).await?;
+    for table in tables {
+        if table=="accounts" {continue;}
+        let quoted=format!("\"{}\"",table.replace('"',"\"\""));
+        let columns=sqlx::query(&format!("PRAGMA table_info({quoted})")).fetch_all(&mut *tx).await?;
+        let mut keys:Vec<&str>=vec![];
+        for column in &columns {
+            let name:&str=column.get("name");
+            if matches!(name,"account_id"|"account"|"friend_account_id"|"friend_id") {keys.push(name);}
+            if table=="chat_messages" && matches!(name,"sender_id"|"receiver_id") {keys.push(name);}
+            if matches!(table.as_str(),"community_state"|"service_replays") && name=="owner" {keys.push(name);}
+            if table=="community_claims" && name=="target" {keys.push(name);}
+        }
+        if !keys.is_empty() {
+            let clause=keys.iter().map(|k|format!("\"{k}\"=?")).collect::<Vec<_>>().join(" OR ");
+            let sql=format!("DELETE FROM {quoted} WHERE {clause}");let mut query=sqlx::query(&sql);
+            for _ in &keys{query=query.bind(session.account_id);}
+            query.execute(&mut *tx).await?;
+        }
+    }
+    for table in ["auth_tickets","account_claims","credentials"] {
+        sqlx::query(&format!("DELETE FROM {table} WHERE login_id=?")).bind(&login).execute(&mut *tx).await?;
+    }
+    sqlx::query("DELETE FROM auth_attempts WHERE username=?").bind(&username).execute(&mut *tx).await?;
+    // Retain only an anonymous, banned ID tombstone to prevent ID reuse and stale
+    // in-flight requests from being associated with a future player.
+    sqlx::query("UPDATE accounts SET login_id=?,nick='Deleted player',device_id=NULL,session_key=NULL,aes_key=NULL,country_code=NULL,is_banned=1 WHERE account_id=?")
+        .bind(format!("deleted:{}",uuid::Uuid::new_v4())).bind(session.account_id).execute(&mut *tx).await?;
+    tx.commit().await?;
+    state.sessions.retain(|_,s|s.account_id!=session.account_id);
+    Ok(Json(serde_json::json!({"status":"success"})))
+}
 pub async fn change_password(State(state): State<AppState>, Json(body): Json<ChangePassword>) -> Result<Json<TokenResponse>> {
     let session = state.get_session(&body.session_key).filter(|s| s.account_id > 0).ok_or(ServerError::SessionExpired)?;
     if body.current_password.is_empty() || body.current_password.len() > 128 {
@@ -207,6 +270,36 @@ pub(crate) async fn consume_game_ticket(db: &DbPool, ticket: &str, login_id: &st
 mod tests {
     use super::*;
     use axum::{body::Bytes, http::HeaderValue};
+    #[tokio::test]
+    async fn delete_account_requires_password_and_confirmation_and_purges_only_target() {
+        let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        crate::database::create_tables(&db).await.unwrap();
+        let s=AppState::new(db,crate::tables::GameTables::empty());
+        let tokens=register(State(s.clone()),Json(credentials("delete_test","correct password",""))).await.unwrap().0;
+        for (id,login) in [(1,tokens.data.id.as_str()),(2,"other-player")] {
+            sqlx::query("INSERT INTO accounts(account_id,login_id,nick) VALUES(?,?,?)").bind(id).bind(login).bind(format!("Player{id}")).execute(&s.db).await.unwrap();
+            sqlx::query("INSERT INTO user_info(account_id,gold) VALUES(?,123)").bind(id).execute(&s.db).await.unwrap();
+            s.create_session(format!("session{id}"),id,String::new());
+        }
+        sqlx::query("INSERT INTO friends(account_id,friend_account_id) VALUES(2,1)").execute(&s.db).await.unwrap();
+        let request=|password:&str,confirmation:&str|Json(DeleteAccount{session_key:"session1".into(),current_password:password.into(),confirmation:confirmation.into()});
+        assert!(delete_account(State(s.clone()),request("wrong password","DELETE")).await.is_err());
+        assert!(delete_account(State(s.clone()),request("correct password","no")).await.is_err());
+        assert!(s.get_session("session1").is_some());
+        sqlx::query("INSERT INTO guilds(guild_id,name,master_account_id) VALUES(1,'Guild',1)").execute(&s.db).await.unwrap();
+        assert!(delete_account(State(s.clone()),request("correct password","DELETE")).await.is_err());
+        sqlx::query("DELETE FROM guilds WHERE guild_id=1").execute(&s.db).await.unwrap();
+        assert_eq!(delete_account(State(s.clone()),request("correct password","DELETE")).await.unwrap().0["status"],"success");
+        assert!(s.get_session("session1").is_none());assert!(s.get_session("session2").is_some());
+        for table in ["credentials","auth_tickets","friends"] {
+            let count:i64=sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}")).fetch_one(&s.db).await.unwrap();assert_eq!(count,0, "{table}");
+        }
+        let remaining:Vec<(i64,i64)>=sqlx::query_as("SELECT account_id,gold FROM user_info").fetch_all(&s.db).await.unwrap();assert_eq!(remaining,vec![(2,123)]);
+        let tombstone:(String,i64)=sqlx::query_as("SELECT nick,is_banned FROM accounts WHERE account_id=1").fetch_one(&s.db).await.unwrap();assert_eq!(tombstone,("Deleted player".into(),1));
+        assert!(password_login(State(s.clone()),Json(credentials("delete_test","correct password",""))).await.is_err());
+        assert!(refresh_token(State(s.clone()),headers(&tokens.data.refresh_token)).await.is_err());
+        assert!(delete_account(State(s),request("correct password","DELETE")).await.is_err());
+    }
     async fn state() -> AppState {
         let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
         create_tables(&db).await.unwrap();

@@ -15,6 +15,60 @@ using UnityEngine.Networking;
 
 // Native NGUI account form. Passwords are never written to PlayerPrefs or logs.
 public sealed class SprkAccounts : MonoBehaviour {
+    bool deletingAccount;
+    [Serializable] public class DeleteAccountRequest {public string session_key,current_password,confirmation;}
+    public static void HideGuestNickname(NickMessagePopup view) {Hide(view.Label_LoginMethod);}
+    [Serializable] public class ChatAtlasData {public UISpriteData[] sprites;}
+    static UIAtlas chatAtlas;
+    static byte[] ChatResource(string name) {
+        using(var stream=typeof(SprkAccounts).Assembly.GetManifestResourceStream(name))
+        using(var bytes=new MemoryStream()){stream.CopyTo(bytes);return bytes.ToArray();}
+    }
+    public static bool UseFullChatLayout() {
+        return !SceneAutoBehaviour<NGame2.NUI.NManager.NBattle.BattleManagement>.isValidInstance;
+    }
+    public static void RepairChatTabs(NGame2.NUI.NWindow.NChatting.ChattingWindow view) {
+        if(chatAtlas==null) {
+            var go=new GameObject("SprkPreDoomsdayChatAtlas");UnityEngine.Object.DontDestroyOnLoad(go);
+            chatAtlas=go.AddComponent<UIAtlas>();
+            var texture=new Texture2D(2,2,TextureFormat.RGBA32,false);
+            if(!ImageConversion.LoadImage(texture,ChatResource("ChatCommon.png")))throw new InvalidOperationException("Cannot load archived chat atlas");
+            texture.name="PreDoomsdayCommon";texture.wrapMode=TextureWrapMode.Clamp;
+            var material=new Material(Shader.Find("Unlit/Transparent Colored"));material.mainTexture=texture;
+            chatAtlas.spriteMaterial=material;
+            var data=JsonUtility.FromJson<ChatAtlasData>(Encoding.UTF8.GetString(ChatResource("ChatCommon.json")));
+            foreach(var sprite in data.sprites)chatAtlas.AddSprite(sprite);
+        }
+        foreach(var sprite in view.GetComponentsInChildren<UISprite>(true)) {
+            if(sprite.atlas!=null && sprite.atlas.name=="Common" && chatAtlas.GetSprite(sprite.spriteName)!=null)
+                sprite.atlas=chatAtlas;
+        }
+    }
+    public static void OpenFreeNickname(MyInfoWindow view) {
+        NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.LobbyManagement>.instance.GetInstance<LoginCreateNick>(false).Open(view);
+    }
+    public static void LabelNickname(MyInfoWindow view) {
+        foreach(var label in view.GetComponentsInChildren<UILabel>(true)) {
+            if(label==view.MyInfo.Label_Nick || (label.text??"").Trim()!="ID")continue;
+            foreach(var loc in label.GetComponents<UILocalize>()){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+            foreach(var loc in label.GetComponents<NVespa.NNGUIExtension.UILocalizeEx>()){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+            label.text="Nickname";
+            label.overflowMethod=UILabel.Overflow.ShrinkContent;
+        }
+    }
+    public static string[] GetHostTokens(string host) {
+        if(String.IsNullOrEmpty(host))return null;
+        var uri=new Uri(host.Contains("://")?host:"http://"+host);
+        return new[]{uri.Host,uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)};
+    }
+    public static string SecureHost(string host) {
+        // SPRK exposes login and gameplay on the same reverse-proxy origin.
+        // A schemeless public host uses HTTPS's default port, not HTTP port + 1.
+        var uri=new Uri(host.Contains("://")?host:"https://"+host);
+        if(uri.Scheme=="https")return uri.AbsoluteUri.TrimEnd('/');
+        var secure=new UriBuilder(uri){Scheme="https",Port=uri.IsDefaultPort?443:uri.Port};
+        return secure.Uri.AbsoluteUri.TrimEnd('/');
+    }
     static LoginSuccData pending;
     static GetTokenData pendingTokens;
     static SprkSavedAccount activeAccount;
@@ -37,7 +91,22 @@ public sealed class SprkAccounts : MonoBehaviour {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) && !String.IsNullOrEmpty(profile) && System.Text.RegularExpressions.Regex.IsMatch(profile,@"\A[A-Za-z0-9_-]{1,64}\z"))
                     directory=Path.Combine(directory,"SprkAutomation",profile);
-                store=new SprkAccountStore(Path.Combine(directory,"sprk-accounts.dat"));
+                string host=Environment.GetEnvironmentVariable("SPRK_HOST_URL");
+                if(!String.IsNullOrEmpty(host)) {
+                    // Namespace by server origin, not editable profile display name.
+                    var origin=new Uri(ResolveHostUrl(host)).GetLeftPart(UriPartial.Authority);
+                    string key;
+                    using(var hash=SHA256.Create())key=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(origin))).Replace("-","");
+                    string legacy=Path.Combine(directory,"sprk-accounts.dat");
+                    directory=Path.Combine(directory,"SprkServers",key);
+                    string file=Path.Combine(directory,"sprk-accounts.dat");
+                    bool migrate=!File.Exists(file);
+                    store=new SprkAccountStore(file);
+                    if(migrate && File.Exists(legacy)) {
+                        foreach(var account in new SprkAccountStore(legacy).Accounts)
+                            if(String.Equals(SprkAccountStore.Endpoint(account.Endpoint),origin,StringComparison.OrdinalIgnoreCase))store.Upsert(account);
+                    }
+                } else store=new SprkAccountStore(Path.Combine(directory,"sprk-accounts.dat"));
             }
             return store;
         }
@@ -69,6 +138,16 @@ public sealed class SprkAccounts : MonoBehaviour {
         LoginData.LastAccessToken = "";
         LoginData.LastRefreshToken = "";
         LoginData.LastLoginMethod = NShared.LoginMethodType.None;
+    }
+    public static string ResolveHostUrl(string original) {
+        string selected=Environment.GetEnvironmentVariable("SPRK_HOST_URL");
+        if(String.IsNullOrEmpty(selected))return original;
+        Uri uri;
+        if(!Uri.TryCreate(selected,UriKind.Absolute,out uri) ||
+            !(uri.Scheme=="https" || uri.Scheme=="http" && uri.IsLoopback) ||
+            !String.IsNullOrEmpty(uri.UserInfo) || !String.IsNullOrEmpty(uri.Fragment))
+            throw new InvalidOperationException("Invalid SPRK server profile URL");
+        return uri.AbsoluteUri;
     }
     public static void Open(LoginSelect view, LoginSelect.Listener callback, NShared.LoginMethodType ignored, AppServerInfo[] choices, string lastServer) {
         view.Open();
@@ -177,6 +256,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     public static void CleanSettings(GameOptionWindow view) {
         AddSwitchAccount(view);
         AddChangePassword(view);
+        AddDeleteAccount(view);
         var info=view.EtcInfo;
         var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
         if(config!=null && info.Label_GameVersionNum!=null)info.Label_GameVersionNum.text=DisplayVersion(config.Version);
@@ -224,11 +304,27 @@ public sealed class SprkAccounts : MonoBehaviour {
         var form=view.GetComponent<SprkAccounts>();
         if(form==null)form=view.gameObject.AddComponent<SprkAccounts>();
         if(form.busy)return;
-        form.changingPassword=true;form.settingsWindow=view;form.registering=true;form.choosing=false;
+        form.deletingAccount=false;form.changingPassword=true;form.settingsWindow=view;form.registering=true;form.choosing=false;
         form.passwordChanged=false;form.template=view.EtcInfo.Label_GameVersionNum;
         if(form.root==null)form.Build();
         form.root.SetActive(true);form.username.value="";form.password.value="";form.confirm.value="";
         form.HidePasswords();form.SetMessage("");form.Refresh();form.username.isSelected=true;
+    }
+    static void AddDeleteAccount(GameOptionWindow view) {
+        var source=view.EtcInfo.Button_Coupon;
+        if(source==null || source.parent.Find("Button_DeleteAccount")!=null)return;
+        var go=UnityEngine.Object.Instantiate(source.gameObject,source.parent,false);go.name="Button_DeleteAccount";
+        var anchor=source.parent.Find("Button_ChangePassword");
+        go.transform.localPosition=(anchor!=null?anchor.localPosition:source.localPosition)+new Vector3(374,0,0);
+        foreach(var loc in go.GetComponentsInChildren<UILocalize>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var loc in go.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var label in go.GetComponentsInChildren<UILabel>(true))label.text="Delete Account";
+        var button=go.GetComponent<UIButton>();button.onClick.Clear();
+        EventDelegate.Add(button.onClick,delegate {
+            OpenPasswordChange(view);var form=view.GetComponent<SprkAccounts>();
+            if(form.busy)return;form.deletingAccount=true;form.Refresh();
+            form.SetMessage("Permanently deletes this account and its progress. This cannot be undone.");
+        });go.SetActive(true);
     }
     void ClosePasswordChange() {
         if(busy)return;
@@ -372,6 +468,12 @@ public sealed class SprkAccounts : MonoBehaviour {
         foreach(var input in new[]{username,password,confirm}) {input.enabled=!busy && !passwordChanged;input.GetComponent<BoxCollider>().enabled=!busy && !passwordChanged;}
         currentVisibility.isEnabled=passwordVisibility.isEnabled=confirmVisibility.isEnabled=!busy && !passwordChanged;
         RefreshLayout();
+        username.transform.parent.Find("Caption").GetComponent<UILabel>().text="Current Password";
+        password.transform.parent.Find("Caption").GetComponent<UILabel>().text=deletingAccount?"Type DELETE to confirm":"New Password";
+        password.inputType=deletingAccount?UIInput.InputType.Standard:UIInput.InputType.Password;
+        passwordVisibility.gameObject.SetActive(!deletingAccount);
+        confirmRow.SetActive(!deletingAccount);
+        if(deletingAccount){title.text="Delete Account";submitLabel.text=busy?"Deleting...":"Permanently Delete";}
     }
     void RefreshLayout() {
         // Fit errors to their rendered text with compact, equal padding.
@@ -488,6 +590,11 @@ public sealed class SprkAccounts : MonoBehaviour {
         busy=true;SetMessage("");HidePasswords();UICamera.selectedObject=null;Refresh();StartCoroutine(Authenticate());
     }
     void SubmitPasswordChange() {
+        if(deletingAccount) {
+            if(busy)return;
+            if(String.IsNullOrEmpty(username.value) || password.value!="DELETE"){PasswordChangeFailed("Enter your current password and type DELETE.",username);return;}
+            busy=true;SetMessage("");UICamera.selectedObject=null;Refresh();StartCoroutine(DeleteCurrentAccount());return;
+        }
         if(busy || passwordChanged)return;
         if(String.IsNullOrEmpty(username.value)){PasswordChangeFailed("Enter your current password.",username);return;}
         if(Encoding.UTF8.GetByteCount(password.value)<8 || Encoding.UTF8.GetByteCount(password.value)>128){PasswordChangeFailed("New password must be 8-128 bytes.",password);return;}
@@ -511,6 +618,23 @@ public sealed class SprkAccounts : MonoBehaviour {
             LoginData.LastAccessToken=reply.data.access_token;LoginData.LastRefreshToken=reply.data.refresh_token;
             SyncRefreshToken();busy=false;passwordChanged=true;username.value="";password.value="";confirm.value="";
             SetMessage("Password changed successfully.");Refresh();
+        }
+    }
+    IEnumerator DeleteCurrentAccount() {
+        string endpoint=activeAccount!=null?activeAccount.Endpoint:null;
+        if(String.IsNullOrEmpty(endpoint)){PasswordChangeFailed("Please log in again first.",username);yield break;}
+        var user=GlobalAutoBehaviour<AccountManager>.instance.UserManager.UserInfo;
+        string json=JsonUtility.ToJson(new DeleteAccountRequest{session_key=user.SessionKey,current_password=username.value,confirmation=password.value});
+        using(var request=new UnityWebRequest(endpoint.TrimEnd('/')+"/api/auth/delete-account","POST")) {
+            request.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));json=null;
+            request.downloadHandler=new DownloadHandlerBuffer();request.timeout=25;request.SetRequestHeader("Content-Type","application/json");
+            yield return request.SendWebRequest();TokenReply reply=null;
+            try {reply=JsonUtility.FromJson<TokenReply>(request.downloadHandler.text);}catch(Exception){}
+            if(request.result!=UnityWebRequest.Result.Success || reply==null || reply.status!="success") {
+                PasswordChangeFailed(reply!=null && !String.IsNullOrEmpty(reply.InternalErrorMessage)?reply.InternalErrorMessage:"Deletion could not be confirmed. Check the connection before retrying.",username);yield break;
+            }
+            busy=false;username.value="";password.value="";confirm.value="";root.SetActive(false);
+            ClearSession();SwitchAccount();
         }
     }
     void PasswordChangeFailed(string error,UIInput field) {busy=false;SetMessage(error);Refresh();StartCoroutine(FocusForRetry(field,true));}

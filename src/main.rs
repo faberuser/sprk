@@ -95,6 +95,7 @@ async fn game_router() -> anyhow::Result<Router> {
     
     // Create application state
     let state = AppState::new(db, tables);
+    api::system::cheat::start_admin(state.clone()).await?;
     api::battle::cooperative::recover_orphaned(&state).await?;
     let chat_bind = std::env::var("CHAT_BIND").unwrap_or_else(|_| "127.0.0.1".into());
     let chat_listener = tokio::net::TcpListener::bind((chat_bind.as_str(), state.chat.port)).await?;
@@ -127,7 +128,7 @@ async fn game_router() -> anyhow::Result<Router> {
                 command.current_dir(executable.parent().unwrap()).args(["-batchmode","-nographics","-logFile"]).arg(&log)
                     .env("SPRK_CONQUEST_WORKER_KEY",&key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1")
                     .env("SPRK_CONQUEST_WORKER_PORT",port.to_string()).kill_on_drop(true);
-                command.env_remove("SPRK_AUTOMATION_PROFILE").env_remove("SPRK_AUTOMATION_DIR");
+                command.env_remove("SPRK_AUTOMATION_PROFILE").env_remove("SPRK_AUTOMATION_DIR").env_remove("SPRK_GM_KEY");
                 #[cfg(windows)] command.creation_flags(0x08000000);
                 match command.spawn() {
                     Ok(mut worker)=> {
@@ -162,6 +163,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/api/auth/register", post(api::account::auth::register))
         .route("/api/auth/login", post(api::account::auth::password_login))
         .route("/api/auth/change-password", post(api::account::auth::change_password))
+        .route("/api/auth/delete-account", post(api::account::auth::delete_account))
         .route("/api/auth/token/verify", post(api::account::auth::verify_token))
         .route("/api/auth/refresh-token", post(api::account::auth::refresh_token))
         // User authentication endpoints
@@ -173,7 +175,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/ping/idle", post(api::system::ping::ping_idle))
         // Server query
         .route("/query/session", post(api::system::query::query_session))
-        .route("/query/nick", post(api::system::query::query_nick))
+        .route("/query/nick", post(api::account::nickname::query))
+        .route("/user/change_nick", post(api::account::nickname::change))
         // First lobby entry
         .route("/first/lobby", post(api::account::lobby::first_lobby))
         .route("/user/first_lobby", post(api::account::lobby::first_lobby))
@@ -346,14 +349,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/tutorial/progress", post(api::tutorial::get_tutorial_progress))
         .route("/tutorial/skip", post(api::tutorial::skip_tutorial))
         .route("/tutorial/reward", post(api::tutorial::get_tutorial_reward))
-        // Cheat/Admin (for development)
-        .route("/cheat/currency", post(api::system::cheat::gm_add_currency))
-        .route("/cheat/hero", post(api::system::cheat::gm_add_hero))
-        .route("/cheat/level", post(api::system::cheat::gm_set_level))
-        .route("/cheat/unlock", post(api::system::cheat::gm_unlock_all))
-        .route("/cheat/reset", post(api::system::cheat::gm_reset_account))
-        .route("/cheat/allheroes", post(api::system::cheat::gm_add_all_heroes))
-        .route("/cheat/uwut", post(api::system::cheat::gm_add_all_uwut))
+        // Never expose admin commands on the game listener (including its fallback).
+        .merge(api::system::cheat::public_routes())
         // CDN endpoints for patch/asset downloads
         .route("/cdn/LastBuildVersion.txt", get(api::system::cdn::get_last_build_version))
         .route("/cdn/:version/patch.json", get(api::system::cdn::get_patch_json))

@@ -41,55 +41,6 @@ pub async fn query_session(
     }))
 }
 
-/// Query nick request
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
-pub struct QueryNickRequest {
-    pub session_id: Option<String>,
-    pub nick: Option<String>,
-}
-
-/// Query nick response
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct QueryNickResponse {
-    pub base_result: i32,
-    pub result: i32,
-    pub is_available: bool,
-}
-
-/// Handle query nick request (check if nickname is available)
-pub async fn query_nick(
-    State(state): State<AppState>,
-    Form(req): Form<QueryNickRequest>,
-) -> Result<Json<QueryNickResponse>> {
-    let nick = req.nick.unwrap_or_default();
-    
-    // Check if nick is valid (length, characters, etc.)
-    if nick.len() < 2 || nick.len() > 16 {
-        return Ok(Json(QueryNickResponse {
-            base_result: BaseResultType::Success as i32,
-            result: 1, // Invalid length
-            is_available: false,
-        }));
-    }
-
-    // Check if nick is already taken
-    let existing = sqlx::query("SELECT account_id FROM accounts WHERE nick = ?")
-        .bind(&nick)
-        .fetch_optional(&state.db)
-        .await?;
-
-    let is_available = existing.is_none();
-
-    Ok(Json(QueryNickResponse {
-        base_result: BaseResultType::Success as i32,
-        result: if is_available { 0 } else { 2 }, // 0 = available, 2 = taken
-        is_available,
-    }))
-}
-
 /// App version info for platform compatibility
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]

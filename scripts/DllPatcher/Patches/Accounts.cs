@@ -12,7 +12,7 @@ partial class Program {
         var references=Directory.GetFiles(managed,"*.dll").Where(p=>Path.GetFileName(p)!="SprkAccounts.dll").Select(p=>MetadataReference.CreateFromFile(p));
         var compilation=CSharpCompilation.Create("SprkAccounts",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release));
-        using var bytes=new MemoryStream();var result=compilation.Emit(bytes);
+        using var bytes=new MemoryStream();var result=compilation.Emit(bytes,manifestResources:new[]{"ChatCommon.png","ChatCommon.json"}.Select(name=>new ResourceDescription(name,()=>typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!,true)));
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
         bytes.Position=0;using var helper=AssemblyDefinition.ReadAssembly(bytes);
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
@@ -20,8 +20,54 @@ partial class Program {
         var module=assembly.MainModule;
         PatchLegacyHeroLevels(module);
         PatchDirectAccessorySales(module);
+        // Pet House deep-links to this native Summon subcategory, which the
+        // archived category flags hide. Keep every other category flag intact.
+        var shopGroup=module.GetType("NShared.NewPayShopGroupData");
+        var shopEnabled=shopGroup.Methods.Single(m=>m.Name=="get_IsEnable");
+        var categoryGetter=shopGroup.Methods.Single(m=>m.Name=="get_PayShopCategoryType");
+        if(!shopEnabled.Body.Instructions.Any(i=>Equals(i.Operand,"PetGacha"))) {
+            var categoryIl=shopEnabled.Body.GetILProcessor();var original=shopEnabled.Body.Instructions[0];
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Ldarg_0));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Call,categoryGetter));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Ldstr,"PetGacha"));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Call,module.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().First(m=>m.DeclaringType.FullName=="System.String" && m.Name=="op_Equality")));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Brfalse,original));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Ldc_I4_1));
+            categoryIl.InsertBefore(original,Instruction.Create(OpCodes.Ret));
+        }
+
         var bridge=helper.MainModule.Types.Single(t=>t.Name=="SprkAccounts");
         MethodReference Bridge(string name)=>module.ImportReference(bridge.Methods.Single(m=>m.Name==name));
+        // Replace the legacy host:port parser and separate HTTPS-port convention.
+        var requester=module.GetType("NVespa.NWeb.WebServiceRequester");
+        var hostGetter=requester.Methods.Single(m=>m.Name=="get_Host");
+        var tokens=requester.Methods.Single(m=>m.Name=="GetHostTokens");
+        tokens.Body=new MethodBody(tokens);
+        var tokenIl=tokens.Body.GetILProcessor();
+        tokenIl.Emit(OpCodes.Ldarg_0);tokenIl.Emit(OpCodes.Call,hostGetter);
+        tokenIl.Emit(OpCodes.Call,Bridge("GetHostTokens"));tokenIl.Emit(OpCodes.Ret);
+        var secureRequest=requester.Methods.Single(m=>m.Name=="SecureRequest" && m.Parameters.Count==3);
+        var internalRequest=new GenericInstanceMethod(requester.Methods.Single(m=>m.Name=="RequestInternal"));
+        foreach(var parameter in secureRequest.GenericParameters)internalRequest.GenericArguments.Add(parameter);
+        secureRequest.Body=new MethodBody(secureRequest);
+        var secureIl=secureRequest.Body.GetILProcessor();
+        secureIl.Emit(OpCodes.Ldarg_0);secureIl.Emit(OpCodes.Ldarg_0);secureIl.Emit(OpCodes.Call,hostGetter);
+        secureIl.Emit(OpCodes.Call,Bridge("SecureHost"));
+        secureIl.Emit(OpCodes.Ldarg_1);secureIl.Emit(OpCodes.Ldarg_2);secureIl.Emit(OpCodes.Ldarg_3);
+        secureIl.Emit(OpCodes.Ldc_I4_0);secureIl.Emit(OpCodes.Call,internalRequest);secureIl.Emit(OpCodes.Ret);
+        // Override the final bootstrap URL after the native saved debug override.
+        // The iterator owns the actual request; patching only QueryHost's getter
+        // would still allow PatchQueryHost to send a selected profile elsewhere.
+        var queryState=module.GetType("NGame2.NLogin.NState.StateBase_QueryHost");
+        var requests=queryState.NestedTypes.SelectMany(t=>t.Methods).Where(m=>m.HasBody)
+            .SelectMany(m=>m.Body.Instructions.Select(i=>(Method:m,Instruction:i)))
+            .Where(x=>x.Instruction.OpCode==OpCodes.Newobj && x.Instruction.Operand is MethodReference ctor && ctor.DeclaringType.Name=="WwwText").ToArray();
+        if(requests.Length!=1)throw new InvalidOperationException("Expected one host bootstrap request");
+        var request=requests[0];
+        var nullArgument=request.Instruction.Previous;
+        if(nullArgument.OpCode!=OpCodes.Ldnull)throw new InvalidOperationException("Unexpected host request arguments");
+        if(!(nullArgument.Previous.Operand is MethodReference existing && existing.Name=="ResolveHostUrl"))
+            request.Method.Body.GetILProcessor().InsertBefore(nullArgument,Instruction.Create(OpCodes.Call,Bridge("ResolveHostUrl")));
         void After(string type,string method,string helperName,bool passThis=true) {
             var target=module.GetType(type).Methods.Single(m=>m.Name==method);
             if(target.Body.Instructions.Any(i=>i.Operand is MethodReference call && call.DeclaringType.Name=="SprkAccounts" && call.Name==helperName))return;
@@ -34,6 +80,25 @@ partial class Program {
             target.Body.MaxStackSize=Math.Max(target.Body.MaxStackSize,1);
         }
         After("NGame2.NUI.NWindow.LoginBackground","Init","CleanLoginBackground");
+        After("NGame2.NUI.NWindow.MyInfoWindow","SetupMyInfo","LabelNickname");
+        After("NGame2.NUI.NWindow.NickMessagePopup","OpenInternal","HideGuestNickname");
+        After("NGame2.NUI.NWindow.NChatting.ChattingWindow","Init","RepairChatTabs");
+        // Chat management can initialize before LobbyManagement. Absence of the
+        // lobby singleton must not choose the topmost battle overlay in town.
+        foreach(var typeName in new[]{"NGame2.NUI.NManager.ChattingManagement","NGame2.NUI.NWindow.NChatting.ChattingWindow"}) {
+            var chatAwake=module.GetType(typeName).Methods.Single(m=>m.Name=="Awake");
+            foreach(var instruction in chatAwake.Body.Instructions) {
+                if(instruction.Operand is MethodReference check &&
+                   ((check.Name=="get_isValidInstance" && check.DeclaringType.FullName.Contains("LobbyManagement")) ||
+                    (check.Name=="UseFullChatLayout" && check.DeclaringType.Name=="SprkAccounts")))
+                    instruction.Operand=Bridge("UseFullChatLayout");
+            }
+        }
+
+        var rename=module.GetType("NGame2.NUI.NWindow.MyInfoWindow").Methods.Single(m=>m.Name=="OnClickChangeNickName");
+        rename.Body=new MethodBody(rename);
+        var renameIl=rename.Body.GetILProcessor();
+        renameIl.Emit(OpCodes.Ldarg_0);renameIl.Emit(OpCodes.Call,Bridge("OpenFreeNickname"));renameIl.Emit(OpCodes.Ret);
         After("NGame2.NUI.NWindow.LoginBackground","SetPatchVersion","HidePatchVersion");
         After("NGame2.NUI.NWindow.LoginAccountInfo","Refresh_Noraml","CleanLoginInfo");
         After("NGame2.NUI.NWindow.GameOptionWindow","SetupEtc","CleanSettings");
