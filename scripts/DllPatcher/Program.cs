@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--combat-only")) { InstallCombat(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-combat")) { TestCombat(args[0]); return; }
+            if (args.Contains("--self-test-dragon-unlock")) { TestDragonUnlock(args[0]); return; }
             if (args.Contains("--websocket-only")) { InstallWebSockets(args[0], args.Contains("--stage-only")); return; }
             if(args.Contains("--remove-payments")) {
                 int output=Array.IndexOf(args,"--output");
@@ -94,6 +97,8 @@ namespace DllPatcher
 
                 // Full patching can read an old recovery DLL; keep removed telemetry out of every output.
                 RemoveTelemetryFromModule(module);
+                PatchDamageReduction(module);
+                PatchLegacyCombat(module);
                 PatchDealerTicketPopup(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);

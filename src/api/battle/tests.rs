@@ -2678,6 +2678,33 @@ async fn hard_dragon_solo_requires_unlock_and_keeps_multiplayer_guard() {
 }
 
 #[tokio::test]
+async fn hard_black_dragon_unlocks_after_matching_normal_solo_clear() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    // Reproduce the account's Fire Dragon progress without a Black Dragon clear.
+    put(&mut s.db.acquire().await.unwrap(), a, "raid", 1,
+        &json!({"RaidIndex":1,"RaidLevel":16})).await.unwrap();
+    let hard = "ChapterIndex=934&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=114&RaidLevel=1&HeroIndices=1";
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", hard).await["Result"], "NotOpenedDungeon");
+    assert_eq!(balance(&s, "stamina").await, 1000);
+    let normal = "ChapterIndex=908&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=104&RaidLevel=7&HeroIndices=1";
+    let entry = call(&s, &u, "campaign/begin_campaign", normal).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    let win = call(&s, &u, "campaign/end_campaign",
+        "ChapterIndex=908&DungeonIndex=7&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1").await;
+    assert_eq!(win["Result"], "Success", "{win}");
+    assert_eq!(win["CompletedRaidInfo"]["RaidIndex"], 4);
+    assert_eq!(win["CompletedRaidInfo"]["RaidLevel"], 8);
+    let entry = call(&s, &u, "campaign/begin_campaign", hard).await;
+    assert_eq!(entry["Result"], "Success", "{entry}");
+    assert_eq!(entry["StaminaResult"]["AddValue"], -60);
+}
+
+#[tokio::test]
 async fn dragon_solo_wins_unlock_shared_stages_without_downgrading() {
     let (s, u) = setup().await;
     let a = account(&u);
@@ -2750,6 +2777,21 @@ async fn technomagic_restored_stages_keep_story_gates_costs_and_shared_progress(
         assert_eq!(won["CompletedRaidInfo"]["RaidIndex"],raid["ClearRaidIndex"]);
         assert_eq!(won["CompletedRaidInfo"]["RaidLevel"],level+1.min(if key_type==29 {3-level} else {9-level}));
         assert!(!won["ItemResults"].as_array().unwrap().is_empty() || !won["EquipItemInfos"].as_array().unwrap().is_empty());
+        if matches!(index, 501 | 502) {
+            // Both Enchantment modes' old reward rows guarantee these materials.
+            // Verify actual settlement, not merely that some loot was returned.
+            let loot = won["ItemResults"].as_array().unwrap();
+            let counts = if index == 501 {
+                [10, match level { 1 => 0, 2 => 5, _ => 10 }, 0, 0]
+            } else {
+                [10, 10, if level == 1 { 2 } else { 5 }, if level == 3 { 1 } else { 0 }]
+            };
+            for (item, count) in [990108, 990109, 990110, 990111].into_iter().zip(counts) {
+                let awarded = loot.iter().filter(|v| n(v, "ItemIndex") == item)
+                    .map(|v| n(v, "AddCount")).sum::<i64>();
+                assert_eq!(awarded, count, "Enchantment raid {index}, stage {level}, item {item}");
+            }
+        }
         let gold=balance(&s,"gold").await;
         assert_ne!(call(&s,&u,"campaign/end_campaign",&end).await["Result"],"Success");
         assert_eq!(balance(&s,"gold").await,gold);
