@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--remove-app-review-only")) { InstallAppReviewRemoval(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--background-chat-only")) { InstallBackgroundChat(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--combat-only")) { InstallCombat(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-combat")) { TestCombat(args[0]); return; }
             if (args.Contains("--self-test-dragon-unlock")) { TestDragonUnlock(args[0]); return; }
@@ -100,6 +102,7 @@ namespace DllPatcher
                 PatchDamageReduction(module);
                 PatchLegacyCombat(module);
                 PatchDealerTicketPopup(module);
+                PatchAppReviewPopup(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
 

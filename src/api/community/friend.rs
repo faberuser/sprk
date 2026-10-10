@@ -6,7 +6,7 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection};
 
 pub const FRIEND_LIMIT: i64 = 50;
 pub const POINTS_PER_ACTION: i64 = 10;
@@ -81,21 +81,59 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
     let keyword = req.text("Keyword").trim();
-    if keyword.is_empty() || keyword.chars().count() > 50 {
-        return Ok(Json(response("FriendNotFound")));
+    if keyword.chars().count() > 50 {
+        return Ok(Json(
+            json!({"BaseResult":"Success", "Result":"FriendNotFound", "FriendInfos":[]}),
+        ));
     }
-    let pattern = format!(
-        "%{}%",
-        keyword
-            .replace('!', "!!")
-            .replace('%', "!%")
-            .replace('_', "!_")
+    // The native client requests recommendations with an omitted/empty Keyword
+    // when opening Accept/Request, and uses this same endpoint for Find.
+    let mut query = QueryBuilder::<Sqlite>::new(
+        "SELECT a.account_id,a.nick,a.last_login,u.team_level,u.avatar_hero_index \
+         FROM accounts a JOIN user_info u USING(account_id) \
+         LEFT JOIN credentials c ON c.login_id = a.login_id \
+         WHERE a.is_banned = 0 AND u.team_level > 0 AND COALESCE(a.nick, '') != '' \
+         AND a.account_id != ",
     );
-    let rows = sqlx::query("SELECT a.account_id,a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.is_banned = 0 AND a.account_id != ? AND a.nick LIKE ? ESCAPE '!' AND NOT EXISTS(SELECT 1 FROM friends f WHERE f.status = 'accepted' AND ((f.account_id = ? AND f.friend_account_id = a.account_id) OR (f.friend_account_id = ? AND f.account_id = a.account_id))) ORDER BY a.account_id LIMIT 20")
-        .bind(account).bind(pattern).bind(account).bind(account).fetch_all(&state.db).await?;
+    query.push_bind(account);
+    // Pending invitations in either direction are already shown/handled by the
+    // client and must not consume recommendation slots.
+    query.push(" AND NOT EXISTS(SELECT 1 FROM friends f WHERE (f.account_id = ");
+    query.push_bind(account);
+    query.push(" AND f.friend_account_id = a.account_id) OR (f.friend_account_id = ");
+    query.push_bind(account);
+    query.push(" AND f.account_id = a.account_id))");
+    if keyword.is_empty() {
+        query.push(" ORDER BY RANDOM()");
+    } else {
+        let pattern = format!(
+            "%{}%",
+            keyword
+                .replace('!', "!!")
+                .replace('%', "!%")
+                .replace('_', "!_")
+        );
+        let player_id = keyword.parse::<i64>().ok().filter(|id| *id > 0);
+        query.push(" AND (a.nick LIKE ");
+        query.push_bind(pattern.clone());
+        query.push(" ESCAPE '!' OR c.username LIKE ");
+        query.push_bind(pattern);
+        query.push(" ESCAPE '!' OR a.account_id = ");
+        query.push_bind(player_id);
+        // Prioritize exact IDs/names ahead of partial name matches.
+        query.push(") ORDER BY CASE WHEN a.account_id = ");
+        query.push_bind(player_id);
+        query.push(" THEN 0 WHEN a.nick = ");
+        query.push_bind(keyword);
+        query.push(" COLLATE NOCASE OR c.username = ");
+        query.push_bind(keyword);
+        query.push(" COLLATE NOCASE THEN 1 ELSE 2 END, a.account_id");
+    }
+    query.push(" LIMIT 20");
+    let rows = query.build().fetch_all(&state.db).await?;
     let infos: Vec<_> = rows.iter().map(|row| profile_row(&state, row)).collect();
     Ok(Json(
-        json!({"BaseResult":"Success", "Result":if infos.is_empty() {"FriendNotFound"} else {"Success"}, "FriendInfos":infos}),
+        json!({"BaseResult":"Success", "Result":if !keyword.is_empty() && infos.is_empty() {"FriendNotFound"} else {"Success"}, "FriendInfos":infos}),
     ))
 }
 

@@ -5,6 +5,47 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static void PatchChatBackgroundProcessing(ModuleDefinition module)
+    {
+        // Unity normally pauses this client when another window has focus. The
+        // native socket callbacks and whisper previews run on Unity's main thread.
+        var init = module.GetType("NGame2.NSocket.MessageSocketConnector")
+            .Methods.Single(m => m.Name == "Init");
+        if (init.Body.Instructions.Any(i => i.Operand is MethodReference m &&
+            m.DeclaringType.FullName == "UnityEngine.Application" && m.Name == "set_runInBackground"))
+            return;
+        var core = module.AssemblyResolver.Resolve(module.AssemblyReferences.Single(r => r.Name == "UnityEngine.CoreModule"));
+        var setter = module.ImportReference(core.MainModule.GetType("UnityEngine.Application")
+            .Methods.Single(m => m.Name == "set_runInBackground"));
+        var il = init.Body.GetILProcessor();
+        var first = init.Body.Instructions[0];
+        il.InsertBefore(first, il.Create(OpCodes.Ldc_I4_1));
+        il.InsertBefore(first, il.Create(OpCodes.Call, setter));
+        Console.WriteLine("Enabled background processing for native chat delivery");
+    }
+
+    static void InstallBackgroundChat(string clientRoot, bool stageOnly)
+    {
+        var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
+        var dll = Path.Combine(managed, "Assembly-CSharp.dll");
+        var staged = dll + ".background-chat-staged";
+        var resolver = new DefaultAssemblyResolver();
+        resolver.AddSearchDirectory(managed);
+        using var assembly = AssemblyDefinition.ReadAssembly(dll, new ReaderParameters { AssemblyResolver = resolver });
+        PatchChatBackgroundProcessing(assembly.MainModule);
+        assembly.Write(staged);
+        if (!stageOnly)
+        {
+            var backup = Path.Combine(Environment.CurrentDirectory, "target", "background-chat-backups",
+                DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
+            Directory.CreateDirectory(backup);
+            File.Copy(dll, Path.Combine(backup, "Assembly-CSharp.dll"));
+            assembly.Dispose();
+            File.Move(staged, dll, true);
+        }
+        Console.WriteLine(stageOnly ? $"Staged background chat fix: {staged}" : "Installed background chat fix. Restart the client to load it.");
+    }
+
     static void PatchChatBackground(ModuleDefinition module)
     {
         var window = module.Types.Single(t => t.FullName == "NGame2.NUI.NWindow.NChatting.ChattingWindow");
@@ -89,6 +130,7 @@ partial class Program
 
     static void PatchChatSession(ModuleDefinition module)
     {
+        PatchChatBackgroundProcessing(module);
         // Native LoginReq lacks SessionKey, which the server requires to
         // authenticate the socket. Add it at serialization time from the
         // same requester that owns the authenticated HTTP session.
