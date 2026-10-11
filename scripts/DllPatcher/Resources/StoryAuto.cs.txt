@@ -1,0 +1,303 @@
+using System;
+using System.Reflection;
+using NShared;
+using NGame2.NAccount;
+using NGame2.NBattleContext;
+using NGame2.NTutorial;
+using NGame2.NCutScene;
+using NGame2.NScene;
+using NGame2.NUI.NManager;
+using NGame2.NUI.NManager.NBattle;
+using NGame2.NUI.NManager.NLobby;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NBattle;
+using NGame2.NUI.NWindow.NTutorial;
+using NVespa;
+using NVespa.NSingleton;
+using UnityEngine;
+
+// Uses the native next-stage, entry, reward, and Skip paths. Never fabricates clears.
+public static class SprkStoryAuto
+{
+    static BattlePartySetting waitingParty;
+    static bool waitingForEvent;
+    static bool continuousStory;
+    static EnterDungeonData pendingNext;
+    static bool movingToNext, openingNextParty;
+    static float resumeAfter;
+    static float lastProgress, nextTick, retryAfter;
+    static SprkStoryAutoRunner runner;
+    static readonly FieldInfo autoStarted = typeof(BattlePartySetting).GetField("_isAutoCampaign", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo cutsceneSkippable = typeof(CutSceneManager).GetField("_canSkip", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo partyProvider = typeof(BattlePartySetting).GetField("_dataProvider", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly MethodInfo checkNext = typeof(EndCampaign).GetMethod("CheckNextDungeon", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    public static bool AutoSkills(bool enabled) { return enabled || Active(); }
+
+    public static bool IsStory(EnterDungeonData enter)
+    {
+        // IsScenarioReplay is false for ordinary farming entries too. Read the
+        // original map node's saved clear instead of relying on scenario mode.
+        return IsStoryRoute(enter) && GlobalAutoBehaviour<AccountManager>.isValidInstance &&
+            AccountManager.IsLogined() && !GlobalAutoBehaviour<AccountManager>.instance.CampaignManager
+                .IsCompleted(enter.Chapter, enter.OriginalDungeon);
+    }
+
+    public static bool IsStoryRoute(EnterDungeonData enter)
+    {
+        return enter != null && enter.Difficulty == DungeonDifficultyType.Normal &&
+            enter.LinkedDungeonData != null && IsStoryType(enter.LinkedDungeonData.BattleType);
+    }
+
+    public static bool IsStoryType(BattleType type)
+    {
+        return type == BattleType.Campaign || type == BattleType.Boss;
+    }
+
+    public static bool Active()
+    {
+        // IsEnabled intentionally returns false during tutorials. Keep skipping alive then.
+        // Native Continuous Battle also uses AutoNextBattle on Normal. Only the
+        // explicit Continuous Story choice opts into our first-clear behavior.
+        return continuousStory && GlobalAutoBehaviour<AccountManager>.isValidInstance && AccountManager.IsLogined() &&
+            AutoNextBattle.IsValidInstance && IsStoryType(AutoNextBattle.instance.AutoNextBattleType) &&
+            AutoNextBattle.instance.DungeonDifficulty == DungeonDifficultyType.Normal;
+    }
+
+    public static bool ShowChoice(EnterDungeonData enter)
+    {
+        if (!IsStory(enter)) return false;
+        BattlePartySetting party = null;
+        foreach (var candidate in UnityEngine.Object.FindObjectsOfType<BattlePartySetting>())
+            if (candidate.IsOpen()) { party = candidate; break; }
+        if (party == null) return false;
+        MessagePopup3Button.Open("Story battle", "Play once, or advance through available story battles and unlocked chapters automatically. Continuous Story skips skippable dialogue and stops on defeat or when entry requires your attention.",
+            delegate { party.TryStartBattle(null); }, delegate {
+                if (party == null || !party.IsOpen()) return;
+                // Starting a run must initialize its own native tutorial updates
+                // and Unity update loop, including on an ordinary player launch.
+                // Test instrumentation must never be needed to make it advance.
+                var tutorial = SingletonUpdater<TutorialManager>.instance;
+                if (runner == null) {
+                    var host = new GameObject("SprkStoryAuto");
+                    UnityEngine.Object.DontDestroyOnLoad(host);
+                    runner = host.AddComponent<SprkStoryAutoRunner>();
+                }
+                runner.gameObject.SetActive(true);
+                Application.runInBackground = true;
+                AutoNextBattle.OpenGlobal(enter.LinkedDungeonData.BattleType, enter.Difficulty, 0);
+                continuousStory = true;
+                pendingNext = null;
+                lastProgress = Time.realtimeSinceStartup;
+                waitingParty = party;
+                waitingForEvent = true;
+                retryAfter = lastProgress + 0.5f;
+                // Leave the popup's click/close stack before native entry checks.
+                // The same queue resumes an entry intercepted by a story event.
+            }, "Battle Once", "Continuous Story");
+        return true;
+    }
+
+    public static bool ChooseForParty(BattlePartySetting.IDataProvider provider, BattlePartySetting.Listener listener)
+    {
+        // First-time scenario entry bypasses the native OpenAutoNextBattleSelect
+        // callback entirely. Offer the same choice before that special path.
+        return !Active() && listener is NGame2.NUI.NManager.NLobby.LobbyCampaignDungeon &&
+            provider != null && ShowChoice(provider.GetEnterDungeon());
+    }
+
+    public static void BeforeStart(BattlePartySetting party, BattlePartySetting.IDataProvider provider)
+    {
+        if (!Active()) return;
+        if (provider == null || !IsStory(provider.GetEnterDungeon())) { Stop(); return; }
+        if (waitingParty != party) lastProgress = Time.realtimeSinceStartup;
+        waitingParty = party;
+        waitingForEvent = false;
+        retryAfter = Time.realtimeSinceStartup + 1f;
+        // The native timer must not submit a second request while this one is in flight.
+        autoStarted.SetValue(party, true);
+    }
+
+    public static bool EventRaised(bool raised)
+    {
+        if (raised && Active()) waitingForEvent = true;
+        return raised;
+    }
+
+    public static void StopForEntryEvent(AutoBattle battle, bool send, NShared.NMessage.NProtocol.PartyRoomRepeat.ResultType result)
+    {
+        if (Active() && waitingForEvent) return;
+        battle.OnClickStop(send, result);
+    }
+
+    public static bool EntryChecked(bool allowed)
+    {
+        if (!allowed && Active()) Stop();
+        return allowed;
+    }
+
+    public static void Stop()
+    {
+        bool active = Active();
+        Cancelled();
+        if (active) AutoNextBattle.instance.OnClickStopWithoutMessage();
+    }
+
+    // Called by native Stop/defeat too, so a queued lobby continuation cannot
+    // restart the run after the player cancels it.
+    public static void Cancelled()
+    {
+        continuousStory = false;
+        waitingParty = null;
+        waitingForEvent = false;
+        pendingNext = null;
+        movingToNext = openingNextParty = false;
+        if (runner != null && runner.gameObject.activeSelf) runner.gameObject.SetActive(false);
+    }
+
+    public static bool CanNext()
+    {
+        return NextRoute(SingletonAuto<CampaignContext>.instance.EnterDungeon) != null;
+    }
+
+    static CampaignDungeonData NextRoute(EnterDungeonData enter)
+    {
+        // Completion changes IsScenarioReplay, so use the route at reward time.
+        if (!IsStoryRoute(enter) || MainStoryManagement.IsPlayMainStoryMode) return null;
+        var current = enter.OriginalDungeonData;
+        if (current == null || current.NextDungeonIndex == current.DungeonIndex) return null;
+        CampaignDungeonData next = null;
+        if (current.NextDungeonIndex > 0)
+            next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(enter.Chapter, current.NextDungeonIndex);
+        else {
+            // Cross chapters only at a terminal WorldMap story node, using the
+            // native chapter and node unlock checks. Never guess a side route.
+            var chapter = GameRoot.Instance.CampaignChapterDataContainer.GetData(enter.Chapter + 1);
+            if (enter.ChapterData == null || enter.ChapterData.Type != ChapterType.WorldMap ||
+                chapter == null || chapter.Type != ChapterType.WorldMap) return null;
+            next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(enter.Chapter + 1, 1);
+        }
+        if (next == null || !IsStoryType(next.BattleType)) return null;
+        var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
+        return manager.CanGoToChapter(next.ChapterIndex) && manager.CanVisit(next.ChapterIndex, next.DungeonIndex) ? next : null;
+    }
+
+    public static bool Advance(EndCampaign end)
+    {
+        if (!Active()) return false;
+        var next = NextRoute(SingletonAuto<CampaignContext>.instance.EnterDungeon);
+        if (next == null || !(bool)checkNext.Invoke(end, new object[] { next })) { Stop(); return true; }
+        var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
+        pendingNext = new EnterDungeonData(next.ChapterIndex, next.DungeonIndex,
+            manager.GetLinkedDungeonIndex(next.ChapterIndex, next.DungeonIndex), DungeonDifficultyType.Normal,
+            manager.CanPlayScenario(next.ChapterIndex, next.DungeonIndex) && !manager.IsCompleted(next.ChapterIndex, next.DungeonIndex));
+        movingToNext = openingNextParty = false;
+        lastProgress = Time.realtimeSinceStartup;
+        // Keep the native return states: they apply chapter flow and story side
+        // effects. Resume party entry after those events finish, rather than
+        // relying on the overview's one-shot timer during a tutorial.
+        LobbyScene2.ReturnState.OpenFlag &= ~LobbyScene2.ReturnStateOpenFlag.OpenNextDungeon;
+        end.ReturnToLobby();
+        return true;
+    }
+
+    static void ResumeNext()
+    {
+        if (pendingNext == null || UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Lobby" ||
+            GlobalAutoBehaviour<LoadingManager>.instance.IsSceneLoading ||
+            !SceneAutoBehaviour<WorldMapManagement>.isValidInstance || !SceneAutoBehaviour<LobbyCampaignDungeon>.isValidInstance) return;
+        var world = SceneAutoBehaviour<WorldMapManagement>.instance;
+        if (world.IsMapLoading) return;
+        var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
+        if (!manager.CanGoToChapter(pendingNext.Chapter) || !manager.CanVisit(pendingNext.Chapter, pendingNext.OriginalDungeon) ||
+            GlobalAutoBehaviour<AccountManager>.instance.IsMaxEquipItemCount()) { Stop(); return; }
+        if (!movingToNext) {
+            movingToNext = true;
+            resumeAfter = Time.realtimeSinceStartup + 2.5f;
+            lastProgress = Time.realtimeSinceStartup;
+            world.MovePlayerToDungeon(pendingNext.Chapter, pendingNext.OriginalDungeon, false, true);
+            return;
+        }
+        if (NGame2.NAccount.UserCampaignManager.ChapterIndex != pendingNext.Chapter || Time.realtimeSinceStartup < resumeAfter) return;
+        foreach (var party in UnityEngine.Object.FindObjectsOfType<BattlePartySetting>()) {
+            if (!party.IsOpen()) continue;
+            var provider = (BattlePartySetting.IDataProvider)partyProvider.GetValue(party);
+            var enter = provider == null ? null : provider.GetEnterDungeon();
+            if (enter == null || enter.Chapter != pendingNext.Chapter || enter.OriginalDungeon != pendingNext.OriginalDungeon) continue;
+            pendingNext = null;
+            autoStarted.SetValue(party, true);
+            // Use the normal click path to retain party, stamina and entry checks.
+            party.OnClickStartBattle();
+            return;
+        }
+        if (!openingNextParty) {
+            openingNextParty = true;
+            lastProgress = Time.realtimeSinceStartup;
+            SceneAutoBehaviour<LobbyCampaignDungeon>.instance.OpenPartySetting(pendingNext);
+        }
+    }
+
+    // Normal story is the entry difficulty; requiring an Easy clear prevents every first clear.
+    // Restrict this exception to this one auto-next prerequisite call, not account progress.
+    public static bool LowerDifficultyCleared(NGame2.NAccount.UserCampaignManager manager, int chapter, int dungeon, DungeonDifficultyType difficulty)
+    {
+        return (Active() && difficulty == DungeonDifficultyType.Easy) || manager.IsCompleted(chapter, dungeon, difficulty);
+    }
+
+    public static void Tick()
+    {
+        if (Time.realtimeSinceStartup < nextTick) return;
+        nextTick = Time.realtimeSinceStartup + 0.25f;
+        if (!Active()) {
+            // A newly opened global window can finish opening on the next frame.
+            // Native cancellation clears continuousStory immediately instead.
+            if (continuousStory && Time.realtimeSinceStartup - lastProgress < 3f) return;
+            Cancelled();
+            return;
+        }
+        try {
+            bool storyPlaying = false;
+            var tutorial = SingletonUpdater<TutorialManager>.instance;
+            if (tutorial.IsProgressing) {
+                storyPlaying = true;
+                var window = TutorialWindow.instance;
+                if (window != null && window.NeedShowSkipButton()) window.OnClickSkip();
+            }
+            foreach (var cutscene in UnityEngine.Object.FindObjectsOfType<CutSceneManager>()) {
+                if (!cutscene.IsPlaying && !cutscene.IsLoading) continue;
+                storyPlaying = true;
+                // Do not skip protected script groups or bypass their side effects.
+                if (cutscene.IsPlaying && (bool)cutsceneSkippable.GetValue(cutscene) && cutscene.CanSkipToEnd()) cutscene.Skip();
+            }
+            bool inBattle = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Battle2";
+            bool rewarding = false;
+            foreach (var reward in UnityEngine.Object.FindObjectsOfType<EndBattleReward>())
+                if (reward.IsOpen()) { rewarding = true; break; }
+            if (inBattle && !storyPlaying && !rewarding && !GlobalAutoBehaviour<LoadingManager>.instance.IsSceneLoading) {
+                lastProgress = Time.realtimeSinceStartup;
+                waitingParty = null;
+                waitingForEvent = false;
+            }
+            if (waitingForEvent && Time.realtimeSinceStartup >= retryAfter && !storyPlaying && !GlobalAutoBehaviour<LoadingManager>.instance.IsSceneLoading &&
+                waitingParty != null && waitingParty.IsOpen() &&
+                !GlobalAutoBehaviour<NGame2.NUI.NManager.PopupManegement>.instance.AnyPopupExist()) {
+                waitingForEvent = false;
+                waitingParty.TryStartBattle(new BattlePartySetting.ExtraOptionData { AutoNext = true });
+            }
+            if (!storyPlaying && !GlobalAutoBehaviour<PopupManegement>.instance.AnyPopupExist()) ResumeNext();
+            if (Time.realtimeSinceStartup - lastProgress > 90f) {
+                Stop();
+                GlobalCenterMessage.Open("Continuous Story stopped: an event or entry requires your attention.");
+            }
+        } catch (Exception error) {
+            Stop();
+            Debug.LogError("[SPRK Story Auto] Stopped: " + error);
+        }
+    }
+}
+
+// Independent of native singleton creation order and opt-in test instrumentation.
+public sealed class SprkStoryAutoRunner : MonoBehaviour
+{
+    void Update() { SprkStoryAuto.Tick(); }
+}

@@ -27,6 +27,7 @@ Patch implementations are partial members of `Program` under `Patches/`:
 | `AppReview.cs` | Disables automatic and forced app-store review prompts |
 | `TrialHeroReward.cs` | Prevents hero recruitment animation after awakening/transcendence trial rewards |
 | `AdventureUnlocks.cs` | Honors Portal tutorial skip and saved automatic dungeon milestones for mission categories |
+| `StoryAuto.cs` | Opt-in Normal campaign progression, native story skipping, and automatic skills |
 
 `Resources/CostumeOwnership.cs.txt` is embedded with the stable resource name
 `DllPatcher.CostumeOwnership.cs.txt`; it is compiled by the ownership patch at runtime.
@@ -68,6 +69,71 @@ The portal patch also clears a surviving startup-logo overlay when the login
 background opens after `LogoScene.IsLogoPlayed`. Scene startup can leave that
 black widget visible over the loaded animation. Cleanup at the login handoff
 preserves the startup sequence and the original animated background.
+
+## Continuous Story
+
+Uncleared Normal campaign and boss party setup now offers **Battle Once** and
+**Continuous Story** after Start Battle. Eligibility uses the original map node's
+saved clear status, including entries without a scenario. Cleared stages keep the
+native **Select Battle** popup with **Continuous Battle**, **Auto Repeat**, and
+**Start Battle**. Only choosing **Continuous Story** enables the new behavior;
+native Continuous Battle retains its existing rules.
+
+Continuous Story uses the selected party, enables
+automatic skills for the run, skips dialogue through the native Skip actions,
+collects the native battle rewards, and advances to the next available battle
+including uncleared stages. The existing Stop button cancels it. Defeat, failed
+entry, insufficient stamina, a full inventory, a locked next node, or the end of
+available story content stops progression. At a chapter's final battle it continues
+to the next unlocked WorldMap chapter's first story battle. Native chapter flow and
+skippable events finish before the next party starts. Entry resumes after these
+events, including when the overview's native countdown was interrupted. An event
+that requires interaction times out after 90 seconds.
+
+Choosing Continuous Story initializes its own Unity update loop and native
+tutorial manager, queues entry until the choice popup closes, and keeps processing
+while the game is in the background. This also applies to normal launcher and
+executable starts without automation enabled. Repeated entry events are retried
+at most once per second and do not reset the inactivity timeout.
+
+The patch preserves tutorial script effects and protected cutscene groups. It
+does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
+preferences. Story replay, sub-stories, raids, and repeat farming keep their
+existing behavior. Full patching includes this feature; to update it alone:
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --story-auto-only
+```
+
+Add `--stage-only` to write `Assembly-CSharp.dll.story-auto-staged` and
+`SprkStoryAuto.dll.staged`; install both together. Installation reads the active
+DLL and retains other patches, with recovery copies under
+`target/story-auto-backups`. Restart the client and publish a signed client update.
+
+The opt-in automation bridge supports `story-auto-probe`: without text it reports
+the running stage, auto state, and tutorial state; `text: "1:1"` opens party setup
+for an accessible Normal stage using native chapter/node checks. It does not
+create battle results or unlock stages.
+
+The live regression accepts an isolated account with prerequisite progress and
+uncleared target stages. For the chapter boundary and next-stage entry regression:
+
+```powershell
+python scripts/test_story_auto.py --session <isolated-run> --start 2:21 --expect 2:21,3:1,3:2
+```
+
+It verifies real saved first clears and manual cancellation; prerequisite progress
+belongs only to the test fixture.
+
+To watch an owned isolated fixture launched normally with the automation bridge
+disabled, start the observer before choosing Continuous Story through the UI:
+
+```powershell
+python scripts/test_story_auto.py --native-session <isolated-run> --account faber1 --expect 2:20,2:21,3:1,3:2
+```
+
+This checks actual battle starts and saved clears, then clicks the native Stop
+button in the 1280×720 test window and verifies that no further stage starts.
 
 ## Adventure unlock checks
 
@@ -307,6 +373,26 @@ are stored under `target/payment-removal/`, outside the distributed client.
 The update policy records `real_money_payments: false`, the removed files and the
 required replacement assets; standard account patches retain this configuration.
 Restart the client after installation.
+
+## First battle confirmation after launch
+
+The native campaign entry throttle treats a zero request timestamp as a request
+at process startup. Confirming Auto Repeat before its ten-second clock expires
+can close the notice without entering battle. The focused fix bypasses that
+comparison when no request has been sent, preserving the existing guard after a
+request and the native Select Battle/confirmation popups.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --battle-entry-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-battle-entry
+dotnet run --project scripts/DllPatcher -- ../sprk-client --battle-entry-only
+```
+
+Stage output is `Assembly-CSharp.dll.battle-entry-staged`. Installation keeps a
+recovery copy under `target/battle-entry-backups`. Full patching also applies this
+fix. Close the client before installation, restart afterward, and publish a new
+signed update. The self-test executes the patched IL with controlled startup and
+duplicate-request clocks and checks idempotence.
 
 ## Multiple game windows
 

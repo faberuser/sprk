@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--battle-entry-only")) { InstallBattleEntry(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-battle-entry")) { TestBattleEntry(args[0]); return; }
+            if (args.Contains("--story-auto-only")) { InstallStoryAuto(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--remove-app-review-only")) { InstallAppReviewRemoval(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--background-chat-only")) { InstallBackgroundChat(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--combat-only")) { InstallCombat(args[0], args.Contains("--stage-only")); return; }
@@ -105,6 +108,7 @@ namespace DllPatcher
                 PatchAppReviewPopup(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
+                PatchBattleEntry(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)
                 {
@@ -167,6 +171,8 @@ namespace DllPatcher
                 File.Move(dllPath + ".accounts-staged", patchedPath, true);
                 InstallWebSockets(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".websocket-staged", patchedPath, true);
+                InstallStoryAuto(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".story-auto-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -175,6 +181,7 @@ namespace DllPatcher
             File.Copy(patchedPath, dllPath, true);
             InstallAccounts(clientRoot, false);
             InstallWebSockets(clientRoot, false);
+            InstallStoryAuto(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

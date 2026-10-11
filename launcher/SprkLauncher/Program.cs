@@ -75,6 +75,7 @@ sealed class LauncherForm : Form
     readonly ProgressBar progress = new();
     readonly Button action = new();
     readonly ComboBox server = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    readonly Button manageServers = new() { Text = "Manage…" };
     readonly CancellationTokenSource cancellation = new();
     bool busy;
     bool closing;
@@ -110,18 +111,25 @@ sealed class LauncherForm : Form
         action.Enabled = false;
         action.Click += async (_, _) => await RunUpdate(launch: true);
         var serverLabel = new Label { Text = "Server", Location = new Point(33, 123), Size = new Size(80, 28) };
-        server.SetBounds(115, 120, 452, 30);
+        server.SetBounds(115, 120, 342, 30);
+        manageServers.SetBounds(467, 118, 100, 30);
+        manageServers.BackColor = Color.FromArgb(75, 109, 224);
+        manageServers.ForeColor = Color.White;
+        manageServers.FlatStyle = FlatStyle.Flat;
+        manageServers.FlatAppearance.BorderSize = 0;
+        manageServers.Click += (_, _) => ManageServers();
         server.Items.AddRange(config.Profiles.Cast<object>().ToArray());
         server.SelectedItem = config.CurrentProfile;
         server.SelectedIndexChanged += (_, _) => {
-            config.SelectedProfile = ((ServerProfile)server.SelectedItem!).Id;
+            if (server.SelectedItem is not ServerProfile selected) return;
+            config.SelectedProfile = selected.Id;
             status.Text = "";
             detail.Text = "";
             version.Text = "";
             progress.Value = 0;
             action.Text = "Update and Play";
         };
-        Controls.AddRange([title, subtitle, serverLabel, server, version, status, progress, detail, action]);
+        Controls.AddRange([title, subtitle, serverLabel, server, manageServers, version, status, progress, detail, action]);
         status.Text = "";
         detail.Text = "";
         action.Text = "Update and Play";
@@ -136,12 +144,32 @@ sealed class LauncherForm : Form
         };
     }
 
+    void ManageServers()
+    {
+        using var manager = new ServerManagerForm(config);
+        if (manager.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            manager.Configuration.Save(Path.Combine(root, "sprk-launcher.json"));
+            config.Profiles = manager.Configuration.Profiles;
+            config.SelectedProfile = manager.Configuration.SelectedProfile;
+            server.Items.Clear();
+            server.Items.AddRange(config.Profiles.Cast<object>().ToArray());
+            server.SelectedItem = config.CurrentProfile;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, error.Message, "Unable to save servers", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     async Task RunUpdate(bool launch = false)
     {
         if (busy) return;
         busy = true;
         action.Enabled = false;
         server.Enabled = false;
+        manageServers.Enabled = false;
         action.Text = "Updating…";
         detail.Text = "";
         try
@@ -198,6 +226,7 @@ sealed class LauncherForm : Form
             busy = false;
             action.Enabled = true;
             server.Enabled = true;
+            manageServers.Enabled = true;
             if (closing) Close();
         }
     }

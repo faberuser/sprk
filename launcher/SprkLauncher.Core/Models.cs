@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 
 namespace SprkLauncher.Core;
 
@@ -15,20 +16,58 @@ public sealed class LauncherConfig
 
     public void EnsureProfiles()
     {
-        if (Profiles.Count != 0) return;
-        Profiles = [
-            new() { Id = "local", Name = "Local", HostUrl = "http://127.0.0.1:8080/host.json", ManifestUrl = "http://127.0.0.1:8081/updates/stable/manifest.json" },
-            new() { Id = "public", Name = "Public", HostUrl = "https://play.krinfo.net/host.json", ManifestUrl = "https://updates.krinfo.net/updates/stable/manifest.json" }
-        ];
-        var match = Profiles.FirstOrDefault(p => p.ManifestUrl == ManifestUrl);
-        if (match == null)
+        var migrate = Profiles.Count == 0;
+        if (Profiles.All(p => p.Id != "local"))
+            Profiles.Insert(0, new() { Id = "local", Name = "Local", HostUrl = "http://127.0.0.1:8080/host.json", ManifestUrl = "http://127.0.0.1:8081/updates/stable/manifest.json" });
+        if (migrate)
         {
-            // Preserve custom update endpoints; the game host must be configured
-            // explicitly rather than guessed from a possibly separate CDN host.
-            match = new() { Id = "custom", Name = "Existing server", ManifestUrl = ManifestUrl, HostUrl = "" };
-            Profiles.Add(match);
+            var match = Profiles.FirstOrDefault(p => p.ManifestUrl == ManifestUrl);
+            if (match == null)
+            {
+                // A manifest may live on a separate CDN; don't guess the game URL.
+                match = new() { Id = "custom", Name = "Existing server", ManifestUrl = ManifestUrl, HostUrl = "" };
+                Profiles.Add(match);
+            }
+            SelectedProfile = match.Id;
         }
-        SelectedProfile = match.Id;
+    }
+
+    public ServerProfile StoreProfile(ServerProfile profile)
+    {
+        var saved = new ServerProfile {
+            Id = string.IsNullOrWhiteSpace(profile.Id) ? Guid.NewGuid().ToString("N") : profile.Id,
+            Name = profile.Name.Trim(), HostUrl = profile.HostUrl.Trim(), ManifestUrl = profile.ManifestUrl.Trim(),
+            ManifestPublicKeyPem = profile.ManifestPublicKeyPem?.Trim()
+        };
+        saved.Validate();
+        if (Profiles.Any(p => p.Id != saved.Id && p.Name.Equals(saved.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("A server with that name already exists.");
+        var key = saved.ManifestPublicKeyPem ?? ManifestPublicKeyPem;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            if (!new Uri(saved.ManifestUrl).IsLoopback)
+                throw new InvalidDataException("Add this server's update public key before saving a remote server.");
+        }
+        else
+        {
+            if (key.Contains("PRIVATE KEY", StringComparison.Ordinal))
+                throw new InvalidDataException("Choose the public key PEM, not the private signing key.");
+            try { using var rsa = RSA.Create(); rsa.ImportFromPem(key); }
+            catch (ArgumentException) { throw new InvalidDataException("The update public key must be a valid RSA PEM key."); }
+            catch (CryptographicException) { throw new InvalidDataException("The update public key must be a valid RSA PEM key."); }
+        }
+        var index = Profiles.FindIndex(p => p.Id == saved.Id);
+        if (index < 0) Profiles.Add(saved); else Profiles[index] = saved;
+        return saved;
+    }
+
+    public void RemoveProfile(string id)
+    {
+        if (id == "local") throw new InvalidDataException("Local is the default server and cannot be removed.");
+        var profile = Profiles.SingleOrDefault(p => p.Id == id)
+            ?? throw new InvalidDataException("Server not found.");
+        Profiles.Remove(profile);
+        if (SelectedProfile == id) SelectedProfile = "local";
     }
 
     [JsonIgnore] public ServerProfile CurrentProfile => Profiles.SingleOrDefault(p => p.Id == SelectedProfile)

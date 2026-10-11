@@ -185,6 +185,19 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(selected==null || !selected.OpenRoot.gameObject.activeInHierarchy)
                     throw new InvalidOperationException("Raid node is not open");
                 selected.OnClickEnter();
+            } else if(cmd.action=="story-auto-probe") {
+                if(!String.IsNullOrEmpty(cmd.text)) {
+                    var parts=cmd.text.Split(':');
+                    int chapter=int.Parse(parts[0]), dungeon=int.Parse(parts[1]);
+                    var campaign=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager;
+                    if(!campaign.CanGoToChapter(chapter) || !campaign.CanVisit(chapter,dungeon))
+                        throw new InvalidOperationException("Requested story test node is locked");
+                    int linked=campaign.GetLinkedDungeonIndex(chapter,dungeon);
+                    NGame2.NAccount.UserCampaignManager.SetChapterDungeonIndex(chapter,dungeon,true);
+                    NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.LobbyCampaignDungeon>.instance.OpenPartySetting(
+                        new NGame2.NBattleContext.EnterDungeonData(chapter,dungeon,linked,NShared.DungeonDifficultyType.Normal,
+                            campaign.CanPlayScenario(chapter,dungeon) && !campaign.IsCompleted(chapter,dungeon)));
+                }
             } else if(cmd.action=="text" || cmd.action=="fill-input") {
                 var input=Target(cmd.target).GetComponent<UIInput>();
                 if(input == null || !input.enabled) throw new InvalidOperationException("Input is disabled");
@@ -224,6 +237,30 @@ public sealed class SprkAutomation : MonoBehaviour
             }
             else if(cmd.action!="hero-growth-probe" && cmd.action!="account-form-probe" && cmd.action!="guild-attendance-probe" && cmd.action!="payment-probe" && cmd.action!="lobby-probe" && cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
             reply=Snapshot(cmd.id);
+            if(cmd.action=="story-auto-probe") {
+                var helper=AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a=>a.GetName().Name=="SprkStoryAuto");
+                bool active=helper!=null && (bool)helper.GetType("SprkStoryAuto").GetMethod("Active").Invoke(null,null);
+                var enter=NVespa.SingletonAuto<NGame2.NBattleContext.CampaignContext>.instance.EnterDungeon;
+                var tutorial=NVespa.SingletonUpdater<NGame2.NTutorial.TutorialManager>.instance;
+                reply.materials.Add(new Dictionary<string,object>{{"kind","storyAuto"},{"active",active},
+                    {"chapter",enter==null?0:enter.Chapter},{"dungeon",enter==null?0:enter.OriginalDungeon},
+                    {"difficulty",enter==null?"":enter.Difficulty.ToString()},{"scenario",enter!=null && enter.IsScenario},
+                    {"tutorial",tutorial.IsProgressing},{"tutorialCommand",tutorial.CurrentTutorialData==null?"":tutorial.CurrentTutorialData.Command}});
+                foreach(var party in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.BattlePartySetting>()) {
+                    var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+                    var provider=(NGame2.NUI.NWindow.BattlePartySetting.IDataProvider)typeof(NGame2.NUI.NWindow.BattlePartySetting).GetField("_dataProvider",flags).GetValue(party);
+                    var listener=typeof(NGame2.NUI.NWindow.BattlePartySetting).GetField("_listener",flags).GetValue(party);
+                    var selected=provider==null?null:provider.GetEnterDungeon();
+                    var progress=selected==null?null:NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.CampaignManager.Get(selected.Chapter,selected.OriginalDungeon);
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","storyParty"},{"type",party.GetType().FullName},{"open",party.IsOpen()},
+                        {"listener",listener==null?"":listener.GetType().FullName},{"chapter",selected==null?0:selected.Chapter},
+                        {"dungeon",selected==null?0:selected.OriginalDungeon},{"linked",selected==null?0:selected.LinkedDungeon},
+                        {"difficulty",selected==null?"":selected.Difficulty.ToString()},{"replay",selected!=null && selected.IsScenarioReplay},
+                        {"battleType",selected==null || selected.LinkedDungeonData==null?"":selected.LinkedDungeonData.BattleType.ToString()},
+                        {"maxStar",progress==null?0:progress.MaxStar},{"completedTime",progress==null?"":progress.CompletedTime},
+                        {"eligible",helper!=null && (bool)helper.GetType("SprkStoryAuto").GetMethod("IsStory").Invoke(null,new object[]{selected})}});
+                }
+            }
             if(cmd.action=="hero-growth-probe") {
                 if(cmd.text=="open-common")foreach(var view in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.Hero3DViewPanel>())
                     view.SetToggle(NGame2.NUI.NComponent2.Hero3DViewPanel.EToggle.Info);

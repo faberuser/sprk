@@ -2,6 +2,21 @@ use super::*;
 use chrono::{Datelike, Duration, Utc};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub(super) fn daily_hot_time(row: &Value) -> bool {
+    // These native daily missions share Limited with retired event milestones,
+    // but have no event window. Only their three defined daily steps are active.
+    n(row, "Type") == 8
+        && row["DailyReset"] == true
+        && (1..=3).contains(&n(row, "Step"))
+        && row["Kind"] == "LoginOrConnected"
+        && row["RewardKind"] == "Booster"
+        && matches!(
+            (n(row, "Index"), row["RewardCode"].as_str()),
+            (54, Some("BOOSTER_EXP_TEST_MISSION"))
+                | (55, Some("BOOSTER_GOLD_TEST_MISSION"))
+        )
+}
+
 pub(super) fn period(row: &Value) -> String {
     let d = Utc::now().date_naive();
     if row["DailyReset"] == true || matches!(n(row, "Type"), 2 | 3) {

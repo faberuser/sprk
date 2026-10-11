@@ -356,7 +356,8 @@ async fn execute(
                 if view.last("achievement", id, &p) != last_step {
                     return Err(rule("InvalidStep"));
                 }
-                if matches!(n(row, "Type"), 3 | 7 | 8 | 9) || !view.condition(&row["OpenCondition"])
+                if (matches!(n(row, "Type"), 3 | 7 | 8 | 9) && !state::daily_hot_time(row))
+                    || !view.condition(&row["OpenCondition"])
                 {
                     return Err(rule("RewardTimeEnded"));
                 }
