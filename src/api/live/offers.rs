@@ -9,16 +9,20 @@ fn products(s: &AppState) -> impl Iterator<Item = &Value> {
 }
 fn period(v: &Value) -> i64 {
     if n(v, "ResetSeconds") > 0 {
-        now() / n(v, "ResetSeconds")
+        (now() + reset_offset(v)) / n(v, "ResetSeconds")
     } else {
         0
     }
+}
+fn reset_offset(v: &Value) -> i64 {
+    // Unix epoch was a Thursday; weekly shop resets follow UTC Monday.
+    if n(v, "ResetSeconds") == 604800 { 3 * 86400 } else { 0 }
 }
 async fn ledger(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<Value> {
     let id = n(d, "Index");
     let mut v = get(db, a, "product", id).await?;
     if v.is_null() || n(&v, "Period") != period(d) {
-        v = json!({"ProductIndex":id,"PurchasedCount":0,"PurchasedTime":null,"Period":period(d),"PurchaseCountResetTime":time(if n(d,"ResetSeconds")>0{(period(d)+1)*n(d,"ResetSeconds")}else{4102444800})});
+        v = json!({"ProductIndex":id,"PurchasedCount":0,"PurchasedTime":null,"Period":period(d),"PurchaseCountResetTime":time(if n(d,"ResetSeconds")>0{(period(d)+1)*n(d,"ResetSeconds")-reset_offset(d)}else{4102444800})});
     }
     Ok(v)
 }
@@ -28,10 +32,11 @@ pub(super) async fn purchases(
     a: i64,
 ) -> Result<Vec<Value>> {
     let mut out = vec![];
-    for d in products(s) {
-        let v = ledger(db, a, d).await?;
-        if n(&v, "PurchasedCount") > 0 {
-            out.push(v);
+    for stored in list(db, a, "product").await? {
+        if let Some(d) = products(s).find(|d| n(d, "Index") == n(&stored, "ProductIndex")) {
+            // Include a zero ledger after a reset, replacing yesterday's count
+            // in a client that has stayed connected across the reset boundary.
+            out.push(if n(&stored, "Period") == period(d) { stored } else { ledger(db, a, d).await? });
         }
     }
     Ok(out)
@@ -124,9 +129,56 @@ async fn product(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Re
             .cloned()
             .ok_or_else(|| rule("ProductNotFound"))?;
     }
-    let (p, _) = price(db, a, &d).await?;
-    d["Price"] = json!(p);
-    Ok(d)
+    if n(&d, "DiscountLimit") > 0 {
+        let (p, _) = price(db, a, &d).await?;
+        d["Price"] = json!(p);
+    }
+    wire_product(s, d)
+}
+
+fn wire_product(s: &AppState, mut product: Value) -> Result<Value> {
+    // Selection assortments persist their rolled items, but their cached stock
+    // settings must follow the current rules after an administrator changes them.
+    if let Some(configured) = products(s).find(|p| n(p, "Index") == n(&product, "Index")) {
+        for field in ["PurchasableCount", "ResetSeconds", "DailyReset", "ResetType", "WeeklyReset", "MonthlyResetDate"] {
+            product[field] = configured[field].clone();
+        }
+    }
+    // Native cards and detail popups show a sale period whenever both date
+    // strings are populated, even for permanent (Durational=0) offers.
+    // The server's unbounded availability must also be unbounded on the wire.
+    if n(&product, "Begin") == 0 && n(&product, "End") == 0 {
+        product["BeginTime"] = json!("");
+        product["EndTime"] = json!("");
+        product["Durational"] = json!(0);
+    }
+    // Native BaseJsonMarshaler.ParseEnum accepts names, not JSON numbers.
+    for (field, enum_type) in [("ProductType", "ProductType"), ("PriceType", "CurrencyType"), ("ResetType", "ResetType"), ("Flag", "PayShopFlagType")] {
+        if let Some(value) = product[field].as_i64() {
+            // LiveSupport contains request enums only. These three response
+            // enums retain the native NewPayShopProductInfo definitions.
+            let name = match enum_type {
+                "ProductType" => ["None", "DailyGem", "Gem", "Gold", "Item", "Package", "Booster", "Attendance", "Activation", "GoogleGiftCardPromotion", "GooglePlayPointReward", "DailyItem", "KingsPass"].get(value as usize).copied(),
+                "ResetType" => ["None", "Daily", "Weekly", "Monthly"].get(value as usize).copied(),
+                "PayShopFlagType" => match value {0=>Some("None"),2=>Some("Free"),4=>Some("Sale"),8=>Some("Hot"),16=>Some("New"),20=>Some("NewNSale"),_=>None},
+                _ => s.tables.live.enums.get(enum_type).and_then(|e| e.iter().find(|(_, v)| **v == value).map(|(k, _)| k.as_str())),
+            }.ok_or_else(|| rule("InvalidValue"))?;
+            product[field] = json!(name);
+        }
+    }
+    Ok(product)
+}
+
+pub(super) async fn lobby_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    let mut out = Vec::new();
+    for data in products(s) {
+        // Selection-shop offers are delivered by their native popup request.
+        // Their cached rows still need the same enum-name conversion there.
+        if data["SelectionCategory"].is_null() {
+            out.push(product(db, s, a, n(data, "Index")).await?);
+        }
+    }
+    Ok(json!({"PayShopProductInfos":out,"PlayerProductPurchaseInfos":purchases(db,s,a).await?}))
 }
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -165,6 +217,10 @@ pub(super) async fn execute(
                 action == "restock_select_shop_info",
             )
             .await?;
+            let mut v = v;
+            if let Some(infos) = v["PayShopProductInfos"].as_array_mut() {
+                for info in infos { *info = wire_product(s, info.clone())?; }
+            }
             Ok(json!({"SelectShopInfo":v,"CurrencyResult":c}))
         }
         "refresh_payshop_discount_info" => {
@@ -273,9 +329,13 @@ pub(super) async fn execute(
             )
             .await?;
             let mut out = item::reward_response(db, s, a, rewards).await?;
+            // The native shop applies CurrencyResults to the account. Its
+            // DecCurrencyResult field alone does not refresh the displayed
+            // balance. Apply the debit first, before any currency rewards.
+            out["CurrencyResults"].as_array_mut().unwrap().insert(0, dec.clone());
             out["DecCurrencyResult"] = dec;
             out["PlayerProductPurchaseInfo"] = v;
-            out["firstPurchase"] = json!(count == 0);
+            out["firstPurchase"] = Value::Null;
             out["EquipItemInfos"] = out["EquipItemResults"].clone();
             Ok(out)
         }

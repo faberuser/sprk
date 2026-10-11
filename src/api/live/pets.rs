@@ -65,6 +65,20 @@ async fn misc(db: &mut SqliteConnection, a: i64, key: i64, value: String) -> Res
     )
     .await
 }
+pub(super) async fn misc_infos(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
+    let mut infos = list(db, a, "pet_misc").await?;
+    let keys = s.tables.live.enums.get("PetMiscType").ok_or_else(|| rule("InvalidValue"))?;
+    for info in &mut infos {
+        // Native BaseJsonMarshaler.ParseEnum ignores JSON numbers. Keep the
+        // persisted keys numeric, but send enum names on every response/login.
+        if let Some(key) = info["MiscKey"].as_i64() {
+            let name = keys.iter().find(|(_, value)| **value == key)
+                .map(|(name, _)| name).ok_or_else(|| rule("InvalidValue"))?;
+            info["MiscKey"] = json!(name);
+        }
+    }
+    Ok(infos)
+}
 pub(super) async fn increment(
     db: &mut SqliteConnection,
     a: i64,
@@ -112,7 +126,7 @@ async fn open_slot(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<()> {
 pub(super) async fn snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     initialize(db, s, a).await?;
     Ok(
-        json!({"PetInfos":list(db,a,"pet").await?,"PetMiscInfos":list(db,a,"pet_misc").await?,"PetIncubatorSlotInfos":list(db,a,"pet_slot").await?,"PetIncubatorInfos":list(db,a,"pet_incubator").await?,"PetExploreInfos":list(db,a,"pet_explore").await?}),
+        json!({"PetInfos":list(db,a,"pet").await?,"PetMiscInfos":misc_infos(db,s,a).await?,"PetIncubatorSlotInfos":list(db,a,"pet_slot").await?,"PetIncubatorInfos":list(db,a,"pet_incubator").await?,"PetExploreInfos":list(db,a,"pet_explore").await?}),
     )
 }
 pub(super) async fn execute(
@@ -534,6 +548,6 @@ pub(super) async fn execute(
         }
         _ => return Err(rule("Fail")),
     }
-    out["PetMiscInfos"] = json!(list(db, a, "pet_misc").await?);
+    out["PetMiscInfos"] = json!(misc_infos(db, s, a).await?);
     Ok(out)
 }

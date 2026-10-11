@@ -110,7 +110,8 @@ pub(crate) async fn snapshot(
     if let Some((step, progress)) = main {
         out["MainQuestInfo"] = json!({"Step":step,"Progress":progress});
     }
-    out["AttendanceDatas"] = json!(attendance::calendars(state, &view));
+    let (attendance_datas, attendance_infos) = attendance::snapshot(db, state, account, &view).await?;
+    out["AttendanceDatas"] = json!(attendance_datas);
     let products: Vec<(i64, String)> = sqlx::query_as(
         "SELECT product_index,created_time FROM progression_entitlements WHERE account_id=?",
     )
@@ -118,7 +119,7 @@ pub(crate) async fn snapshot(
     .fetch_all(&mut *db)
     .await?;
     out["PlayerProductPurchaseInfos"] = json!(products.iter().map(|(id,time)| json!({"ProductIndex":id,"PurchasedCount":1,"PurchasedTime":time,"StartTime":time})).collect::<Vec<_>>());
-    out["AttendanceInfos"] = json!(attendance::infos(db, state, account, &view).await?);
+    out["AttendanceInfos"] = json!(attendance_infos);
     let events: Vec<String> =
         sqlx::query_scalar("SELECT data FROM progression_world_events WHERE account_id=?")
             .bind(account)

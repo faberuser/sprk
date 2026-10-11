@@ -49,6 +49,11 @@ async fn currency(s: &AppState, u: &user::LoginResponse) -> (i64, i64) {
 #[tokio::test]
 async fn attendance_claim_once_per_day_and_persist() {
     let (s, u) = setup().await;
+    assert_eq!(u.attendance_datas[0]["AttendanceRewardableDays"], 1);
+    assert_eq!(u.attendance_infos[0]["CompletedDay"], 0);
+    let pending = call(&s, &u, "attendance_info", "").await;
+    assert_eq!(pending["AttendanceDatas"][0]["AttendanceRewardableDays"], 1);
+    assert_eq!(pending["AttendanceInfos"][0]["CompletedDay"], 0);
     let r = &s.tables.progression.calendars[0]["Reward"][0]["Reward"][0];
     let id = n(r, "Value");
     let before = count(&s, &u, id).await;
@@ -56,21 +61,33 @@ async fn attendance_claim_once_per_day_and_persist() {
     assert_eq!(a["Result"], "Success");
     assert_eq!(count(&s, &u, id).await, before + n(r, "Count"));
     assert_eq!(a["AttendanceInfos"][0]["LastRewardedDay"], 1);
+    assert_eq!(a["AttendanceInfos"][0]["CompletedDay"], 1);
+    assert_eq!(a["AttendanceDatas"][0]["AttendanceRewardableDays"], 0);
     assert_ne!(
         call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await["Result"],
         "Success"
     );
     let login = relogin(&s).await;
     assert_eq!(login.attendance_infos[0]["LastRewardedDay"], 1);
+    assert_eq!(login.attendance_infos[0]["CompletedDay"], 1);
+    assert_eq!(login.attendance_datas[0]["AttendanceRewardableDays"], 0);
     assert_eq!(login.misc_info.unwrap().login_daily_count, 1);
     sqlx::query("UPDATE attendance_calendar_state SET last_day='2000-01-01' WHERE account_id=?")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
         .unwrap();
+    let login = relogin(&s).await;
+    assert_eq!(login.attendance_infos[0]["CompletedDay"], 1);
+    assert_eq!(login.attendance_datas[0]["AttendanceRewardableDays"], 2);
+    let pending = call(&s, &u, "attendance_info", "").await;
+    assert_eq!(pending["AttendanceInfos"][0]["CompletedDay"], 1);
+    assert_eq!(pending["AttendanceDatas"][0]["AttendanceRewardableDays"], 2);
     let a = call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await;
     assert_eq!(a["Result"], "Success");
     assert_eq!(a["AttendanceInfos"][0]["LastRewardedDay"], 2);
+    assert_eq!(a["AttendanceInfos"][0]["CompletedDay"], 2);
+    assert_eq!(a["AttendanceDatas"][0]["AttendanceRewardableDays"], 0);
 }
 #[tokio::test]
 async fn attendance_conditional_bulk_failure_rolls_back_first_delivery() {
@@ -942,6 +959,9 @@ async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
     let days = s.tables.progression.calendars[0]["Reward"].as_array().unwrap().len() as i64;
     sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,?,date('now'))")
         .bind(u.user_info.account_id).bind(days).execute(&s.db).await.unwrap();
+    let completed = call(&s, &u, "attendance_info", "").await;
+    assert_eq!(completed["AttendanceInfos"][0]["CompletedDay"], days);
+    assert_eq!(completed["AttendanceDatas"][0]["AttendanceRewardableDays"], 0);
     assert_eq!(
         call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await["Result"],
         "Fail"
@@ -955,15 +975,23 @@ async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
     .unwrap();
     Arc::make_mut(&mut Arc::make_mut(&mut s.tables).progression).calendars[0]["Repeatable"] =
         json!(0);
+    let completed = call(&s, &u, "attendance_info", "").await;
+    assert_eq!(completed["AttendanceInfos"][0]["CompletedDay"], days);
+    assert_eq!(completed["AttendanceDatas"][0]["AttendanceRewardableDays"], 0);
     assert_eq!(
         call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await["Result"],
         "Fail"
     );
     Arc::make_mut(&mut Arc::make_mut(&mut s.tables).progression).calendars[0]["Repeatable"] =
         json!(1);
+    let pending = call(&s, &u, "attendance_info", "").await;
+    assert_eq!(pending["AttendanceInfos"][0]["CompletedDay"], 0);
+    assert_eq!(pending["AttendanceDatas"][0]["AttendanceRewardableDays"], 1);
     let r = call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await;
     assert_eq!(r["Result"], "Success");
     assert_eq!(r["AttendanceInfos"][0]["LastRewardedDay"], 1);
+    assert_eq!(r["AttendanceInfos"][0]["CompletedDay"], 1);
+    assert_eq!(r["AttendanceDatas"][0]["AttendanceRewardableDays"], 0);
 }
 
 #[tokio::test]

@@ -9,6 +9,10 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--accessory-list-only")) { InstallAccessoryShopDuplicates(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--shop-catalog-only")) { InstallShopCatalog(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--voice-language-only")) { InstallVoiceLanguage(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--battle-entry-only")) { InstallBattleEntry(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-battle-entry")) { TestBattleEntry(args[0]); return; }
             if (args.Contains("--story-auto-only")) { InstallStoryAuto(args[0], args.Contains("--stage-only")); return; }
@@ -108,6 +112,10 @@ namespace DllPatcher
                 PatchAppReviewPopup(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
+                PatchVoiceLanguage(module);
+                PatchShopFeaturedCatalog(module);
+                PatchAccessoryShopDuplicates(module);
+                PatchMissionThumbnails(module);
                 PatchBattleEntry(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)

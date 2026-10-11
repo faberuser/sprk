@@ -40,6 +40,136 @@ async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
 fn ok(v: &Value) {
     assert_eq!(v["Result"], "Success", "{v}");
 }
+fn daily_limit(s: &mut AppState, indices: &[i64]) {
+    let rules = &mut Arc::make_mut(&mut Arc::make_mut(&mut s.tables).live).rules;
+    for product in rules["Products"].as_array_mut().unwrap() {
+        if indices.contains(&n(product, "Index")) {
+            product["PurchasableCount"] = json!(1);
+            product["ResetSeconds"] = json!(86400);
+            product["DailyReset"] = json!(true);
+            product["ResetType"] = json!(1);
+        }
+    }
+}
+
+#[tokio::test]
+async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_items() {
+    let (s, u) = setup().await;
+    let lobby = json!(crate::api::account::lobby::enter_lobby(State(s.clone()),
+        axum::extract::Form(crate::api::account::lobby::EnterLobbyRequest {
+            session_id: None, session_key: Some(u["UserInfo"]["SessionKey"].as_str().unwrap().into()),
+        })).await.unwrap().0);
+    let products = lobby["PayShopProductInfos"].as_array().unwrap();
+    assert!(products.len() > 1300);
+    let mut indices = std::collections::HashSet::new();
+    for product in products {
+        assert!(indices.insert(n(product, "Index")));
+        assert!(product["ProductType"].is_string());
+        assert!(product["PriceType"].is_string());
+        assert!(n(product, "Price") > 0);
+        assert_eq!(product["Begin"], 0);
+        assert_eq!(product["End"], 0);
+        assert_eq!(product["BeginTime"], "");
+        assert_eq!(product["EndTime"], "");
+        assert_eq!(product["Durational"], 0);
+        assert_eq!(product["PurchasableCount"], 0);
+        assert_eq!(product["ResetType"], "None");
+        assert_eq!(product["DailyReset"], false);
+        for field in ["GoogleId", "AppleId", "OneStoreId", "UDPStoreId"] {
+            assert!(product[field].is_null() || product[field] == "");
+        }
+        for grant in product["ItemInfos"].as_array().into_iter().flatten() {
+            assert!(s.tables.items.reward_item(n(grant, "ItemIndex") as i32).is_some());
+            assert!(n(grant, "ItemCount") > 0);
+        }
+    }
+    for category in ["Beginner", "BirthDay", "Booster", "Convenience", "Daily", "Equipment", "Event", "Gold", "Growth", "HotNew", "Lua", "Mileage", "Package", "Return", "Ruby", "Stamina", "Technomagic"] {
+        assert!(products.iter().any(|p| p["Category"] == category), "Missing category {category}");
+    }
+    let token = products.iter().find(|p| p["Category"] == "Lua").unwrap();
+    assert_eq!(token["PriceType"], "LuaPoint");
+    let package = products.iter().find(|p| p["Index"] == 3093009).unwrap();
+    assert_eq!(package["ProductName"], "Mini Unique Weapon Random Package");
+    assert_eq!(package["UseItemCode"][0], "PACKAGE_PAY_WEAPON_UNIQUE_1");
+    assert_eq!(package["ItemInfos"][0]["ItemIndex"], 93009);
+    assert_eq!(package["ResetType"], "None");
+}
+
+#[tokio::test]
+async fn unlimited_shop_repeated_purchases_and_cached_selection_use_current_stock_rules() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    assert!(s.tables.live.rules["Products"].as_array().unwrap().iter()
+        .all(|p| n(p, "PurchasableCount") == 0 && n(p, "ResetSeconds") == 0));
+    put(&mut s.db.acquire().await.unwrap(), a, "product", 3093009,
+        &json!({"ProductIndex":3093009,"Period":0,"PurchasedCount":19})).await.unwrap();
+    let before = balance(&s, &u, "gem").await;
+    for expected in 20..=22 {
+        let result = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
+        ok(&result);
+        assert_eq!(result["PlayerProductPurchaseInfo"]["PurchasedCount"], expected);
+    }
+    assert_eq!(balance(&s, &u, "gem").await, before - 15000);
+    let count:i32=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(count, 3);
+    let snapshot=shop_snapshot(&s,a).await.unwrap();
+    let product=snapshot["PayShopProductInfos"].as_array().unwrap().iter().find(|p|p["Index"]==3093009).unwrap();
+    assert_eq!(product["PurchasableCount"], 0);
+    let selection=call(&s,&u,"shop/get_select_shop_info","CategoryGroup=Fragment").await;
+    let mut cached=selection["SelectShopInfo"].clone();
+    for product in cached["PayShopProductInfos"].as_array_mut().unwrap() {
+        product["PurchasableCount"]=json!(1);product["ResetSeconds"]=json!(86400);
+        product["ResetType"]=json!(1);product["DailyReset"]=json!(true);
+    }
+    put(&mut s.db.acquire().await.unwrap(),a,"select_shop",n(&cached,"Index"),&cached).await.unwrap();
+    let refreshed=call(&s,&u,"shop/get_select_shop_info","CategoryGroup=Fragment").await;
+    assert_eq!(refreshed["SelectShopInfo"]["ItemInfos"],cached["ItemInfos"]);
+    for product in refreshed["SelectShopInfo"]["PayShopProductInfos"].as_array().unwrap() {
+        assert_eq!(product["PurchasableCount"],0);assert_eq!(product["ResetType"],"None");
+        assert_eq!(product["DailyReset"],false);
+    }
+}
+
+#[tokio::test]
+async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
+    let (mut s, u) = setup().await;
+    daily_limit(&mut s, &[3093009]);
+    let a = account(&u);
+    let before = balance(&s, &u, "gem").await;
+    let v = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Price=1&ItemCount=999").await;
+    ok(&v);
+    assert_eq!(balance(&s, &u, "gem").await, before - 5000);
+    assert_eq!(v["CurrencyResults"][0], v["DecCurrencyResult"]);
+    assert_eq!(v["CurrencyResults"][0]["CurrencyType"], "Gem");
+    assert_eq!(v["CurrencyResults"][0]["AddValue"], -5000);
+    assert_eq!(v["CurrencyResults"][0]["Value1"], before - 5000);
+    assert!(v["firstPurchase"].is_null());
+    let count: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(count, 1);
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, before - 5000);
+    let snapshot = shop_snapshot(&s, a).await.unwrap();
+    assert_eq!(snapshot["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
+        .find(|v| v["ProductIndex"] == 3093009).unwrap()["PurchasedCount"], 1);
+    sqlx::query("UPDATE extension_state SET data=json_set(data,'$.Period',-1) WHERE account_id=? AND kind='product' AND idx=3093009")
+        .bind(a).execute(&s.db).await.unwrap();
+    let snapshot = shop_snapshot(&s, a).await.unwrap();
+    assert_eq!(snapshot["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
+        .find(|v| v["ProductIndex"] == 3093009).unwrap()["PurchasedCount"], 0);
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await);
+    sqlx::query("UPDATE user_info SET gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093003").await["Result"], "Success");
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3093003).await.unwrap().is_null());
+    let before_gold = balance(&s, &u, "gold").await;
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=50001002").await);
+    assert_eq!(balance(&s, &u, "gold").await, before_gold - 10000000);
+    assert_eq!(balance(&s, &u, "gem").await, 1000);
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=50001001").await);
+    assert_eq!(balance(&s, &u, "gold").await, before_gold - 9000000);
+    assert_eq!(balance(&s, &u, "gem").await, 0);
+}
 async fn seed(s: &AppState, u: &Value, id: i32, count: i32) {
     sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET count=count+excluded.count").bind(account(u)).bind(id).bind(count).execute(&s.db).await.unwrap();
 }
@@ -52,7 +182,8 @@ async fn balance(s: &AppState, u: &Value, col: &str) -> i64 {
 }
 #[tokio::test]
 async fn noncash_offers_enforce_prices_limits_and_restore() {
-    let (s, u) = setup().await;
+    let (mut s, u) = setup().await;
+    daily_limit(&mut s, &[920001]);
     let before = balance(&s, &u, "gem").await;
     let v = call(&s, &u, "shop/buy_payshop_product", "Index=920001").await;
     ok(&v);
@@ -79,7 +210,10 @@ async fn noncash_offers_enforce_prices_limits_and_restore() {
 }
 #[tokio::test]
 async fn selection_stock_is_stable_and_restock_cannot_reset_purchase_limit() {
-    let (s, u) = setup().await;
+    let (mut s, u) = setup().await;
+    let indices=s.tables.live.rules["Products"].as_array().unwrap().iter()
+        .filter(|p| p["SelectionCategory"] == "Fragment").map(|p|n(p,"Index")).collect::<Vec<_>>();
+    daily_limit(&mut s, &indices);
     let x = call(
         &s,
         &u,
@@ -166,6 +300,8 @@ async fn ceiling_is_claimed_once_and_pet_summons_create_owned_pets() {
     let v = call(&s, &u, "pet/exec_pet_gacha", "GachaIndex=28").await;
     ok(&v);
     assert_eq!(v["PetGachaItemResults"].as_array().unwrap().len(), 1);
+    assert_eq!(v["PetMiscInfos"].as_array().unwrap().iter()
+        .find(|v| v["MiscKey"] == "PetGachaCount").unwrap()["MiscValue"], "1");
     assert_eq!(
         snapshot(&s, account(&u)).await.unwrap()["PetInfos"]
             .as_array()
@@ -458,6 +594,76 @@ async fn purchase_dungeon_uses_table_price_and_persists_booster() {
 }
 
 #[tokio::test]
+async fn main_pet_avatar_uses_native_enum_names_and_survives_relogin() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    for id in [7400000, 7100000] {
+        pets::add(&mut s.db.acquire().await.unwrap(), &s, a, id).await.unwrap();
+    }
+    // Include existing numeric records: the fix must repair their wire format
+    // without resetting saved avatars or requiring a database migration.
+    put(&mut s.db.acquire().await.unwrap(), a, "pet_misc", 1,
+        &json!({"MiscKey":1,"MiscValue":"7400000","UpdatedTime":time(now())})).await.unwrap();
+    fn avatar(v: &Value) -> &Value {
+        v["PetMiscInfos"].as_array().unwrap().iter()
+            .find(|v| v["MiscKey"] == "AvatarPetIndex").unwrap()
+    }
+    assert_eq!(avatar(&snapshot(&s, a).await.unwrap())["MiscValue"], "7400000");
+    for id in [7100000, 7400000, 0] {
+        let response = call(&s, &u, "pet/change_pet_avatar",
+            &format!("AvatarPetIndex={id}&PetIndex={id}")).await;
+        ok(&response);
+        assert_eq!(avatar(&response)["MiscValue"], id.to_string());
+        assert!(response["PetMiscInfos"].as_array().unwrap().iter().all(|v| v["MiscKey"].is_string()));
+        let stored = get(&mut s.db.acquire().await.unwrap(), a, "pet_misc", 1).await.unwrap();
+        assert_eq!(stored["MiscKey"], 1);
+        assert_eq!(stored["MiscValue"], id.to_string());
+        let login = json!(user::test_login(State(s.clone()), Bytes::from("LoginId=live-test")).await.unwrap().0);
+        assert_eq!(avatar(&login)["MiscValue"], id.to_string());
+    }
+    assert_ne!(call(&s, &u, "pet/change_pet_avatar", "AvatarPetIndex=7100007&PetIndex=7100007").await["Result"], "Success");
+    assert_eq!(avatar(&snapshot(&s, a).await.unwrap())["MiscValue"], "0");
+}
+
+#[tokio::test]
+async fn native_pet_placement_preserves_slots_and_rejects_invalid_layouts() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    for id in [7400000, 7100000] {
+        pets::add(&mut s.db.acquire().await.unwrap(), &s, a, id)
+            .await
+            .unwrap();
+    }
+    // Native WWWForm uses repeated fields, including one field for a single pet.
+    for (args, expected) in [
+        ("PetIndices=7400000", "7400000"),
+        ("PetIndices=7400000&PetIndices=0&PetIndices=7100000&PetIndices=0", "7400000,0,7100000,0"),
+        ("PetIndices=[7100000,7400000]", "7100000,7400000"),
+    ] {
+        let v = call(&s, &u, "pet/change_pet_layout", args).await;
+        ok(&v);
+        assert_eq!(
+            v["PetMiscInfos"].as_array().unwrap().iter()
+                .find(|v| v["MiscKey"] == "PetLayout").unwrap()["MiscValue"],
+            expected
+        );
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "pet_misc", 2).await.unwrap()["MiscValue"], expected);
+    }
+    for args in [
+        "PetIndices=7400000&PetIndices=7400000",
+        "PetIndices=7400000&PetIndices=-1",
+        "PetIndices=7400000&PetIndices=not-a-number",
+        "PetIndices=7400000&PetIndices=7100007", // Not owned.
+        "PetIndices=[7400000,0,0,0,0,0,0,0,0]", // Too many slots.
+    ] {
+        assert_ne!(call(&s, &u, "pet/change_pet_layout", args).await["Result"], "Success");
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "pet_misc", 2).await.unwrap()["MiscValue"], "7100000,7400000");
+    }
+    let snap = snapshot(&s, a).await.unwrap();
+    assert_eq!(snap["PetMiscInfos"].as_array().unwrap().iter()
+        .find(|v| v["MiscKey"] == "PetLayout").unwrap()["MiscValue"], "7100000,7400000");
+}
+#[tokio::test]
 async fn pet_care_duplicate_souls_and_layout_survive_login() {
     let (s, u) = setup().await;
     let a = account(&u);
@@ -503,7 +709,7 @@ async fn pet_care_duplicate_souls_and_layout_survive_login() {
             .as_array()
             .unwrap()
             .iter()
-            .find(|v| v["MiscKey"] == 2)
+            .find(|v| v["MiscKey"] == "PetLayout")
             .unwrap()["MiscValue"],
         "7400000,0,0"
     );
@@ -615,7 +821,8 @@ async fn pickup_step_up_and_native_pet_summon_contracts() {
 }
 #[tokio::test]
 async fn concurrent_purchase_limit_and_capacity_failure_do_not_spend() {
-    let (s, u) = setup().await;
+    let (mut s, u) = setup().await;
+    daily_limit(&mut s, &[920001]);
     let (v, w) = tokio::join!(
         call(&s, &u, "shop/buy_payshop_product", "Index=920001"),
         call(&s, &u, "shop/buy_payshop_product", "Index=920001")

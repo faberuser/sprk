@@ -54,7 +54,13 @@ async fn handle(
         .map(Json)
 }
 pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
-    let mut r = Request::parse(&body)?;
+    // Unity's WWWForm sends each placement slot under the same PetIndices
+    // key. Preserve the slot order and empty (zero) slots before validation.
+    let mut r = if path == "pet/change_pet_layout" {
+        Request::parse_with_integer_arrays(&body, &["PetIndices"])?
+    } else {
+        Request::parse(&body)?
+    };
     let a = r.account(s)?;
     let contract = s
         .tables
@@ -283,6 +289,15 @@ pub(crate) async fn snapshot(s: &AppState, a: i64) -> Result<Value> {
     out["PlayerProductPurchaseInfos"] = json!(offers::purchases(&mut tx, s, a).await?);
     tx.commit().await?;
     Ok(out)
+}
+
+// EnterLobby uses NewPayShopProductInfo. Login's legacy PayShopProductInfo DTO
+// has a different category enum, so do not attach the new catalog to Login.
+pub(crate) async fn shop_snapshot(s: &AppState, a: i64) -> Result<Value> {
+    let mut tx = s.db.begin().await?;
+    let value = offers::lobby_snapshot(&mut tx, s, a).await?;
+    tx.commit().await?;
+    Ok(value)
 }
 
 pub(crate) async fn validate_purchase_dungeon(

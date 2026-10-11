@@ -9,6 +9,7 @@ Usage (interactive menu):
 Usage (one-shot commands):
     python gm.py server http://127.0.0.1:8082
     python gm.py players [SEARCH]
+    python gm.py export-players [--output players.csv]
     python gm.py account <ACCOUNT_ID>        -- save permanent player ID
     python gm.py --account-id 42 currency --gold 1000
     python gm.py allheroes [--level N] [--star N]
@@ -27,6 +28,7 @@ import sys
 import os
 import getpass
 import json
+import csv
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -41,11 +43,18 @@ CONFIG_FILE = Path(__file__).parent / "gm_config.json"
 DEFAULT_SERVER = "http://127.0.0.1:8082"
 
 
+def normalize_server(server: str) -> str:
+    server = server.strip().rstrip("/")
+    if "://" not in server:
+        server = "http://" + server
+    return server
+
+
 def load_config() -> dict:
     if CONFIG_FILE.exists():
         try:
             saved = json.loads(CONFIG_FILE.read_text())
-            return {"server": saved.get("server", DEFAULT_SERVER), "account_id": saved.get("account_id")}
+            return {"server": normalize_server(saved.get("server", DEFAULT_SERVER)), "account_id": saved.get("account_id")}
         except Exception:
             pass
     return {"server": DEFAULT_SERVER, "account_id": None}
@@ -73,9 +82,60 @@ def cmd_players(cfg, query="", after=0):
     pretty(post(cfg, "/cheat/players", {"Query": query, "After": after}))
 
 
-def post(cfg: dict, path: str, fields: dict) -> dict:
-    server = cfg["server"]
+def cmd_export_players(cfg, output="players.csv") -> bool:
+    destination = Path(output)
+    if destination.suffix.lower() not in (".csv", ".json"):
+        print("  Export filename must end in .csv or .json.")
+        return False
+    if destination.exists():
+        print(f"  File already exists: {destination}. Choose a new output filename.")
+        return False
     key = os.environ.get("SPRK_GM_KEY") or getpass.getpass("GM administrator key: ")
+    if not key:
+        print("An administrator key is required.")
+        return False
+    players, after = [], 0
+    while True:
+        page = post(cfg, "/cheat/players", {"Query": "", "After": after}, key=key)
+        if not isinstance(page, dict) or not isinstance(page.get("Players"), list) or "NextAfter" not in page:
+            print("  Export failed: missing or invalid player page. No export written.")
+            return False
+        rows = page["Players"]
+        for row in rows:
+            if (not isinstance(row, dict) or type(row.get("AccountId")) is not int
+                    or row["AccountId"] <= after
+                    or any(field not in row or row[field] is not None and not isinstance(row[field], str)
+                           for field in ("Username", "Nickname"))):
+                print("  Export failed: invalid player data. No export written.")
+                return False
+            after = row["AccountId"]
+        players.extend(rows)
+        next_after = page["NextAfter"]
+        if next_after is None:
+            break
+        if not rows or type(next_after) is not int or next_after != after:
+            print("  Export failed: invalid pagination cursor. No export written.")
+            return False
+    try:
+        with destination.open("x", encoding="utf-8", newline="") as stream:
+            if destination.suffix.lower() == ".json":
+                json.dump(players, stream, ensure_ascii=False, indent=2)
+                stream.write("\n")
+            else:
+                writer = csv.DictWriter(stream, fieldnames=["AccountId", "Username", "Nickname"], extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(players)
+    except OSError as exc:
+        print(f"  Could not write export: {exc}")
+        return False
+    print(f"  Exported {len(players)} players to {destination.resolve()}")
+    return True
+
+
+def post(cfg: dict, path: str, fields: dict, *, key=None) -> dict:
+    server = normalize_server(cfg["server"])
+    if key is None:
+        key = os.environ.get("SPRK_GM_KEY") or getpass.getpass("GM administrator key: ")
     if not key:
         print("An administrator key is required.")
         return {}
@@ -325,6 +385,7 @@ def interactive(cfg):
         ("9", "Change server URL",                "server"),
         ("a", "Select account ID", "account"),
         ("p", "Find players", "players"),
+        ("e", "Export all players", "export-players"),
         ("q", "Quit",                             "quit"),
     ]
 
@@ -338,7 +399,7 @@ def interactive(cfg):
         return
 
     # Commands that need an account
-    if action not in ("server", "quit", "account", "players"):
+    if action not in ("server", "quit", "account", "players", "export-players"):
         if not require_account(cfg):
             return
 
@@ -383,6 +444,9 @@ def interactive(cfg):
 
     elif action == "players":
         cmd_players(cfg, input("  Username, nickname or account ID (blank lists first 100): ").strip())
+    elif action == "export-players":
+        output = input("  Output file (.csv or .json) [players.csv]: ").strip() or "players.csv"
+        cmd_export_players(cfg, output)
     elif action == "account":
         account = prompt_int("Account ID", 0)
         if account <= 0:
@@ -393,7 +457,7 @@ def interactive(cfg):
     elif action == "server":
         raw = input(f"  Server URL [{cfg['server']}]: ").strip()
         if raw:
-            cfg["server"] = raw.rstrip("/")
+            cfg["server"] = normalize_server(raw)
             save_config(cfg)
             print(f"  Server updated.")
 
@@ -416,6 +480,8 @@ def build_parser() -> argparse.ArgumentParser:
     players = sub.add_parser("players", help="Search account ID, username or nickname")
     players.add_argument("query", nargs="?", default="")
     players.add_argument("--after", type=int, default=0)
+    export = sub.add_parser("export-players", help="Export all player IDs, usernames and nicknames")
+    export.add_argument("--output", default="players.csv", help="New .csv or .json output file (default: players.csv)")
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
     mh.add_argument('--source-db', required=True)
     mh.add_argument('--output-db', required=True)
@@ -461,12 +527,12 @@ def main():
 
     args = parser.parse_args()
     if args.server:
-        cfg["server"] = args.server.rstrip("/")
+        cfg["server"] = normalize_server(args.server)
     if args.account_id is not None:
         if args.account_id <= 0: parser.error("Account ID must be positive")
         cfg["account_id"] = args.account_id
     if args.command == "server":
-        cfg["server"] = args.url.rstrip("/")
+        cfg["server"] = normalize_server(args.url)
         save_config(cfg)
         return
     if args.command == "account":
@@ -476,6 +542,10 @@ def main():
         return
     if args.command == "players":
         cmd_players(cfg, args.query, args.after)
+        return
+    if args.command == "export-players":
+        if not cmd_export_players(cfg, args.output):
+            sys.exit(1)
         return
 
     if args.command == 'maxheroes':

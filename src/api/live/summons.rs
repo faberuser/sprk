@@ -378,7 +378,7 @@ pub(super) async fn execute(
         }
         if is_pet {
             pets::increment(db, a, 3, count).await?;
-            out["PetMiscInfos"] = json!(list(db, a, "pet_misc").await?);
+            out["PetMiscInfos"] = json!(pets::misc_infos(db, s, a).await?);
         }
         v["ProgressTime"] = json!(time(now()));
         if let Some(step) = step {

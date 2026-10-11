@@ -315,6 +315,8 @@ pub async fn enter_lobby(
     battle.as_object_mut().unwrap().remove("BattleKeyResults");
     let supporting=crate::api::services::login(&state,account_id).await?;
     for(k,v)in supporting.as_object().unwrap(){battle[k]=v.clone();}
+    let shop=crate::api::live::shop_snapshot(&state,account_id).await?;
+    for(k,v)in shop.as_object().unwrap(){battle[k]=v.clone();}
     let (remain_day_second, remain_week_second, remain_month_second) = reset_countdowns(Utc::now());
     Ok(Json(EnterLobbyResponse {
         battle,

@@ -38,6 +38,8 @@ comments; it does not expand variable references or execute expressions.
 python gm.py server http://127.0.0.1:8082
 python gm.py players
 python gm.py players Raider
+python gm.py export-players
+python gm.py export-players --output players.json
 python gm.py account 42
 python gm.py currency --gold 1000
 python gm.py --account-id 43 currency --gem 100
@@ -51,6 +53,15 @@ Existing configs pointing at port 8080 must be changed with the `server` command
 Player lookup searches username, nickname, or exact numeric AccountId. It returns
 up to 100 players; use `players --after <NextAfter>` for the next page.
 Accounts appear after their first game login creates the player record.
+`export-players` follows every page and saves AccountId, Username, and Nickname
+for all players to `players.csv` in the current directory. Use `--output` with a
+new `.csv` or `.json` filename to choose the destination and format. JSON output
+is an array of player records. This is a player directory export, not a full
+account/progression backup. It requires no selected account and prompts for the
+administrator key only once. Failed page requests abort before writing the file;
+existing files are never overwritten. The interactive menu also offers `[e]`
+to export all players. Pages are read sequentially, not as a database snapshot.
+
 AccountId stays the same across logins and can target offline players. A player
 who is already online may need to log in again to refresh the displayed state.
 

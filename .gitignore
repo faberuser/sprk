@@ -87,3 +87,6 @@ __pycache__/
 /client-updates/
 /update-signing/
 *.pem
+
+gm_config.json
+players.csv
