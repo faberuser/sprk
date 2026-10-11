@@ -35,14 +35,13 @@ $config = [ordered]@{
     AutoLaunch = $true
     SelectedProfile = 'local'
     Profiles = @(
-        [ordered]@{ Id = 'local'; Name = 'Local'; HostUrl = 'http://127.0.0.1:8080/host.json'; ManifestUrl = 'http://127.0.0.1:8081/updates/stable/manifest.json' },
-        [ordered]@{ Id = 'public'; Name = 'Public'; HostUrl = 'https://play.krinfo.net/host.json'; ManifestUrl = 'https://updates.krinfo.net/updates/stable/manifest.json' }
+        [ordered]@{ Id = 'local'; Name = 'Local'; HostUrl = 'http://127.0.0.1:8080/host.json'; ManifestUrl = 'http://127.0.0.1:8081/updates/stable/manifest.json' }
     )
 }
-if ($ManifestUrl -eq $config.Profiles[1].ManifestUrl) { $config.SelectedProfile = 'public' }
-elseif ($ManifestUrl -ne $config.Profiles[0].ManifestUrl) {
-    # Let LauncherConfig preserve custom endpoints and request an explicit host URL.
-    $config.Profiles = @()
+if ($ManifestUrl -ne $config.Profiles[0].ManifestUrl) {
+    # Preserve a supplied manifest without guessing the separately hosted game URL.
+    $config.Profiles += [ordered]@{ Id = 'custom'; Name = 'Existing server'; HostUrl = ''; ManifestUrl = $ManifestUrl }
+    $config.SelectedProfile = 'custom'
 }
 # An explicit URL/key configures a new installation. Preserve existing player
 # configuration during an ordinary rebuild.

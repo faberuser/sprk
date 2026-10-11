@@ -75,6 +75,7 @@ sealed class LauncherForm : Form
     readonly ProgressBar progress = new();
     readonly Button action = new();
     readonly ComboBox server = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    readonly Button manageServers = new() { Text = "Manage…" };
     readonly CancellationTokenSource cancellation = new();
     bool busy;
     bool closing;
@@ -85,7 +86,7 @@ sealed class LauncherForm : Form
         this.config = config;
         Text = "SPRK Launcher";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-        ClientSize = new Size(600, 445);
+        ClientSize = new Size(600, 365);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -95,14 +96,13 @@ sealed class LauncherForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         var title = new Label { Text = "SPRK", Location = new Point(30, 24), Size = new Size(350, 50), Font = new Font("Segoe UI", 28, FontStyle.Bold) };
         var subtitle = new Label { Text = "KING’S RAID", Location = new Point(33, 81), Size = new Size(350, 28), ForeColor = Color.FromArgb(156, 172, 195) };
-        version.SetBounds(33, 120, 535, 25);
+        version.SetBounds(33, 160, 535, 25);
         version.ForeColor = Color.FromArgb(156, 172, 195);
-        status.SetBounds(33, 156, 535, 44);
-        status.Text = "Getting ready…";
-        progress.SetBounds(33, 208, 534, 10);
-        detail.SetBounds(33, 228, 360, 55);
+        status.SetBounds(33, 190, 535, 20);
+        progress.SetBounds(33, 218, 534, 10);
+        detail.SetBounds(33, 236, 534, 50);
         detail.ForeColor = Color.FromArgb(156, 172, 195);
-        action.SetBounds(413, 268, 154, 43);
+        action.SetBounds(413, 298, 154, 43);
         action.Text = "Checking…";
         action.BackColor = Color.FromArgb(75, 109, 224);
         action.ForeColor = Color.White;
@@ -110,24 +110,28 @@ sealed class LauncherForm : Form
         action.FlatAppearance.BorderSize = 0;
         action.Enabled = false;
         action.Click += async (_, _) => await RunUpdate(launch: true);
-        foreach (Control control in new Control[] { version, status, progress, detail, action }) control.Top += 60;
-        detail.Size = new Size(534, 75);
-        action.Top = 373;
         var serverLabel = new Label { Text = "Server", Location = new Point(33, 123), Size = new Size(80, 28) };
-        server.SetBounds(115, 120, 452, 30);
+        server.SetBounds(115, 120, 342, 30);
+        manageServers.SetBounds(467, 118, 100, 30);
+        manageServers.BackColor = Color.FromArgb(75, 109, 224);
+        manageServers.ForeColor = Color.White;
+        manageServers.FlatStyle = FlatStyle.Flat;
+        manageServers.FlatAppearance.BorderSize = 0;
+        manageServers.Click += (_, _) => ManageServers();
         server.Items.AddRange(config.Profiles.Cast<object>().ToArray());
         server.SelectedItem = config.CurrentProfile;
         server.SelectedIndexChanged += (_, _) => {
-            config.SelectedProfile = ((ServerProfile)server.SelectedItem!).Id;
-            status.Text = "Ready to check the selected server.";
-            detail.Text = config.CurrentProfile.HostUrl;
+            if (server.SelectedItem is not ServerProfile selected) return;
+            config.SelectedProfile = selected.Id;
+            status.Text = "";
+            detail.Text = "";
             version.Text = "";
             progress.Value = 0;
             action.Text = "Update and Play";
         };
-        Controls.AddRange([title, subtitle, serverLabel, server, version, status, progress, detail, action]);
-        status.Text = "Choose a server, then play.";
-        detail.Text = config.CurrentProfile.HostUrl;
+        Controls.AddRange([title, subtitle, serverLabel, server, manageServers, version, status, progress, detail, action]);
+        status.Text = "";
+        detail.Text = "";
         action.Text = "Update and Play";
         action.Enabled = true;
         FormClosing += (_, e) =>
@@ -140,12 +144,32 @@ sealed class LauncherForm : Form
         };
     }
 
+    void ManageServers()
+    {
+        using var manager = new ServerManagerForm(config);
+        if (manager.ShowDialog(this) != DialogResult.OK) return;
+        try
+        {
+            manager.Configuration.Save(Path.Combine(root, "sprk-launcher.json"));
+            config.Profiles = manager.Configuration.Profiles;
+            config.SelectedProfile = manager.Configuration.SelectedProfile;
+            server.Items.Clear();
+            server.Items.AddRange(config.Profiles.Cast<object>().ToArray());
+            server.SelectedItem = config.CurrentProfile;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, error.Message, "Unable to save servers", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     async Task RunUpdate(bool launch = false)
     {
         if (busy) return;
         busy = true;
         action.Enabled = false;
         server.Enabled = false;
+        manageServers.Enabled = false;
         action.Text = "Updating…";
         detail.Text = "";
         try
@@ -202,6 +226,7 @@ sealed class LauncherForm : Form
             busy = false;
             action.Enabled = true;
             server.Enabled = true;
+            manageServers.Enabled = true;
             if (closing) Close();
         }
     }

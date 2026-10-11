@@ -19,7 +19,7 @@ foreach ($port in @(8080, 8081)) {
     finally { $probe.Stop() }
 }
 
-Write-Host 'Building SPRK...'
+Write-Host 'Starting server...'
 & cargo build --release
 if ($LASTEXITCODE -ne 0) { throw 'Server build failed; no services were started.' }
 $executable = Join-Path $project 'target\release\sprk-server.exe'

@@ -16,6 +16,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Concurrent launchers cannot update the same installation", Locking),
     ("Repairs PowerShell PEM metadata without changing configuration preferences", ConfigRepair),
     ("Profiles preserve legacy settings and persist selection and signing keys", ProfileConfiguration),
+    ("Server management persists additions, edits and removals and retains Local", ServerManagement),
     ("Switching profiles checks the selected endpoint and replaces shared files", ProfileUpdates),
 };
 foreach (var test in tests) { await test.Run(); Console.WriteLine($"PASS {test.Name}"); }
@@ -179,17 +180,24 @@ static Task Locking()
 static async Task ProfileConfiguration()
 {
     using var fixture = new Fixture();
-    var config = new LauncherConfig { ManifestPublicKeyPem = "shared key" };
+    using var rsa = RSA.Create(2048);
+    var sharedKey = rsa.ExportSubjectPublicKeyInfoPem();
+    var config = new LauncherConfig { ManifestPublicKeyPem = sharedKey };
     config.EnsureProfiles();
     Require(config.SelectedProfile == "local", "Legacy local installation changed servers");
+    Require(config.Profiles.Count == 1, "New installation should contain only Local");
     Require(config.ForProfile().ManifestUrl.Contains("127.0.0.1:8081"), "Local update URL lost");
+    config.StoreProfile(new() { Id = "public", Name = "Public", HostUrl = "https://play.example.com/host.json", ManifestUrl = "https://updates.example.com/stable/manifest.json" });
     config.SelectedProfile = "public";
-    Require(config.ForProfile().ManifestPublicKeyPem == "shared key", "Pinned key not inherited");
-    config.CurrentProfile.ManifestPublicKeyPem = "public key";
+    Require(config.ForProfile().ManifestPublicKeyPem == sharedKey, "Pinned key not inherited");
+    using var other = RSA.Create(2048);
+    var otherKey = other.ExportSubjectPublicKeyInfoPem();
+    config.CurrentProfile.ManifestPublicKeyPem = otherKey;
     config.Save(fixture.Path("sprk-launcher.json"));
     config = LauncherConfig.Load(fixture.Path("sprk-launcher.json"));
-    Require(config.SelectedProfile == "public" && config.ForProfile().ManifestPublicKeyPem == "public key", "Profile selection/key not saved");
-    Require(config.CurrentProfile.HostUrl == "https://play.krinfo.net/host.json", "Game bootstrap URL lost");
+    config.EnsureProfiles();
+    Require(config.SelectedProfile == "public" && config.ForProfile().ManifestPublicKeyPem == otherKey, "Profile selection/key not saved");
+    Require(config.CurrentProfile.HostUrl == "https://play.example.com/host.json", "Game bootstrap URL lost");
     foreach (var url in new[] { "http://public.example/host.json", "https://user:secret@public.example/host.json", "file:///tmp/host.json" })
     {
         config.CurrentProfile.HostUrl = url;
@@ -204,13 +212,45 @@ static async Task ProfileConfiguration()
     await Reject(() => { config.ForProfile(); return Task.CompletedTask; });
 }
 
+static async Task ServerManagement()
+{
+    using var fixture = new Fixture();
+    using var rsa = RSA.Create(2048);
+    var config = new LauncherConfig(); config.EnsureProfiles();
+    var profile = config.StoreProfile(new() {
+        Name = " Community ", HostUrl = " https://play.example.com/host.json ",
+        ManifestUrl = "https://updates.example.com/stable/manifest.json", ManifestPublicKeyPem = rsa.ExportSubjectPublicKeyInfoPem()
+    });
+    Require(profile.Id.Length > 0 && profile.Name == "Community" && !profile.HostUrl.StartsWith(' '), "New server wasn't normalized or assigned an ID");
+    config.SelectedProfile = profile.Id;
+    var path = fixture.Path("sprk-launcher.json");
+    config.Save(path); config = LauncherConfig.Load(path); config.EnsureProfiles();
+    Require(config.Profiles.Count == 2 && config.CurrentProfile.Id == profile.Id && config.ForProfile().ManifestPublicKeyPem == profile.ManifestPublicKeyPem, "Added server didn't survive restart");
+    var edited = config.StoreProfile(new() { Id = profile.Id, Name = "Friends", HostUrl = "https://friends.example.com/host.json", ManifestUrl = profile.ManifestUrl, ManifestPublicKeyPem = profile.ManifestPublicKeyPem });
+    Require(config.Profiles.Count == 2 && config.CurrentProfile.HostUrl == edited.HostUrl, "Editing duplicated the server or changed its identity");
+    config.Save(path); config = LauncherConfig.Load(path);
+    Require(config.CurrentProfile.Name == "Friends", "Edit wasn't persisted");
+    var count = config.Profiles.Count;
+    await Reject(() => { config.StoreProfile(new() { Name = "local", HostUrl = "http://localhost:8080/host.json", ManifestUrl = "http://localhost:8081/stable/manifest.json" }); return Task.CompletedTask; });
+    foreach (var key in new[] { "", "invalid", rsa.ExportPkcs8PrivateKeyPem() })
+        await Reject(() => { config.StoreProfile(new() { Name = "Remote", HostUrl = "https://remote.example.com/host.json", ManifestUrl = "https://remote.example.com/manifest.json", ManifestPublicKeyPem = key }); return Task.CompletedTask; });
+    await Reject(() => { config.StoreProfile(new() { Name = "Unsafe", HostUrl = "http://remote.example.com/host.json", ManifestUrl = "https://remote.example.com/manifest.json", ManifestPublicKeyPem = profile.ManifestPublicKeyPem }); return Task.CompletedTask; });
+    Require(config.Profiles.Count == count, "Rejected profile changed the server list");
+    await Reject(() => { config.RemoveProfile("local"); return Task.CompletedTask; });
+    config.RemoveProfile(profile.Id); config.Save(path);
+    config = LauncherConfig.Load(path); config.EnsureProfiles();
+    Require(config.Profiles.Count == 1 && config.SelectedProfile == "local", "Removed selected server wasn't replaced by Local or reappeared after restart");
+    var missingLocal = new LauncherConfig { Profiles = [profile], SelectedProfile = profile.Id };
+    missingLocal.EnsureProfiles(); missingLocal.EnsureProfiles();
+    Require(missingLocal.Profiles.Count == 2 && missingLocal.CurrentProfile.Id == profile.Id, "Restoring Local duplicated it or changed the existing selection");
+}
+
 static async Task ProfileUpdates()
 {
     using var fixture = new Fixture();
     var config = new LauncherConfig(); config.EnsureProfiles();
     // Two localhost fixtures stand in for independently signed public/local servers.
-    config.Profiles[1].HostUrl = "http://localhost:8090/host.json";
-    config.Profiles[1].ManifestUrl = "http://localhost:8091/updates/stable/manifest.json";
+    config.StoreProfile(new() { Id = "public", Name = "Second server", HostUrl = "http://localhost:8090/host.json", ManifestUrl = "http://localhost:8091/updates/stable/manifest.json" });
     foreach (var profile in new[] { "local", "public", "local" })
     {
         config.SelectedProfile = profile;

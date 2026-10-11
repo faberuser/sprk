@@ -573,8 +573,8 @@ async fn missing_main_quests_and_unsupported_missions_do_not_autocomplete() {
     );
 }
 #[tokio::test]
-async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
-    let (mut s, u) = setup().await;
+async fn hero_achievement_requires_actual_star_and_retired_event_stays_closed() {
+    let (s, u) = setup().await;
     assert_eq!(
         call(
             &s,
@@ -614,29 +614,153 @@ async fn hero_achievement_requires_actual_star_and_booster_reward_activates() {
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[55]&Steps=[0]",
+        "AchievementIndices=[5000010]&Steps=[0]",
     )
     .await;
     assert_eq!(r["Result"], "RewardTimeEnded");
-    // Exercise booster delivery with an explicitly enabled local definition.
-    let tables = Arc::make_mut(&mut s.tables);
-    let progression = Arc::make_mut(&mut tables.progression);
-    let row = progression
-        .achievements
-        .iter_mut()
-        .find(|r| r["Index"] == 55)
+}
+
+#[tokio::test]
+async fn daily_hot_time_claims_activate_boosters_once_per_step_and_reset_daily() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    for (id, item_id) in [(54, 110017), (55, 110018)] {
+        let duration = n(&s.tables.inventory.boosters[&item_id], "Duration");
+        assert!(duration > 0);
+        let mut first_start = None;
+        for step in 0..3 {
+            let data = format!("AchievementIndices=[{id}]&Steps=[{step}]");
+            let r = call(&s, &u, "reward_achievement", &data).await;
+            assert_eq!(r["Result"], "Success", "{id}, step {step}: {r}");
+            let booster = &r["ItemTimeDurationInfo"];
+            assert_eq!(booster["ItemIndex"], item_id);
+            let parse = |key: &str| {
+                chrono::NaiveDateTime::parse_from_str(
+                    booster[key].as_str().unwrap(),
+                    "%Y-%m-%d %H:%M:%S",
+                )
+                .unwrap()
+            };
+            let start = *first_start.get_or_insert_with(|| parse("StartTime"));
+            assert_eq!(parse("StartTime"), start);
+            assert_eq!(
+                (parse("EndTime") - start).num_seconds(),
+                duration * (step + 1)
+            );
+            let infos = &r["AchievementInfos"];
+            assert_eq!(
+                infos
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|v| v["AchievementIndex"] == id)
+                    .unwrap()["LastStep"],
+                step + 1
+            );
+            let saved: (String, String) = sqlx::query_as(
+                "SELECT start_time,end_time FROM item_boosters WHERE account_id=? AND item_index=?",
+            )
+            .bind(account)
+            .bind(item_id)
+            .fetch_one(&s.db)
+            .await
+            .unwrap();
+            assert_eq!(
+                call(&s, &u, "reward_achievement", &data).await["Result"],
+                "InvalidStep"
+            );
+            let after: (String, String) = sqlx::query_as(
+                "SELECT start_time,end_time FROM item_boosters WHERE account_id=? AND item_index=?",
+            )
+            .bind(account)
+            .bind(item_id)
+            .fetch_one(&s.db)
+            .await
+            .unwrap();
+            assert_eq!(after, saved);
+        }
+        assert_ne!(
+            call(
+                &s,
+                &u,
+                "reward_achievement",
+                &format!("AchievementIndices=[{id}]&Steps=[3]")
+            )
+            .await["Result"],
+            "Success"
+        );
+    }
+    let login = relogin(&s).await;
+    let buffs = crate::api::inventory::item::booster_login(&s, account)
+        .await
         .unwrap();
-    row["Type"] = json!(1);
-    row["OpenCondition"] = json!([]);
+    assert!(buffs.iter().any(|b| b["ItemIndex"] == 110018));
+    assert!(buffs.iter().any(|b| b["ItemIndex"] == 110017));
+    let infos = call(&s, &login, "get_achievements", "").await;
+    for id in [54, 55] {
+        assert_eq!(
+            infos["AchievementInfos"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|v| v["AchievementIndex"] == id)
+                .unwrap()["LastStep"],
+            3
+        );
+    }
+    // Move only this fixture's claims to yesterday to exercise the next day's allowance.
+    sqlx::query("UPDATE progression_claims SET period=date('now','-1 day') WHERE account_id=? AND family='achievement' AND idx IN (54,55)")
+        .bind(account).execute(&s.db).await.unwrap();
+    for id in [54, 55] {
+        assert_eq!(
+            call(
+                &s,
+                &login,
+                "reward_achievement",
+                &format!("AchievementIndices=[{id}]&Steps=[0]")
+            )
+            .await["Result"],
+            "Success"
+        );
+    }
+}
+
+#[tokio::test]
+async fn daily_hot_time_preserves_conditions_and_failed_bulk_claims_roll_back() {
+    let (mut s, u) = setup().await;
     let r = call(
         &s,
         &u,
         "reward_achievement",
-        "AchievementIndices=[55]&Steps=[0]",
+        "AchievementIndices=[54,5000010]&Steps=[0,0]",
     )
     .await;
-    assert_eq!(r["Result"], "Success");
-    assert_eq!(r["ItemTimeDurationInfo"]["ItemIndex"], 110018);
+    assert_eq!(r["Result"], "RewardTimeEnded");
+    let account = u.user_info.account_id;
+    let buffs = crate::api::inventory::item::booster_login(&s, account)
+        .await
+        .unwrap();
+    assert!(!buffs.iter().any(|b| b["ItemIndex"] == 110017));
+    let tables = Arc::make_mut(&mut s.tables);
+    let progression = Arc::make_mut(&mut tables.progression);
+    progression
+        .achievements
+        .iter_mut()
+        .find(|r| r["Index"] == 54 && r["Step"] == 1)
+        .unwrap()["OpenCondition"] = json!(["TeamLevel", "999"]);
+    assert_eq!(
+        call(
+            &s,
+            &u,
+            "reward_achievement",
+            "AchievementIndices=[54]&Steps=[0]"
+        )
+        .await["Result"],
+        "RewardTimeEnded"
+    );
+    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='achievement' AND idx=54")
+        .bind(account).fetch_one(&s.db).await.unwrap();
+    assert_eq!(claims, 0);
 }
 #[tokio::test]
 async fn mission_bonus_only_counts_its_own_category() {
