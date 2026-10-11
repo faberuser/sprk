@@ -4,6 +4,7 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void PatchDirectAccessorySales(ModuleDefinition module) {
+        PatchAccessoryShopDuplicates(module);
         // Apply after native table/getter restoration. The Dressing Room should
         // list and sell accessories that were previously reward/ownership-only.
         const string type="NShared.AccessoryCostumeData";

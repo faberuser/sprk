@@ -28,6 +28,7 @@ mod hero_shop;
 mod progression;
 mod extensions;
 mod battle;
+mod special_shop;
 pub use battle::BattleTable;
 pub use extensions::ExtensionTable;
 pub use progression::ProgressionTable;
@@ -113,7 +114,9 @@ impl GameTables {
         let mut item_groups = ItemGroupTable::load(
             &table_dir.join("ItemGroupTableResolved.json")
         )?;
-        let live = Arc::new(BattleTable::load_with_rules(&table_dir.join("LiveSupport.json"), "LiveRules.json")?);
+        let mut live = BattleTable::load_with_rules(&table_dir.join("LiveSupport.json"), "LiveRules.json")?;
+        special_shop::append(&mut live, table_dir)?;
+        let live = Arc::new(live);
         if let Some(groups) = live.rules["LocalGroups"].as_object() {
             for (code, group) in groups { item_groups.entries.insert(code.clone(), serde_json::from_value(group.clone())?); }
         }

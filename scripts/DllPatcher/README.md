@@ -28,6 +28,9 @@ Patch implementations are partial members of `Program` under `Patches/`:
 | `TrialHeroReward.cs` | Prevents hero recruitment animation after awakening/transcendence trial rewards |
 | `AdventureUnlocks.cs` | Honors Portal tutorial skip and saved automatic dungeon milestones for mission categories |
 | `StoryAuto.cs` | Opt-in Normal campaign progression, native story skipping, and automatic skills |
+| `VoiceLanguage.cs` | Keeps the 4K screen-resolution filter from hiding Japanese character voices |
+| `ShopCatalog.cs` | Connects Hot & New to featured products delivered by the server |
+| `AccessoryShopDuplicates.cs` | Removes repeated accessory IDs from Dressing Room shop lists |
 
 `Resources/CostumeOwnership.cs.txt` is embedded with the stable resource name
 `DllPatcher.CostumeOwnership.cs.txt`; it is compiled by the ownership patch at runtime.
@@ -42,6 +45,8 @@ dotnet run --project scripts/DllPatcher -- --self-test-survivors
 ```
 
 Omit `--shop-only` for all patches, or use `--chat-only` / `--campaign-only`.
+Use `--voice-language-only` to install only the Japanese voice-choice fix from the active DLL;
+`--stage-only` writes `Assembly-CSharp.dll.voice-language-staged` for review.
 `--stage-only` writes `Assembly-CSharp.dll.patched` without replacing the active DLL.
 Omit it to install the result after patching. The patcher creates
 `Assembly-CSharp.dll.backup_before_patch` if absent; full patching uses that backup,
@@ -410,3 +415,31 @@ A per-account file handle prevents two windows from consuming the same refresh t
 or displacing each other's game session. Switching releases the account; process exit
 or crash also releases its handle automatically. Different accounts can play at once.
 The four-account cap covers saved logins, not empty game windows.
+
+## Special Shop catalog
+
+The focused `--shop-catalog-only` mode connects Hot & New to the reconstructed
+server catalog while preserving installed patches. `--stage-only` prepares the
+DLL without installing. Catalog configuration and recovery are documented in
+[`docs/special-shop.md`](../../docs/special-shop.md).
+
+Use `--accessory-list-only` to install the focused accessory list fix from the
+installed DLL. It preserves direct ruby sales and ownership IDs, and filters
+repeated IDs in category/tag lists without merging distinct variants.
+
+## Mission category thumbnails
+
+Restored Mission tables contain bare thumbnail names such as `Chapter2_Button`.
+The current atlas registers them under `UI/Quest/SubCategory/`. This patch adds
+that prefix when the native subcategory image loader receives a bare name,
+restoring the Guideline chapter tabs and Growth Hero/Gear/Unique Gear tabs.
+Empty and already-qualified paths keep their existing behavior.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --mission-thumbnails-only
+```
+
+The focused mode reads the installed DLL, preserves other patches, and backs it
+up under `target/mission-thumbnail-backups`. Add `--stage-only` to prepare the
+DLL without installing. Full patching also includes the fix. Restart the client
+after installation and publish a new signed client update.
