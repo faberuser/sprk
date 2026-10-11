@@ -85,7 +85,7 @@ sealed class LauncherForm : Form
         this.config = config;
         Text = "SPRK Launcher";
         Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
-        ClientSize = new Size(600, 445);
+        ClientSize = new Size(600, 365);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -95,14 +95,13 @@ sealed class LauncherForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         var title = new Label { Text = "SPRK", Location = new Point(30, 24), Size = new Size(350, 50), Font = new Font("Segoe UI", 28, FontStyle.Bold) };
         var subtitle = new Label { Text = "KING’S RAID", Location = new Point(33, 81), Size = new Size(350, 28), ForeColor = Color.FromArgb(156, 172, 195) };
-        version.SetBounds(33, 120, 535, 25);
+        version.SetBounds(33, 160, 535, 25);
         version.ForeColor = Color.FromArgb(156, 172, 195);
-        status.SetBounds(33, 156, 535, 44);
-        status.Text = "Getting ready…";
-        progress.SetBounds(33, 208, 534, 10);
-        detail.SetBounds(33, 228, 360, 55);
+        status.SetBounds(33, 190, 535, 20);
+        progress.SetBounds(33, 218, 534, 10);
+        detail.SetBounds(33, 236, 534, 50);
         detail.ForeColor = Color.FromArgb(156, 172, 195);
-        action.SetBounds(413, 268, 154, 43);
+        action.SetBounds(413, 298, 154, 43);
         action.Text = "Checking…";
         action.BackColor = Color.FromArgb(75, 109, 224);
         action.ForeColor = Color.White;
@@ -110,24 +109,21 @@ sealed class LauncherForm : Form
         action.FlatAppearance.BorderSize = 0;
         action.Enabled = false;
         action.Click += async (_, _) => await RunUpdate(launch: true);
-        foreach (Control control in new Control[] { version, status, progress, detail, action }) control.Top += 60;
-        detail.Size = new Size(534, 75);
-        action.Top = 373;
         var serverLabel = new Label { Text = "Server", Location = new Point(33, 123), Size = new Size(80, 28) };
         server.SetBounds(115, 120, 452, 30);
         server.Items.AddRange(config.Profiles.Cast<object>().ToArray());
         server.SelectedItem = config.CurrentProfile;
         server.SelectedIndexChanged += (_, _) => {
             config.SelectedProfile = ((ServerProfile)server.SelectedItem!).Id;
-            status.Text = "Ready to check the selected server.";
-            detail.Text = config.CurrentProfile.HostUrl;
+            status.Text = "";
+            detail.Text = "";
             version.Text = "";
             progress.Value = 0;
             action.Text = "Update and Play";
         };
         Controls.AddRange([title, subtitle, serverLabel, server, version, status, progress, detail, action]);
-        status.Text = "Choose a server, then play.";
-        detail.Text = config.CurrentProfile.HostUrl;
+        status.Text = "";
+        detail.Text = "";
         action.Text = "Update and Play";
         action.Enabled = true;
         FormClosing += (_, e) =>
