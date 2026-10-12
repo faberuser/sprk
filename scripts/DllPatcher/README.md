@@ -101,6 +101,16 @@ while the game is in the background. This also applies to normal launcher and
 executable starts without automation enabled. Repeated entry events are retried
 at most once per second and do not reset the inactivity timeout.
 
+Cutscene skipping follows the visible native Skip button, including stories whose
+later groups cannot be skipped all at once. Native Skip stops at required script
+groups and runs their finalization effects. Hidden or disabled Skip buttons are
+left alone; actual script advancement resets the inactivity timer.
+
+Informational battle tutorials with no Skip button, such as the 4-21 boss-warning
+lesson, acknowledge native one-shot `WaitTouch` callbacks. Their remaining script
+steps clear the overlay and resume combat. This is limited to Continuous Story in
+battle and does not dispatch arbitrary widget clicks or long presses.
+
 The patch preserves tutorial script effects and protected cutscene groups. It
 does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
 preferences. Story replay, sub-stories, raids, and repeat farming keep their
@@ -398,6 +408,43 @@ recovery copy under `target/battle-entry-backups`. Full patching also applies th
 fix. Close the client before installation, restart afterward, and publish a new
 signed update. The self-test executes the patched IL with controlled startup and
 duplicate-request clocks and checks idempotence.
+
+## Awakening animation transition
+
+Remove the fixed three-second purification-room pause before the full-screen hero
+awakening animation:
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --awaken-delay-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --awaken-delay-only
+```
+
+The shared awakening/transcendence animation transition yields one frame, then
+opens the native cinematic. Upgrade requests, material and currency updates,
+asset-loading waits, and completion callbacks remain intact. The patch also runs
+during full patching. Staging writes `Assembly-CSharp.dll.awaken-delay-staged`;
+installation saves a recovery copy under `target/awaken-delay-backups`. Close the
+client before installation, restart afterward, and publish a signed client update.
+
+## Mission and achievement completion banners
+
+Disable the informational completion banners, including hero/general achievements
+and daily/weekly/limited missions:
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --completion-banners-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --completion-banners-only
+```
+
+The patch disables legacy achievement banners and the newer `ConfirmNotiPopup`
+used for main/submission completion and new-mission announcements. It suppresses
+their render entrypoints and notification reservations so these banners cannot
+delay an awakening cinematic queued behind them. Pending-notification lists still
+drain normally. Progress tracking, mission screens, content unlocks, reward claims,
+and reward dialogs retain their native behavior. Full patching includes this change.
+Installation backs up the active DLL under `target/completion-banners-backups`; staging writes
+`Assembly-CSharp.dll.completion-banners-staged`. Close the client before installing,
+restart afterward, and publish a signed update.
 
 ## Multiple game windows
 
