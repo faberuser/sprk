@@ -244,6 +244,21 @@ public static class SprkStoryAuto
         return (Active() && difficulty == DungeonDifficultyType.Easy) || manager.IsCompleted(chapter, dungeon, difficulty);
     }
 
+    static bool AcknowledgeBattleTutorial(TutorialManager tutorial, TutorialWindow window)
+    {
+        // Informational battle tutorials (for example the boss warning) have
+        // no Skip button. Complete only their native, one-shot WaitTouch action.
+        // Widget/skill clicks and long presses keep their normal entry checks.
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Battle2" ||
+            !(tutorial.CurrentTutorialRuntime is NGame2.NTutorial.NRuntime.WaitTouch) ||
+            window == null || !window.gameObject.activeInHierarchy) return false;
+        var action = window.GetFirstTouchActionInfo();
+        if (action == null || action.Action == null || !action.Oneshot || action.IsLongTouch ||
+            action.ProcessTouch || action.ProcessBack || action.TargetGo != null) return false;
+        window.ProcessTouchAction(action);
+        return true;
+    }
+
     public static void Tick()
     {
         if (Time.realtimeSinceStartup < nextTick) return;
@@ -262,12 +277,21 @@ public static class SprkStoryAuto
                 storyPlaying = true;
                 var window = TutorialWindow.instance;
                 if (window != null && window.NeedShowSkipButton()) window.OnClickSkip();
+                else if (AcknowledgeBattleTutorial(tutorial, window)) lastProgress = Time.realtimeSinceStartup;
             }
             foreach (var cutscene in UnityEngine.Object.FindObjectsOfType<CutSceneManager>()) {
                 if (!cutscene.IsPlaying && !cutscene.IsLoading) continue;
                 storyPlaying = true;
-                // Do not skip protected script groups or bypass their side effects.
-                if (cutscene.IsPlaying && (bool)cutsceneSkippable.GetValue(cutscene) && cutscene.CanSkipToEnd()) cutscene.Skip();
+                if (!cutscene.IsPlaying || !cutscene.IsShowing() || !(bool)cutsceneSkippable.GetValue(cutscene)) continue;
+                var menu = cutscene.CutSceneMenu;
+                // A visible Skip can advance part of a story even when a later
+                // group must play. The native click stops at those boundaries
+                // and finalizes script effects; CanSkipToEnd blocks too early.
+                if (menu == null || !menu.IsOpen() || menu.SkipButton == null ||
+                    !menu.SkipButton.gameObject.activeInHierarchy || !menu.SkipButton.isEnabled) continue;
+                int script = cutscene.CurrentScript;
+                menu.OnClickSkip();
+                if (!cutscene.IsPlaying || cutscene.CurrentScript != script) lastProgress = Time.realtimeSinceStartup;
             }
             bool inBattle = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Battle2";
             bool rewarding = false;

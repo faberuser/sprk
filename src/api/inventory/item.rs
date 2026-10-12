@@ -503,7 +503,17 @@ async fn execute(
         }
         return Ok(out);
     }
-    let count = positive(req, "ItemCount")?;
+    // The native hero EXP screen batches all potions needed by its Max action.
+    // Unlike other consumables, a legitimate EXP batch can exceed 1,000 items.
+    let count = if action == "use_potion_item"
+        && state.tables.inventory.potions.get(&index).is_some_and(|p| n(p, "ActionType") == 3)
+    {
+        i32::try_from(req.number("ItemCount", 1)?)
+            .ok().filter(|count| *count > 0)
+            .ok_or_else(|| rule("InvalidItemCount"))?
+    } else {
+        positive(req, "ItemCount")?
+    };
     match action {
         "use_booster_item" => {
             let booster = state

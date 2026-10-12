@@ -333,6 +333,66 @@ async fn hero_exp_potions_validate_ownership_and_use_level_tables() {
     );
 }
 #[tokio::test]
+async fn hero_exp_potions_accept_native_max_batches_above_one_thousand() {
+    let (state, u) = setup().await;
+    let (id, p) = potion(&state, 3);
+    let cap = state.tables.tutorials.support.hero_stars.iter()
+        .find(|s| s.star == 5 && s.transcended == 0).unwrap().max_hero_level;
+    for batch in [1001, 25321] {
+        sqlx::query("UPDATE heroes SET star=5,transcend=0,level=1,exp=0 WHERE account_id=? AND hero_index=1")
+            .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+        put(&state, &u, id, batch + 5).await;
+        let expected = crate::tables::add_exp(&state.tables.tutorials.support.hero_levels,
+            1, 0, item::n(&p, "ActionValue") * batch as i64, cap);
+        let response = item::use_potion_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={id}&HeroIndex=1&ItemCount={batch}")))
+            .await.unwrap().0;
+        assert_eq!(response["Result"], "Success");
+        assert_eq!(response["ItemResult"]["AddCount"], -batch);
+        assert_eq!(response["ItemResult"]["NewCount"], 5);
+        assert_eq!(response["HeroExpResult"]["AddValue"], item::n(&p, "ActionValue") * batch as i64);
+        assert_eq!(response["HeroExpResult"]["NewLevel"], expected.0);
+        assert_eq!(response["HeroExpResult"]["NewValue"], expected.1);
+        assert_eq!(count(&state, &u, id).await, 5);
+        let again = login(&state).await;
+        let hero = again.heroes.iter().find(|h| h.hero_index == 1).unwrap();
+        assert_eq!((hero.level, hero.exp as i64), expected);
+    }
+}
+
+#[tokio::test]
+async fn hero_exp_potion_bulk_validation_does_not_consume_on_failure() {
+    let (state, u) = setup().await;
+    let (id, _) = potion(&state, 3);
+    put(&state, &u, id, 2000).await;
+    for (batch, hero, expected) in [
+        (0i64, 1, "InvalidItemCount"), (-1, 1, "InvalidItemCount"),
+        (i32::MAX as i64 + 1, 1, "InvalidItemCount"),
+        (2001, 1, "ItemNotOwned"), (1001, 999999, "HeroNotOwned"),
+    ] {
+        let response = item::use_potion_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={id}&HeroIndex={hero}&ItemCount={batch}")))
+            .await.unwrap().0;
+        assert_eq!(response["Result"], expected);
+        assert_eq!(count(&state, &u, id).await, 2000);
+    }
+    let cap = state.tables.tutorials.support.hero_stars.iter()
+        .find(|s| s.star == 5 && s.transcended == 0).unwrap().max_hero_level;
+    sqlx::query("UPDATE heroes SET star=5,transcend=0,level=?,exp=0 WHERE account_id=? AND hero_index=1")
+        .bind(cap).bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, &format!("ItemIndex={id}&HeroIndex=1&ItemCount=1001"))).await.unwrap().0;
+    assert_eq!(response["Result"], "MaxHeroLevel");
+    assert_eq!(count(&state, &u, id).await, 2000);
+    let (stamina, _) = potion(&state, 1);
+    put(&state, &u, stamina, 2000).await;
+    let response = item::use_potion_item(State(state.clone()),
+        form(&u, &format!("ItemIndex={stamina}&ItemCount=1001"))).await.unwrap().0;
+    assert_eq!(response["Result"], "InvalidItemCount");
+    assert_eq!(count(&state, &u, stamina).await, 2000);
+}
+
+#[tokio::test]
 async fn locked_items_and_malformed_batches_cannot_be_sold() {
     let (state, u) = setup().await;
     let id = *state

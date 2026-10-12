@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--awaken-delay-only")) { InstallAwakenDelay(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--completion-banners-only")) { InstallCompletionBanners(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--accessory-list-only")) { InstallAccessoryShopDuplicates(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--shop-catalog-only")) { InstallShopCatalog(args[0], args.Contains("--stage-only")); return; }
@@ -117,6 +119,8 @@ namespace DllPatcher
                 PatchAccessoryShopDuplicates(module);
                 PatchMissionThumbnails(module);
                 PatchBattleEntry(module);
+                PatchAwakenDelay(module);
+                PatchCompletionBanners(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)
                 {
