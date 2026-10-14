@@ -3,6 +3,11 @@
 `Program.cs` handles arguments, assembly loading, patch order, and output installation.
 Patch implementations are partial members of `Program` under `Patches/`:
 
+`--websocket-only` preserves installed patches and also guards delayed native
+socket close callbacks against replacement sessions. After installation, use
+`--verify-websocket-lifecycle` to verify that guard. Verify consecutive party
+battles with one host Start Battle click each before publishing the update.
+
 | File | Responsibility |
 | --- | --- |
 | `HeroInn.cs` | Loads Unity references and coordinates hero inn patches |
@@ -95,6 +100,24 @@ skippable events finish before the next party starts. Entry resumes after these
 events, including when the overview's native countdown was interrupted. An event
 that requires interaction times out after 90 seconds.
 
+The run carries its selected main and sub party across chapter-specific saved
+decks, including an empty or different Chapter 8 deck. Restoration uses native
+hero-selection actions and their ownership, dispatch, restriction and slot checks.
+Scripted or forced parties keep their native setup without replacing the run's
+selection. If the selected team cannot fit or enter a stage, progression stops
+for player attention. Cancelling the run clears the carried selection.
+
+Chapter 7's first Ice Crystal Cave visit is part of the route: 7-6 continues to
+117-3 and 117-4, then returns to 7-7. The cave uses its native Easy mode, while
+ordinary chapters keep Normal. The second cave node uses its native map action
+(`ExecuteCurrentNode` / `NodeFunctionMenu`) to start tutorial 70001, retaining its
+scripted party, effects, completion, and unlock event; continuation waits until 7-7 is actually
+available. Accounts with tutorials skipped clear both cave battles normally,
+then submit the native cave tutorial completion and apply its server response
+to unlock 7-7 in the same session. This request never precedes either real clear.
+Completed cave battles are omitted from the detour. Native tutorial-step progress
+refreshes the inactivity timer without bypassing unlock conditions.
+
 Choosing Continuous Story initializes its own Unity update loop and native
 tutorial manager, queues entry until the choice popup closes, and keeps processing
 while the game is in the background. This also applies to normal launcher and
@@ -103,8 +126,17 @@ at most once per second and do not reset the inactivity timeout.
 
 Cutscene skipping follows the visible native Skip button, including stories whose
 later groups cannot be skipped all at once. Native Skip stops at required script
-groups and runs their finalization effects. Hidden or disabled Skip buttons are
-left alone; actual script advancement resets the inactivity timer.
+groups and runs their finalization effects. Dialogue groups that explicitly hide
+Skip and wait for a normal tap (such as 6-6) receive the native dialogue touch,
+allowing Skip to appear afterward. Timed/script-controlled groups and disabled
+Skip buttons retain their native behavior; actual script advancement resets the
+inactivity timer.
+
+Illustrated narration that hides Skip and forwards taps to `ForegroundTextList`
+(including the campfire after 9-9) advances through the native window tap path.
+Each line keeps its normal effects and finalization. This applies only during
+Continuous Story and refuses groups with other interactive click scripts; manual
+story playback still waits for taps.
 
 Informational battle tutorials with no Skip button, such as the 4-21 boss-warning
 lesson, acknowledge native one-shot `WaitTouch` callbacks. Their remaining script
@@ -490,3 +522,16 @@ The focused mode reads the installed DLL, preserves other patches, and backs it
 up under `target/mission-thumbnail-backups`. Add `--stage-only` to prepare the
 DLL without installing. Full patching also includes the fix. Restart the client
 after installation and publish a new signed client update.
+
+### Raid invite presence
+
+`--raid-social-only` updates the raid invitation rows to read live
+`CachedUserInfo.IsOnline` whenever their buttons refresh. It preserves the
+installed DLL's other patches and saves a backup under
+`target/raid-social-backups`. Use `--stage-only` to prepare the DLL, or
+`--verify-raid-social` to check the installed patch. Full patching includes it.
+Restart clients after installation and publish a signed client update.
+
+The matching server implements `InvitePartyReq` for individual, Friend and
+Guild recipients, synchronizes presence on socket login and membership changes,
+and serves Hero Info through authenticated `user/inspect_user` snapshots.

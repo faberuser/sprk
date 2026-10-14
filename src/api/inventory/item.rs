@@ -315,6 +315,19 @@ pub(crate) async fn reward(
     index: i32,
     rewards: &mut Rewards,
 ) -> Result<()> {
+    reward_with_loot_booster(db, state, account, index, rewards, false).await
+}
+
+/// Double item quantities from this drop roll; currencies and first-clear
+/// rewards use their own paths. Equipment copies still roll their own options.
+pub(crate) async fn reward_with_loot_booster(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    index: i32,
+    rewards: &mut Rewards,
+    boosted: bool,
+) -> Result<()> {
     let row = state
         .tables
         .get_reward(index)
@@ -334,7 +347,9 @@ pub(crate) async fn reward(
     tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
     for drop in row.roll_items(&state.tables.reward_string_pool) {
         let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
-        if matches!(code.as_str(), "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
+        // Currency can appear in the drop list as well as the reward's fixed
+        // currency fields (e.g. the Level Up Package has two Gem entries).
+        if matches!(code.as_str(), "Gold" | "Gem" | "Mileage" | "FriendshipPoint" | "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
             let mut amount=drop.count as i64;
             if code=="ShakmehMiddleBossPoint" {
                 let max=state.tables.battle.find("CurrencyType",&[("CurrencyType",48)]).map(|v|n(v,"MaxValue")).filter(|v|*v>0).ok_or_else(||rule("ItemDataNotFound"))?;
@@ -365,19 +380,30 @@ pub(crate) async fn reward(
         } else {
             return Err(rule("ItemDataNotFound"));
         };
+        let item_start = rewards.items.len();
+        let equip_start = rewards.equipment.len();
         give(
             db,
             state,
             account,
             ItemGrant {
                 index,
-                count,
+                count: count.checked_mul(if boosted { 2 } else { 1 })
+                    .ok_or_else(|| rule("InvalidItemCount"))?,
                 star,
                 custom: drop.custom_option_index,
             },
             rewards,
         )
         .await?;
+        if boosted {
+            for result in &mut rewards.items[item_start..] {
+                result["AddBoosterCount"] = json!(count);
+            }
+            for equip in rewards.equipment[equip_start..].iter().skip(count as usize) {
+                rewards.equipment_boosts.push(json!({"SlotIndex":equip.slot_index,"BoostPercent":100}));
+            }
+        }
     }
     Ok(())
 }
@@ -393,7 +419,7 @@ pub(crate) async fn reward_response(
         heroes.push(tutorial::hero_info(db, account, *index).await?);
     }
     Ok(
-        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":[],"EquipItemBoostInfos":[],"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
+        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":[],"EquipItemBoostInfos":r.equipment_boosts,"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
     )
 }
 

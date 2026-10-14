@@ -4,6 +4,23 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void VerifyConquestReplay(string clientRoot) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
+        var method=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="ReplayStatus");
+        if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="GetStoppedBattleInstance") ||
+            !method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="GetBattleCache") ||
+            !method.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="IsBattleEnded"))
+            throw new InvalidOperationException("Battle heartbeat must observe the cache without stopping the replay.");
+        using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"));
+        foreach(var name in new[]{"JM_NShared_PingReq","JM_NShared_PingIdleReq"}) {
+            var encode=game.MainModule.GetType(name).Methods.Single(m=>m.Name=="EncodeJsonObject");
+            if(encode.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).Any(i=>
+                i.Previous?.Operand is not MethodReference m || m.DeclaringType.Name!="SprkConquest" || m.Name!="ReplayStatus"))
+                throw new InvalidOperationException("Missing or duplicate battle heartbeat hook: "+name);
+        }
+        Console.WriteLine("Verified battle heartbeat observes replay completion without stopping combat.");
+    }
     static void InstallConquest(string clientRoot,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");

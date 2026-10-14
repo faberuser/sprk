@@ -85,6 +85,11 @@ pub(super) async fn validate(
     r: &Request,
     heroes: &[i64],
 ) -> Result<()> {
+    validate_inner(db, s, a, r, heroes, false).await
+}
+async fn validate_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool,
+) -> Result<()> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
     if c == 50000 && n(&progress(db, s, a, 97, 2).await?, "FirstRewardedDiff") == 0 {
@@ -184,7 +189,7 @@ pub(super) async fn validate(
         return Err(rule("MaxDailyCount"));
     }
     // Closed/unsupported multiplayer and mode requests must pass their own state checks.
-    dungeons::validate(db, s, a, r, d).await?;
+    dungeons::validate_inner(db, s, a, r, d, service).await?;
     rooms::validate_battle(db, s, a, r).await?;
     Ok(())
 }
@@ -224,6 +229,30 @@ pub(super) async fn begin(
     a: i64,
     r: &Request,
 ) -> Result<Value> {
+    if r.number("RaidRoomNo", 0)?.max(r.number("MultiRoomNo", 0)?) > 0
+        && r.number("RaidIndex", 0)? != 90001
+    {
+        return super::cooperative::begin_party(db, s, a, r).await;
+    }
+    begin_local(db, s, a, r, false).await
+}
+
+pub(super) async fn begin_local(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+) -> Result<Value> {
+    begin_local_inner(db, s, a, r, service, None).await
+}
+
+pub(super) async fn begin_party_member(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, use_stamina: bool,
+) -> Result<Value> {
+    begin_local_inner(db, s, a, r, true, Some(use_stamina)).await
+}
+
+async fn begin_local_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+    party_use_stamina: Option<bool>,
+) -> Result<Value> {
     if n(dungeon(s, r)?, "BattleType") == 36 {
         return super::eclipse::begin(db, s, a, r).await;
     }
@@ -232,6 +261,10 @@ pub(super) async fn begin(
     }
     let party = selected_heroes(s, r)?;
     let mut entry = json!({"ChapterIndex":int(r,"ChapterIndex")?,"DungeonIndex":int(r,"DungeonIndex")?,"DungeonDifficulty":difficulty(r)?,"ScenarioDungeon":boolean(r,"ScenarioDungeon",false)?,"Heroes":party,"Request":r.0});
+    entry["ServiceOwned"] = json!(service);
+    if let Some(use_stamina) = party_use_stamina {
+        entry["PartyUseStamina"] = json!(use_stamina);
+    }
     let previous = sqlx::query(
         "SELECT started,completed,entry,begin_response FROM battle_runs WHERE account=?",
     )
@@ -276,7 +309,7 @@ pub(super) async fn begin(
             super::entry_costs::settle(db,s,a,&mut abandoned,false,&mut json!({})).await?;
         }
     }
-    validate(db, s, a, r, &party).await?;
+    validate_inner(db, s, a, r, &party, service).await?;
     let leader = int(r, "LeaderHeroIndex")?;
     if leader > 0 && !party.contains(&leader) {
         return Err(rule("HeroNotFound"));
@@ -284,7 +317,8 @@ pub(super) async fn begin(
     let d = dungeon(s, r)?;
     let mut out = response(s, "campaign/begin_campaign");
     super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
-    let cost = stamina_cost(d, difficulty(r)?);
+    super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,party_use_stamina != Some(false)).await?;
+    let cost = if party_use_stamina == Some(false) { 0 } else { stamina_cost(d, difficulty(r)?) };
     let stamina=super::entry_costs::charge(db,s,a,&mut entry,n(d,"ReqStaminaType"),cost).await?;
     if !stamina.is_null() {out["StaminaResult"]=stamina;}
     dungeons::enter(db, s, a, r, &mut entry, &mut out).await?;
@@ -405,6 +439,9 @@ async fn end_inner(
         if let Some(result)=entry.get("ConquestEndResponse").filter(|v|v.is_object()) {
             return Ok(result.clone());
         }
+        if let Some(result)=entry.get("PartyEndResponse").filter(|v|v.is_object()) {
+            return Ok(result.clone());
+        }
         return Err(rule("AlreadyCompleted"));
     }
     if !trusted && (entry["ServiceOwned"]==true || entry["ServiceRequired"]==true){return Err(rule("NotCompletedBattle"));}
@@ -440,7 +477,7 @@ async fn end_inner(
         return Ok(out);
     }
     let mut out = if completed {
-        complete(db, s, a, &request, &party, star, 1).await?
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), super::loot_booster::active(&entry)).await?
     } else {
         item::success()
     };
@@ -507,17 +544,35 @@ pub(super) async fn complete(
     star: i64,
     count: i64,
 ) -> Result<Value> {
+    complete_inner(db, s, a, r, party, star, count, true, false).await
+}
+
+/// Only authenticated, server-saved party options can disable battle loot.
+pub(super) fn party_loot_enabled(entry: &Value) -> bool {
+    entry["PartyCampaign"] != true || entry["PartyUseStamina"] != false
+}
+
+async fn complete_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request,
+    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_boosted: bool,
+) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
     let di = n(d, "DungeonIndex");
     let diff = difficulty(r)?;
     let mut p = progress(db, s, a, c, di).await?;
     let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
-    for _ in 0..count {
-        reward_index(db, s, a, field(d, "DropRewardIndex", diff), &mut reward).await?;
+    for _ in 0..if grant_loot {count} else {0} {
+        let index = field(d, "DropRewardIndex", diff);
+        if index > 0 {
+            item::reward_with_loot_booster(db,s,a,index as i32,&mut reward,loot_boosted).await?;
+        }
     }
-    let first = n(&p, "FirstRewardedDiff") & (1 << diff) == 0;
-    if first {
+    // Clear credit also unlocks later stages. Track actual loot claims separately
+    // so a free clear cannot consume the first reward of a later paid clear.
+    let loot_rewarded = p["LootRewardedDiff"].as_i64().unwrap_or_else(|| n(&p,"FirstRewardedDiff"));
+    let first = loot_rewarded & (1 << diff) == 0;
+    if first && grant_loot {
         reward_index(
             db,
             s,
@@ -526,7 +581,7 @@ pub(super) async fn complete(
             &mut reward,
         )
         .await?;
-        if n(&p, "FirstRewardedDiff") == 0 {
+        if loot_rewarded == 0 {
             reward_index(db, s, a, n(d, "FirstRewardIndex"), &mut reward).await?;
         }
         tutorial::currency(db, a, "Gem", field(d, "FirstClearGem", diff), &mut reward).await?;
@@ -544,6 +599,7 @@ pub(super) async fn complete(
         .tables
         .battle
         .find("SelectReward", &[("ChapterIndex", c), ("DungeonIndex", di)])
+        .filter(|_| grant_loot)
     {
         if selected.is_empty() {
             let pending = get(db, a, "selected_reward", key(c, di)).await?;
@@ -600,7 +656,7 @@ pub(super) async fn complete(
             .bind(id)
             .execute(&mut *db)
             .await?;
-        if old >= cap {
+        if old >= cap && grant_loot {
             if let Some((f, items)) =
                 super::super::extensions::consumables::fill_flask(db, s, a, *id as i32, exp).await?
             {
@@ -612,6 +668,7 @@ pub(super) async fn complete(
     }
     p["MaxStar"] = json!(n(&p, "MaxStar").max(diff * 10 + star));
     p["FirstRewardedDiff"] = json!(n(&p, "FirstRewardedDiff") | (1 << diff));
+    p["LootRewardedDiff"] = json!(if grant_loot {loot_rewarded | (1 << diff)} else {loot_rewarded});
     p["CompletedTime"] = json!(time(now()));
     p["DailyCompletedCount"] = json!(n(&p, "DailyCompletedCount") + count);
     if boolean(r, "ScenarioDungeon", false)? {

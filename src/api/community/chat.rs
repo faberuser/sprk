@@ -19,7 +19,10 @@ use tokio::{
     sync::mpsc,
 };
 
-const MAX_FRAME: usize = 64 * 1024;
+// Native party join replies carry complete equipped hero snapshots, wrapped
+// in JSON text and base64. Three heroes can already exceed 64 KiB on the wire.
+pub(crate) const MAX_FRAME: usize = 2 * 1024 * 1024;
+const MAX_LOGIN_FRAME: usize = 64 * 1024;
 const MAX_TEXT: usize = 500;
 fn integer(v: &Value) -> Option<i64> {v.as_i64().or_else(||v.as_str().and_then(|s|s.parse().ok()))}
 
@@ -124,8 +127,9 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                     let count = received??;
                     if count == 0 { break; }
                     incoming.extend_from_slice(&chunk[..count]);
-                    if incoming.len() > MAX_FRAME { anyhow::bail!("Chat frame too large"); }
                     while let Some(end) = incoming.iter().position(|v| *v == b'\n') {
+                        let limit = if account_id == 0 { MAX_LOGIN_FRAME } else { MAX_FRAME };
+                        if end + 1 > limit { anyhow::bail!("Chat frame too large"); }
                         let frame: Vec<_> = incoming.drain(..=end).collect();
                         let (name, request) = decode_packet(&frame)?;
                         let request_id = integer(&request["RequestId"]).unwrap_or(0);
@@ -151,6 +155,8 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                             response["WhisperChats"] = history["WhisperChats"].clone();
                             response["GuildChats"] = history["GuildChats"].clone();
                             socket.write_all(&encode_packet("LoginRes", &response)).await?;
+                            presence(&state, account_id, "Login").await?;
+                            sync_presence(&state, account_id).await?;
                             for item in history["WorldChats"].as_array().unwrap() { socket.write_all(&encode_packet("MessageNot", item)).await?; }
                             crate::api::battle::party_messages::reconnect(&state,account_id).await?;
                             continue;
@@ -160,7 +166,10 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         } else {
                             state.touch_session(&session_key);
                             match name.as_str() {
-                                "PingReq" | "ChangeFriendReq" | "ChangeGuildReq" => {},
+                                "PingReq" => {},
+                                "ChangeFriendReq" | "ChangeGuildReq" => {
+                                    sync_presence(&state, account_id).await?;
+                                },
                                 "ChangeChannelReq" => {
                                     let channel = integer(&request["ChannelNo"]).unwrap_or(0);
                                     response["Changed"] = json!((1..=9999).contains(&channel));
@@ -175,6 +184,11 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                                     if matches!(protocol, "Login" | "Logout") {
                                         // Presence targets come from the persisted friend graph.
                                         presence(&state, account_id, protocol).await?;
+                                    } else if protocol == "InvitePartyReq" {
+                                        if let Err(error) = crate::api::battle::party_messages::invite(&state, account_id, &request["GroupType"], &request["ReceiverIds"]).await {
+                                            tracing::debug!(%error, account_id, "Party invitation rejected");
+                                            response["Result"] = json!("Fail");
+                                        }
                                     } else if protocol == "GuildRaidOpen" {
                                         if announce_guild_raid(&state, account_id, &content).await.is_err() {
                                             response["Result"] = json!("Fail");
@@ -201,6 +215,10 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         }
                         socket.write_all(&encode_packet(&response_name, &response)).await?;
                     }
+                    // Bound the unfinished frame too. Check each logical frame,
+                    // rather than rejecting valid frames coalesced in one read.
+                    let limit = if account_id == 0 { MAX_LOGIN_FRAME } else { MAX_FRAME };
+                    if incoming.len() > limit { anyhow::bail!("Chat frame too large"); }
                 }
                 Some(message) = receiver.recv() => {
                     if state.get_session(&session_key).is_none() { break; }
@@ -223,6 +241,25 @@ async fn presence(state: &AppState, account: i64, protocol: &str) -> Result<()> 
         .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
     for id in ids {
         state.chat.notify(id, account, protocol, json!({}));
+    }
+    let ids: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+        .bind(account).bind(account).fetch_all(&state.db).await?;
+    for id in ids {
+        state.chat.notify(id, account, if protocol == "Login" { "GuildLogin" } else { "GuildLogout" }, json!({}));
+    }
+    Ok(())
+}
+
+async fn sync_presence(state: &AppState, account: i64) -> Result<()> {
+    let friends: Vec<i64> = sqlx::query_scalar("SELECT CASE WHEN account_id=? THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=? OR friend_account_id=?)")
+        .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
+    for id in friends {
+        state.chat.notify(account, id, if state.chat.online(id) { "Login" } else { "Logout" }, json!({}));
+    }
+    let members: Vec<i64> = sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+        .bind(account).bind(account).fetch_all(&state.db).await?;
+    for id in members {
+        state.chat.notify(account, id, if state.chat.online(id) { "GuildLogin" } else { "GuildLogout" }, json!({}));
     }
     Ok(())
 }
@@ -268,6 +305,7 @@ async fn send_chat(
         "ChannelChat" => "Channel",
         "GuildChat" => "Guild",
         "WhisperChat" => "None",
+        "PartyChat" => "Party",
         _ => return Err(ServerError::InvalidRequest("Unsupported chat type".into())),
     };
     let text = content["Chat"].as_str().unwrap_or("").trim();
@@ -314,6 +352,16 @@ async fn send_chat(
     let mut tx = state.db.begin().await?;
     sqlx::query("UPDATE accounts SET last_login = last_login WHERE account_id = ?")
         .bind(account).execute(&mut *tx).await?;
+    // Native SendToParty uses GroupType=None and a client-supplied receiver
+    // list. Resolve the actual party here, including the sender's local echo.
+    let party = if group == "Party" {
+        let room: i64 = sqlx::query_scalar("SELECT r.id FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=?")
+            .bind(account).fetch_optional(&mut *tx).await?
+            .ok_or_else(||ServerError::InvalidRequest("No party".into()))?;
+        let members: Vec<i64> = sqlx::query_scalar("SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account")
+            .bind(room).fetch_all(&mut *tx).await?;
+        Some((room,members))
+    } else { None };
     let links = match content.get("LinkedItem") {
         None | Some(Value::Null) => vec![],
         Some(Value::Array(v)) if v.len() <= 5 => v.clone(),
@@ -333,14 +381,14 @@ async fn send_chat(
         return Err(ServerError::InvalidRequest("Chat rate limit".into()));
     }
     sqlx::query("INSERT INTO chat_messages (sender_id, group_type, channel, guild_id, receiver_id, protocol, content) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(account).bind(group).bind(channel).bind(guild_id).bind(if group == "None" { target } else { 0 }).bind(protocol).bind(content.to_string()).execute(&mut *tx).await?;
+        .bind(account).bind(group).bind(channel).bind(guild_id).bind(party.as_ref().map(|(room,_)|*room).unwrap_or(if group == "None" { target } else { 0 })).bind(protocol).bind(content.to_string()).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM chat_messages WHERE message_id IN (SELECT message_id FROM chat_messages ORDER BY message_id DESC LIMIT -1 OFFSET 10000)").execute(&mut *tx).await?;
     tx.commit().await?;
     let targets = [target];
     let message = notification(
         account,
-        group,
-        if group == "None" { &targets } else { &[] },
+        if group == "Party" { "None" } else { group },
+        if let Some((_,members))=&party { members } else if group == "None" { &targets } else { &[] },
         protocol,
         content,
     );
@@ -350,6 +398,7 @@ async fn send_chat(
             "World" => true,
             "Channel" => peer.channel.load(Ordering::Relaxed) == channel,
             "Guild" => guild(state, peer.account).await? == guild_id,
+            "Party" => party.as_ref().is_some_and(|(_,members)|members.contains(&peer.account)),
             _ => peer.account == target || peer.account == account,
         };
         if deliver {

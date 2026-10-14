@@ -100,6 +100,12 @@ partial class Program
             var call = checkNext.Body.Instructions.Single(i => i.Operand is MethodReference r && r.Name == "IsCompleted");
             call.OpCode = OpCodes.Call; call.Operand = Hook("LowerDifficultyCleared");
         }
+        if (!Hooked(checkNext, "NextDifficulty")) {
+            var difficulty = checkNext.Body.Instructions.Single(i => i.Operand is FieldReference f && f.Name == "DungeonDifficulty");
+            var loadTarget = Instruction.Create(OpCodes.Ldarg_1);
+            checkNext.Body.GetILProcessor().InsertAfter(difficulty, loadTarget);
+            checkNext.Body.GetILProcessor().InsertAfter(loadTarget, Instruction.Create(OpCodes.Call, Hook("NextDifficulty")));
+        }
         var update = module.Types.Single(t => t.Name == "GlobalUpdateBehaviour").Methods.Single(m => m.Name == "Update");
         if (!Hooked(update, "Tick")) Prefix(update, Instruction.Create(OpCodes.Call, Hook("Tick")));
         var rewardUpdate = Method("NGame2.NUI.NWindow.NBattle.EndBattleReward", "UpdateAutoNextCampaign");
@@ -159,7 +165,7 @@ partial class Program
 
     static void VerifyStoryAuto(ModuleDefinition module)
     {
-        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "Tick" }) {
+        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "NextDifficulty", "Tick" }) {
             var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody)
                 .SelectMany(m => m.Body.Instructions).Count(i => i.Operand is MethodReference r && r.DeclaringType.Name == "SprkStoryAuto" && r.Name == name);
             if (calls != 1) throw new InvalidOperationException($"Expected one {name} hook; found {calls}.");

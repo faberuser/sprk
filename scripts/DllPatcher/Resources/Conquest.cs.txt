@@ -20,6 +20,7 @@ using UnityEngine;
 // initial shared boss HP; they cannot submit authoritative combat results.
 public sealed class SprkConquest : MonoBehaviour {
     static SprkConquest instance;
+    int lastFrame=-1;
     static readonly Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]> seeds=new Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]>();
     public static Dictionary<string,object> Login(Dictionary<string,object> value) {
         var web=SingletonUpdater<WebServiceManager>.instance;
@@ -27,7 +28,11 @@ public sealed class SprkConquest : MonoBehaviour {
         return value;
     }
     public static Dictionary<string,object> ReplayStatus(Dictionary<string,object> value) {
-        value["BattleStopped"]=SingletonAuto<BattleFacade>.isValidInstance && SingletonAuto<BattleFacade>.instance.GetStoppedBattleInstance()!=null;
+        // GetStoppedBattleInstance stops the replay thread. Heartbeats must only
+        // observe the published cache; the native result handler stops it later.
+        var cache=SingletonAuto<BattleFacade>.isValidInstance ? SingletonAuto<BattleFacade>.instance.GetBattleCache() : null;
+        value["BattleStopped"]=cache!=null && cache.IsBattleEnded;
+        value["ReplayWaveIndex"]=cache==null ? 0 : cache.WaveIndex;
         return value;
     }
     public static WaveReadyBattleLog ReadSeed(WaveReadyBattleLog value,IDictionary data) {
@@ -52,11 +57,14 @@ public sealed class SprkConquest : MonoBehaviour {
     }
     public static void Tick() {
         if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")))return;
+        // The game's login flow disables its logger. Keep service failures visible.
+        Debug.unityLogger.logEnabled=true;
         if(instance==null) {
             var go=new GameObject("SprkConquestService");DontDestroyOnLoad(go);instance=go.AddComponent<SprkConquest>();
             Application.runInBackground=true;Application.targetFrameRate=60;
             Debug.Log("SPRK conquest service initialized");
         }
+        instance.Step();
     }
     void Update() {Step();}
     class Run : IBattleLogListener {
@@ -84,8 +92,10 @@ public sealed class SprkConquest : MonoBehaviour {
             }
             logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
             if(log.Type==BattleLogType.WaveReady || log.Type==BattleLogType.WaveEnd) {
+                var wave=new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}};
+                if(log.Type==BattleLogType.WaveEnd)wave["Winner"]=JM_NShared_WaveEndBattleLog.Parse(log.Data).winner.ToString();
                 Flush();owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name",log.Type==BattleLogType.WaveReady?"WaveReadyNot":"WaveEndNot"},
-                    {"Body",new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}}}});
+                    {"Body",wave}});
             }
         }
         public void Flush() {
@@ -104,9 +114,11 @@ public sealed class SprkConquest : MonoBehaviour {
         // Data containers load through the ordinary client startup; no player
         // account or client-supplied stat snapshot is needed by this service.
         NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
-        if(GameRoot.Instance.JsonLoader==null) {SingletonAuto<TableDataManager>.instance.Load(true);return;}
+        if(GameRoot.Instance.JsonLoader==null) {Debug.Log("SPRK native worker loading table assets");SingletonAuto<TableDataManager>.instance.Load(true);return;}
         var creatures=GameRoot.Instance.CreatureDataContainer;
-        if(creatures==null || creatures.GetData(1)==null)return;
+        // Creature keys are table-defined; a loaded table need not contain 1.
+        if(creatures==null || !creatures.GetAllData().Any()) {Debug.Log("SPRK native worker waiting for creature table");return;}
+        Debug.Log("SPRK native worker connecting");
         new Thread(()=> {
             try {
                 socket=new TcpClient();socket.NoDelay=true;
@@ -131,6 +143,8 @@ public sealed class SprkConquest : MonoBehaviour {
         }
     }
     void Step() {
+        Debug.unityLogger.logEnabled=true;
+        if(lastFrame==Time.frameCount)return;lastFrame=Time.frameCount;
         float now=Time.realtimeSinceStartup;
         if(!connected) {
             if(runs.Count>0) {runs.Clear();Debug.LogWarning("SPRK conquest service disconnected; active runs cancelled");}

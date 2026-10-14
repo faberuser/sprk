@@ -587,6 +587,7 @@ pub async fn login(
     let equip_storage_slot_infos=crate::api::extensions::storage_login(&state,account_id).await?;
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
+    crate::api::battle::party_messages::new_login(&state,account_id).await?;
     let battle = crate::api::battle::login(&state,account_id).await?;
     let community = crate::api::community::login(&state,account_id).await?;
     user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;

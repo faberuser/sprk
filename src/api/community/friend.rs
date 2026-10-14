@@ -22,16 +22,46 @@ pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
         .bind(account).fetch_one(&state.db).await?;
     Ok(profile_row(state, &row))
 }
-fn profile_row(state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Value {
+pub(super) fn profile_row(state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Value {
     let account: i64 = row.get("account_id");
     let last: Option<String> = row.get("last_login");
-    let online = state.chat.online(account)
+    let online = online(state, account);
+    json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
+        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last, "LastLogoutTime": if online { None } else { last.clone() }, "TierIndex":0, "MatchScore":0, "LastChapterIndex":1, "LastDungeonIndex":1})
+}
+
+pub(super) fn online(state: &AppState, account: i64) -> bool {
+    state.chat.online(account)
         || state.sessions.iter().any(|s| {
             s.account_id == account
                 && s.last_activity > chrono::Utc::now() - chrono::Duration::minutes(2)
-        });
-    json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
-        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last, "LastLogoutTime": if online { None } else { last.clone() }, "TierIndex":0, "MatchScore":0, "LastChapterIndex":1, "LastDungeonIndex":1})
+        })
+}
+
+/// Native Hero Info popup: return public snapshots, never private login data.
+pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    let req = Request::parse(&body)?;
+    req.account(&state)?;
+    let target = req.number("TargetAccountId", 0)?;
+    let mut db = state.db.begin().await?;
+    let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
+        .bind(target).fetch_optional(&mut *db).await?;
+    let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
+    let user = profile_row(&state, &row);
+    let ids: Vec<i64> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY hero_index")
+        .bind(target).fetch_all(&mut *db).await?;
+    if ids.is_empty() { return Ok(Json(response("NoCache"))); }
+    let mut heroes = serde_json::Map::new();
+    for id in ids {
+        heroes.insert(id.to_string(), super::cached_hero(&mut db, target, id).await?);
+    }
+    let guild: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
+        .bind(target).fetch_optional(&mut *db).await?;
+    let guild_info = if let Some(g) = guild { super::guild::state(&mut db, &state, g).await? } else { Value::Null };
+    db.commit().await?;
+    Ok(Json(json!({"BaseResult":"Success","Result":"Success",
+        "CachedAccountInfo":{"UserInfo":user,"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}},
+        "GuildInfo":guild_info,"MatchTierRank":0,"MatchTotalRank":0})))
 }
 
 pub async fn login_data(

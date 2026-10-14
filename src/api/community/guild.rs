@@ -122,6 +122,7 @@ pub(super) async fn member(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     v["Rank"] = json!(3 - role);
     put(db, a, "guild_member", g, &v).await?;
     merge(&mut u, v);
+    u["IsOnline"] = json!(super::friend::online(s, a));
     Ok(u)
 }
 pub(super) async fn save(db: &mut SqliteConnection, g: i64, v: &Value) -> Result<()> {

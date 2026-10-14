@@ -90,7 +90,10 @@ Verified on the actual client: launch, screenshot, UI enumeration, native event
 click from login to lobby, Portal open/close smoke test, and concurrent client
 instances. Startup observations include missing Constant/EventTrigger/DeviceModel
 table messages and a certificate-decoding error. Those are captured findings,
-not fixed by installing automation. Multiplayer combat remains unimplemented.
+not fixed by installing automation. Dragon and story parties use the native
+battle worker; configure it with `python scripts/setup_native_battle.py` and
+restart the server. Test both clients through combat and settlement, since a
+successful invitation/join alone does not verify battle support.
 
 Final installed-patch validation on 2026-09-30:
 

@@ -1259,6 +1259,8 @@ async fn party_rooms_enforce_membership_and_transfer_master() {
     );
     let joined = call(&s, &v, "party_dungeon/join_party_dungeon_room", &args).await;
     assert_eq!(joined["JoinedRaidRoomInfo"]["MasterAccountId"], account(&v));
+    assert_eq!(joined["JoinedRaidRoomInfo"]["DungeonDifficulty"], "2");
+    assert_eq!(joined["JoinedRaidRoomInfo"]["DungeonType"], "1");
 }
 #[tokio::test]
 async fn closed_multiplayer_requires_battle_service_without_spending() {
@@ -2596,6 +2598,47 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
 }
 
 #[tokio::test]
+async fn dragon_rooms_create_and_change_using_earned_stage_unlocks() {
+    let (s,u)=setup().await;let a=account(&u);
+    for raid in 1..=4 {
+        let create=|stage|format!("RaidIndex={raid}&RaidLevel={stage}&Opened=1");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(8)).await["Result"],"NoRaidData");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(7)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        let room=opened["RoomNo"].as_i64().unwrap();
+        let change=|stage|format!("RoomNo={room}&RaidLevel={stage}");
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(8)).await["Result"],"Fail");
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":8})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(8)).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(9)).await["Result"],"Fail");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(9)).await["Result"],"NoRaidData");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(8)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={}",opened["RoomNo"])).await["Result"],"Success");
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"raid",raid).await.unwrap()["RaidLevel"],8);
+    }
+}
+
+#[tokio::test]
+async fn hard_dragon_rooms_require_matching_normal_clear_and_earned_hard_stage() {
+    let (s,u)=setup().await;let a=account(&u);
+    for raid in 11..=14 {
+        let create=|stage|format!("RaidIndex={raid}&RaidLevel={stage}&Opened=1");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(1)).await["Result"],"NoRaidData");
+        let normal=raid-10;
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",normal,&json!({"RaidIndex":normal,"RaidLevel":8})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(2)).await["Result"],"NoRaidData");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(1)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        let room=opened["RoomNo"].as_i64().unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&format!("RoomNo={room}&RaidLevel=2")).await["Result"],"Fail");
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&format!("RoomNo={room}&RaidLevel=2")).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(2)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={}",opened["RoomNo"])).await["Result"],"Success");
+    }
+}
+
+#[tokio::test]
 async fn dragon_solo_native_raid_type_keeps_party_and_level_guards() {
     let (s, u) = setup().await;
     let a = account(&u);
@@ -2734,6 +2777,26 @@ async fn dragon_solo_wins_unlock_shared_stages_without_downgrading() {
             .unwrap();
         assert_eq!(saved["RaidLevel"], expected);
     }
+}
+
+#[tokio::test]
+async fn dragon_login_repairs_party_overwrite_and_missing_next_stage_without_rewards() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let gold=balance(&s,"gold").await;
+    let stamina=balance(&s,"stamina").await;
+    put(&mut s.db.acquire().await.unwrap(),a,"raid",1,&json!({"RaidIndex":1,"RaidLevel":7,"CreatedTime":"2026-10-01 00:00:00"})).await.unwrap();
+    for (chapter,dungeon,expected) in [(901,7,8),(905,15,16)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,?,?,1,3,1)")
+            .bind(a).bind(chapter).bind(dungeon).execute(&s.db).await.unwrap();
+        let first=login(&s,a).await.unwrap();
+        let info=first["RaidInfos"].as_array().unwrap().iter().find(|v|n(v,"RaidIndex")==1).unwrap();
+        assert_eq!(info["RaidLevel"],expected);
+        assert_eq!(info["CreatedTime"],"2026-10-01 00:00:00");
+        assert_eq!(login(&s,a).await.unwrap()["RaidInfos"],first["RaidInfos"]);
+    }
+    assert_eq!(balance(&s,"gold").await,gold);
+    assert_eq!(balance(&s,"stamina").await,stamina);
 }
 
 #[tokio::test]

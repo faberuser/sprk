@@ -121,7 +121,7 @@ pub(super) async fn prepare(
         4 | 15 | 16 | 19 | 20 | 25 | 26 | 30 | 32 | 35 | 36 | 43 | 44 | 48
     ) || int(r, "WorldBossIndex")? > 0
         || int(r, "EventWorldBossIndex")? > 0
-        || !enabled(db, a).await?
+        || (!enabled(db, a).await? && entry["ServiceOwned"] != true)
     {
         return Ok(());
     }
@@ -323,6 +323,7 @@ pub(crate) async fn settle(
     won: bool,
     out: &mut Value,
 ) -> Result<()> {
+    super::loot_booster::settle(db,a,entry,won,out).await?;
     let Some(costs) = entry["VictoryEntryCosts"].as_array().cloned() else {
         return Ok(());
     };
@@ -524,7 +525,7 @@ pub(super) async fn abandon_on_login(
         let mut entry: Value = read_json(row.get::<&str, _>("entry"))?;
         let expired =
             now() - row.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
-        if (entry["DeferredEntryCosts"] == true || super::karma::is_entry(s, &entry))
+        if (entry["DeferredEntryCosts"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
             && (expired || (entry["ServiceOwned"] != true && entry["ServiceRequired"] != true))
         {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;

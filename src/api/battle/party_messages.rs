@@ -12,8 +12,11 @@ pub(crate) fn supported(name: &str) -> bool {
             | "PartyRoomRepeat"
             | "ChangePartyRoomMaster"
             | "ChangePartyRoomInfo"
+            | "ChangePartyDungeonRoomInfo"
             | "LeaveParty"
             | "PartyBattleStart"
+            | "ChangePartyMemberStatus"
+            | "PartyMemberPing"
     )
 }
 fn number(v: &Value, key: &str) -> i64 {
@@ -21,6 +24,55 @@ fn number(v: &Value, key: &str) -> i64 {
         .as_i64()
         .or_else(|| v[key].as_str().and_then(|v| v.parse().ok()))
         .unwrap_or(0)
+}
+fn boolean(v: &Value, key: &str) -> Result<bool> {
+    match &v[key] {
+        Value::Bool(value) => Ok(*value),
+        Value::String(value) if value == "True" || value == "true" => Ok(true),
+        Value::String(value) if value == "False" || value == "false" => Ok(false),
+        _ => Err(rule("InvalidMessage")),
+    }
+}
+
+/// Invite All uses Friend/Guild groups with no receiver IDs. Resolve those
+/// groups from persisted membership, and build the invite from the host's room.
+pub(crate) async fn invite(s: &AppState, a: i64, group: &Value, targets: &Value) -> Result<()> {
+    let mut db = s.db.begin().await?;
+    let (id, family, room) = membership(&mut db, a).await?;
+    let members = ids_in(&mut db, id).await?;
+    if n(&room, "MasterAccountId") != a || n(&room, "Status") != 0
+        || members.len() as i64 >= n(&room, "Capacity") {
+        return Err(rule("InvalidRoomInfo"));
+    }
+    let direct = group.is_null() || group == "None" || group == 0 || group == "0";
+    let recipients: Vec<i64> = if direct {
+        targets.as_array().filter(|v| !v.is_empty() && v.len() <= 50)
+            .ok_or_else(|| rule("InvalidMessage"))?.iter()
+            .map(|v| v.as_i64().or_else(|| v.as_str().and_then(|v| v.parse().ok()))
+                .filter(|id| *id > 0).ok_or_else(|| rule("InvalidMessage")))
+            .collect::<Result<_>>()?
+    } else if group == "Friend" || group == 4 || group == "4" {
+        sqlx::query_scalar("SELECT CASE WHEN account_id=? THEN friend_account_id ELSE account_id END FROM friends WHERE status='accepted' AND (account_id=? OR friend_account_id=?)")
+            .bind(a).bind(a).bind(a).fetch_all(&mut *db).await?
+    } else if group == "Guild" || group == 3 || group == "3" {
+        sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=(SELECT guild_id FROM guild_members WHERE account_id=?) AND account_id!=?")
+            .bind(a).bind(a).fetch_all(&mut *db).await?
+    } else { return Err(rule("InvalidMessage")); };
+    let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+        .bind(a).fetch_one(&mut *db).await?;
+    let content = json!({"InvitorName":nick,"RoomNo":id,"RaidIndex":if family=="raid" {room["RaidIndex"].clone()} else {json!(0)},
+        "RaidLevel":if family=="raid" {room["RaidLevel"].clone()} else {json!(0)},"BannedIds":[],"IsSendOne":direct,
+        "dungeonType":n(&room,"DungeonType").to_string(),"chapterIndex":room["ChapterIndex"],"dungeonIndex":room["DungeonIndex"],
+        "difficulty":n(&room,"DungeonDifficulty").to_string(),"AffixIndices":room["AffixIndices"]});
+    let recipients: BTreeSet<_> = recipients.into_iter().filter(|target| *target != a && !members.contains(target)).collect();
+    for target in &recipients {
+        put(&mut db, *target, "party_invite", id, &json!({"Master":a,"Time":now()})).await?;
+    }
+    db.commit().await?;
+    for target in recipients {
+        s.chat.notify(target, a, "InvitePartyReq", content.clone());
+    }
+    Ok(())
 }
 async fn membership(db: &mut SqliteConnection, a: i64) -> Result<(i64, String, Value)> {
     let row:Option<(i64,String,String)>=sqlx::query_as("SELECT r.id,r.family,r.data FROM battle_rooms r JOIN battle_room_members m ON m.room=r.id WHERE m.account=?")
@@ -51,7 +103,7 @@ async fn member(db: &mut SqliteConnection, a: i64, room: &Value, index: usize) -
     v["ChapterIndex"] = room["ChapterIndex"].clone();
     v["DungeonIndex"] = room["DungeonIndex"].clone();
     v["SelectedRewardItemNo"] = json!(-1);
-    v["Status"] = json!("PartyRoom");
+    if !v["Status"].is_string() { v["Status"] = json!("PartyRoom"); }
     Ok(v)
 }
 async fn snapshot(db: &mut SqliteConnection, room: &Value) -> Result<Value> {
@@ -60,7 +112,7 @@ async fn snapshot(db: &mut SqliteConnection, room: &Value) -> Result<Value> {
         members.push(member(db, a, room, index).await?);
     }
     Ok(
-        json!({"PartyRoom":room,"RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"Difficulty":room["DungeonDifficulty"],"PartyMembers":members,"RewardItems":[],"Bannedids":[],"IsRepeatBattle":room["IsRepeatBattle"].as_bool().unwrap_or(false),"CreatedTime":time(now()),"MasterServerPrivateIp":"","MasterServerPort":0}),
+        json!({"PartyRoom":rooms::wire_room(room),"RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"Difficulty":n(room,"DungeonDifficulty").to_string(),"PartyMembers":members,"RewardItems":[],"Bannedids":[],"IsRepeatBattle":room["IsRepeatBattle"].as_bool().unwrap_or(false),"CreatedTime":time(now()),"MasterServerPrivateIp":"","MasterServerPort":0}),
     )
 }
 
@@ -82,17 +134,21 @@ pub(crate) async fn send(
         .await?;
     let mut messages: Vec<(i64, i64, String, Value)> = vec![];
     if protocol == "JoinPartyReq" {
+        // Native declines omit RoomNo and Invitee; there is no join to authorize.
+        if !boolean(&content, "Accepted")? { return Ok(()); }
         let id = number(&content, "RoomNo");
         let raw: Option<String> = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
             .bind(id)
             .fetch_optional(&mut *db)
             .await?;
         let room: Value = read_json(&raw.ok_or_else(|| rule("RoomNotExist"))?)?;
+        let invitation = get(&mut db, a, "party_invite", id).await?;
+        let invited = n(&invitation, "Master") == target && now() - n(&invitation, "Time") <= 120;
         if n(&room, "MasterAccountId") != target
             || target == a
             || n(&room, "Status") != 0
-            || n(&room, "Opened") != 1
-            || content["Accepted"] != true
+            || (n(&room, "Opened") != 1 && !invited)
+            || !boolean(&content, "Accepted")?
         {
             return Err(rule("InvalidRoomInfo"));
         }
@@ -242,6 +298,32 @@ pub(crate) async fn send(
             for receiver in recipients.into_iter().filter(|v|*v!=a) {
                 messages.push((receiver,a,protocol.into(),content.clone()));
             }
+        } else if protocol == "PartyMemberPing" {
+            if target != master { return Err(rule("WrongMember")); }
+            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+                .bind(now()).bind(a).execute(&mut *db).await?;
+        } else if protocol == "ChangePartyMemberStatus" {
+            let status = match content["Status"].as_str() {
+                Some("PartyRoom" | "0") => "PartyRoom",
+                Some("Battle" | "1") => "Battle",
+                Some("EndCampaign" | "2") => "EndCampaign",
+                _ => match content["Status"].as_i64() {
+                    Some(0) => "PartyRoom", Some(1) => "Battle", Some(2) => "EndCampaign",
+                    _ => return Err(rule("InvalidMessage")),
+                },
+            };
+            let complete: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=1)")
+                .bind(a).fetch_one(&mut *db).await?;
+            if status == "Battle" && n(&room,"Status") != 2 || status == "EndCampaign" && !complete {
+                return Err(rule("InvalidRoomInfo"));
+            }
+            let mut state = member(&mut db,a,&room,recipients.iter().position(|v|*v==a).unwrap_or(0)).await?;
+            state["Status"] = json!(status); put(&mut db,a,"party_member",id,&state).await?;
+            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
+                .bind(now()).bind(a).execute(&mut *db).await?;
+            for receiver in recipients.into_iter().filter(|v|*v != a) {
+                messages.push((receiver,a,protocol.into(),json!({"Status":status})));
+            }
         } else {
             if n(&room, "Status") != 0 {
                 return Err(rule("InvalidRoomInfo"));
@@ -344,9 +426,7 @@ pub(crate) async fn send(
                     put(&mut db, a, "party_member", id, &state).await?;
                 }
                 "PartyRoomReady" => {
-                    let ready = content["IsReady"]
-                        .as_bool()
-                        .ok_or_else(|| rule("InvalidMessage"))?;
+                    let ready = boolean(&content, "IsReady")?;
                     if ready && state["DeckHeros"].as_object().unwrap().is_empty() {
                         return Err(rule("EmptyHeroIndices"));
                     }
@@ -364,9 +444,7 @@ pub(crate) async fn send(
                     if a != master {
                         return Err(rule("WrongMember"));
                     }
-                    let repeat = content["IsRepeat"]
-                        .as_bool()
-                        .ok_or_else(|| rule("InvalidMessage"))?;
+                    let repeat = boolean(&content, "IsRepeat")?;
                     room["IsRepeatBattle"] = json!(repeat);
                     sqlx::query("UPDATE battle_rooms SET data=? WHERE id=?")
                         .bind(room.to_string())
@@ -386,6 +464,19 @@ pub(crate) async fn send(
                         return Err(rule("WrongMember"));
                     }
                     content = json!({"RaidLevel":room["RaidLevel"],"GoalIndex":room["GoalIndex"],"AffixIndices":room["AffixIndices"],"IsViolateBanRule":false});
+                }
+                "ChangePartyDungeonRoomInfo" => {
+                    if a != master || family == "raid" { return Err(rule("WrongMember")); }
+                    let reset=boolean(&content,"IsResetSquard")?;
+                    if reset {
+                        for (index, account) in recipients.iter().enumerate() {
+                            let mut state=member(&mut db,*account,&room,index).await?;
+                            state["DeckHeros"]=json!({});state["SubDeckHeros"]=json!({});state["IsBattleReady"]=json!(false);
+                            put(&mut db,*account,"party_member",id,&state).await?;
+                        }
+                    }
+                    content=json!({"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],
+                        "Difficulty":n(&room,"DungeonDifficulty").to_string(),"DungeonType":n(&room,"DungeonType").to_string(),"IsResetSquard":reset});
                 }
                 "LeaveParty" => {
                     let req = Request([("RoomNo".into(), id.to_string())].into_iter().collect());
@@ -421,6 +512,36 @@ pub(crate) async fn send(
     db.commit().await?;
     for (receiver, sender, name, body) in messages {
         s.chat.notify(receiver, sender, &name, body);
+    }
+    Ok(())
+}
+
+/// Native story-party Loot reads MemberInfo populated by MemberResultsRes,
+/// rather than the personal EndCampaign response. These are display summaries
+/// of committed rewards, never an additional award or a player-supplied report.
+pub(crate) async fn replay_rewards(s: &AppState, a: i64) -> Result<()> {
+    let mut db=s.db.acquire().await?;
+    let own:Option<(i64,String)>=sqlx::query_as("SELECT m.room,r.entry FROM battle_room_members m JOIN battle_runs r ON r.account=m.account WHERE m.account=? AND r.completed=1")
+        .bind(a).fetch_optional(&mut *db).await?;
+    let Some((room,raw))=own else {return Ok(());};
+    let entry:Value=read_json(&raw)?;
+    if entry["PartyCampaign"]!=true || number(&entry,"CoopRoom")!=room || !entry["PartyEndResponse"].is_object() {return Ok(());}
+    let Some(run)=entry["CoopRunId"].as_str() else {return Ok(());};
+    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT r.account,r.entry FROM battle_runs r JOIN battle_room_members m ON m.account=r.account WHERE m.room=? AND r.completed=1 AND json_extract(r.entry,'$.CoopRunId')=? AND json_extract(r.entry,'$.CoopRoom')=?")
+        .bind(room).bind(run).bind(room).fetch_all(&mut *db).await?;
+    drop(db);
+    for (sender,raw) in rows {
+        let entry:Value=read_json(&raw)?;
+        let out=&entry["PartyEndResponse"];
+        if !out.is_object() {continue;}
+        let use_stamina=entry["PartyUseStamina"].as_bool()
+            .unwrap_or_else(||out["StaminaResult"]["AddValue"].as_i64().unwrap_or(0)<0);
+        let mut summary=json!({"UseStamina":use_stamina});
+        for field in ["HeroExpResults","FlaskResults","FlaskItemResults","CurrencyResults","ItemResults","EquipItemInfos","EquipItemBoostInfos",
+            "CurrencyResults2","ItemResults2","EquipItemInfos2","EquipItemBoostInfos2"] {
+            summary[field]=out[field].as_array().map_or_else(||json!([]),|values|json!(values));
+        }
+        s.chat.notify(a,sender,"MemberResultsRes",summary);
     }
     Ok(())
 }
@@ -468,7 +589,22 @@ pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
             );
         }
     }
-    Ok(())
+    replay_rewards(s,a).await
+}
+
+/// A full game login creates a fresh PartyManager. JoinPartyNotice can update
+/// an existing room, but cannot initialize that manager or open its window.
+/// Leave idle membership here; a chat reconnect with the same session retains it.
+pub(crate) async fn new_login(s: &AppState, a: i64) -> Result<()> {
+    let mut db = s.db.begin().await?;
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(a).execute(&mut *db).await?;
+    let Ok((id, family, room)) = membership(&mut db, a).await else { return Ok(()); };
+    if n(&room, "Status") == 2 { return Ok(()); }
+    rooms::remove_account(&mut db, a).await?;
+    db.commit().await?;
+    let req = Request([("RoomNo".into(), id.to_string())].into_iter().collect());
+    after_room_request(s, a, &req, &format!("leave_{family}_room")).await
 }
 
 pub(crate) async fn after_room_request(

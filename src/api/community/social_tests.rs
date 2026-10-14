@@ -824,6 +824,97 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
 }
 
 struct Socket(BufReader<TcpStream>);
+
+#[tokio::test]
+async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
+    let (s, a, b) = setup().await;
+    sqlx::query("UPDATE heroes SET level=37 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
+    let out = friend::inspect_user(State(s.clone()), form(&a, &format!("TargetAccountId={}", b.user_info.account_id))).await.unwrap().0;
+    assert_eq!(out["Result"], "Success");
+    let account = &out["CachedAccountInfo"];
+    assert_eq!(account["UserInfo"]["AccountId"], b.user_info.account_id);
+    assert_eq!(account["UserInfo"]["Nick"], b.user_info.nick);
+    assert_eq!(account["HeroInfos"]["1"]["Level"], 37);
+    assert!(account["HeroInfos"]["1"]["PunishmentRuneOptionInfos"].is_array());
+    assert!(account["AiHeroInfos"].is_object() && account["DeckInfos"].is_object());
+    assert!(account["UserInfo"].get("SessionKey").is_none());
+    assert!(account["UserInfo"].get("Gold").is_none());
+    assert!(out["GuildInfo"].is_null());
+    assert_eq!(friend::inspect_user(State(s.clone()), form(&a, "TargetAccountId=99999")).await.unwrap().0["Result"], "NoTargetAccountId");
+    sqlx::query("UPDATE accounts SET is_banned=1 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
+    assert_eq!(friend::inspect_user(State(s.clone()), form(&a, &format!("TargetAccountId={}",b.user_info.account_id))).await.unwrap().0["Result"], "NoTargetAccountId");
+    assert!(friend::inspect_user(State(s), Bytes::from("TargetAccountId=1")).await.is_err());
+}
+
+#[tokio::test]
+async fn raid_invites_presence_groups_private_join_and_sender_validation() {
+    let (state, a, b) = setup().await;
+    let c = login(&state, "invite-outsider").await;
+    befriend(&state, &a, &b).await;
+    let guild = sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('InviteTest',?)")
+        .bind(a.user_info.account_id).execute(&state.db).await.unwrap().last_insert_rowid();
+    for id in [a.user_info.account_id, b.user_info.account_id] {
+        sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)")
+            .bind(guild).bind(id).execute(&state.db).await.unwrap();
+    }
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = tokio::spawn(chat::serve(listener, state.clone()));
+    let mut sa = Socket::connect(addr, &a, 1).await;
+    assert_eq!(sa.read().await.1["Type"], "Logout");
+    assert_eq!(sa.read().await.1["Type"], "GuildLogout");
+    let mut sb = Socket::connect(addr, &b, 1).await;
+    assert_eq!(sa.read().await.1["Type"], "Login");
+    assert_eq!(sa.read().await.1["Type"], "GuildLogin");
+    assert_eq!(sb.read().await.1["Type"], "Login");
+    assert_eq!(sb.read().await.1["Type"], "GuildLogin");
+    let mut sc = Socket::connect(addr, &c, 1).await;
+    let list = super::tests::call(&state, &json!(a), "guild/get_all_guild_member_info", &format!("GuildId={guild}")).await;
+    assert!(list.to_string().contains("\"IsOnline\":true"), "{list}");
+    let created = crate::api::battle::execute_request(&state, "party_dungeon/create_party_dungeon_room", form(&a, "DungeonType=1&ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=2&Opened=0")).await.unwrap();
+    let room = created["RoomNo"].as_i64().unwrap();
+    // Direct and Invite All must ignore forged identity/room/dungeon fields.
+    for group in [json!("None"), json!("Friend"), json!(4), json!("Guild"), json!(3)] {
+        sa.send("MessageReq", json!({"RequestId":30,"GroupType":group,"ReceiverIds":[b.user_info.account_id,c.user_info.account_id],"Message":"InvitePartyReq {\"RoomNo\":99999,\"InvitorName\":\"FORGED\",\"RaidIndex\":99999}"})).await;
+        assert_eq!(sa.read().await.1["Result"], "Success");
+        let notice = sb.read().await.1;
+        assert_eq!(notice["Type"], "InvitePartyReq");
+        assert_eq!(notice["SenderId"], a.user_info.account_id);
+        let payload: Value = serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+        assert_eq!(payload["RoomNo"], room);
+        assert_eq!(payload["InvitorName"], a.user_info.nick);
+        assert_eq!(payload["chapterIndex"], 1);
+        assert_eq!(payload["difficulty"], "2");
+        assert_eq!(payload["dungeonType"], "1");
+        if group == "None" { assert_eq!(sc.read().await.1["Type"], "InvitePartyReq"); }
+        else { assert!(tokio::time::timeout(Duration::from_millis(50), sc.0.fill_buf()).await.is_err()); }
+    }
+    sc.send("MessageReq",json!({"RequestId":31,"ReceiverIds":[b.user_info.account_id],"Message":format!("InvitePartyReq {{\"RoomNo\":{room}}}")})).await;
+    assert_eq!(sc.read().await.1["Result"], "Fail");
+    assert!(tokio::time::timeout(Duration::from_millis(50), sb.0.fill_buf()).await.is_err());
+    // The shipped JM serializer writes scalar fields as strings, including bools.
+    sb.send("MessageReq",json!({"RequestId":"32","ReceiverIds":[a.user_info.account_id.to_string()],"Message":format!("JoinPartyReq {}",json!({"RoomNo":room.to_string(),"Accepted":"True","SendKey":"42"}))})).await;
+    assert_eq!(sb.read().await.1["Result"], "Success");
+    assert_eq!(sa.read().await.1["Type"], "JoinPartyReq");
+    sa.send("MessageReq",json!({"RequestId":33,"ReceiverIds":[b.user_info.account_id],"Message":"JoinPartyRes {\"Result\":\"Success\",\"SendKey\":42}"})).await;
+    assert_eq!(sa.read().await.1["Result"], "Success");
+    assert_eq!(sb.read().await.1["Type"], "JoinPartyRes");
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&state.db).await.unwrap();
+    assert_eq!(count, 2);
+    // The last socket disconnect, even without an explicit Logout, updates peers.
+    drop(sb);
+    let mut disconnected = std::collections::BTreeSet::new();
+    for _ in 0..8 {
+        let notice = sa.read().await.1;
+        if notice["Type"] == "Logout" || notice["Type"] == "GuildLogout" {
+            assert_eq!(notice["SenderId"], b.user_info.account_id);
+            disconnected.insert(notice["Type"].as_str().unwrap().to_owned());
+        }
+        if disconnected.len() == 2 { break; }
+    }
+    assert_eq!(disconnected.len(), 2);
+    server.abort();
+}
 #[tokio::test]
 async fn native_party_socket_join_deck_ready_and_isolation() {
     let (state,a,b)=setup().await;
@@ -845,19 +936,31 @@ async fn native_party_socket_join_deck_ready_and_isolation() {
     let (_,notice)=sb.read().await;assert_eq!(notice["Type"],"JoinPartyRes");
     let joined:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
     assert_eq!(joined["PartyInfo"]["PartyMembers"].as_array().unwrap().len(),2);
+    assert_eq!(joined["PartyInfo"]["Difficulty"], "2");
+    assert_eq!(joined["PartyInfo"]["PartyRoom"]["DungeonDifficulty"], "2");
+    assert_eq!(joined["PartyInfo"]["PartyRoom"]["DungeonType"], "1");
     assert_eq!(joined["PartyInfo"]["PartyMembers"][0]["DeckHeros"]["2"]["Level"],1);
     sb.send("MessageReq",json!({"RequestId":22,"ReceiverIds":[c.user_info.account_id],"Message":"PartyDeckHeroInfo {\"HeroIndex\":1,\"DeckIndex\":0,\"HeroInfo\":{\"HeroIndex\":1,\"Level\":999}}"})).await;
     assert_eq!(sb.read().await.1["Result"],"Success");
     assert_eq!(sa.read().await.1["Type"],"PartyRoomReady");
     let (_,notice)=sa.read().await;assert_eq!(notice["Type"],"PartyDeckHeroInfo");
     let deck:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(deck["HeroInfo"]["Level"],1);
-    sb.send("MessageReq",json!({"RequestId":23,"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
+    sb.send("MessageReq",json!({"RequestId":23,"Message":"PartyRoomReady {\"IsReady\":\"True\"}"})).await;
     assert_eq!(sb.read().await.1["Result"],"Success");assert_eq!(sa.read().await.1["Type"],"PartyRoomReady");
     sc.send("MessageReq",json!({"RequestId":24,"ReceiverIds":[a.user_info.account_id],"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
     assert_eq!(sc.read().await.1["Result"],"Fail");
     assert!(tokio::time::timeout(Duration::from_millis(100),sc.0.fill_buf()).await.is_err());
     let saved:String=sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='party_member' AND idx=?").bind(b.user_info.account_id).bind(room).fetch_one(&state.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()["IsBattleReady"],true);
+    sb.send("MessageReq",json!({"RequestId":26,"Message":"ChangePartyDungeonRoomInfo {\"IsResetSquard\":\"False\"}"})).await;
+    assert_eq!(sb.read().await.1["Result"],"Fail");
+    sa.send("MessageReq",json!({"RequestId":27,"Message":"ChangePartyDungeonRoomInfo {\"ChapterIndex\":999,\"Difficulty\":\"Hell\",\"IsResetSquard\":\"False\"}"})).await;
+    assert_eq!(sa.read().await.1["Result"],"Success");
+    let (_,notice)=sb.read().await;
+    assert_eq!(notice["Type"],"ChangePartyDungeonRoomInfo");
+    let room_update:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(room_update["ChapterIndex"],1);assert_eq!(room_update["Difficulty"],"2");
+    assert_eq!(room_update["DungeonType"],"1");assert_eq!(room_update["IsResetSquard"],false);
     let delegated=crate::api::battle::execute_request(&state,"party_dungeon/delegate_party_dungeon_room_master",form(&a,&format!("RoomNo={room}&PrevMasterId={}&CurMasterId={}",a.user_info.account_id,b.user_info.account_id))).await.unwrap();
     assert_eq!(delegated["Result"],"Success","{delegated}");
     assert_eq!(sa.read().await.1["Type"],"ChangePartyRoomMaster");sa.read().await;
@@ -910,6 +1013,21 @@ impl Socket {
         assert_eq!(value["Result"], "Success");
         socket
     }
+}
+
+#[tokio::test]
+async fn native_socket_party_chat_delivers_to_both_members() {
+    let (state,a,b)=setup().await;
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,2).await;
+    for client in [&mut sa,&mut sb] {client.send("PingReq",json!({"RequestId":1})).await;assert_eq!(client.read().await.0,"PingRes");}
+    sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'raid',?,'{}',0)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    for account in [a.user_info.account_id,b.user_info.account_id] {sqlx::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,?,0,0)").bind(account).execute(&state.db).await.unwrap();}
+    sa.send("MessageReq",json!({"RequestId":2,"GroupType":"None","ReceiverIds":[b.user_info.account_id],"Message":"PartyChat {\"Chat\":\"native party message\"}"})).await;
+    assert_eq!(sa.read().await.1["Result"],"Success");let own=sa.read().await;
+    assert_eq!(own.0,"MessageNot");assert_eq!(own.1["Type"],"PartyChat");assert_eq!(sb.read().await,own);
+    server.abort();
 }
 
 #[tokio::test]

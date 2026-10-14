@@ -7,6 +7,24 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static MethodDefinition SocketClosedCallback(TypeDefinition connector)
+    {
+        return connector.NestedTypes.SelectMany(t=>t.Methods).Single(m=>m.HasBody &&
+            m.Parameters.Count==2 && m.Parameters[1].ParameterType.FullName=="System.EventArgs" &&
+            m.Body.Instructions.Any(i=>i.Operand is MethodReference r &&
+                ((r.DeclaringType.FullName==connector.FullName && r.Name=="Reserve") ||
+                 (r.DeclaringType.Name=="SprkWebSocketTransport" && r.Name=="SessionClosed"))));
+    }
+    static void VerifyWebSocketLifecycle(string clientRoot)
+    {
+        var path=Path.Combine(Path.GetFullPath(clientRoot),"King's Raid_Data","Managed","Assembly-CSharp.dll");
+        using var game=AssemblyDefinition.ReadAssembly(path);
+        var callback=SocketClosedCallback(game.MainModule.GetType("NVespa.NSocket.SocketConnector"));
+        if(callback.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkWebSocketTransport" && r.Name=="SessionClosed")!=1 ||
+           callback.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="Close"))
+            throw new InvalidOperationException("Socket Closed must use the session-scoped guard.");
+        Console.WriteLine("Verified socket close callback cannot close a replacement session.");
+    }
     static void InstallWebSockets(string clientRoot, bool stageOnly, string? sourcePath = null)
     {
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
@@ -54,6 +72,16 @@ partial class Program
         var connect = helper.MainModule.Types.Single(t => t.Name == "SprkWebSocketTransport").Methods.Single(m => m.Name == "Connect");
         il.Append(Instruction.Create(OpCodes.Call, module.ImportReference(connect)));
         il.Append(Instruction.Create(OpCodes.Ret));
+        var closed=SocketClosedCallback(connector);
+        var owner=closed.DeclaringType.Fields.Single(f=>f.FieldType.FullName==connector.FullName);
+        closed.Body=new MethodBody(closed);
+        var closedIl=closed.Body.GetILProcessor();
+        closedIl.Append(Instruction.Create(OpCodes.Ldarg_0));
+        closedIl.Append(Instruction.Create(OpCodes.Ldfld,owner));
+        closedIl.Append(Instruction.Create(OpCodes.Ldarg_1));
+        var guard=helper.MainModule.Types.Single(t=>t.Name=="SprkWebSocketTransport").Methods.Single(m=>m.Name=="SessionClosed");
+        closedIl.Append(Instruction.Create(OpCodes.Call,module.ImportReference(guard)));
+        closedIl.Append(Instruction.Create(OpCodes.Ret));
         PatchChatSession(module);
         var staged = dll + ".websocket-staged";
         assembly.Write(staged);

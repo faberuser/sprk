@@ -173,7 +173,8 @@ pub(crate) async fn tickets(db: &mut SqliteConnection, s: &AppState, a: i64, cos
         "RechargeCount":0,"IsHide":false}))
 }
 pub(crate) async fn combat_buffs(db:&mut SqliteConnection,s:&AppState,a:i64)->Result<Value> {
-    let (g,_)=guild::membership(db,a).await?;let guild=guild::state(db,s,g).await?;
+    let g: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?").bind(a).fetch_optional(&mut *db).await?;
+    let guild = if let Some(g) = g { guild::state(db,s,g).await? } else { Value::Null };
     let skills=guild["SkillInfos"].as_array().into_iter().flatten().filter(|v|n(v,"EffectSkillIndex")>0)
         .map(|v|json!({"GuildSkillIndex":v["SkillIndex"],"GuildSkillLevel":v["GuildSkillLevel"],"SkillIndex":v["EffectSkillIndex"]})).collect::<Vec<_>>();
     let saved=crate::api::extensions::list(db,a,"class_buff").await?;

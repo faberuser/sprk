@@ -464,6 +464,79 @@ async fn locked_items_and_malformed_batches_cannot_be_sold() {
     );
 }
 #[tokio::test]
+async fn level_up_package_grants_both_ruby_entries_and_all_potions() {
+    let (state, u) = setup().await;
+    let package = 93008;
+    put(&state, &u, package, 2).await;
+    sqlx::query("UPDATE user_info SET gem=100,pay_gem=50 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+    for id in [40005, 40006, 40007, 40008, 40010] {
+        put(&state, &u, id, 0).await;
+    }
+    let opened = item::use_package_item(State(state.clone()), form(&u,
+        &format!("ItemIndex={package}&ItemCount=2"))).await.unwrap().0;
+    assert_eq!(opened["Result"], "Success");
+    let rewards = opened["RewardResults"].as_array().unwrap();
+    assert_eq!(rewards.len(), 2);
+    for reward in rewards {
+        let gems: i64 = reward["CurrencyResults"].as_array().unwrap().iter()
+            .filter(|r| r["CurrencyType"] == "Gem")
+            .map(|r| r["AddValue"].as_i64().unwrap()).sum();
+        assert_eq!(gems, 2000); // 330 in the currency fields + 1,670 in the drop list.
+        assert_eq!(reward["ItemResults"].as_array().unwrap().len(), 5);
+        assert!(reward["CurrencyResults"].as_array().unwrap().iter()
+            .any(|r| r["CurrencyType"] == "LuaPoint" && r["AddValue"] == 60));
+    }
+    assert_eq!(count(&state, &u, package).await, 0);
+    for (id, expected) in [(40005, 1000), (40006, 1000), (40007, 1000), (40008, 1100), (40010, 1100)] {
+        assert_eq!(count(&state, &u, id).await, expected);
+    }
+    let balances: (i64, i64) = sqlx::query_as("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(balances, (4100, 50));
+}
+
+#[tokio::test]
+async fn packages_grant_gold_and_mileage_from_drop_lists() {
+    let (state, u) = setup().await;
+    for (package, expected) in [(94067, vec![("Gold", 100000000)]),
+        (93999, vec![("Gem", 10000), ("Mileage", 1000)])] {
+        put(&state, &u, package, 1).await;
+        let opened = item::use_package_item(State(state.clone()), form(&u,
+            &format!("ItemIndex={package}&ItemCount=1"))).await.unwrap().0;
+        assert_eq!(opened["Result"], "Success", "package {package}");
+        let currencies = opened["RewardResults"][0]["CurrencyResults"].as_array().unwrap();
+        for (kind, amount) in expected {
+            assert!(currencies.iter().any(|r| r["CurrencyType"] == kind && r["AddValue"] == amount),
+                "package {package}: {currencies:?}");
+        }
+        assert_eq!(count(&state, &u, package).await, 0);
+    }
+    let balances: (i64, i64, i64) = sqlx::query_as("SELECT gold,gem,mileage FROM user_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    // Package 93999 also has 15,000 rubies in its fixed currency fields.
+    assert_eq!(balances, (200000000, 125000, 1000));
+}
+
+#[tokio::test]
+async fn package_currency_overflow_rolls_back_all_rewards_and_consumption() {
+    let (state, u) = setup().await;
+    put(&state, &u, 93008, 1).await;
+    sqlx::query("UPDATE user_info SET gem=2147483547 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+    let opened = item::use_package_item(State(state.clone()),
+        form(&u, "ItemIndex=93008&ItemCount=1")).await.unwrap().0;
+    assert_ne!(opened["Result"], "Success");
+    assert_eq!(count(&state, &u, 93008).await, 1);
+    let gem: i64 = sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(gem, 2147483547);
+    let lua: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='LuaPoint'),0)")
+        .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(lua, 0);
+}
+
+#[tokio::test]
 async fn package_claim_rolls_back_on_missing_reward_data() {
     let (mut state, u) = setup().await;
     let id = *state.tables.inventory.packages.keys().next().unwrap();

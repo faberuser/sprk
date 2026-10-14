@@ -9,6 +9,10 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--verify-websocket-lifecycle")) { VerifyWebSocketLifecycle(args[0]); return; }
+            if (args.Contains("--raid-social-only")) { InstallRaidSocial(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-raid-social")) { VerifyRaidSocialFile(args[0]); return; }
+            if (args.Contains("--verify-conquest-replay")) { VerifyConquestReplay(args[0]); return; }
             if (args.Contains("--awaken-delay-only")) { InstallAwakenDelay(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--completion-banners-only")) { InstallCompletionBanners(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }
@@ -121,6 +125,7 @@ namespace DllPatcher
                 PatchBattleEntry(module);
                 PatchAwakenDelay(module);
                 PatchCompletionBanners(module);
+                PatchRaidSocial(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)
                 {
