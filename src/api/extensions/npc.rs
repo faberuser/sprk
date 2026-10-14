@@ -17,8 +17,8 @@ pub(super) async fn execute(
     if rows.is_empty() {
         return Err(rule("NPCNotFound"));
     }
-    // Seasonal NPC gifts use their event service, which is outside ordinary friendship.
-    if !((90..=99).contains(&id) || id == 111 || id == 805) {
+    let episode = crate::api::episodes::require_npc(state, id)?;
+    if !episode && !((90..=99).contains(&id) || id == 111 || id == 805) {
         return Err(rule("NPCNotFound"));
     }
     let mut info = get(db, account, "npc", id).await?;
@@ -26,11 +26,17 @@ pub(super) async fn execute(
         info = json!({"HeroIndex":id,"Step":1,"FriendlyPoint":0,"EndRewardCount":0});
     }
     let step = n(&info, "Step");
+    let max = rows.iter().map(|r| n(r, "Step")).max().unwrap();
     let row = rows
         .iter()
         .find(|r| n(r, "Step") == step)
         .copied()
         .ok_or_else(|| rule("MaxFriendlyPoint"))?;
+    // Reject an exhausted limited final reward before consuming gifts or granting loot.
+    if step == max && n(row, "EndRewardRepeatCount") > 0 &&
+        n(&info, "EndRewardCount") >= n(row, "EndRewardRepeatCount") {
+        return Err(rule("MaxFriendlyPoint"));
+    }
     let needed: i64 = rows
         .iter()
         .filter(|r| n(r, "Step") <= step)
@@ -47,7 +53,7 @@ pub(super) async fn execute(
         {
             return Err(rule("InvalidItemCount"));
         }
-        let mut points = 0;
+        let mut points: i64 = 0;
         let mut consumed = vec![];
         for (item, count) in items.into_iter().zip(counts) {
             let gift = super::row(state, "NPCFriendlyPointItem", &[("ItemIndex", item)])?;
@@ -64,7 +70,10 @@ pub(super) async fn execute(
             {
                 return Err(rule("InvalidItem"));
             }
-            points += n(gift, "FriendlyPoint") * count;
+            points = n(gift, "FriendlyPoint").checked_mul(count)
+                .and_then(|value| points.checked_add(value))
+                .filter(|value| *value > 0 && *value <= i32::MAX as i64)
+                .ok_or_else(|| rule("InvalidItemCount"))?;
             consumed.push(item::consume(db, account, item as i32, count as i32).await?);
         }
         let new = n(&info, "FriendlyPoint")
@@ -83,7 +92,6 @@ pub(super) async fn execute(
         if req.number("Step", 0)? != step || n(&info, "FriendlyPoint") < needed {
             return Err(rule("NotEnoughFriendlyPoint"));
         }
-        let max = rows.iter().map(|r| n(r, "Step")).max().unwrap();
         let mut rewards = Rewards::default();
         item::reward(
             db,

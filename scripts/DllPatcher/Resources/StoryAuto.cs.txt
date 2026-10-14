@@ -51,6 +51,9 @@ public static class SprkStoryAuto
 
     public static bool IsStoryRoute(EnterDungeonData enter)
     {
+        if (enter != null && IsScarlet2(enter.Chapter, enter.OriginalDungeon))
+            return (enter.Difficulty == DungeonDifficultyType.Easy || enter.Difficulty == DungeonDifficultyType.Normal) &&
+                enter.LinkedDungeonData != null && enter.LinkedDungeonData.BattleType == BattleType.SubStory;
         return enter != null && (enter.Difficulty == DungeonDifficultyType.Normal ||
             (IsCaveBattle(enter.Chapter, enter.OriginalDungeon) && enter.Difficulty == DungeonDifficultyType.Easy)) &&
             enter.LinkedDungeonData != null && IsStoryType(enter.LinkedDungeonData.BattleType);
@@ -61,12 +64,19 @@ public static class SprkStoryAuto
         return chapter == 117 && (dungeon == 3 || dungeon == 4);
     }
 
+    static bool IsScarlet2(int chapter, int dungeon)
+    {
+        // Scarlet 2 is the required substory between 9-13 and 9-14.
+        return chapter == 9 && dungeon == 51;
+    }
+
     public static DungeonDifficultyType NextDifficulty(DungeonDifficultyType difficulty, CampaignDungeonData next)
     {
-        // The cave has only Easy. The surrounding story remains Normal; retain
+        // Scripted detours use Easy. The surrounding story remains Normal; retain
         // native difficulty checks using the actual destination's mode.
         return Active() && next != null ?
-            (IsCaveBattle(next.ChapterIndex, next.DungeonIndex) ? DungeonDifficultyType.Easy : DungeonDifficultyType.Normal) : difficulty;
+            (IsCaveBattle(next.ChapterIndex, next.DungeonIndex) || IsScarlet2(next.ChapterIndex, next.DungeonIndex) ?
+                DungeonDifficultyType.Easy : DungeonDifficultyType.Normal) : difficulty;
     }
 
     public static bool IsStoryType(BattleType type)
@@ -87,6 +97,8 @@ public static class SprkStoryAuto
 
     public static bool ShowChoice(EnterDungeonData enter)
     {
+        // Scarlet 2 is entered only by an existing main-story run.
+        if (enter != null && IsScarlet2(enter.Chapter, enter.OriginalDungeon)) return false;
         if (!IsStory(enter)) return false;
         BattlePartySetting party = null;
         foreach (var candidate in UnityEngine.Object.FindObjectsOfType<BattlePartySetting>())
@@ -193,11 +205,18 @@ public static class SprkStoryAuto
     {
         // Completion changes IsScenarioReplay, so use the route at reward time.
         if (!IsStoryRoute(enter) || MainStoryManagement.IsPlayMainStoryMode) return null;
+        // Finish Chapter 9 here even if Chapter X is already unlocked. Players
+        // handle the epilogue and Chapter 9.5, then start a new run at 10-1.
+        if (enter.Chapter == 9 && enter.OriginalDungeon == 23) return null;
         var current = enter.OriginalDungeonData;
         if (current == null || current.NextDungeonIndex == current.DungeonIndex) return null;
         CampaignDungeonData next = null;
         var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
-        if (enter.Chapter == 7 && enter.OriginalDungeon == 6) {
+        if (enter.Chapter == 9 && enter.OriginalDungeon == 13) {
+            next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(9, manager.IsCompleted(9, 51) ? 14 : 51);
+        } else if (enter.Chapter == 9 && enter.OriginalDungeon == 51) {
+            next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(9, 14);
+        } else if (enter.Chapter == 7 && enter.OriginalDungeon == 6) {
             // This boss ends the ordinary route but not Chapter 7. The first
             // cave visit has a real battle and then the native scripted battle.
             next = !manager.IsCompleted(117, 3) ? GameRoot.Instance.CampaignDungeonDataContainer.GetData(117, 3) :
@@ -217,7 +236,8 @@ public static class SprkStoryAuto
                 chapter == null || chapter.Type != ChapterType.WorldMap) return null;
             next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(enter.Chapter + 1, 1);
         }
-        if (next == null || !IsStoryType(next.BattleType)) return null;
+        if (next == null || !(IsStoryType(next.BattleType) ||
+            (IsScarlet2(next.ChapterIndex, next.DungeonIndex) && next.BattleType == BattleType.SubStory))) return null;
         return manager.CanGoToChapter(next.ChapterIndex) &&
             (manager.CanVisit(next.ChapterIndex, next.DungeonIndex) || IsCaveExit(next)) ? next : null;
     }
@@ -268,6 +288,9 @@ public static class SprkStoryAuto
         // Native story events can complete 117-4 before its queued party opens.
         if (pendingNext.Chapter == 117 && pendingNext.OriginalDungeon == 4 && manager.IsCompleted(117, 4))
             QueueNext(GameRoot.Instance.CampaignDungeonDataContainer.GetData(7, 7));
+        if (IsScarlet2(pendingNext.Chapter, pendingNext.OriginalDungeon) &&
+            manager.IsCompleted(pendingNext.Chapter, pendingNext.OriginalDungeon))
+            QueueNext(GameRoot.Instance.CampaignDungeonDataContainer.GetData(9, 14));
         if (!manager.CanGoToChapter(pendingNext.Chapter) || GlobalAutoBehaviour<AccountManager>.instance.IsMaxEquipItemCount()) { Stop(); return; }
         if (!manager.CanVisit(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
             if (pendingNext.Chapter == 7 && pendingNext.OriginalDungeon == 7 && manager.IsCompleted(117, 3)) {
@@ -284,6 +307,17 @@ public static class SprkStoryAuto
             return;
         }
         if (NGame2.NAccount.UserCampaignManager.ChapterIndex != pendingNext.Chapter || Time.realtimeSinceStartup < resumeAfter) return;
+        if (IsScarlet2(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
+            // Scarlet 2 starts directly from its map action.
+            // Opening ordinary campaign party setup would lose its forced hero.
+            if (!openingNextParty && NGame2.NAccount.UserCampaignManager.DungeonIndex == pendingNext.OriginalDungeon &&
+                SceneAutoBehaviour<LobbyManagement>.isValidInstance) {
+                openingNextParty = true;
+                lastProgress = Time.realtimeSinceStartup;
+                SceneAutoBehaviour<LobbyManagement>.instance.ExecuteCurrentNode(null);
+            }
+            return;
+        }
         if (pendingNext.Chapter == 117 && pendingNext.OriginalDungeon == 4 &&
             NGame2.NAccount.UserCampaignManager.DungeonIndex == 4 &&
             NGame2.NAccount.Helper.HasEventTrigger(117, 4) && SceneAutoBehaviour<LobbyManagement>.isValidInstance) {
@@ -322,6 +356,7 @@ public static class SprkStoryAuto
     static bool HasScriptedParty(BattlePartySetting.IDataProvider provider)
     {
         var enter = provider.GetEnterDungeon();
+        if (IsScarlet2(enter.Chapter, enter.OriginalDungeon)) return true;
         var forced = provider.GetForcedPartyMemberHeroIndices();
         return (forced != null && forced.Length > 0) ||
             NGame2.NAccount.Helper.CheckFixedSetHero(enter.Chapter, enter.LinkedDungeon, enter.Difficulty, enter.IsScenario);
@@ -445,7 +480,7 @@ public static class SprkStoryAuto
         return true;
     }
 
-    static bool AcknowledgeStoryNarration(CutSceneManager cutscene)
+    static bool AcknowledgeStoryNarration(CutSceneManager cutscene, bool hideOnly = true)
     {
         // Illustrated narration (9-9's campfire, for example) hides Skip and
         // forwards each tap to ForegroundTextList rather than DisplayText.
@@ -453,7 +488,7 @@ public static class SprkStoryAuto
         // another script's click callback or bypass a timed/interactive group.
         var group = cutscene.CurrentScriptGroup;
         var foreground = cutscene.CutSceneForeground;
-        if (group == null || group.SkipType != ScriptGroup.ESkipType.StopThisAndHide ||
+        if (group == null || (hideOnly && group.SkipType != ScriptGroup.ESkipType.StopThisAndHide) ||
             group.TouchType != ScriptGroup.ETouchType.PassToScript ||
             foreground == null || !foreground.IsOpen() || !foreground.gameObject.activeInHierarchy) return false;
         NGame2.NCutScene.NScript.ForegroundTextList narration = null;
@@ -491,6 +526,51 @@ public static class SprkStoryAuto
         return false;
     }
 
+    static bool AcknowledgeForegroundCard(CutSceneManager cutscene)
+    {
+        // Single-screen narration (after 9-22) uses ForegroundText and a normal
+        // group touch, unlike ForegroundTextList's per-line script callback.
+        var group = cutscene.CurrentScriptGroup;
+        var foreground = cutscene.CutSceneForeground;
+        if (group == null || group.SkipType != ScriptGroup.ESkipType.StopThisAndHide ||
+            group.TouchType != ScriptGroup.ETouchType.Touch ||
+            foreground == null || !foreground.IsOpen() || !foreground.gameObject.activeInHierarchy) return false;
+        bool hasCard = false;
+        foreach (var holder in group.ScriptList) {
+            var script = holder.Value;
+            if (script is NGame2.NCutScene.NScript.ForegroundText) hasCard = true;
+            else if (script != null && !script.IsEnd && script is IClickScript) return false;
+        }
+        if (!hasCard) return false;
+        cutscene.OnClickWindow();
+        return group.IsEnd;
+    }
+
+    static bool AcknowledgeCampaignTouch(CutSceneManager cutscene)
+    {
+        // Scarlet 2 and Chapter X have noninteractive cutscene pauses that
+        // require native window touches when Skip is hidden or disabled.
+        string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (scene != "Lobby" && scene != "Battle2") return false;
+        var route = pendingNext;
+        if (route == null && scene == "Battle2") route = SingletonAuto<CampaignContext>.instance.EnterDungeon;
+        if (route == null || !(IsScarlet2(route.Chapter, route.OriginalDungeon) || route.Chapter == 10)) return false;
+        var group = cutscene.CurrentScriptGroup;
+        if (group == null) return false;
+        if (group.TouchType == ScriptGroup.ETouchType.PassToScript)
+            return AcknowledgeStoryNarration(cutscene, false);
+        if (group.TouchType != ScriptGroup.ETouchType.Touch && group.TouchType != ScriptGroup.ETouchType.TouchAndTouch &&
+            group.TouchType != ScriptGroup.ETouchType.TimeoutOrTouch) return false;
+        var window = cutscene.CutSceneWindow;
+        var foreground = cutscene.CutSceneForeground;
+        if (!(window != null && window.IsOpen() && window.gameObject.activeInHierarchy) &&
+            !(foreground != null && foreground.IsOpen() && foreground.gameObject.activeInHierarchy)) return false;
+        foreach (var holder in group.ScriptList)
+            if (holder.Value != null && !holder.Value.IsEnd && holder.Value is IClickScript) return false;
+        cutscene.OnClickWindow();
+        return group.IsEnd;
+    }
+
     public static void Tick()
     {
         if (Time.realtimeSinceStartup < nextTick) return;
@@ -518,14 +598,19 @@ public static class SprkStoryAuto
             foreach (var cutscene in UnityEngine.Object.FindObjectsOfType<CutSceneManager>()) {
                 if (!cutscene.IsPlaying && !cutscene.IsLoading) continue;
                 storyPlaying = true;
-                if (!cutscene.IsPlaying || !cutscene.IsShowing() || !(bool)cutsceneSkippable.GetValue(cutscene)) continue;
+                if (!cutscene.IsPlaying || !cutscene.IsShowing()) continue;
+                if (!(bool)cutsceneSkippable.GetValue(cutscene)) {
+                    if (AcknowledgeCampaignTouch(cutscene)) lastProgress = Time.realtimeSinceStartup;
+                    continue;
+                }
                 var menu = cutscene.CutSceneMenu;
                 // A visible Skip can advance part of a story even when a later
                 // group must play. The native click stops at those boundaries
                 // and finalizes script effects; CanSkipToEnd blocks too early.
                 if (menu == null || !menu.IsOpen() || menu.SkipButton == null) continue;
                 if (!menu.SkipButton.gameObject.activeInHierarchy) {
-                    if (AcknowledgeStoryNarration(cutscene) || AcknowledgeStoryDialogue(cutscene)) lastProgress = Time.realtimeSinceStartup;
+                    if (AcknowledgeStoryNarration(cutscene) || AcknowledgeStoryDialogue(cutscene) ||
+                        AcknowledgeForegroundCard(cutscene) || AcknowledgeCampaignTouch(cutscene)) lastProgress = Time.realtimeSinceStartup;
                     continue;
                 }
                 if (!menu.SkipButton.isEnabled) continue;

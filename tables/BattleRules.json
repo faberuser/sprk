@@ -3,6 +3,7 @@
   "BattleExpirySeconds": 14400,
   "RaiderExpPerStamina": 200,
   "EnableLegacyFieldRaids": true,
+  "EnablePieceOfMemoryEpisodes": true,
   "DispatchSecondsPerBattle": 60,
   "DispatchMaxRepeat": 200,
   "DispatchMaxSlots": 5,

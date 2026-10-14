@@ -329,6 +329,19 @@ pub(crate) mod tests {
         let guest=login(&s,"roster-guest").await;
         let host_id=host["UserInfo"]["AccountId"].as_i64().unwrap();
         let guest_id=guest["UserInfo"]["AccountId"].as_i64().unwrap();
+        if !dragon {
+            // This test exercises large valid joins, so both users must have
+            // earned chapter 9 and its selected stage before the join begins.
+            let chapter=s.tables.battle.find("CampaignChapter",&[("Index",9)]).unwrap();
+            let mut clears=vec![(chapter["ReqChapterIndex"].as_i64().unwrap(),chapter["ReqDungeonIndex"].as_i64().unwrap())];
+            clears.extend(s.tables.battle.rows("CampaignDungeon").iter()
+                .filter(|d|d["ChapterIndex"]==9 && d["NextDungeonIndex"]==8)
+                .map(|d|(9,d["DungeonIndex"].as_i64().unwrap())));
+            for account in [host_id,guest_id] {for (c,d) in &clears {
+                crate::api::battle::put(&mut s.db.acquire().await.unwrap(),account,"dungeon",(c<<32)|d,
+                    &json!({"ChapterIndex":c,"DungeonIndex":d,"FirstRewardedDiff":2})).await.unwrap();
+            }}
+        }
         for hero in 1..=3 {
             sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
                 .bind(host_id).bind(hero).bind(hero).execute(&s.db).await.unwrap();

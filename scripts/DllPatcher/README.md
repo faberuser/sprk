@@ -1,5 +1,12 @@
 # DLL patcher
 
+`--party-join-unlock-only` preserves the installed assembly and adds the
+`DungeonLocked` result to chat, dragon and story party joins. Locked guests see
+an unlock explanation while native join cleanup still closes the waiting popup.
+Use `--verify-party-join-unlock` to inspect the installed patch and
+`--self-test-party-join-unlock` to exercise its production message IL, fallback
+behavior and repeat installation. Server join checks remain authoritative.
+
 `Program.cs` handles arguments, assembly loading, patch order, and output installation.
 Patch implementations are partial members of `Program` under `Patches/`:
 
@@ -32,7 +39,7 @@ battles with one host Start Battle click each before publishing the update.
 | `AppReview.cs` | Disables automatic and forced app-store review prompts |
 | `TrialHeroReward.cs` | Prevents hero recruitment animation after awakening/transcendence trial rewards |
 | `AdventureUnlocks.cs` | Honors Portal tutorial skip and saved automatic dungeon milestones for mission categories |
-| `StoryAuto.cs` | Opt-in Normal campaign progression, native story skipping, and automatic skills |
+| `StoryAuto.cs` | Opt-in campaign progression through required story gates, native story skipping, and automatic skills |
 | `VoiceLanguage.cs` | Keeps the 4K screen-resolution filter from hiding Japanese character voices |
 | `ShopCatalog.cs` | Connects Hot & New to featured products delivered by the server |
 | `AccessoryShopDuplicates.cs` | Removes repeated accessory IDs from Dressing Room shop lists |
@@ -82,7 +89,7 @@ preserves the startup sequence and the original animated background.
 
 ## Continuous Story
 
-Uncleared Normal campaign and boss party setup now offers **Battle Once** and
+Uncleared Normal campaign/boss stages offer **Battle Once** and
 **Continuous Story** after Start Battle. Eligibility uses the original map node's
 saved clear status, including entries without a scenario. Cleared stages keep the
 native **Select Battle** popup with **Continuous Battle**, **Auto Repeat**, and
@@ -118,6 +125,20 @@ to unlock 7-7 in the same session. This request never precedes either real clear
 Completed cave battles are omitted from the detour. Native tutorial-step progress
 refreshes the inactivity timer without bypassing unlock conditions.
 
+Chapter 9 also follows its required Scarlet 2 bridge: 9-13 enters substory node
+9-51 in Easy mode, then resumes 9-14 in Normal mode after its real clear unlocks
+bridge 9-113. The substory keeps its scripted Kasel party; the player's selected
+team resumes on the main route. If Scarlet 2 is already complete, 9-13 proceeds
+directly to 9-14. Optional substories keep their existing behavior.
+
+Continuous Story stops after completing 9-23, even when Chapter X is already
+unlocked. Players complete the Chapter 9 epilogue and Chapter 9.5 manually, then
+can choose Continuous Story again at uncleared 10-1. Chapter X continues in its
+native Normal mode, including 10-1 to 10-2, and restores the run's selected team
+where the stage permits it. Unlock and entry checks remain native.
+The Chapter 9.5 route and its lobby-event reward acknowledgement have been
+removed from the helper. Its only automated substory is Scarlet 2.
+
 Choosing Continuous Story initializes its own Unity update loop and native
 tutorial manager, queues entry until the choice popup closes, and keeps processing
 while the game is in the background. This also applies to normal launcher and
@@ -128,15 +149,21 @@ Cutscene skipping follows the visible native Skip button, including stories whos
 later groups cannot be skipped all at once. Native Skip stops at required script
 groups and runs their finalization effects. Dialogue groups that explicitly hide
 Skip and wait for a normal tap (such as 6-6) receive the native dialogue touch,
-allowing Skip to appear afterward. Timed/script-controlled groups and disabled
-Skip buttons retain their native behavior; actual script advancement resets the
-inactivity timer.
+allowing Skip to appear afterward. Timed and interactive groups retain their
+native behavior. Scarlet 2 and Chapter X also acknowledge noninteractive dialogue
+when Skip is disabled;
+actual script advancement resets the inactivity timer.
 
 Illustrated narration that hides Skip and forwards taps to `ForegroundTextList`
 (including the campfire after 9-9) advances through the native window tap path.
 Each line keeps its normal effects and finalization. This applies only during
 Continuous Story and refuses groups with other interactive click scripts; manual
 story playback still waits for taps.
+
+Single-screen foreground narration that hides Skip and waits for a group touch
+(including the card after 9-22) receives one native window tap during Continuous
+Story. This finalizes the group's effects and lets Skip appear on the next group.
+Timed groups and other interactive click scripts retain their normal behavior.
 
 Informational battle tutorials with no Skip button, such as the 4-21 boss-warning
 lesson, acknowledge native one-shot `WaitTouch` callbacks. Their remaining script
@@ -145,7 +172,7 @@ battle and does not dispatch arbitrary widget clicks or long presses.
 
 The patch preserves tutorial script effects and protected cutscene groups. It
 does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
-preferences. Story replay, sub-stories, raids, and repeat farming keep their
+preferences. Story replay, optional sub-stories, raids, and repeat farming keep their
 existing behavior. Full patching includes this feature; to update it alone:
 
 ```powershell

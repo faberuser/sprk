@@ -55,7 +55,9 @@ pub async fn handle(
     axum::extract::OriginalUri(uri): axum::extract::OriginalUri,
     body: Bytes,
 ) -> Result<Json<Value>> {
-    let req = if uri.path().starts_with("/valance/") {
+    let req = if uri.path() == "/npc/give_gift_item" {
+        Request::parse_with_integer_arrays(&body, &["ItemIndices", "ItemCount"])?
+    } else if uri.path().starts_with("/valance/") {
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices", "SelectEquipOptionIndices"])?
     } else if uri.path() == "/equip/break_equip" {
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices"])?

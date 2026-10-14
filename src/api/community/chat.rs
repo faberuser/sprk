@@ -305,15 +305,27 @@ async fn send_chat(
         "ChannelChat" => "Channel",
         "GuildChat" => "Guild",
         "WhisperChat" => "None",
-        "PartyChat" => "Party",
+        "PartyChat" | "PartyMemberEmoti" => "Party",
         _ => return Err(ServerError::InvalidRequest("Unsupported chat type".into())),
     };
     let text = content["Chat"].as_str().unwrap_or("").trim();
     let emoticon = integer(&content["EmoticonIndex"]).unwrap_or(0);
+    let callout = if protocol == "PartyMemberEmoti" {
+        Some(match content["Emoti"].as_str() {
+            Some("Attack") => "Attack",
+            Some("Heal") => "Heal",
+            Some("Cc") => "Cc",
+            Some("Defense") => "Defense",
+            _ => match integer(&content["Emoti"]) {
+                Some(1) => "Attack", Some(2) => "Heal", Some(3) => "Cc", Some(4) => "Defense",
+                _ => return Err(ServerError::InvalidRequest("Invalid battle callout".into())),
+            },
+        })
+    } else { None };
     if !content.is_object()
-        || text.chars().count() > MAX_TEXT
-        || (text.is_empty() && emoticon <= 0)
-        || text.chars().any(|c| c.is_control())
+        || (callout.is_none() && (text.chars().count() > MAX_TEXT
+            || (text.is_empty() && emoticon <= 0)
+            || text.chars().any(|c| c.is_control())))
     {
         return Err(ServerError::InvalidRequest("Invalid chat message".into()));
     }
@@ -340,13 +352,19 @@ async fn send_chat(
         return Err(ServerError::InvalidRequest("Invalid recipient".into()));
     }
     // Identity, timing and privileges are always server-owned.
-    content["Chat"] = json!(clean);
+    if let Some(callout) = callout {
+        // Native battle buttons emit a distinct protocol, rather than text or
+        // sticker chat. Keep its identity and destination server-owned too.
+        content = json!({"ChatType":"Party","Emoti":callout,"ReceiverId":0,"ReceiverName":""});
+    } else {
+        content["Chat"] = json!(clean);
+        content["AdminLevel"] = json!(0);
+        content["ChatIconList"] = json!([]);
+        content["SendTime"] = json!(state.server_time_str());
+    }
     content["SenderName"] = json!(user.get::<String, _>("nick"));
     content["SenderAvatarIndex"] = json!(user.get::<i32, _>("avatar_hero_index"));
     content["SenderTeamLevel"] = json!(user.get::<i32, _>("team_level"));
-    content["AdminLevel"] = json!(0);
-    content["ChatIconList"] = json!([]);
-    content["SendTime"] = json!(state.server_time_str());
     content["ReceiverId"] = json!(if group == "None" { target } else { 0 });
     content["ReceiverName"] = json!(target_name.unwrap_or_default());
     let mut tx = state.db.begin().await?;
@@ -374,7 +392,7 @@ async fn send_chat(
         // Client-supplied stats and item identity are replaced by owned equipment.
         verified.push(json!({"MaxEquipLevel":0,"EquipItemInfo":eq}));
     }
-    content["LinkedItem"] = json!(verified);
+    if callout.is_none() {content["LinkedItem"] = json!(verified);}
     let recent: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM chat_messages WHERE sender_id = ? AND created_at > datetime('now', '-2 seconds')")
         .bind(account).fetch_one(&mut *tx).await?;
     if recent >= 3 {

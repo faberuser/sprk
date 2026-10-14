@@ -29,10 +29,13 @@ pub(crate) async fn begin_party(
         let (raw,out) = saved.ok_or_else(|| rule("AlreadyOnBattleHero"))?;
         let mut entry: Value = read_json(&raw)?;
         let mut out: Value = read_json(&out)?;
+        if entry["CoopCancelled"] == true { return Err(rule("NotCompletedBattle")); }
         if campaign::difficulty(r)? != n(&entry,"DungeonDifficulty") {
             return Err(rule("InvalidDiff"));
         }
-        let use_stamina = boolean(r,"UseStamina",true)?;
+        // Only story parties expose Resource Spent. Dragon parties leave the
+        // native member flag false even though their start button shows a cost.
+        let use_stamina = family == "raid" || boolean(r,"UseStamina",true)?;
         if entry["PartyResourceChoicePending"] == true {
             let heroes = ids(r,"HeroIndices",32)?;
             let expected: Vec<i64> = read_value(entry["Heroes"].clone())?;
@@ -66,7 +69,9 @@ pub(crate) async fn begin_party(
     if a != master || n(&room, "Status") != 0 {
         return Err(rule("WrongMember"));
     }
-    if !boolean(r,"UseStamina",true)? { return Err(rule("InvalidValue")); }
+    if family != "raid" && !boolean(r,"UseStamina",true)? {
+        return Err(rule("InvalidValue"));
+    }
     let def = if family == "raid" {
         let def = row(
             s,
@@ -264,6 +269,7 @@ pub(crate) async fn begin_party(
             sent: BTreeSet::new(),
             departed: BTreeSet::new(),
             offline: BTreeSet::new(),
+            cancelled: BTreeSet::new(),
             logs: vec![],
             pending_actions: vec![],
             result: None,
@@ -287,18 +293,20 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
         .execute(&mut *db)
         .await?;
     for account in &run.members {
+        // Provisional guests can start another battle after cancellation. Their
+        // new entry must never be read or settled as part of this old run.
+        if run.cancelled.contains(account) { continue; }
         let (completed, raw): (i64, String) =
             sqlx::query_as("SELECT completed,entry FROM battle_runs WHERE account=?")
                 .bind(account)
                 .fetch_one(&mut *db)
                 .await?;
         let entry: Value = read_json(&raw)?;
-        if entry["CoopRunId"] != run.id || entry["CoopCharged"] != true
+        if entry["CoopRunId"] != run.id { return Err(rule("InvalidValue")); }
+        if completed != 0 { continue; }
+        if entry["CoopCharged"] != true
             || entry["PartyResourceChoicePending"] == true {
             return Err(rule("InvalidValue"));
-        }
-        if completed != 0 {
-            continue;
         }
         let alive: Vec<_> = creatures
             .iter()
@@ -390,6 +398,153 @@ mod tests {
             &format!("AccountIds=[{}]",account(&users[0])),
             &format!("AccountIds=[{}]",account(&users[1]))))
     }
+    #[tokio::test]
+    async fn story_and_dragon_departures_release_initial_and_later_wave_barriers() {
+        for dragon in [false,true] {
+            for (before_enter,leave_wave,leaving_host) in [(false,1,false),(true,1,false),(false,2,false),(false,2,true)] {
+                let (s,users,mut args)=fixture().await;let mut worker=attach_worker(&s).await;
+                if dragon {
+                    sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+                    sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+                    args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds=[{},{}]&HeroIndices=[1]&AccountIds=[{}]",account(&users[0]),account(&users[0]),account(&users[1]),account(&users[0]));
+                }
+                assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
+                if !before_enter {assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success");}
+                let id=s.conquest.runs.iter().next().unwrap().key().clone();
+                let mut receivers=vec![];
+                for user in &users {
+                    let a=account(user);let (tx,rx)=mpsc::channel(100);
+                    s.conquest.peers.insert(a,Peer{id:a.to_string(),run:id.clone(),sender:tx});receivers.push(rx);
+                }
+                for (i,user) in users.iter().enumerate() {
+                    if i==1 && before_enter {continue;}
+                    let tx=s.conquest.peers.get(&account(user)).unwrap().sender.clone();
+                    player_packet(&s,account(user),"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+                }
+                if !before_enter {assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");}
+                let host=account(&users[0]);let guest=account(&users[1]);
+                let host_tx=s.conquest.peers.get(&host).unwrap().sender.clone();
+                player_packet(&s,host,"BattleStartReq",json!({"RequestId":2}),&host_tx).await.unwrap();
+                assert!(worker.try_recv().is_err());
+                if leave_wave==2 {
+                    let guest_tx=s.conquest.peers.get(&guest).unwrap().sender.clone();
+                    player_packet(&s,guest,"BattleStartReq",json!({"RequestId":2}),&guest_tx).await.unwrap();
+                    assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+                    worker_packet(&s,"party-worker","WorkerPacket",json!({"RunId":id,"Name":"WaveReadyNot","Body":{"WaveIndex":2}})).await.unwrap();
+                    let survivor=if leaving_host {guest}else{host};let tx=s.conquest.peers.get(&survivor).unwrap().sender.clone();
+                    player_packet(&s,survivor,"BattleStartReq",json!({"RequestId":3}),&tx).await.unwrap();
+                    assert!(worker.try_recv().is_err());
+                }
+                let leave_path=if dragon {"raid/leave_raid_room"}else{"party_dungeon/leave_party_dungeon_room"};
+                let leaving=if leaving_host {0}else{1};
+                assert_eq!(call(&s,&users[leaving],leave_path,"RoomNo=1").await["Result"],"Success");
+                if before_enter {assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");}
+                assert_eq!(worker.recv().await.unwrap().0,"WorkerWithdraw");assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+                room_departed(&s,account(&users[leaving]),1).await.unwrap();assert!(worker.try_recv().is_err(),"Repeated departure is harmless");
+                let survivor=if leaving_host {guest}else{host};let survivor_tx=s.conquest.peers.get(&survivor).unwrap().sender.clone();
+                for wave in [leave_wave+1,leave_wave+2] {
+                    worker_packet(&s,"party-worker","WorkerPacket",json!({"RunId":id,"Name":"WaveReadyNot","Body":{"WaveIndex":wave}})).await.unwrap();
+                    player_packet(&s,survivor,"BattleStartReq",json!({"RequestId":wave+3}),&survivor_tx).await.unwrap();
+                    assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");assert!(worker.try_recv().is_err());
+                }
+                let replacement=if before_enter {
+                    // A cancelled guest may enter a solo battle while the party
+                    // continues; the old result must leave that entry intact.
+                    assert_eq!(call(&s,&users[1],"campaign/begin_campaign","ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[2]").await["Result"],"Success");
+                    Some(sqlx::query_scalar::<_,String>("SELECT run_id FROM battle_runs WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap())
+                }else{None};
+                worker_packet(&s,"party-worker","WorkerResult",json!({"RunId":id,"Win":true,"Creatures":[{"TeamId":0,"AccountId":host,"Index":1,"Hp":10},{"TeamId":0,"AccountId":guest,"Index":2,"Hp":10}],"TimeMs":10000,"MaxWaveIndex":3})).await.unwrap();
+                if let Some(replacement)=replacement {
+                    let (saved,completed):(String,i64)=sqlx::query_as("SELECT run_id,completed FROM battle_runs WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap();
+                    assert_eq!(saved,replacement);assert_eq!(completed,0);
+                    assert_eq!(call(&s,&users[1],"campaign/end_campaign","ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=false").await["Result"],"Success");
+                }
+                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),0);
+                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+                if before_enter {
+                    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM service_results WHERE account=?").bind(guest).fetch_one(&s.db).await.unwrap(),0,"An unconfirmed guest receives no settlement rewards");
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn room_settings_update_route_notify_guests_and_reset_ready_in_both_message_orders() {
+        use crate::websocket::tests::{server,Client};
+        async fn update(client:&mut Client,protocol:&str)->Value {
+            loop {
+                let notice=client.recv("MessageNot").await;
+                if notice["Type"]==protocol {return read_json(notice["Content"].as_str().unwrap()).unwrap();}
+            }
+        }
+        for (raid,old_level,new_level) in [(1,7,8),(2,7,8),(3,7,8),(4,7,8),(11,1,2),(21,1,2),(0,0,0)] {
+            for chat_first in [true,false] {
+                let (s,users,_)=fixture().await;let _worker=attach_worker(&s).await;
+                let host=account(&users[0]);let guest=account(&users[1]);
+                sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+                let (old_chapter,old_dungeon,new_chapter,new_dungeon)=if raid==0 {(1,1,1,2)}else{
+                    let old=row(&s,"Raid",&[("Index",raid),("Level",old_level)]).unwrap();
+                    let new=row(&s,"Raid",&[("Index",raid),("Level",new_level)]).unwrap();
+                    (n(old,"ChapterIndex"),n(old,"DungeonIndex"),n(new,"ChapterIndex"),n(new,"DungeonIndex"))
+                };
+                if raid>0 {
+                    sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',?,'$.RaidLevel',?,'$.ChapterIndex',?,'$.DungeonIndex',?,'$.DungeonDifficulty',0,'$.CurPartyMember',2)")
+                        .bind(raid).bind(old_level).bind(old_chapter).bind(old_dungeon).execute(&s.db).await.unwrap();
+                    put(&mut s.db.acquire().await.unwrap(),host,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
+                    put(&mut s.db.acquire().await.unwrap(),guest,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
+                    if raid==11 {put(&mut s.db.acquire().await.unwrap(),host,"raid",1,&json!({"RaidIndex":1,"RaidLevel":10})).await.unwrap();}
+                }
+                let message_server=server(s.clone()).await;let mut clients=vec![];
+                for user in &users {
+                    let mut client=Client::connect(&message_server,"chat").await;
+                    client.send("LoginReq",json!({"AccountId":account(user),"SessionKey":user["UserInfo"]["SessionKey"],"RequestId":1})).await;
+                    assert_eq!(client.recv("LoginRes").await["Result"],"Success");
+                    clients.push(client);
+                }
+                let (protocol,content,path,change)=if raid==0 {
+                    ("ChangePartyDungeonRoomInfo",json!({"ChapterIndex":1,"DungeonIndex":2,"Difficulty":"2","DungeonType":"1","IsResetSquard":false}),
+                        "party_dungeon/change_party_dungeon_room_info","RoomNo=1&DungeonType=1&ChapterIndex=1&DungeonIndex=2&DungeonDifficulty=2&Status=0".into())
+                }else{
+                    ("ChangePartyRoomInfo",json!({"RaidLevel":new_level,"GoalIndex":3,"AffixIndices":[1],"IsViolateBanRule":false}),
+                        "raid/change_raid_room_info",format!("RoomNo=1&RaidLevel={new_level}&GoalIndex=3&AffixIndices=[1]&Status=0"))
+                };
+                if chat_first {
+                    super::super::super::party_messages::send(&s,host,guest,protocol,content.clone()).await.unwrap();
+                    let before=update(&mut clients[1],protocol).await;
+                    assert_eq!(if raid==0 {n(&before,"DungeonIndex")}else{n(&before,"RaidLevel")},if raid==0 {old_dungeon}else{old_level});
+                }
+                assert_eq!(call(&s,&users[0],path,&change).await["Result"],"Success","raid={raid}");
+                for client in &mut clients {
+                    let settings=update(client,protocol).await;
+                    assert_eq!(if raid==0 {n(&settings,"DungeonIndex")}else{n(&settings,"RaidLevel")},if raid==0 {new_dungeon}else{new_level});
+                    if raid==0 {assert_eq!(settings["Difficulty"],"2");assert_eq!(settings["IsResetSquard"],false);}
+                    else{assert_eq!(settings["GoalIndex"],3);assert_eq!(settings["AffixIndices"],json!([1]));}
+                }
+                if !chat_first {
+                    super::super::super::party_messages::send(&s,host,guest,protocol,content.clone()).await.unwrap();
+                    let settings=update(&mut clients[1],protocol).await;
+                    assert_eq!(if raid==0 {n(&settings,"DungeonIndex")}else{n(&settings,"RaidLevel")},if raid==0 {new_dungeon}else{new_level});
+                }
+                let raw:String=sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();let room:Value=read_json(&raw).unwrap();
+                assert_eq!(n(&room,"ChapterIndex"),new_chapter);assert_eq!(n(&room,"DungeonIndex"),new_dungeon);
+                let state=get(&mut s.db.acquire().await.unwrap(),guest,"party_member",1).await.unwrap();
+                assert_eq!(state["IsBattleReady"],false);assert_eq!(state["DeckHeros"]["2"]["HeroIndex"],2);
+                let before=room.clone();
+                assert_ne!(call(&s,&users[1],path,&change).await["Result"],"Success");
+                let raw:String=sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=1").fetch_one(&s.db).await.unwrap();assert_eq!(read_json::<Value>(&raw).unwrap(),before);
+                if raid==1 {
+                    let args=format!("ChapterIndex={new_chapter}&DungeonIndex={new_dungeon}&DungeonDifficulty=0&RaidIndex=1&RaidLevel=8&RaidRoomNo=1&MultiplayMasterId={host}&MultiplayMemberIds=[{host},{guest}]&HeroIndices=[1]&AccountIds=[{host}]");
+                    assert_ne!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success","Stage change requires renewed guest readiness");
+                    super::super::super::party_messages::send(&s,guest,host,"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+                    assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
+                    assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success");
+                    let handle=s.conquest.runs.iter().next().unwrap().value().clone();let run=handle.lock().await;
+                    assert_eq!(run.payload["Simulation"]["DungeonIndex"],new_dungeon);
+                }
+            }
+        }
+    }
+
     #[tokio::test]
     async fn party_loot_booster_uses_each_players_own_confirmed_choice() {
         use crate::api::battle::{entry_costs,loot_booster};
@@ -744,7 +899,9 @@ mod tests {
         sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
         sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
         put(&mut s.db.acquire().await.unwrap(),account(&users[1]),"raid",1,&json!({"RaidIndex":1,"RaidLevel":16})).await.unwrap();
-        let args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds=[{},{}]&HeroIndices=[1]&AccountIds=[{}]",account(&users[0]),account(&users[0]),account(&users[1]),account(&users[0]));
+        // RaidPartySetting has no Resource Spent toggle and leaves this flag
+        // false for both players. Both still pay the normal dragon entry cost.
+        let args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds=[{},{}]&HeroIndices=[1]&AccountIds=[{}]&UseStamina=false",account(&users[0]),account(&users[0]),account(&users[1]),account(&users[0]));
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
         assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,false)).await["Result"],"Success");
         let id=s.conquest.runs.iter().next().unwrap().key().clone();
@@ -755,9 +912,9 @@ mod tests {
         for (user,expected) in users.iter().zip([8,16]) {
             let response=call(&s,user,"campaign/end_campaign",end).await;
             assert_eq!(response["Result"],"Success");assert_eq!(response["CompletedRaidInfo"]["RaidLevel"],expected);
-            if account(user)==account(&users[1]) {
-                for field in ["CurrencyResults","ItemResults","EquipItemInfos"] {assert_eq!(response[field],json!([]));}
-            }
+            assert!(response["ItemResults"].as_array().is_some_and(|v|!v.is_empty())
+                || response["EquipItemResults"].as_array().is_some_and(|v|!v.is_empty()),
+                "Dragon participants receive loot despite the unused client resource flag");
             assert_eq!(call(&s,user,"campaign/end_campaign",end).await,response);
             assert_eq!(get(&mut s.db.acquire().await.unwrap(),account(user),"raid",1).await.unwrap()["RaidLevel"],expected);
         }
@@ -805,19 +962,73 @@ mod tests {
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
     async fn native_story_party_combat_and_settlement() {
+        native_party_combat_and_settlement(false,0,false).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
+    async fn native_story_party_early_departures() {
+        native_party_combat_and_settlement(false,-1,false).await;
+        native_party_combat_and_settlement(false,1,false).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
+    async fn native_dragon_party_later_wave_departure() {
+        native_party_combat_and_settlement(true,2,false).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
+    async fn native_dragon_party_after_room_settings() {
+        native_party_combat_and_settlement(true,0,true).await;
+    }
+
+    async fn native_party_combat_and_settlement(dragon:bool,leave_wave:i64,change_stage:bool) {
         let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::WARN).try_init();
         use tokio::io::{AsyncBufReadExt, BufReader};
         struct Native(std::process::Child);
         impl Drop for Native { fn drop(&mut self) { let _=self.0.kill(); let _=self.0.wait(); } }
-        let (mut s,users,args) = fixture().await;
+        let (mut s,users,mut args) = fixture().await;
         sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        if dragon {
+            // Use a complete six-hero party with real weapons and treasures
+            // so the transition test can finish the dragon's boss wave.
+            for (i,user) in users.iter().enumerate() {
+                let heroes=if i==0 {vec![1,3,4]}else{vec![2,5,6]};
+                for hero in &heroes {
+                    sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES(?,?,?,100,5,5)")
+                        .bind(account(user)).bind(hero).bind(hero).execute(&s.db).await.unwrap();
+                    for (part,base) in [(1,1000),(7,103000)] {
+                        let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,star,level) VALUES(?,?,5,20)")
+                            .bind(account(user)).bind(base+hero).execute(&s.db).await.unwrap().last_insert_rowid();
+                        sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?"))
+                            .bind(slot).bind(account(user)).bind(hero).execute(&s.db).await.unwrap();
+                    }
+                }
+                let deck:serde_json::Map<_,_>=heroes.iter().map(|hero|(hero.to_string(),json!({"HeroIndex":hero}))).collect();
+                put(&mut s.db.acquire().await.unwrap(),account(user),"party_member",1,&json!({"IsBattleReady":true,"DeckHeros":deck,"SubDeckHeros":{}})).await.unwrap();
+            }
+            sqlx::query("UPDATE heroes SET star=5,transcend=5").execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
+            let host=account(&users[0]);
+            args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={host}&MultiplayMemberIds=[{host},{}]&HeroIndices=[1,3,4]&AccountIds=[{host},{host},{host}]",account(&users[1]));
+        }
         let key = uuid::Uuid::new_v4().to_string(); s.battle_service_key = Arc::new(Some(key.clone()));
+        if change_stage {
+            let host=account(&users[0]);let guest=account(&users[1]);
+            put(&mut s.db.acquire().await.unwrap(),host,"raid",1,&json!({"RaidIndex":1,"RaidLevel":8})).await.unwrap();
+            put(&mut s.db.acquire().await.unwrap(),guest,"raid",1,&json!({"RaidIndex":1,"RaidLevel":8})).await.unwrap();
+            assert_eq!(call(&s,&users[0],"raid/change_raid_room_info","RoomNo=1&RaidLevel=8&Status=0").await["Result"],"Success");
+            super::super::super::party_messages::send(&s,guest,host,"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+            args=args.replace("DungeonIndex=7","DungeonIndex=8").replace("RaidLevel=7","RaidLevel=8");
+        }
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap(); let port=listener.local_addr().unwrap().port();
         let server=tokio::spawn(serve(listener,s.clone()));
         let executable = std::path::PathBuf::from(std::env::var("CONQUEST_NATIVE_EXECUTABLE").expect("Native worker executable")).canonicalize().unwrap();
         let mut command=std::process::Command::new(&executable);
         command.current_dir(executable.parent().unwrap()).args(["-batchmode","-nographics","-logFile"])
-            .arg(std::env::current_dir().unwrap().join("target/party-followup/native-story.log"))
+            .arg(std::env::current_dir().unwrap().join(format!("target/party-followup/native-departure-{dragon}-{leave_wave}-{change_stage}.log")))
             .env("SPRK_CONQUEST_WORKER_KEY",key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1").env("SPRK_CONQUEST_WORKER_PORT",port.to_string());
         #[cfg(windows)] { use std::os::windows::process::CommandExt; command.creation_flags(0x08000000); }
         let _native=Native(command.spawn().unwrap());
@@ -825,21 +1036,46 @@ mod tests {
             while s.conquest.worker.read().await.is_none() { tokio::time::sleep(std::time::Duration::from_millis(100)).await; }
         }).await.expect("Native worker did not authenticate");
         let begun=call(&s,&users[0],"campaign/begin_campaign",&args).await; assert_eq!(begun["Result"],"Success","{begun}");
-        assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,false)).await["Result"],"Success");
+        let guest_request=if dragon {
+            let host=account(&users[0]);let guest=account(&users[1]);
+            args.replace("HeroIndices=[1,3,4]","HeroIndices=[2,5,6]").replace(&format!("AccountIds=[{host},{host},{host}]"),&format!("AccountIds=[{guest},{guest},{guest}]"))
+        }else{guest_args(&users,&args,false)};
+        assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_request).await["Result"],"Success");
         let mut clients=vec![];
-        for u in &users {
+        for (i,u) in users.iter().enumerate() {
+            let state=s.clone();let user=u.clone();
             let socket=TcpStream::connect(("127.0.0.1",port)).await.unwrap(); let (reader,mut writer)=socket.into_split(); let mut reader=BufReader::new(reader);
             writer.write_all(&encode_packet("BattleLoginReq",&json!({"AccountId":account(u),"MasterId":account(&users[0]),"SessionKey":u["UserInfo"]["SessionKey"],"RequestId":1}))).await.unwrap();
             let mut line=String::new(); reader.read_line(&mut line).await.unwrap(); assert_eq!(decode_packet(line.as_bytes()).unwrap().0,"BattleLoginRes");
-            writer.write_all(&encode_packet("BattleEnterReq",&json!({"RequestId":2}))).await.unwrap();
+            let mut withdrew=i==1 && leave_wave<0;
+            writer.write_all(&encode_packet(if withdrew {"WithdrawBattleReq"}else{"BattleEnterReq"},&json!({"RequestId":2}))).await.unwrap();
             clients.push(tokio::spawn(async move {
                 let mut logs=vec![]; let mut request_id=3; let mut ended=false;
+                let mut line=vec![];let mut heartbeat=tokio::time::interval(std::time::Duration::from_secs(5));
                 loop {
-                    let mut line=String::new(); let count=tokio::time::timeout(std::time::Duration::from_secs(120),reader.read_line(&mut line)).await.unwrap().unwrap(); assert!(count>0,"Native battle connection closed");
-                    let (name,body)=decode_packet(line.as_bytes()).unwrap();
+                    let count=tokio::select! {
+                        count=reader.read_until(b'\n',&mut line)=>count.unwrap(),
+                        _=heartbeat.tick()=>{
+                            writer.write_all(&encode_packet("PingReq",&json!({"RequestId":request_id,"BattleStopped":ended}))).await.unwrap();request_id+=1;continue;
+                        }
+                    };
+                    assert!(count>0,"Native battle connection closed");
+                    let (name,body)=decode_packet(&line).unwrap();line.clear();
                     if name=="BattleLogNot" { logs.push(body.clone()); }
                     if name=="WaveReadyNot" {
                         println!("Native wave ready: {}",body["WaveIndex"]);
+                        if i==1 && number(&body,"WaveIndex")==leave_wave {
+                            let path=if dragon {"raid/leave_raid_room"}else{"party_dungeon/leave_party_dungeon_room"};
+                            assert_eq!(call(&state,&user,path,"RoomNo=1").await["Result"],"Success");withdrew=true;
+                        }
+                        if withdrew {continue;}
+                        if dragon {
+                            for uid in i*3+1..=i*3+3 {
+                                for skill in 1..=3 {
+                                    writer.write_all(&encode_packet("ReserveOnSkillReq",&json!({"RequestId":request_id,"CreatureUid":uid,"SkillSlotIndex":skill,"AutoReserved":true}))).await.unwrap();request_id+=1;
+                                }
+                            }
+                        }
                         writer.write_all(&encode_packet("BattleStartReq",&json!({"RequestId":request_id}))).await.unwrap(); request_id+=1;
                         writer.write_all(&encode_packet("BattleWaveResumeReq",&json!({"RequestId":request_id}))).await.unwrap(); request_id+=1;
                     }
@@ -854,7 +1090,8 @@ mod tests {
         }
         let mut results=vec![];
         for client in clients { results.push(tokio::time::timeout(std::time::Duration::from_secs(180),client).await.unwrap().unwrap()); }
-        assert_eq!(results[0],results[1]); assert_eq!(results[0].0["Win"],true);
+        assert_eq!(results[0],results[1]); if !dragon {assert_eq!(results[0].0["Win"],true);}
+        assert!(number(&results[0].0,"MaxWaveIndex")>=leave_wave);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
         server.abort();

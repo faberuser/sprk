@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--party-join-unlock-only")) { InstallPartyJoinUnlock(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-party-join-unlock")) { VerifyPartyJoinUnlockFile(args[0]); return; }
+            if (args.Contains("--self-test-party-join-unlock")) { TestPartyJoinUnlock(); return; }
             if (args.Contains("--verify-websocket-lifecycle")) { VerifyWebSocketLifecycle(args[0]); return; }
             if (args.Contains("--raid-social-only")) { InstallRaidSocial(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-social")) { VerifyRaidSocialFile(args[0]); return; }
@@ -126,6 +129,7 @@ namespace DllPatcher
                 PatchAwakenDelay(module);
                 PatchCompletionBanners(module);
                 PatchRaidSocial(module);
+                PatchPartyJoinUnlock(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)
                 {

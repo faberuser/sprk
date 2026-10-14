@@ -25,6 +25,14 @@ fn number(v: &Value, key: &str) -> i64 {
         .or_else(|| v[key].as_str().and_then(|v| v.parse().ok()))
         .unwrap_or(0)
 }
+fn settings_notice(room:&Value,raid:bool,reset:bool)->(&'static str,Value) {
+    if raid {
+        ("ChangePartyRoomInfo",json!({"RaidLevel":room["RaidLevel"],"GoalIndex":room["GoalIndex"],"AffixIndices":room["AffixIndices"],"IsViolateBanRule":false}))
+    }else{
+        ("ChangePartyDungeonRoomInfo",json!({"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],
+            "Difficulty":n(room,"DungeonDifficulty").to_string(),"DungeonType":n(room,"DungeonType").to_string(),"IsResetSquard":reset}))
+    }
+}
 fn boolean(v: &Value, key: &str) -> Result<bool> {
     match &v[key] {
         Value::Bool(value) => Ok(*value),
@@ -137,11 +145,12 @@ pub(crate) async fn send(
         // Native declines omit RoomNo and Invitee; there is no join to authorize.
         if !boolean(&content, "Accepted")? { return Ok(()); }
         let id = number(&content, "RoomNo");
-        let raw: Option<String> = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
+        let raw: Option<(String,String)> = sqlx::query_as("SELECT family,data FROM battle_rooms WHERE id=?")
             .bind(id)
             .fetch_optional(&mut *db)
             .await?;
-        let room: Value = read_json(&raw.ok_or_else(|| rule("RoomNotExist"))?)?;
+        let (family,raw)=raw.ok_or_else(||rule("RoomNotExist"))?;
+        let room: Value = read_json(&raw)?;
         let invitation = get(&mut db, a, "party_invite", id).await?;
         let invited = n(&invitation, "Master") == target && now() - n(&invitation, "Time") <= 120;
         if n(&room, "MasterAccountId") != target
@@ -168,6 +177,16 @@ pub(crate) async fn send(
         if send_key <= 0 {
             return Err(rule("InvalidMessage"));
         }
+        if let Err(error)=rooms::require_join_unlock(&mut db,s,a,&room,&family).await {
+            if !matches!(error,ServerError::InvalidRequest(_)) {return Err(error);}
+            // A real JoinPartyRes clears the guest's native pending join and
+            // waiting popup. A bare MessageRes failure would leave it waiting.
+            sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='party_pending' AND idx=?")
+                .bind(a).bind(id).execute(&mut *db).await?;
+            db.commit().await?;
+            s.chat.notify(a,target,"JoinPartyRes",json!({"Result":"DungeonLocked","SendKey":send_key,"PartyInfo":null}));
+            return Ok(());
+        }
         content = json!({"Invitee":member(&mut db,a,&room,members.len()).await?,"Accepted":true,"RoomNo":id,"Result":"Success","SendKey":send_key});
         put(
             &mut db,
@@ -191,7 +210,14 @@ pub(crate) async fn send(
             {
                 return Err(rule("InvalidMessage"));
             }
-            let accepted = content["Result"] == "Success" || content["Result"] == json!(1);
+            let mut accepted = content["Result"] == "Success" || content["Result"] == json!(1);
+            let mut locked=false;
+            if accepted {
+                if let Err(error)=rooms::require_join_unlock(&mut db,s,target,&room,&family).await {
+                    if !matches!(error,ServerError::InvalidRequest(_)) {return Err(error);}
+                    accepted=false;locked=true;
+                }
+            }
             if accepted {
                 // A host can select heroes while alone: SendToAllMembers sends no
                 // packet until another member exists. Recover only the host's
@@ -268,12 +294,12 @@ pub(crate) async fn send(
                     host_state["IsBattleReady"] = json!(false);
                     put(&mut db, a, "party_member", id, &host_state).await?;
                 }
-                room = rooms::join(&mut db, target, id, &family).await?;
+                room = rooms::join(&mut db, s, target, id, &family).await?;
                 recipients = ids_in(&mut db, id).await?;
                 content = json!({"Result":"Success","SendKey":pending["SendKey"],"MemberIndex":recipients.iter().position(|v|*v==target).unwrap_or(0),"PartyInfo":snapshot(&mut db,&room).await?});
             } else {
                 content =
-                    json!({"Result":"InvalidParty","SendKey":pending["SendKey"],"PartyInfo":null});
+                    json!({"Result":if locked {"DungeonLocked"}else{"InvalidParty"},"SendKey":pending["SendKey"],"PartyInfo":null});
             }
             sqlx::query(
                 "DELETE FROM battle_state WHERE account=? AND kind='party_pending' AND idx=?",
@@ -283,6 +309,13 @@ pub(crate) async fn send(
             .execute(&mut *db)
             .await?;
             messages.push((target, a, protocol.into(), content.clone()));
+            if locked {
+                // The native host optimistically added the guest before its
+                // response reached us. Remove that uncommitted UI member too.
+                for receiver in &recipients {
+                    messages.push((*receiver,a,"KickedRaidMemberRes".into(),json!({"KickedAccountIds":[target],"ReplaceMasterAccountId":master})));
+                }
+            }
             if accepted {
                 for receiver in recipients.into_iter().filter(|v| *v != a && *v != target) {
                     messages.push((
@@ -463,7 +496,7 @@ pub(crate) async fn send(
                     if a != master {
                         return Err(rule("WrongMember"));
                     }
-                    content = json!({"RaidLevel":room["RaidLevel"],"GoalIndex":room["GoalIndex"],"AffixIndices":room["AffixIndices"],"IsViolateBanRule":false});
+                    content = settings_notice(&room,true,false).1;
                 }
                 "ChangePartyDungeonRoomInfo" => {
                     if a != master || family == "raid" { return Err(rule("WrongMember")); }
@@ -475,8 +508,7 @@ pub(crate) async fn send(
                             put(&mut db,*account,"party_member",id,&state).await?;
                         }
                     }
-                    content=json!({"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],
-                        "Difficulty":n(&room,"DungeonDifficulty").to_string(),"DungeonType":n(&room,"DungeonType").to_string(),"IsResetSquard":reset});
+                    content=settings_notice(&room,false,reset).1;
                 }
                 "LeaveParty" => {
                     let req = Request([("RoomNo".into(), id.to_string())].into_iter().collect());
@@ -621,6 +653,11 @@ pub(crate) async fn after_room_request(
     if id <= 0 {
         return Ok(());
     }
+    if action.starts_with("leave_") {
+        let target=r.number("AccountId",a)?;
+        let target=if target==0 {a}else{target};
+        crate::api::battle::cooperative::room_departed(s,target,id).await?;
+    }
     let mut db = s.db.begin().await?;
     let raw: Option<String> = sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=?")
         .bind(id)
@@ -631,6 +668,16 @@ pub(crate) async fn after_room_request(
     };
     let room: Value = read_json(&raw)?;
     let ids = ids_in(&mut db, id).await?;
+    if action.starts_with("change_") {
+        let raid=action=="change_raid_room_info";
+        let (name,body)=settings_notice(&room,raid,false);
+        db.commit().await?;
+        // JoinPartyNotice only adds missing members in the native client.
+        // Publish the committed settings even if the companion chat message
+        // raced ahead of HTTP and was rebuilt from the previous room state.
+        for receiver in ids {s.chat.notify(receiver,n(&room,"MasterAccountId"),name,body.clone());}
+        return Ok(());
+    }
     let info = snapshot(&mut db, &room).await?;
     db.commit().await?;
     if action.starts_with("leave_") {

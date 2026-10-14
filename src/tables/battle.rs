@@ -19,6 +19,12 @@ impl BattleTable {
     pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
         data.rules = serde_json::from_reader(std::fs::File::open(path.with_file_name(rules))?)?;
+        // The installed client patch distinguishes locked content from invalid rooms.
+        for path in ["raid/join_raid_room","party_dungeon/join_party_dungeon_room","party_dungeon/wait_party_dungeon_room"] {
+            if let Some(results)=data.contracts.get_mut(path).and_then(|c|c["Results"].as_array_mut()) {
+                if !results.iter().any(|v|v=="DungeonLocked") {results.push(Value::String("DungeonLocked".into()));}
+            }
+        }
         Ok(data)
     }
     pub fn rows(&self, name: &str) -> &[Value] {

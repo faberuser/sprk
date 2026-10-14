@@ -87,6 +87,33 @@ pub(super) async fn validate(
 ) -> Result<()> {
     validate_inner(db, s, a, r, heroes, false).await
 }
+
+pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, room: &Value) -> Result<()> {
+    let c=n(room,"ChapterIndex");let di=n(room,"DungeonIndex");
+    let ch=row(s,"CampaignChapter",&[("Index",c)])?;
+    let d=row(s,"CampaignDungeon",&[("ChapterIndex",c),("DungeonIndex",di)])?;
+    crate::api::episodes::require_battle(db, s, a, c, di, n(room,"DungeonDifficulty")).await?;
+    if ch["IsOpen"]!=true {return Err(rule("NotOpenedDungeon"));}
+    let mut prerequisites=vec![(n(ch,"ReqChapterIndex"),n(ch,"ReqDungeonIndex"))];
+    if c==50000 {prerequisites.push((97,2));if di==210 {prerequisites.push((50000,9));}}
+    if let Some(preset)=story_party(s,d) {prerequisites.push((n(preset,"ReqChapterIndex"),n(preset,"ReqDungeonIndex")));}
+    for (chapter,dungeon) in prerequisites {
+        if chapter>0 && dungeon>0 && n(&progress(db,s,a,chapter,dungeon).await?,"FirstRewardedDiff")==0 {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
+    }
+    if n(&progress(db,s,a,c,di).await?,"FirstRewardedDiff")==0 && matches!(n(d,"BattleType"),1|2|10) {
+        let predecessors:Vec<_>=s.tables.battle.rows("CampaignDungeon").iter()
+            .filter(|v|n(v,"ChapterIndex")==c && n(v,"NextDungeonIndex")==di).collect();
+        if !predecessors.is_empty() {
+            for previous in predecessors {
+                if n(&progress(db,s,a,c,n(previous,"DungeonIndex")).await?,"FirstRewardedDiff")>0 {return Ok(());}
+            }
+            return Err(rule("CannotVisitDungeon"));
+        }
+    }
+    Ok(())
+}
 async fn validate_inner(
     db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool,
 ) -> Result<()> {
@@ -102,6 +129,7 @@ async fn validate_inner(
     }
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
+    crate::api::episodes::require_battle(db, s, a, c, n(d, "DungeonIndex"), diff).await?;
     let restored_field = n(d, "BattleType") == 33
         && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
         && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
@@ -505,7 +533,7 @@ async fn end_inner(
     let battle_type = n(dungeon(s, &request)?, "BattleType");
     // Substories such as 10-35 send ScenarioDungeon=false despite their
     // scripted ending, so the request flag alone cannot identify story runs.
-    if matches!(battle_type, 23 | 24)
+    if matches!(battle_type, 23 | 24) || crate::api::episodes::chapter(n(&settled_entry,"ChapterIndex")).is_some()
         || (settled_entry["ScenarioDungeon"] == true && matches!(battle_type, 1 | 2 | 10))
     {
         settled_entry["StoryEndResponse"] = out.clone();

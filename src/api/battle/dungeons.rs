@@ -470,7 +470,13 @@ pub(super) async fn require_dragon_unlock(db: &mut SqliteConnection, s: &AppStat
         let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
             .ok_or_else(|| rule("NotOpenedDungeon"))?;
         let index = condition[0].as_i64().unwrap_or(0);
-        let required = condition[1].as_i64().unwrap_or(i64::MAX);
+        // Pre-Doomsday RaidTable requires normal RaidLevel 10 for the first
+        // Hard Dragon stage. Our later table was lowered to 8; keep the server
+        // gate aligned with the client build the launcher distributes.
+        let mut required = condition[1].as_i64().unwrap_or(i64::MAX);
+        if index != n(raid, "Index") {
+            required = required.max(10);
+        }
         let cleared = get(db, a, "raid", index).await?;
         let solo_index = s.tables.battle.rows("Raid").iter()
             .find(|v| n(v, "Index") == index).map(|v| n(v, "SingleRaidIndex")).unwrap_or(0);
@@ -491,6 +497,30 @@ pub(super) async fn require_dragon_unlock(db: &mut SqliteConnection, s: &AppStat
             return Err(rule("NotOpenedDungeon"));
         }
     }
+    Ok(())
+}
+
+// Join checks use the same permanent unlocks as entry, without checking a
+// selected deck, reserving resources, or consuming a battle attempt.
+pub(super) async fn require_raid_join_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
+    if matches!(n(raid,"Type"),0..=3) {require_dragon_unlock(db,s,a,raid).await?;}
+    let dungeon=row(s,"CampaignDungeon",&[("ChapterIndex",n(raid,"ChapterIndex")),("DungeonIndex",n(raid,"DungeonIndex"))])?;
+    let kind=n(dungeon,"BattleType");
+    require_late_raid_unlock(db,s,a,kind).await?;
+    if matches!(kind,33|40|41|42|45|46) {require_raid_progress_unlock(db,s,a,raid).await?;}
+    Ok(())
+}
+
+async fn require_raid_progress_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
+    let condition=raid["OpenCondition"].as_array().filter(|v|v.len()==2).ok_or_else(||rule("NotOpenedDungeon"))?;
+    let chapter=condition[0].as_i64().unwrap_or(0);let dungeon=condition[1].as_i64().unwrap_or(0);
+    let minimum=s.tables.tutorials.dungeon_difficulty(chapter as i32,dungeon as i32);
+    if chapter<=0 || dungeon<=0 || n(&campaign::progress(db,s,a,chapter,dungeon).await?,"FirstRewardedDiff") >> minimum == 0 {
+        return Err(rule("NotCompletedReqDungeon"));
+    }
+    let shared=n(raid,"ClearRaidIndex");
+    let progress=get(db,a,"raid",if shared>0 {shared}else{n(raid,"Index")}).await?;
+    if n(raid,"Level")>n(&progress,"RaidLevel").max(1) {return Err(rule("NotOpenedDungeon"));}
     Ok(())
 }
 
@@ -545,19 +575,7 @@ pub(super) async fn validate_inner(
         if n(raid, "Type") != 13 || raid["IsOnlineSingle"] != false {
             return Err(rule("ContentsDisabled"));
         }
-        let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
-            .ok_or_else(|| rule("NotOpenedDungeon"))?;
-        let chapter = condition[0].as_i64().unwrap_or(0);
-        let dungeon = condition[1].as_i64().unwrap_or(0);
-        let min_diff = s.tables.tutorials.dungeon_difficulty(chapter as i32, dungeon as i32);
-        if chapter <= 0 || dungeon <= 0 || n(&campaign::progress(db,s,a,chapter,dungeon).await?, "FirstRewardedDiff") >> min_diff == 0 {
-            return Err(rule("NotCompletedReqDungeon"));
-        }
-        let shared = n(raid, "ClearRaidIndex");
-        let progress = get(db, a, "raid", shared).await?;
-        if n(raid, "Level") > n(&progress, "RaidLevel").max(1) {
-            return Err(rule("NotOpenedDungeon"));
-        }
+        require_raid_progress_unlock(db,s,a,raid).await?;
     }
     if matches!(battle_type, 40 | 41 | 42 | 45 | 46) {
         let raid = raid_data(s, r)?;
@@ -565,23 +583,7 @@ pub(super) async fn validate_inner(
         if n(raid, "Type") != solo || raid["IsOnlineSingle"] != false {
             return Err(rule("ContentsDisabled"));
         }
-        let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
-            .ok_or_else(|| rule("NotOpenedDungeon"))?;
-        let chapter = condition[0].as_i64().unwrap_or(0);
-        let dungeon = condition[1].as_i64().unwrap_or(0);
-        // Native IsCompleted(Easy) resolves Easy to this stage's minimum
-        // difficulty; 10-9 starts at Normal, while 10-30 starts at Easy.
-        let min_diff = s.tables.tutorials.dungeon_difficulty(chapter as i32, dungeon as i32);
-        if chapter <= 0 || dungeon <= 0
-            || n(&campaign::progress(db, s, a, chapter, dungeon).await?, "FirstRewardedDiff") >> min_diff == 0
-        {
-            return Err(rule("NotCompletedReqDungeon"));
-        }
-        let shared = n(raid, "ClearRaidIndex");
-        let progress = get(db, a, "raid", shared).await?;
-        if n(raid, "Level") > n(&progress, "RaidLevel").max(1) {
-            return Err(rule("NotOpenedDungeon"));
-        }
+        require_raid_progress_unlock(db,s,a,raid).await?;
     }
     if battle_type == 16 {
         super::super::community::raid_validate(db, s, a, r).await?;
