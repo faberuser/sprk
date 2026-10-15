@@ -57,13 +57,6 @@ will manage. Publish a new version identifier every time; an existing release
 cannot be overwritten. Keep the managed selection consistent between releases:
 paths removed from it become deletions in the next manifest.
 
-Clients processed by `scripts/remove_client_telemetry.py` have
-`King's Raid_Data/sprk-privacy.json`. The publisher automatically includes the
-startup assets listed there and adds its obsolete SDK paths to `deleted_files`,
-including native plugins that earlier manifests did not manage. A release cannot
-include a file its privacy policy requires deleting. Use repeated `--delete` options
-for other obsolete files that were never managed by an earlier manifest.
-
 When present, `SPRK-NativeData.json`, `SPRK-NativeCombat.json` and
 `SPRK-NativeLocalization.json` under the native
 patch directory are included automatically, so table changes and their integrity

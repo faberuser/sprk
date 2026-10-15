@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-image-recovery")) { VerifyImageRecoveryFile(args[0]); return; }
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
             if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
@@ -209,6 +211,8 @@ namespace DllPatcher
                 File.Move(dllPath + ".websocket-staged", patchedPath, true);
                 InstallStoryAuto(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".story-auto-staged", patchedPath, true);
+                InstallImageRecovery(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".image-recovery-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -218,6 +222,7 @@ namespace DllPatcher
             InstallAccounts(clientRoot, false);
             InstallWebSockets(clientRoot, false);
             InstallStoryAuto(clientRoot, false);
+            InstallImageRecovery(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

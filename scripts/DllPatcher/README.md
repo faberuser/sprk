@@ -1,5 +1,18 @@
 # DLL patcher
 
+`--image-recovery-only` preserves installed patches and adds recovery for blank
+`UIBundleLoader` thumbnails. Cache lookups discard destroyed Unity objects;
+visible widgets rebind intact textures or retry failed loads up to three times
+with backoff. Failed shared atlas requests reopen through native reference
+counting. Healthy images and story scene-loading waits are unchanged. A file
+that is genuinely missing still needs its asset repaired.
+
+Use `--stage-only` to produce `Assembly-CSharp.dll.image-recovery-staged` and
+`SprkImageRecovery.dll.staged`. Test both together in an isolated client before
+installing; `--verify-image-recovery` checks installed hooks and the helper.
+After installation, publish and verify a new signed client update as described
+in [client updates](../../docs/client-updates.md). Recovery applies after restart.
+
 `--party-join-unlock-only` preserves the installed assembly and adds the
 `DungeonLocked` result to chat, dragon and story party joins. Locked guests see
 an unlock explanation while native join cleanup still closes the waiting popup.
