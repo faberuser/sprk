@@ -402,6 +402,13 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         }
     }
 
+    // Every mail writer participates automatically. Trigger inserts commit or
+    // roll back with the reward transaction; sockets only read committed rows.
+    for statement in [
+        "CREATE TABLE IF NOT EXISTS mail_notifications(mail_id INTEGER PRIMARY KEY,account_id INTEGER NOT NULL,is_global INTEGER NOT NULL)",
+        "CREATE TRIGGER IF NOT EXISTS mail_arrival_notification AFTER INSERT ON mails BEGIN INSERT INTO mail_notifications(mail_id,account_id,is_global) VALUES(NEW.mail_id,NEW.account_id,NEW.global_id IS NOT NULL); END",
+    ] { sqlx::query(statement).execute(pool).await?; }
+
     for statement in [
         "CREATE TABLE IF NOT EXISTS inventory_settings(account_id INTEGER PRIMARY KEY, inventory_extend INTEGER NOT NULL DEFAULT 0, chest_extend INTEGER NOT NULL DEFAULT 0)",
         "CREATE TABLE IF NOT EXISTS craft_slots(account_id INTEGER NOT NULL, slot_index INTEGER NOT NULL, craft_index INTEGER NOT NULL DEFAULT 0, item_index INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, complete_time INTEGER NOT NULL DEFAULT 0, paid_gold INTEGER NOT NULL DEFAULT 0, materials TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(account_id,slot_index))",

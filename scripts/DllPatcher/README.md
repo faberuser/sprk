@@ -171,7 +171,11 @@ steps clear the overlay and resume combat. This is limited to Continuous Story i
 battle and does not dispatch arbitrary widget clicks or long presses.
 
 The patch preserves tutorial script effects and protected cutscene groups. It
-does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
+also handles 10-23's fixed Crow party: while Continuous Story is active, it
+presses Crow's third skill when available through the native skill callback.
+This is limited to the `Crow_Chapter10` scenario; manual play retains its normal
+controls, and the battle must reach its own victory condition before advancing.
+It does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
 preferences. Story replay, optional sub-stories, raids, and repeat farming keep their
 existing behavior. Full patching includes this feature; to update it alone:
 
@@ -505,6 +509,21 @@ Installation backs up the active DLL under `target/completion-banners-backups`; 
 `Assembly-CSharp.dll.completion-banners-staged`. Close the client before installing,
 restart afterward, and publish a signed update.
 
+## Cinematic Skip confirmation
+
+`--cinematic-skip-only` makes video Skip invoke its original Yes action directly,
+without opening the confirmation popup. It applies to manual skipping and
+Continuous Story, retaining native video cleanup and tutorial completion.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --cinematic-skip-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-cinematic-skip
+```
+
+Staging writes `Assembly-CSharp.dll.cinematic-skip-staged`. Remove `--stage-only`
+to install with a backup under `target/cinematic-skip-backups`. Restart the client
+and publish a signed update after installation. Full patching includes this change.
+
 ## Multiple game windows
 
 Run `python scripts/enable_multiple_windows.py ../sprk-client --install` to disable
@@ -562,3 +581,44 @@ Restart clients after installation and publish a signed client update.
 The matching server implements `InvitePartyReq` for individual, Friend and
 Guild recipients, synchronizes presence on socket login and membership changes,
 and serves Hero Info through authenticated `user/inspect_user` snapshots.
+
+### Co-op raid hero limits
+
+`--raid-coop-limits-only` updates the installed native RaidTable and its integrity
+metadata while preserving other rows and rebuilding every lookup cache with
+the game's serializer. It sets Hero Suppression and Hero Protection to three
+heroes per player, and Dark Legion and all three Technomagic bosses to four,
+across every stage. Total party limits remain six and seven respectively;
+solo layouts are preserved. Two players can fill the party with 3+3 or 4+3.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --raid-coop-limits-only --stage-only
+```
+
+Remove `--stage-only` to install with clients and shared-asset workers closed.
+Staging and timestamped backups are under `target/raid-coop-limits`. The tool
+verifies all native row properties and keyed lookups after readback. Reapplying
+the limits preserves the installed table bytes. Keep the matching
+`DeckCountPerPlayer` values in `tables/BattleSupport.json`, restart the server,
+and generate a signed client update after installation. Class rules, party
+totals, and earned unlocks still apply.
+
+### Mail arrival latency
+
+`--mail-updates-only` preserves the installed assembly and adds mailbox socket
+wake-ups, a sixty-second fallback, coalesced checks, an in-flight guard and live
+refresh of an open inbox. The server queues `NewMailArrived` hints transactionally
+for every inserted mail and publishes committed hints every 250 ms; failed reward
+transactions never announce mail. Native claim/attachment behavior is preserved.
+Idle mailbox reads skip progression snapshots and avoid SQLite write locks when
+there is no global mail to deliver. Attachment claims still update missions.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --mail-updates-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-mail-updates
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-mail-updates
+```
+
+Stage output and installation backups are under `target/mail-delivery-fix`.
+Close clients and shared-asset workers, remove `--stage-only` to install, restart
+the server/client and publish a new signed update after installation.

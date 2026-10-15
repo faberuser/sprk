@@ -4,6 +4,7 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
     let kind = match n(d, "BattleType") {
         12 => 1,
         29 => 3,
+        33 => 13,
         40..=42 => 15,
         _ => return Ok(None),
     };
@@ -12,9 +13,12 @@ fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
             && n(raid, "DungeonIndex") == n(d, "DungeonIndex")
             && n(raid, "Type") == kind
             && raid["IsOnlineSingle"] == false
-            // Dragon stage availability is checked against player progress by
-            // dungeons::validate; IsOpen only marks the initial stages.
-            && (raid["IsOpen"] == true || matches!(kind, 1 | 3))
+            // The client lists canonical Field Raids 31-34/41-44. Legacy
+            // boss-name aliases 21-24/121-124 share these same dungeons.
+            && (kind != 13 || matches!(n(raid,"ClearRaidIndex"),31..=34))
+            // Dragon and restored field stages use earned progression checks
+            // in dungeons::validate, including rows closed in the archive.
+            && (raid["IsOpen"] == true || matches!(kind, 1 | 3 | 13))
     });
     let raid = matches.next().ok_or_else(|| rule("ContentsDisabled"))?;
     if matches.next().is_some() {
@@ -199,6 +203,11 @@ pub(super) async fn execute(
             return Err(rule("DungeonNotFound"));
         }
         let party = ids(r, "HeroIndices", 32)?;
+        // Dispatch has a flat roster and its own cap, independent of the
+        // interactive raid's main/support split (Dark Legion uses six here).
+        if n(d,"DispatchDeckCount") > 0 && party.len() as i64 > n(d,"DispatchDeckCount") {
+            return Err(rule("NotMatchHeroIndices"));
+        }
         let active: Option<String> = sqlx::query_scalar(
             "SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND started>=?",
         )
@@ -215,12 +224,12 @@ pub(super) async fn execute(
                 return Err(rule("AlreadyOnBattleHero"));
             }
         }
-        if !matches!(n(d, "BattleType"), 1 | 2 | 10 | 12 | 29 | 40..=42)
+        if !matches!(n(d, "BattleType"), 1 | 2 | 10 | 12 | 29 | 33 | 40..=42)
             || !matches!(n(d, "ReqStaminaType"), 0 | 1)
         {
             return Err(rule("ContentsDisabled"));
         }
-        campaign::validate(db, s, a, &request, &party).await?;
+        campaign::validate_dispatch(db, s, a, &request, &party).await?;
         let progress =
             campaign::progress(db, s, a, n(d, "ChapterIndex"), n(d, "DungeonIndex")).await?;
         if n(&progress, "FirstRewardedDiff") & (1 << diff) == 0 {

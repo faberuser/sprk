@@ -24,6 +24,7 @@ async fn guild_attendance_first_card_is_claimable_and_counts_once_after_relogin(
     assert_eq!(first["GuildMemberAttendanceInfo"]["Successive"], 0);
     assert_eq!(first["GuildAttendanceInfo"]["Daily"], 1);
     assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(),1);
     assert_ne!(call(&s, &u, "guild/set_guild_attendance", "").await["Result"], "Success");
     let relog = login(&s, "attendance-first").await;
     let saved = call(&s, &relog, "guild/get_guild_attendance", "").await;

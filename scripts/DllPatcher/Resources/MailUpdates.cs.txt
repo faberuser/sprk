@@ -1,0 +1,53 @@
+using System;
+using NGame2.NAccount;
+using NGame2.NUI.NManager;
+using NGame2.NUI.NManager.NLobby;
+using NGame2.NUI.NWindow;
+using NShared;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+
+// Socket hints wake the normal mailbox request. A minute fallback covers lost
+// hints, reconnects and global announcements without overlapping requests.
+public static class SprkMailUpdates {
+    static string session;
+    static bool pending, inFlight;
+    static float nextPoll, nextPush, requested;
+
+    public static void Arrived() { pending = true; }
+
+    public static void Tick(LobbyManagement lobby) {
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        var web = SingletonUpdater<WebServiceManager>.instance;
+        if (account == null || !account.LoginResponseComplete || web.Requester == null
+            || String.IsNullOrEmpty(web.Requester.SessionKey)) return;
+        if (session != web.Requester.SessionKey) {
+            session = web.Requester.SessionKey;
+            pending = true; inFlight = false; nextPoll = nextPush = 0f;
+        }
+        float now = Time.realtimeSinceStartup;
+        if (inFlight && now - requested < 30f) return;
+        if (now < nextPoll && (!pending || now < nextPush)) return;
+        pending = false; inFlight = true; requested = now;
+        nextPoll = now + 60f; nextPush = now + 1f;
+        try { lobby.RequestCheckNewMailArrived(); }
+        catch (Exception error) {
+            inFlight = false; nextPoll = now + 15f;
+            Debug.LogWarning("SPRK mailbox refresh: " + error.GetType().Name);
+        }
+    }
+
+    public static void Finished(NShared.CheckNewMail.Response response) {
+        inFlight = false;
+        if (response == null || response.BaseResult != BaseResultType.Success
+            || response.Result != NShared.CheckNewMail.ResultType.Success) return;
+        if ((response.NewMailArrived || response.TotalMailCount != MailManagement.MailCount)
+            && GlobalAutoBehaviour<GlobalManagement>.isValidInstance
+            && GlobalAutoBehaviour<GlobalManagement>.instance.WindowOpened<MailListPopup>()
+            && SceneAutoBehaviour<MailManagement>.isValidInstance) {
+            SingletonAuto<MailInfoContainer>.instance.UpdateMail();
+        }
+    }
+}

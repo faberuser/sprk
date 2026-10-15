@@ -81,7 +81,7 @@ pub(crate) async fn begin_party(
                 ("Level", n(&room, "RaidLevel")),
             ],
         )?;
-        if !matches!(n(def, "Type"), 0..=3) {
+        if !matches!(n(def, "Type"), 0 | 2 | 12 | 14) || def["IsOnlineSingle"] != false {
             return Err(rule("BattleServerNotFound"));
         }
         def
@@ -231,8 +231,16 @@ pub(crate) async fn begin_party(
         out["MultiplayRewardItems"] = json!([]);
         entries.push((*account, entry, out));
     }
-    if all.len() as i64 > n(def, "MainPartyCount").max(n(def, "DeckCount")) {
+    let total_limit = if family == "raid" {n(def,"DeckCount")} else {n(def,"MainPartyCount").max(n(def,"DeckCount"))};
+    if all.len() as i64 > total_limit {
         return Err(rule("NotMatchHeroIndices"));
+    }
+    if family == "raid" && n(def,"BanIndex") > 0 {
+        // Class limits apply to the combined party, not separately per owner.
+        let mut fields=r.0.clone();
+        fields.insert("HeroIndices".into(),json!(all).to_string());
+        fields.insert("GroupHeroIndices".into(),"[]".into());
+        restrictions::party(s,&Request(fields),n(def,"BanIndex"))?;
     }
     let result = entries.iter().find(|v| v.0 == a).unwrap().2.clone();
     for (account, entry, out) in entries {
@@ -494,6 +502,7 @@ mod tests {
                     put(&mut s.db.acquire().await.unwrap(),host,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
                     put(&mut s.db.acquire().await.unwrap(),guest,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":new_level})).await.unwrap();
                     if raid==11 {put(&mut s.db.acquire().await.unwrap(),host,"raid",1,&json!({"RaidIndex":1,"RaidLevel":10})).await.unwrap();}
+                    if raid==21 {put(&mut s.db.acquire().await.unwrap(),host,"dungeon",campaign::key(8,26),&json!({"FirstRewardedDiff":2})).await.unwrap();}
                 }
                 let message_server=server(s.clone()).await;let mut clients=vec![];
                 for user in &users {

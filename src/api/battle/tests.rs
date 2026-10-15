@@ -2543,7 +2543,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         }
         let partial=call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await;
         assert_eq!(partial["Result"],"Success");
-        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*200);
+        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*100);
         assert_eq!(partial["StaminaResult"]["AddValue"],cost);
         assert_ne!(call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await["Result"],"Success");
         assert_eq!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
@@ -2557,7 +2557,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         let finish=call(&s,&u,"dispatch/request_complete_dispatch",&slot_args).await;
         assert_eq!(finish["Result"],"Success","{finish}");
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
-        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*200);
+        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*100);
         if chapter == 905 {
             let raw: String = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND title='Dispatch equipment rewards' ORDER BY mail_id DESC LIMIT 1")
                 .bind(a).fetch_one(&s.db).await.unwrap();
@@ -2686,6 +2686,10 @@ async fn field_and_late_raid_guests_need_their_own_story_clear_and_earned_stage(
         let def=row(&s,"Raid",&[("Index",raid),("Level",1)]).unwrap();
         let condition=def["OpenCondition"].as_array().unwrap();
         let (chapter,dungeon)=(condition[0].as_i64().unwrap(),condition[1].as_i64().unwrap());
+        let difficulty=s.tables.tutorials.dungeon_difficulty(chapter as i32,dungeon as i32);
+        put(&mut s.db.acquire().await.unwrap(),account(&host),"dungeon",campaign::key(chapter,dungeon),
+            &json!({"FirstRewardedDiff":1i64<<difficulty})).await.unwrap();
+        if chapter==10 {put(&mut s.db.acquire().await.unwrap(),account(&host),"dungeon",campaign::key(10,9),&json!({"FirstRewardedDiff":2})).await.unwrap();}
         let created=call(&s,&host,"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel=1&Opened=1")).await;
         assert_eq!(created["Result"],"Success","{created}");let id=n(&created,"RoomNo");
         assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked","raid {raid}");
@@ -2697,6 +2701,7 @@ async fn field_and_late_raid_guests_need_their_own_story_clear_and_earned_stage(
         let joined=call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await;assert_eq!(joined["Result"],"Success","raid {raid}: {joined}");
         assert_eq!(call(&s,&guest,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
         if row(&s,"Raid",&[("Index",raid),("Level",2)]).is_ok_and(|r|r["IsOpen"]==true) {
+            put(&mut s.db.acquire().await.unwrap(),account(&host),"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();
             assert_eq!(call(&s,&host,"raid/change_raid_room_info",&format!("RoomNo={id}&RaidLevel=2")).await["Result"],"Success");
             assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked");
             put(&mut s.db.acquire().await.unwrap(),b,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();

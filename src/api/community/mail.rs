@@ -33,8 +33,49 @@ fn attachments<T: serde::de::DeserializeOwned>(row: &SqliteRow, column: &str) ->
     }
 }
 
+/// The durable queue is populated by a transactional trigger for every mail
+/// source, including background rewards and direct administrator inserts.
+pub fn start_notifications(state: AppState) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_millis(250));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tick.tick().await;
+            if let Err(error) = deliver_notifications(&state).await {
+                tracing::warn!(%error,"Could not deliver mailbox notifications");
+            }
+        }
+    })
+}
+
+pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
+    let rows = sqlx::query("SELECT q.mail_id,q.account_id,q.is_global,(m.mail_id IS NOT NULL AND m.is_received=0 AND (m.expires_at IS NULL OR m.expires_at='' OR datetime(m.expires_at)>datetime('now'))) AS deliver FROM mail_notifications q LEFT JOIN mails m ON m.mail_id=q.mail_id ORDER BY q.mail_id LIMIT 256")
+        .fetch_all(&state.db).await?;
+    let Some(last) = rows.last() else { return Ok(0); };
+    let last_id: i64 = last.get("mail_id");
+    // One notification per recipient/inbox is sufficient for a whole burst.
+    let mut arrivals = std::collections::BTreeMap::new();
+    for row in &rows {
+        if row.get::<bool,_>("deliver") {
+            arrivals.insert((row.get::<i64,_>("account_id"),row.get::<bool,_>("is_global")),row.get::<i64,_>("mail_id"));
+        }
+    }
+    for ((account,global),mail) in arrivals {
+        state.chat.notify(account,0,"NewMailArrived",json!({"MailIndex":mail,"IsGlobal":global}));
+    }
+    // Offline clients obtain the persistent inbox on login. These hints can be
+    // retried safely after a crash; they never create or claim rewards.
+    sqlx::query("DELETE FROM mail_notifications WHERE mail_id<=?").bind(last_id).execute(&state.db).await?;
+    Ok(rows.len())
+}
+
 // Materialize a global announcement once per account. The delivery ledger survives claims.
 async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
+    // Most checks have nothing to deliver. Avoid acquiring SQLite's writer
+    // lock for this common path; recheck under the existing transaction below.
+    let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id))")
+        .bind(account).fetch_one(&state.db).await?;
+    if !pending { return Ok(()); }
     let mut tx = state.db.begin().await?;
     sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
         .bind(account)
@@ -42,7 +83,6 @@ async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
         .await?;
     let rows = sqlx::query("SELECT global_id FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id) ORDER BY global_id")
         .bind(account).fetch_all(&mut *tx).await?;
-    let mut delivered = vec![];
     for row in rows {
         let global: i64 = row.get("global_id");
         let mail = sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id) SELECT ?,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id FROM global_mails WHERE global_id=?")
@@ -55,17 +95,8 @@ async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
         .bind(mail)
         .execute(&mut *tx)
         .await?;
-        delivered.push(mail);
     }
     tx.commit().await?;
-    for mail in delivered {
-        state.chat.notify(
-            account,
-            0,
-            "NewMailArrived",
-            json!({"MailIndex":mail,"IsGlobal":true}),
-        );
-    }
     Ok(())
 }
 
@@ -360,11 +391,5 @@ pub async fn send_system_mail(
     .await?;
 
     let id = result.last_insert_rowid();
-    state.chat.notify(
-        receiver_id,
-        0,
-        "NewMailArrived",
-        json!({"MailIndex":id,"IsGlobal":false}),
-    );
     Ok(id)
 }

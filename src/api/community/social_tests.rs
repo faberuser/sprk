@@ -15,6 +15,67 @@ use tokio::{
 };
 
 #[tokio::test]
+async fn mail_notifications_follow_commits_coalesce_bursts_and_isolate_recipients() {
+    let (state,a,b)=setup().await;
+    mail::deliver_notifications(&state).await.unwrap();
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address=listener.local_addr().unwrap();let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sa=Socket::connect(address,&a,1).await;let mut sb=Socket::connect(address,&b,1).await;
+    let mut tx=state.db.begin().await.unwrap();
+    sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'Guild','Rolled back reward')")
+        .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&mut *tx).await.unwrap(),1);
+    tx.rollback().await.unwrap();
+    assert_eq!(mail::deliver_notifications(&state).await.unwrap(),0);
+    let mut tx=state.db.begin().await.unwrap();
+    let mut latest=0;
+    for title in ["Dispatch equipment rewards","Guild attendance reward","Arena season reward","Battle equipment rewards"] {
+        latest=sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'System',?)")
+            .bind(a.user_info.account_id).bind(title).execute(&mut *tx).await.unwrap().last_insert_rowid();
+    }
+    let other=sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'System','Other recipient')")
+        .bind(b.user_info.account_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+    let global=sqlx::query("INSERT INTO mails(account_id,sender,title,global_id) VALUES(?,'System','Global',123)")
+        .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+    // Expired, deleted or already claimed mail must not generate stale hints.
+    sqlx::query("INSERT INTO mails(account_id,sender,title,expires_at) VALUES(?,'System','Expired','2000-01-01 00:00:00')")
+        .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO mails(account_id,sender,title,is_received) VALUES(?,'System','Claimed',1)")
+        .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
+    tx.commit().await.unwrap();
+    let delivery=mail::start_notifications(state.clone());
+    for (recipient,id,global) in [(0,latest,false),(0,global,true),(1,other,false)] {
+        let socket=if recipient==0 {&mut sa}else{&mut sb};
+        let (name,message)=socket.read().await;
+        assert_eq!(name,"MessageNot");assert_eq!(message["Type"],"NewMailArrived");
+        let body:Value=serde_json::from_str(message["Content"].as_str().unwrap()).unwrap();
+        assert_eq!(body,json!({"MailIndex":id,"IsGlobal":global}));
+    }
+    // Let the dispatcher acknowledge the batch before simulating shutdown.
+    // Killing it between socket send and queue deletion can replay safe hints.
+    for _ in 0..50 {
+        if sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap()==0 {break;}
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
+    delivery.abort();let _=delivery.await;
+    // A replay can only produce a duplicate hint, never a second reward.
+    mail::deliver_notifications(&state).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&state.db).await.unwrap(),1);
+    for socket in [&mut sa,&mut sb] {
+        socket.send("PingReq",json!({"RequestId":45})).await;
+        assert_eq!(socket.read().await.0,"PingRes","No notification from a rolled-back reward or another account may leak");
+    }
+    // Mail queued while no dispatcher runs survives until delivery resumes.
+    let id=add_mail(&state,&b,1,0,None).await;
+    assert_eq!(mail::deliver_notifications(&state).await.unwrap(),1);
+    let message=sb.read().await.1;let content:Value=serde_json::from_str(message["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["MailIndex"],id);
+    server.abort();
+}
+
+#[tokio::test]
 async fn fresh_accounts_have_avatars_without_startup_repairs() {
     let (s, a, b) = setup().await;
     assert!(a.user_info.avatar_hero_index > 0);

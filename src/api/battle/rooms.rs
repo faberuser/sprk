@@ -109,6 +109,11 @@ async fn definition<'a>(db: &mut SqliteConnection, s: &'a AppState, a: i64, r: &
                 ServerError::InvalidRequest(_)=>rule("NoRaidData"),
                 other=>other,
             })?;
+        } else if matches!(n(v,"Type"),12|14) {
+            // Later tiers use earned raid progress instead of IsOpen alone.
+            dungeons::require_raid_join_unlock(db,s,a,v).await.map_err(|error|match error {
+                ServerError::InvalidRequest(_)=>rule("NoRaidData"),other=>other,
+            })?;
         } else if v["IsOpen"] != true {
             return Err(rule("NoRaidData"));
         }

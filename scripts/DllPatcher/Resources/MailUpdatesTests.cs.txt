@@ -1,0 +1,62 @@
+// Controlled clocks and native API stand-ins exercise the shipping helper's
+// scheduling code without starting Unity or touching a player's account.
+namespace UnityEngine {
+    public static class Time { public static float realtimeSinceStartup; }
+    public static class Debug { public static void LogWarning(string s) {} }
+}
+namespace NVespa.NSingleton {}
+namespace NVespa {
+    public class GlobalAutoBehaviour<T> where T:new() { public static T instance=new T(); public static bool isValidInstance=true; }
+    public class SceneAutoBehaviour<T> where T:new() { public static T instance=new T(); public static bool isValidInstance=true; }
+    public class SingletonAuto<T> where T:new() { public static T instance=new T(); }
+    public class SingletonUpdater<T> where T:new() { public static T instance=new T(); }
+}
+namespace NVespa.NGlobal {
+    public class Requester { public string SessionKey="first"; }
+    public class WebServiceManager { public Requester Requester=new Requester(); }
+}
+namespace NShared { public enum BaseResultType {Success,Fail} }
+namespace NShared.CheckNewMail {
+    public enum ResultType {Success,Fail}
+    public class Response { public NShared.BaseResultType BaseResult; public ResultType Result; public bool NewMailArrived; public int TotalMailCount; }
+}
+namespace NGame2.NAccount { public class AccountManager { public bool LoginResponseComplete; } }
+namespace NGame2.NUI.NWindow { public class MailListPopup {} }
+namespace NGame2.NUI.NManager {
+    public class MailManagement { public static int MailCount; }
+    public class MailInfoContainer { public int Calls; public void UpdateMail() {Calls++;} }
+    public class GlobalManagement { public bool Open; public bool WindowOpened<T>() {return Open;} }
+}
+namespace NGame2.NUI.NManager.NLobby {
+    public class LobbyManagement { public int Calls; public void RequestCheckNewMailArrived() {Calls++;} }
+}
+public static class MailUpdatesTestRunner {
+    static void Assert(bool condition,string label) {if(!condition)throw new System.Exception(label);}
+    public static void Run() {
+        var lobby=new NGame2.NUI.NManager.NLobby.LobbyManagement();
+        var reply=new NShared.CheckNewMail.Response();
+        SprkMailUpdates.Tick(lobby);Assert(lobby.Calls==0,"No polling before login");
+        NVespa.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.LoginResponseComplete=true;
+        SprkMailUpdates.Tick(lobby);Assert(lobby.Calls==1,"Immediate first check");
+        SprkMailUpdates.Arrived();SprkMailUpdates.Arrived();SprkMailUpdates.Tick(lobby);
+        Assert(lobby.Calls==1,"Only one in-flight request");
+        SprkMailUpdates.Finished(reply);UnityEngine.Time.realtimeSinceStartup=1;
+        SprkMailUpdates.Tick(lobby);Assert(lobby.Calls==2,"Socket hint wakes poll and coalesces burst");
+        SprkMailUpdates.Finished(reply);UnityEngine.Time.realtimeSinceStartup=5.9f;
+        SprkMailUpdates.Tick(lobby);Assert(lobby.Calls==2,"No polling before fallback deadline");
+        UnityEngine.Time.realtimeSinceStartup=6;SprkMailUpdates.Tick(lobby);
+        Assert(lobby.Calls==2,"Do not keep the old five-second polling loop");
+        UnityEngine.Time.realtimeSinceStartup=60.9f;SprkMailUpdates.Tick(lobby);
+        Assert(lobby.Calls==2,"Wait the full minute after the previous check");
+        UnityEngine.Time.realtimeSinceStartup=61;SprkMailUpdates.Tick(lobby);
+        Assert(lobby.Calls==3,"Sixty-second fallback");
+        reply.NewMailArrived=true;
+        NVespa.GlobalAutoBehaviour<NGame2.NUI.NManager.GlobalManagement>.instance.Open=true;
+        SprkMailUpdates.Finished(reply);
+        Assert(NVespa.SingletonAuto<NGame2.NUI.NManager.MailInfoContainer>.instance.Calls==1,"Refresh open inbox after arrival");
+        NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.SessionKey="second";
+        SprkMailUpdates.Tick(lobby);Assert(lobby.Calls==4,"Reset request guards on session change");
+        UnityEngine.Time.realtimeSinceStartup=94;SprkMailUpdates.Arrived();SprkMailUpdates.Tick(lobby);
+        Assert(lobby.Calls==5,"Recover if callback never arrives");
+    }
+}

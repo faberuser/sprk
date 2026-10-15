@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
+            if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--arena-responsive-only")) { InstallArenaResponsiveness(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-responsive")) { VerifyArenaResponsivenessFile(args[0]); return; }
             if (args.Contains("--arena-rematch-only")) { InstallArenaRematchRemoval(args[0], args.Contains("--stage-only")); return; }
@@ -66,6 +69,9 @@ namespace DllPatcher
             if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }
+            if (args.Contains("--mail-updates-only")) { InstallMailUpdates(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-mail-updates")) { VerifyMailUpdates(args[0]); return; }
+            if (args.Contains("--self-test-mail-updates")) { TestMailUpdates(); return; }
             // Determine client path: first CLI arg, or prompt, or default
             string clientRoot = args.Length > 0
                 ? args[0].TrimEnd('\\', '/')
@@ -167,6 +173,7 @@ namespace DllPatcher
                 else if (campaignOnly)
                 {
                     PatchCampaignSurvivors(module);
+                    PatchCinematicSkip(module);
                     assembly.Write(patchedPath);
                 }
                 else if (chatOnly)

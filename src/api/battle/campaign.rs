@@ -78,14 +78,14 @@ fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i6
     Ok(forced.as_array().into_iter().flatten().filter_map(Value::as_i64).filter(|id| *id > 0).collect())
 }
 
-pub(super) async fn validate(
+pub(super) async fn validate_dispatch(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
     r: &Request,
     heroes: &[i64],
 ) -> Result<()> {
-    validate_inner(db, s, a, r, heroes, false).await
+    validate_inner(db, s, a, r, heroes, false, true).await
 }
 
 pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, room: &Value) -> Result<()> {
@@ -115,7 +115,7 @@ pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &App
     Ok(())
 }
 async fn validate_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool,
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool, dispatch: bool,
 ) -> Result<()> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -133,7 +133,7 @@ async fn validate_inner(
     let restored_field = n(d, "BattleType") == 33
         && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
         && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
-            .is_some_and(|v| n(v,"Type") == 13 && v["IsOpen"] == true
+            .is_some_and(|v| (n(v,"Type") == 13 || service && n(v,"Type") == 12)
                 && n(v,"ChapterIndex") == c && n(v,"DungeonIndex") == n(d,"DungeonIndex"));
     if ch["IsOpen"] != true && !restored_field && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
         return Err(rule("NotOpenedDungeon"));
@@ -217,7 +217,7 @@ async fn validate_inner(
         return Err(rule("MaxDailyCount"));
     }
     // Closed/unsupported multiplayer and mode requests must pass their own state checks.
-    dungeons::validate_inner(db, s, a, r, d, service).await?;
+    dungeons::validate_inner(db, s, a, r, d, service, dispatch).await?;
     rooms::validate_battle(db, s, a, r).await?;
     Ok(())
 }
@@ -226,10 +226,24 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
     let group = ids(r, "GroupHeroIndices", 32)?;
     let d = dungeon(s, r)?;
     let battle_type = n(d, "BattleType");
-    if matches!(battle_type, 38 | 45 | 46) && !group.is_empty() {
+    let raid_squard = if matches!(battle_type,33|40|41|42) {
+        s.tables.battle.find("Raid", &[("Index",int(r,"RaidIndex")?),("Level",int(r,"RaidLevel")?)])
+            .filter(|v|matches!(n(v,"Type"),13|15))
+    } else {None};
+    if let Some(raid) = raid_squard {
+        // RaidManagement.StartSingleRaidBattle uses AiHeroIndices for the
+        // support team in field/Technomagic raids. HeroIndices includes both
+        // teams; GroupHeroIndices belongs to alternating-wave modes instead.
+        let support = ids(r,"AiHeroIndices",32)?;
+        if !group.is_empty() || support.iter().any(|id| !heroes.contains(id))
+            || support.len() as i64 > n(raid,"SubPartyCount")
+            || (heroes.len() - support.len()) as i64 > n(raid,"MainPartyCount") {
+            return Err(rule("NotMatchHeroIndices"));
+        }
+    } else if matches!(battle_type, 38 | 45 | 46) && !group.is_empty() {
         // Squard.GetBattlePartyInfo already includes both teams in HeroIndices.
-        // Otherworldly Shakmeh and both Enchantment bosses use GroupHeroIndices
-        // to mark the second team, not to append another roster.
+        // Shakmeh and Enchantment use GroupHeroIndices to mark the second
+        // team within the full roster. Do not count those heroes twice.
         if battle_type == 38 {
             let definition = row(s, "ShakmehDungeon", &[("DungeonIndex", n(d, "DungeonIndex"))])?;
             if n(definition, "ShakmehIndex") != 2 {
@@ -237,8 +251,8 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
             }
         }
         if group.iter().any(|id| !heroes.contains(id))
-            || group.len() as i64 > n(d, "SubSquardCount")
-            || (heroes.len() - group.len()) as i64 > n(d, "MainSquardCount")
+            || group.len() as i64 > n(d,"SubSquardCount")
+            || (heroes.len() - group.len()) as i64 > n(d,"MainSquardCount")
         {
             return Err(rule("NotMatchHeroIndices"));
         }
@@ -337,7 +351,7 @@ async fn begin_local_inner(
             super::entry_costs::settle(db,s,a,&mut abandoned,false,&mut json!({})).await?;
         }
     }
-    validate_inner(db, s, a, r, &party, service).await?;
+    validate_inner(db, s, a, r, &party, service, false).await?;
     let leader = int(r, "LeaderHeroIndex")?;
     if leader > 0 && !party.contains(&leader) {
         return Err(rule("HeroNotFound"));

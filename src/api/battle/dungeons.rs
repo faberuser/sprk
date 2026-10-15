@@ -345,7 +345,7 @@ mod shakmeh_charge_tests {
     }
 }
 pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
-    let rate = settings(s, "RaiderExpPerStamina", 200);
+    let rate = settings(s, "RaiderExpPerStamina", 100);
     let amount = cost.checked_mul(rate).filter(|v| *v >= 0 && *v <= i32::MAX as i64)
         .ok_or_else(|| rule("InvalidCost"))?;
     let mut rewards = Rewards::default();
@@ -531,10 +531,10 @@ pub(super) async fn validate(
     r: &Request,
     d: &Value,
 ) -> Result<()> {
-    validate_inner(db, s, a, r, d, false).await
+    validate_inner(db, s, a, r, d, false, false).await
 }
 pub(super) async fn validate_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, d: &Value, service: bool,
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, d: &Value, service: bool, dispatch: bool,
 ) -> Result<()> {
     let battle_type = n(d, "BattleType");
     require_late_raid_unlock(db, s, a, battle_type).await?;
@@ -572,7 +572,7 @@ pub(super) async fn validate_inner(
     }
     if battle_type == 33 {
         let raid = raid_data(s, r)?;
-        if n(raid, "Type") != 13 || raid["IsOnlineSingle"] != false {
+        if (n(raid, "Type") != 13 && !(service && n(raid,"Type") == 12)) || raid["IsOnlineSingle"] != false {
             return Err(rule("ContentsDisabled"));
         }
         require_raid_progress_unlock(db,s,a,raid).await?;
@@ -580,7 +580,7 @@ pub(super) async fn validate_inner(
     if matches!(battle_type, 40 | 41 | 42 | 45 | 46) {
         let raid = raid_data(s, r)?;
         let solo = if matches!(battle_type, 45 | 46) { 17 } else { 15 };
-        if n(raid, "Type") != solo || raid["IsOnlineSingle"] != false {
+        if (n(raid, "Type") != solo && !(service && solo == 15 && n(raid,"Type") == 14)) || raid["IsOnlineSingle"] != false {
             return Err(rule("ContentsDisabled"));
         }
         require_raid_progress_unlock(db,s,a,raid).await?;
@@ -769,7 +769,11 @@ pub(super) async fn validate_inner(
     }
     if int(r, "RaidIndex")? > 0 {
         let raid = raid_data(s, r)?;
-        restrictions::party(s, r, n(raid, "BanIndex"))?;
+        if dispatch {
+            restrictions::dispatch_party(s, r, n(raid, "BanIndex"))?;
+        } else {
+            restrictions::party(s, r, n(raid, "BanIndex"))?;
+        }
         let mut party = ids(r, "HeroIndices", 32)?;
         party.extend(ids(r, "GroupHeroIndices", 32)?);
         for id in party {
@@ -780,7 +784,14 @@ pub(super) async fn validate_inner(
         let progression_unlocked_dragon = matches!(battle_type, 12 | 29)
             && (matches!(n(raid, "Type"), 1 | 3) || service && matches!(n(raid,"Type"), 0 | 2))
             && raid["IsOnlineSingle"] == false;
-        if (raid["IsOpen"] != true && !progression_unlocked_dragon)
+        // Solo field rows are closed in the archive, like later dragon stages.
+        // Their earned OpenCondition/stage checks above decide availability.
+        let progression_unlocked_field = battle_type == 33
+            && (n(raid,"Type") == 13 || service && n(raid,"Type") == 12)
+            && s.tables.battle.rules["EnableLegacyFieldRaids"] == true && raid["IsOnlineSingle"] == false;
+        let progression_unlocked_technomagic = matches!(battle_type,40|41|42)
+            && (n(raid,"Type") == 15 || service && n(raid,"Type") == 14) && raid["IsOnlineSingle"] == false;
+        if (raid["IsOpen"] != true && !progression_unlocked_dragon && !progression_unlocked_field && !progression_unlocked_technomagic)
             || n(raid, "ChapterIndex") != c
             || n(raid, "DungeonIndex") != n(d, "DungeonIndex")
         {
@@ -1079,13 +1090,13 @@ pub(super) async fn finish(
         let data = raid_data(s, r)?;
         let mut index = n(data, "Index");
         let mut level = n(data, "Level");
-        if matches!(n(data, "Type"), 0..=3 | 13 | 15 | 17) {
+        if matches!(n(data, "Type"), 0..=3 | 12..=15 | 17) {
             // RaidHelper reads the shared index and treats RaidLevel as the
             // highest selectable stage, not the last stage just completed.
             if n(data, "ClearRaidIndex") > 0 { index = n(data, "ClearRaidIndex"); }
+            let shared_type=if matches!(n(data,"Type"),1|3|13|15|17) {n(data,"Type")-1}else{n(data,"Type")};
             level = s.tables.battle.rows("Raid").iter()
-                .filter(|v| n(v, "Index") == index && n(v, "Level") > level
-                    && (n(data,"Type")!=13 || v["IsOpen"] == true))
+                .filter(|v| n(v, "Index") == index && n(v, "Type") == shared_type && n(v, "Level") > level)
                 .map(|v| n(v, "Level")).min().unwrap_or(level);
             level = level.max(n(&get(db, a, "raid", index).await?, "RaidLevel"));
         }

@@ -9,6 +9,9 @@ use tokio::{io::{AsyncReadExt,AsyncWriteExt},net::{TcpListener,TcpStream},sync::
 mod party;
 #[path = "cooperative_arena.rs"]
 mod arena;
+#[cfg(test)]
+#[path = "raid_party_tests.rs"]
+mod raid_tests;
 pub(crate) use arena::{arena_worker, create_arena, http_cancelled as arena_http_cancelled};
 pub(super) use party::begin_party;
 

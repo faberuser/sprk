@@ -136,7 +136,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         assert_eq!(done["DispatchBattleInfo"]["WinCount"], 3);
         assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 7);
         assert_eq!(stamina(&s, &u).await, 700);
-        assert_eq!(done["TeamExpResult"]["AddValue"], 60000);
+        assert_eq!(done["TeamExpResult"]["AddValue"], 30000);
         assert_eq!(done["EquipItemResults"], json!([]));
         let mail_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?")
             .bind(a)
@@ -411,7 +411,7 @@ async fn dispatch_persisted_mixed_results_complete_offline_and_rewards_follow_wi
     assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 2);
     assert_eq!(done["DispatchBattleInfo"]["ServerResult"], "1,0,0,1");
     assert_eq!(stamina(&s, &u).await, 1000 - 2 * cost);
-    assert_eq!(done["TeamExpResult"]["AddValue"], 2 * cost * 200);
+    assert_eq!(done["TeamExpResult"]["AddValue"], 2 * cost * 100);
     assert_ne!(
         call(
             &restarted,

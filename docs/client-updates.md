@@ -7,11 +7,11 @@ its update URL, and distribute it alongside the client.
 The same `sprk-server` executable/image runs either service, or both. Select the
 mode before starting the process:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SPRK_SERVICE_MODE` | `game` | `game`, `updates`, or `all`; invalid values fail startup |
-| `SPRK_UPDATES_DIR` | `client-updates` | Existing directory containing published releases; used in `updates`/`all` |
-| `PORT` | `8080` | HTTP listening port for this process |
+| Variable            | Default          | Purpose                                                                   |
+| ------------------- | ---------------- | ------------------------------------------------------------------------- |
+| `SPRK_SERVICE_MODE` | `game`           | `game`, `updates`, or `all`; invalid values fail startup                  |
+| `SPRK_UPDATES_DIR`  | `client-updates` | Existing directory containing published releases; used in `updates`/`all` |
+| `PORT`              | `8080`           | HTTP listening port for this process                                      |
 
 `game` initializes the game database, tables, chat/battle listeners, and any
 configured native worker. `updates` skips all of them. `all` initializes both
@@ -67,8 +67,7 @@ for other obsolete files that were never managed by an earlier manifest.
 When present, `SPRK-NativeData.json`, `SPRK-NativeCombat.json` and
 `SPRK-NativeLocalization.json` under the native
 patch directory are included automatically, so table changes and their integrity
-metadata are installed together. For removing reconstructed field raid duplicates, see
-[RaidTableSync](../scripts/RaidTableSync/README.md).
+metadata are installed together.
 
 Each release contains a complete snapshot of the selected files. A launcher
 compares local SHA-256 hashes and downloads only changed or missing files, even
@@ -101,11 +100,11 @@ excluded from the Docker image.
 
 ## Endpoints and launcher contract
 
-| Endpoint | Behavior |
-| --- | --- |
-| `GET /updates/stable/manifest.json` | Current channel manifest, `Cache-Control: no-store` |
-| `GET /updates/releases/1.0.0/manifest.json` | Immutable release manifest |
-| `GET /updates/releases/1.0.0/files/{file_path}` | Immutable release file, streamed in bounded chunks |
+| Endpoint                                        | Behavior                                            |
+| ----------------------------------------------- | --------------------------------------------------- |
+| `GET /updates/stable/manifest.json`             | Current channel manifest, `Cache-Control: no-store` |
+| `GET /updates/releases/1.0.0/manifest.json`     | Immutable release manifest                          |
+| `GET /updates/releases/1.0.0/files/{file_path}` | Immutable release file, streamed in bounded chunks  |
 
 `HEAD`, byte `Range` requests for resume, and `Last-Modified` conditional
 requests are supported. Unknown files/directories return 404; write methods
@@ -117,19 +116,19 @@ Manifest format (SHA-256 shortened here for readability):
 
 ```json
 {
-  "schema_version": 1,
-  "version": "1.0.0",
-  "channel": "stable",
-  "published_at": "2026-10-08T00:00:00+00:00",
-  "files": [
-    {
-      "path": "King's Raid_Data/Managed/SprkDispatch.dll",
-      "size": 12345,
-      "sha256": "<64 lowercase hexadecimal characters>",
-      "url": "/updates/releases/1.0.0/files/King%27s%20Raid_Data/Managed/SprkDispatch.dll"
-    }
-  ],
-  "deleted_files": []
+    "schema_version": 1,
+    "version": "1.0.0",
+    "channel": "stable",
+    "published_at": "2026-10-08T00:00:00+00:00",
+    "files": [
+        {
+            "path": "King's Raid_Data/Managed/SprkDispatch.dll",
+            "size": 12345,
+            "sha256": "<64 lowercase hexadecimal characters>",
+            "url": "/updates/releases/1.0.0/files/King%27s%20Raid_Data/Managed/SprkDispatch.dll"
+        }
+    ],
+    "deleted_files": []
 }
 ```
 
@@ -237,3 +236,26 @@ docker compose -f docker-compose.yml config --quiet
 The tests cover actual startup in all modes, resumable/HEAD downloads, router
 and middleware separation, unsafe paths, complete manifests, skipped-version
 removals, immutable versions, and interrupted publishing.
+
+## Mail delivery refresh
+
+`local-20261015-mail-push-idle-60s-01` installs `SprkMailUpdates.dll` and the
+matching focused hooks in `Assembly-CSharp.dll`. The game server queues mail
+arrival hints in the same transaction as each new mail and publishes committed
+hints every 250 ms. This covers dispatch equipment, guild attendance and other
+guild rewards, arena/world-boss rewards, inventory overflow and system mail.
+The client coalesces hints, checks immediately when eligible, refreshes an open
+inbox and uses a sixty-second fallback for missed hints and global announcements. Requests
+do not overlap, and reconnecting resets their guards. Reward-generation times,
+attachment claims and the distinction between direct item rewards and mailed
+equipment are preserved.
+Idle mailbox reads skip progression snapshots and avoid the global-mail write
+transaction when no delivery is pending. Attachment claims retain progression
+notifications. The fallback produces one idle check per minute per active lobby.
+
+The signed release contains 655 managed files with the previous 154 removals.
+All file sizes/hashes and the signature were verified. Public deployment needs
+the updated game server, the complete
+`client-updates/releases/local-20261015-mail-push-idle-60s-01/` directory, and
+`client-updates/stable/manifest.json`, copied in that order. Players must restart
+through the launcher to load the new client code.

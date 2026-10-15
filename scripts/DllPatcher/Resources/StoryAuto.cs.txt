@@ -3,6 +3,8 @@ using System.Reflection;
 using NShared;
 using NGame2.NAccount;
 using NGame2.NBattleContext;
+using NGame2.NBattleField;
+using NGame2.NUI.NComponent2.NBattle;
 using NGame2.NTutorial;
 using NGame2.NCutScene;
 using NGame2.NScene;
@@ -27,6 +29,7 @@ public static class SprkStoryAuto
     static bool movingToNext, openingNextParty;
     static float resumeAfter;
     static float lastProgress, nextTick, retryAfter;
+    static float nextCrowSkill;
     static SprkStoryAutoRunner runner;
     static TutorialData lastTutorialStep;
     static bool caveCompletionRequested;
@@ -37,6 +40,7 @@ public static class SprkStoryAuto
     static readonly FieldInfo narrationIndex = typeof(NGame2.NCutScene.NScript.ForegroundTextList).GetField("CurrentIndex", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly FieldInfo partyProvider = typeof(BattlePartySetting).GetField("_dataProvider", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly MethodInfo checkNext = typeof(EndCampaign).GetMethod("CheckNextDungeon", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly MethodInfo skillUseResult = typeof(BaseSkillComponent).GetMethod("GetSyncSkillUseResult", BindingFlags.Instance | BindingFlags.NonPublic);
 
     public static bool AutoSkills(bool enabled) { return enabled || Active(); }
 
@@ -192,6 +196,7 @@ public static class SprkStoryAuto
         movingToNext = openingNextParty = false;
         lastTutorialStep = null;
         caveCompletionRequested = false;
+        nextCrowSkill = 0;
         storyMainParty = storySubParty = null;
         if (runner != null && runner.gameObject.activeSelf) runner.gameObject.SetActive(false);
     }
@@ -571,6 +576,35 @@ public static class SprkStoryAuto
         return group.IsEnd;
     }
 
+    static void PlayCrowScenario()
+    {
+        // 10-23 disables ordinary skill-auto and uses a fixed story party.
+        // Press only Crow's S3 through the native button callback: the battle
+        // thread still checks targets, mana, cooldowns and the scripted victory.
+        var enter = SingletonAuto<CampaignContext>.instance.EnterDungeon;
+        if (enter == null || enter.Chapter != 10 || enter.OriginalDungeon != 23 || !enter.IsScenario ||
+            enter.LinkedDungeonData == null || enter.LinkedDungeonData.ScenarioBattleDefine != "Crow_Chapter10" ||
+            !SingletonAuto<BattleFacade>.isValidInstance || Time.realtimeSinceStartup < nextCrowSkill) return;
+        var facade = SingletonAuto<BattleFacade>.instance;
+        var battle = facade.GetBattleCache();
+        if (battle == null || !battle.IsBattleStarted || battle.IsBattleEnded || !battle.IsBattleEnabled) return;
+        foreach (var slot in UnityEngine.Object.FindObjectsOfType<PartySlotComponent2>()) {
+            var creature = slot.CreatureCache;
+            if (!slot.gameObject.activeInHierarchy || creature == null || creature.Uid == 0 ||
+                creature.IsDeadOrResting() || creature.CreateInfo == null || creature.CreateInfo.HeroInfo == null ||
+                creature.CreateInfo.HeroInfo.HeroIndex != 52 || creature.Player == null || !creature.Player.IsMe ||
+                creature.ReservedSkillSlotIndex == 3 || creature.UsingSkillSlotIndex == 3) continue;
+            foreach (var skill in slot.GetComponentsInChildren<NormalSkillComponent>()) {
+                if (!skill.gameObject.activeInHierarchy || skill.SkillSlotIndex != 3 || skill.SkillInfo.IsLocked) continue;
+                var result = (SkillUseResult)skillUseResult.Invoke(skill, null);
+                if (result != SkillUseResult.Success && result != SkillUseResult.EnhancedSuccess) continue;
+                skill.OnClickSkill();
+                nextCrowSkill = Time.realtimeSinceStartup + 1f;
+                return;
+            }
+        }
+    }
+
     public static void Tick()
     {
         if (Time.realtimeSinceStartup < nextTick) return;
@@ -623,6 +657,7 @@ public static class SprkStoryAuto
             foreach (var reward in UnityEngine.Object.FindObjectsOfType<EndBattleReward>())
                 if (reward.IsOpen()) { rewarding = true; break; }
             if (inBattle && !storyPlaying && !rewarding && !GlobalAutoBehaviour<LoadingManager>.instance.IsSceneLoading) {
+                PlayCrowScenario();
                 lastProgress = Time.realtimeSinceStartup;
                 waitingParty = null;
                 waitingForEvent = false;
