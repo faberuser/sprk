@@ -407,13 +407,13 @@ pub(super) async fn tower_list(
     Ok(out)
 }
 
-// Repair the old party-clear overwrite from earned dungeon clears. This only
-// raises selectable dragon stages; it never grants rewards or changes a clear.
-pub(super) async fn repair_dragon_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
+// Repair missing next-stage unlocks and party-clear overwrites from earned
+// dragon/Arcdim clears. Never grant rewards or change the recorded clear.
+pub(super) async fn repair_raid_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
     let cleared: BTreeSet<(i64,i64)> = sqlx::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=? AND clear_count>0")
         .bind(a).fetch_all(&mut *db).await?.into_iter().collect();
     let mut unlocked=std::collections::BTreeMap::<i64,i64>::new();
-    for raid in s.tables.battle.rows("Raid").iter().filter(|v| matches!(n(v,"Type"),0..=3)) {
+    for raid in s.tables.battle.rows("Raid").iter().filter(|v| matches!(n(v,"Type"),0..=3|16|17)) {
         if !cleared.contains(&(n(raid,"ChapterIndex"),n(raid,"DungeonIndex"))) { continue; }
         let index=if n(raid,"ClearRaidIndex")>0 {n(raid,"ClearRaidIndex")} else {n(raid,"Index")};
         let level=s.tables.battle.rows("Raid").iter()
@@ -580,7 +580,7 @@ pub(super) async fn validate_inner(
     if matches!(battle_type, 40 | 41 | 42 | 45 | 46) {
         let raid = raid_data(s, r)?;
         let solo = if matches!(battle_type, 45 | 46) { 17 } else { 15 };
-        if (n(raid, "Type") != solo && !(service && solo == 15 && n(raid,"Type") == 14)) || raid["IsOnlineSingle"] != false {
+        if (n(raid, "Type") != solo && !(service && n(raid,"Type") == solo-1)) || raid["IsOnlineSingle"] != false {
             return Err(rule("ContentsDisabled"));
         }
         require_raid_progress_unlock(db,s,a,raid).await?;
@@ -1090,7 +1090,7 @@ pub(super) async fn finish(
         let data = raid_data(s, r)?;
         let mut index = n(data, "Index");
         let mut level = n(data, "Level");
-        if matches!(n(data, "Type"), 0..=3 | 12..=15 | 17) {
+        if matches!(n(data, "Type"), 0..=3 | 12..=17) {
             // RaidHelper reads the shared index and treats RaidLevel as the
             // highest selectable stage, not the last stage just completed.
             if n(data, "ClearRaidIndex") > 0 { index = n(data, "ClearRaidIndex"); }

@@ -15,6 +15,48 @@ use tokio::{
 };
 
 #[tokio::test]
+async fn arcdim_guest_second_team_ready_reaches_owner_over_native_socket() {
+    for raid in [401,402] {
+        let (state,host,guest)=setup().await;
+        let a=host.user_info.account_id;let b=guest.user_info.account_id;
+        for account in [a,b] {
+            crate::api::battle::put(&mut state.db.acquire().await.unwrap(),account,"dungeon",(10_i64<<32)|9,
+                &json!({"ChapterIndex":10,"DungeonIndex":9,"FirstRewardedDiff":15})).await.unwrap();
+        }
+        sqlx::query("UPDATE heroes SET level=100").execute(&state.db).await.unwrap();
+        let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+        let server=tokio::spawn(chat::serve(listener,state.clone()));
+        let mut owner=Socket::connect(addr,&host,1).await;let mut follower=Socket::connect(addr,&guest,1).await;
+        // LoginRes precedes reconnect replay; finish that handshake before
+        // creating the room so the fixture cannot race a second room snapshot.
+        for socket in [&mut owner,&mut follower] {
+            socket.send("PingReq",json!({"RequestId":100})).await;
+            assert_eq!(socket.read().await.0,"PingRes");
+        }
+        let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&host,&format!("RaidIndex={raid}&RaidLevel=1&Opened=1"))).await.unwrap();
+        assert_eq!(created["Result"],"Success");let room=created["RoomNo"].as_i64().unwrap();
+        let joined=crate::api::battle::execute_request(&state,"raid/join_raid_room",form(&guest,&format!("RoomNo={room}"))).await.unwrap();
+        assert_eq!(joined["Result"],"Success");owner.read().await;follower.read().await;
+        follower.send("MessageReq",json!({"RequestId":1,"ReceiverIds":[a],"Message":"PartyDeckHeroInfo {\"HeroIndex\":1,\"DeckIndex\":1,\"HeroInfo\":{\"HeroIndex\":1}}"})).await;
+        assert_eq!(follower.read().await.1["Result"],"Success");
+        assert_eq!(owner.read().await.1["Type"],"PartyRoomReady");
+        assert_eq!(owner.read().await.1["Type"],"PartyDeckHeroInfo");
+        for ready in [true,false,true] {
+            follower.send("MessageReq",json!({"RequestId":2,"ReceiverIds":[a],"Message":format!("PartyRoomReady {}",json!({"IsReady":ready}))})).await;
+            assert_eq!(follower.read().await.1["Result"],"Success");
+            let notice=owner.read().await.1;assert_eq!(notice["Type"],"PartyRoomReady");assert_eq!(notice["SenderId"],b);
+            let content:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(content["IsReady"],ready);
+            let raw:String=sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='party_member' AND idx=?")
+                .bind(b).bind(room).fetch_one(&state.db).await.unwrap();
+            let stored:Value=serde_json::from_str(&raw).unwrap();assert_eq!(stored["IsBattleReady"],ready);
+            assert!(stored["DeckHeros"].as_object().unwrap().is_empty());
+            assert_eq!(stored["SubDeckHeros"].as_object().unwrap().len(),1);
+        }
+        server.abort();
+    }
+}
+
+#[tokio::test]
 async fn mail_notifications_follow_commits_coalesce_bursts_and_isolate_recipients() {
     let (state,a,b)=setup().await;
     mail::deliver_notifications(&state).await.unwrap();

@@ -64,6 +64,235 @@ async fn fake_worker(s: &AppState) -> mpsc::Receiver<Packet> {
     *s.conquest.worker.write().await=Some(Worker{id:"raid-worker".into(),sender:tx,arena_version:0});rx
 }
 
+async fn arcdim_fixture(raid:i64,level:i64,host_second:bool)->(AppState,Vec<Value>,Vec<String>) {
+    let (s,host)=setup().await;
+    let guest=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=arcdim-guest")).await.unwrap().0);
+    let users=vec![host,guest];let members:Vec<_>=users.iter().map(account).collect();
+    let def=row(&s,"Raid",&[("Index",raid),("Level",level)]).unwrap();
+    for (index,user) in users.iter().enumerate() {
+        let a=account(user);unlock(&s,a).await;
+        sqlx::query("UPDATE user_info SET stamina=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":level})).await.unwrap();
+        for h in index as i64*4+1..=index as i64*4+4 {
+            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES(?,?,?,100,5,5)")
+                .bind(a).bind(h).bind(h).execute(&s.db).await.unwrap();
+        }
+    }
+    sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5").execute(&s.db).await.unwrap();
+    let room=call(&s,&users[0],"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel={level}&Opened=1")).await;
+    assert_eq!(room["Result"],"Success","{room}");let room=n(&room,"RoomNo");
+    assert_eq!(call(&s,&users[1],"raid/join_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
+    let mut args=vec![];
+    for (index,user) in users.iter().enumerate() {
+        let second=(index==0)==host_second;
+        let heroes:Vec<_>=(index as i64*4+1..=index as i64*4+4).collect();
+        let main=if second {vec![]}else{heroes.clone()};let sub=if second {heroes.clone()}else{vec![]};
+        let deck:serde_json::Map<_,_>=heroes.iter().map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
+        put(&mut s.db.acquire().await.unwrap(),account(user),"party_member",room,
+            &json!({"IsBattleReady":false,"DeckHeros":if second {json!({})}else{json!(deck)},"SubDeckHeros":if second {json!(deck)}else{json!({})}})).await.unwrap();
+        args.push(format!("ChapterIndex={}&DungeonIndex={}&DungeonDifficulty=0&RaidIndex={raid}&RaidLevel={level}&RaidRoomNo={room}&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices={}&AccountIds={}&DeltaHeroIndices={}&ZetaHeroIndices={}&AiHeroIndices={}",
+            n(def,"ChapterIndex"),n(def,"DungeonIndex"),members[0],json!(members),json!(heroes),json!(vec![account(user);4]),json!(main),json!(sub),json!(main)));
+    }
+    (s,users,args)
+}
+
+#[tokio::test]
+async fn arcdim_ready_and_battle_start_preserve_both_wave_teams() {
+    for raid in [401,402] {for level in [1,3] {for host_second in [false,true] {
+        let (s,users,args)=arcdim_fixture(raid,level,host_second).await;let _worker=fake_worker(&s).await;
+        let host=account(&users[0]);let guest=account(&users[1]);
+        assert_ne!(call(&s,&users[0],"campaign/begin_campaign",&args[0]).await["Result"],"Success");
+        super::super::party_messages::send(&s,guest,host,"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+        for (index,user) in users.iter().enumerate() {
+            let start=call(&s,user,"campaign/begin_campaign",&args[index]).await;
+            if start["Result"]!="Success" {
+                let req=Request::parse(args[index].as_bytes()).unwrap();
+                let reason=campaign::begin(&mut s.db.acquire().await.unwrap(),&s,account(user),&req).await;
+                panic!("Arcdim {raid}/{level}, host second={host_second}: {reason:?}");
+            }
+            assert_eq!(start["Result"],"Success","Arcdim {raid}/{level}, host second={host_second}: {start}");
+        }
+        let handle=s.conquest.runs.iter().next().unwrap().value().clone();let run=handle.lock().await;
+        let accounts=run.payload["Simulation"]["AccountInfos"].as_array().unwrap();assert_eq!(accounts.len(),2);
+        for (index,info) in accounts.iter().enumerate() {
+            assert_eq!(info["HeroInfos"].as_object().unwrap().len(),4);
+            assert_eq!(info["GroupHeroInfos"].as_object().unwrap().len(),if (index==0)==host_second {4}else{0});
+            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(account(&users[index])).fetch_one(&s.db).await.unwrap();
+            let entry:Value=read_json(&raw).unwrap();assert_eq!(entry["Heroes"].as_array().unwrap().len(),4);
+            assert_eq!(entry["Request"]["GroupHeroIndices"],json!(if (index==0)==host_second {(index as i64*4+1..=index as i64*4+4).collect::<Vec<_>>()}else{vec![]}).to_string());
+        }
+    }}}
+}
+
+#[tokio::test]
+async fn arcdim_team_change_is_authenticated_broadcast_and_replayed() {
+    let (s,users,args)=arcdim_fixture(401,1,false).await;let _worker=fake_worker(&s).await;
+    let host=account(&users[0]);let guest=account(&users[1]);
+    super::super::party_messages::send(&s,guest,host,"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+    for (i,user) in users.iter().enumerate() {assert_eq!(call(&s,user,"campaign/begin_campaign",&args[i]).await["Result"],"Success");}
+    let id=s.conquest.runs.iter().next().unwrap().key().clone();let mut receivers=vec![];
+    for user in &users {
+        let a=account(user);let(tx,rx)=mpsc::channel(100);
+        s.conquest.peers.insert(a,Peer{id:a.to_string(),run:id.clone(),sender:tx});receivers.push(rx);
+    }
+    let notification=json!({"RunId":id,"Name":"SetNextTeamNot","Body":{"ChatperIndex":10,"DungeonIndex":3001,"DeckIndex":1}});
+    assert!(worker_packet(&s,"another-worker","WorkerPacket",notification.clone()).await.is_err());
+    for (key,value) in [("DeckIndex",2),("DungeonIndex",3101),("ChatperIndex",9)] {
+        let mut invalid=notification.clone();invalid["Body"][key]=json!(value);
+        assert!(worker_packet(&s,"raid-worker","WorkerPacket",invalid).await.is_err());
+    }
+    assert!(receivers.iter_mut().all(|rx|rx.try_recv().is_err()));
+    worker_packet(&s,"raid-worker","WorkerPacket",notification.clone()).await.unwrap();
+    for rx in &mut receivers {assert_eq!(rx.recv().await.unwrap(),("SetNextTeamNot".into(),notification["Body"].clone()));}
+    let(tx,mut rx)=mpsc::channel(100);
+    player_packet(&s,guest,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+    assert_eq!(rx.recv().await.unwrap(),("SetNextTeamNot".into(),notification["Body"].clone()));
+}
+
+#[tokio::test]
+async fn arcdim_party_wins_unlock_next_stage_for_both_players_without_regressing() {
+    for raid in [401,402] {for (level,previous,expected,won) in [(1,1,2,true),(2,2,3,true),(3,3,3,true),(1,3,3,true),(1,1,1,false)] {
+        let(s,users,args)=arcdim_fixture(raid,level,false).await;let _worker=fake_worker(&s).await;
+        for user in &users {
+            put(&mut s.db.acquire().await.unwrap(),account(user),"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":previous})).await.unwrap();
+        }
+        super::super::party_messages::send(&s,account(&users[1]),account(&users[0]),"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+        for(i,user) in users.iter().enumerate() {assert_eq!(call(&s,user,"campaign/begin_campaign",&args[i]).await["Result"],"Success");}
+        let id=s.conquest.runs.iter().next().unwrap().key().clone();
+        let mut receivers=vec![];
+        for user in &users {
+            let a=account(user);let(tx,rx)=mpsc::channel(100);receivers.push(rx);
+            s.conquest.peers.insert(a,Peer{id:a.to_string(),run:id.clone(),sender:tx.clone()});
+            player_packet(&s,a,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+            player_packet(&s,a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();
+        }
+        // Native Arcdim replaces Delta's team: only Zeta's heroes remain.
+        let creatures:Vec<_>=(5..=8).map(|h|json!({"TeamId":0,"AccountId":account(&users[1]),"Index":h,"Hp":10})).collect();
+        let result=json!({"RunId":id,"Win":won,"Creatures":creatures,"TimeMs":60000,"MaxWaveIndex":2});
+        worker_packet(&s,"raid-worker","WorkerResult",result.clone()).await.unwrap();
+        for user in &users {
+            let a=account(user);let mut db=s.db.acquire().await.unwrap();
+            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&mut *db).await.unwrap();
+            let entry:Value=read_json(&raw).unwrap();
+            if won {
+                assert_eq!(entry["PartyEndResponse"]["CompletedRaidInfo"]["RaidIndex"],raid);
+                assert_eq!(entry["PartyEndResponse"]["CompletedRaidInfo"]["RaidLevel"],expected,"Arcdim {raid}, stage {level}, previous {previous}");
+            } else {assert!(entry["PartyEndResponse"]["CompletedRaidInfo"].is_null());}
+            assert_eq!(get(&mut db,a,"raid",raid).await.unwrap()["RaidLevel"],expected);
+            let next=row(&s,"Raid",&[("Index",raid),("Level",expected)]).unwrap();
+            super::super::dungeons::require_raid_join_unlock(&mut db,&s,a,next).await.unwrap();
+        }
+        worker_packet(&s,"raid-worker","WorkerResult",result).await.unwrap();
+        for user in &users {assert_eq!(get(&mut s.db.acquire().await.unwrap(),account(user),"raid",raid).await.unwrap()["RaidLevel"],expected);}
+    }}
+}
+
+#[tokio::test]
+#[ignore = "Requires CONQUEST_NATIVE_EXECUTABLE; clears Delta and Zeta with both party accounts"]
+async fn native_arcdim_coop_transitions_to_zeta_and_settles_both_players() {
+    struct Native(std::process::Child);
+    impl Drop for Native {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
+    for raid in [401,402] {
+        let (mut s,users,args)=arcdim_fixture(raid,1,false).await;
+        super::super::party_messages::send(&s,account(&users[1]),account(&users[0]),"PartyRoomReady",json!({"IsReady":true})).await.unwrap();
+        let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
+        let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let port=listener.local_addr().unwrap().port();
+        let server=tokio::spawn(serve(listener,s.clone()));
+        let executable=std::path::PathBuf::from(std::env::var("CONQUEST_NATIVE_EXECUTABLE").unwrap()).canonicalize().unwrap();
+        let mut command=std::process::Command::new(&executable);
+        command.current_dir(executable.parent().unwrap()).args(["-batchmode","-nographics","-logFile"])
+            .arg(std::env::current_dir().unwrap().join(format!("target/arcdim-ready-fix/native-{raid}.log")))
+            .env("SPRK_CONQUEST_WORKER_KEY",key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1").env("SPRK_CONQUEST_WORKER_PORT",port.to_string());
+        #[cfg(windows)] {use std::os::windows::process::CommandExt;command.creation_flags(0x08000000);}
+        let _native=Native(command.spawn().unwrap());
+        tokio::time::timeout(std::time::Duration::from_secs(90),async {
+            while s.conquest.worker.read().await.is_none() {tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
+        }).await.expect("Arcdim worker did not authenticate");
+        for (index,user) in users.iter().enumerate() {
+            let start=call(&s,user,"campaign/begin_campaign",&args[index]).await;
+            assert_eq!(start["Result"],"Success","{start}");
+        }
+        let id=s.conquest.runs.iter().next().unwrap().key().clone();let mut clients=vec![];
+        {
+            // This isolated fixture uses unequipped heroes. Give only its
+            // trusted simulation sufficient stats to clear both native bosses.
+            let handle=s.conquest.runs.get(&id).unwrap().value().clone();let mut run=handle.lock().await;
+            for info in run.payload["Simulation"]["AccountInfos"].as_array_mut().unwrap() {
+                info["ExtraStatDatas"]=json!([
+                    {"OptionType":"ModMaxHp","OptionValue":1000000000},
+                    {"OptionType":"ModAttackPower","OptionValue":100000000},
+                    {"OptionType":"ModDefensePower","OptionValue":100000000}]);
+            }
+        }
+        let guest=account(&users[1]);
+        for user in &users {
+            let a=account(user);let(tx,mut rx)=mpsc::channel(1000);
+            s.conquest.peers.insert(a,Peer{id:a.to_string(),run:id.clone(),sender:tx.clone()});let state=s.clone();
+            clients.push(tokio::spawn(async move {
+                player_packet(&state,a,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+                player_packet(&state,a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();
+                let mut heroes=BTreeSet::new();let mut entered=BTreeSet::new();let mut waves=BTreeSet::new();let mut switched=false;
+                let mut wave=0;let mut heartbeat=tokio::time::interval(std::time::Duration::from_secs(1));
+                loop {
+                    let(name,body)=tokio::select! {
+                        packet=rx.recv()=>packet.unwrap(),
+                        _=heartbeat.tick()=>{
+                            player_packet(&state,a,"PingReq",json!({"RequestId":4,"BattleStopped":true,"ReplayWaveIndex":wave}),&tx).await.unwrap();continue;
+                        }
+                    };
+                    if name=="SetNextTeamNot" {
+                        assert!(!switched);assert_eq!(number(&body,"DeckIndex"),1);switched=true;
+                    }
+                    if name=="WaveReadyNot" {
+                        wave=number(&body,"WaveIndex");waves.insert(wave);
+                        if wave==2 {assert!(switched,"Zeta must follow the team-change notification");}
+                        println!("Arcdim {raid} player {a}: native wave {wave} ready");
+                        player_packet(&state,a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();
+                        player_packet(&state,a,"BattleWaveResumeReq",json!({"RequestId":3}),&tx).await.unwrap();
+                    }
+                    if name=="BattleLogNot" {
+                        for log in body["BattleLogs"].as_array().into_iter().flatten() {
+                            let data:Value=if let Some(raw)=log["Data"].as_str() {serde_json::from_str(raw).unwrap()}else{log["Data"].clone()};
+                            if log["Type"]=="PlayerEnter" {entered.insert(number(&data["PlayerCreateInfo"],"Id"));}
+                            for hero in data["CreatureCreateInfos"].as_array().into_iter().flatten() {
+                                let index=number(&hero["HeroInfo"],"HeroIndex");
+                                if index>0 {
+                                    assert_eq!(number(hero,"GroupIndex"),0,"The second team must wait for its wave");
+                                    heroes.insert(index);
+                                }
+                            }
+                            if log["Type"]=="CreatureCreate" {
+                                let index=number(&data["CreateInfo"]["HeroInfo"],"HeroIndex");
+                                if index>0 && index<1000 {
+                                    assert!(switched || wave==1);
+                                    assert!((5..=8).contains(&index),"Only the reserved team replaces Delta's team");
+                                    assert_eq!(number(&data,"PlayerId"),guest,"Zeta heroes retain their actual owner");
+                                    assert_eq!(number(&data["CreateInfo"],"GroupIndex"),0,"Wave teams share the native battle area");
+                                    heroes.insert(index);
+                                }
+                            }
+                        }
+                    }
+                    if name=="BattleResultNot" {
+                        assert_eq!(entered.len(),2);assert!(switched);
+                        assert_eq!(waves,BTreeSet::from([1,2]));
+                        assert_eq!(heroes,(1..=8).collect());
+                        assert_eq!(body["Win"],true);assert_eq!(number(&body,"MaxWaveIndex"),2);
+                        return body;
+                    }
+                }
+            }));
+        }
+        let mut results=vec![];
+        for client in clients {results.push(tokio::time::timeout(std::time::Duration::from_secs(180),client).await.expect("Arcdim native transition timed out").unwrap());}
+        assert_eq!(results[0],results[1]);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        println!("Native Arcdim {raid}: Delta cleared, Zeta team created with correct ownership, both players settled");
+        server.abort();
+    }
+}
+
 #[tokio::test]
 async fn two_player_field_and_technomagic_parties_fill_the_total_hero_cap() {
     for (raid,levels,cap,total) in [(32,vec![1,2],3,6),(33,vec![1,2],3,6),(34,vec![1,2],4,7),

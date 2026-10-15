@@ -81,7 +81,7 @@ pub(crate) async fn begin_party(
                 ("Level", n(&room, "RaidLevel")),
             ],
         )?;
-        if !matches!(n(def, "Type"), 0 | 2 | 12 | 14) || def["IsOnlineSingle"] != false {
+        if !matches!(n(def, "Type"), 0 | 2 | 12 | 14 | 16) || def["IsOnlineSingle"] != false {
             return Err(rule("BattleServerNotFound"));
         }
         def
@@ -98,6 +98,8 @@ pub(crate) async fn begin_party(
             ],
         )?
     };
+    let dual_wave=family=="raid" && n(def,"Type")==16;
+    let mut wave_counts=[0_i64;2];
     let worker_id = s
         .conquest
         .worker
@@ -150,7 +152,21 @@ pub(crate) async fn begin_party(
         if *account != master && state["IsBattleReady"] != true {
             return Err(rule("WrongMember"));
         }
-        let own: Vec<i64> = if *account == master {
+        let main: Vec<i64> = state["DeckHeros"].as_object().into_iter().flat_map(|v|v.keys())
+            .map(|v|v.parse().map_err(|_|rule("NotMatchHeroIndices"))).collect::<Result<_>>()?;
+        let sub: Vec<i64> = state["SubDeckHeros"].as_object().into_iter().flat_map(|v|v.keys())
+            .map(|v|v.parse().map_err(|_|rule("NotMatchHeroIndices"))).collect::<Result<_>>()?;
+        let own: Vec<i64> = if dual_wave {
+            let own:Vec<_>=main.iter().chain(&sub).copied().collect();
+            if *account==master && (selected.len()!=own.len() || selected.iter().copied().collect::<BTreeSet<_>>() != own.iter().copied().collect()
+                || ids(r,"DeltaHeroIndices",32)?.into_iter().collect::<BTreeSet<_>>() != main.iter().copied().collect()
+                || ids(r,"ZetaHeroIndices",32)?.into_iter().collect::<BTreeSet<_>>() != sub.iter().copied().collect()) {
+                return Err(rule("NotMatchHeroIndices"));
+            }
+            wave_counts[0]+=main.len() as i64;wave_counts[1]+=sub.len() as i64;
+            if wave_counts[0]>n(def,"MainPartyCount") || wave_counts[1]>n(def,"SubPartyCount") {return Err(rule("NotMatchHeroIndices"));}
+            own
+        } else if *account == master {
             selected.clone()
         } else {
             state["DeckHeros"]
@@ -163,7 +179,7 @@ pub(crate) async fn begin_party(
         if own.is_empty() || own.len() as i64 > n(def, "DeckCountPerPlayer") {
             return Err(rule("NotMatchHeroIndices"));
         }
-        if state["SubDeckHeros"]
+        if !dual_wave && state["SubDeckHeros"]
             .as_object()
             .is_some_and(|v| !v.is_empty())
         {
@@ -189,9 +205,9 @@ pub(crate) async fn begin_party(
         }
         fields.insert("HeroIndices".into(), json!(own).to_string());
         fields.insert("AiHeroIndices".into(), "[]".into());
-        fields.insert("GroupHeroIndices".into(), "[]".into());
-        fields.insert("DeltaHeroIndices".into(), "[]".into());
-        fields.insert("ZetaHeroIndices".into(), "[]".into());
+        fields.insert("GroupHeroIndices".into(), json!(if dual_wave {sub.clone()}else{vec![]}).to_string());
+        fields.insert("DeltaHeroIndices".into(), json!(if dual_wave {main.clone()}else{vec![]}).to_string());
+        fields.insert("ZetaHeroIndices".into(), json!(if dual_wave {sub.clone()}else{vec![]}).to_string());
         let use_stamina = *account == master;
         fields.insert("UseStamina".into(), use_stamina.to_string());
         if !use_stamina { fields.insert("ItemBoosterCount".into(), "0".into()); }
@@ -222,7 +238,9 @@ pub(crate) async fn begin_party(
         }
         info["HeroInfos"] = json!(heroes);
         info["AiHeroInfos"] = json!({});
-        info["GroupHeroInfos"] = json!({});
+        info["GroupHeroInfos"] = if dual_wave {
+            json!(sub.iter().map(|hero|(hero.to_string(),info["HeroInfos"][hero.to_string()].clone())).collect::<serde_json::Map<_,_>>())
+        } else {json!({})};
         accounts.push(info);
         out["BattleServerAddress"] = json!(s.conquest.address);
         out["BattleServerPort"] = json!(s.conquest.port);

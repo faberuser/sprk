@@ -29,9 +29,11 @@ public static class SprkStoryAuto
     static bool movingToNext, openingNextParty;
     static float resumeAfter;
     static float lastProgress, nextTick, retryAfter;
-    static float nextCrowSkill;
+    static float nextScriptedSkill;
+    static int scriptedSkillCursor;
     static SprkStoryAutoRunner runner;
     static TutorialData lastTutorialStep;
+    static SubStoryEventData lastSubstoryStep;
     static bool caveCompletionRequested;
     static int[] storyMainParty, storySubParty;
     static readonly FieldInfo currentSquard = typeof(BattlePartySetting).GetField("_currentSquard", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -41,6 +43,7 @@ public static class SprkStoryAuto
     static readonly FieldInfo partyProvider = typeof(BattlePartySetting).GetField("_dataProvider", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly MethodInfo checkNext = typeof(EndCampaign).GetMethod("CheckNextDungeon", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly MethodInfo skillUseResult = typeof(BaseSkillComponent).GetMethod("GetSyncSkillUseResult", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo rewardCallback = typeof(BaseRewardPopup).GetField("_onClose", BindingFlags.Instance | BindingFlags.NonPublic);
 
     public static bool AutoSkills(bool enabled) { return enabled || Active(); }
 
@@ -55,7 +58,7 @@ public static class SprkStoryAuto
 
     public static bool IsStoryRoute(EnterDungeonData enter)
     {
-        if (enter != null && IsScarlet2(enter.Chapter, enter.OriginalDungeon))
+        if (enter != null && IsRequiredSubstory(enter.Chapter, enter.OriginalDungeon))
             return (enter.Difficulty == DungeonDifficultyType.Easy || enter.Difficulty == DungeonDifficultyType.Normal) &&
                 enter.LinkedDungeonData != null && enter.LinkedDungeonData.BattleType == BattleType.SubStory;
         return enter != null && (enter.Difficulty == DungeonDifficultyType.Normal ||
@@ -74,12 +77,27 @@ public static class SprkStoryAuto
         return chapter == 9 && dungeon == 51;
     }
 
+    static bool IsChapter10Finale(int chapter, int dungeon)
+    {
+        return chapter == 10 && dungeon >= 30 && dungeon <= 41;
+    }
+
+    static bool IsRequiredSubstory(int chapter, int dungeon)
+    {
+        return IsScarlet2(chapter, dungeon) || IsChapter10Finale(chapter, dungeon);
+    }
+
+    static bool IsFinaleEvent(int chapter, int dungeon)
+    {
+        return chapter == 10 && (dungeon == 30 || dungeon == 39 || dungeon == 41);
+    }
+
     public static DungeonDifficultyType NextDifficulty(DungeonDifficultyType difficulty, CampaignDungeonData next)
     {
         // Scripted detours use Easy. The surrounding story remains Normal; retain
         // native difficulty checks using the actual destination's mode.
         return Active() && next != null ?
-            (IsCaveBattle(next.ChapterIndex, next.DungeonIndex) || IsScarlet2(next.ChapterIndex, next.DungeonIndex) ?
+            (IsCaveBattle(next.ChapterIndex, next.DungeonIndex) || IsRequiredSubstory(next.ChapterIndex, next.DungeonIndex) ?
                 DungeonDifficultyType.Easy : DungeonDifficultyType.Normal) : difficulty;
     }
 
@@ -101,8 +119,8 @@ public static class SprkStoryAuto
 
     public static bool ShowChoice(EnterDungeonData enter)
     {
-        // Scarlet 2 is entered only by an existing main-story run.
-        if (enter != null && IsScarlet2(enter.Chapter, enter.OriginalDungeon)) return false;
+        // Required substories use their native map action during an existing run.
+        if (enter != null && IsRequiredSubstory(enter.Chapter, enter.OriginalDungeon)) return false;
         if (!IsStory(enter)) return false;
         BattlePartySetting party = null;
         foreach (var candidate in UnityEngine.Object.FindObjectsOfType<BattlePartySetting>())
@@ -195,8 +213,10 @@ public static class SprkStoryAuto
         pendingNext = null;
         movingToNext = openingNextParty = false;
         lastTutorialStep = null;
+        lastSubstoryStep = null;
         caveCompletionRequested = false;
-        nextCrowSkill = 0;
+        nextScriptedSkill = 0;
+        scriptedSkillCursor = 0;
         storyMainParty = storySubParty = null;
         if (runner != null && runner.gameObject.activeSelf) runner.gameObject.SetActive(false);
     }
@@ -217,7 +237,13 @@ public static class SprkStoryAuto
         if (current == null || current.NextDungeonIndex == current.DungeonIndex) return null;
         CampaignDungeonData next = null;
         var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
-        if (enter.Chapter == 9 && enter.OriginalDungeon == 13) {
+        if (enter.Chapter == 10 && enter.OriginalDungeon >= 29 && enter.OriginalDungeon <= 41) {
+            // The mandatory finale has no CampaignDungeon next links. Its map
+            // actions include both battles and story events; 10-41 unlocks XI.
+            next = enter.OriginalDungeon < 41 ?
+                GameRoot.Instance.CampaignDungeonDataContainer.GetData(10, enter.OriginalDungeon + 1) :
+                GameRoot.Instance.CampaignDungeonDataContainer.GetData(11, 1);
+        } else if (enter.Chapter == 9 && enter.OriginalDungeon == 13) {
             next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(9, manager.IsCompleted(9, 51) ? 14 : 51);
         } else if (enter.Chapter == 9 && enter.OriginalDungeon == 51) {
             next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(9, 14);
@@ -242,7 +268,7 @@ public static class SprkStoryAuto
             next = GameRoot.Instance.CampaignDungeonDataContainer.GetData(enter.Chapter + 1, 1);
         }
         if (next == null || !(IsStoryType(next.BattleType) ||
-            (IsScarlet2(next.ChapterIndex, next.DungeonIndex) && next.BattleType == BattleType.SubStory))) return null;
+            (IsRequiredSubstory(next.ChapterIndex, next.DungeonIndex) && next.BattleType == BattleType.SubStory))) return null;
         return manager.CanGoToChapter(next.ChapterIndex) &&
             (manager.CanVisit(next.ChapterIndex, next.DungeonIndex) || IsCaveExit(next)) ? next : null;
     }
@@ -290,6 +316,12 @@ public static class SprkStoryAuto
         var world = SceneAutoBehaviour<WorldMapManagement>.instance;
         if (world.IsMapLoading) return;
         var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
+        if (IsChapter10Finale(pendingNext.Chapter, pendingNext.OriginalDungeon) &&
+            manager.IsCompleted(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
+            var next = NextRoute(pendingNext);
+            if (next == null) { Stop(); return; }
+            QueueNext(next);
+        }
         // Native story events can complete 117-4 before its queued party opens.
         if (pendingNext.Chapter == 117 && pendingNext.OriginalDungeon == 4 && manager.IsCompleted(117, 4))
             QueueNext(GameRoot.Instance.CampaignDungeonDataContainer.GetData(7, 7));
@@ -308,13 +340,16 @@ public static class SprkStoryAuto
             movingToNext = true;
             resumeAfter = Time.realtimeSinceStartup + 2.5f;
             lastProgress = Time.realtimeSinceStartup;
+            // Chapter X's multi-avatar map permits scripted moves only through
+            // the same one-shot flag used by WorldMapPlayerMove tutorials.
+            // Chapter/node unlock checks above must pass before granting it.
+            if (IsChapter10Finale(pendingNext.Chapter, pendingNext.OriginalDungeon)) world.IsPossibleMove = true;
             world.MovePlayerToDungeon(pendingNext.Chapter, pendingNext.OriginalDungeon, false, true);
             return;
         }
         if (NGame2.NAccount.UserCampaignManager.ChapterIndex != pendingNext.Chapter || Time.realtimeSinceStartup < resumeAfter) return;
-        if (IsScarlet2(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
-            // Scarlet 2 starts directly from its map action.
-            // Opening ordinary campaign party setup would lose its forced hero.
+        if (IsRequiredSubstory(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
+            // Native map actions retain forced parties and lobby-only events.
             if (!openingNextParty && NGame2.NAccount.UserCampaignManager.DungeonIndex == pendingNext.OriginalDungeon &&
                 SceneAutoBehaviour<LobbyManagement>.isValidInstance) {
                 openingNextParty = true;
@@ -361,7 +396,7 @@ public static class SprkStoryAuto
     static bool HasScriptedParty(BattlePartySetting.IDataProvider provider)
     {
         var enter = provider.GetEnterDungeon();
-        if (IsScarlet2(enter.Chapter, enter.OriginalDungeon)) return true;
+        if (IsRequiredSubstory(enter.Chapter, enter.OriginalDungeon)) return true;
         var forced = provider.GetForcedPartyMemberHeroIndices();
         return (forced != null && forced.Length > 0) ||
             NGame2.NAccount.Helper.CheckFixedSetHero(enter.Chapter, enter.LinkedDungeon, enter.Difficulty, enter.IsScenario);
@@ -576,33 +611,57 @@ public static class SprkStoryAuto
         return group.IsEnd;
     }
 
-    static void PlayCrowScenario()
+    static void AcknowledgeFinaleReward()
     {
-        // 10-23 disables ordinary skill-auto and uses a fixed story party.
-        // Press only Crow's S3 through the native button callback: the battle
-        // thread still checks targets, mana, cooldowns and the scripted victory.
+        // Only the reward callback created by these mandatory lobby events is
+        // acknowledged. Other popups and manual substory playback are untouched.
+        if (pendingNext == null || !openingNextParty ||
+            !IsFinaleEvent(pendingNext.Chapter, pendingNext.OriginalDungeon) ||
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Lobby" ||
+            !GlobalAutoBehaviour<AccountManager>.instance.CampaignManager.IsCompleted(pendingNext.Chapter, pendingNext.OriginalDungeon)) return;
+        foreach (var popup in UnityEngine.Object.FindObjectsOfType<BaseRewardPopup>()) {
+            var callback = (Action)rewardCallback.GetValue(popup);
+            if (!popup.IsOpen() || callback == null || callback.Method.DeclaringType == null ||
+                !callback.Method.DeclaringType.FullName.StartsWith("NGame2.NSubStory.SubStoryStarter")) continue;
+            popup.OnClickBackground();
+        }
+    }
+
+    static void PlayScriptedParty()
+    {
         var enter = SingletonAuto<CampaignContext>.instance.EnterDungeon;
-        if (enter == null || enter.Chapter != 10 || enter.OriginalDungeon != 23 || !enter.IsScenario ||
-            enter.LinkedDungeonData == null || enter.LinkedDungeonData.ScenarioBattleDefine != "Crow_Chapter10" ||
-            !SingletonAuto<BattleFacade>.isValidInstance || Time.realtimeSinceStartup < nextCrowSkill) return;
+        if (enter == null || enter.Chapter != 10 || enter.LinkedDungeonData == null ||
+            !SingletonAuto<BattleFacade>.isValidInstance || Time.realtimeSinceStartup < nextScriptedSkill) return;
+        bool crow = enter.OriginalDungeon == 23 && enter.IsScenario &&
+            enter.LinkedDungeonData.ScenarioBattleDefine == "Crow_Chapter10";
+        bool clause = enter.OriginalDungeon == 29 && enter.IsScenario &&
+            enter.LinkedDungeonData.ScenarioBattleDefine == "Clause_Chapter10";
+        bool finale = (enter.OriginalDungeon == 36 || enter.OriginalDungeon == 38) &&
+            enter.LinkedDungeonData.BattleType == BattleType.SubStory &&
+            enter.LinkedDungeonData.BattleDefineCode == "Campaign_SubStory10_2";
+        if (!crow && !clause && !finale) return;
         var facade = SingletonAuto<BattleFacade>.instance;
         var battle = facade.GetBattleCache();
         if (battle == null || !battle.IsBattleStarted || battle.IsBattleEnded || !battle.IsBattleEnabled) return;
+        var ready = new System.Collections.Generic.List<NormalSkillComponent>();
         foreach (var slot in UnityEngine.Object.FindObjectsOfType<PartySlotComponent2>()) {
             var creature = slot.CreatureCache;
             if (!slot.gameObject.activeInHierarchy || creature == null || creature.Uid == 0 ||
                 creature.IsDeadOrResting() || creature.CreateInfo == null || creature.CreateInfo.HeroInfo == null ||
-                creature.CreateInfo.HeroInfo.HeroIndex != 52 || creature.Player == null || !creature.Player.IsMe ||
-                creature.ReservedSkillSlotIndex == 3 || creature.UsingSkillSlotIndex == 3) continue;
+                (crow && creature.CreateInfo.HeroInfo.HeroIndex != 52) || creature.Player == null || !creature.Player.IsMe) continue;
             foreach (var skill in slot.GetComponentsInChildren<NormalSkillComponent>()) {
-                if (!skill.gameObject.activeInHierarchy || skill.SkillSlotIndex != 3 || skill.SkillInfo.IsLocked) continue;
+                if (!skill.gameObject.activeInHierarchy || (crow && skill.SkillSlotIndex != 3) || skill.SkillInfo.IsLocked ||
+                    creature.ReservedSkillSlotIndex == skill.SkillSlotIndex || creature.UsingSkillSlotIndex == skill.SkillSlotIndex) continue;
                 var result = (SkillUseResult)skillUseResult.Invoke(skill, null);
                 if (result != SkillUseResult.Success && result != SkillUseResult.EnhancedSuccess) continue;
-                skill.OnClickSkill();
-                nextCrowSkill = Time.realtimeSinceStartup + 1f;
-                return;
+                ready.Add(skill);
             }
         }
+        if (ready.Count == 0) return;
+        // Native clicks retain target, mana, cooldown and scripted victory
+        // checks. Rotate available buttons so one hero cannot starve the rest.
+        ready[scriptedSkillCursor++ % ready.Count].OnClickSkill();
+        nextScriptedSkill = Time.realtimeSinceStartup + 0.5f;
     }
 
     public static void Tick()
@@ -628,6 +687,19 @@ public static class SprkStoryAuto
                 var window = TutorialWindow.instance;
                 if (window != null && window.NeedShowSkipButton()) window.OnClickSkip();
                 else if (AcknowledgeBattleTutorial(tutorial, window)) lastProgress = Time.realtimeSinceStartup;
+            }
+            if (pendingNext != null && IsFinaleEvent(pendingNext.Chapter, pendingNext.OriginalDungeon) &&
+                SingletonAuto<NGame2.NSubStory.SubStoryEventManager>.isValidInstance) {
+                var events = SingletonAuto<NGame2.NSubStory.SubStoryEventManager>.instance;
+                if (events.IsProgressing) {
+                    storyPlaying = true;
+                    if (!object.ReferenceEquals(lastSubstoryStep, events.CurrentTutorialData)) {
+                        lastSubstoryStep = events.CurrentTutorialData;
+                        lastProgress = Time.realtimeSinceStartup;
+                    }
+                    var window = TutorialWindow.instance;
+                    if (window != null && window.NeedShowSkipButton()) window.OnClickSkip();
+                }
             }
             foreach (var cutscene in UnityEngine.Object.FindObjectsOfType<CutSceneManager>()) {
                 if (!cutscene.IsPlaying && !cutscene.IsLoading) continue;
@@ -657,7 +729,7 @@ public static class SprkStoryAuto
             foreach (var reward in UnityEngine.Object.FindObjectsOfType<EndBattleReward>())
                 if (reward.IsOpen()) { rewarding = true; break; }
             if (inBattle && !storyPlaying && !rewarding && !GlobalAutoBehaviour<LoadingManager>.instance.IsSceneLoading) {
-                PlayCrowScenario();
+                PlayScriptedParty();
                 lastProgress = Time.realtimeSinceStartup;
                 waitingParty = null;
                 waitingForEvent = false;
@@ -668,6 +740,7 @@ public static class SprkStoryAuto
                 waitingForEvent = false;
                 waitingParty.TryStartBattle(new BattlePartySetting.ExtraOptionData { AutoNext = true });
             }
+            if (!storyPlaying) AcknowledgeFinaleReward();
             if (!storyPlaying && !GlobalAutoBehaviour<PopupManegement>.instance.AnyPopupExist()) ResumeNext();
             if (Time.realtimeSinceStartup - lastProgress > 90f) {
                 Stop();

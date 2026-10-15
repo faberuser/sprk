@@ -499,8 +499,15 @@ async fn worker_packet(s:&AppState,worker:&str,name:&str,body:Value)->Result<()>
     if run.result.is_some() {return Ok(());}
     if name=="WorkerPacket" {
         let name=body["Name"].as_str().ok_or_else(||rule("InvalidValue"))?;
-        if !matches!(name,"BattleLogNot"|"WaveReadyNot"|"WaveEndNot") {return Err(rule("InvalidValue"));}
+        if !matches!(name,"BattleLogNot"|"WaveReadyNot"|"WaveEndNot"|"SetNextTeamNot") {return Err(rule("InvalidValue"));}
         let packet=body["Body"].clone();
+        if name=="SetNextTeamNot" {
+            let raid=row(s,"Raid",&[("Index",number(&run.payload,"RaidIndex")),("Level",number(&run.payload,"RaidLevel"))])?;
+            if run.payload["PartyCampaign"]!=true || n(raid,"Type")!=16
+                || number(&packet,"ChatperIndex")!=number(&run.payload["Simulation"],"ChapterIndex")
+                || number(&packet,"DungeonIndex")!=number(&run.payload["Simulation"],"DungeonIndex")
+                || number(&packet,"DeckIndex")!=1 {return Err(rule("InvalidValue"));}
+        }
         if name=="WaveReadyNot" {
             run.ready.clear(); run.wave_started=false;
             run.payload["ReplayWaveIndex"] = json!(number(&packet,"WaveIndex"));

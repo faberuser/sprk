@@ -2915,6 +2915,33 @@ async fn dragon_login_repairs_party_overwrite_and_missing_next_stage_without_rew
 }
 
 #[tokio::test]
+async fn arcdim_login_recovers_earned_party_and_solo_stages_without_rewards() {
+    let(s,u)=setup().await;let a=account(&u);
+    for raid in [401,402] {
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":1,"CreatedTime":"2026-10-01 00:00:00","BattleScore":123})).await.unwrap();
+    }
+    let gold=balance(&s,"gold").await;let stamina=balance(&s,"stamina").await;
+    // A failed/uncompleted stage is not evidence for an unlock.
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,10,3003,0,0,1)")
+        .bind(a).execute(&s.db).await.unwrap();
+    assert!(login(&s,a).await.unwrap()["RaidInfos"].as_array().unwrap().iter()
+        .filter(|info|matches!(n(info,"RaidIndex"),401|402)).all(|info|n(info,"RaidLevel")==1));
+    // Normal/hard and party/solo clears share the two canonical raid indices.
+    for (dungeon,index,expected) in [(3001,401,2),(3101,402,2),(4002,401,3),(4102,402,3),(3003,401,3),(3001,401,3)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,10,?,1,3,1) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+1,best_star=3")
+            .bind(a).bind(dungeon).execute(&s.db).await.unwrap();
+        let before:i64=sqlx::query_scalar("SELECT SUM(clear_count) FROM campaign_progress WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let first=login(&s,a).await.unwrap();
+        let info=first["RaidInfos"].as_array().unwrap().iter().find(|info|n(info,"RaidIndex")==index).unwrap();
+        assert_eq!(info["RaidLevel"],expected,"Dungeon {dungeon}");
+        assert_eq!(info["CreatedTime"],"2026-10-01 00:00:00");assert_eq!(info["BattleScore"],123);
+        assert_eq!(login(&s,a).await.unwrap()["RaidInfos"],first["RaidInfos"]);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(clear_count) FROM campaign_progress WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    }
+    assert_eq!(balance(&s,"gold").await,gold);assert_eq!(balance(&s,"stamina").await,stamina);
+}
+
+#[tokio::test]
 async fn technomagic_restored_stages_keep_story_gates_costs_and_shared_progress() {
     let (s, u) = setup().await;
     let a = account(&u);

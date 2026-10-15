@@ -236,26 +236,3 @@ docker compose -f docker-compose.yml config --quiet
 The tests cover actual startup in all modes, resumable/HEAD downloads, router
 and middleware separation, unsafe paths, complete manifests, skipped-version
 removals, immutable versions, and interrupted publishing.
-
-## Mail delivery refresh
-
-`local-20261015-mail-push-idle-60s-01` installs `SprkMailUpdates.dll` and the
-matching focused hooks in `Assembly-CSharp.dll`. The game server queues mail
-arrival hints in the same transaction as each new mail and publishes committed
-hints every 250 ms. This covers dispatch equipment, guild attendance and other
-guild rewards, arena/world-boss rewards, inventory overflow and system mail.
-The client coalesces hints, checks immediately when eligible, refreshes an open
-inbox and uses a sixty-second fallback for missed hints and global announcements. Requests
-do not overlap, and reconnecting resets their guards. Reward-generation times,
-attachment claims and the distinction between direct item rewards and mailed
-equipment are preserved.
-Idle mailbox reads skip progression snapshots and avoid the global-mail write
-transaction when no delivery is pending. Attachment claims retain progression
-notifications. The fallback produces one idle check per minute per active lobby.
-
-The signed release contains 655 managed files with the previous 154 removals.
-All file sizes/hashes and the signature were verified. Public deployment needs
-the updated game server, the complete
-`client-updates/releases/local-20261015-mail-push-idle-60s-01/` directory, and
-`client-updates/stable/manifest.json`, copied in that order. Players must restart
-through the launcher to load the new client code.

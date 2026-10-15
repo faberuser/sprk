@@ -137,7 +137,7 @@ can choose Continuous Story again at uncleared 10-1. Chapter X continues in its
 native Normal mode, including 10-1 to 10-2, and restores the run's selected team
 where the stage permits it. Unlock and entry checks remain native.
 The Chapter 9.5 route and its lobby-event reward acknowledgement have been
-removed from the helper. Its only automated substory is Scarlet 2.
+removed from the helper. Automated substories are limited to Scarlet 2 and the required Chapter X finale (10-30 through 10-41).
 
 Choosing Continuous Story initializes its own Unity update loop and native
 tutorial manager, queues entry until the choice popup closes, and keeps processing
@@ -173,8 +173,20 @@ battle and does not dispatch arbitrary widget clicks or long presses.
 The patch preserves tutorial script effects and protected cutscene groups. It
 also handles 10-23's fixed Crow party: while Continuous Story is active, it
 presses Crow's third skill when available through the native skill callback.
-This is limited to the `Crow_Chapter10` scenario; manual play retains its normal
-controls, and the battle must reach its own victory condition before advancing.
+The `Clause_Chapter10` scenario at 10-29 and the fixed-party battles at 10-36 and
+10-38 also press available native skill buttons when normal Auto is disabled.
+Manual play retains its normal controls, and each battle must reach its own
+victory condition before advancing.
+
+After 10-29, the run follows the mandatory Chapter X finale through 10-41, then
+continues to unlocked 11-1. These substories use their native Easy-mode map
+actions and forced parties. Scripted map movement uses the native tutorial
+movement flag after chapter/node checks, retaining Chapter X's avatar flow.
+Lobby story events at 10-30, 10-39 and 10-41 advance
+only after native completion; their own reward popup is acknowledged through its
+normal background click. Other popups remain interactive. The player's original
+party is retained for Chapter XI. Unlock, inventory, stamina and defeat checks
+still apply.
 It does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
 preferences. Story replay, optional sub-stories, raids, and repeat farming keep their
 existing behavior. Full patching includes this feature; to update it alone:
@@ -602,6 +614,23 @@ the limits preserves the installed table bytes. Keep the matching
 `DeckCountPerPlayer` values in `tables/BattleSupport.json`, restart the server,
 and generate a signed client update after installation. Class rules, party
 totals, and earned unlocks still apply.
+
+### Arcdim co-op readiness and wave teams
+
+The server accepts an Arcdim guest's ready message when that guest owns heroes
+only in the second wave team. Co-op Arcdim 401/402 uses four heroes per player,
+four per wave, and eight total. Readiness and cancellation are broadcast over
+the native party socket. Battle entry preserves authenticated main/sub decks,
+and the shared worker separates Delta/Zeta rosters using `GroupHeroInfos`.
+Both wave teams use battle area 0; a wave team is distinct from a battle area.
+The worker registers both rosters with the native wave controller, emits
+`SetNextTeamNot` between stages, and uses native per-player creature creation
+logs after the single dungeon reset so Zeta heroes retain their owners.
+
+Install the matching worker with `--conquest-only` (or stage it first with
+`--stage-only`), verify with `--verify-arcdim-worker`, and publish a signed client
+update after installation. Preserve the current installed DLL and stop game
+clients/shared workers before installation. Both server and worker are required.
 
 ### Mail arrival latency
 

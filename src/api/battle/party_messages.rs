@@ -252,7 +252,7 @@ pub(crate) async fn send(
                             .as_object()
                             .ok_or_else(|| rule("InvalidMessage"))?;
                         let total_max = if field == "DeckHeros" {
-                            n(def, "DeckCount").max(n(def, "MainPartyCount"))
+                            if family=="raid" && n(def,"Type")==16 {n(def,"MainPartyCount")} else {n(def, "DeckCount").max(n(def, "MainPartyCount"))}
                         } else {
                             n(def, "SubPartyCount")
                         };
@@ -290,6 +290,9 @@ pub(crate) async fn send(
                             }
                             host_state[field][hero.to_string()] = owned;
                         }
+                    }
+                    if family=="raid" && n(def,"Type")==16 && selected.len() as i64>n(def,"DeckCountPerPlayer") {
+                        return Err(rule("NotMatchHeroIndices"));
                     }
                     host_state["IsBattleReady"] = json!(false);
                     put(&mut db, a, "party_member", id, &host_state).await?;
@@ -412,11 +415,14 @@ pub(crate) async fn send(
                             )?
                         };
                         let total_max = if deck == 0 {
-                            n(def, "MainPartyCount").max(n(def, "DeckCount"))
+                            if family=="raid" && n(def,"Type")==16 {n(def,"MainPartyCount")} else {n(def, "MainPartyCount").max(n(def, "DeckCount"))}
                         } else {
                             n(def, "SubPartyCount")
                         };
                         let max = n(def, "DeckCountPerPlayer").min(total_max);
+                        let own_total=state[field].as_object().unwrap().len()+state[other].as_object().unwrap().len();
+                        if family=="raid" && n(def,"Type")==16 && !state[field][&key].is_object()
+                            && own_total as i64>=n(def,"DeckCountPerPlayer") {return Err(rule("NotMatchHeroIndices"));}
                         if (!state[field][&key].is_object()
                             && state[field].as_object().unwrap().len() as i64 >= max)
                             || state[other][&key].is_object()
@@ -460,7 +466,9 @@ pub(crate) async fn send(
                 }
                 "PartyRoomReady" => {
                     let ready = boolean(&content, "IsReady")?;
-                    if ready && state["DeckHeros"].as_object().unwrap().is_empty() {
+                    let second_team=family=="raid" && !state["SubDeckHeros"].as_object().unwrap().is_empty()
+                        && n(row(s,"Raid",&[("Index",n(&room,"RaidIndex")),("Level",n(&room,"RaidLevel"))])?,"Type")==16;
+                    if ready && state["DeckHeros"].as_object().unwrap().is_empty() && !second_team {
                         return Err(rule("EmptyHeroIndices"));
                     }
                     state["IsBattleReady"] = json!(ready);

@@ -355,7 +355,7 @@ pub async fn login(
             
             // Send welcome mail
             sqlx::query(
-                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000)"
+                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem, reward_stamina) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000, 100000)"
             )
             .bind(account_id)
             .execute(&mut *tx)

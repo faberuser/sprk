@@ -4,6 +4,23 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void VerifyArcdimWorker(string clientRoot) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
+        var prepare=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="Prepare");
+        if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_GroupHeroInfos")
+            || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="ContainsKey")
+            || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="AddEachWaveEachTeamBattleCreatureCreateInfo")
+            || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SetWavePauseCallback"))
+            throw new InvalidOperationException("Arcdim worker must register both wave teams and their transition callback.");
+        var methods=helper.MainModule.GetType("SprkConquest").NestedTypes.SelectMany(t=>t.Methods)
+            .Concat(helper.MainModule.GetType("SprkConquest").Methods).Where(m=>m.HasBody).ToArray();
+        if(!methods.SelectMany(m=>m.Body.Instructions).Any(i=>i.OpCode==OpCodes.Ldstr && (string?)i.Operand=="SetNextTeamNot")
+            || !methods.SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="CreatureCreateBattleLog" && m.Name=="set_PlayerId"))
+            throw new InvalidOperationException("Arcdim transition must notify clients and retain replacement hero ownership.");
+        VerifyArenaWorker(clientRoot);
+        Console.WriteLine("Verified Arcdim native wave teams, team-change notification and hero ownership.");
+    }
     static void VerifyArenaWorker(string clientRoot) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));

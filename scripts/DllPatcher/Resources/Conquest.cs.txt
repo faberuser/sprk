@@ -91,6 +91,19 @@ public sealed class SprkConquest : MonoBehaviour {
         public List<object> logs=new List<object>();
         long lastClockMs=-1;
         public void OnProcessBattleLog(long time,BattleLog log) {
+            if(log.Type==BattleLogType.InitialDungeonBattleLog && updater.BattleInstance.CheckEachWaveEachTeam) {
+                // The offline initializer gives every replacement hero to one
+                // player. Clear once, then use native per-player creation logs
+                // so both the simulation and client replays retain ownership.
+                var initial=JM_NShared_InitializeDungeonBattleLog.Parse(log.Data);
+                foreach(var creature in initial.CreateInfos ?? new BattleCreatureCreateInfo[0]) {
+                    long account;
+                    updater.BattleInstance.BattleLogContainer.AddLog(new CreatureCreateBattleLog {
+                        PlayerId=heroes.TryGetValue(creature.HeroInfo.HeroIndex,out account)?account:initial.PlayerId,CreateInfo=creature});
+                }
+                initial.CreateInfos=new BattleCreatureCreateInfo[0];
+                log.BaseBattleLog.Data=JsonMarshaler.EncodeJsonString(initial);
+            }
             if(log.Type==BattleLogType.WaveReady && !arena) {
                 var data=MiniJSON.Json.Deserialize(log.Data) as IDictionary;
                 var ready=JM_NShared_WaveReadyBattleLog.Parse(data);
@@ -207,20 +220,35 @@ public sealed class SprkConquest : MonoBehaviour {
         var info=JM_NShared_BattleSimulationInfo.Parse(MiniJSON.Json.Serialize(data["Simulation"]));
         var builder=new BattleInstanceBuilder();builder.SetCampaignDungeon(info.ChapterIndex,info.DungeonIndex,info.DungeonDifficulty,false);builder.EnableSnapshot(false);
         var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"]),arena=data.Contains("ArenaMatch") && Convert.ToBoolean(data["ArenaMatch"])};
+        var dungeon=GameRoot.Instance.CampaignDungeonDataContainer.GetData(info.ChapterIndex,info.DungeonIndex);
+        bool alternating=dungeon!=null && (dungeon.BattleType==BattleType.ArcdimRaid || dungeon.BattleType==BattleType.ArcdimHardRaid);
+        var waveTeams=new[]{new List<BattleCreatureCreateInfo>(),new List<BattleCreatureCreateInfo>()};
         var match=run.arena?JM_NShared_MatchInfo.Parse(MiniJSON.Json.Serialize(data["MatchInfo"])):null;
         foreach(var account in info.AccountInfos) {
             run.players.Add(account.UserInfo.AccountId);
             var matched=match==null?null:match.AccountInfos.First(a=>a.AccountId==account.UserInfo.AccountId);
             var creatures=new List<BattleCreatureCreateInfo>();
+            var reserved=new List<BattleCreatureCreateInfo>();
             foreach(var h in account.HeroInfos.Values) {
                 h.Validate();run.heroes[h.HeroIndex]=account.UserInfo.AccountId;
-                creatures.Add(BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,false,
+                bool second=account.GroupHeroInfos!=null && account.GroupHeroInfos.ContainsKey(h.HeroIndex);
+                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,false,
                     new BattleCreatureCreateInfo.BuffSkillInfo{GuildSkillDataBases=account.GuildSkills,AccountBuffDataBases=account.AccountBuffs,ClassBuffDataBasess=account.ClassBuffDataBases},
-                    new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},0));
+                    new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},
+                    !alternating && second?1:0);
+                if(alternating)waveTeams[second?1:0].Add(creature);
+                if(alternating && second)reserved.Add(creature);else creatures.Add(creature);
             }
-            enter.Add(new PlayerEnterBattleLog{PlayerCreateInfo=new BattlePlayerCreateInfo{Id=account.UserInfo.AccountId,TeamType=matched==null?TeamType.Left:matched.TeamType},CreatureCreateInfos=creatures.ToArray()});
+            enter.Add(new PlayerEnterBattleLog{PlayerCreateInfo=new BattlePlayerCreateInfo{Id=account.UserInfo.AccountId,TeamType=matched==null?TeamType.Left:matched.TeamType},CreatureCreateInfos=creatures.ToArray(),BattleCheckCreatureCreateInfos=reserved.ToArray()});
         }
         builder.SetEnterPlayerBattleLogList(enter);run.updater=builder.BuildUpdater<BattleInstance>(-1,Convert.ToInt32(data["Seed"]),null);
+        if(alternating) {
+            foreach(var team in waveTeams)run.updater.AddEachWaveEachTeamBattleCreatureCreateInfo(team);
+            run.updater.SetWavePauseCallback(winner=> {
+                run.Flush();Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name","SetNextTeamNot"},
+                    {"Body",new Dictionary<string,object>{{"ChatperIndex",info.ChapterIndex},{"DungeonIndex",info.DungeonIndex},{"DeckIndex",run.updater.WaveIndex-1}}}});
+            });
+        }
         run.updater.BattleInstance.BattleLogContainer.SetListener(run);run.updater.BattleInstance.SetDeltaTimeReductionRatio(1);
         runs[id]=run;Debug.Log("SPRK conquest service prepared "+id+" with "+run.heroes.Count+" heroes");
     }

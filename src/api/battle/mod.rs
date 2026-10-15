@@ -434,7 +434,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     for info in &mut under {
         *info = dungeons::under(&mut tx, s, a, n(info, "ChapterIndex")).await?;
     }
-    dungeons::repair_dragon_progress(&mut tx,s,a).await?;
+    dungeons::repair_raid_progress(&mut tx,s,a).await?;
     let raid = list(&mut tx, a, "raid").await?;
     let mut god = list(&mut tx, a, "godking").await?;
     for gate in &mut god {
