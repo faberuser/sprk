@@ -9,6 +9,11 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--arena-responsive-only")) { InstallArenaResponsiveness(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-arena-responsive")) { VerifyArenaResponsivenessFile(args[0]); return; }
+            if (args.Contains("--arena-rematch-only")) { InstallArenaRematchRemoval(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-arena-rematch")) { VerifyArenaRematchFile(args[0]); return; }
+            if (args.Contains("--verify-arena-worker")) { VerifyArenaWorker(args[0]); return; }
             if (args.Contains("--party-join-unlock-only")) { InstallPartyJoinUnlock(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-party-join-unlock")) { VerifyPartyJoinUnlockFile(args[0]); return; }
             if (args.Contains("--self-test-party-join-unlock")) { TestPartyJoinUnlock(); return; }
@@ -119,6 +124,8 @@ namespace DllPatcher
                 PatchLegacyCombat(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
+                PatchArenaRematchPrompt(module);
+                PatchArenaResponsiveness(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
                 PatchVoiceLanguage(module);

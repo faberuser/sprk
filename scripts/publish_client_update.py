@@ -127,7 +127,7 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     selected = list(includes)
     # Native table migrations update their integrity metadata alongside the JIT
     # files. Keep it in subsequent releases too, even when using default includes.
-    for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json"):
+    for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json", "SPRK-NativeLocalization.json"):
         path = "King's Raid_Data/Documents/Patch/StandaloneWindows/" + name
         if (client / path).is_file():
             selected.append(path)

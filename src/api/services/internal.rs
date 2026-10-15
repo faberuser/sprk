@@ -129,6 +129,9 @@ pub(super) async fn execute(
             if n(&data, "Expires") < now() {
                 return Err(rule("Fail"));
             }
+            if data["OnlineMatchUid"].is_i64() {
+                return Ok(json!({"MatchInfo":data["Wait"]["MatchInfo"]}));
+            }
             data["ServiceOwned"] = json!(true);
             sqlx::query("UPDATE arena_runs SET data=? WHERE id=?")
                 .bind(data.to_string())
@@ -147,8 +150,9 @@ pub(super) async fn execute(
                 .and_then(|v| v.parse::<i64>().ok())
                 .ok_or_else(|| rule("Fail"))?;
             let raw: Option<String> = sqlx::query_scalar(
-                "SELECT data FROM arena_runs WHERE id=? AND account=? AND status='battle'",
+                "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND account=? AND status='battle'",
             )
+            .bind(id)
             .bind(id)
             .bind(a)
             .fetch_optional(&mut *db)
@@ -183,6 +187,9 @@ pub(super) async fn execute(
             if r.number("ArenaType", 0)? != 0
                 || r.number("SeasonIndex", 0)? != n(&data, "Season")
                 || data["ServiceOwned"] != true
+                // Live arena settles both accounts together over the native
+                // worker transport, never through a per-account callback.
+                || data["OnlineMatchUid"].is_i64()
             {
                 return Err(rule("Fail"));
             }

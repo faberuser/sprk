@@ -1,5 +1,7 @@
 use super::*;
-pub(super) fn season(s: &AppState) -> (i64, i64, i64) {
+#[path = "arena_online.rs"]
+pub(crate) mod online;
+pub(crate) fn season(s: &AppState) -> (i64, i64, i64) {
     let epoch = s.tables.arena_guild.rules["SeasonEpoch"]
         .as_str()
         .and_then(|v| chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%d %H:%M:%S").ok())
@@ -251,7 +253,7 @@ pub(super) async fn execute(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Reques
     execute_inner(db,s,a,r,action,false).await
 }
 pub(crate) async fn service_result(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
-    execute_inner(db,s,a,r,"set_offline_match_result",true).await
+    complete_match(db,s,a,r,true).await
 }
 async fn execute_inner(
     db: &mut SqliteConnection,
@@ -276,7 +278,7 @@ async fn execute_inner(
         return Err(rule("ContentsDisabled"));
     }
     ensure_kind(db, s, a, kind).await?;
-    sqlx::query("UPDATE arena_runs SET status='expired' WHERE account=? AND status IN ('waiting','battle') AND started<?").bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).execute(&mut *db).await?;
+    sqlx::query("UPDATE arena_runs SET status='expired' WHERE account=? AND status IN ('waiting','battle') AND json_extract(data,'$.OnlineMatchUid') IS NULL AND started<?").bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).execute(&mut *db).await?;
     let mut out = item::success();
     match action {
         "get_match_rank" => {
@@ -351,16 +353,22 @@ async fn execute_inner(
             }
             super::ensure_available(db, a, &heroes).await?;
             let mut mine = account(db, a, &heroes, false).await?;
+            mine["LeaderHeroIndex"] = json!(if leader == 0 { heroes[0] } else { leader });
             mine["BattleInfo"] = battle_info(db, s, a).await?;
             mine["Rank"] = mine["BattleInfo"]["Rank"].clone();
+            mine["TierIndex"] = mine["BattleInfo"]["TierIndex"].clone();
             out["AccountInfo"] = mine;
             out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
             out["DeckInfo"] =
                 json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}});
-            let data = json!({"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
+            let data = json!({"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
             sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,0,?,'waiting',?)").bind(a).bind(now()).bind(data.to_string()).execute(db).await?;
         }
         "cancel_match" => {
+            if online::cancel_account(db, s, a).await? {
+                out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
+                return Ok(out);
+            }
             sqlx::query("UPDATE arena_runs SET status='canceled' WHERE account=? AND status IN ('waiting','battle')").bind(a).execute(&mut *db).await?;
             out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
         }
@@ -374,6 +382,10 @@ async fn execute_inner(
             .ok_or_else(|| rule("WaiterNotFound"))?;
             let id = run.get::<i64, _>("id");
             let mut data: Value = parse(&run.get::<String, _>("data"))?;
+            // Pairing wins over a simultaneous bot fallback/cancel poll.
+            if data["OnlineMatchUid"].is_i64() {
+                return Ok(data["Wait"].clone());
+            }
             if flag(r, "ReserveCancel")? {
                 sqlx::query("UPDATE arena_runs SET status='canceled' WHERE id=?")
                     .bind(id)
@@ -383,12 +395,18 @@ async fn execute_inner(
                 out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
                 return Ok(out);
             }
+            if run.get::<String, _>("status") == "battle" {
+                return Ok(data["Wait"].clone());
+            }
+            data["LastPoll"] = json!(now());
+            sqlx::query("UPDATE arena_runs SET data=? WHERE id=?")
+                .bind(data.to_string()).bind(id).execute(&mut *db).await?;
+            if let Some(matched) = online::pair(db, s, a, id, &data).await? {
+                return Ok(matched);
+            }
             if !flag(r, "PlayOfflineMatch")? {
                 out["Result"] = json!("WaitMore");
                 return Ok(out);
-            }
-            if run.get::<String, _>("status") == "battle" {
-                return Ok(data["Wait"].clone());
             }
             let selected:Option<i64>=sqlx::query_scalar("SELECT account_id FROM heroes WHERE account_id!=? GROUP BY account_id ORDER BY RANDOM() LIMIT 1").bind(a).fetch_optional(&mut *db).await?;
             let opponent = selected.unwrap_or(a);
@@ -417,77 +435,14 @@ async fn execute_inner(
                 .await?;
         }
         "set_offline_match_result" => {
-            let run = sqlx::query("SELECT * FROM arena_runs WHERE account=? AND status='battle'")
-                .bind(a)
-                .fetch_optional(&mut *db)
-                .await?
-                .ok_or_else(|| rule("MatchingAborted"))?;
-            let id = run.get::<i64, _>("id");
-            let mut data: Value = parse(&run.get::<String, _>("data"))?;
-            if !trusted && (data["ServiceOwned"]==true || s.tables.services.rules["RequireBattleService"]==true){return Err(rule("MatchingAborted"));}
-            if n(&data, "Season") != season(s).0 {
-                return Err(rule("MatchingAborted"));
-            }
-            let win = int(r, "Win")?;
-            if win > 1 {
-                return Err(rule("InvalidValue"));
-            }
-            let _ = int(r, "PlayTime")?;
-            let alive = ids(r, "AliveHeroIndices", 4)?;
-            let heroes: Vec<i64> =
-                serde_json::from_value(data["Heroes"].clone()).map_err(|_| rule("InvalidHero"))?;
-            if alive.iter().any(|h| !heroes.contains(h)) {
-                return Err(rule("InvalidHero"));
-            }
-            let previous = battle_info(db, s, a).await?;
-            let delta = if win == 1 {
-                settings(s, "ArenaWinScore", 20)
-            } else {
-                -settings(s, "ArenaLossScore", 10)
-            };
-            let score = (n(&previous, "MatchScore") + delta).clamp(0, i32::MAX as i64);
-            let delta = score - n(&previous, "MatchScore");
-            let details = json!({"SuccessiveWin":if win==1{n(&previous,"SuccessiveWin")+1}else{0},"SuccessiveLose":if win==0{n(&previous,"SuccessiveLose")+1}else{0},"LastMatchTime":time(now())});
-            sqlx::query("UPDATE arena_scores SET score=?,wins=wins+?,losses=losses+?,data=? WHERE account=? AND kind=0 AND season=?").bind(score).bind(win).bind(1-win).bind(details.to_string()).bind(a).bind(season(s).0).execute(&mut *db).await?;
-            let currency = hero::currency(
-                db,
-                a,
-                "PvpCoin",
-                settings(
-                    s,
-                    if win == 1 {
-                        "ArenaWinCoins"
-                    } else {
-                        "ArenaLossCoins"
-                    },
-                    10,
-                ),
-            )
-            .await?;
-            let current = battle_info(db, s, a).await?;
-            out["MatchResult"] = json!({"MatchUid":id,"ArenaType":"Normal","Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":tickets(db,s,a,"Sword",0).await?,"CurrencyResults":[currency]});
-            out["BattleInfo"] = current;
-            data["End"] = out.clone();
-            sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
-                .bind(data.to_string())
-                .bind(id)
-                .execute(&mut *db)
-                .await?;
-            put(
-                db,
-                a,
-                "arena_daily",
-                now()/86400,
-                // Preserve the existing one-based daily reward snapshot format.
-                &json!({"Day":day(),"TierIndex":out["BattleInfo"]["TierIndex"],"Rank":n(&out["BattleInfo"], "Rank") + 1}),
-            )
-            .await?;
+            out = complete_match(db,s,a,r,trusted).await?;
         }
         "get_match_result" => {
             let id = r.number("MatchUid", 0)?;
             let data: Option<String> = sqlx::query_scalar(
-                "SELECT data FROM arena_runs WHERE id=? AND account=? AND status='complete'",
+                "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND account=? AND status='complete' ORDER BY id DESC LIMIT 1",
             )
+            .bind(id)
             .bind(id)
             .bind(a)
             .fetch_optional(db)
@@ -595,4 +550,78 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
         rank_mail(db, s, a, rank, "arena_season_reward", &old.to_string()).await?;
     }
     Ok(())
+}
+
+async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,trusted:bool)->Result<Value> {
+    if int(r,"ArenaType")? != 0 {return Err(rule("ContentsDisabled"));}
+    let mut out=item::success();
+    let run = sqlx::query("SELECT * FROM arena_runs WHERE account=? AND status='battle'")
+        .bind(a)
+        .fetch_optional(&mut *db)
+        .await?
+        .ok_or_else(|| rule("MatchingAborted"))?;
+    let id = run.get::<i64, _>("id");
+    let mut data: Value = parse(&run.get::<String, _>("data"))?;
+    if data["OnlineMatchUid"].is_null() && run.get::<i64,_>("started") < now()-settings(s,"ArenaMatchExpirySeconds",900) {
+        return Err(rule("MatchingAborted"));
+    }
+    if !trusted && (data["ServiceOwned"]==true || s.tables.services.rules["RequireBattleService"]==true){return Err(rule("MatchingAborted"));}
+    if n(&data, "Season") != season(s).0 {
+        return Err(rule("MatchingAborted"));
+    }
+    let win = int(r, "Win")?;
+    if win > 1 {
+        return Err(rule("InvalidValue"));
+    }
+    let _ = int(r, "PlayTime")?;
+    let alive = ids(r, "AliveHeroIndices", 4)?;
+    let heroes: Vec<i64> =
+        serde_json::from_value(data["Heroes"].clone()).map_err(|_| rule("InvalidHero"))?;
+    if alive.iter().any(|h| !heroes.contains(h)) {
+        return Err(rule("InvalidHero"));
+    }
+    let previous = battle_info(db, s, a).await?;
+    let delta = if win == 1 {
+        settings(s, "ArenaWinScore", 20)
+    } else {
+        -settings(s, "ArenaLossScore", 10)
+    };
+    let score = (n(&previous, "MatchScore") + delta).clamp(0, i32::MAX as i64);
+    let delta = score - n(&previous, "MatchScore");
+    let details = json!({"SuccessiveWin":if win==1{n(&previous,"SuccessiveWin")+1}else{0},"SuccessiveLose":if win==0{n(&previous,"SuccessiveLose")+1}else{0},"LastMatchTime":time(now())});
+    sqlx::query("UPDATE arena_scores SET score=?,wins=wins+?,losses=losses+?,data=? WHERE account=? AND kind=0 AND season=?").bind(score).bind(win).bind(1-win).bind(details.to_string()).bind(a).bind(season(s).0).execute(&mut *db).await?;
+    let currency = hero::currency(
+        db,
+        a,
+        "PvpCoin",
+        settings(
+            s,
+            if win == 1 {
+                "ArenaWinCoins"
+            } else {
+                "ArenaLossCoins"
+            },
+            10,
+        ),
+    )
+    .await?;
+    let current = battle_info(db, s, a).await?;
+    out["MatchResult"] = json!({"MatchUid":id,"ArenaType":"Normal","Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":tickets(db,s,a,"Sword",0).await?,"CurrencyResults":[currency]});
+    out["BattleInfo"] = current;
+    data["End"] = out.clone();
+    sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
+        .bind(data.to_string())
+        .bind(id)
+        .execute(&mut *db)
+        .await?;
+    put(
+        db,
+        a,
+        "arena_daily",
+        now()/86400,
+        // Preserve the existing one-based daily reward snapshot format.
+        &json!({"Day":day(),"TierIndex":out["BattleInfo"]["TierIndex"],"Rank":n(&out["BattleInfo"], "Rank") + 1}),
+    )
+    .await?;
+    Ok(out)
 }

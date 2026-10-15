@@ -388,6 +388,7 @@ mod tests {
     async fn attach_worker(s: &AppState) -> mpsc::Receiver<Packet> {
         let (tx, rx) = mpsc::channel(100);
         *s.conquest.worker.write().await = Some(Worker {
+            arena_version: 0,
             id: "party-worker".into(),
             sender: tx,
         });

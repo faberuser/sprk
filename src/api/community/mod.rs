@@ -17,7 +17,7 @@ use axum::{
 use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
-mod arena;
+pub(crate) mod arena;
 pub mod chat;
 pub mod friend;
 mod guild;
@@ -132,6 +132,9 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     match result {
         Ok(v) => {
             tx.commit().await?;
+            if path == "match/cancel_match" {
+                crate::api::battle::cooperative::arena_http_cancelled(s,a).await?;
+            }
             let mut out = response(s, path);
             merge(&mut out, v);
             Ok(out)

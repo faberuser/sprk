@@ -4,6 +4,23 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void VerifyArenaWorker(string clientRoot) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
+        var worker=helper.MainModule.GetType("SprkConquest");
+        var prepare=worker.Methods.Single(m=>m.Name=="Prepare");
+        if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_TeamType") ||
+           !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_LeaderHeroIndex"))
+            throw new InvalidOperationException("Arena worker must preserve each side and registered leader.");
+        var finish=worker.Methods.Single(m=>m.Name=="Finish");
+        if(!finish.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_PlayerId"))
+            throw new InvalidOperationException("Arena results must resolve creature ownership, including identical heroes on both teams.");
+        if(!worker.NestedTypes.SelectMany(t=>t.Methods).Concat(worker.Methods).Where(m=>m.HasBody)
+            .SelectMany(m=>m.Body.Instructions).Any(i=>i.OpCode==OpCodes.Ldstr && (string?)i.Operand=="ArenaVersion"))
+            throw new InvalidOperationException("Arena worker capability handshake missing.");
+        VerifyConquestReplay(clientRoot);
+        Console.WriteLine("Verified native arena worker teams, leader, ownership and capability handshake.");
+    }
     static void VerifyConquestReplay(string clientRoot) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
@@ -19,7 +36,16 @@ partial class Program {
                 i.Previous?.Operand is not MethodReference m || m.DeclaringType.Name!="SprkConquest" || m.Name!="ReplayStatus"))
                 throw new InvalidOperationException("Missing or duplicate battle heartbeat hook: "+name);
         }
+        var clock=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="ReadClock");
+        if(!clock.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SetServerTimeMs") ||
+           clock.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="GetStoppedBattleInstance"))
+            throw new InvalidOperationException("Battle log clocks must synchronize the running replay without stopping it.");
+        var parse=game.MainModule.GetType("JM_NShared_BattleLogNot").Methods.Single(m=>m.Name=="Parse" &&
+            m.Parameters.Count==2 && m.Parameters[0].ParameterType.Name=="IDictionary");
+        if(parse.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest" && m.Name=="ReadClock")!=1)
+            throw new InvalidOperationException("Missing or duplicate continuous battle clock hook.");
         Console.WriteLine("Verified battle heartbeat observes replay completion without stopping combat.");
+        Console.WriteLine("Verified continuous worker clock synchronizes native battle playback.");
     }
     static void InstallConquest(string clientRoot,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
@@ -53,6 +79,12 @@ partial class Program {
             if(!Hooked(encoder,"ReplayStatus"))foreach(var ret in encoder.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
                 ret.OpCode=OpCodes.Call;ret.Operand=Method("ReplayStatus");encoder.Body.GetILProcessor().InsertAfter(ret,Instruction.Create(OpCodes.Ret));
             }
+        }
+        var clockParser=module.GetType("JM_NShared_BattleLogNot").Methods.Single(m=>m.Name=="Parse" &&
+            m.Parameters.Count==2 && m.Parameters[0].ParameterType.Name=="IDictionary");
+        if(!Hooked(clockParser,"ReadClock"))foreach(var ret in clockParser.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+            ret.OpCode=OpCodes.Ldarg_0;var il=clockParser.Body.GetILProcessor();var call=Instruction.Create(OpCodes.Call,Method("ReadClock"));
+            il.InsertAfter(ret,call);il.InsertAfter(call,Instruction.Create(OpCodes.Ret));
         }
         var parser=module.Types.Single(t=>t.Name=="JM_NShared_WaveReadyBattleLog").Methods.Single(m=>m.Name=="Parse" && m.Parameters.Count==2 && m.Parameters[0].ParameterType.Name=="IDictionary");
         if(!Hooked(parser,"ReadSeed"))foreach(var ret in parser.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
