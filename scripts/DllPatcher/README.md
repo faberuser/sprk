@@ -1,5 +1,18 @@
 # DLL patcher
 
+`--conquest-only` also releases the native online solo Conquest party when the
+result screen's Lobby button is pressed. This prevents stale solo rooms from
+blocking invitation popups after a battle. Cooperative rooms, battle repeats,
+and returns to formation or inventory retain their native behavior.
+`--verify-conquest-party-cleanup` checks the installed hook; add `--stage-only`
+to check its staged output before installation.
+
+The focused Conquest installer also caches server session definitions from
+battle entry and result responses. Invited guests can then resolve the boss
+when returning to the lobby without first opening the Conquest board.
+`--verify-conquest-session-cache` checks both parser hooks; `--stage-only`
+selects the staged assembly.
+
 `--image-recovery-only` preserves installed patches and adds recovery for blank
 `UIBundleLoader` thumbnails. Cache lookups discard destroyed Unity objects;
 visible widgets rebind intact textures or retry failed loads up to three times
@@ -200,9 +213,29 @@ only after native completion; their own reward popup is acknowledged through its
 normal background click. Other popups remain interactive. The player's original
 party is retained for Chapter XI. Unlock, inventory, stamina and defeat checks
 still apply.
+
+The Shadow of Aegina has its own finite route through battles 1–9, all twelve
+side conversations, the fixed-party Devourer encounter (210), the first
+Otherworldly Darkness encounter (601, entered at map node 11), and the final
+story event (12). The handler uses each destination's native minimum difficulty
+and preserves post-boss tutorials that unlock the map markers. Completed nodes
+are skipped during an active run; the run ends after the final event rather than
+entering repeatable Shakmeh farming tiers. Start Continuous Story from an
+uncleared Aegina battle with your chosen party. Tutorial skip summaries close
+through their native callbacks. The final story boss pauses at its native reward
+selection until the player chooses and confirms a reward, then continues
+automatically. This intentional pause does not trigger the 90-second stall timeout.
+Before this boss, Continuous Story places the selected heroes on their
+native Sun (melee) and Shadow (ranged) paths, then fills up to four slots per path
+with eligible owned heroes, highest level first. It applies native Shakmeh bans
+and stops at party setup if either path has no eligible hero.
+Quitting or reconnecting before the first story win restores its entry gauge
+without granting a clear; repeatable farming still requires that first win.
+
 It does not mark stages cleared, auto-purchase stamina, or change saved skill-auto
 preferences. Story replay, optional sub-stories, raids, and repeat farming keep their
-existing behavior. Full patching includes this feature; to update it alone:
+existing behavior outside the explicit story routes above. Full patching includes
+this feature; to update it alone:
 
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --story-auto-only
@@ -664,3 +697,18 @@ dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-mail-updates
 Stage output and installation backups are under `target/mail-delivery-fix`.
 Close clients and shared-asset workers, remove `--stage-only` to install, restart
 the server/client and publish a new signed update after installation.
+
+
+### Guild Conquest solo support heroes
+
+Solo Conquest (raid 90001, levels 101?103) uses PartyManager's separate main
+and AI sub decks. The server sends both decks to the authenticated native
+worker, validates ownership and bans for every hero, and charges two keys once
+combat starts. Cancellation and restart recovery refund that exact charge.
+The worker creates the sub deck as AI in group 0; group 1 would leave those
+heroes outside this dungeon's active team.
+
+Apply the helper with `--conquest-only`, then run `--verify-arcdim-worker` to
+check the existing battle hooks. The opt-in native integration test
+`conquest_native_tcp_battle` accepts `CONQUEST_NATIVE_LEVEL=102` to verify a
+six-hero solo Lakreil fight through scoring and the two-key debit.

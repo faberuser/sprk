@@ -4,6 +4,35 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void VerifyConquestSessionCache(string clientRoot,bool staged) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".conquest-staged":"")));
+        foreach(var name in new[]{"JM_NShared_BeginCampaign_Response","JM_NShared_EndCampaign_Response"}) {
+            var parse=game.MainModule.GetType(name).Methods.Single(m=>m.Name=="Parse" && m.Parameters.Count==2 && m.Parameters[0].ParameterType.FullName=="System.Collections.IDictionary");
+            var calls=parse.Body.Instructions.Where(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="RestoredPortal" && m.Name=="AcceptServerConquestSessions").ToArray();
+            if(calls.Length!=1 || calls[0]!=parse.Body.Instructions[1] || parse.Body.Instructions[0].OpCode!=OpCodes.Ldarg_0)
+                throw new InvalidOperationException("Battle response must cache server Conquest definitions once before parsing: "+name);
+        }
+        Console.WriteLine("Verified Conquest entry and result response session cache for invited guests.");
+    }
+    static void VerifyConquestPartyCleanup(string clientRoot,bool staged) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".conquest-staged":"")));
+        var end=game.MainModule.GetType("NGame2.NUI.NManager.NBattle.EndCampaign");
+        var lobby=end.Methods.Single(m=>m.Name=="ReturnToLobby" && m.Parameters.Count==0);
+        bool Cleanup(Instruction i)=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest" && m.Name=="LeaveSoloConquestOnLobbyReturn";
+        if(lobby.Body.Instructions.Count(Cleanup)!=1 || !Cleanup(lobby.Body.Instructions[0]))
+            throw new InvalidOperationException("Solo Conquest must leave exactly once before explicit result-to-lobby transition.");
+        if(end.Methods.Where(m=>m.Name.Contains("Repeat") || m.Name.Contains("ExecReturnToLobbyAnd"))
+            .Where(m=>m.HasBody).Any(m=>m.Body.Instructions.Any(Cleanup)))
+            throw new InvalidOperationException("Repeat and formation/inventory return paths must preserve their party.");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"+(staged?".staged":"")));
+        var leave=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="LeaveSoloConquestOnLobbyReturn");
+        if(!leave.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="IsSoloConquestParty") ||
+            !leave.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SendLeaveParty"))
+            throw new InvalidOperationException("Cleanup must use the native leave request and reset, scoped to solo Conquest.");
+        Console.WriteLine("Verified solo Conquest result-to-lobby cleanup; repeat and cooperative paths preserved.");
+    }
     static void VerifyArcdimWorker(string clientRoot) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
@@ -81,6 +110,19 @@ partial class Program {
         var module=assembly.MainModule;var worker=helper.MainModule.Types.Single(t=>t.Name=="SprkConquest");
         MethodReference Method(string name)=>module.ImportReference(worker.Methods.Single(m=>m.Name==name));
         bool Hooked(MethodDefinition method,string hook)=>method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest" && m.Name==hook);
+        // Invitations do not open the board, so guests also seed the server
+        // session cache from battle responses before native DTO handling.
+        var acceptSessions=module.GetType("RestoredPortal").Methods.Single(m=>m.Name=="AcceptServerConquestSessions");
+        foreach(var name in new[]{"JM_NShared_BeginCampaign_Response","JM_NShared_EndCampaign_Response"}) {
+            var parse=module.GetType(name).Methods.Single(m=>m.Name=="Parse" && m.Parameters.Count==2 && m.Parameters[0].ParameterType.FullName=="System.Collections.IDictionary");
+            if(!parse.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="AcceptServerConquestSessions")) {
+                var il=parse.Body.GetILProcessor();var parseStart=parse.Body.Instructions[0];
+                il.InsertBefore(parseStart,Instruction.Create(OpCodes.Ldarg_0));il.InsertBefore(parseStart,Instruction.Create(OpCodes.Call,acceptSessions));
+            }
+        }
+        var returnToLobby=module.GetType("NGame2.NUI.NManager.NBattle.EndCampaign").Methods.Single(m=>m.Name=="ReturnToLobby" && m.Parameters.Count==0);
+        if(!Hooked(returnToLobby,"LeaveSoloConquestOnLobbyReturn"))
+            returnToLobby.Body.GetILProcessor().InsertBefore(returnToLobby.Body.Instructions[0],Instruction.Create(OpCodes.Call,Method("LeaveSoloConquestOnLobbyReturn")));
         var awake=module.Types.Single(t=>t.Name=="UICamera").Methods.Single(m=>m.Name=="Awake");
         if(!awake.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest"))
             awake.Body.GetILProcessor().InsertBefore(awake.Body.Instructions[0],Instruction.Create(OpCodes.Call,Method("Tick")));

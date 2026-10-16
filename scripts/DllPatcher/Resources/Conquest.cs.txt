@@ -22,6 +22,19 @@ public sealed class SprkConquest : MonoBehaviour {
     static SprkConquest instance;
     int lastFrame=-1;
     static readonly Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]> seeds=new Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]>();
+    public static void LeaveSoloConquestOnLobbyReturn() {
+        // Online solo Conquest uses PartyManager too. Its setup window was
+        // destroyed on battle entry, so OnClosing cannot leave on result exit.
+        // The explicit Lobby button must release the room before scene change.
+        if(!GlobalAutoBehaviour<NGame2.NParty.PartyManager>.isValidInstance)return;
+        var party=GlobalAutoBehaviour<NGame2.NParty.PartyManager>.instance;
+        var info=party.PartyInfo;
+        if(IsSoloConquestParty(info))
+            party.SendLeaveParty();
+    }
+    public static bool IsSoloConquestParty(NShared.NParty.PartyInfo info) {
+        return info!=null && info.RaidIndex==90001 && info.RaidLevel>=101 && info.RaidLevel<=103;
+    }
     public static Dictionary<string,object> Login(Dictionary<string,object> value) {
         var web=SingletonUpdater<WebServiceManager>.instance;
         if(web!=null && web.Requester!=null)value["SessionKey"]=web.Requester.SessionKey;
@@ -232,10 +245,14 @@ public sealed class SprkConquest : MonoBehaviour {
             foreach(var h in account.HeroInfos.Values) {
                 h.Validate();run.heroes[h.HeroIndex]=account.UserInfo.AccountId;
                 bool second=account.GroupHeroInfos!=null && account.GroupHeroInfos.ContainsKey(h.HeroIndex);
-                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,false,
+                // Conquest's sub deck fights alongside the main deck as AI.
+                // Group 1 is reserved for replacement teams and is not spawned
+                // by this dungeon's single-team battle definition.
+                bool aiSupport=second && info.ChapterIndex==9900 && info.DungeonIndex>=101 && info.DungeonIndex<=103;
+                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,aiSupport,
                     new BattleCreatureCreateInfo.BuffSkillInfo{GuildSkillDataBases=account.GuildSkills,AccountBuffDataBases=account.AccountBuffs,ClassBuffDataBasess=account.ClassBuffDataBases},
                     new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},
-                    !alternating && second?1:0);
+                    !alternating && second && !aiSupport?1:0);
                 if(alternating)waveTeams[second?1:0].Add(creature);
                 if(alternating && second)reserved.Add(creature);else creatures.Add(creature);
             }

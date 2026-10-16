@@ -70,6 +70,13 @@ fn definition(s: &AppState, level: i64) -> Result<&Value> {
         .and_then(Value::as_i64).ok_or_else(|| rule("WrongDungeonIndex"))?;
     row(s,"GuildSuppressDungeon", &[("Index", index)])
 }
+pub(crate) fn party_dungeon_index(s: &AppState, level: i64) -> Result<i64> {
+    // Online solo rooms use the same bosses with native levels 101..103.
+    // Their chat reconnect still needs a valid PartyInfo snapshot.
+    let level = if (101..=103).contains(&level) {level-100}else{level};
+    if !(1..=3).contains(&level) {return Err(rule("WrongDungeonIndex"));}
+    Ok(n(definition(s,level)?,"Index"))
+}
 async fn registration(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
     let session=current(s);
     let mut value=get(db,g,"guild_conquest",session.index).await?;
@@ -267,7 +274,11 @@ pub(crate) async fn validate(db: &mut SqliteConnection, s: &AppState, a: i64, r:
     let play=plays(db,s,g,session.index).await?.remove((level-1) as usize);
     if n(&play,"MonsterHp0")<0 {return Err(rule("AlreadyCompleted"));}
     let heroes=ids(r,"HeroIndices",6)?;let ai=ids(r,"AiHeroIndices",3)?;
-    if !ai.is_empty() && (ai.iter().any(|v|!heroes.contains(v)) || heroes.len()-ai.len()>3) {return Err(rule("NotMatchHeroIndices"));}
+    // Online solo uses PartyManager: the AI sub deck is separate from the main deck.
+    if heroes.is_empty() || heroes.len()>3 || ai.iter().any(|v|heroes.contains(v))
+        || r.number("RaidLevel",0)?<100 && !ai.is_empty() {
+        return Err(rule("NotMatchHeroIndices"));
+    }
     Ok(n(definition(s,level)?,"BanIndex"))
 }
 pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, entry: &mut Value, out: &mut Value) -> Result<()> {
@@ -277,6 +288,9 @@ pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &R
     guild_info["Level"]=json!(requested);guild_info["MonsterHp0"]=play["MonsterHp0"].clone();
     out["GuildSuppressInfo"]=guild_info;
     out["GuildSuppressPlayInfo"]=play.clone();
+    // Invited guests may never open the Conquest board. Native lobby return
+    // resolves this play's session before it can reopen their party window.
+    out["SPRKConquestSessionDefinitions"]=session_definitions(s,session,session.index)?;
     out["GuildSuppressScoreInfo"]=json!({"GuildId":g,"AccountId":a,"Rank":0,"TotalDamage":0});
     entry["ConquestGuildId"]=json!(g);entry["ConquestSession"]=json!(session.index);
     entry["ConquestLevel"]=json!(level);entry["ConquestBossHp"]=play["MonsterHp0"].clone();
@@ -294,6 +308,7 @@ pub(crate) async fn finish(
     let g = n(entry, "ConquestGuildId");
     let session = n(entry, "ConquestSession");
     let level = n(entry, "ConquestLevel");
+    out["SPRKConquestSessionDefinitions"]=session_definitions(s,current(s),session)?;
     if guild::membership(db, a).await?.0 != g || current(s).index != session {
         return Err(rule("NotOpenedDungeon"));
     }

@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--verify-conquest-session-cache")) { VerifyConquestSessionCache(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-conquest-party-cleanup")) { VerifyConquestPartyCleanup(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-image-recovery")) { VerifyImageRecoveryFile(args[0]); return; }
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }

@@ -21,6 +21,57 @@ async fn balance(s: &AppState, a: i64, column: &str) -> i64 {
     .unwrap()
 }
 #[tokio::test]
+async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear() {
+    for deferred in [false, true] {
+        let (s, u) = setup().await;
+        let a = account(&u);
+        if deferred { enable(&s, a).await; }
+        for (chapter, dungeon) in [(97, 2), (50000, 210)] {
+            put(&mut s.db.acquire().await.unwrap(), a, "dungeon", campaign::key(chapter, dungeon),
+                &json!({"ChapterIndex":chapter,"DungeonIndex":dungeon,"FirstRewardedDiff":1,"ScenarioComplete":1})).await.unwrap();
+        }
+        sqlx::query("INSERT INTO battle_currencies(account,kind,value) VALUES(?,'ShakmehMiddleBossPoint',600)")
+            .bind(a).execute(&s.db).await.unwrap();
+        let gauge = || async {
+            sqlx::query_scalar::<_, i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
+                .bind(a).fetch_one(&s.db).await.unwrap()
+        };
+        let entry = "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&HeroIndices=[1]";
+        for reconnect in [false, true] {
+            assert_eq!(call(&s, &u, "campaign/begin_campaign", entry).await["Result"], "Success");
+            assert_eq!(gauge().await, if deferred { 600 } else { 0 });
+            if reconnect {
+                let mut tx = s.db.begin().await.unwrap();
+                entry_costs::abandon_on_login(&mut tx, &s, a).await.unwrap();
+                entry_costs::abandon_on_login(&mut tx, &s, a).await.unwrap();
+                tx.commit().await.unwrap();
+            } else {
+                // An unrelated session must not cancel the active story fight.
+                abandon_local_run_on_lobby(&s, a, "other-session").await.unwrap();
+                assert_eq!(gauge().await, if deferred { 600 } else { 0 });
+                let session = u["UserInfo"]["SessionKey"].as_str().unwrap();
+                let withdrawal = abandon_local_run_on_lobby(&s, a, session).await.unwrap();
+                assert!(withdrawal["ReservedCurrencyResults"].as_array().unwrap().iter()
+                    .any(|v| v["CurrencyType"] == "ShakmehMiddleBossPoint" && v["NewValue"] == 600));
+                abandon_local_run_on_lobby(&s, a, session).await.unwrap();
+            }
+            assert_eq!(gauge().await, 600);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?")
+                .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+            assert_eq!(n(&campaign::progress(&mut s.db.acquire().await.unwrap(), &s, a, 50000, 601).await.unwrap(), "FirstRewardedDiff"), 0);
+            assert_eq!(call(&s, &u, "campaign/begin_campaign",
+                "ChapterIndex=50000&DungeonIndex=501&DungeonDifficulty=0&HeroIndices=[1]").await["Result"], "NotCompletedReqDungeon");
+        }
+        assert_eq!(call(&s, &u, "campaign/begin_campaign", entry).await["Result"], "Success");
+        assert_eq!(call(&s, &u, "campaign/end_campaign",
+            &format!("{entry}&Completed=true&AliveHeroIndices=[1]")).await["Result"], "Success");
+        assert_eq!(gauge().await, 0);
+        // Successful settlement is never refunded on later lobby returns/logins.
+        entry_costs::abandon_on_login(&mut s.db.acquire().await.unwrap(), &s, a).await.unwrap();
+        assert_eq!(gauge().await, 0);
+    }
+}
+#[tokio::test]
 async fn pve_only_victory_deducts_once_and_awards_stamina_exp() {
     let (mut s, u) = setup().await;
     let a = account(&u);

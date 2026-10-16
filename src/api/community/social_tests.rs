@@ -57,6 +57,109 @@ async fn arcdim_guest_second_team_ready_reaches_owner_over_native_socket() {
 }
 
 #[tokio::test]
+async fn conquest_solo_chat_reconnect_then_leave_allows_party_invitation_for_every_boss() {
+    for level in 101..=103 {
+        let(state,host,guest)=setup().await;let a=host.user_info.account_id;let b=guest.user_info.account_id;
+        let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&guest,&format!("RaidIndex=90001&RaidLevel={level}&Opened=0"))).await.unwrap();
+        assert_eq!(created["Result"],"Success");let solo=created["RoomNo"].as_i64().unwrap();
+        // Connecting with an existing solo room exercises actual chat login:
+        // an invalid solo snapshot used to terminate the socket after LoginRes.
+        let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let address=listener.local_addr().unwrap();
+        let server=tokio::spawn(chat::serve(listener,state.clone()));
+        let mut owner=Socket::connect(address,&host,1).await;
+        owner.send("PingReq",json!({"RequestId":100})).await;
+        assert_eq!(owner.read().await.0,"PingRes");
+        let mut follower=Socket::connect(address,&guest,1).await;
+        let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyNotice");
+        let replay:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+        let expected=state.tables.arena_guild.rows("GuildSuppressSession").iter().find(|v|v["RaidIndex"]==90001).unwrap()["SuppressDungeonIndex"][(level-101) as usize].clone();
+        assert_eq!(replay["PartyInfo"]["GuildSuppressDungeonIndex"],expected);
+        assert_eq!(replay["PartyInfo"]["RaidLevel"],level);
+        follower.send("PingReq",json!({"RequestId":100})).await;
+        assert_eq!(follower.read().await.0,"PingRes");
+        let guild=sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('SoloReturnInvite',?)")
+            .bind(a).execute(&state.db).await.unwrap().last_insert_rowid();
+        for account in [a,b] {
+            sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)")
+                .bind(guild).bind(account).execute(&state.db).await.unwrap();
+        }
+        // The explicit result-to-lobby client hook sends this ordinary leave.
+        let left=crate::api::battle::execute_request(&state,"raid/leave_raid_room",form(&guest,&format!("RoomNo={solo}&AccountId={b}"))).await.unwrap();
+        assert_eq!(left["Result"],"Success");
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=?").bind(b).fetch_one(&state.db).await.unwrap(),0);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_rooms WHERE id=?").bind(solo).fetch_one(&state.db).await.unwrap(),0);
+        let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&host,"RaidIndex=90001&RaidLevel=1&Opened=0")).await.unwrap();
+        assert_eq!(created["Result"],"Success");
+        owner.send("MessageReq",json!({"RequestId":1,"ReceiverIds":[b],"Message":"InvitePartyReq {}"})).await;
+        assert_eq!(owner.read().await.1["Result"],"Success");
+        assert_eq!(follower.read().await.1["Type"],"InvitePartyReq");
+        server.abort();
+    }
+}
+
+#[tokio::test]
+async fn conquest_invite_acceptance_preserves_native_party_screen_context_for_every_boss() {
+    for level in 1..=3 {
+        let(state,host,guest)=setup().await;let a=host.user_info.account_id;let b=guest.user_info.account_id;
+        let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let address=listener.local_addr().unwrap();
+        let server=tokio::spawn(chat::serve(listener,state.clone()));
+        let mut owner=Socket::connect(address,&host,1).await;let mut follower=Socket::connect(address,&guest,1).await;
+        for socket in [&mut owner,&mut follower] {
+            socket.send("PingReq",json!({"RequestId":100})).await;assert_eq!(socket.read().await.0,"PingRes");
+        }
+        let guild=sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('ConquestInvite',?)")
+            .bind(a).execute(&state.db).await.unwrap().last_insert_rowid();
+        for account in [a,b] {
+            sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)").bind(guild).bind(account).execute(&state.db).await.unwrap();
+        }
+        let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&host,&format!("RaidIndex=90001&RaidLevel={level}&Opened=0"))).await.unwrap();
+        assert_eq!(created["Result"],"Success","{created}");let room=created["RoomNo"].as_i64().unwrap();
+        owner.send("MessageReq",json!({"RequestId":1,"GroupType":if level==2 {"Guild"}else{"None"},"ReceiverIds":[b],"Message":"InvitePartyReq {}"})).await;
+        assert_eq!(owner.read().await.1["Result"],"Success");assert_eq!(follower.read().await.1["Type"],"InvitePartyReq");
+        let key=639_000_000_000_000_001_i64+level;
+        follower.send("MessageReq",json!({"RequestId":2,"ReceiverIds":[a],"Message":format!("JoinPartyReq {}",json!({"RoomNo":room.to_string(),"Accepted":"True","SendKey":key.to_string()}))})).await;
+        assert_eq!(follower.read().await.1["Result"],"Success");
+        let notice=owner.read().await.1;assert_eq!(notice["Type"],"JoinPartyReq");
+        let pending:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+        assert_eq!(pending["Invitee"]["AccountId"],b);assert_eq!(pending["SendKey"],key);
+        // The host's ordinary native reply has an optimistic roster. Neither
+        // its dungeon identifier nor its serialized hero stats are trusted.
+        let party=json!({"GuildSuppressDungeonIndex":999999,"PartyMembers":[{"AccountId":a,"DeckHeros":{"1":{"HeroIndex":1,"Level":999}},"SubDeckHeros":{}}]});
+        owner.send("MessageReq",json!({"RequestId":3,"ReceiverIds":[b],"Message":format!("JoinPartyRes {}",json!({"Result":"Success","SendKey":key.to_string(),"PartyInfo":party}))})).await;
+        assert_eq!(owner.read().await.1["Result"],"Success");
+        let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyRes");
+        let accepted:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+        assert_eq!(accepted["Result"],"Success");assert_eq!(accepted["SendKey"],key);
+        let index=state.tables.arena_guild.rows("GuildSuppressSession").iter().find(|v|v["RaidIndex"]==90001).unwrap()["SuppressDungeonIndex"][(level-1) as usize].as_i64().unwrap();
+        assert_eq!(accepted["PartyInfo"]["GuildSuppressDungeonIndex"],index,"The native guest UI needs a valid conquest boss definition");
+        assert!(state.tables.arena_guild.find("GuildSuppressDungeon",&[("Index",index)]).is_some());
+        assert_eq!(accepted["PartyInfo"]["RaidIndex"],90001);assert_eq!(accepted["PartyInfo"]["RaidLevel"],level);
+        assert_eq!(accepted["PartyInfo"]["PartyMembers"].as_array().unwrap().len(),2);
+        assert_eq!(accepted["PartyInfo"]["PartyMembers"][0]["DeckHeros"]["1"]["Level"],1);
+        if let Ok(directory)=std::env::var("SPRK_CONQUEST_INVITE_CAPTURE_DIR") {
+            std::fs::create_dir_all(&directory).unwrap();
+            std::fs::write(std::path::Path::new(&directory).join(format!("party-{level}.json")),accepted["PartyInfo"].to_string()).unwrap();
+        }
+        // The native guest confirms the socket approval over HTTP. This must
+        // remain idempotent and publish the same complete roster to both sides.
+        let joined=crate::api::battle::execute_request(&state,"raid/join_raid_room",form(&guest,&format!("RoomNo={room}"))).await.unwrap();
+        assert_eq!(joined["Result"],"Success");
+        for socket in [&mut owner,&mut follower] {
+            let notice=socket.read().await.1;assert_eq!(notice["Type"],"JoinPartyNotice");
+            let roster:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+            assert_eq!(roster["PartyInfo"]["GuildSuppressDungeonIndex"],index);
+            assert_eq!(roster["PartyInfo"]["PartyMembers"].as_array().unwrap().len(),2);
+        }
+        crate::api::battle::party_messages::reconnect(&state,b).await.unwrap();
+        let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyNotice");
+        let replay:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+        assert_eq!(replay["PartyInfo"]["GuildSuppressDungeonIndex"],index);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&state.db).await.unwrap(),2);
+        server.abort();
+    }
+}
+
+#[tokio::test]
 async fn mail_notifications_follow_commits_coalesce_bursts_and_isolate_recipients() {
     let (state,a,b)=setup().await;
     mail::deliver_notifications(&state).await.unwrap();

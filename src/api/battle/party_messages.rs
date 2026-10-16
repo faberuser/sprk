@@ -114,13 +114,18 @@ async fn member(db: &mut SqliteConnection, a: i64, room: &Value, index: usize) -
     if !v["Status"].is_string() { v["Status"] = json!("PartyRoom"); }
     Ok(v)
 }
-async fn snapshot(db: &mut SqliteConnection, room: &Value) -> Result<Value> {
+async fn snapshot(db: &mut SqliteConnection, s: &AppState, room: &Value) -> Result<Value> {
     let mut members = vec![];
     for (index, a) in ids_in(db, n(room, "RoomNo")).await?.into_iter().enumerate() {
         members.push(member(db, a, room, index).await?);
     }
+    // RaidManagement opens a conquest guest's party screen only when this
+    // native DTO points at the current GuildSuppressDungeon definition.
+    let conquest_dungeon=if n(room,"RaidIndex")==90001 {
+        super::super::community::conquest::party_dungeon_index(s,n(room,"RaidLevel"))?
+    } else {0};
     Ok(
-        json!({"PartyRoom":rooms::wire_room(room),"RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"Difficulty":n(room,"DungeonDifficulty").to_string(),"PartyMembers":members,"RewardItems":[],"Bannedids":[],"IsRepeatBattle":room["IsRepeatBattle"].as_bool().unwrap_or(false),"CreatedTime":time(now()),"MasterServerPrivateIp":"","MasterServerPort":0}),
+        json!({"PartyRoom":rooms::wire_room(room),"RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"GuildSuppressDungeonIndex":conquest_dungeon,"Difficulty":n(room,"DungeonDifficulty").to_string(),"PartyMembers":members,"RewardItems":[],"Bannedids":[],"IsRepeatBattle":room["IsRepeatBattle"].as_bool().unwrap_or(false),"CreatedTime":time(now()),"MasterServerPrivateIp":"","MasterServerPort":0}),
     )
 }
 
@@ -299,7 +304,7 @@ pub(crate) async fn send(
                 }
                 room = rooms::join(&mut db, s, target, id, &family).await?;
                 recipients = ids_in(&mut db, id).await?;
-                content = json!({"Result":"Success","SendKey":pending["SendKey"],"MemberIndex":recipients.iter().position(|v|*v==target).unwrap_or(0),"PartyInfo":snapshot(&mut db,&room).await?});
+                content = json!({"Result":"Success","SendKey":pending["SendKey"],"MemberIndex":recipients.iter().position(|v|*v==target).unwrap_or(0),"PartyInfo":snapshot(&mut db,s,&room).await?});
             } else {
                 content =
                     json!({"Result":if locked {"DungeonLocked"}else{"InvalidParty"},"SendKey":pending["SendKey"],"PartyInfo":null});
@@ -479,7 +484,7 @@ pub(crate) async fn send(
                     if a != master {
                         return Err(rule("WrongMember"));
                     }
-                    content = json!({"PartyInfo":snapshot(&mut db,&room).await?});
+                    content = json!({"PartyInfo":snapshot(&mut db,s,&room).await?});
                 }
                 "PartyRoomRepeat" => {
                     if a != master {
@@ -591,7 +596,7 @@ pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
     let Ok((id, _, room)) = membership(&mut db, a).await else {
         return Ok(());
     };
-    let info = snapshot(&mut db, &room).await?;
+    let info = snapshot(&mut db, s, &room).await?;
     let members = ids_in(&mut db, id).await?;
     sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?")
         .bind(now())
@@ -686,7 +691,7 @@ pub(crate) async fn after_room_request(
         for receiver in ids {s.chat.notify(receiver,n(&room,"MasterAccountId"),name,body.clone());}
         return Ok(());
     }
-    let info = snapshot(&mut db, &room).await?;
+    let info = snapshot(&mut db, s, &room).await?;
     db.commit().await?;
     if action.starts_with("leave_") {
         let target = r.number("AccountId", a)?;

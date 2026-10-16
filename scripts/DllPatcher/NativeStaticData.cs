@@ -103,7 +103,8 @@ public static class NativeStaticData
                 if(type.Fields.Any(f=>f.Name=="<"+property+">k__BackingField"))Getter(name,property);
         }
         // Cache network DTOs once, before GuildSuppressManagement receives the response.
-        foreach(var name in new[]{"JM_NShared_GetGuildSuppressSessionInfo_Response","JM_NShared_GetGuildSuppressStatusBoard_Response"}) {
+        foreach(var name in new[]{"JM_NShared_GetGuildSuppressSessionInfo_Response","JM_NShared_GetGuildSuppressStatusBoard_Response",
+            "JM_NShared_BeginCampaign_Response","JM_NShared_EndCampaign_Response"}) {
             var parser=module.GetType(name)?.Methods.SingleOrDefault(m=>m.Name=="Parse"&&m.Parameters.Count==2&&m.Parameters[0].ParameterType.FullName=="System.Collections.IDictionary");
             if(parser==null)continue;
             if(parser.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name=="AcceptServerConquestSessions"))continue;

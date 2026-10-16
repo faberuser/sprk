@@ -963,12 +963,6 @@ pub(super) async fn finish(
     out: &mut Value,
 ) -> Result<()> {
     let BattleOutcome { request: end, won } = outcome;
-    if entry["ShakmehStoryFinal"] == true && !won && !entry["VictoryEntryCosts"].is_array() {
-        // Farming is locked until this introduction is won. Preserve its
-        // retry path instead of leaving a new player with an empty gauge.
-        let (gauge, max) = shakmeh_gauge(db, s, a).await?;
-        out["CurrencyResults"] = json!([hero::currency(db, a, "ShakmehMiddleBossPoint", max - gauge).await?]);
-    }
     if entry["ShakmehFinal"] == true && won {
         put(db, a, "shakmeh_passive", 0, &json!([])).await?;
     }
@@ -1171,7 +1165,7 @@ fn carries_creatures(s: &AppState, id: i64) -> Result<bool> {
         .as_array()
         .is_some_and(|v| v.contains(&def["Type"])))
 }
-async fn shakmeh_gauge(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
+pub(super) async fn shakmeh_gauge(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
     let max = n(row(s, "CurrencyType", &[("CurrencyType", 48)])?, "MaxValue");
     if max <= 0 {
         return Err(rule("ItemDataNotFound"));

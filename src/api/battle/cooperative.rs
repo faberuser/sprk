@@ -55,12 +55,38 @@ fn request(fields:Value)->Request {
     Request(fields.as_object().unwrap().iter().map(|(k,v)|(k.clone(),v.as_str().map(str::to_owned).unwrap_or_else(||v.to_string()))).collect())
 }
 pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value> {
-    let room_id=r.number("RaidRoomNo",0)?;
+    let level=r.number("RaidLevel",0)?;
+    let solo=(101..=103).contains(&level);
+    if r.number("RaidIndex",0)?!=90001 || r.number("ChapterIndex",0)?!=9900
+        || r.number("DungeonIndex",0)?!=level || !(1..=3).contains(&level) && !solo {
+        return Err(rule("InvalidRoomInfo"));
+    }
+    let room_id=if solo {0} else {r.number("RaidRoomNo",0)?};
+    let mut room:Value=if solo {
+        json!({"MasterAccountId":a,"RaidIndex":90001,"RaidLevel":level,"Status":0})
+    } else {
     let raw:String=sqlx::query_scalar("SELECT data FROM battle_rooms WHERE id=? AND family='raid' AND EXISTS(SELECT 1 FROM battle_room_members WHERE room=? AND account=?)")
         .bind(room_id).bind(room_id).bind(a).fetch_optional(&mut *db).await?.ok_or_else(||rule("RoomNotExist"))?;
-    let mut room:Value=read_json(&raw)?;let master=n(&room,"MasterAccountId");
+    read_json(&raw)?
+    };
+    let master=n(&room,"MasterAccountId");
     if r.number("MultiplayMasterId",0)?!=master || n(&room,"RaidIndex")!=90001 || n(&room,"RaidLevel")!=r.number("RaidLevel",0)? {
         return Err(rule("InvalidRoomInfo"));
+    }
+    if solo {
+        let saved:Option<(String,String)>=sqlx::query_as("SELECT entry,begin_response FROM battle_runs WHERE account=? AND completed=0")
+            .bind(a).fetch_optional(&mut *db).await?;
+        if let Some((raw,out))=saved {
+            let entry:Value=read_json(&raw)?;
+            let req=request(entry["Request"].clone());
+            if entry["CoopRunId"].as_str().is_some_and(|id|s.conquest.runs.contains_key(id))
+                && entry["DungeonIndex"]==level && ids(&req,"HeroIndices",3)?==ids(r,"HeroIndices",3)?
+                && ids(&req,"AiHeroIndices",3)?==ids(r,"AiHeroIndices",3)?
+                && entry["DungeonDifficulty"]==r.number("DungeonDifficulty",0)? {
+                return read_json(&out);
+            }
+            return Err(rule("AlreadyOnBattleHero"));
+        }
     }
     if let Some(id) = room["ConquestRunId"].as_str() {
         let saved: Option<(String, String)> =
@@ -77,8 +103,8 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
     }
     if a!=master || n(&room,"Status")!=0 {return Err(rule("WrongMember"));}
     let worker_id={let worker=s.conquest.worker.read().await;worker.as_ref().ok_or_else(||rule("BattleServerNotFound"))?.id.clone()};
-    let members:Vec<i64>=sqlx::query_scalar("SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account")
-        .bind(room_id).fetch_all(&mut *db).await?;
+    let members:Vec<i64>=if solo {vec![a]} else {sqlx::query_scalar("SELECT account FROM battle_room_members WHERE room=? ORDER BY joined,account")
+        .bind(room_id).fetch_all(&mut *db).await?};
     if members.is_empty() || members.len()>3 || ids(r,"MultiplayMemberIds",3)?.into_iter().collect::<BTreeSet<_>>() != members.iter().copied().collect() {
         return Err(rule("WrongMember"));
     }
@@ -91,6 +117,11 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
     // The original PartyManager sends only the requester's deck. Followers'
     // decks come from their ready state, never from the host's request.
     if selected.len()!=owners.len() || selected.is_empty() || owners.iter().any(|v|*v!=master) {return Err(rule("NotMatchHeroIndices"));}
+    let support=if solo {ids(r,"AiHeroIndices",3)?} else {vec![]};
+    if !ids(r,"GroupHeroIndices",32)?.is_empty() || !solo && !ids(r,"AiHeroIndices",32)?.is_empty() {
+        return Err(rule("NotMatchHeroIndices"));
+    }
+    let ticket_cost=if solo {2} else {1};
     let id=uuid::Uuid::new_v4().to_string();let mut accounts=vec![];let mut entries=vec![];let mut all=BTreeSet::new();
     let def=row(s,"Raid",&[("Index",90001),("Level",n(&room,"RaidLevel"))])?;
     for member in &members {
@@ -99,16 +130,17 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
         let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0)").bind(member).fetch_one(&mut *db).await?;
         if active {return Err(rule("AlreadyOnBattleHero"));}
         let state=get(db,*member,"party_member",room_id).await?;
-        let own:Vec<i64>=if *member==master {selected.clone()}else {
+        let main:Vec<i64>=if *member==master {selected.clone()}else {
             state["DeckHeros"].as_object().ok_or_else(||rule("WrongMember"))?.keys()
                 .map(|key|key.parse::<i64>().map_err(|_|rule("NotMatchHeroIndices"))).collect::<Result<_>>()?
         };
-        if own.is_empty() || own.len()>3 {return Err(rule("NotMatchHeroIndices"));}
+        if main.is_empty() || main.len()>3 {return Err(rule("NotMatchHeroIndices"));}
         if *member!=master && state["IsBattleReady"]!=true {
             return Err(rule("WrongMember"));
         }
+        let mut own=main.clone();own.extend(&support);
         let req=request(json!({"RaidIndex":90001,"RaidLevel":n(&room,"RaidLevel"),"ChapterIndex":9900,"DungeonIndex":n(&room,"RaidLevel"),
-            "HeroIndices":own,"AiHeroIndices":[],"DungeonDifficulty":r.number("DungeonDifficulty",0)?}));
+            "HeroIndices":main,"AiHeroIndices":support,"DungeonDifficulty":r.number("DungeonDifficulty",0)?}));
         let ban=conquest::validate(db,s,*member,&req).await?;
         let mut heroes=serde_json::Map::new();
         for hero in &own {
@@ -121,13 +153,17 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
         }
         // Validate balances before anyone is charged. The actual debit occurs
         // together, only once all players have loaded the combat scene.
-        if n(&conquest::tickets(db,s,*member,0).await?,"NewValue")<1 {return Err(rule("NotEnoughDungeonKey"));}
+        if n(&conquest::tickets(db,s,*member,0).await?,"NewValue")<ticket_cost {return Err(rule("NotEnoughDungeonKey"));}
         let user=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?")
             .bind(member).fetch_one(&mut *db).await?;
         let mut account=conquest::combat_buffs(db,s,*member).await?;
         account["UserInfo"]=json!({"AccountId":member,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
-        account["HeroInfos"]=json!(heroes);account["AiHeroInfos"]=json!({});account["GroupHeroInfos"]=json!({});accounts.push(account);
-        let mut entry=json!({"RunId":id,"CoopRunId":id,"CoopMaster":master,"CoopCharged":false,"ServiceOwned":true,
+        // The worker marks GroupHeroInfos as the support formation while
+        // HeroInfos retains every owned actor for combat and result ownership.
+        let sub= support.iter().map(|h|(h.to_string(),heroes[&h.to_string()].clone())).collect::<serde_json::Map<_,_>>();
+        account["HeroInfos"]=json!(heroes);account["AiHeroInfos"]=json!({});
+        account["GroupHeroInfos"]=json!(sub);accounts.push(account);
+        let mut entry=json!({"RunId":id,"CoopRunId":id,"CoopMaster":master,"CoopCharged":false,"ConquestTicketCost":ticket_cost,"ServiceOwned":true,
             "ChapterIndex":9900,"DungeonIndex":n(&room,"RaidLevel"),"DungeonDifficulty":r.number("DungeonDifficulty",0)?,"Heroes":own,"Request":req.0});
         let mut out=response(s,"campaign/begin_campaign");conquest::enter(db,s,*member,&req,&mut entry,&mut out).await?;
         out["BattleServerAddress"]=json!(s.conquest.address);out["BattleServerPort"]=json!(s.conquest.port);
@@ -136,7 +172,7 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
         entries.push((*member,entry,out));
     }
     if all.len()>7 {return Err(rule("NotMatchHeroIndices"));}
-    let payload=json!({"RunId":id,"BossHp":entries[0].1["ConquestBossHp"],"BossIndex":entries[0].1["ConquestBossIndex"],"Seed":(now()%i32::MAX as i64),
+    let payload=json!({"RunId":id,"ConquestTicketCost":ticket_cost,"BossHp":entries[0].1["ConquestBossHp"],"BossIndex":entries[0].1["ConquestBossIndex"],"Seed":(now()%i32::MAX as i64),
         "Simulation":{"Uid":id,"ChapterIndex":9900,"DungeonIndex":n(&room,"RaidLevel"),"DungeonDifficulty":r.number("DungeonDifficulty",0)?,"RepeatCount":1,"RemainCount":1,"AccountInfos":accounts}});
     let result=entries.iter().find(|v|v.0==a).unwrap().2.clone();
     for (member,entry,out) in entries {
@@ -203,7 +239,7 @@ pub(crate) async fn recover_orphaned(s:&AppState)->Result<()> {
             let mut entry = entry.clone();
             super::entry_costs::settle(&mut db,s,a,&mut entry,false,&mut json!({})).await?;
         } else if entry["CoopCharged"]==true {
-            sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',json_extract(data,'$.Count')+1) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0").bind(a).execute(&mut *db).await?;
+            sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',json_extract(data,'$.Count')+?) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0").bind(n(&entry,"ConquestTicketCost").max(1)).bind(a).execute(&mut *db).await?;
         }
         sqlx::query("UPDATE battle_runs SET completed=1,entry=json_set(entry,'$.CoopCancelled',json('true')) WHERE account=? AND completed=0").bind(a).execute(&mut *db).await?;
     }
@@ -449,7 +485,7 @@ async fn start_wave(s:&AppState,run:&mut Run)->Result<()> {
                     continue;
                 }
             }
-            if run.payload["PartyCampaign"] != true {conquest::tickets(&mut db,s,*member,1).await?;}
+            if run.payload["PartyCampaign"] != true {conquest::tickets(&mut db,s,*member,number(&run.payload,"ConquestTicketCost").max(1)).await?;}
             sqlx::query("UPDATE battle_runs SET entry=json_set(entry,'$.CoopCharged',json('true')) WHERE account=? AND completed=0 AND json_extract(entry,'$.CoopRunId')=?")
                 .bind(member).bind(&run.id).execute(&mut *db).await?;
         }
@@ -555,7 +591,7 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
         let damage=contributions.get(&a.to_string()).and_then(Value::as_i64).ok_or_else(||rule("InvalidValue"))?;if damage<0 {return Err(rule("InvalidValue"));}
         sum.checked_add(damage).ok_or_else(||rule("InvalidValue"))
     })?;
-    let lost_hp=if number(&run.payload["Simulation"],"DungeonIndex")==3 {number(boss_report,"GivedDamage")} else {hp-end_hp};
+    let lost_hp=if matches!(number(&run.payload["Simulation"],"DungeonIndex"),3|103) {number(boss_report,"GivedDamage")} else {hp-end_hp};
     if lost_hp<0 {return Err(rule("InvalidValue"));}let mut assigned=0_i64;
     let mut db=s.db.begin().await?;sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(run.master).execute(&mut *db).await?;
     for (index,a) in run.members.iter().enumerate() {
@@ -587,7 +623,7 @@ async fn cancel(s:&AppState,run:&Run)->Result<()> {
                 let mut entry = entry.clone();
                 super::entry_costs::settle(&mut db,s,*a,&mut entry,false,&mut json!({})).await?;
             } else if entry["CoopCharged"]==true {
-                sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',json_extract(data,'$.Count')+1) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0").bind(a).execute(&mut *db).await?;
+                sqlx::query("UPDATE community_state SET data=json_set(data,'$.Count',json_extract(data,'$.Count')+?) WHERE owner=? AND kind='guild_conquest_keys' AND idx=0").bind(n(&entry,"ConquestTicketCost").max(1)).bind(a).execute(&mut *db).await?;
             }
             sqlx::query("UPDATE battle_runs SET completed=1,entry=json_set(entry,'$.CoopCancelled',json('true')) WHERE account=?").bind(a).execute(&mut *db).await?;
         }
@@ -630,6 +666,59 @@ async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<
 mod tests {
     use super::*;
     use crate::api::community::tests::{setup,login,call,create};
+    #[tokio::test]
+    async fn conquest_online_solo_accepts_separate_subdeck_and_refunds_both_keys() {
+        for mode in 0..3 {
+            let mut s=setup().await;
+            Arc::make_mut(&mut Arc::make_mut(&mut s.tables).arena_guild).rules["GuildConquestTestTime"]=json!(1767628800+3600);
+            let u=login(&s,"conquest-online-solo").await;let a=n(&u["UserInfo"],"AccountId");
+            create(&s,&u,"SoloGuild",1).await;
+            assert_eq!(call(&s,&u,"guild_suppress/apply_guild_suppress","").await["Result"],"Success");
+            Arc::make_mut(&mut Arc::make_mut(&mut s.tables).arena_guild).rules["GuildConquestTestTime"]=json!(1767628800+50*3600);
+            for hero in 1..=6 {
+                sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+                    .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
+            }
+            sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            let (tx,mut worker)=mpsc::channel(100);
+            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0});
+            let prefix=format!("SessionKey={}&ChapterIndex=9900&DungeonIndex=101&DungeonDifficulty=0&RaidIndex=90001&RaidLevel=101&MultiplayMasterId={a}&MultiplayMemberIds=[{a}]&AccountIds=[{a},{a},{a}]",u["UserInfo"]["SessionKey"].as_str().unwrap());
+            for invalid in ["HeroIndices=[1,2,3,4]&AiHeroIndices=[5,6]","HeroIndices=[1,2,3]&AiHeroIndices=[3,4,5]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,99999]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,6]&GroupHeroIndices=[4]"] {
+                let out=crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(format!("{prefix}&{invalid}"))).await.unwrap();
+                assert_ne!(out["Result"],"Success","{out}");
+                assert!(s.conquest.runs.is_empty());
+                assert_eq!(conquest::tickets(&mut s.db.acquire().await.unwrap(),&s,a,0).await.unwrap()["NewValue"],2);
+            }
+            let args=format!("{prefix}&HeroIndices=1&HeroIndices=2&HeroIndices=3&AiHeroIndices=4&AiHeroIndices=5&AiHeroIndices=6");
+            let begun=crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(args.clone())).await.unwrap();
+            assert_eq!(begun["Result"],"Success","{begun}");
+            assert_eq!(crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(args)).await.unwrap(),begun);
+            assert_eq!(begun["StaminaResult"]["NewValue"],2);
+            let id=s.conquest.runs.iter().next().unwrap().key().clone();
+            let (tx,_rx)=mpsc::channel(100);s.conquest.peers.insert(a,Peer{id:"solo".into(),run:id.clone(),sender:tx.clone()});
+            player_packet(&s,a,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+            let (name,payload)=worker.recv().await.unwrap();assert_eq!(name,"WorkerPrepare");
+            assert_eq!(payload["Simulation"]["AccountInfos"][0]["HeroInfos"].as_object().unwrap().len(),6);
+            assert_eq!(payload["Simulation"]["AccountInfos"][0]["GroupHeroInfos"].as_object().unwrap().len(),3);
+            player_packet(&s,a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();
+            assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+            assert_eq!(conquest::tickets(&mut s.db.acquire().await.unwrap(),&s,a,0).await.unwrap()["NewValue"],0);
+            if mode==2 {
+                let hp=number(&payload,"BossHp");
+                let result=json!({"RunId":id,"Win":false,"TimeMs":10000,"MaxWaveIndex":1,
+                    "Creatures":[{"Index":11301,"TeamId":1,"Hp":hp-600},{"Index":6,"TeamId":0,"AccountId":a,"Hp":0,"GivedDamage":600}],
+                    "AccountDamage":{a.to_string():600}});
+                worker_packet(&s,"solo-worker","WorkerResult",result.clone()).await.unwrap();
+                worker_packet(&s,"solo-worker","WorkerResult",result).await.unwrap();
+                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT score FROM guild_battle_scores WHERE account=? AND kind='suppress'").bind(a).fetch_one(&s.db).await.unwrap(),600);
+                assert_eq!(conquest::tickets(&mut s.db.acquire().await.unwrap(),&s,a,0).await.unwrap()["NewValue"],0);
+                continue;
+            }
+            if mode==1 {recover_orphaned(&s).await.unwrap();recover_orphaned(&s).await.unwrap();}
+            else {let handle=s.conquest.runs.get(&id).unwrap().clone();let run=handle.lock().await;cancel(&s,&run).await.unwrap();cancel(&s,&run).await.unwrap();}
+            assert_eq!(conquest::tickets(&mut s.db.acquire().await.unwrap(),&s,a,0).await.unwrap()["NewValue"],2);
+        }
+    }
     async fn fixture()->(AppState,Vec<Value>,i64,mpsc::Receiver<Packet>,Vec<mpsc::Receiver<Packet>>) {
         fixture_level(1).await
     }
@@ -637,7 +726,7 @@ mod tests {
         let mut s=setup().await;
         Arc::make_mut(&mut Arc::make_mut(&mut s.tables).arena_guild).rules["GuildConquestTestTime"]=json!(1767628800+3600);
         let mut users=vec![];
-        for i in 0..3 {users.push(login(&s,&format!("conquest-coop-{i}")).await);}
+        for i in 0..if level>100 {1}else{3} {users.push(login(&s,&format!("conquest-coop-{i}")).await);}
         let g=create(&s,&users[0],"CoopGuild",1).await;
         for u in users.iter().skip(1) {assert_eq!(call(&s,u,"guild/request_join_guild",&format!("GuildId={g}")).await["Result"],"Success");}
         assert_eq!(call(&s,&users[0],"guild_suppress/apply_guild_suppress","").await["Result"],"Success");
@@ -646,7 +735,7 @@ mod tests {
         let room=json!({"RoomNo":1,"MasterAccountId":members[0],"RaidIndex":90001,"RaidLevel":level,"ChapterIndex":9900,"DungeonIndex":level,"Status":0,"Capacity":3,"Opened":1});
         sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'raid',?,?,?)").bind(members[0]).bind(room.to_string()).bind(now()).execute(&s.db).await.unwrap();
         for (i,a) in members.iter().enumerate() {
-            for hero in 2..=4 {sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,1,2)").bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();}
+            for hero in 2..=if level>100 {6}else{4} {sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,1,2)").bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();}
             sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
             sqlx::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,?,?,?)").bind(a).bind(now()).bind(now()).execute(&s.db).await.unwrap();
             let mut db=s.db.acquire().await.unwrap();
@@ -655,7 +744,8 @@ mod tests {
         let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0});
         let mut db=s.db.begin().await.unwrap();
         let args=request(json!({"RaidRoomNo":1,"RaidIndex":90001,"RaidLevel":level,"ChapterIndex":9900,"DungeonIndex":level,"DungeonDifficulty":0,
-            "MultiplayMasterId":members[0],"MultiplayMemberIds":members,"HeroIndices":[1,4],"AccountIds":[members[0],members[0]]}));
+            "MultiplayMasterId":members[0],"MultiplayMemberIds":members,"HeroIndices":if level>100 {vec![1,2,3]}else{vec![1,4]},
+            "AiHeroIndices":if level>100 {vec![4,5,6]}else{vec![]},"AccountIds":if level>100 {vec![members[0];3]}else{vec![members[0];2]}}));
         let begun=begin(&mut db,&s,members[0],&args).await.unwrap();assert_eq!(begun["StaminaResult"]["NewValue"],2);db.commit().await.unwrap();
         let id=s.conquest.runs.iter().next().unwrap().key().clone();let mut receivers=vec![];
         for a in &members {let (tx,rx)=mpsc::channel(100);s.conquest.peers.insert(*a,Peer{id:a.to_string(),run:id.clone(),sender:tx});receivers.push(rx);}
@@ -897,7 +987,7 @@ mod tests {
     }
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker executable in CONQUEST_NATIVE_EXECUTABLE"]
-    async fn conquest_native_three_player_tcp_battle() {
+    async fn conquest_native_tcp_battle() {
         use tokio::io::{AsyncBufReadExt,BufReader};
         struct Native(std::process::Child);
         impl Drop for Native {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
@@ -949,12 +1039,50 @@ mod tests {
         }
         let mut completed=vec![];
         for client in clients {completed.push(tokio::time::timeout(std::time::Duration::from_secs(90),client).await.unwrap().unwrap());}
-        assert!(!completed[0].0.is_empty());assert_eq!(completed[0],completed[1]);assert_eq!(completed[1],completed[2]);
+        assert!(!completed[0].0.is_empty());for result in &completed[1..] {assert_eq!(completed[0],*result);}
+        if level>100 {
+            let report:Value=read_json(&std::fs::read_to_string(format!("target/conquest-lab/native-result-{level}.json")).unwrap()).unwrap();
+            let heroes=report["Creatures"].as_array().unwrap().iter().filter(|v|number(v,"TeamId")==0).map(|v|number(v,"Index")).collect::<BTreeSet<_>>();
+            assert_eq!(heroes,(1..=6).collect(),"Every main and support hero must enter native combat");
+        }
         let total:i64=sqlx::query_scalar("SELECT SUM(score) FROM guild_battle_scores WHERE guild_id=? AND kind='suppress'").bind(g).fetch_one(&s.db).await.unwrap();assert!(total>0,"Native battle must deal nonzero damage");
         let board=call(&s,&users[0],"guild_suppress/get_guild_suppress_status_board","").await;
-        assert_eq!(board["GuildSuppressStatusBoardInfos"][0]["GuildSuppressPlayInfos"][(level-1) as usize]["MonsterHp0"],if level==3 {initial_hp}else{initial_hp-total});
-        for user in users {let mut db=s.db.acquire().await.unwrap();assert_eq!(conquest::tickets(&mut db,&s,n(&user["UserInfo"],"AccountId"),0).await.unwrap()["NewValue"],1);}
+        assert_eq!(board["GuildSuppressStatusBoardInfos"][0]["GuildSuppressPlayInfos"][((level-1)%100) as usize]["MonsterHp0"],if level%100==3 {initial_hp}else{initial_hp-total});
+        for user in users {let mut db=s.db.acquire().await.unwrap();assert_eq!(conquest::tickets(&mut db,&s,n(&user["UserInfo"],"AccountId"),0).await.unwrap()["NewValue"],if level>100 {0}else{1});}
         server.abort();
+    }
+    #[tokio::test]
+    async fn conquest_invited_guests_receive_return_session_in_entry_and_victory_for_all_bosses() {
+        for level in 1..=3 {
+            let(s,users,_,mut worker,_clients)=fixture_level(level).await;
+            let id=start(&s).await;
+            assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+            let handle=s.conquest.runs.get(&id).unwrap().clone();let run=handle.lock().await;
+            let hp=number(&run.payload,"BossHp");let boss=number(&run.payload,"BossIndex");drop(run);
+            let mut creatures=vec![json!({"Index":boss,"TeamId":1,"Hp":hp-600})];
+            for(i,u)in users.iter().enumerate() {
+                creatures.push(json!({"Index":i+1,"TeamId":0,"AccountId":n(&u["UserInfo"],"AccountId"),"Hp":100,"GivedDamage":0,"DealtDamage":(i+1)*100}));
+            }
+            let damage=users.iter().enumerate().map(|(i,u)|(n(&u["UserInfo"],"AccountId").to_string(),json!((i+1)*100))).collect::<serde_json::Map<_,_>>();
+            worker_packet(&s,"test-worker","WorkerResult",json!({"RunId":id,"Win":true,"Creatures":creatures,"AccountDamage":damage,"TimeMs":10000,"MaxWaveIndex":1})).await.unwrap();
+            for(i,u)in users.iter().enumerate() {
+                let a=n(&u["UserInfo"],"AccountId");
+                let raw:String=sqlx::query_scalar("SELECT begin_response FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap();
+                let begin:Value=read_json(&raw).unwrap();
+                let end=crate::api::battle::execute_request(&s,"campaign/end_campaign",Bytes::from(format!("SessionKey={}&ChapterIndex=9900&DungeonIndex={level}&DungeonDifficulty=0&Completed=true",u["UserInfo"]["SessionKey"].as_str().unwrap()))).await.unwrap();
+                for(label,response)in [("begin",&begin),("end",&end)] {
+                    assert_eq!(response["Result"],"Success");
+                    let session=response["GuildSuppressPlayInfo"]["SessionIndex"].as_i64().unwrap();
+                    let definition=response["SPRKConquestSessionDefinitions"].as_array().unwrap().iter().find(|v|v["SessionIndex"]==session).unwrap();
+                    let dungeon=definition["SuppressDungeonIndex"][(level-1)as usize].as_i64().unwrap();
+                    assert_eq!(dungeon,conquest::party_dungeon_index(&s,level).unwrap());
+                    if i==1 {if let Ok(directory)=std::env::var("SPRK_CONQUEST_RETURN_CAPTURE_DIR") {
+                        std::fs::create_dir_all(&directory).unwrap();
+                        std::fs::write(std::path::Path::new(&directory).join(format!("guest-{label}-{level}.json")),response.to_string()).unwrap();
+                    }}
+                }
+            }
+        }
     }
     #[tokio::test]
     async fn conquest_coop_settles_shared_hp_once_and_scores_each_participant() {

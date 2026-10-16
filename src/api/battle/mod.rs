@@ -377,8 +377,9 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
 /// by an older client. Keep service-owned runs and unrelated reconnects intact.
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
-) -> Result<()> {
+) -> Result<Value> {
     let mut tx = s.db.begin().await?;
+    let mut out = json!({});
     let old = sqlx::query("SELECT run_id,entry FROM battle_runs WHERE account=? AND completed=0")
         .bind(a).fetch_optional(&mut *tx).await?;
     if let Some(old) = old {
@@ -391,12 +392,13 @@ pub(crate) async fn abandon_local_run_on_lobby(
             .is_some_and(|raid| matches!(n(raid, "Type"), 15 | 17)
                 && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
                 && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
-        if (solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array())
+        if (solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
+            || entry["ShakmehStoryFinal"] == true)
             && !session.is_empty()
             && request["SessionKey"].as_str() == Some(session)
             && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true
         {
-            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut json!({})).await?;
+            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut out).await?;
             entry["AbandonedOnLobby"] = json!(true);
             let run_id: String = old.get("run_id");
             sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=? AND completed=0")
@@ -405,7 +407,7 @@ pub(crate) async fn abandon_local_run_on_lobby(
         }
     }
     tx.commit().await?;
-    Ok(())
+    Ok(out)
 }
 
 // The native client restores these managers from FirstLobby, not Login.

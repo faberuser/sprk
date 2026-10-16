@@ -324,12 +324,22 @@ pub(crate) async fn settle(
     out: &mut Value,
 ) -> Result<()> {
     super::loot_booster::settle(db,a,entry,won,out).await?;
-    let Some(costs) = entry["VictoryEntryCosts"].as_array().cloned() else {
-        return Ok(());
-    };
     if entry["EntryCostsSettled"] == true {
         return Ok(());
     }
+    let Some(costs) = entry["VictoryEntryCosts"].as_array().cloned() else {
+        // Accounts without deferred PvE costs pay this gauge on entry. Quitting
+        // does not send EndCampaign, so lobby/login abandonment must restore the
+        // first story attempt too. Farming remains locked until that fight wins.
+        if !won && entry["ShakmehStoryFinal"] == true {
+            let (gauge, max) = dungeons::shakmeh_gauge(db, s, a).await?;
+            let result = hero::currency(db, a, "ShakmehMiddleBossPoint", max - gauge).await?;
+            out["CurrencyResults"] = json!([result.clone()]);
+            out["ReservedCurrencyResults"] = json!([result]);
+            entry["EntryCostsSettled"] = json!(true);
+        }
+        return Ok(());
+    };
     let deferred = entry["DeferredEntryCosts"] == true;
     if deferred {
         let mut owners = BTreeSet::new();
@@ -525,7 +535,7 @@ pub(super) async fn abandon_on_login(
         let mut entry: Value = read_json(row.get::<&str, _>("entry"))?;
         let expired =
             now() - row.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
-        if (entry["DeferredEntryCosts"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
+        if (entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
             && (expired || (entry["ServiceOwned"] != true && entry["ServiceRequired"] != true))
         {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;

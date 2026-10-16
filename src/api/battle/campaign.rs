@@ -230,7 +230,10 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
         s.tables.battle.find("Raid", &[("Index",int(r,"RaidIndex")?),("Level",int(r,"RaidLevel")?)])
             .filter(|v|matches!(n(v,"Type"),13|15))
     } else {None};
-    if let Some(raid) = raid_squard {
+    if battle_type==26 && int(r,"RaidIndex")?==90001 && (101..=103).contains(&int(r,"RaidLevel")?) {
+        if !group.is_empty() {return Err(rule("NotMatchHeroIndices"));}
+        heroes.extend(ids(r,"AiHeroIndices",3)?);
+    } else if let Some(raid) = raid_squard {
         // RaidManagement.StartSingleRaidBattle uses AiHeroIndices for the
         // support team in field/Technomagic raids. HeroIndices includes both
         // teams; GroupHeroIndices belongs to alternating-wave modes instead.
@@ -298,7 +301,8 @@ async fn begin_local_inner(
     if n(dungeon(s, r)?, "BattleType") == 36 {
         return super::eclipse::begin(db, s, a, r).await;
     }
-    if r.number("RaidIndex",0)?==90001 && (1..=3).contains(&r.number("RaidLevel",0)?) {
+    if r.number("RaidIndex",0)?==90001 && ((1..=3).contains(&r.number("RaidLevel",0)?)
+        || (101..=103).contains(&r.number("RaidLevel",0)?) && r.number("MultiplayMasterId",0)?>0) {
         return super::cooperative::begin(db,s,a,r).await;
     }
     let party = selected_heroes(s, r)?;
