@@ -1016,16 +1016,30 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     .unwrap()
     .0;
     assert_eq!(login.soul_weapon_infos.len(), 1);
-    // Archived class coefficients use the client's original units. Login must
-    // recalculate cached values without changing the saved progression record.
-    assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4);
-    assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125);
+    // Build-1558 coefficients need the original /1000 Soul Weapon formula.
+    // Login refreshes cached stats without changing saved progression.
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4000);
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125000);
     assert_eq!(
         get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64)
             .await
             .unwrap(),
         stored
     );
+}
+#[tokio::test]
+async fn soul_weapon_max_stats_match_archived_native_units() {
+    let (s, _) = setup().await;
+    // Native 4.86.6 ARM64 GetSoulWeaponBaseStat at 0x30d6b38, using
+    // build-1558 Knight coefficients and a real A2/E20 allocation.
+    let mut info = json!({"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,
+        "OptionRatio1":699,"OptionRatio2":301,
+        "OptionBonusRatio1":171,"OptionBonusRatio2":170});
+    soul::stats(&s, &mut info).unwrap();
+    assert_eq!(info["OptionStat1"], 159483);
+    assert_eq!(info["BonusOptionStat1"], 27271);
+    assert_eq!(info["OptionStat2"], 2146130);
+    assert_eq!(info["BonusOptionStat2"], 364842);
 }
 #[tokio::test]
 async fn all_extended_equipment_columns_survive_database_reload() {

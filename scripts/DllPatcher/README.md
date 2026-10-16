@@ -1,5 +1,14 @@
 # DLL patcher
 
+`--hero-stats-only` restores the Soul Weapon ATK/HP arithmetic used with the
+build-1558 tables. Those tables store coefficients 7/8/9 and 250; later Windows
+arithmetic divides their results by an extra 1000. The focused installer
+validates the baked table hashes and preserves existing client patches.
+`--stage-only` writes `Assembly-CSharp.dll.hero-stats-staged`.
+Run `--self-test-hero-stats <dll>` with the DLL path as the first argument to
+check archived native outputs, progression/bonus combinations and idempotence.
+See the [stat audit](../../docs/hero-stat-audit.md) for provenance and coverage.
+
 `--orvel-visuals-only` removes the floating EVENT effects and red event portal
 from Orvel by filtering their prop records before native asset creation. Town
 labels, other markers and other chapters retain their existing props. It
@@ -56,6 +65,7 @@ battles with one host Start Battle click each before publishing the update.
 | `Payment.cs` | Payment initialization compatibility |
 | `SoulWeapon.cs` | Disables unsupported limit-break stars |
 | `HeroLevels.cs` | Restores Pre-Doomsday hero growth caps and removes hero Limit Break |
+| `HeroStats.cs` | Restores build-1558 Soul Weapon ATK/HP units and tests the installed calculator |
 | `AccessorySales.cs` | Shows all accessories and enables direct ruby purchases in the Dressing Room |
 | `LobbyAccessories.cs` | Uses equipped accessories and their transforms for the lobby avatar, and refreshes accessory edits |
 | `Campaign.cs` | Campaign survivor filtering and its self-test |

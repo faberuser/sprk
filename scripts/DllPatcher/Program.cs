@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-hero-stats")) { TestHeroStats(args[0]); return; }
             if (args.Contains("--orvel-visuals-only")) { InstallOrvelVisuals(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-orvel-visuals")) { VerifyOrvelVisualsFile(Path.Combine(args[0],"King's Raid_Data","Managed","Assembly-CSharp.dll"+(args.Contains("--stage-only")?".orvel-visuals-staged":""))); return; }
             if (args.Contains("--verify-conquest-session-cache")) { VerifyConquestSessionCache(args[0],args.Contains("--stage-only")); return; }
@@ -135,6 +137,7 @@ namespace DllPatcher
                 RemoveTelemetryFromModule(module);
                 PatchDamageReduction(module);
                 PatchLegacyCombat(module);
+                PatchLegacyHeroStats(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
                 PatchOrvelVisuals(module);
