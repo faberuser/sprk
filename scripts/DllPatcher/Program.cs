@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--orvel-visuals-only")) { InstallOrvelVisuals(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-orvel-visuals")) { VerifyOrvelVisualsFile(Path.Combine(args[0],"King's Raid_Data","Managed","Assembly-CSharp.dll"+(args.Contains("--stage-only")?".orvel-visuals-staged":""))); return; }
             if (args.Contains("--verify-conquest-session-cache")) { VerifyConquestSessionCache(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-conquest-party-cleanup")) { VerifyConquestPartyCleanup(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
@@ -135,6 +137,7 @@ namespace DllPatcher
                 PatchLegacyCombat(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
+                PatchOrvelVisuals(module);
                 PatchArenaRematchPrompt(module);
                 PatchArenaResponsiveness(module);
                 PatchAdventureUnlocks(module);
