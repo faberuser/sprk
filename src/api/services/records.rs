@@ -142,7 +142,7 @@ pub(crate) async fn snapshot(db: &mut SqliteConnection, a: i64, party: &[i64]) -
     let mut seen = BTreeSet::new();
     for id in party {
         let mut h = heroes::info(db, a, *id as i32).await?;
-        h["PunishmentRuneOptionInfos"] = json!([]);
+        h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
         for part in 1..=10 {
             let slot = n(&h, &format!("EquipItemSlotIndex{part}"));
             if slot > 0 && seen.insert(slot) {

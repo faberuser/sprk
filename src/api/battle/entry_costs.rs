@@ -535,7 +535,7 @@ pub(super) async fn abandon_on_login(
         let mut entry: Value = read_json(row.get::<&str, _>("entry"))?;
         let expired =
             now() - row.get::<i64, _>("started") > settings(s, "BattleExpirySeconds", 14400);
-        if (entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
+        if (super::campaign::is_story_entry(s,&entry) || entry["DeferredEntryCosts"] == true || entry["ShakmehStoryFinal"] == true || super::loot_booster::active(&entry) || super::karma::is_entry(s, &entry))
             && (expired || (entry["ServiceOwned"] != true && entry["ServiceRequired"] != true))
         {
             settle(db, s, a, &mut entry, false, &mut json!({})).await?;

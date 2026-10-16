@@ -3490,6 +3490,66 @@ async fn new_login_can_replace_abandoned_local_battle_without_rewarding_it() {
 }
 
 #[tokio::test]
+async fn abandoned_story_releases_heroes_on_lobby_or_login_without_awarding_a_clear() {
+    use crate::api::account::lobby::{enter_lobby,EnterLobbyRequest};
+    use axum::extract::Form;
+    for relogin in [false,true] {
+        let(s,u)=setup().await;let a=account(&u);
+        hero::recruit_at(&mut s.db.acquire().await.unwrap(),&s,a,2,1,1,0).await.unwrap();
+        let story=format!("{ENTRY}&ScenarioDungeon=true");
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&story).await["Result"],"Success");
+        let next=story.replace("HeroIndices=[1]","HeroIndices=[1,2]");
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+        let before:(i64,i64,i64,i64)=sqlx::query_as("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let items:Vec<(i64,i64)>=sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        let current=if relogin {
+            json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0)
+        } else {
+            let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+            for _ in 0..2 {let _=enter_lobby(State(s.clone()),Form(EnterLobbyRequest{session_id:None,session_key:Some(session.into())})).await.unwrap();}
+            u.clone()
+        };
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),1);
+        assert_eq!(sqlx::query_as::<_,(i64,i64,i64,i64)>("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(),before);
+        assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap(),items);
+        let progress=campaign::progress(&mut s.db.acquire().await.unwrap(),&s,a,1,1).await.unwrap();
+        assert_eq!(progress["FirstRewardedDiff"],0);
+        assert_ne!(call(&s,&current,"campaign/end_campaign",&format!("{END}&ScenarioDungeon=true")).await["Result"],"Success");
+        let next_begin=call(&s,&current,"campaign/begin_campaign",&next).await;
+        assert_eq!(next_begin["Result"],"Success","{next_begin}");
+        abandon_local_run_on_lobby(&s,a,current["UserInfo"]["SessionKey"].as_str().unwrap()).await.unwrap();
+        put(&mut s.db.acquire().await.unwrap(),a,"dispatch",1,&json!({"SlotIndex":1,"State":"Simulation","HeroIndices":"[1]"})).await.unwrap();
+        assert_eq!(call(&s,&current,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+    }
+}
+
+#[tokio::test]
+async fn story_withdrawal_preserves_service_battles_and_other_sessions() {
+    let(s,u)=setup().await;let a=account(&u);
+    let story=format!("{ENTRY}&ScenarioDungeon=true");
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",&story).await["Result"],"Success");
+    let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let original:Value=read_json(&raw).unwrap();
+    let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+    for flag in ["ServiceOwned","ServiceRequired"] {
+        let mut entry=original.clone();entry[flag]=json!(true);
+        sqlx::query("UPDATE battle_runs SET entry=? WHERE account=?").bind(entry.to_string()).bind(a).execute(&s.db).await.unwrap();
+        abandon_local_run_on_lobby(&s,a,session).await.unwrap();
+        entry_costs::abandon_on_login(&mut s.db.acquire().await.unwrap(),&s,a).await.unwrap();
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    }
+    sqlx::query("UPDATE battle_runs SET entry=? WHERE account=?").bind(raw).bind(a).execute(&s.db).await.unwrap();
+    abandon_local_run_on_lobby(&s,a,"another-session").await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    abandon_local_run_on_lobby(&s,a,session).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),1);
+}
+
+#[tokio::test]
 async fn lobby_withdrawal_keeps_service_runs_dispatches_and_other_sessions() {
     let (s, u) = setup().await;
     let a = account(&u);

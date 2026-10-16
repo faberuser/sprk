@@ -198,6 +198,7 @@ pub(crate) async fn currency(
 }
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let arrays: &[&str] = match action {
+        "bookmark_hero" => &["HeroIndex"],
         "learn_hero_transcend_skill_page" => &["TranscendSkills"],
         "upgrade_hero_skill" => &["SkillIndices"],
         _ => &[],
@@ -305,8 +306,13 @@ pub(crate) async fn execute(
     let table = &state.tables.hero_shop;
     let mut out = item::success();
     if action == "bookmark_hero" {
-        let indices: Vec<i32> =
-            serde_json::from_str(req.text("HeroIndex")).map_err(|_| rule("InvalidHeroIndex"))?;
+        // WWWForm omits a zero-length array entirely when clearing bookmarks.
+        // Repeated fields (normalized by handle) retain the player's ordering.
+        let indices: Vec<i32> = if req.text("HeroIndex").is_empty() {
+            vec![]
+        } else {
+            serde_json::from_str(req.text("HeroIndex")).map_err(|_| rule("InvalidHeroIndex"))?
+        };
         if indices.len() > 103 || indices.iter().collect::<BTreeSet<_>>().len() != indices.len() {
             return Err(rule("InvalidHeroIndex"));
         }

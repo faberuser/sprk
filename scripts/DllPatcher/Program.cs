@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-runes")) { VerifyRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-hero-stats")) { TestHeroStats(args[0]); return; }
             if (args.Contains("--orvel-visuals-only")) { InstallOrvelVisuals(args[0],args.Contains("--stage-only")); return; }
@@ -138,6 +140,8 @@ namespace DllPatcher
                 PatchDamageReduction(module);
                 PatchLegacyCombat(module);
                 PatchLegacyHeroStats(module);
+                PatchRuneCategories(module);
+                PatchCachedRuneOptions(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
                 PatchOrvelVisuals(module);

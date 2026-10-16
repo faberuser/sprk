@@ -316,7 +316,7 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
     }
-    h["PunishmentRuneOptionInfos"] = json!([]);
+    h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
     Ok(h)
 }
 async fn user(db: &mut SqliteConnection, a: i64) -> Result<Value> {

@@ -265,56 +265,81 @@ async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
 }
 #[tokio::test]
 async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() {
-    let (s, u) = setup().await;
-    let a = u.user_info.account_id;
-    for (id, count) in [(45005, 10000), (45123, 1), (45128, 150), (100005, 11)] {
-        give(&s, a, id, count).await;
-    }
-    let ingredients = vec![100005; 10];
-    let r = call(
-        &s,
-        &u,
-        "craft_punishment_rune",
-        &format!(
-            "PunishmentRuneIndex=100262&IngredientRuneIndices={}",
-            json!(ingredients)
-        ),
-    )
-    .await;
-    assert_eq!(r["Result"], "Success", "{r}");
-    let slot = n(&r["EquipItemResult"], "SlotIndex");
-    assert!(r["EquipItemResult"]["PunishmentRuneOption"].is_object());
-    let args =
-        format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
-    assert_eq!(call(&s, &u, "equip_rune", &args).await["Result"], "Success");
-    let body = Bytes::from(format!(
-        "SessionKey={}&EquipItemSlotIndices=[{slot}]",
-        u.user_info.session_key
-    ));
-    assert_ne!(
-        item::break_rune(State(s.clone()), body.clone())
-            .await
-            .unwrap()
-            .0["Result"],
-        "Success"
-    );
-    assert_eq!(
-        call(
+    // The game sends repeated WWWForm fields; API clients also use JSON arrays.
+    for native_form in [false, true] {
+        let (s, u) = setup().await;
+        let a = u.user_info.account_id;
+        for (id, count) in [(45005, 10000), (45123, 1), (45128, 150), (100005, 11)] {
+            give(&s, a, id, count).await;
+        }
+        let ingredients = vec![100005; 10];
+        let r = call(
             &s,
             &u,
-            "unequip_rune",
-            "HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true"
+            "punishment_rune/craft_punishment_rune",
+            &format!(
+                "PunishmentRuneIndex=100262&{}",
+                if native_form {
+                    ingredients.iter().map(|id| format!("IngredientRuneIndices={id}")).collect::<Vec<_>>().join("&")
+                } else { format!("IngredientRuneIndices={}", json!(ingredients)) }
+            ),
         )
-        .await["Result"],
-        "Success"
-    );
-    let result = item::break_rune(State(s.clone()), body).await.unwrap().0;
-    assert_eq!(result["Result"], "Success", "{result}");
-    assert!(
-        punishment::available(&mut s.db.acquire().await.unwrap(), a, slot)
-            .await
-            .is_err()
-    );
+        .await;
+        assert_eq!(r["Result"], "Success", "{r}");
+        let slot = n(&r["EquipItemResult"], "SlotIndex");
+        assert!(r["EquipItemResult"]["PunishmentRuneOption"].is_object());
+        let args =
+            format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
+        assert_eq!(call(&s, &u, "equip_rune", &args).await["Result"], "Success");
+        let rolled = r["EquipItemResult"]["PunishmentRuneOption"].clone();
+        {
+            let mut db = s.db.acquire().await.unwrap();
+            let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+            assert_eq!(cached["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
+            let saved = crate::api::services::records::snapshot(&mut db, a, &[1]).await.unwrap();
+            assert_eq!(saved["Heroes"][0]["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
+        }
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+            .await.unwrap().0;
+        let reloaded = login.equip_items.iter().find(|e| e.slot_index as i64 == slot).unwrap();
+        assert_eq!(reloaded.punishment_rune_option.as_ref(), Some(&rolled));
+        assert_eq!(reloaded.inventory_type, 3);
+        assert!(login.hero_rune_page_infos.iter().any(|page| page["EquipItemSlotIndex"] == slot));
+        let body = Bytes::from(format!(
+            "SessionKey={}&EquipItemSlotIndices=[{slot}]",
+            u.user_info.session_key
+        ));
+        assert_ne!(
+            item::break_rune(State(s.clone()), body.clone())
+                .await
+                .unwrap()
+                .0["Result"],
+            "Success"
+        );
+        assert_eq!(
+            call(
+                &s,
+                &u,
+                "unequip_rune",
+                "HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true"
+            )
+            .await["Result"],
+            "Success"
+        );
+        {
+            let mut db = s.db.acquire().await.unwrap();
+            let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+            assert_eq!(cached["PunishmentRuneOptionInfos"], json!([]));
+            assert_eq!(punishment::available(&mut db, a, slot).await.unwrap().punishment_rune_option.as_ref(), Some(&rolled));
+        }
+        let result = item::break_rune(State(s.clone()), body).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert!(
+            punishment::available(&mut s.db.acquire().await.unwrap(), a, slot)
+                .await
+                .is_err()
+        );
+    }
 }
 #[tokio::test]
 async fn flask_fill_and_cancel_never_duplicate_rewards() {

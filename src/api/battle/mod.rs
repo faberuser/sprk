@@ -373,8 +373,8 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
     out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
     Ok(out)
 }
-/// Release local raid runs on lobby return, including Karma results rejected
-/// by an older client. Keep service-owned runs and unrelated reconnects intact.
+/// Release withdrawn local stories and raids on lobby return, including results
+/// never submitted by the client. Keep service-owned runs and other sessions intact.
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
 ) -> Result<Value> {
@@ -392,7 +392,7 @@ pub(crate) async fn abandon_local_run_on_lobby(
             .is_some_and(|raid| matches!(n(raid, "Type"), 15 | 17)
                 && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
                 && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
-        if (solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
+        if (campaign::is_story_entry(s,&entry) || solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
             || entry["ShakmehStoryFinal"] == true)
             && !session.is_empty()
             && request["SessionKey"].as_str() == Some(session)
@@ -403,7 +403,7 @@ pub(crate) async fn abandon_local_run_on_lobby(
             let run_id: String = old.get("run_id");
             sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=? AND completed=0")
                 .bind(entry.to_string()).bind(a).bind(&run_id).execute(&mut *tx).await?;
-            tracing::info!(account=a, %run_id, "Released withdrawn local raid on lobby return");
+            tracing::info!(account=a, %run_id, "Released withdrawn local battle on lobby return");
         }
     }
     tx.commit().await?;

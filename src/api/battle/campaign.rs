@@ -63,6 +63,14 @@ fn story_party<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
         .filter(|row| row["ForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()))
 }
 
+pub(super) fn is_story_entry(s: &AppState, entry: &Value) -> bool {
+    let battle_type=s.tables.battle.find("CampaignDungeon", &[
+        ("ChapterIndex",n(entry,"ChapterIndex")),("DungeonIndex",n(entry,"DungeonIndex")),
+    ]).map(|d|n(d,"BattleType"));
+    matches!(battle_type,Some(23|24)) || crate::api::episodes::chapter(n(entry,"ChapterIndex")).is_some()
+        || entry["ScenarioDungeon"]==true && matches!(battle_type,Some(1|2|10))
+}
+
 fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i64>> {
     let scenario = boolean(r, "ScenarioDungeon", false)?;
     let preset = s.tables.battle.find("DungeonHeroSet", &[
@@ -548,12 +556,9 @@ async fn end_inner(
     // first response with settlement so retries do not reroll or regrant loot.
     let mut settled_entry = entry;
     super::entry_costs::settle(db,s,a,&mut settled_entry,completed,&mut out).await?;
-    let battle_type = n(dungeon(s, &request)?, "BattleType");
     // Substories such as 10-35 send ScenarioDungeon=false despite their
     // scripted ending, so the request flag alone cannot identify story runs.
-    if matches!(battle_type, 23 | 24) || crate::api::episodes::chapter(n(&settled_entry,"ChapterIndex")).is_some()
-        || (settled_entry["ScenarioDungeon"] == true && matches!(battle_type, 1 | 2 | 10))
-    {
+    if is_story_entry(s,&settled_entry) {
         settled_entry["StoryEndResponse"] = out.clone();
     }
     sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
