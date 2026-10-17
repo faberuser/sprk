@@ -9,6 +9,32 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-runes")) { VerifyRuneCategories(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-hero-stats")) { TestHeroStats(args[0]); return; }
+            if (args.Contains("--orvel-visuals-only")) { InstallOrvelVisuals(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-orvel-visuals")) { VerifyOrvelVisualsFile(Path.Combine(args[0],"King's Raid_Data","Managed","Assembly-CSharp.dll"+(args.Contains("--stage-only")?".orvel-visuals-staged":""))); return; }
+            if (args.Contains("--verify-conquest-session-cache")) { VerifyConquestSessionCache(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-conquest-party-cleanup")) { VerifyConquestPartyCleanup(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-image-recovery")) { VerifyImageRecoveryFile(args[0]); return; }
+            if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
+            if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--arena-responsive-only")) { InstallArenaResponsiveness(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-arena-responsive")) { VerifyArenaResponsivenessFile(args[0]); return; }
+            if (args.Contains("--arena-rematch-only")) { InstallArenaRematchRemoval(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-arena-rematch")) { VerifyArenaRematchFile(args[0]); return; }
+            if (args.Contains("--verify-arena-worker")) { VerifyArenaWorker(args[0]); return; }
+            if (args.Contains("--verify-arcdim-worker")) { VerifyArcdimWorker(args[0]); return; }
+            if (args.Contains("--party-join-unlock-only")) { InstallPartyJoinUnlock(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-party-join-unlock")) { VerifyPartyJoinUnlockFile(args[0]); return; }
+            if (args.Contains("--self-test-party-join-unlock")) { TestPartyJoinUnlock(); return; }
+            if (args.Contains("--verify-websocket-lifecycle")) { VerifyWebSocketLifecycle(args[0]); return; }
+            if (args.Contains("--raid-social-only")) { InstallRaidSocial(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-raid-social")) { VerifyRaidSocialFile(args[0]); return; }
+            if (args.Contains("--verify-conquest-replay")) { VerifyConquestReplay(args[0]); return; }
             if (args.Contains("--awaken-delay-only")) { InstallAwakenDelay(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--completion-banners-only")) { InstallCompletionBanners(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }
@@ -54,6 +80,9 @@ namespace DllPatcher
             if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }
+            if (args.Contains("--mail-updates-only")) { InstallMailUpdates(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-mail-updates")) { VerifyMailUpdates(args[0]); return; }
+            if (args.Contains("--self-test-mail-updates")) { TestMailUpdates(); return; }
             // Determine client path: first CLI arg, or prompt, or default
             string clientRoot = args.Length > 0
                 ? args[0].TrimEnd('\\', '/')
@@ -110,8 +139,14 @@ namespace DllPatcher
                 RemoveTelemetryFromModule(module);
                 PatchDamageReduction(module);
                 PatchLegacyCombat(module);
+                PatchLegacyHeroStats(module);
+                PatchRuneCategories(module);
+                PatchCachedRuneOptions(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
+                PatchOrvelVisuals(module);
+                PatchArenaRematchPrompt(module);
+                PatchArenaResponsiveness(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
                 PatchVoiceLanguage(module);
@@ -121,6 +156,8 @@ namespace DllPatcher
                 PatchBattleEntry(module);
                 PatchAwakenDelay(module);
                 PatchCompletionBanners(module);
+                PatchRaidSocial(module);
+                PatchPartyJoinUnlock(module);
 
                 if (dealerPopupOnly || adventureUnlocksOnly)
                 {
@@ -151,6 +188,7 @@ namespace DllPatcher
                 else if (campaignOnly)
                 {
                     PatchCampaignSurvivors(module);
+                    PatchCinematicSkip(module);
                     assembly.Write(patchedPath);
                 }
                 else if (chatOnly)
@@ -185,6 +223,8 @@ namespace DllPatcher
                 File.Move(dllPath + ".websocket-staged", patchedPath, true);
                 InstallStoryAuto(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".story-auto-staged", patchedPath, true);
+                InstallImageRecovery(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".image-recovery-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -194,6 +234,7 @@ namespace DllPatcher
             InstallAccounts(clientRoot, false);
             InstallWebSockets(clientRoot, false);
             InstallStoryAuto(clientRoot, false);
+            InstallImageRecovery(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

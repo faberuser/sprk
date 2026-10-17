@@ -26,6 +26,12 @@ pub(crate) fn subquest_updates(state: &AppState, session_key: &str, infos: &Valu
 
 pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: Next) -> Response {
     let path = request.uri().path();
+    // Inbox reads do not advance gameplay progress. Leave their bodies and
+    // responses untouched; attachment claims still refresh mission progress.
+    if matches!(path, "/mail/check_new_mail" | "/mail/get_mail_list"
+        | "/mail/get_mail_list_by_page" | "/mail/get_global_mail_list" | "/mail/list") {
+        return next.run(request).await;
+    }
     let family = path.split('/').nth(1).unwrap_or("");
     if !matches!(
         family,

@@ -2,6 +2,31 @@ use super::*;
 use crate::models::item::ItemGrant;
 use rand::Rng;
 
+/// CachedHeroInfo needs the rolls of every rune referenced by its rune pages,
+/// including inactive pages. Account login resolves these from EquipItemInfos;
+/// remote heroes and saved battle snapshots have no account inventory to query.
+pub(crate) async fn options(
+    db: &mut SqliteConnection,
+    account: i64,
+    hero: &Value,
+) -> Result<Value> {
+    let slots: BTreeSet<i64> = hero["HeroRunePageInfos"].as_array().into_iter().flatten()
+        .map(|page| n(page, "EquipItemSlotIndex")).filter(|slot| *slot > 0).collect();
+    let mut options = vec![];
+    for slot in slots {
+        let raw: Option<String> = sqlx::query_scalar(
+            "SELECT punishment_rune_option FROM equip_items WHERE account_id=? AND slot_index=?",
+        ).bind(account).bind(slot).fetch_optional(&mut *db).await?.flatten();
+        if let Some(raw) = raw {
+            let mut option: Value = serde_json::from_str(&raw)
+                .map_err(|e| ServerError::Internal(e.to_string()))?;
+            option["EquipItemSlotIndex"] = json!(slot);
+            options.push(option);
+        }
+    }
+    Ok(json!(options))
+}
+
 pub(crate) async fn attached(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<bool> {
     Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM hero_details h,json_each(h.data,'$.HeroRunePageInfos') r WHERE h.account_id=? AND json_extract(r.value,'$.EquipItemSlotIndex')=?)").bind(account).bind(slot).fetch_one(db).await?)
 }

@@ -15,6 +15,18 @@ public static class SprkWebSocketTransport
 {
     static readonly MethodInfo NativeConnect = typeof(SocketConnector).GetMethod(
         "SprkConnectTcpCoroutine", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo NativeSession = typeof(SocketConnector).GetField("_session", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly MethodInfo Reserve = typeof(SocketConnector).GetMethod("Reserve", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    public static void SessionClosed(SocketConnector connector, object session)
+    {
+        // Closing the previous TCP relay may deliver Closed on a later frame.
+        // Neither that event nor its queued callback may close a replacement.
+        if (!Object.ReferenceEquals(NativeSession.GetValue(connector), session)) return;
+        Reserve.Invoke(connector, new object[] { new Action(() => {
+            if (Object.ReferenceEquals(NativeSession.GetValue(connector), session)) connector.Close();
+        }), 0 });
+    }
 
     public static IEnumerator Connect(SocketConnector connector, string address, int port, Action<bool> callback, float timeout)
     {

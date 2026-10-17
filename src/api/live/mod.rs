@@ -54,12 +54,12 @@ async fn handle(
         .map(Json)
 }
 pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
-    // Unity's WWWForm sends each placement slot under the same PetIndices
-    // key. Preserve the slot order and empty (zero) slots before validation.
-    let mut r = if path == "pet/change_pet_layout" {
-        Request::parse_with_integer_arrays(&body, &["PetIndices"])?
-    } else {
-        Request::parse(&body)?
+    // Unity's WWWForm repeats array keys. Preserve every hero selection and
+    // pet placement slot rather than retaining only the final element.
+    let mut r = match path {
+        "pet/change_pet_layout" => Request::parse_with_integer_arrays(&body, &["PetIndices"])?,
+        "equip_gacha/exec_equip_gacha" => Request::parse_with_integer_arrays(&body, &["HeroIndices"])?,
+        _ => Request::parse(&body)?,
     };
     let a = r.account(s)?;
     let contract = s

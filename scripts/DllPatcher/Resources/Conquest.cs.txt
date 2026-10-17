@@ -20,14 +20,41 @@ using UnityEngine;
 // initial shared boss HP; they cannot submit authoritative combat results.
 public sealed class SprkConquest : MonoBehaviour {
     static SprkConquest instance;
+    int lastFrame=-1;
     static readonly Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]> seeds=new Dictionary<WaveReadyBattleLog,ResultCreatureInfo[]>();
+    public static void LeaveSoloConquestOnLobbyReturn() {
+        // Online solo Conquest uses PartyManager too. Its setup window was
+        // destroyed on battle entry, so OnClosing cannot leave on result exit.
+        // The explicit Lobby button must release the room before scene change.
+        if(!GlobalAutoBehaviour<NGame2.NParty.PartyManager>.isValidInstance)return;
+        var party=GlobalAutoBehaviour<NGame2.NParty.PartyManager>.instance;
+        var info=party.PartyInfo;
+        if(IsSoloConquestParty(info))
+            party.SendLeaveParty();
+    }
+    public static bool IsSoloConquestParty(NShared.NParty.PartyInfo info) {
+        return info!=null && info.RaidIndex==90001 && info.RaidLevel>=101 && info.RaidLevel<=103;
+    }
     public static Dictionary<string,object> Login(Dictionary<string,object> value) {
         var web=SingletonUpdater<WebServiceManager>.instance;
         if(web!=null && web.Requester!=null)value["SessionKey"]=web.Requester.SessionKey;
         return value;
     }
     public static Dictionary<string,object> ReplayStatus(Dictionary<string,object> value) {
-        value["BattleStopped"]=SingletonAuto<BattleFacade>.isValidInstance && SingletonAuto<BattleFacade>.instance.GetStoppedBattleInstance()!=null;
+        // GetStoppedBattleInstance stops the replay thread. Heartbeats must only
+        // observe the published cache; the native result handler stops it later.
+        var cache=SingletonAuto<BattleFacade>.isValidInstance ? SingletonAuto<BattleFacade>.instance.GetBattleCache() : null;
+        value["BattleStopped"]=cache!=null && cache.IsBattleEnded;
+        value["ReplayWaveIndex"]=cache==null ? 0 : cache.WaveIndex;
+        return value;
+    }
+    public static BattleLogNot ReadClock(BattleLogNot value,IDictionary data) {
+        // Native BattleLogNot ignores this extension. Apply it on the battle
+        // thread so sparse action logs cannot make replay timing drift behind.
+        long time;
+        if(value!=null && data.Contains("ServerTimeMs") && Int64.TryParse(Convert.ToString(data["ServerTimeMs"]),out time) && time>=0 &&
+            SingletonAuto<BattleFacade>.isValidInstance && SingletonAuto<BattleFacade>.instance.IsValidBattle())
+            SingletonAuto<BattleFacade>.instance.SetServerTimeMs(time);
         return value;
     }
     public static WaveReadyBattleLog ReadSeed(WaveReadyBattleLog value,IDictionary data) {
@@ -52,11 +79,14 @@ public sealed class SprkConquest : MonoBehaviour {
     }
     public static void Tick() {
         if(String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")))return;
+        // The game's login flow disables its logger. Keep service failures visible.
+        Debug.unityLogger.logEnabled=true;
         if(instance==null) {
             var go=new GameObject("SprkConquestService");DontDestroyOnLoad(go);instance=go.AddComponent<SprkConquest>();
             Application.runInBackground=true;Application.targetFrameRate=60;
             Debug.Log("SPRK conquest service initialized");
         }
+        instance.Step();
     }
     void Update() {Step();}
     class Run : IBattleLogListener {
@@ -68,10 +98,26 @@ public sealed class SprkConquest : MonoBehaviour {
         public bool ended;
         public float budget;
         public Dictionary<int,long> heroes=new Dictionary<int,long>();
+        public HashSet<long> players=new HashSet<long>();
+        public bool arena;
         public HashSet<long> withdrawn=new HashSet<long>();
         public List<object> logs=new List<object>();
+        long lastClockMs=-1;
         public void OnProcessBattleLog(long time,BattleLog log) {
-            if(log.Type==BattleLogType.WaveReady) {
+            if(log.Type==BattleLogType.InitialDungeonBattleLog && updater.BattleInstance.CheckEachWaveEachTeam) {
+                // The offline initializer gives every replacement hero to one
+                // player. Clear once, then use native per-player creation logs
+                // so both the simulation and client replays retain ownership.
+                var initial=JM_NShared_InitializeDungeonBattleLog.Parse(log.Data);
+                foreach(var creature in initial.CreateInfos ?? new BattleCreatureCreateInfo[0]) {
+                    long account;
+                    updater.BattleInstance.BattleLogContainer.AddLog(new CreatureCreateBattleLog {
+                        PlayerId=heroes.TryGetValue(creature.HeroInfo.HeroIndex,out account)?account:initial.PlayerId,CreateInfo=creature});
+                }
+                initial.CreateInfos=new BattleCreatureCreateInfo[0];
+                log.BaseBattleLog.Data=JsonMarshaler.EncodeJsonString(initial);
+            }
+            if(log.Type==BattleLogType.WaveReady && !arena) {
                 var data=MiniJSON.Json.Deserialize(log.Data) as IDictionary;
                 var ready=JM_NShared_WaveReadyBattleLog.Parse(data);
                 var initial=new List<object>();
@@ -84,14 +130,20 @@ public sealed class SprkConquest : MonoBehaviour {
             }
             logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
             if(log.Type==BattleLogType.WaveReady || log.Type==BattleLogType.WaveEnd) {
+                var wave=new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}};
+                if(log.Type==BattleLogType.WaveEnd)wave["Winner"]=JM_NShared_WaveEndBattleLog.Parse(log.Data).winner.ToString();
                 Flush();owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name",log.Type==BattleLogType.WaveReady?"WaveReadyNot":"WaveEndNot"},
-                    {"Body",new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}}}});
+                    {"Body",wave}});
             }
         }
         public void Flush() {
-            if(logs.Count==0)return;
+            long clock=updater.BattleInstance.GlobalTimer.GetCurrentTimeMs();
+            // Publish advancing time even when no action logs were generated.
+            // Otherwise PingRes repeats an old time and slows the native replay.
+            if(logs.Count==0 && clock==lastClockMs)return;
+            lastClockMs=clock;
             owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name","BattleLogNot"},
-                {"Body",new Dictionary<string,object>{{"BattleLogs",logs.ToArray()},{"ServerTimeMs",updater.BattleInstance.GlobalTimer.GetCurrentTimeMs()}}}});logs.Clear();
+                {"Body",new Dictionary<string,object>{{"BattleLogs",logs.ToArray()},{"ServerTimeMs",clock}}}});logs.Clear();
         }
     }
     readonly Dictionary<string,Run> runs=new Dictionary<string,Run>();
@@ -104,16 +156,18 @@ public sealed class SprkConquest : MonoBehaviour {
         // Data containers load through the ordinary client startup; no player
         // account or client-supplied stat snapshot is needed by this service.
         NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
-        if(GameRoot.Instance.JsonLoader==null) {SingletonAuto<TableDataManager>.instance.Load(true);return;}
+        if(GameRoot.Instance.JsonLoader==null) {Debug.Log("SPRK native worker loading table assets");SingletonAuto<TableDataManager>.instance.Load(true);return;}
         var creatures=GameRoot.Instance.CreatureDataContainer;
-        if(creatures==null || creatures.GetData(1)==null)return;
+        // Creature keys are table-defined; a loaded table need not contain 1.
+        if(creatures==null || !creatures.GetAllData().Any()) {Debug.Log("SPRK native worker waiting for creature table");return;}
+        Debug.Log("SPRK native worker connecting");
         new Thread(()=> {
             try {
                 socket=new TcpClient();socket.NoDelay=true;
                 int port; if(!Int32.TryParse(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_PORT"),out port))port=9002;
                 socket.Connect(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_HOST") ?? "127.0.0.1",port);
                 writer=new StreamWriter(socket.GetStream(),new UTF8Encoding(false)){AutoFlush=true,NewLine="\r\n"};connected=true;
-                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")}});
+                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")},{"ArenaVersion",1}});
                 using(var reader=new StreamReader(socket.GetStream())) {
                     string line;while((line=reader.ReadLine())!=null) {
                         if(line.Length>8*1024*1024)throw new IOException("Oversized worker message");
@@ -131,6 +185,8 @@ public sealed class SprkConquest : MonoBehaviour {
         }
     }
     void Step() {
+        Debug.unityLogger.logEnabled=true;
+        if(lastFrame==Time.frameCount)return;lastFrame=Time.frameCount;
         float now=Time.realtimeSinceStartup;
         if(!connected) {
             if(runs.Count>0) {runs.Clear();Debug.LogWarning("SPRK conquest service disconnected; active runs cancelled");}
@@ -152,7 +208,7 @@ public sealed class SprkConquest : MonoBehaviour {
                     else if(pair[0]=="WorkerWithdraw") {
                         long account=Convert.ToInt64(data["AccountId"]);run.withdrawn.Add(account);
                         run.updater.BattleInstance.BattleLogContainer.AddLog(new CreatureSetAiBattleLog{PlayerId=account,SetAi=true});
-                        if(run.heroes.Values.Distinct().All(run.withdrawn.Contains))run.updater.BattleInstance.BattleLogContainer.AddLog(new WaveWithdrawBattleLog());
+                        if(run.players.All(run.withdrawn.Contains))run.updater.BattleInstance.BattleLogContainer.AddLog(new WaveWithdrawBattleLog());
                     }
                 }
             }
@@ -176,18 +232,40 @@ public sealed class SprkConquest : MonoBehaviour {
         GameRoot.Instance.OnDataContainerLoaded(false);
         var info=JM_NShared_BattleSimulationInfo.Parse(MiniJSON.Json.Serialize(data["Simulation"]));
         var builder=new BattleInstanceBuilder();builder.SetCampaignDungeon(info.ChapterIndex,info.DungeonIndex,info.DungeonDifficulty,false);builder.EnableSnapshot(false);
-        var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"])};
+        var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"]),arena=data.Contains("ArenaMatch") && Convert.ToBoolean(data["ArenaMatch"])};
+        var dungeon=GameRoot.Instance.CampaignDungeonDataContainer.GetData(info.ChapterIndex,info.DungeonIndex);
+        bool alternating=dungeon!=null && (dungeon.BattleType==BattleType.ArcdimRaid || dungeon.BattleType==BattleType.ArcdimHardRaid);
+        var waveTeams=new[]{new List<BattleCreatureCreateInfo>(),new List<BattleCreatureCreateInfo>()};
+        var match=run.arena?JM_NShared_MatchInfo.Parse(MiniJSON.Json.Serialize(data["MatchInfo"])):null;
         foreach(var account in info.AccountInfos) {
+            run.players.Add(account.UserInfo.AccountId);
+            var matched=match==null?null:match.AccountInfos.First(a=>a.AccountId==account.UserInfo.AccountId);
             var creatures=new List<BattleCreatureCreateInfo>();
+            var reserved=new List<BattleCreatureCreateInfo>();
             foreach(var h in account.HeroInfos.Values) {
                 h.Validate();run.heroes[h.HeroIndex]=account.UserInfo.AccountId;
-                creatures.Add(BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,false,false,
+                bool second=account.GroupHeroInfos!=null && account.GroupHeroInfos.ContainsKey(h.HeroIndex);
+                // Conquest's sub deck fights alongside the main deck as AI.
+                // Group 1 is reserved for replacement teams and is not spawned
+                // by this dungeon's single-team battle definition.
+                bool aiSupport=second && info.ChapterIndex==9900 && info.DungeonIndex>=101 && info.DungeonIndex<=103;
+                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,aiSupport,
                     new BattleCreatureCreateInfo.BuffSkillInfo{GuildSkillDataBases=account.GuildSkills,AccountBuffDataBases=account.AccountBuffs,ClassBuffDataBasess=account.ClassBuffDataBases},
-                    new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},0));
+                    new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},
+                    !alternating && second && !aiSupport?1:0);
+                if(alternating)waveTeams[second?1:0].Add(creature);
+                if(alternating && second)reserved.Add(creature);else creatures.Add(creature);
             }
-            enter.Add(new PlayerEnterBattleLog{PlayerCreateInfo=new BattlePlayerCreateInfo{Id=account.UserInfo.AccountId,TeamType=TeamType.Left},CreatureCreateInfos=creatures.ToArray()});
+            enter.Add(new PlayerEnterBattleLog{PlayerCreateInfo=new BattlePlayerCreateInfo{Id=account.UserInfo.AccountId,TeamType=matched==null?TeamType.Left:matched.TeamType},CreatureCreateInfos=creatures.ToArray(),BattleCheckCreatureCreateInfos=reserved.ToArray()});
         }
         builder.SetEnterPlayerBattleLogList(enter);run.updater=builder.BuildUpdater<BattleInstance>(-1,Convert.ToInt32(data["Seed"]),null);
+        if(alternating) {
+            foreach(var team in waveTeams)run.updater.AddEachWaveEachTeamBattleCreatureCreateInfo(team);
+            run.updater.SetWavePauseCallback(winner=> {
+                run.Flush();Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name","SetNextTeamNot"},
+                    {"Body",new Dictionary<string,object>{{"ChatperIndex",info.ChapterIndex},{"DungeonIndex",info.DungeonIndex},{"DeckIndex",run.updater.WaveIndex-1}}}});
+            });
+        }
         run.updater.BattleInstance.BattleLogContainer.SetListener(run);run.updater.BattleInstance.SetDeltaTimeReductionRatio(1);
         runs[id]=run;Debug.Log("SPRK conquest service prepared "+id+" with "+run.heroes.Count+" heroes");
     }
@@ -209,17 +287,18 @@ public sealed class SprkConquest : MonoBehaviour {
         var infos=BattleInstanceIntegrityChecker.GetCreatureInfoList(battle,-1);
         var creatures=new List<object>();
         foreach(var info in infos) {
-            var encoded=JM_NShared_ResultCreatureInfo.EncodeJsonObject(info);long account;
-            encoded["AccountId"]=run.heroes.TryGetValue(info.Index,out account)?account:0;
+            var encoded=JM_NShared_ResultCreatureInfo.EncodeJsonObject(info);
             // Native GivedDamage means damage received by an immortal creature.
             // Keep it intact; contributions use the actual attacker meter.
             var creature=battle.CreatureContainer.GetCreatureByKey(info.Key);
+            encoded["AccountId"]=creature==null?0:creature.PlayerId;
             encoded["DealtDamage"]=creature==null?0:battle.Snapshot.StatisticsManager.TotalDamageMeter(creature.Uid);
             creatures.Add(encoded);
         }
         var contributions=new Dictionary<string,object>();
-        foreach(long account in run.heroes.Values.Distinct())contributions[account.ToString()]=battle.Snapshot.StatisticsManager.GetTotalDamageOfAccount(account);
+        foreach(long account in run.players)contributions[account.ToString()]=battle.Snapshot.StatisticsManager.GetTotalDamageOfAccount(account);
         Send("WorkerResult",new Dictionary<string,object>{{"RunId",run.id},{"Win",run.updater.GetWinner()==TeamType.Left},
+            {"Winner",run.updater.GetWinner().ToString()},
             {"Creatures",creatures},{"AccountDamage",contributions},{"TimeMs",battle.MainTimer.GetCurrentTimeMs()},{"MaxWaveIndex",run.updater.MaxWaveIndex}});
         runs.Remove(run.id);
     }

@@ -87,6 +87,7 @@ pub(crate) struct Rewards {
     pub(crate) currencies: Vec<Value>,
     pub(crate) items: Vec<Value>,
     pub(crate) equipment: Vec<EquipItemInfo>,
+    pub(crate) equipment_boosts: Vec<Value>,
     pub(crate) heroes: BTreeSet<i32>,
     pub(crate) team_exp: Vec<Value>,
     pub(crate) team_exp_to_add: i64,

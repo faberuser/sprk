@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/ImageRecovery.cs.txt" WithCulture="false" LogicalName="DllPatcher.ImageRecovery.cs.txt" />
+    <EmbeddedResource Include="Resources/MailUpdates.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdates.cs.txt" />
+    <EmbeddedResource Include="Resources/MailUpdatesTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdatesTests.cs.txt" />
     <EmbeddedResource Include="Resources/StoryAuto.cs.txt" WithCulture="false" LogicalName="DllPatcher.StoryAuto.cs.txt" />
     <EmbeddedResource Include="Resources/WebSocketTransport.cs.txt" WithCulture="false" LogicalName="DllPatcher.WebSocketTransport.cs.txt" />
     <EmbeddedResource Include="Resources/Accounts.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accounts.cs.txt" />

@@ -7,11 +7,11 @@ its update URL, and distribute it alongside the client.
 The same `sprk-server` executable/image runs either service, or both. Select the
 mode before starting the process:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SPRK_SERVICE_MODE` | `game` | `game`, `updates`, or `all`; invalid values fail startup |
-| `SPRK_UPDATES_DIR` | `client-updates` | Existing directory containing published releases; used in `updates`/`all` |
-| `PORT` | `8080` | HTTP listening port for this process |
+| Variable            | Default          | Purpose                                                                   |
+| ------------------- | ---------------- | ------------------------------------------------------------------------- |
+| `SPRK_SERVICE_MODE` | `game`           | `game`, `updates`, or `all`; invalid values fail startup                  |
+| `SPRK_UPDATES_DIR`  | `client-updates` | Existing directory containing published releases; used in `updates`/`all` |
+| `PORT`              | `8080`           | HTTP listening port for this process                                      |
 
 `game` initializes the game database, tables, chat/battle listeners, and any
 configured native worker. `updates` skips all of them. `all` initializes both
@@ -57,17 +57,10 @@ will manage. Publish a new version identifier every time; an existing release
 cannot be overwritten. Keep the managed selection consistent between releases:
 paths removed from it become deletions in the next manifest.
 
-Clients processed by `scripts/remove_client_telemetry.py` have
-`King's Raid_Data/sprk-privacy.json`. The publisher automatically includes the
-startup assets listed there and adds its obsolete SDK paths to `deleted_files`,
-including native plugins that earlier manifests did not manage. A release cannot
-include a file its privacy policy requires deleting. Use repeated `--delete` options
-for other obsolete files that were never managed by an earlier manifest.
-
-When present, `SPRK-NativeData.json` and `SPRK-NativeCombat.json` under the native
+When present, `SPRK-NativeData.json`, `SPRK-NativeCombat.json` and
+`SPRK-NativeLocalization.json` under the native
 patch directory are included automatically, so table changes and their integrity
-metadata are installed together. For Hard dragon route migrations, see
-[RaidTableSync](../scripts/RaidTableSync/README.md).
+metadata are installed together.
 
 Each release contains a complete snapshot of the selected files. A launcher
 compares local SHA-256 hashes and downloads only changed or missing files, even
@@ -100,11 +93,11 @@ excluded from the Docker image.
 
 ## Endpoints and launcher contract
 
-| Endpoint | Behavior |
-| --- | --- |
-| `GET /updates/stable/manifest.json` | Current channel manifest, `Cache-Control: no-store` |
-| `GET /updates/releases/1.0.0/manifest.json` | Immutable release manifest |
-| `GET /updates/releases/1.0.0/files/{file_path}` | Immutable release file, streamed in bounded chunks |
+| Endpoint                                        | Behavior                                            |
+| ----------------------------------------------- | --------------------------------------------------- |
+| `GET /updates/stable/manifest.json`             | Current channel manifest, `Cache-Control: no-store` |
+| `GET /updates/releases/1.0.0/manifest.json`     | Immutable release manifest                          |
+| `GET /updates/releases/1.0.0/files/{file_path}` | Immutable release file, streamed in bounded chunks  |
 
 `HEAD`, byte `Range` requests for resume, and `Last-Modified` conditional
 requests are supported. Unknown files/directories return 404; write methods
@@ -116,19 +109,19 @@ Manifest format (SHA-256 shortened here for readability):
 
 ```json
 {
-  "schema_version": 1,
-  "version": "1.0.0",
-  "channel": "stable",
-  "published_at": "2026-10-08T00:00:00+00:00",
-  "files": [
-    {
-      "path": "King's Raid_Data/Managed/SprkDispatch.dll",
-      "size": 12345,
-      "sha256": "<64 lowercase hexadecimal characters>",
-      "url": "/updates/releases/1.0.0/files/King%27s%20Raid_Data/Managed/SprkDispatch.dll"
-    }
-  ],
-  "deleted_files": []
+    "schema_version": 1,
+    "version": "1.0.0",
+    "channel": "stable",
+    "published_at": "2026-10-08T00:00:00+00:00",
+    "files": [
+        {
+            "path": "King's Raid_Data/Managed/SprkDispatch.dll",
+            "size": 12345,
+            "sha256": "<64 lowercase hexadecimal characters>",
+            "url": "/updates/releases/1.0.0/files/King%27s%20Raid_Data/Managed/SprkDispatch.dll"
+        }
+    ],
+    "deleted_files": []
 }
 ```
 

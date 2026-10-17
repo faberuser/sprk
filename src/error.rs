@@ -34,11 +34,14 @@ pub enum ServerError {
 impl IntoResponse for ServerError {
     fn into_response(self) -> Response {
         let (status, base_result, message) = match self {
-            ServerError::Database(e) => (
+            ServerError::Database(e) => {
+                tracing::error!(error = %e, "Database request failed");
+                (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 10, // InternalServerError
                 format!("Database error: {}", e),
-            ),
+                )
+            },
             ServerError::Authentication(msg) => (
                 StatusCode::UNAUTHORIZED,
                 5, // AccountError

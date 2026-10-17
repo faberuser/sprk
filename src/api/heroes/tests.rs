@@ -400,6 +400,32 @@ async fn bookmarks_replace_selection_and_reject_unowned_heroes() {
     assert!(!get(&s, &u, 1).await["IsBookmarked"].as_bool().unwrap());
 }
 #[tokio::test]
+async fn bookmarks_accept_native_repeated_fields_and_omitted_empty_list() {
+    let (s, u) = setup().await;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES (?,2,2,2)")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let set = hero::bookmark_hero(State(s.clone()), form(&u, "HeroIndex=2&HeroIndex=1"))
+        .await.unwrap().0;
+    assert_eq!(set["Result"], "Success", "{set}");
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        assert_eq!(hero::bookmarks(&mut db, u.user_info.account_id).await.unwrap()["BookMarkHeroIndices"], "2,1");
+    }
+    for invalid in ["HeroIndex=1&HeroIndex=9999", "HeroIndex=2&HeroIndex=2", "HeroIndex=invalid", "HeroIndex=null"] {
+        let rejected = hero::bookmark_hero(State(s.clone()), form(&u, invalid)).await.unwrap().0;
+        assert_ne!(rejected["Result"], "Success", "{invalid}: {rejected}");
+        let mut db = s.db.acquire().await.unwrap();
+        assert_eq!(hero::bookmarks(&mut db, u.user_info.account_id).await.unwrap()["BookMarkHeroIndices"], "2,1");
+    }
+    let one = hero::bookmark_hero(State(s.clone()), form(&u, "HeroIndex=1")).await.unwrap().0;
+    assert_eq!(one["Result"], "Success", "{one}");
+    assert!(login(&s).await.heroes.iter().find(|h| h.hero_index==1).unwrap().is_bookmarked);
+    // Empty native int[] is encoded without any HeroIndex fields.
+    let clear = hero::bookmark_hero(State(s.clone()), form(&u, "")).await.unwrap().0;
+    assert_eq!(clear["Result"], "Success", "{clear}");
+    assert!(login(&s).await.heroes.iter().all(|h| !h.is_bookmarked));
+}
+#[tokio::test]
 async fn skill_upgrade_uses_current_level_price_and_extend_uses_class_book() {
     let (s, u) = setup().await;
     sqlx::query("UPDATE heroes SET level=10 WHERE account_id=?")

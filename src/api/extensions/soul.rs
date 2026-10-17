@@ -285,10 +285,12 @@ pub(super) fn stats(state: &AppState, info: &mut Value) -> Result<()> {
     let upgrade = row(state, "SoulWeaponUpgrade", &[("Grade", n(info, "Grade"))])?;
     let factor = (1000 + n(reinforce, "StatRate")) * (1000 + n(upgrade, "UpgradeRate")) / 1000;
     for i in 1..=2 {
+        // Build-1558 coefficients are 7/8/9 ATK and 250 HP. The legacy
+        // calculator divides here once; later clients use coefficients 1000
+        // times larger and an extra division. Keep client/login/renewal equal.
         let base = n(info, &format!("OptionRatio{i}"))
             * n(option, &format!("OptionRatioPerValue{i}"))
             * factor
-            / 1000
             / 1000;
         info[format!("OptionStat{i}")] = json!(base);
         info[format!("BonusOptionStat{i}")] =

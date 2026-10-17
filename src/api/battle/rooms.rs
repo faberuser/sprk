@@ -1,4 +1,13 @@
 use super::*;
+// The native enum parser accepts strings only. Keep numeric storage for server
+// validation and encode enum fields at the client boundary.
+pub(super) fn wire_room(room: &Value) -> Value {
+    let mut out=room.clone();
+    for key in ["DungeonType", "DungeonDifficulty"] {
+        out[key]=json!(n(room,key).to_string());
+    }
+    out
+}
 pub(super) async fn remove_account(db: &mut SqliteConnection, a: i64) -> Result<()> {
     leave(db, a, a, None).await
 }
@@ -84,7 +93,7 @@ async fn leave(
     }
     save(db, id, &v).await
 }
-fn definition<'a>(s: &'a AppState, r: &Request, family: &str) -> Result<&'a Value> {
+async fn definition<'a>(db: &mut SqliteConnection, s: &'a AppState, a: i64, r: &Request, family: &str) -> Result<&'a Value> {
     if family == "raid" {
         let v = row(
             s,
@@ -94,7 +103,18 @@ fn definition<'a>(s: &'a AppState, r: &Request, family: &str) -> Result<&'a Valu
                 ("Level", int(r, "RaidLevel")?),
             ],
         )?;
-        if v["IsOpen"] != true {
+        if matches!(n(v,"Type"),0|2) {
+            if v["IsOnlineSingle"]!=false {return Err(rule("NoRaidData"));}
+            dungeons::require_dragon_unlock(db,s,a,v).await.map_err(|error|match error {
+                ServerError::InvalidRequest(_)=>rule("NoRaidData"),
+                other=>other,
+            })?;
+        } else if matches!(n(v,"Type"),12|14|16) {
+            // Later tiers use earned raid progress instead of IsOpen alone.
+            dungeons::require_raid_join_unlock(db,s,a,v).await.map_err(|error|match error {
+                ServerError::InvalidRequest(_)=>rule("NoRaidData"),other=>other,
+            })?;
+        } else if v["IsOpen"] != true {
             return Err(rule("NoRaidData"));
         }
         Ok(v)
@@ -128,7 +148,7 @@ pub(super) async fn execute(
     let (family, action) = path.split_once('/').unwrap();
     let mut out = item::success();
     if action.starts_with("create_") {
-        let def = definition(s, r, family)?;
+        let def = definition(db, s, a, r, family).await?;
         let existing: bool =
             sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=?)")
                 .bind(a)
@@ -191,9 +211,9 @@ pub(super) async fn execute(
             .collect();
         if action.starts_with("wait_") {
             let v = rooms.first().ok_or_else(|| rule("RoomNotExist"))?;
-            out["JoinedRaidRoomInfo"] = join(db, a, n(v, "RoomNo"), family).await?;
+            out["JoinedRaidRoomInfo"] = wire_room(&join(db, s, a, n(v, "RoomNo"), family).await?);
         } else {
-            out["RoomInfos"] = json!(rooms);
+            out["RoomInfos"] = json!(rooms.iter().map(wire_room).collect::<Vec<_>>());
             out["RepeatCoolTime"] = json!(1);
         }
         return Ok(out);
@@ -201,7 +221,7 @@ pub(super) async fn execute(
     let id = r.number("RoomNo", 0)?;
     let mut v = room(db, id, family).await?;
     if action.starts_with("join_") {
-        out["JoinedRaidRoomInfo"] = join(db, a, id, family).await?;
+        out["JoinedRaidRoomInfo"] = wire_room(&join(db, s, a, id, family).await?);
         return Ok(out);
     }
     if !members(db, id).await?.contains(&a) {
@@ -252,6 +272,10 @@ pub(super) async fn execute(
             return Err(rule("InvalidRoomInfo"));
         }
         let mut args = r.0.clone();
+        // Native Room Settings changes the level within the current raid.
+        // The battle route comes from that raid row, never the old room or
+        // optional chapter/dungeon fields supplied by a client.
+        if family == "raid" { args.insert("RaidIndex".into(),n(&v,"RaidIndex").to_string()); }
         for key in [
             "RaidIndex",
             "RaidLevel",
@@ -264,7 +288,8 @@ pub(super) async fn execute(
                 .or_insert_with(|| n(&v, key).to_string());
         }
         let req = Request(args);
-        let def = definition(s, &req, family)?;
+        let def = definition(db, s, a, &req, family).await?;
+        let previous=v.clone();
         for key in [
             "RaidLevel",
             "RaidMonsterLevel",
@@ -279,6 +304,11 @@ pub(super) async fn execute(
                 v[key] = json!(int(&req, key)?);
             }
         }
+        if family == "raid" {
+            v["ChapterIndex"]=json!(n(def,"ChapterIndex"));
+            v["DungeonIndex"]=json!(n(def,"DungeonIndex"));
+            if r.0.contains_key("AffixIndices") { v["AffixIndices"]=json!(ids(r,"AffixIndices",20)?); }
+        }
         if n(&v, "Status") > 1 {
             return Err(rule("InvalidRoomInfo"));
         }
@@ -286,14 +316,43 @@ pub(super) async fn execute(
         if n(&v, "CurPartyMember") > n(&v, "Capacity") {
             return Err(rule("InvalidRoomInfo"));
         }
+        let changed=if family=="raid" {
+            previous["RaidLevel"]!=v["RaidLevel"] || previous["AffixIndices"]!=v["AffixIndices"]
+        }else{
+            ["ChapterIndex","DungeonIndex","DungeonDifficulty","DungeonType"].iter().any(|key|previous[*key]!=v[*key])
+        };
+        if changed {
+            // Native settings handlers clear guest readiness but preserve the
+            // selected heroes. Persist the same boundary before battle entry.
+            for member in members(db,id).await?.into_iter().filter(|member|*member!=a) {
+                let mut state=get(db,member,"party_member",id).await?;
+                if state.is_object() {
+                    state["IsBattleReady"]=json!(false);
+                    put(db,member,"party_member",id,&state).await?;
+                }
+            }
+        }
     } else {
         return Err(rule("Fail"));
     }
     save(db, id, &v).await?;
     Ok(out)
 }
-pub(super) async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &str) -> Result<Value> {
+pub(super) async fn require_join_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,v:&Value,family:&str)->Result<()> {
+    if family=="raid" {
+        let raid=row(s,"Raid",&[("Index",n(v,"RaidIndex")),("Level",n(v,"RaidLevel"))])?;
+        dungeons::require_raid_join_unlock(db,s,a,raid).await?;
+    } else if family=="party_dungeon" {
+        campaign::require_story_join_unlock(db,s,a,v).await?;
+    }
+    Ok(())
+}
+
+pub(super) async fn join(db: &mut SqliteConnection, s:&AppState, a: i64, id: i64, family: &str) -> Result<Value> {
     let mut v = room(db, id, family).await?;
+    require_join_unlock(db,s,a,&v,family).await.map_err(|error|match error {
+        ServerError::InvalidRequest(_)=>rule("DungeonLocked"),other=>other,
+    })?;
     if family=="raid" && n(&v,"RaidIndex")==90001 {
         let same:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members a JOIN guild_members b ON a.guild_id=b.guild_id WHERE a.account_id=? AND b.account_id=?)")
             .bind(a).bind(n(&v,"MasterAccountId")).fetch_one(&mut *db).await?;
@@ -311,7 +370,10 @@ pub(super) async fn join(db: &mut SqliteConnection, a: i64, id: i64, family: &st
         return Err(rule("AlreadyJoined"));
     }
     let count = members(db, id).await?.len() as i64;
-    if count >= n(&v, "Capacity") || n(&v, "Status") != 0 || n(&v, "Opened") != 1 {
+    let invitation = get(db, a, "party_invite", id).await?;
+    let invited = n(&invitation, "Master") == n(&v, "MasterAccountId")
+        && now() - n(&invitation, "Time") <= 120;
+    if count >= n(&v, "Capacity") || n(&v, "Status") != 0 || (n(&v, "Opened") != 1 && !invited) {
         return Err(rule("InvalidRoomInfo"));
     }
     sqlx::query("INSERT INTO battle_room_members(account,room,joined,updated) VALUES(?,?,?,?)")

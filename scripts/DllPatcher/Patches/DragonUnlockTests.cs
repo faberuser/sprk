@@ -62,25 +62,25 @@ partial class Program
                         // Multiple normal levels arrive in arbitrary table order.
                         GameRoot.Instance.RaidDataContainer.Rows.Add(new RaidData {
                             Index = dragon, SingleRaidIndex = 100 + dragon, Level = 9,
-                            Name = "Dragon " + dragon, Step_Name = "Stage 3"
+                            Name = "Dragon " + dragon, Step_Name = "T7 Stage 1"
                         });
                     }
                     for (int dragon = 1; dragon <= 4; dragon++)
                     foreach (var type in new[]{RaidType.DragonHard, RaidType.DragonHardSingle})
-                    foreach (int shared in new[]{0,7,8,9})
-                    foreach (int solo in new[]{0,7,8,9}) {
+                    foreach (int shared in new[]{0,7,8,9,10})
+                    foreach (int solo in new[]{0,7,8,9,10}) {
                         var progress = NGame2.NUI.NWindow.RaidHelper.Progress;
                         progress.Clear();
                         if(shared > 0) progress[dragon] = shared;
                         if(solo > 0) progress[100 + dragon] = solo;
                         // An unrelated dragon's progress must not unlock this one.
-                        progress[dragon % 4 + 1] = 9;
+                        progress[dragon % 4 + 1] = 10;
                         var raid = new RaidData { Type = type, OpenCondition = new[]{dragon,8} };
-                        bool expected = shared >= 8 || solo >= 8;
+                        bool expected = shared >= 10 || solo >= 10;
                         if(Subject.IsOpenedDragonHard(raid) != expected)
                             throw new Exception("Dragon unlock failed: " + dragon + "/" + shared + "/" + solo);
                         var message = Subject.DragonHardRequirement(raid);
-                        if (expected ? message != null : message != "Clear Dragon " + dragon + " (Normal), Stage 1 once to unlock this Hard raid.")
+                        if (expected ? message != null : message != "Clear Dragon " + dragon + " (Normal), T7 Stage 1 once to unlock this Hard raid.")
                             throw new Exception("Wrong prerequisite message: " + message);
                         NGame2.NUI.NWindow.MessagePopup.Message = null;
                         if (Subject.CheckDragonHardEntry(raid) != expected)

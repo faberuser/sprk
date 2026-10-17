@@ -17,7 +17,7 @@ use axum::{
 use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
-mod arena;
+pub(crate) mod arena;
 pub mod chat;
 pub mod friend;
 mod guild;
@@ -132,6 +132,9 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     match result {
         Ok(v) => {
             tx.commit().await?;
+            if path == "match/cancel_match" {
+                crate::api::battle::cooperative::arena_http_cancelled(s,a).await?;
+            }
             let mut out = response(s, path);
             merge(&mut out, v);
             Ok(out)
@@ -313,7 +316,7 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
     }
-    h["PunishmentRuneOptionInfos"] = json!([]);
+    h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
     Ok(h)
 }
 async fn user(db: &mut SqliteConnection, a: i64) -> Result<Value> {

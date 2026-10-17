@@ -21,22 +21,37 @@ pub(super) fn party(s: &AppState, r: &Request, rule_index: i64) -> Result<()> {
     if rule_index == 0 || r.0.contains_key("SweepCount") {
         return Ok(());
     }
-    let definition = row(s, "BanRule", &[("Index", rule_index)])?;
     let mut main = ids(r, "HeroIndices", 32)?;
     let group = ids(r, "GroupHeroIndices", 32)?;
     let all = if (r.number("ChapterIndex", 0)? == 10
-            && matches!(n(campaign::dungeon(s, r)?, "BattleType"), 45 | 46))
+            && matches!(n(campaign::dungeon(s, r)?, "BattleType"), 40 | 41 | 42 | 45 | 46))
         || (r.number("ChapterIndex", 0)? == 50000
             && n(campaign::dungeon(s, r)?, "BattleType") == 38)
     {
         let all = campaign::selected_heroes(s, r)?;
-        main.retain(|id| !group.contains(id));
+        let support = if matches!(n(campaign::dungeon(s,r)?,"BattleType"),40|41|42) {
+            ids(r,"AiHeroIndices",32)?
+        } else {group};
+        main.retain(|id| !support.contains(id));
         all
     } else {
         let mut all = main.clone();
         all.extend(group);
         all
     };
+    check_party(s, rule_index, main, all)
+}
+
+pub(super) fn dispatch_party(s: &AppState, r: &Request, rule_index: i64) -> Result<()> {
+    if rule_index == 0 { return Ok(()); }
+    // DispatchHelper sends one flat HeroIndices array, with no AI/group team.
+    // Apply the stage's class rules to that roster without solo team limits.
+    let all = ids(r,"HeroIndices",32)?;
+    check_party(s, rule_index, all.clone(), all)
+}
+
+fn check_party(s: &AppState, rule_index: i64, main: Vec<i64>, all: Vec<i64>) -> Result<()> {
+    let definition = row(s, "BanRule", &[("Index", rule_index)])?;
     let heroes = all
         .iter()
         .map(|id| row(s, "BattleHero", &[("Index", *id)]))

@@ -1,0 +1,163 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using NGame2.NUI;
+using NGameAsset;
+using NGameAsset.NNguiAtlas;
+using NVespa;
+using UnityEngine;
+
+public static class SprkImageRecovery
+{
+    sealed class State {
+        public string Path;
+        public int Attempts;
+        public float Poll, MissingSince, ReloadAfter;
+        public bool Released, Disabled;
+    }
+    sealed class AtlasRetry {
+        public AtlasLoad Atlas;
+        public float At;
+    }
+    static readonly ConditionalWeakTable<UIBundleLoader, State> states = new ConditionalWeakTable<UIBundleLoader, State>();
+    static readonly Dictionary<string, AtlasRetry> atlases = new Dictionary<string, AtlasRetry>();
+    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+    static readonly FieldInfo texture = typeof(UIBundleLoader).GetField("_assetTex", flags);
+    static readonly FieldInfo releaseOnClose = typeof(UIBundleLoader).GetField("_releaseAssetOnClose", flags);
+    static readonly MethodInfo release = typeof(UIBundleLoader).GetMethod("ReleaseAssetTexture", flags);
+    static readonly MethodInfo load = typeof(UIBundleLoader).GetMethod("LoadAssetTexture", flags);
+    static readonly MethodInfo complete = typeof(UIBundleLoader).GetMethod("OnComplete", flags);
+    static readonly FieldInfo bundleCache = typeof(AssetCacheService).GetField("_assetBundleDict", flags);
+    static readonly FieldInfo assetCache = typeof(AssetCacheService).GetField("_assetDict", flags);
+    static readonly FieldInfo bundleTimes = typeof(AssetCacheService).GetField("_cacheDict", flags);
+    static readonly FieldInfo bundleOrder = typeof(AssetCacheService).GetField("_sortedCachedTime", flags);
+    static readonly FieldInfo resourceCache = typeof(AssetCacheService).GetField("_resourceDict", flags);
+    static readonly FieldInfo resourceTimes = typeof(AssetCacheService).GetField("_resourceCacheDict", flags);
+    static readonly FieldInfo resourceOrder = typeof(AssetCacheService).GetField("_sortedResourceCachedTime", flags);
+
+    static void RemoveTime(object owner, FieldInfo times, FieldInfo order, string key)
+    {
+        ((IDictionary)times.GetValue(owner)).Remove(key);
+        var sorted = (SortedList)order.GetValue(owner);
+        for (int i = sorted.Count - 1; i >= 0; i--)
+            if (Equals(sorted.GetByIndex(i), key)) sorted.RemoveAt(i);
+    }
+
+    public static void BeforeCachedBundle(AssetCacheService cache, string key)
+    {
+        var dict = (IDictionary)bundleCache.GetValue(cache);
+        if (!dict.Contains(key) || (UnityEngine.Object)dict[key] != null) return;
+        dict.Remove(key);
+        ((IDictionary)assetCache.GetValue(cache)).Remove(key);
+        RemoveTime(cache, bundleTimes, bundleOrder, key);
+    }
+
+    public static void BeforeCachedAsset(AssetCacheService cache, string bundle, string key)
+    {
+        var bundles = (IDictionary)assetCache.GetValue(cache);
+        var dict = bundles[bundle] as IDictionary;
+        if (dict != null && dict.Contains(key) && (UnityEngine.Object)dict[key] == null) dict.Remove(key);
+    }
+
+    public static void BeforeCachedResource(AssetCacheService cache, string key)
+    {
+        var dict = (IDictionary)resourceCache.GetValue(cache);
+        if (!dict.Contains(key) || (UnityEngine.Object)dict[key] != null) return;
+        dict.Remove(key);
+        RemoveTime(cache, resourceTimes, resourceOrder, key);
+    }
+
+    public static void Reset(UIBundleLoader loader) { states.Remove(loader); }
+
+    static void PrepareAtlas(string path)
+    {
+        var link = SingletonAuto<AtlasDataContainer>.instance.GetAtlasLink(path);
+        if (link == null || atlases.ContainsKey(link.AtlasCode)) return;
+        var atlas = SingletonAuto<NguiAtlasContainer>.instance.Lock(link.AtlasCode) as AtlasLoad;
+        if (atlas == null) return;
+        bool retained = false;
+        try {
+            var async = (IAsyncLoad<UIAtlas>)atlas;
+            if (!async.IsDone || (async.IsValid && async.Value != null) || atlas.AssetAsync == null) return;
+            // Retain one native atlas lease while its failed underlying request is
+            // released. Give native bundle cleanup a frame before reopening it.
+            atlas.AssetAsync.Close(true);
+            atlas.AssetAsync = null;
+            atlases.Add(link.AtlasCode, new AtlasRetry { Atlas = atlas, At = Time.realtimeSinceStartup + 0.25f });
+            retained = true;
+        } finally {
+            if (!retained) NguiAtlasContainer.ReleaseAtlas(atlas, false);
+        }
+    }
+
+    public static void TickGlobal()
+    {
+        if (atlases.Count == 0) return;
+        var due = new List<string>();
+        foreach (var item in atlases) if (Time.realtimeSinceStartup >= item.Value.At) due.Add(item.Key);
+        foreach (string code in due) {
+            var atlas = atlases[code].Atlas;
+            atlases.Remove(code);
+            try { atlas.Open(code); }
+            catch (Exception error) { Debug.LogWarning("[SPRK Images] Atlas retry failed: " + error.Message); }
+            finally { NguiAtlasContainer.ReleaseAtlas(atlas, false); }
+        }
+    }
+
+    public static void Tick(UIBundleLoader loader)
+    {
+        if (!Application.isPlaying || loader == null || !loader.isActiveAndEnabled) return;
+        var state = states.GetOrCreateValue(loader);
+        float now = Time.realtimeSinceStartup;
+        if (now < state.Poll) return;
+        state.Poll = now + 0.25f;
+        string path = loader.AssetPath;
+        if (path != state.Path) {
+            state.Path = path;
+            state.Attempts = 0;
+            state.MissingSince = now;
+            state.Released = state.Disabled = false;
+        }
+        if (state.Disabled || String.IsNullOrEmpty(path)) return;
+        var ui = loader.UiTex;
+        if (ui == null || !ui.enabled || !ui.gameObject.activeInHierarchy || ui.finalAlpha <= 0f) return;
+        try {
+            if (state.Released) {
+                if (now < state.ReloadAfter) return;
+                state.Released = false;
+                state.MissingSince = now;
+                load.Invoke(loader, null);
+                return;
+            }
+            if (ui.mainTexture != null) {
+                state.Attempts = 0;
+                state.MissingSince = now;
+                return;
+            }
+            var asset = (AssetTexture)texture.GetValue(loader);
+            var info = asset == null ? null : asset.GetTextureInfo();
+            if (info != null && info.Tex != null) {
+                // A lost widget binding does not require reloading the atlas.
+                complete.Invoke(loader, null);
+                return;
+            }
+            if (now - state.MissingSince < (asset != null && !asset.IsDone ? 8f : 0.5f)) return;
+            if (state.Attempts >= 3) return;
+            state.Attempts++;
+            PrepareAtlas(path);
+            bool old = (bool)releaseOnClose.GetValue(loader);
+            try {
+                releaseOnClose.SetValue(loader, true);
+                release.Invoke(loader, null);
+            } finally { releaseOnClose.SetValue(loader, old); }
+            state.Released = true;
+            state.ReloadAfter = now + (state.Attempts == 1 ? 0.5f : state.Attempts == 2 ? 1f : 2f);
+            if (state.Attempts == 1) Debug.Log("[SPRK Images] Retrying thumbnail: " + path);
+        } catch (Exception error) {
+            state.Disabled = true;
+            Debug.LogWarning("[SPRK Images] Thumbnail recovery stopped: " + error.Message);
+        }
+    }
+}

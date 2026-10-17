@@ -355,7 +355,7 @@ pub async fn login(
             
             // Send welcome mail
             sqlx::query(
-                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000)"
+                "INSERT INTO mails (account_id, sender, title, content, reward_gold, reward_gem, reward_stamina) VALUES (?, 'System', 'Welcome to King''s Raid!', 'Thank you for playing on this private server. Enjoy your adventure!', 100000000, 100000, 100000)"
             )
             .bind(account_id)
             .execute(&mut *tx)
@@ -587,6 +587,7 @@ pub async fn login(
     let equip_storage_slot_infos=crate::api::extensions::storage_login(&state,account_id).await?;
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();
+    crate::api::battle::party_messages::new_login(&state,account_id).await?;
     let battle = crate::api::battle::login(&state,account_id).await?;
     let community = crate::api::community::login(&state,account_id).await?;
     user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;
@@ -737,7 +738,7 @@ pub async fn login(
         player_any_miscs: vec![],
         soul_weapon_infos,
         player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().into_iter().flatten().chain(products.as_array().into_iter().flatten()).cloned().collect(),
-        drop_bonus_events: vec![],
+        drop_bonus_events: crate::api::episodes::events(&state),
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos,
         chat_ban_infos: vec![],

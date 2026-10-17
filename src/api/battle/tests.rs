@@ -1259,6 +1259,8 @@ async fn party_rooms_enforce_membership_and_transfer_master() {
     );
     let joined = call(&s, &v, "party_dungeon/join_party_dungeon_room", &args).await;
     assert_eq!(joined["JoinedRaidRoomInfo"]["MasterAccountId"], account(&v));
+    assert_eq!(joined["JoinedRaidRoomInfo"]["DungeonDifficulty"], "2");
+    assert_eq!(joined["JoinedRaidRoomInfo"]["DungeonType"], "1");
 }
 #[tokio::test]
 async fn closed_multiplayer_requires_battle_service_without_spending() {
@@ -2505,7 +2507,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
     let a = account(&u);
     sqlx::query("UPDATE heroes SET level=70 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
     sqlx::query("UPDATE user_info SET stamina=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-    for (chapter, dungeon, raid, cost) in [(905, 7, 101, 48), (905, 8, 101, 48), (931, 1, 111, 60)] {
+    for (chapter, dungeon, raid, cost) in [(905, 7, 101, 48), (905, 8, 101, 48), (905, 9, 101, 52), (931, 1, 111, 60)] {
         let args = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&Difficulty=0&HeroIndices=1&RepeatCount=2&DeckIndex=1");
         let before = balance(&s, "stamina").await;
         assert_ne!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
@@ -2541,7 +2543,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         }
         let partial=call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await;
         assert_eq!(partial["Result"],"Success");
-        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*200);
+        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*100);
         assert_eq!(partial["StaminaResult"]["AddValue"],cost);
         assert_ne!(call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await["Result"],"Success");
         assert_eq!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
@@ -2555,7 +2557,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         let finish=call(&s,&u,"dispatch/request_complete_dispatch",&slot_args).await;
         assert_eq!(finish["Result"],"Success","{finish}");
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
-        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*200);
+        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*100);
         if chapter == 905 {
             let raw: String = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND title='Dispatch equipment rewards' ORDER BY mail_id DESC LIMIT 1")
                 .bind(a).fetch_one(&s.db).await.unwrap();
@@ -2596,6 +2598,153 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
 }
 
 #[tokio::test]
+async fn dragon_rooms_create_and_change_using_earned_stage_unlocks() {
+    let (s,u)=setup().await;let a=account(&u);
+    for raid in 1..=4 {
+        let create=|stage|format!("RaidIndex={raid}&RaidLevel={stage}&Opened=1");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(8)).await["Result"],"NoRaidData");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(7)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        let room=opened["RoomNo"].as_i64().unwrap();
+        let change=|stage|format!("RoomNo={room}&RaidLevel={stage}");
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(8)).await["Result"],"Fail");
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":8})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(8)).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&change(9)).await["Result"],"Fail");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(9)).await["Result"],"NoRaidData");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(8)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={}",opened["RoomNo"])).await["Result"],"Success");
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"raid",raid).await.unwrap()["RaidLevel"],8);
+    }
+}
+
+#[tokio::test]
+async fn hard_dragon_rooms_require_matching_normal_clear_and_earned_hard_stage() {
+    let (s,u)=setup().await;let a=account(&u);
+    for raid in 11..=14 {
+        let create=|stage|format!("RaidIndex={raid}&RaidLevel={stage}&Opened=1");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(1)).await["Result"],"NoRaidData");
+        let normal=raid-10;
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",normal,&json!({"RaidIndex":normal,"RaidLevel":8})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(1)).await["Result"],"NoRaidData");
+        assert_eq!(call(&s,&u,"raid/create_raid_room",&create(2)).await["Result"],"NoRaidData");
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",normal,&json!({"RaidIndex":normal,"RaidLevel":10})).await.unwrap();
+        let opened=call(&s,&u,"raid/create_raid_room",&create(1)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        let room=opened["RoomNo"].as_i64().unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&format!("RoomNo={room}&RaidLevel=2")).await["Result"],"Fail");
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();
+        assert_eq!(call(&s,&u,"raid/change_raid_room_info",&format!("RoomNo={room}&RaidLevel=2")).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
+        let opened=call(&s,&u,"raid/create_raid_room",&create(2)).await;assert_eq!(opened["Result"],"Success","{opened}");
+        assert_eq!(call(&s,&u,"raid/leave_raid_room",&format!("RoomNo={}",opened["RoomNo"])).await["Result"],"Success");
+    }
+}
+
+#[tokio::test]
+async fn locked_dragon_guests_cannot_join_until_the_selected_stage_is_unlocked() {
+    let (s,host)=setup().await;
+    let guest=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=locked-raid-guest")).await.unwrap().0);
+    let a=account(&host);let b=account(&guest);
+    let before:(i64,i64,i64)=sqlx::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=?").bind(b).fetch_one(&s.db).await.unwrap();
+    for (raid,level) in [(1,8),(2,8),(3,8),(4,8),(11,1),(12,1),(13,1),(14,1),(11,2)] {
+        let normal=if raid>10 {raid-10}else{raid};
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",normal,&json!({"RaidIndex":normal,"RaidLevel":10})).await.unwrap();
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":level})).await.unwrap();
+        sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='raid'").bind(b).execute(&s.db).await.unwrap();
+        let created=call(&s,&host,"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel={level}&Opened=1")).await;
+        assert_eq!(created["Result"],"Success","{created}");let id=n(&created,"RoomNo");
+        let denied=call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}&RaidLevel=1&Unlocked=true")).await;
+        assert_eq!(denied["Result"],"DungeonLocked","{raid}/{level}: {denied}");
+        let count:i64=sqlx::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=?").bind(id).fetch_one(&s.db).await.unwrap();assert_eq!(count,1);
+        assert!(get(&mut s.db.acquire().await.unwrap(),b,"party_member",id).await.unwrap().is_null());
+        if raid>10 {
+            // Another dragon's clear, and a lower matching clear, cannot open Hard mode.
+            for (index,stage) in [(normal%4+1,10),(normal,8)] {
+                put(&mut s.db.acquire().await.unwrap(),b,"raid",index,&json!({"RaidIndex":index,"RaidLevel":stage})).await.unwrap();
+                assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked");
+            }
+            put(&mut s.db.acquire().await.unwrap(),b,"raid",normal,&json!({"RaidIndex":normal,"RaidLevel":10})).await.unwrap();
+            if level>1 {assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked");}
+        }
+        put(&mut s.db.acquire().await.unwrap(),b,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":level})).await.unwrap();
+        let joined=call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await;assert_eq!(joined["Result"],"Success","{joined}");
+        assert_eq!(joined["JoinedRaidRoomInfo"]["CurPartyMember"],2);
+        assert_eq!(call(&s,&guest,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
+        assert_eq!(call(&s,&host,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
+    }
+    let after:(i64,i64,i64)=sqlx::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=?").bind(b).fetch_one(&s.db).await.unwrap();assert_eq!(before,after);
+    let runs:i64=sqlx::query_scalar("SELECT count(*) FROM battle_runs").fetch_one(&s.db).await.unwrap();assert_eq!(runs,0);
+}
+
+#[tokio::test]
+async fn field_and_late_raid_guests_need_their_own_story_clear_and_earned_stage() {
+    let (s,host)=setup().await;
+    let guest=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=story-locked-raid-guest")).await.unwrap().0);
+    let b=account(&guest);
+    for raid in [21,31,22,32,23,33,24,34,201,202,203,401,402] {
+        sqlx::query("DELETE FROM battle_state WHERE account=? AND kind IN ('dungeon','raid')").bind(b).execute(&s.db).await.unwrap();
+        let def=row(&s,"Raid",&[("Index",raid),("Level",1)]).unwrap();
+        let condition=def["OpenCondition"].as_array().unwrap();
+        let (chapter,dungeon)=(condition[0].as_i64().unwrap(),condition[1].as_i64().unwrap());
+        let difficulty=s.tables.tutorials.dungeon_difficulty(chapter as i32,dungeon as i32);
+        put(&mut s.db.acquire().await.unwrap(),account(&host),"dungeon",campaign::key(chapter,dungeon),
+            &json!({"FirstRewardedDiff":1i64<<difficulty})).await.unwrap();
+        if chapter==10 {put(&mut s.db.acquire().await.unwrap(),account(&host),"dungeon",campaign::key(10,9),&json!({"FirstRewardedDiff":2})).await.unwrap();}
+        let created=call(&s,&host,"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel=1&Opened=1")).await;
+        assert_eq!(created["Result"],"Success","{created}");let id=n(&created,"RoomNo");
+        assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked","raid {raid}");
+        // A clear elsewhere cannot substitute for this raid's prerequisite.
+        put(&mut s.db.acquire().await.unwrap(),b,"dungeon",campaign::key(1,1),&json!({"ChapterIndex":1,"DungeonIndex":1,"FirstRewardedDiff":31})).await.unwrap();
+        assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked");
+        let difficulty=s.tables.tutorials.dungeon_difficulty(chapter as i32,dungeon as i32);
+        put(&mut s.db.acquire().await.unwrap(),b,"dungeon",campaign::key(chapter,dungeon),&json!({"ChapterIndex":chapter,"DungeonIndex":dungeon,"FirstRewardedDiff":1i64<<difficulty})).await.unwrap();
+        let joined=call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await;assert_eq!(joined["Result"],"Success","raid {raid}: {joined}");
+        assert_eq!(call(&s,&guest,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
+        if row(&s,"Raid",&[("Index",raid),("Level",2)]).is_ok_and(|r|r["IsOpen"]==true) {
+            put(&mut s.db.acquire().await.unwrap(),account(&host),"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();
+            assert_eq!(call(&s,&host,"raid/change_raid_room_info",&format!("RoomNo={id}&RaidLevel=2")).await["Result"],"Success");
+            assert_eq!(call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await["Result"],"DungeonLocked");
+            put(&mut s.db.acquire().await.unwrap(),b,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":2})).await.unwrap();
+            let joined=call(&s,&guest,"raid/join_raid_room",&format!("RoomNo={id}")).await;assert_eq!(joined["Result"],"Success","raid {raid}: {joined}");
+            assert_eq!(call(&s,&guest,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
+        }
+        assert_eq!(call(&s,&host,"raid/leave_raid_room",&format!("RoomNo={id}")).await["Result"],"Success");
+    }
+}
+
+#[tokio::test]
+async fn story_raid_joins_require_the_guests_chapter_and_stage_progress() {
+    let (s,host)=setup().await;
+    let guest=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=story-raid-join-guest")).await.unwrap().0);
+    let b=account(&guest);
+    for (chapter,dungeon,required_c,required_d) in [(1,3,1,2),(2,1,1,20)] {
+        sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='dungeon'").bind(b).execute(&s.db).await.unwrap();
+        let created=call(&s,&host,"party_dungeon/create_party_dungeon_room",&format!("DungeonType=1&ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=2&Opened=1")).await;
+        assert_eq!(created["Result"],"Success","{created}");let room=n(&created,"RoomNo");
+        for path in ["party_dungeon/join_party_dungeon_room","party_dungeon/wait_party_dungeon_room"] {
+            let denied=call(&s,&guest,path,&format!("RoomNo={room}&ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonType=1")).await;
+            assert_eq!(denied["Result"],"DungeonLocked","{denied}");
+            let count:i64=sqlx::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&s.db).await.unwrap();assert_eq!(count,1);
+        }
+        // Completing an unrelated stage or merely visiting the prerequisite cannot unlock it.
+        for cleared in [false,true] {
+            put(&mut s.db.acquire().await.unwrap(),b,"dungeon",campaign::key(required_c,required_d),
+                &json!({"ChapterIndex":required_c,"DungeonIndex":required_d,"ScenarioComplete":1,"FirstRewardedDiff":if cleared {2}else{0}})).await.unwrap();
+            let joined=call(&s,&guest,"party_dungeon/join_party_dungeon_room",&format!("RoomNo={room}")).await;
+            assert_eq!(joined["Result"],if cleared {"Success"}else{"DungeonLocked"},"{joined}");
+        }
+        assert_eq!(call(&s,&guest,"party_dungeon/leave_party_dungeon_room",&format!("RoomNo={room}")).await["Result"],"Success");
+        assert_eq!(call(&s,&host,"party_dungeon/leave_party_dungeon_room",&format!("RoomNo={room}")).await["Result"],"Success");
+    }
+    // Saved clear credit permits revisiting a stage even in migrated saves that lack its predecessor.
+    put(&mut s.db.acquire().await.unwrap(),b,"dungeon",campaign::key(1,3),&json!({"ChapterIndex":1,"DungeonIndex":3,"FirstRewardedDiff":2})).await.unwrap();
+    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='dungeon' AND idx=?").bind(b).bind(campaign::key(1,2)).execute(&s.db).await.unwrap();
+    let created=call(&s,&host,"party_dungeon/create_party_dungeon_room","DungeonType=1&ChapterIndex=1&DungeonIndex=3&DungeonDifficulty=2&Opened=1").await;
+    assert_eq!(call(&s,&guest,"party_dungeon/join_party_dungeon_room",&format!("RoomNo={}",created["RoomNo"])).await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
+}
+
+#[tokio::test]
 async fn dragon_solo_native_raid_type_keeps_party_and_level_guards() {
     let (s, u) = setup().await;
     let a = account(&u);
@@ -2633,7 +2782,7 @@ async fn hard_dragon_solo_requires_unlock_and_keeps_multiplayer_guard() {
         a,
         "raid",
         1,
-        &json!({"RaidIndex":1,"RaidLevel":8}),
+        &json!({"RaidIndex":1,"RaidLevel":10}),
     )
     .await
     .unwrap();
@@ -2703,6 +2852,15 @@ async fn hard_black_dragon_unlocks_after_matching_normal_solo_clear() {
     assert_eq!(win["Result"], "Success", "{win}");
     assert_eq!(win["CompletedRaidInfo"]["RaidIndex"], 4);
     assert_eq!(win["CompletedRaidInfo"]["RaidLevel"], 8);
+    for (dungeon, level) in [(8, 8), (9, 9)] {
+        let begin = format!("ChapterIndex=908&DungeonIndex={dungeon}&DungeonDifficulty=0&RaidIndex=104&RaidLevel={level}&HeroIndices=1");
+        let entry = call(&s, &u, "campaign/begin_campaign", &begin).await;
+        assert_eq!(entry["Result"], "Success", "{entry}");
+        let end = format!("ChapterIndex=908&DungeonIndex={dungeon}&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1");
+        let win = call(&s, &u, "campaign/end_campaign", &end).await;
+        assert_eq!(win["Result"], "Success", "{win}");
+    }
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "raid", 4).await.unwrap()["RaidLevel"], 10);
     let entry = call(&s, &u, "campaign/begin_campaign", hard).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
     assert_eq!(entry["StaminaResult"]["AddValue"], -60);
@@ -2717,7 +2875,7 @@ async fn dragon_solo_wins_unlock_shared_stages_without_downgrading() {
     let locked = "ChapterIndex=905&DungeonIndex=8&DungeonDifficulty=0&RaidIndex=101&RaidLevel=8&HeroIndices=1";
     assert_eq!(call(&s, &u, "campaign/begin_campaign", locked).await["Result"], "NotOpenedDungeon");
     assert_eq!(balance(&s, "stamina").await, 1000);
-    for (chapter, dungeon, raid, shared, expected) in [(905,7,101,1,8),(905,8,101,1,9),(905,7,101,1,9),(931,1,111,11,2),(931,2,111,11,3),(931,1,111,11,3)] {
+    for (chapter, dungeon, raid, shared, expected) in [(905,7,101,1,8),(905,8,101,1,9),(905,9,101,1,10),(905,7,101,1,10),(931,1,111,11,2),(931,2,111,11,3),(931,1,111,11,3)] {
         let args = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&RaidIndex={raid}&RaidLevel={dungeon}&HeroIndices=1");
         let entry = call(&s, &u, "campaign/begin_campaign", &args).await;
         assert_eq!(entry["Result"], "Success", "{entry}");
@@ -2734,6 +2892,53 @@ async fn dragon_solo_wins_unlock_shared_stages_without_downgrading() {
             .unwrap();
         assert_eq!(saved["RaidLevel"], expected);
     }
+}
+
+#[tokio::test]
+async fn dragon_login_repairs_party_overwrite_and_missing_next_stage_without_rewards() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let gold=balance(&s,"gold").await;
+    let stamina=balance(&s,"stamina").await;
+    put(&mut s.db.acquire().await.unwrap(),a,"raid",1,&json!({"RaidIndex":1,"RaidLevel":7,"CreatedTime":"2026-10-01 00:00:00"})).await.unwrap();
+    for (chapter,dungeon,expected) in [(901,7,8),(905,15,16)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,?,?,1,3,1)")
+            .bind(a).bind(chapter).bind(dungeon).execute(&s.db).await.unwrap();
+        let first=login(&s,a).await.unwrap();
+        let info=first["RaidInfos"].as_array().unwrap().iter().find(|v|n(v,"RaidIndex")==1).unwrap();
+        assert_eq!(info["RaidLevel"],expected);
+        assert_eq!(info["CreatedTime"],"2026-10-01 00:00:00");
+        assert_eq!(login(&s,a).await.unwrap()["RaidInfos"],first["RaidInfos"]);
+    }
+    assert_eq!(balance(&s,"gold").await,gold);
+    assert_eq!(balance(&s,"stamina").await,stamina);
+}
+
+#[tokio::test]
+async fn arcdim_login_recovers_earned_party_and_solo_stages_without_rewards() {
+    let(s,u)=setup().await;let a=account(&u);
+    for raid in [401,402] {
+        put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":1,"CreatedTime":"2026-10-01 00:00:00","BattleScore":123})).await.unwrap();
+    }
+    let gold=balance(&s,"gold").await;let stamina=balance(&s,"stamina").await;
+    // A failed/uncompleted stage is not evidence for an unlock.
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,10,3003,0,0,1)")
+        .bind(a).execute(&s.db).await.unwrap();
+    assert!(login(&s,a).await.unwrap()["RaidInfos"].as_array().unwrap().iter()
+        .filter(|info|matches!(n(info,"RaidIndex"),401|402)).all(|info|n(info,"RaidLevel")==1));
+    // Normal/hard and party/solo clears share the two canonical raid indices.
+    for (dungeon,index,expected) in [(3001,401,2),(3101,402,2),(4002,401,3),(4102,402,3),(3003,401,3),(3001,401,3)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,10,?,1,3,1) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+1,best_star=3")
+            .bind(a).bind(dungeon).execute(&s.db).await.unwrap();
+        let before:i64=sqlx::query_scalar("SELECT SUM(clear_count) FROM campaign_progress WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let first=login(&s,a).await.unwrap();
+        let info=first["RaidInfos"].as_array().unwrap().iter().find(|info|n(info,"RaidIndex")==index).unwrap();
+        assert_eq!(info["RaidLevel"],expected,"Dungeon {dungeon}");
+        assert_eq!(info["CreatedTime"],"2026-10-01 00:00:00");assert_eq!(info["BattleScore"],123);
+        assert_eq!(login(&s,a).await.unwrap()["RaidInfos"],first["RaidInfos"]);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(clear_count) FROM campaign_progress WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    }
+    assert_eq!(balance(&s,"gold").await,gold);assert_eq!(balance(&s,"stamina").await,stamina);
 }
 
 #[tokio::test]
@@ -3282,6 +3487,66 @@ async fn new_login_can_replace_abandoned_local_battle_without_rewarding_it() {
         .await
         .unwrap();
     assert_eq!(n(&p, "FirstRewardedDiff"), 0);
+}
+
+#[tokio::test]
+async fn abandoned_story_releases_heroes_on_lobby_or_login_without_awarding_a_clear() {
+    use crate::api::account::lobby::{enter_lobby,EnterLobbyRequest};
+    use axum::extract::Form;
+    for relogin in [false,true] {
+        let(s,u)=setup().await;let a=account(&u);
+        hero::recruit_at(&mut s.db.acquire().await.unwrap(),&s,a,2,1,1,0).await.unwrap();
+        let story=format!("{ENTRY}&ScenarioDungeon=true");
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&story).await["Result"],"Success");
+        let next=story.replace("HeroIndices=[1]","HeroIndices=[1,2]");
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+        let before:(i64,i64,i64,i64)=sqlx::query_as("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let items:Vec<(i64,i64)>=sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        let current=if relogin {
+            json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0)
+        } else {
+            let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+            for _ in 0..2 {let _=enter_lobby(State(s.clone()),Form(EnterLobbyRequest{session_id:None,session_key:Some(session.into())})).await.unwrap();}
+            u.clone()
+        };
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),1);
+        assert_eq!(sqlx::query_as::<_,(i64,i64,i64,i64)>("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(),before);
+        assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap(),items);
+        let progress=campaign::progress(&mut s.db.acquire().await.unwrap(),&s,a,1,1).await.unwrap();
+        assert_eq!(progress["FirstRewardedDiff"],0);
+        assert_ne!(call(&s,&current,"campaign/end_campaign",&format!("{END}&ScenarioDungeon=true")).await["Result"],"Success");
+        let next_begin=call(&s,&current,"campaign/begin_campaign",&next).await;
+        assert_eq!(next_begin["Result"],"Success","{next_begin}");
+        abandon_local_run_on_lobby(&s,a,current["UserInfo"]["SessionKey"].as_str().unwrap()).await.unwrap();
+        put(&mut s.db.acquire().await.unwrap(),a,"dispatch",1,&json!({"SlotIndex":1,"State":"Simulation","HeroIndices":"[1]"})).await.unwrap();
+        assert_eq!(call(&s,&current,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+    }
+}
+
+#[tokio::test]
+async fn story_withdrawal_preserves_service_battles_and_other_sessions() {
+    let(s,u)=setup().await;let a=account(&u);
+    let story=format!("{ENTRY}&ScenarioDungeon=true");
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",&story).await["Result"],"Success");
+    let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let original:Value=read_json(&raw).unwrap();
+    let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+    for flag in ["ServiceOwned","ServiceRequired"] {
+        let mut entry=original.clone();entry[flag]=json!(true);
+        sqlx::query("UPDATE battle_runs SET entry=? WHERE account=?").bind(entry.to_string()).bind(a).execute(&s.db).await.unwrap();
+        abandon_local_run_on_lobby(&s,a,session).await.unwrap();
+        entry_costs::abandon_on_login(&mut s.db.acquire().await.unwrap(),&s,a).await.unwrap();
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    }
+    sqlx::query("UPDATE battle_runs SET entry=? WHERE account=?").bind(raw).bind(a).execute(&s.db).await.unwrap();
+    abandon_local_run_on_lobby(&s,a,"another-session").await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    abandon_local_run_on_lobby(&s,a,session).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap(),1);
 }
 
 #[tokio::test]

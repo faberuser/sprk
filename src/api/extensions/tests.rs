@@ -265,56 +265,81 @@ async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
 }
 #[tokio::test]
 async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() {
-    let (s, u) = setup().await;
-    let a = u.user_info.account_id;
-    for (id, count) in [(45005, 10000), (45123, 1), (45128, 150), (100005, 11)] {
-        give(&s, a, id, count).await;
-    }
-    let ingredients = vec![100005; 10];
-    let r = call(
-        &s,
-        &u,
-        "craft_punishment_rune",
-        &format!(
-            "PunishmentRuneIndex=100262&IngredientRuneIndices={}",
-            json!(ingredients)
-        ),
-    )
-    .await;
-    assert_eq!(r["Result"], "Success", "{r}");
-    let slot = n(&r["EquipItemResult"], "SlotIndex");
-    assert!(r["EquipItemResult"]["PunishmentRuneOption"].is_object());
-    let args =
-        format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
-    assert_eq!(call(&s, &u, "equip_rune", &args).await["Result"], "Success");
-    let body = Bytes::from(format!(
-        "SessionKey={}&EquipItemSlotIndices=[{slot}]",
-        u.user_info.session_key
-    ));
-    assert_ne!(
-        item::break_rune(State(s.clone()), body.clone())
-            .await
-            .unwrap()
-            .0["Result"],
-        "Success"
-    );
-    assert_eq!(
-        call(
+    // The game sends repeated WWWForm fields; API clients also use JSON arrays.
+    for native_form in [false, true] {
+        let (s, u) = setup().await;
+        let a = u.user_info.account_id;
+        for (id, count) in [(45005, 10000), (45123, 1), (45128, 150), (100005, 11)] {
+            give(&s, a, id, count).await;
+        }
+        let ingredients = vec![100005; 10];
+        let r = call(
             &s,
             &u,
-            "unequip_rune",
-            "HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true"
+            "punishment_rune/craft_punishment_rune",
+            &format!(
+                "PunishmentRuneIndex=100262&{}",
+                if native_form {
+                    ingredients.iter().map(|id| format!("IngredientRuneIndices={id}")).collect::<Vec<_>>().join("&")
+                } else { format!("IngredientRuneIndices={}", json!(ingredients)) }
+            ),
         )
-        .await["Result"],
-        "Success"
-    );
-    let result = item::break_rune(State(s.clone()), body).await.unwrap().0;
-    assert_eq!(result["Result"], "Success", "{result}");
-    assert!(
-        punishment::available(&mut s.db.acquire().await.unwrap(), a, slot)
-            .await
-            .is_err()
-    );
+        .await;
+        assert_eq!(r["Result"], "Success", "{r}");
+        let slot = n(&r["EquipItemResult"], "SlotIndex");
+        assert!(r["EquipItemResult"]["PunishmentRuneOption"].is_object());
+        let args =
+            format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
+        assert_eq!(call(&s, &u, "equip_rune", &args).await["Result"], "Success");
+        let rolled = r["EquipItemResult"]["PunishmentRuneOption"].clone();
+        {
+            let mut db = s.db.acquire().await.unwrap();
+            let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+            assert_eq!(cached["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
+            let saved = crate::api::services::records::snapshot(&mut db, a, &[1]).await.unwrap();
+            assert_eq!(saved["Heroes"][0]["PunishmentRuneOptionInfos"], json!([rolled.clone()]));
+        }
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+            .await.unwrap().0;
+        let reloaded = login.equip_items.iter().find(|e| e.slot_index as i64 == slot).unwrap();
+        assert_eq!(reloaded.punishment_rune_option.as_ref(), Some(&rolled));
+        assert_eq!(reloaded.inventory_type, 3);
+        assert!(login.hero_rune_page_infos.iter().any(|page| page["EquipItemSlotIndex"] == slot));
+        let body = Bytes::from(format!(
+            "SessionKey={}&EquipItemSlotIndices=[{slot}]",
+            u.user_info.session_key
+        ));
+        assert_ne!(
+            item::break_rune(State(s.clone()), body.clone())
+                .await
+                .unwrap()
+                .0["Result"],
+            "Success"
+        );
+        assert_eq!(
+            call(
+                &s,
+                &u,
+                "unequip_rune",
+                "HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true"
+            )
+            .await["Result"],
+            "Success"
+        );
+        {
+            let mut db = s.db.acquire().await.unwrap();
+            let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+            assert_eq!(cached["PunishmentRuneOptionInfos"], json!([]));
+            assert_eq!(punishment::available(&mut db, a, slot).await.unwrap().punishment_rune_option.as_ref(), Some(&rolled));
+        }
+        let result = item::break_rune(State(s.clone()), body).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert!(
+            punishment::available(&mut s.db.acquire().await.unwrap(), a, slot)
+                .await
+                .is_err()
+        );
+    }
 }
 #[tokio::test]
 async fn flask_fill_and_cancel_never_duplicate_rewards() {
@@ -1016,16 +1041,30 @@ async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     .unwrap()
     .0;
     assert_eq!(login.soul_weapon_infos.len(), 1);
-    // Archived class coefficients use the client's original units. Login must
-    // recalculate cached values without changing the saved progression record.
-    assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4);
-    assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125);
+    // Build-1558 coefficients need the original /1000 Soul Weapon formula.
+    // Login refreshes cached stats without changing saved progression.
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat1"], 4000);
+    assert_eq!(login.soul_weapon_infos[0]["OptionStat2"], 125000);
     assert_eq!(
         get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64)
             .await
             .unwrap(),
         stored
     );
+}
+#[tokio::test]
+async fn soul_weapon_max_stats_match_archived_native_units() {
+    let (s, _) = setup().await;
+    // Native 4.86.6 ARM64 GetSoulWeaponBaseStat at 0x30d6b38, using
+    // build-1558 Knight coefficients and a real A2/E20 allocation.
+    let mut info = json!({"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,
+        "OptionRatio1":699,"OptionRatio2":301,
+        "OptionBonusRatio1":171,"OptionBonusRatio2":170});
+    soul::stats(&s, &mut info).unwrap();
+    assert_eq!(info["OptionStat1"], 159483);
+    assert_eq!(info["BonusOptionStat1"], 27271);
+    assert_eq!(info["OptionStat2"], 2146130);
+    assert_eq!(info["BonusOptionStat2"], 364842);
 }
 #[tokio::test]
 async fn all_extended_equipment_columns_survive_database_reload() {

@@ -41,6 +41,7 @@ mod dispatch_tests;
 #[cfg(test)]
 mod eclipse_tests;
 pub(crate) mod bonuses;
+mod loot_booster;
 
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for query in [
@@ -172,6 +173,11 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             if matches!(action, "begin_campaign" | "end_campaign") {
                 tracing::info!(path, account = a, chapter = req.text("ChapterIndex"),
                     dungeon = req.text("DungeonIndex"), "Campaign request succeeded");
+            }
+            if action=="end_campaign" && v["MultiplayMemberIds"].as_array().is_some_and(|ids|!ids.is_empty()) {
+                if let Err(error)=party_messages::replay_rewards(s,a).await {
+                    tracing::warn!(%error,"Party reward summary replay failed after result response");
+                }
             }
             let mut out = response(s, path);
             merge(&mut out, v);
@@ -367,12 +373,13 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
     out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
     Ok(out)
 }
-/// Release local raid runs on lobby return, including Karma results rejected
-/// by an older client. Keep service-owned runs and unrelated reconnects intact.
+/// Release withdrawn local stories and raids on lobby return, including results
+/// never submitted by the client. Keep service-owned runs and other sessions intact.
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
-) -> Result<()> {
+) -> Result<Value> {
     let mut tx = s.db.begin().await?;
+    let mut out = json!({});
     let old = sqlx::query("SELECT run_id,entry FROM battle_runs WHERE account=? AND completed=0")
         .bind(a).fetch_optional(&mut *tx).await?;
     if let Some(old) = old {
@@ -385,21 +392,22 @@ pub(crate) async fn abandon_local_run_on_lobby(
             .is_some_and(|raid| matches!(n(raid, "Type"), 15 | 17)
                 && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
                 && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
-        if (solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array())
+        if (campaign::is_story_entry(s,&entry) || solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
+            || entry["ShakmehStoryFinal"] == true)
             && !session.is_empty()
             && request["SessionKey"].as_str() == Some(session)
             && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true
         {
-            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut json!({})).await?;
+            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut out).await?;
             entry["AbandonedOnLobby"] = json!(true);
             let run_id: String = old.get("run_id");
             sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=? AND completed=0")
                 .bind(entry.to_string()).bind(a).bind(&run_id).execute(&mut *tx).await?;
-            tracing::info!(account=a, %run_id, "Released withdrawn local raid on lobby return");
+            tracing::info!(account=a, %run_id, "Released withdrawn local battle on lobby return");
         }
     }
     tx.commit().await?;
-    Ok(())
+    Ok(out)
 }
 
 // The native client restores these managers from FirstLobby, not Login.
@@ -415,6 +423,10 @@ pub(crate) async fn punishment_lobby_snapshot(s: &AppState, a: i64) -> Result<Va
 
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     let mut tx = s.db.begin().await?;
+    // FirstLobby can run while party heartbeats write on another connection.
+    // Reserve the writer before reading progress that may need repair.
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(a).execute(&mut *tx).await?;
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
     seasons::settle(&mut tx, s, a).await?;
@@ -424,6 +436,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     for info in &mut under {
         *info = dungeons::under(&mut tx, s, a, n(info, "ChapterIndex")).await?;
     }
+    dungeons::repair_raid_progress(&mut tx,s,a).await?;
     let raid = list(&mut tx, a, "raid").await?;
     let mut god = list(&mut tx, a, "godking").await?;
     for gate in &mut god {

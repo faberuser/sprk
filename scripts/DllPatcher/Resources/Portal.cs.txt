@@ -11,6 +11,7 @@ public static class RestoredPortal
         if (raid == null || (raid.Type != RaidType.DragonHard && raid.Type != RaidType.DragonHardSingle)
             || raid.OpenCondition == null || raid.OpenCondition.Length < 2) return false;
         int index = raid.OpenCondition[0], required = raid.OpenCondition[1];
+        if (index != raid.Index) required = System.Math.Max(required, 10);
         if (index <= 0 || required <= 0) return false;
         if (NGame2.NUI.NWindow.RaidHelper.GetRaidMaxLevel(index) >= required) return true;
         // Older solo clears can be saved under the solo ID. Match the server's
@@ -26,12 +27,16 @@ public static class RestoredPortal
     {
         if (raid == null || (raid.Type != RaidType.DragonHard && raid.Type != RaidType.DragonHardSingle)
             || IsOpenedDragonHard(raid)) return null;
+        int requiredLevel = raid.OpenCondition != null && raid.OpenCondition.Length >= 2
+            ? raid.OpenCondition[1] : 0;
+        if (requiredLevel > 0 && raid.OpenCondition[0] != raid.Index)
+            requiredLevel = System.Math.Max(requiredLevel, 10);
         RaidData prerequisite = null;
-        if (raid.OpenCondition != null && raid.OpenCondition.Length >= 2)
+        if (requiredLevel > 0)
             foreach (var normal in GameRoot.Instance.RaidDataContainer.GetAllData())
                 // RaidLevel records the highest selectable stage, so reaching
                 // the required level means clearing the preceding normal stage.
-                if (normal.Index == raid.OpenCondition[0] && normal.Level < raid.OpenCondition[1]
+                if (normal.Index == raid.OpenCondition[0] && normal.Level < requiredLevel
                     && (prerequisite == null || normal.Level > prerequisite.Level)) prerequisite = normal;
         if (prerequisite == null)
             return "This Hard raid is locked. Its normal raid prerequisite is unavailable.";

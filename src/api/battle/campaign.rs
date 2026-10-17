@@ -63,6 +63,14 @@ fn story_party<'a>(s: &'a AppState, d: &Value) -> Option<&'a Value> {
         .filter(|row| row["ForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()))
 }
 
+pub(super) fn is_story_entry(s: &AppState, entry: &Value) -> bool {
+    let battle_type=s.tables.battle.find("CampaignDungeon", &[
+        ("ChapterIndex",n(entry,"ChapterIndex")),("DungeonIndex",n(entry,"DungeonIndex")),
+    ]).map(|d|n(d,"BattleType"));
+    matches!(battle_type,Some(23|24)) || crate::api::episodes::chapter(n(entry,"ChapterIndex")).is_some()
+        || entry["ScenarioDungeon"]==true && matches!(battle_type,Some(1|2|10))
+}
+
 fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i64>> {
     let scenario = boolean(r, "ScenarioDungeon", false)?;
     let preset = s.tables.battle.find("DungeonHeroSet", &[
@@ -78,12 +86,44 @@ fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i6
     Ok(forced.as_array().into_iter().flatten().filter_map(Value::as_i64).filter(|id| *id > 0).collect())
 }
 
-pub(super) async fn validate(
+pub(super) async fn validate_dispatch(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
     r: &Request,
     heroes: &[i64],
+) -> Result<()> {
+    validate_inner(db, s, a, r, heroes, false, true).await
+}
+
+pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, room: &Value) -> Result<()> {
+    let c=n(room,"ChapterIndex");let di=n(room,"DungeonIndex");
+    let ch=row(s,"CampaignChapter",&[("Index",c)])?;
+    let d=row(s,"CampaignDungeon",&[("ChapterIndex",c),("DungeonIndex",di)])?;
+    crate::api::episodes::require_battle(db, s, a, c, di, n(room,"DungeonDifficulty")).await?;
+    if ch["IsOpen"]!=true {return Err(rule("NotOpenedDungeon"));}
+    let mut prerequisites=vec![(n(ch,"ReqChapterIndex"),n(ch,"ReqDungeonIndex"))];
+    if c==50000 {prerequisites.push((97,2));if di==210 {prerequisites.push((50000,9));}}
+    if let Some(preset)=story_party(s,d) {prerequisites.push((n(preset,"ReqChapterIndex"),n(preset,"ReqDungeonIndex")));}
+    for (chapter,dungeon) in prerequisites {
+        if chapter>0 && dungeon>0 && n(&progress(db,s,a,chapter,dungeon).await?,"FirstRewardedDiff")==0 {
+            return Err(rule("NotCompletedReqDungeon"));
+        }
+    }
+    if n(&progress(db,s,a,c,di).await?,"FirstRewardedDiff")==0 && matches!(n(d,"BattleType"),1|2|10) {
+        let predecessors:Vec<_>=s.tables.battle.rows("CampaignDungeon").iter()
+            .filter(|v|n(v,"ChapterIndex")==c && n(v,"NextDungeonIndex")==di).collect();
+        if !predecessors.is_empty() {
+            for previous in predecessors {
+                if n(&progress(db,s,a,c,n(previous,"DungeonIndex")).await?,"FirstRewardedDiff")>0 {return Ok(());}
+            }
+            return Err(rule("CannotVisitDungeon"));
+        }
+    }
+    Ok(())
+}
+async fn validate_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool, dispatch: bool,
 ) -> Result<()> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -97,10 +137,11 @@ pub(super) async fn validate(
     }
     let ch = row(s, "CampaignChapter", &[("Index", c)])?;
     let diff = difficulty(r)?;
+    crate::api::episodes::require_battle(db, s, a, c, n(d, "DungeonIndex"), diff).await?;
     let restored_field = n(d, "BattleType") == 33
         && s.tables.battle.rules["EnableLegacyFieldRaids"] == true
         && s.tables.battle.find("Raid", &[("Index", int(r,"RaidIndex")?), ("Level", int(r,"RaidLevel")?)])
-            .is_some_and(|v| n(v,"Type") == 13 && v["IsOpen"] == true
+            .is_some_and(|v| (n(v,"Type") == 13 || service && n(v,"Type") == 12)
                 && n(v,"ChapterIndex") == c && n(v,"DungeonIndex") == n(d,"DungeonIndex"));
     if ch["IsOpen"] != true && !restored_field && !(n(d,"BattleType")==16 && s.tables.arena_guild.rules["EnableLegacyGuildRaids"]==true) {
         return Err(rule("NotOpenedDungeon"));
@@ -184,7 +225,7 @@ pub(super) async fn validate(
         return Err(rule("MaxDailyCount"));
     }
     // Closed/unsupported multiplayer and mode requests must pass their own state checks.
-    dungeons::validate(db, s, a, r, d).await?;
+    dungeons::validate_inner(db, s, a, r, d, service, dispatch).await?;
     rooms::validate_battle(db, s, a, r).await?;
     Ok(())
 }
@@ -193,10 +234,27 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
     let group = ids(r, "GroupHeroIndices", 32)?;
     let d = dungeon(s, r)?;
     let battle_type = n(d, "BattleType");
-    if matches!(battle_type, 38 | 45 | 46) && !group.is_empty() {
+    let raid_squard = if matches!(battle_type,33|40|41|42) {
+        s.tables.battle.find("Raid", &[("Index",int(r,"RaidIndex")?),("Level",int(r,"RaidLevel")?)])
+            .filter(|v|matches!(n(v,"Type"),13|15))
+    } else {None};
+    if battle_type==26 && int(r,"RaidIndex")?==90001 && (101..=103).contains(&int(r,"RaidLevel")?) {
+        if !group.is_empty() {return Err(rule("NotMatchHeroIndices"));}
+        heroes.extend(ids(r,"AiHeroIndices",3)?);
+    } else if let Some(raid) = raid_squard {
+        // RaidManagement.StartSingleRaidBattle uses AiHeroIndices for the
+        // support team in field/Technomagic raids. HeroIndices includes both
+        // teams; GroupHeroIndices belongs to alternating-wave modes instead.
+        let support = ids(r,"AiHeroIndices",32)?;
+        if !group.is_empty() || support.iter().any(|id| !heroes.contains(id))
+            || support.len() as i64 > n(raid,"SubPartyCount")
+            || (heroes.len() - support.len()) as i64 > n(raid,"MainPartyCount") {
+            return Err(rule("NotMatchHeroIndices"));
+        }
+    } else if matches!(battle_type, 38 | 45 | 46) && !group.is_empty() {
         // Squard.GetBattlePartyInfo already includes both teams in HeroIndices.
-        // Otherworldly Shakmeh and both Enchantment bosses use GroupHeroIndices
-        // to mark the second team, not to append another roster.
+        // Shakmeh and Enchantment use GroupHeroIndices to mark the second
+        // team within the full roster. Do not count those heroes twice.
         if battle_type == 38 {
             let definition = row(s, "ShakmehDungeon", &[("DungeonIndex", n(d, "DungeonIndex"))])?;
             if n(definition, "ShakmehIndex") != 2 {
@@ -204,8 +262,8 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
             }
         }
         if group.iter().any(|id| !heroes.contains(id))
-            || group.len() as i64 > n(d, "SubSquardCount")
-            || (heroes.len() - group.len()) as i64 > n(d, "MainSquardCount")
+            || group.len() as i64 > n(d,"SubSquardCount")
+            || (heroes.len() - group.len()) as i64 > n(d,"MainSquardCount")
         {
             return Err(rule("NotMatchHeroIndices"));
         }
@@ -224,14 +282,43 @@ pub(super) async fn begin(
     a: i64,
     r: &Request,
 ) -> Result<Value> {
+    if r.number("RaidRoomNo", 0)?.max(r.number("MultiRoomNo", 0)?) > 0
+        && r.number("RaidIndex", 0)? != 90001
+    {
+        return super::cooperative::begin_party(db, s, a, r).await;
+    }
+    begin_local(db, s, a, r, false).await
+}
+
+pub(super) async fn begin_local(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+) -> Result<Value> {
+    begin_local_inner(db, s, a, r, service, None).await
+}
+
+pub(super) async fn begin_party_member(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, use_stamina: bool,
+) -> Result<Value> {
+    begin_local_inner(db, s, a, r, true, Some(use_stamina)).await
+}
+
+async fn begin_local_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+    party_use_stamina: Option<bool>,
+) -> Result<Value> {
     if n(dungeon(s, r)?, "BattleType") == 36 {
         return super::eclipse::begin(db, s, a, r).await;
     }
-    if r.number("RaidIndex",0)?==90001 && (1..=3).contains(&r.number("RaidLevel",0)?) {
+    if r.number("RaidIndex",0)?==90001 && ((1..=3).contains(&r.number("RaidLevel",0)?)
+        || (101..=103).contains(&r.number("RaidLevel",0)?) && r.number("MultiplayMasterId",0)?>0) {
         return super::cooperative::begin(db,s,a,r).await;
     }
     let party = selected_heroes(s, r)?;
     let mut entry = json!({"ChapterIndex":int(r,"ChapterIndex")?,"DungeonIndex":int(r,"DungeonIndex")?,"DungeonDifficulty":difficulty(r)?,"ScenarioDungeon":boolean(r,"ScenarioDungeon",false)?,"Heroes":party,"Request":r.0});
+    entry["ServiceOwned"] = json!(service);
+    if let Some(use_stamina) = party_use_stamina {
+        entry["PartyUseStamina"] = json!(use_stamina);
+    }
     let previous = sqlx::query(
         "SELECT started,completed,entry,begin_response FROM battle_runs WHERE account=?",
     )
@@ -276,7 +363,7 @@ pub(super) async fn begin(
             super::entry_costs::settle(db,s,a,&mut abandoned,false,&mut json!({})).await?;
         }
     }
-    validate(db, s, a, r, &party).await?;
+    validate_inner(db, s, a, r, &party, service, false).await?;
     let leader = int(r, "LeaderHeroIndex")?;
     if leader > 0 && !party.contains(&leader) {
         return Err(rule("HeroNotFound"));
@@ -284,7 +371,8 @@ pub(super) async fn begin(
     let d = dungeon(s, r)?;
     let mut out = response(s, "campaign/begin_campaign");
     super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
-    let cost = stamina_cost(d, difficulty(r)?);
+    super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,party_use_stamina != Some(false)).await?;
+    let cost = if party_use_stamina == Some(false) { 0 } else { stamina_cost(d, difficulty(r)?) };
     let stamina=super::entry_costs::charge(db,s,a,&mut entry,n(d,"ReqStaminaType"),cost).await?;
     if !stamina.is_null() {out["StaminaResult"]=stamina;}
     dungeons::enter(db, s, a, r, &mut entry, &mut out).await?;
@@ -405,6 +493,9 @@ async fn end_inner(
         if let Some(result)=entry.get("ConquestEndResponse").filter(|v|v.is_object()) {
             return Ok(result.clone());
         }
+        if let Some(result)=entry.get("PartyEndResponse").filter(|v|v.is_object()) {
+            return Ok(result.clone());
+        }
         return Err(rule("AlreadyCompleted"));
     }
     if !trusted && (entry["ServiceOwned"]==true || entry["ServiceRequired"]==true){return Err(rule("NotCompletedBattle"));}
@@ -440,7 +531,7 @@ async fn end_inner(
         return Ok(out);
     }
     let mut out = if completed {
-        complete(db, s, a, &request, &party, star, 1).await?
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), super::loot_booster::active(&entry)).await?
     } else {
         item::success()
     };
@@ -465,12 +556,9 @@ async fn end_inner(
     // first response with settlement so retries do not reroll or regrant loot.
     let mut settled_entry = entry;
     super::entry_costs::settle(db,s,a,&mut settled_entry,completed,&mut out).await?;
-    let battle_type = n(dungeon(s, &request)?, "BattleType");
     // Substories such as 10-35 send ScenarioDungeon=false despite their
     // scripted ending, so the request flag alone cannot identify story runs.
-    if matches!(battle_type, 23 | 24)
-        || (settled_entry["ScenarioDungeon"] == true && matches!(battle_type, 1 | 2 | 10))
-    {
+    if is_story_entry(s,&settled_entry) {
         settled_entry["StoryEndResponse"] = out.clone();
     }
     sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
@@ -507,17 +595,35 @@ pub(super) async fn complete(
     star: i64,
     count: i64,
 ) -> Result<Value> {
+    complete_inner(db, s, a, r, party, star, count, true, false).await
+}
+
+/// Only authenticated, server-saved party options can disable battle loot.
+pub(super) fn party_loot_enabled(entry: &Value) -> bool {
+    entry["PartyCampaign"] != true || entry["PartyUseStamina"] != false
+}
+
+async fn complete_inner(
+    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request,
+    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_boosted: bool,
+) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
     let di = n(d, "DungeonIndex");
     let diff = difficulty(r)?;
     let mut p = progress(db, s, a, c, di).await?;
     let mut reward = Rewards { mail_overflow: true, ..Rewards::default() };
-    for _ in 0..count {
-        reward_index(db, s, a, field(d, "DropRewardIndex", diff), &mut reward).await?;
+    for _ in 0..if grant_loot {count} else {0} {
+        let index = field(d, "DropRewardIndex", diff);
+        if index > 0 {
+            item::reward_with_loot_booster(db,s,a,index as i32,&mut reward,loot_boosted).await?;
+        }
     }
-    let first = n(&p, "FirstRewardedDiff") & (1 << diff) == 0;
-    if first {
+    // Clear credit also unlocks later stages. Track actual loot claims separately
+    // so a free clear cannot consume the first reward of a later paid clear.
+    let loot_rewarded = p["LootRewardedDiff"].as_i64().unwrap_or_else(|| n(&p,"FirstRewardedDiff"));
+    let first = loot_rewarded & (1 << diff) == 0;
+    if first && grant_loot {
         reward_index(
             db,
             s,
@@ -526,7 +632,7 @@ pub(super) async fn complete(
             &mut reward,
         )
         .await?;
-        if n(&p, "FirstRewardedDiff") == 0 {
+        if loot_rewarded == 0 {
             reward_index(db, s, a, n(d, "FirstRewardIndex"), &mut reward).await?;
         }
         tutorial::currency(db, a, "Gem", field(d, "FirstClearGem", diff), &mut reward).await?;
@@ -544,6 +650,7 @@ pub(super) async fn complete(
         .tables
         .battle
         .find("SelectReward", &[("ChapterIndex", c), ("DungeonIndex", di)])
+        .filter(|_| grant_loot)
     {
         if selected.is_empty() {
             let pending = get(db, a, "selected_reward", key(c, di)).await?;
@@ -600,7 +707,7 @@ pub(super) async fn complete(
             .bind(id)
             .execute(&mut *db)
             .await?;
-        if old >= cap {
+        if old >= cap && grant_loot {
             if let Some((f, items)) =
                 super::super::extensions::consumables::fill_flask(db, s, a, *id as i32, exp).await?
             {
@@ -612,6 +719,7 @@ pub(super) async fn complete(
     }
     p["MaxStar"] = json!(n(&p, "MaxStar").max(diff * 10 + star));
     p["FirstRewardedDiff"] = json!(n(&p, "FirstRewardedDiff") | (1 << diff));
+    p["LootRewardedDiff"] = json!(if grant_loot {loot_rewarded | (1 << diff)} else {loot_rewarded});
     p["CompletedTime"] = json!(time(now()));
     p["DailyCompletedCount"] = json!(n(&p, "DailyCompletedCount") + count);
     if boolean(r, "ScenarioDungeon", false)? {

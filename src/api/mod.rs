@@ -4,6 +4,7 @@ pub mod account;
 pub mod battle;
 pub mod community;
 pub mod extensions;
+pub(crate) mod episodes;
 pub mod heroes;
 pub mod inventory;
 pub mod progression;

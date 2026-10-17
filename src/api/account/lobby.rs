@@ -152,7 +152,7 @@ pub async fn enter_lobby(
     
     let account_id = session.account_id;
 
-    crate::api::battle::abandon_local_run_on_lobby(&state, account_id, &session_id).await?;
+    let withdrawal = crate::api::battle::abandon_local_run_on_lobby(&state, account_id, &session_id).await?;
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
 
     // Fetch account info
@@ -291,6 +291,12 @@ pub async fn enter_lobby(
 
     let progression = crate::api::progression::login(&state, session.account_id).await?;
     let mut battle = crate::api::battle::login(&state, account_id).await?;
+    // EnterLobby does not reinitialize PlayerCurrencyInfos. Publish withdrawal
+    // refunds through the common handler too, so native boss entry sees the
+    // restored gauge immediately without requiring a fresh client login.
+    if withdrawal["ReservedCurrencyResults"].is_array() {
+        battle["ReservedCurrencyResults"] = withdrawal["ReservedCurrencyResults"].clone();
+    }
     let community=crate::api::community::login(&state,account_id).await?;
     battle["GuildInfo"]=community["MyGuildInfo"].clone();
     battle["BattleInfo"]=community["BattleInfo"].clone();

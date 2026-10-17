@@ -412,18 +412,21 @@ public sealed class SprkAutomation : MonoBehaviour
                                 {"timeMs",running.GlobalTimer.GetCurrentTimeMs()},{"creatures",creatures}}));
                         } catch(Exception e) { File.WriteAllText(diagnosticFile,MiniJSON.Json.Serialize(new Dictionary<string,object>{{"error",e.ToString()}})); }
                     });
-                    var battle=NVespa.SingletonAuto<NGame2.NBattleField.BattleFacade>.instance.GetStoppedBattleInstance();
-                    if(battle!=null) {
-                        foreach(var creature in battle.CreatureContainer.GetAllCreatures()) {
-                            var stats=new Dictionary<string,object>();
-                            foreach(var stat in CombatStatTypes()) stats[stat.ToString()]=creature.StatController.GetFinalStat(stat);
-                            reply.materials.Add(new Dictionary<string,object>{{"kind","battleStats"},{"hero",creature.CreatureIndex},
-                                {"tier",creature.CreateInfo.Tier},{"isBoss",creature.CreateInfo.IsBoss},
-                                {"isAi",creature.CreateInfo.IsAi},{"resting",creature.CreateInfo.IsInitialResting},
-                                {"level",creature.CreateInfo.HeroInfo.Level},{"hp",creature.StatController.Hp},
-                                {"initialStats",CombatStats(creature.CreateInfo.StatData)},{"stats",stats}});
+                    // A diagnostic must never stop a live replay thread.
+                    var facade=NVespa.SingletonAuto<NGame2.NBattleField.BattleFacade>.instance;
+                    var cache=facade.GetBattleCache();
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","replay"},{"ended",cache.IsBattleEnded},{"wave",cache.WaveIndex}});
+                    var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+                    foreach(var component in Resources.FindObjectsOfTypeAll<MonoBehaviour>()) {
+                        if(component==null || (component.GetType().Name!="EndCampaign" && component.GetType().Name!="EndBattleWin"))continue;
+                        var values=new Dictionary<string,object>{{"kind",component.GetType().Name},{"active",component.gameObject.activeInHierarchy}};
+                        foreach(var field in component.GetType().GetFields(flags)) {
+                            if(field.Name=="_endCampaignProxy")values[field.Name]=field.GetValue(component)!=null;
+                            else if(field.FieldType==typeof(bool) || field.FieldType==typeof(float))values[field.Name]=field.GetValue(component);
                         }
+                        reply.materials.Add(values);
                     }
+
                 }
                 var formula=typeof(NShared.StatController).GetMethod("CalculateDamage",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);
                 var legacy=typeof(NShared.StatController).GetMethod("CalculateDamage_Season1",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);

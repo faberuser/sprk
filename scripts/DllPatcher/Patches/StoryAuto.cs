@@ -100,6 +100,12 @@ partial class Program
             var call = checkNext.Body.Instructions.Single(i => i.Operand is MethodReference r && r.Name == "IsCompleted");
             call.OpCode = OpCodes.Call; call.Operand = Hook("LowerDifficultyCleared");
         }
+        if (!Hooked(checkNext, "NextDifficulty")) {
+            var difficulty = checkNext.Body.Instructions.Single(i => i.Operand is FieldReference f && f.Name == "DungeonDifficulty");
+            var loadTarget = Instruction.Create(OpCodes.Ldarg_1);
+            checkNext.Body.GetILProcessor().InsertAfter(difficulty, loadTarget);
+            checkNext.Body.GetILProcessor().InsertAfter(loadTarget, Instruction.Create(OpCodes.Call, Hook("NextDifficulty")));
+        }
         var update = module.Types.Single(t => t.Name == "GlobalUpdateBehaviour").Methods.Single(m => m.Name == "Update");
         if (!Hooked(update, "Tick")) Prefix(update, Instruction.Create(OpCodes.Call, Hook("Tick")));
         var rewardUpdate = Method("NGame2.NUI.NWindow.NBattle.EndBattleReward", "UpdateAutoNextCampaign");
@@ -127,8 +133,31 @@ partial class Program
             m.Body.Instructions.Any(i => i.OpCode == OpCodes.Stfld && i.Operand is FieldReference f && f.Name == "_battleRequestedTime"));
         if (!Hooked(failure, "Stop")) Prefix(failure, Instruction.Create(OpCodes.Call, Hook("Stop")));
 
+        var entered = module.GetTypes().SelectMany(t => t.Methods).Single(m =>
+            m.DeclaringType.FullName.StartsWith("NGame2.NUI.NManager.NLobby.LobbyCampaignDungeon/") &&
+            m.Name.Contains("<RequestBeginCampaign>") && m.HasBody &&
+            m.Body.Instructions.Any(i => i.Operand is MethodReference r && r.DeclaringType.Name == "AutoNextBattle" && r.Name == "OpenGlobal"));
+        if (!Hooked(entered, "ContinueType")) {
+            var type = entered.Body.Instructions.Single(i => i.Operand is MethodReference r && r.Name == "get_BattleType");
+            entered.Body.GetILProcessor().InsertAfter(type, Instruction.Create(OpCodes.Call, Hook("ContinueType")));
+        }
+        if (!Hooked(entered, "SaveStoryPosition")) {
+            var save = entered.Body.Instructions.Single(i => i.Operand is MethodReference r && r.Name == "SaveLatelyBattleNodePos");
+            save.OpCode = OpCodes.Call; save.Operand = Hook("SaveStoryPosition");
+        }
+        var request = Method("NGame2.NUI.NManager.NLobby.LobbyCampaignDungeon", "RequestBeginCampaign");
+        if (!Hooked(request, "PrepareStoryRequest"))
+            Prefix(request, Instruction.Create(OpCodes.Ldarg_1), Instruction.Create(OpCodes.Call, Hook("PrepareStoryRequest")));
+
+        var provider = Method("NGame2.NUI.NManager.NLobby.LobbyCampaignDungeon", "GetDataProvider");
+        if (!Hooked(provider, "StoryProvider")) {
+            var fallback = Instruction.Create(OpCodes.Pop);
+            Prefix(provider, Instruction.Create(OpCodes.Ldarg_1), Instruction.Create(OpCodes.Call, Hook("StoryProvider")),
+                Instruction.Create(OpCodes.Dup), Instruction.Create(OpCodes.Brfalse, fallback), Instruction.Create(OpCodes.Ret), fallback);
+        }
+
         // Cecil does not expand existing short branches after inserting instructions.
-        foreach (var method in new[] { choice, start, startClick, canNext, checkNext, advance, update, failure, rewardUpdate, beginNext })
+        foreach (var method in new[] { choice, start, startClick, canNext, checkNext, advance, update, failure, entered, rewardUpdate, beginNext })
             foreach (var i in method.Body.Instructions) {
                 if (i.OpCode == OpCodes.Br_S) i.OpCode = OpCodes.Br;
                 else if (i.OpCode == OpCodes.Brtrue_S) i.OpCode = OpCodes.Brtrue;
@@ -159,7 +188,7 @@ partial class Program
 
     static void VerifyStoryAuto(ModuleDefinition module)
     {
-        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "Tick" }) {
+        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "NextDifficulty", "Tick", "ContinueType", "SaveStoryPosition", "PrepareStoryRequest", "StoryProvider" }) {
             var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody)
                 .SelectMany(m => m.Body.Instructions).Count(i => i.Operand is MethodReference r && r.DeclaringType.Name == "SprkStoryAuto" && r.Name == name);
             if (calls != 1) throw new InvalidOperationException($"Expected one {name} hook; found {calls}.");

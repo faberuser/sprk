@@ -95,6 +95,7 @@ async fn game_router() -> anyhow::Result<Router> {
     
     // Create application state
     let state = AppState::new(db, tables);
+    api::community::mail::start_notifications(state.clone());
     api::system::cheat::start_admin(state.clone()).await?;
     api::battle::cooperative::recover_orphaned(&state).await?;
     let chat_bind = std::env::var("CHAT_BIND").unwrap_or_else(|_| "127.0.0.1".into());
@@ -121,6 +122,7 @@ async fn game_router() -> anyhow::Result<Router> {
         let key=state.battle_service_key.as_ref().as_ref().ok_or_else(||anyhow::anyhow!("Conquest worker configured without a service key"))?.clone();
         let executable=std::fs::canonicalize(executable)?;
         let port=state.conquest.port;
+        let worker_host = format!("http://127.0.0.1:{}/host.json", std::env::var("PORT").unwrap_or_else(|_| "8080".into()));
         let log=std::env::current_dir()?.join("conquest-worker.log");
         tokio::spawn(async move {
             loop {
@@ -128,6 +130,7 @@ async fn game_router() -> anyhow::Result<Router> {
                 command.current_dir(executable.parent().unwrap()).args(["-batchmode","-nographics","-logFile"]).arg(&log)
                     .env("SPRK_CONQUEST_WORKER_KEY",&key).env("SPRK_CONQUEST_WORKER_HOST","127.0.0.1")
                     .env("SPRK_CONQUEST_WORKER_PORT",port.to_string()).kill_on_drop(true);
+                command.env("SPRK_HOST_URL", &worker_host);
                 command.env_remove("SPRK_AUTOMATION_PROFILE").env_remove("SPRK_AUTOMATION_DIR").env_remove("SPRK_GM_KEY");
                 #[cfg(windows)] command.creation_flags(0x08000000);
                 match command.spawn() {
@@ -288,6 +291,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/mail/receive", post(api::community::mail::receive_mail))
         .route("/mail/receive/all", post(api::community::mail::receive_all_mail))
         // Friend - new client endpoints
+        .route("/user/inspect_user", post(api::community::friend::inspect_user))
         .route("/friend/search_friend", post(api::community::friend::search_friend))
         .route("/friend/request_friend", post(api::community::friend::request_friend))
         .route("/friend/reject_friend", post(api::community::friend::reject_friend))

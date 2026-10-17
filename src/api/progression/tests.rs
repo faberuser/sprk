@@ -832,6 +832,51 @@ async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
 }
 
 #[tokio::test]
+async fn mailbox_reads_skip_progression_writes_but_claims_update_missions() {
+    use tower::Service;
+    use crate::api::community::mail;
+    async fn send(app: &mut axum::Router, u: &user::LoginResponse, path: &str, data: &str) -> Value {
+        let response=app.call(axum::http::Request::builder().method("POST").uri(path)
+            .header("Content-Type","application/x-www-form-urlencoded")
+            .body(axum::body::Body::from(form(u,data))).unwrap()).await.unwrap();
+        serde_json::from_slice(&axum::body::to_bytes(response.into_body(),usize::MAX).await.unwrap()).unwrap()
+    }
+    let (s,u)=setup().await;
+    let mut app=axum::Router::new()
+        .route("/mail/check_new_mail",axum::routing::post(mail::check_new_mail))
+        .route("/mail/get_mail_list",axum::routing::post(mail::get_mail_list))
+        .route("/mail/get_mail_list_by_page",axum::routing::post(mail::get_mail_list_by_page))
+        .route("/mail/get_global_mail_list",axum::routing::post(mail::get_global_mail_list))
+        .route("/mail/list",axum::routing::post(mail::get_mail_list))
+        .route("/mail/receive_mail",axum::routing::post(mail::receive_mail))
+        .layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify))
+        .with_state(s.clone());
+    let account=u.user_info.account_id;
+    let id=mail::send_system_mail(&s,account,"Polling test","Reward",1,0,None).await.unwrap();
+    sqlx::query("INSERT INTO global_mails(title,reward_gold) VALUES('Polling announcement',1)").execute(&s.db).await.unwrap();
+    // Global mail must still materialize exactly once before reads become idle.
+    let globals=send(&mut app,&u,"/mail/get_global_mail_list","").await;
+    assert_eq!(globals["Result"],"Success");assert_eq!(globals["MailInfos"].as_array().unwrap().len(),1);
+    for path in ["/mail/check_new_mail","/mail/get_mail_list","/mail/get_mail_list_by_page","/mail/get_global_mail_list","/mail/list"] {
+        let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+        let result=send(&mut app,&u,path,"MaxCount=10&PageNo=0").await;
+        assert_eq!(result["Result"],"Success","{path}: {result}");
+        assert!(result.get("AchievementInfos").is_none(),"Mailbox reads must not create progression snapshots");
+        assert!(result.get("ReservedSubQuestInfos").is_none());
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before,
+            "Idle mailbox read wrote to the database: {path}");
+    }
+    let mut db=s.db.acquire().await.unwrap();
+    assert_eq!(View::load(&mut db,account).await.unwrap().metric("ReceiveMail","all",None,None),0);
+    drop(db);
+    let claimed=send(&mut app,&u,"/mail/receive_mail",&format!("MailIndex={id}")).await;
+    assert_eq!(claimed["Result"],"Success");
+    assert!(claimed["AchievementInfos"].as_array().is_some(),"Claims must retain progression notifications");
+    let mut db=s.db.acquire().await.unwrap();
+    assert_eq!(View::load(&mut db,account).await.unwrap().metric("ReceiveMail","all",None,None),1);
+}
+
+#[tokio::test]
 async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
     use tower::Service;
     let (s, u) = setup().await;

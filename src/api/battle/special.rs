@@ -143,7 +143,7 @@ pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> R
                 crate::api::extensions::get(db, a, "soul", slot).await?;
         }
     }
-    hero["PunishmentRuneOptionInfos"] = json!([]);
+    hero["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &hero).await?;
     Ok(hero)
 }
 pub(super) async fn opponent(db: &mut SqliteConnection, a: i64, exclude: i64) -> Result<Value> {

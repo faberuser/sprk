@@ -715,6 +715,53 @@ async fn pet_care_duplicate_souls_and_layout_survive_login() {
     );
 }
 #[tokio::test]
+async fn pickup_summons_accept_native_repeated_hero_fields_and_charge_once() {
+    let (s,u)=setup().await;
+    for id in [18,5] {
+        let before=balance(&s,&u,"gem").await;let mileage=balance(&s,&u,"mileage").await;
+        let out=call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex={id}&HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=4&HighGachaCategory=None&Free=False&Discount=False&DiscountedCost=2500")).await;
+        ok(&out);assert_eq!(out["GachaItemResults"].as_array().unwrap().len(),11,"Native x10 includes its bonus result");
+        assert_eq!(balance(&s,&u,"gem").await,before-2500);
+        assert_eq!(balance(&s,&u,"mileage").await,mileage+250);
+        for roll in out["GachaItemResults"].as_array().unwrap() {
+            assert!(roll["ItemResult"].is_object() || roll["EquipItemResult"].is_object());
+        }
+        if id==18 {assert_eq!(out["StarterPickupEquipGachaInfo"]["GachaCount"],1);}
+    }
+    let before=balance(&s,&u,"gem").await;
+    let out=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=5&HeroIndices=[1,2,3,4]").await;ok(&out);
+    assert_eq!(balance(&s,&u,"gem").await,before-2500,"JSON API arrays remain supported");
+    let out=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=18&HeroIndices=72&HeroIndices=85&HeroIndices=101&HeroIndices=102").await;
+    ok(&out);assert_eq!(out["GachaItemResults"].as_array().unwrap().len(),11,"All native starter hero choices have usable pools");
+}
+
+#[tokio::test]
+async fn pickup_summons_reject_invalid_selections_without_spending_or_awarding() {
+    let (s,u)=setup().await;let a=account(&u);
+    let before:(i64,i64,i64)=sqlx::query_as("SELECT gold,gem,mileage FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let items:Vec<(i64,i64)>=sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap();
+    let gear:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    for id in [18,5] {
+        for heroes in ["HeroIndices=1&HeroIndices=2&HeroIndices=3","HeroIndices=1&HeroIndices=1&HeroIndices=3&HeroIndices=4","HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=999999","HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=-4"] {
+            assert_ne!(call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex={id}&{heroes}")).await["Result"],"Success");
+            assert_eq!(sqlx::query_as::<_,(i64,i64,i64)>("SELECT gold,gem,mileage FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+            assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index").bind(a).fetch_all(&s.db).await.unwrap(),items);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),gear);
+            assert!(get(&mut s.db.acquire().await.unwrap(),a,"summon",id).await.unwrap().is_null());
+        }
+    }
+}
+
+#[tokio::test]
+async fn starter_pickup_uses_native_twenty_purchase_reward_track() {
+    let (s,u)=setup().await;let a=account(&u);
+    put(&mut s.db.acquire().await.unwrap(),a,"summon",18,&json!({"GachaIndex":18,"GachaCount":110,"StarterDraws":10,"Claimed":0,"Day":day(),"IsTakeLastReward":false})).await.unwrap();
+    assert_ne!(call(&s,&u,"equip_gacha/get_starter_pickup_equip_gacha_last_reward","GachaIndex=18").await["Result"],"Success","Ten purchases cannot claim the 20-purchase reward");
+    let out=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=18&HeroIndices=1&HeroIndices=2&HeroIndices=3&HeroIndices=4").await;
+    ok(&out);assert_eq!(out["StarterPickupEquipGachaInfo"]["GachaCount"],11,"The starter summon remains usable past ten");
+}
+
+#[tokio::test]
 async fn pickup_step_up_and_native_pet_summon_contracts() {
     let (s, u) = setup().await;
     let snap = call(&s, &u, "equip_gacha/get_equip_gacha", "").await;
@@ -728,7 +775,7 @@ async fn pickup_step_up_and_native_pet_summon_contracts() {
         account(&u),
         "summon",
         18,
-        &json!({"GachaIndex":18,"GachaCount":99,"StarterDraws":9,"Claimed":0,"Day":day()}),
+        &json!({"GachaIndex":18,"GachaCount":209,"StarterDraws":19,"Claimed":0,"Day":day(),"IsTakeLastReward":false}),
     )
     .await
     .unwrap();
@@ -740,7 +787,7 @@ async fn pickup_step_up_and_native_pet_summon_contracts() {
     )
     .await;
     ok(&starter);
-    assert_eq!(starter["StarterPickupEquipGachaInfo"]["GachaCount"], 10);
+    assert_eq!(starter["StarterPickupEquipGachaInfo"]["GachaCount"], 20);
     assert_ne!(
         call(
             &s,

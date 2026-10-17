@@ -20,6 +20,11 @@ async fn state(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
     }
     Ok(v)
 }
+fn starter_limit(d: &Value, cfg: &Value) -> i64 {
+    // The native StarterGachaManager and the shop's reward bar both read
+    // StarterMileage. Older server rules incorrectly capped this at ten.
+    if n(d,"StarterMileage") > 0 { n(d,"StarterMileage") } else { n(cfg,"StarterCount") }
+}
 // Native reward gauges count paid summon purchases, not the 10+1 results.
 fn native_gauge(d: &Value) -> bool {
     matches!(n(d, "Type"), 4 | 6)
@@ -108,7 +113,7 @@ pub(super) async fn snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) ->
             if n(d, "Type") == 5 {
                 steps.push(json!({"GachaIndex":id,"CompletedStep":v["CompletedStep"],"CompletedCount":v["CompletedCount"],"ProgressTime":v["ProgressTime"]}));
             }
-            if n(cfg, "StarterCount") > 0 {
+            if starter_limit(d,cfg) > 0 {
                 starters.push(json!({"GachaIndex":id,"GachaCount":n(&v,"StarterDraws"),"IsTakeLastReward":v["IsTakeLastReward"]}));
             }
         }
@@ -169,14 +174,7 @@ pub(super) async fn execute(
             out["ItemResults"] = rr["ItemResults"].clone();
             out["RewardResult"] = rr;
         } else {
-            let threshold = n(
-                cfg,
-                if starter {
-                    "StarterCount"
-                } else {
-                    "CeilingCount"
-                },
-            );
+            let threshold = if starter { starter_limit(d,cfg) } else { n(cfg,"CeilingCount") };
             if threshold <= 0
                 || if starter {
                     n(&v, "StarterDraws")
@@ -221,7 +219,7 @@ pub(super) async fn execute(
             out["RewardResult"] = item::reward_response(db, s, a, rewards).await?;
         }
     } else if matches!(action, "exec_equip_gacha" | "exec_pet_gacha") {
-        if n(cfg, "StarterCount") > 0 && n(&v, "StarterDraws") >= n(cfg, "StarterCount") {
+        if starter_limit(d,cfg) > 0 && n(&v, "StarterDraws") >= starter_limit(d,cfg) {
             return Err(rule("StartPickupLimitOver"));
         }
         let is_pet = n(d, "Type") == 6;
@@ -324,10 +322,11 @@ pub(super) async fn execute(
             .to_owned();
             if !selected.is_empty() && (i >= n(d, "Bid") || pity) {
                 let chosen = *selected.choose(&mut rand::thread_rng()).unwrap();
-                code = cfg["HeroGroups"][chosen.to_string()]
-                    .as_str()
-                    .ok_or_else(|| rule("GachaDataNotFound"))?
-                    .to_owned();
+                // Starter's native hero list includes newer heroes absent from
+                // the older server override map. Their native pools exist.
+                code = cfg["HeroGroups"][chosen.to_string()].as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(||format!("GACHA_STARTER_PICKUP_{chosen}_EQUIP_UNIQUE"));
             }
             let (index, c, star, custom) = s
                 .tables
@@ -373,7 +372,7 @@ pub(super) async fn execute(
             }
         }
         v["GachaCount"] = json!(n(&v, "GachaCount") + count);
-        if n(cfg, "StarterCount") > 0 {
+        if starter_limit(d,cfg) > 0 {
             v["StarterDraws"] = json!(n(&v, "StarterDraws") + 1);
         }
         if is_pet {
