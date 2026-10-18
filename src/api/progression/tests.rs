@@ -402,10 +402,14 @@ async fn guideline_claim_all_preserves_native_batch_and_rolls_back_invalid_batch
         .map(|r| r["SubQuestIndex"].as_i64().unwrap()).collect();
     assert_eq!(completed, vec![10010, 10020, 10030]);
     assert_eq!(result["RewardResults"].as_array().unwrap().len(), 3);
+    let chapter_progress = result["ReservedSubQuestInfos"].as_array().unwrap().iter()
+        .find(|info| info["SubQuestIndex"] == 20001).unwrap();
+    assert_eq!(chapter_progress["Progress"], 3);
     let after = currency(&s, &u).await;
     assert_ne!(call(&s, &u, "complete_sub_quest", batch).await["Result"], "Success");
     assert_eq!(currency(&s, &u).await, after);
     let restored = relogin(&s).await;
+    assert_eq!(restored.sub_quest_infos.iter().find(|info| info["SubQuestIndex"] == 20001).unwrap()["Progress"], 3);
     for id in completed {
         assert_eq!(restored.sub_quest_infos.iter().find(|r| r["SubQuestIndex"] == id).unwrap()["LastStep"], 1);
     }
@@ -797,6 +801,46 @@ async fn mission_bonus_only_counts_its_own_category() {
         .find(|r| r["QuestIndex"] == 20001)
         .unwrap();
     assert_eq!(v.quest(&s, row), 0);
+}
+
+#[tokio::test]
+async fn mission_bars_count_claimed_quests_in_their_own_category() {
+    let (s, u) = setup().await;
+    // Chapter 2 is the 21-quest Guideline bar. Also cover step-based missions.
+    for (main, sub, reward, kind) in [(1, 2, 20002, "MissionClear"), (200, 1, 20037, "StepMissionClear")] {
+        let header = s.tables.progression.sub_quests.iter()
+            .find(|q| n(q, "QuestIndex") == reward && n(q, "Step") == 1).unwrap();
+        assert_eq!(header["Kind"], kind);
+        let mut members: Vec<_> = s.tables.progression.mission_visuals.iter()
+            .filter(|v| n(v, "MainCategoryIndex") == main && n(v, "SubCategoryIndex") == sub && v["QuestType"] == "SubQuest")
+            .collect();
+        members.sort_by_key(|v| (n(v, "MainStep"), n(v, "SubStep")));
+        let mut db = s.db.acquire().await.unwrap();
+        let before = View::load(&mut db, u.user_info.account_id).await.unwrap();
+        assert_eq!(before.quest(&s, header), 0);
+        for (i, member) in members.iter().enumerate() {
+            let id = n(member, "QuestIndex");
+            let last = s.tables.progression.sub_quests.iter()
+                .filter(|q| n(q, "QuestIndex") == id).map(|q| n(q, "Step")).max().unwrap();
+            claim(&mut db, u.user_info.account_id, "subquest", id, last, "all").await.unwrap();
+            let view = View::load(&mut db, u.user_info.account_id).await.unwrap();
+            let expected = if kind == "MissionClear" { (i + 1) as i64 } else {
+                let steps: BTreeSet<_> = members.iter().map(|v| n(v, "MainStep")).collect();
+                steps.iter().filter(|step| members.iter().filter(|v| n(v, "MainStep") == **step)
+                    .all(|v| members[..=i].iter().any(|done| n(done, "QuestIndex") == n(v, "QuestIndex"))))
+                    .count() as i64
+            };
+            assert_eq!(view.quest(&s, header), expected, "{kind}, quest {id}");
+            let chapter_one = s.tables.progression.sub_quests.iter().find(|q| n(q, "QuestIndex") == 20001).unwrap();
+            assert_eq!(view.quest(&s, chapter_one), 0);
+        }
+        if reward == 20002 {
+            assert_eq!(members.len(), 21);
+            assert_eq!(View::load(&mut db, u.user_info.account_id).await.unwrap().quest(&s, header), 21);
+        }
+    }
+    let restored = relogin(&s).await;
+    assert_eq!(restored.sub_quest_infos.iter().find(|q| q["SubQuestIndex"] == 20002).unwrap()["Progress"], 21);
 }
 #[tokio::test]
 async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
