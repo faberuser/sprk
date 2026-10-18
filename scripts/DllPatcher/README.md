@@ -1,5 +1,30 @@
 # DLL patcher
 
+Settings changes that reload the game preserve saved accounts. Native session
+cleanup synchronizes any renewed refresh token and releases the account lease;
+only confirmed Log Out or account deletion forgets the active saved account.
+Install with `--accounts-only`, then check the installed routing with
+`--verify-account-session`. Settings such as texture quality and sound remain
+local Unity PlayerPrefs shared by accounts under the same Windows user.
+
+Saved settings are reapplied once when the UI starts, even on clients whose
+legacy `SingletonCreator.InitializeOnStartup` was disabled. The original option
+initializer restores the FPS limit and rendering options; legacy battery-mode
+migration only runs when no saved FPS preference exists. User option changes and
+texture changes flush PlayerPrefs to disk.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --settings-persistence-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-settings-persistence
+python scripts/check_settings_persistence.py --client ../sprk-client
+```
+
+The real-client check launches and closes three test windows using a new isolated
+preference profile. It verifies saved and applied 30/60 FPS limits, measured frame
+rates, texture quality, BGM volume, outline, and preservation of the FPS preference
+when an old battery-mode value exists. It requires a graphics device. Normal player
+preferences are untouched. Publish a signed client update after installation.
+
 Recommended Friends samples the server's full eligible player population, including
 offline players regardless of last logout time. The client preserves the random
 server order and fetches a fresh sample whenever Accept/Request opens. Existing

@@ -212,15 +212,21 @@ public sealed class SprkAccounts : MonoBehaviour {
         try {Store.Upsert(updated);activeAccount=updated;}catch(Exception){Debug.LogWarning("SPRK could not remember the renewed login.");}
     }
     public static void ClearSession() {
+        // Native settings reloads and session recovery also call AccountManager.Logout.
+        // Discard runtime state without forgetting the player's saved login.
+        SyncRefreshToken();activeAccount=null;
+        ReleaseAccount();Initialize();pending=null;pendingTokens=null;
+    }
+    public static void ForgetSession() {
         if(activeAccount!=null) {
             try {Store.Remove(activeAccount);}catch(Exception){Debug.LogWarning("SPRK could not remove the saved account.");}
             activeAccount=null;
         }
-        ReleaseAccount();Initialize();pending=null;pendingTokens=null;
+        ClearSession();
     }
     public static void FinishLogout(NShared.Logout.Response response) {
         if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.Logout.ResultType.Success)return;
-        ClearSession();
+        ForgetSession();
         SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.Reset();
     }
     static void Hide(Component component) {
@@ -648,7 +654,7 @@ public sealed class SprkAccounts : MonoBehaviour {
                 PasswordChangeFailed(reply!=null && !String.IsNullOrEmpty(reply.InternalErrorMessage)?reply.InternalErrorMessage:"Deletion could not be confirmed. Check the connection before retrying.",username);yield break;
             }
             busy=false;username.value="";password.value="";confirm.value="";root.SetActive(false);
-            ClearSession();SwitchAccount();
+            ForgetSession();SwitchAccount();
         }
     }
     void PasswordChangeFailed(string error,UIInput field) {busy=false;SetMessage(error);Refresh();StartCoroutine(FocusForRetry(field,true));}

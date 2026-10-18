@@ -18,6 +18,7 @@ partial class Program {
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var assembly=AssemblyDefinition.ReadAssembly(sourcePath ?? dll,new ReaderParameters{AssemblyResolver=resolver});
         var module=assembly.MainModule;
+        PatchSettingsPersistence(module);
         PatchDealerTicketPopup(module);
         PatchAppReviewPopup(module);
         PatchLegacyHeroLevels(module);

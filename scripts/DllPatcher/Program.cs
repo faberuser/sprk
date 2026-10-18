@@ -9,6 +9,10 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--inspect-settings")) { InspectSettings(args[0]); return; }
+            if (args.Contains("--settings-persistence-only")) { InstallSettingsPersistence(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-settings-persistence")) { VerifySettingsPersistenceFile(args[0]); return; }
+            if (args.Contains("--verify-account-session")) { VerifyAccountSession(args[0]); return; }
             if (args.Contains("--friend-recommendations-only")) { InstallFriendRecommendations(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-friend-recommendations")) { VerifyFriendRecommendationsFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-friend-recommendations")) { TestFriendRecommendations(args[0]); return; }

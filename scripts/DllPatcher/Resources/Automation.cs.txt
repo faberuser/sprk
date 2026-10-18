@@ -134,7 +134,21 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
-        if(cmd.action=="click" || cmd.action=="press" || cmd.action=="drag") {
+        if(cmd.action=="settings-probe") {
+            if(!String.IsNullOrEmpty(cmd.text)) {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(String.IsNullOrEmpty(profile) || !profile.StartsWith("settings-persistence-"))
+                    throw new InvalidOperationException("Settings writes require an isolated settings-persistence profile");
+                var values=cmd.text.Split(',');
+                NVespa.SystemOptionData.Graphic_FrameControl=(NShared.EFrameControl)Int32.Parse(values[0]);
+                NVespa.SystemOptionData.Spec=(NGameAsset.ESpecType)Int32.Parse(values[1]);
+                NVespa.SystemOptionData.Sound_BgmVolume=Single.Parse(values[2],System.Globalization.CultureInfo.InvariantCulture);
+                NVespa.SystemOptionData.Render_EnableOutline=Boolean.Parse(values[3]);
+                // Seed a legacy preference without changing the active FPS, to test migration.
+                if(values.Length>4)SprkTestPrefs.SetString("KingsRaid_GameOption_device_ConsumeBattery",values[4]);
+            }
+        }
+        else if(cmd.action=="click" || cmd.action=="press" || cmd.action=="drag") {
                 var go=Target(cmd.target); var button=go.GetComponent<UIButton>();
                 var collider=go.GetComponent<Collider>();
                 if(button != null ? (!button.enabled || !button.isEnabled) : (collider == null || !collider.enabled)) throw new InvalidOperationException("Button is disabled");
@@ -237,6 +251,12 @@ public sealed class SprkAutomation : MonoBehaviour
             }
             else if(cmd.action!="hero-growth-probe" && cmd.action!="account-form-probe" && cmd.action!="guild-attendance-probe" && cmd.action!="payment-probe" && cmd.action!="lobby-probe" && cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
             reply=Snapshot(cmd.id);
+            if(cmd.action=="settings-probe")reply.materials.Add(new Dictionary<string,object>{
+                {"kind","settings"},{"fps",(int)NVespa.SystemOptionData.Graphic_FrameControl},
+                {"targetFps",Application.targetFrameRate},{"vSync",QualitySettings.vSyncCount},
+                {"texture",(int)NVespa.SystemOptionData.Spec},{"bgm",NVespa.SystemOptionData.Sound_BgmVolume},
+                {"outline",NVespa.SystemOptionData.Render_EnableOutline},
+                {"prefsPath",Application.persistentDataPath}});
             if(cmd.action=="story-auto-probe") {
                 var helper=AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a=>a.GetName().Name=="SprkStoryAuto");
                 bool active=helper!=null && (bool)helper.GetType("SprkStoryAuto").GetMethod("Active").Invoke(null,null);
