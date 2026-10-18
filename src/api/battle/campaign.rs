@@ -555,6 +555,7 @@ async fn end_inner(
     // Story and substory battles can submit the ending twice. Persist the
     // first response with settlement so retries do not reroll or regrant loot.
     let mut settled_entry = entry;
+    settled_entry["PunishmentShardElapsedSeconds"] = json!(r.number("PureBattleTime",0)?);
     super::entry_costs::settle(db,s,a,&mut settled_entry,completed,&mut out).await?;
     // Substories such as 10-35 send ScenarioDungeon=false despite their
     // scripted ending, so the request flag alone cannot identify story runs.

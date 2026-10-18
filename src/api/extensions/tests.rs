@@ -29,6 +29,8 @@ async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -
         format!("/{action}")
     } else if action.starts_with("valance_") || action == "confirm_valance_enchant" {
         format!("/valance/{action}")
+    } else if action.contains("equip_storage_slot") {
+        format!("/equip_storage_slot/{action}")
     } else {
         format!("/equip/{action}")
     };
@@ -589,9 +591,9 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
 async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
-    let eq = give(&s, a, 1001, 1).await.equipment.remove(0);
+    let eq = give(&s, a, 890203, 1).await.equipment.remove(0);
     let args = format!(
-        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[1]&EquipItemSlotIndex=[{}]&Name=Weapon",
+        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[2]&EquipItemSlotIndex=[{}]&Name=Armor",
         eq.slot_index
     );
     let r = call(&s, &u, "add_equip_storage_slot", &args).await;
@@ -609,7 +611,7 @@ async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     )
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
-    assert_eq!(r["HeroInfo"]["EquipItemSlotIndex1"], eq.slot_index);
+    assert_eq!(r["HeroInfo"]["EquipItemSlotIndex2"], eq.slot_index);
     let r = call(&s, &u, "buy_equip_storage_slot", "").await;
     assert_eq!(
         r["NewEquipStorageSlotInfo"]["EquipStorageSlotIndex"], 5,
@@ -633,6 +635,76 @@ async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     let lobby = first_lobby(&s, a).await.unwrap();
     assert_eq!(lobby["EquipPresetInfos"].as_array().unwrap().len(), 6);
 }
+#[tokio::test]
+async fn gear_custom_native_save_load_preserves_pairs_empty_slots_and_hero_gear() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let weapon = give(&s, a, 1001, 1).await.equipment.remove(0);
+    let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
+    let secondary = give(&s, a, 70004, 1).await.equipment.remove(0);
+    let artifact = give(&s, a, 151001, 1).await.equipment.remove(0);
+    let accessory = give(&s, a, 81004, 1).await.equipment.remove(0);
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_3=?,equip_item_slot_index_7=777 WHERE account_id=? AND hero_index=1")
+        .bind(weapon.slot_index).bind(accessory.slot_index).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,equip_item_slot_index_2) VALUES (?,2,2,?)")
+        .bind(a).bind(armor.slot_index).execute(&s.db).await.unwrap();
+    let renamed = call(&s, &u, "change_equip_storage_slot_name", "EquipStorageSlotIndex=1&Name=MyGear").await;
+    assert_eq!(renamed["Result"], "Success");
+    // Native order is 2,4,3,6,5, with repeated form keys and zeros for empty slots.
+    let args = format!("EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=2&EquipItemSlotIndex={}&HeroPartIndex=4&EquipItemSlotIndex={}&HeroPartIndex=3&EquipItemSlotIndex=0&HeroPartIndex=6&EquipItemSlotIndex=0&HeroPartIndex=5&EquipItemSlotIndex={}",
+        armor.slot_index, secondary.slot_index, artifact.slot_index);
+    let saved = call(&s, &u, "add_equip_storage_slot", &args).await;
+    assert_eq!(saved["Result"], "Success", "{saved}");
+    assert_eq!(saved["EquipPresetInfo"]["Name"], "MyGear");
+    let expected = json!([0,armor.slot_index,0,secondary.slot_index,artifact.slot_index,0,0,0,0,0]);
+    assert_eq!(saved["EquipPresetInfo"]["EquipItemSlotIndex"], expected);
+    assert_eq!(saved["EquipPresetInfo"]["EquipItemUid"][1], armor.uid);
+    assert_eq!(saved["EquipPresetInfo"]["EquipItemUid"][3], secondary.uid);
+    let loaded = call(&s, &u, "set_equip_storage_slot", "EquipStorageSlotIndex=1&HeroIndex=1").await;
+    assert_eq!(loaded["Result"], "Success", "{loaded}");
+    let h = &loaded["HeroInfo"];
+    for (part, slot) in [(1,weapon.slot_index),(2,armor.slot_index),(3,0),(4,secondary.slot_index),(5,artifact.slot_index),(6,0),(7,777)] {
+        assert_eq!(h[format!("EquipItemSlotIndex{part}")], slot, "part {part}");
+    }
+    assert_eq!(loaded["UnEquippedSlotIndices"], json!([armor.slot_index, accessory.slot_index]));
+    assert_eq!(hero::info(&mut s.db.acquire().await.unwrap(), a, 2).await.unwrap()["EquipItemSlotIndex2"],0);
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let lobby = first_lobby(&s, login.user_info.account_id).await.unwrap();
+    assert_eq!(lobby["EquipPresetInfos"][0]["EquipItemSlotIndex"], expected);
+    assert_eq!(login.heroes[0].equip_item_slot_index_1, weapon.slot_index);
+}
+
+#[tokio::test]
+async fn gear_custom_invalid_native_pairs_rollback_saved_preset() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
+    let args = format!("EquipStorageSlotIndex=1&HeroIndex=1&Name=Saved&HeroPartIndex=2&EquipItemSlotIndex={}",armor.slot_index);
+    let saved = call(&s, &u, "add_equip_storage_slot", &args).await;
+    assert_eq!(saved["Result"], "Success", "{saved}");
+    for fields in [
+        format!("HeroPartIndex=2&HeroPartIndex=2&EquipItemSlotIndex={}&EquipItemSlotIndex=0",armor.slot_index),
+        format!("HeroPartIndex=2&HeroPartIndex=4&EquipItemSlotIndex={}",armor.slot_index),
+        format!("HeroPartIndex=2&HeroPartIndex=4&EquipItemSlotIndex={0}&EquipItemSlotIndex={0}",armor.slot_index),
+        "HeroPartIndex=2&EquipItemSlotIndex=-1".into(),
+        "HeroPartIndex=2&EquipItemSlotIndex=0".into(),
+        format!("HeroPartIndex=1&EquipItemSlotIndex={}",armor.slot_index),
+        format!("HeroPartIndex=4&EquipItemSlotIndex={}",armor.slot_index),
+        "HeroPartIndex=2&EquipItemSlotIndex=2147483647".into(),
+    ] {
+        let rejected = call(&s, &u, "add_equip_storage_slot", &format!("EquipStorageSlotIndex=1&HeroIndex=1&Name=Changed&{fields}")).await;
+        assert_ne!(rejected["Result"], "Success", "{fields}: {rejected}");
+        let lobby = first_lobby(&s, a).await.unwrap();
+        assert_eq!(lobby["EquipPresetInfos"][0], saved["EquipPresetInfo"]);
+    }
+    sqlx::query("UPDATE equip_items SET inventory_type=1 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(armor.slot_index).execute(&s.db).await.unwrap();
+    let before = hero::info(&mut s.db.acquire().await.unwrap(), a, 1).await.unwrap();
+    let rejected = call(&s, &u, "set_equip_storage_slot", "EquipStorageSlotIndex=1&HeroIndex=1").await;
+    assert_ne!(rejected["Result"], "Success");
+    assert_eq!(hero::info(&mut s.db.acquire().await.unwrap(), a, 1).await.unwrap(),before);
+}
+
 #[tokio::test]
 async fn npc_gifts_and_claims_validate_step_and_charge_once() {
     let (s, u) = setup().await;

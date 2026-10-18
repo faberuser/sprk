@@ -1,0 +1,147 @@
+using UnityEngine;
+using NGame2.NUI.NWindow.NChatting;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI;
+
+public static class SprkChatChannels
+{
+    public static int Normalize(int channel)
+    {
+        return Mathf.Clamp(channel, 1, 99);
+    }
+
+    public static void Configure(ChattingChannelSelect1 window)
+    {
+        window.minValue = 1;
+        var input = window.ChannelNoInput;
+        if (input != null)
+        {
+            input.value = Normalize(Vespa_String_Extension_Method.TOINT(input.value, 1)).ToString();
+            input.characterLimit = 2;
+            input.selectAllTextOnFocus = true;
+            if (input.GetComponent<SprkChatChannelInput>() == null)
+                input.gameObject.AddComponent<SprkChatChannelInput>();
+        }
+        var range = window.transform.Find("Panel/Root/Toggle2/Label_ToggleLeft (1)");
+        if (range != null)
+        {
+            var label = range.GetComponent<UILabel>();
+            if (label != null) label.text = "(1-99)";
+        }
+    }
+
+    public static bool UsesKeyboardPolling(UIInput input)
+    {
+        return input != null && input.GetComponent<SprkChatChannelInput>() != null;
+    }
+
+    public static void AddSendButton(ItemLinkButtonComponent component)
+    {
+        if (component == null || component.Button_Share == null || !component.Button_Share.gameObject.activeSelf) return;
+        var panel = component.GetComponentInParent<ChattingListComponentBase>();
+        if (panel == null || panel.Input == null) return;
+        var control = component.GetComponent<SprkChatSendButton>();
+        if (control == null) control = component.gameObject.AddComponent<SprkChatSendButton>();
+        control.Initialize(component.Button_Share, panel.Input);
+    }
+}
+
+public sealed class SprkChatSendButton : MonoBehaviour
+{
+    UIInput input;
+    UIButton send;
+
+    public void Initialize(UIButton share, UIInput chatInput)
+    {
+        input = chatInput;
+        if (send != null) { Refresh(); return; }
+        var frame = share.GetComponent<UIWidget>();
+        if (frame == null) frame = share.GetComponentInChildren<UISprite>();
+        if (frame == null) return;
+        int originalWidth = frame.width;
+        const int gap = 8;
+        int width = Mathf.Max(48, (originalWidth - gap) / 2);
+        var center = share.transform.localPosition;
+        var go = Object.Instantiate(share.gameObject, share.transform.parent, false);
+        go.name = "Button_Send";
+        send = go.GetComponent<UIButton>();
+        // The copied button supplies visuals only. Gear sharing retains its
+        // original callbacks; Send gets exactly one native input submission.
+        foreach (var button in go.GetComponentsInChildren<UIButton>(true)) button.onClick.Clear();
+        foreach (var trigger in go.GetComponentsInChildren<UIEventTrigger>(true)) trigger.onClick.Clear();
+        foreach (var listener in go.GetComponentsInChildren<UIEventListener>(true)) listener.onClick = null;
+        Resize(share.gameObject, originalWidth, width);
+        Resize(go, originalWidth, width);
+        share.transform.localPosition = center + Vector3.right * ((width + gap) / 2f);
+        go.transform.localPosition = center + Vector3.left * ((width + gap) / 2f);
+        foreach (var label in go.GetComponentsInChildren<UILabel>(true))
+        {
+            foreach (var localize in label.GetComponents<UILocalize>()) localize.enabled = false;
+            foreach (var localize in label.GetComponents<NVespa.NNGUIExtension.UILocalizeEx>()) localize.enabled = false;
+            label.text = "Send";
+        }
+        EventDelegate.Add(send.onClick, Send);
+        go.SetActive(true);
+        Refresh();
+    }
+
+    static void Resize(GameObject button, int originalWidth, int width)
+    {
+        foreach (var widget in button.GetComponentsInChildren<UIWidget>(true))
+        {
+            widget.leftAnchor.target = null;
+            widget.rightAnchor.target = null;
+            if (widget is UILabel) widget.width = Mathf.Max(24, width - 16);
+            else if (widget.width >= originalWidth - 20) widget.width = width;
+        }
+        NGUITools.UpdateWidgetCollider(button);
+    }
+
+    bool CanSend()
+    {
+        return input != null && input.isActiveAndEnabled && !string.IsNullOrWhiteSpace(input.value);
+    }
+
+    void Send()
+    {
+        if (CanSend()) input.Submit();
+        Refresh();
+    }
+
+    void Refresh()
+    {
+        if (send != null) UIHelper.EnableButton(send, CanSend(), grayscaleIfDisable: true);
+    }
+
+    void LateUpdate() { Refresh(); }
+}
+
+// This Unity build does not deliver IMGUI key events to the numeric field.
+// Reuse NGUI's native editing logic while polling Unity's working input API.
+// UIInputOnGUI skips this field to avoid processing a key twice on other builds.
+public sealed class SprkChatChannelInput : MonoBehaviour
+{
+    static readonly KeyCode[] EditingKeys = {
+        KeyCode.Backspace, KeyCode.Delete, KeyCode.LeftArrow, KeyCode.RightArrow,
+        KeyCode.UpArrow, KeyCode.DownArrow, KeyCode.Home, KeyCode.End,
+        KeyCode.A, KeyCode.C, KeyCode.V, KeyCode.X
+    };
+    UIInput input;
+
+    void Awake() { input = GetComponent<UIInput>(); }
+
+    void Update()
+    {
+        if (input == null || !input.isActiveAndEnabled || !input.isSelected) return;
+        var modifiers = EventModifiers.None;
+        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) modifiers |= EventModifiers.Control;
+        if (Input.GetKey(KeyCode.LeftCommand) || Input.GetKey(KeyCode.RightCommand)) modifiers |= EventModifiers.Command;
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) modifiers |= EventModifiers.Shift;
+        if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) modifiers |= EventModifiers.Alt;
+        foreach (var key in EditingKeys)
+        {
+            if (Input.GetKeyDown(key))
+                input.ProcessEvent(new Event { type = EventType.KeyDown, keyCode = key, modifiers = modifiers });
+        }
+    }
+}

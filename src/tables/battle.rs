@@ -14,7 +14,16 @@ pub struct BattleTable {
 }
 impl BattleTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::load_with_rules(path, "BattleRules.json")
+        let mut data = Self::load_with_rules(path, "BattleRules.json")?;
+        let recovered: Value = serde_json::from_reader(std::fs::File::open(
+            path.with_file_name("DivinePunishmentSupport.json"),
+        )?)?;
+        for name in ["Infinity", "InfinityReward", "InfinityRewardGroup", "ShardItem", "KarmaReward"] {
+            let rows = recovered["Tables"][name].as_array()
+                .ok_or_else(|| format!("Missing Divine Punishment table: {name}"))?;
+            data.tables.insert(name.into(), rows.clone());
+        }
+        Ok(data)
     }
     pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;

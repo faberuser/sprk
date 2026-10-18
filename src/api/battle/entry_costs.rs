@@ -323,6 +323,7 @@ pub(crate) async fn settle(
     won: bool,
     out: &mut Value,
 ) -> Result<()> {
+    super::punishment::settle_shards(db,a,entry,won,out).await?;
     super::loot_booster::settle(db,a,entry,won,out).await?;
     if entry["EntryCostsSettled"] == true {
         return Ok(());

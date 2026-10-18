@@ -34,6 +34,16 @@ pub struct HeroShopTable {
 impl HeroShopTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
+        let catalog = path.with_file_name("ArenaShopCatalog.json");
+        let restored: Value = serde_json::from_reader(std::fs::File::open(catalog)?)?;
+        data.shop_items.retain(|r| !matches!(r["ShopIndex"].as_i64(), Some(15 | 35)));
+        for row in restored["ShopItems"].as_array().ok_or("Missing arena shop catalog")? {
+            let mut row = row.clone();
+            // The archive's final Honor season is the recurring local catalog.
+            // Source indices and reset flags remain unchanged for purchase receipts.
+            row["Condition"] = Value::String(String::new());
+            data.shop_items.push(row);
+        }
         data.apply_archived_cosmetic_flags();
         Ok(data)
     }

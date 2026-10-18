@@ -65,6 +65,8 @@ pub async fn handle(
         Request::parse_with_integer_arrays(&body, &["EquipItemSlotIndices"])?
     } else if uri.path() == "/hero/buy_customizing_costumes" {
         Request::parse_with_integer_arrays(&body, &["UnsetAccessoryCostumeIndices"])?
+    } else if uri.path() == "/equip_storage_slot/add_equip_storage_slot" {
+        Request::parse_with_integer_arrays(&body, &["HeroPartIndex", "EquipItemSlotIndex"])?
     } else if matches!(uri.path(), "/equip/awaken_equip" | "/equip/upgrade_equip") {
         Request::parse_with_integer_arrays(&body, &["MaterialSlotIndices", "MaterialItemInfors"])?
     } else { Request::parse(&body)? };
@@ -111,6 +113,9 @@ pub async fn handle(
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            if uri.path().starts_with("/equip_storage_slot/") {
+                tracing::warn!(action, account, reason = %code, "Gear Custom request rejected");
+            }
             if action == "break_equip" {
                 let selected = serde_json::from_str::<Vec<Value>>(req.text("EquipItemSlotIndices"))
                     .map(|v| v.len()).unwrap_or(0);

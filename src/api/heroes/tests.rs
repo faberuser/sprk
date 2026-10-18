@@ -726,6 +726,43 @@ async fn inn_shop_lists_actual_item_codes_and_atomic_friendship_purchases() {
     );
 }
 #[tokio::test]
+async fn may_rotating_void_rune_uses_displayed_gold_price_for_cached_stock() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    // Reproduce the saved May stock: the fallback catalog row came from a
+    // Guild Shop, while native ShopListItemInfo displays BuyGold (1,000).
+    let mut row = s.tables.hero_shop.shop_items.iter()
+        .find(|r| r["ItemCode"] == "VOID_RUNE_5" && r["ShopIndex"] == 0)
+        .unwrap().clone();
+    row["Index"] = serde_json::json!(3);
+    row["PurchasableCount"] = serde_json::json!(1);
+    assert_eq!(row["BuyCostTypeForItem"], 4);
+    assert_eq!(row["TargetPrice"], 120000);
+    sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,1,1,?,0,?)")
+        .bind(account).bind(s.server_time()+3600)
+        .bind(serde_json::json!([row]).to_string()).execute(&s.db).await.unwrap();
+    let request = "ShopIndex=1&ListNo=3&ShopItemPurchaseCount=1";
+    let before = count(&s, &u, 45127).await;
+    sqlx::query("UPDATE user_info SET gold=999 WHERE account_id=?")
+        .bind(account).execute(&s.db).await.unwrap();
+    assert_eq!(shop::buy_shop_item(State(s.clone()), form(&u, request)).await.unwrap().0["Result"], "NotEnoughGold");
+    assert_eq!(balance(&s, &u, "gold").await, 999);
+    assert_eq!(count(&s, &u, 45127).await, before);
+    sqlx::query("UPDATE user_info SET gold=100000 WHERE account_id=?")
+        .bind(account).execute(&s.db).await.unwrap();
+    let gold = balance(&s, &u, "gold").await;
+    let response = shop::buy_shop_item(State(s.clone()), form(&u, request)).await.unwrap().0;
+    assert_eq!(response["Result"], "Success", "{response}");
+    assert_eq!(balance(&s, &u, "gold").await, gold-1000);
+    assert_eq!(count(&s, &u, 45127).await, before+1);
+    assert_eq!(response["ItemResult"]["ItemIndex"], 45127);
+    assert_eq!(response["ShopItem"]["Sold"], 1);
+    assert_eq!(shop::buy_shop_item(State(s.clone()), form(&u, request)).await.unwrap().0["Result"], "SoldOut");
+    assert_eq!(balance(&s, &u, "gold").await, gold-1000);
+    assert_eq!(count(&s, &u, 45127).await, before+1);
+}
+
+#[tokio::test]
 async fn stock_restock_and_capacity_failure_preserve_currency() {
     let (s, u) = setup().await;
     let r = shop::get_shop_list(State(s.clone()), form(&u, "ShopIndex=1"))

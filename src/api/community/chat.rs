@@ -24,6 +24,7 @@ use tokio::{
 pub(crate) const MAX_FRAME: usize = 2 * 1024 * 1024;
 const MAX_LOGIN_FRAME: usize = 64 * 1024;
 const MAX_TEXT: usize = 500;
+const MAX_CHANNEL: i64 = 99;
 fn integer(v: &Value) -> Option<i64> {v.as_i64().or_else(||v.as_str().and_then(|s|s.parse().ok()))}
 
 pub struct Peer {
@@ -148,7 +149,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                             }
                             account_id = requested;
                             session_key = key.unwrap();
-                            let channel = integer(&request["ChannelNo"]).unwrap_or(1).clamp(1, 9999) as i32;
+                            let channel = integer(&request["ChannelNo"]).unwrap_or(1).clamp(1, MAX_CHANNEL) as i32;
                             state.chat.peers.insert(id.clone(), Arc::new(Peer { account: account_id, channel: AtomicI32::new(channel), sender: sender.clone() }));
                             response["ChannelNo"] = json!(channel);
                             let history = history(&state, account_id, channel, 30).await?;
@@ -172,8 +173,8 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                                 },
                                 "ChangeChannelReq" => {
                                     let channel = integer(&request["ChannelNo"]).unwrap_or(0);
-                                    response["Changed"] = json!((1..=9999).contains(&channel));
-                                    if (1..=9999).contains(&channel) { if let Some(peer) = state.chat.peers.get(&id) { peer.channel.store(channel as i32, Ordering::Relaxed); } }
+                                    response["Changed"] = json!((1..=MAX_CHANNEL).contains(&channel));
+                                    if (1..=MAX_CHANNEL).contains(&channel) { if let Some(peer) = state.chat.peers.get(&id) { peer.channel.store(channel as i32, Ordering::Relaxed); } }
                                 }
                                 "MessageReq" => {
                                     let channel = state.chat.peers.get(&id).map(|p| p.channel.load(Ordering::Relaxed)).unwrap_or(1);
@@ -468,7 +469,7 @@ async fn http_send(state: AppState, body: Bytes, protocol: &str) -> Result<Json<
     let message = send_chat(
         &state,
         account,
-        req.number("ChannelId", 1)?.clamp(1, 9999) as i32,
+        req.number("ChannelId", 1)?.clamp(1, MAX_CHANNEL) as i32,
         req.number("ReceiverId", 0)?,
         protocol,
         content,
@@ -494,7 +495,7 @@ pub async fn get_recent_chats(State(state): State<AppState>, body: Bytes) -> Res
         history(
             &state,
             account,
-            req.number("ChannelId", 1)?.clamp(1, 9999) as i32,
+            req.number("ChannelId", 1)?.clamp(1, MAX_CHANNEL) as i32,
             req.number("MaxCount", 50)?,
         )
         .await?,

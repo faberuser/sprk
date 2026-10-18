@@ -1,0 +1,60 @@
+using NGame2.NContentsInfo;
+using NGame2.NUI;
+using NGame2.NUI.NManager.Mission;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.Mission;
+using NShared;
+using NVespa;
+using UnityEngine;
+
+public sealed class SprkMissionClaimAll : MonoBehaviour
+{
+    MissionNodeWindowTopView2 view;
+    CommonNodeWindow owner;
+    float nextRefresh;
+
+    public static EMissionTopViewButtonGroup ButtonGroup(EMissionTopViewButtonGroup requested)
+    {
+        if (requested == EMissionTopViewButtonGroup.None) return EMissionTopViewButtonGroup.GetAllRewardOnly;
+        if (requested == EMissionTopViewButtonGroup.GetRewardOnly || requested == EMissionTopViewButtonGroup.MultipleSteps)
+            return EMissionTopViewButtonGroup.Basic;
+        return requested;
+    }
+
+    public static void Attach(MissionNodeWindowTopView2 view, MissionNodeWindowTopView2.IListener listener)
+    {
+        var control = view.GetComponent<SprkMissionClaimAll>();
+        if (control == null) control = view.gameObject.AddComponent<SprkMissionClaimAll>();
+        control.view = view;
+        control.owner = listener as CommonNodeWindow;
+        control.nextRefresh = 0f;
+    }
+
+    void LateUpdate()
+    {
+        if (view == null || owner == null || !owner.isActiveAndEnabled || !view.IsOpen() || Time.unscaledTime < nextRefresh) return;
+        nextRefresh = Time.unscaledTime + .15f;
+        var category = owner.SelectedMissionCategoryData;
+        if (category == null) return;
+        bool available = owner.HasAvailableCategoryReward();
+        var standard = owner as MissionNodeWindow;
+        var newer = owner as MissionNodeWindowV3;
+        var guideline = owner as MissionNode2Window;
+        MissionNodeMap map = null;
+        if (standard != null) map = standard.NodeMapTop.gameObject.activeInHierarchy ? standard.NodeMapTop : standard.NodeMapTop2;
+        if (newer != null) map = newer.NodeMapTop.gameObject.activeInHierarchy ? newer.NodeMapTop : newer.NodeMapTop2;
+        if (map != null) available |= map.GetAchievementRewardList().Count > 0 || map.GetSubQuestRewardList().Count > 0;
+        if (guideline != null && guideline.Node2Map != null)
+            available |= guideline.Node2Map.GetAchievementRewardList().Count > 0 || guideline.Node2Map.GetSubQuestRewardList().Count > 0;
+        available &= MissionManagement.IsOpenSubCategory(category);
+        available &= !SingletonAuto<MissionStatus>.instance.IsMissionTimeout(category);
+        foreach (var group in view.RewardButtonGroupList)
+        {
+            if (group == null || group.Root == null || !group.Root.gameObject.activeInHierarchy || group.GetAllRewardButton == null) continue;
+            // Keep the existing native click handler, currency-cap warning,
+            // reward request, account updates and reward popups.
+            group.SetGetAllRewardButton(true);
+            UIHelper.EnableButton(group.GetAllRewardButton, available, grayscaleIfDisable: true);
+        }
+    }
+}

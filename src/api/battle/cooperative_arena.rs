@@ -14,8 +14,9 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
     // ArenaContext.GetDifficulty hardcodes Easy (0). Normal (1) selects the
     // PvE DefeatAllEnemy rules instead of Victory's MoreCreatureAlive rules,
     // changing combat state and ending the worker while the replay still fights.
-    let payload=json!({"RunId":id,"ArenaMatch":true,"MatchUid":uid,"MatchInfo":info,"BossHp":0,"BossIndex":0,"Seed":rand::random::<u32>()%i32::MAX as u32,
+    let mut payload=json!({"RunId":id,"ArenaMatch":true,"MatchUid":uid,"MatchInfo":info,"BossHp":0,"BossIndex":0,"Seed":rand::random::<u32>()%i32::MAX as u32,
         "Simulation":{"Uid":uid.to_string(),"ChapterIndex":1000,"DungeonIndex":1,"DungeonDifficulty":0,"RepeatCount":1,"RemainCount":1,"AccountInfos":info["AccountInfos"]}});
+    if info["ArenaType"]=="BanPick" {payload["Draft"]=honor::initial(&members);}
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker,master:members[0],room:0,members,payload,
         entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),
         logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
@@ -83,6 +84,12 @@ fn notify_result(s:&AppState,run:&Run,result:&Value)->BTreeSet<i64> {
 }
 
 pub(super) async fn depart(s:&AppState,run:&mut Run,a:i64)->Result<()> {
+    if run.payload["Draft"].is_object() && !run.started {
+        // Leaving an accepted draft is a forfeit. Charge once even though the
+        // combat loading barrier has not been reached yet.
+        charge(s,run).await?;
+        return finish(s,run,&json!({"Creatures":[],"TimeMs":0}),Some(a)).await;
+    }
     if !run.started {return cancel(s,run).await;}
     finish(s,run,&json!({"Creatures":[],"TimeMs":run.time_ms}),Some(a)).await
 }

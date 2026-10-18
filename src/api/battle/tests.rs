@@ -3365,6 +3365,12 @@ async fn world_boss_unranked_entry_and_zero_based_ranking_match_client() {
 #[tokio::test]
 async fn world_boss_native_creature_damage_settles_once() {
     let (s,u)=setup().await;
+    // This damage/settlement fixture must also be runnable on Sunday, when
+    // the native calendar grants no global World Boss entries.
+    {
+        let mut db=s.db.acquire().await.unwrap();
+        crate::api::account::stamina::refund(&mut db,&s,n(&u["UserInfo"],"AccountId"),18,2).await.unwrap();
+    }
     sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
     let begin="ChapterIndex=7003&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=4";
     assert_eq!(call(&s,&u,"campaign/begin_campaign",begin).await["Result"],"Success");

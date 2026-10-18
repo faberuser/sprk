@@ -170,7 +170,7 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
     assert_ne!(blocked["Result"], "Success");
 }
 #[tokio::test]
-async fn arena_honor_rank_is_separate_from_victory_and_combat_stays_gated() {
+async fn arena_honor_rank_is_separate_from_victory_and_requires_full_roster() {
     let s = setup().await;
     let u = login(&s, "honor-ranker").await;
     let a = n(&u["UserInfo"], "AccountId");
