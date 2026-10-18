@@ -811,7 +811,7 @@ pub(super) async fn validate_inner(
                 || n(&opened, "DungeonType") != 2
                 || opened["Day"] != day()
                 || n(&opened, "GroupIndex") != n(def, "GroupIndex")
-                || n(&opened, "OpenLevel") != int(r, "RaidLevel")?
+                || n(&opened, "OpenLevel") != r.number("Level", 1)?
             {
                 return Err(rule("RaidNotStarted"));
             }
@@ -853,6 +853,7 @@ pub(super) async fn validate_inner(
             if supplied != expected {
                 return Err(rule("InvalidAffix"));
             }
+            super::punishment::validate_shards(db, s, a, r, def).await?;
         }
     }
     seasons::validate(db, s, a, r).await
@@ -922,6 +923,9 @@ pub(super) async fn enter(
         }
     }
     let dungeon = campaign::dungeon(s, r)?;
+    if n(dungeon, "BattleType") == 47 {
+        super::punishment::prepare_shards(db, s, a, r, entry).await?;
+    }
     if n(dungeon, "BattleType") == 16 {
         super::super::community::raid_enter(db, s, a, r, entry, out).await?;
     }
@@ -1113,11 +1117,12 @@ pub(super) async fn finish(
     }
     if bt == 47 {
         let id = int(r, "RaidIndex")?;
-        let level = int(r, "RaidLevel")?;
+        let template_level = int(r, "RaidLevel")?;
+        let level = r.number("Level", 1)?;
         let definition = row(
             s,
             "PunishmentRaid",
-            &[("RaidIndex", id), ("RaidLevel", level)],
+            &[("RaidIndex", id), ("RaidLevel", template_level)],
         )?;
         let group = n(definition, "GroupIndex");
         let mut p = get(db, a, "punishment_open", group).await?;
@@ -1129,29 +1134,11 @@ pub(super) async fn finish(
         put(db, a, "punishment_open", group, &p).await?;
         let raid = raid_data(s, r)?;
         let check = n(raid, "ClearRaidIndex");
-        put(db,a,"punishment_raid",campaign::key(id,level),&json!({"RaidIndex":id,"RaidLevel":level,"ClearCheckIndex":check,"ClearedTime":time(now())})).await?;
+        put(db,a,"punishment_raid",campaign::key(id,template_level),&json!({"RaidIndex":id,"RaidLevel":template_level,"ClearCheckIndex":check,"ClearedTime":time(now())})).await?;
         let clears = punishment_clears(db, s, a, group).await?;
-        let selected = s
-            .tables
-            .battle
-            .rows("PunishmentRaidReward")
-            .iter()
-            .filter(|v| {
-                n(v, "RaidIndex") == id
-                    && n(v, "RaidLevel") == level
-                    && (v["Active"] == true || n(v, "RewardType") == 2)
-                    && v["ClearCheckIndex"].as_array().is_some_and(|checks| {
-                        checks
-                            .iter()
-                            .all(|c| clears.iter().any(|v| v["ClearCheckIndex"] == *c))
-                    })
-            })
-            .max_by_key(|v| v["ClearCheckIndex"].as_array().map_or(0, Vec::len));
-        if let Some(selected) = selected {
-            for index in selected["RewardIndex"].as_array().into_iter().flatten() {
-                reward_index(db, s, a, index.as_i64().unwrap_or(0), &mut extra).await?;
-            }
-        }
+        let checks = clears.iter().map(|v|n(v,"ClearCheckIndex")).collect();
+        let selected = super::punishment::reward_definition(s,id,&checks,n(definition,"Boss")==1)?;
+        super::punishment::grant(db,s,a,selected,level,&mut extra).await?;
         out["PunishmentRaidInfos"] = json!(clears);
         out["OpenPunishmentRaidInfo"] = p;
     }
@@ -1596,11 +1583,11 @@ pub(super) async fn execute(
                         .battle
                         .rows("PunishmentRaid")
                         .iter()
-                        .filter(|v| n(v, "GroupIndex") == group && n(v, "RaidLevel") == level)
+                        .filter(|v| n(v, "GroupIndex") == group && n(v, "RaidLevel") == 1)
                         .all(|v| {
                             s.tables
                                 .battle
-                                .find("Raid", &[("Index", n(v, "RaidIndex")), ("Level", level)])
+                                .find("Raid", &[("Index", n(v, "RaidIndex")), ("Level", 1)])
                                 .is_some_and(|raid| raid["IsOpen"] == true)
                         })
                 {
@@ -1611,19 +1598,24 @@ pub(super) async fn execute(
                     .battle
                     .rows("PunishmentRaid")
                     .iter()
-                    .any(|v| n(v, "GroupIndex") == group && n(v, "RaidLevel") == level)
+                    .any(|v| n(v, "GroupIndex") == group && n(v, "RaidLevel") == 1)
                 {
                     return Err(rule("DungeonNotFound"));
                 }
                 if !p.is_null() && p["Day"] == day() && n(&p, "IsOpen") == 1 {
                     return Err(rule("AlreadyCompleted"));
                 }
+                // Native level picker allows the highest clear plus five;
+                // RaidLevel remains the level-1 template used for this mode.
+                if level < 1 || level > n(&p,"ClearLevel").saturating_add(5).min(i32::MAX as i64) {
+                    return Err(rule("InvalidValue"));
+                }
                 let clears = if p["Day"] == day() && n(&p, "GroupIndex") == group {
                     n(&p, "ClearCount")
                 } else {
                     0
                 };
-                let previous_level = if p["Day"] == day() && n(&p, "GroupIndex") == group {
+                let previous_level = if n(&p, "GroupIndex") == group {
                     n(&p, "ClearLevel")
                 } else {
                     0

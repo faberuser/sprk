@@ -37,13 +37,13 @@ pub(super) async fn execute(
         .find(|v| {
             n(v, "ChapterIndex") == n(stage, "ChapterIndex")
                 && n(v, "DungeonIndex") == n(stage, "DungeonIndex")
-                && n(v, "Level") == level
+                && n(v, "Level") == 1
         })
         .ok_or_else(|| rule("DungeonNotFound"))?;
     let def = row(
         s,
         "PunishmentRaid",
-        &[("RaidIndex", n(raid, "Index")), ("RaidLevel", level)],
+        &[("RaidIndex", n(raid, "Index")), ("RaidLevel", 1)],
     )?;
     if n(def, "GroupIndex") != group {
         return Err(rule("DungeonNotFound"));
@@ -52,7 +52,8 @@ pub(super) async fn execute(
     request
         .0
         .insert("RaidIndex".into(), n(raid, "Index").to_string());
-    request.0.insert("RaidLevel".into(), level.to_string());
+    request.0.insert("RaidLevel".into(), "1".into());
+    request.0.insert("Level".into(), level.to_string());
     let mut out = if action == "begin_content" {
         // Native Squard includes both owned teams in HeroIndices. For this
         // contract AiHeroIndices identifies the sub team; it is not an AI roster.
@@ -65,11 +66,6 @@ pub(super) async fn execute(
             || !ids(r, "GroupHeroIndices", 32)?.is_empty()
         {
             return Err(rule("NotMatchHeroIndices"));
-        }
-        if int(r, "FlaskItemIndex")? != 0
-            || int(r, "FlaskItemCount")? != 0
-        {
-            return Err(rule("ContentsDisabled"));
         }
         // Revalidate modifiers even when the shared lifecycle returns an entry retry.
         dungeons::validate(db, s, a, &request, stage).await?;

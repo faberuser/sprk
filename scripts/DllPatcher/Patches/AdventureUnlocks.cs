@@ -96,6 +96,7 @@ partial class Program
             }
             category.Body.MaxStackSize = Math.Max(3, category.Body.MaxStackSize);
         }
+        PatchOrdealUnlock(module);
         if (module.AssemblyReferences.Any(r => r.Name == "AdventureUnlockPatch"))
             throw new InvalidOperationException("Unlock patch leaked a helper assembly reference");
         Console.WriteLine("Adventure entry gates honor tutorial skip and completed automatic dungeon milestones.");

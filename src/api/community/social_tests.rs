@@ -1321,8 +1321,39 @@ impl Socket {
         assert_eq!(name, "LoginRes");
         assert_eq!(value["RequestId"], 11);
         assert_eq!(value["Result"], "Success");
+        assert_eq!(value["ChannelNo"], channel.clamp(1, 99));
         socket
     }
+}
+
+#[tokio::test]
+async fn native_socket_channel_limit_rejects_invalid_changes_and_keeps_membership() {
+    let (state, a, b) = setup().await;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let server = tokio::spawn(chat::serve(listener, state.clone()));
+    // Existing clients may reconnect with a channel from the previous range.
+    let mut socket = Socket::connect(addr, &a, 1001).await;
+    let mut other = Socket::connect(addr, &b, 99).await;
+    for channel in [json!(1), json!("99")] {
+        socket.send("ChangeChannelReq", json!({"RequestId":20,"ChannelNo":channel})).await;
+        let (name, response) = socket.read().await;
+        assert_eq!(name, "ChangeChannelRes");
+        assert_eq!(response["Changed"], true);
+    }
+    for channel in [json!(0), json!(-1), json!(100), json!(9999), json!("100")] {
+        socket.send("ChangeChannelReq", json!({"RequestId":21,"ChannelNo":channel})).await;
+        assert_eq!(socket.read().await.1["Changed"], false);
+    }
+    other.send("MessageReq", json!({"RequestId":22,"GroupType":"Channel","Message":"ChannelChat {\"Chat\":\"still channel 99\"}"})).await;
+    assert_eq!(other.read().await.0, "MessageRes");
+    let own = other.read().await;
+    assert_eq!(own.0, "MessageNot");
+    assert_eq!(socket.read().await, own);
+    let history = chat::get_recent_chats(State(state.clone()), form(&a, "ChannelId=100")).await.unwrap().0;
+    assert_eq!(history["WorldChats"].as_array().unwrap().len(), 1);
+    let _lower = Socket::connect(addr, &a, 0).await;
+    server.abort();
 }
 
 #[tokio::test]

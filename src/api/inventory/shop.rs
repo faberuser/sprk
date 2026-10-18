@@ -128,7 +128,7 @@ async fn stock(
     let mut expected: Vec<Value> = state.tables.hero_shop.shop_items.iter()
         .filter(|v| n(v,"ShopIndex")==shop_id as i64 && purchasable(state,shop,v)).cloned().collect();
     expected.sort_by_key(|r| n(r,"Index"));
-    let catalog_changed = matches!(shop_id,4|20|21|27) && old.as_ref().is_some_and(|r|
+    let catalog_changed = matches!(shop_id,4|15|20|21|27|35) && old.as_ref().is_some_and(|r|
         serde_json::from_str::<Vec<Value>>(&r.get::<String,_>("stock")).ok().as_ref()!=Some(&expected));
     let needs = old.is_none() || refresh || expired || catalog_changed;
     if needs {
@@ -253,7 +253,10 @@ async fn execute(
             .items
             .get(&item_id)
             .ok_or_else(|| rule("ItemDataNotFound"))?;
-        let cost_type = if n(row, "BuyCostTypeForItem") > 0 {
+        // Native rotating ShopListItemInfo has no per-item currency or price.
+        // Cached stock can originate in another shop's catalog, but its source
+        // overrides are not shown by the client and must not affect the charge.
+        let cost_type = if !rotating && n(row, "BuyCostTypeForItem") > 0 {
             n(row, "BuyCostTypeForItem")
         } else {
             n(shop, "BuyCostType")
@@ -262,12 +265,13 @@ async fn execute(
         if kind == "GuildPoint" {
             crate::api::community::validate_shop(db,state,account,id as i64).await?;
         }
-        let mut price = if n(row, "TargetPrice") > 0 {
-            n(row, "TargetPrice")
+        let target_price = if rotating { 0 } else { n(row, "TargetPrice") };
+        let mut price = if target_price > 0 {
+            target_price
         } else {
             n(meta, &format!("Buy{kind}")) * n(row, "Count")
         };
-        if n(row, "TargetPrice") == 0
+        if target_price == 0
             && state
                 .tables
                 .items

@@ -9,6 +9,8 @@ use tokio::{io::{AsyncReadExt,AsyncWriteExt},net::{TcpListener,TcpStream},sync::
 mod party;
 #[path = "cooperative_arena.rs"]
 mod arena;
+#[path = "cooperative_honor.rs"]
+mod honor;
 #[cfg(test)]
 #[path = "raid_party_tests.rs"]
 mod raid_tests;
@@ -210,10 +212,11 @@ pub(crate) async fn party_start(db:&mut SqliteConnection,s:&AppState,a:i64,room:
 
 pub(crate) async fn serve(listener:TcpListener,s:AppState)->std::io::Result<()> {
     let cleanup=s.clone();tokio::spawn(async move {
-        let mut interval=tokio::time::interval(std::time::Duration::from_secs(15));
+        let mut interval=tokio::time::interval(std::time::Duration::from_secs(2));
         loop {interval.tick().await;
             let handles:Vec<_>=cleanup.conquest.runs.iter().map(|v|v.value().clone()).collect();
-            for handle in handles {let run=handle.lock().await;
+            for handle in handles {let mut run=handle.lock().await;
+                if let Err(error)=honor::tick(&cleanup,&mut run).await {tracing::warn!(%error,"Honor draft timer failed");}
                 if run.result.is_some() && now()-run.created>1800 {cleanup.conquest.runs.remove(&run.id);}
                 else if run.result.is_none() && now()-run.created>if run.started {1200}else{120} {
                     if let Err(error)=cancel(&cleanup,&run).await {tracing::warn!(%error,"Conquest cleanup failed");}
@@ -310,6 +313,9 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         }
                         battle_run=Some(id.to_owned());
                         tx.send(("BattleLoginRes".into(),json!({"Result":"Success","RequestId":body["RequestId"]}))).await.map_err(|_|rule("InvalidValue"))?;
+                        if honor::drafting(&run) {
+                            tx.send(("BattleBanPickStartNot".into(),json!({}))).await.map_err(|_|rule("InvalidValue"))?;
+                        }
                     } else {return Err(rule("Unauthorized"));}
                 } else if worker {
                     if let Err(error) = worker_packet(&s,&connection_id,&name,body).await {
@@ -351,10 +357,14 @@ async fn player_packet(s:&AppState,a:i64,name:&str,body:Value,tx:&Sender)->Resul
 async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx:&Sender)->Result<()> {
     let handle=s.conquest.runs.get(id).ok_or_else(||rule("BattleServerNotFound"))?.clone();let mut run=handle.lock().await;
     if run.payload["ArenaMatch"]==true && run.result.is_none() {arena::sync_finished(s,&mut run).await?;}
+    if name.starts_with("BattleBanPick") {return honor::packet(s,&mut run,a,name,&body,tx).await;}
+    if matches!(name,"PingReq"|"PingIdleReq") {honor::tick(s,&mut run).await?;}
     let response_name=if matches!(name,"ReserveOnSkillReq"|"ReserveOffSkillReq"|"FireNextSkillReq"|"SetManualTargetReq"|"SetManualMoveReq") {"BaseCreatureActionRes".into()}else{name.strip_suffix("Req").map(|n|format!("{n}Res")).ok_or_else(||rule("InvalidRequest"))?};
     let mut reply=json!({"Result":"Success","RequestId":body["RequestId"]});
     match name {
         "BattleEnterReq" => {
+            if honor::drafting(&run) {reply["Result"]=json!("Fail");}
+            else {
             if run.departed.contains(&a) { return Err(rule("WrongMember")); }
             if run.payload["PartyCampaign"] == true {
                 let pending: bool = sqlx::query_scalar("SELECT COALESCE(json_extract(entry,'$.PartyResourceChoicePending'),0) FROM battle_runs WHERE account=? AND json_extract(entry,'$.CoopRunId')=?")
@@ -375,12 +385,19 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
                     run.sent.insert(a);
                 }
             }
+            }
         }
         "BattleStartReq" => {
+            if honor::drafting(&run) {reply["Result"]=json!("Fail");}
+            else {
             run.ready.insert(a);
             start_wave(s,&mut run).await?;
+            }
         }
-        "BattleWaveResumeReq"=>{s.conquest.send_worker("WorkerResume",json!({"RunId":id})).await?;}
+        "BattleWaveResumeReq"=>{
+            if honor::drafting(&run) {reply["Result"]=json!("Fail");}
+            else {s.conquest.send_worker("WorkerResume",json!({"RunId":id})).await?;}
+        }
         "BattleMessageReq" => {
             // Arena emotes are presentation messages, not combat commands. The
             // native client displays its own emote from the notification too.
@@ -412,7 +429,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             // worker is still paused so the replay can show/cancel the selection.
             // They also replay behind the worker and can send a final action
             // after its result. Neither boundary is a transport failure.
-            if run.result.is_none() && !run.departed.contains(&a) {
+            if run.result.is_none() && !run.departed.contains(&a) && !honor::drafting(&run) {
                 let action=json!({"RunId":id,"AccountId":a,"Name":name,"Body":body});
                 if run.started || (run.prepared && run.payload.get("ReplayWaveIndex").is_some()) {
                     s.conquest.send_worker("WorkerCommand",action).await?;
@@ -443,6 +460,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
 /// Only participants still playing gate loading and every wave, including the first.
 async fn prepare_wave(s:&AppState,run:&mut Run)->Result<()> {
     if run.result.is_some() || run.prepared {return Ok(());}
+    if honor::drafting(run) {return Ok(());}
     let active:Vec<_>=run.members.iter().filter(|a|!run.departed.contains(a) && !run.offline.contains(a)).collect();
     if active.is_empty() || !active.iter().all(|a|run.entered.contains(a)) {return Ok(());}
     s.conquest.send_worker("WorkerPrepare",run.payload.clone()).await?;
@@ -644,7 +662,7 @@ async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<
         let connected:BTreeSet<_>=s.conquest.peers.iter()
             .filter(|peer|peer.run==id && !peer.sender.is_closed()).map(|peer|*peer.key()).collect();
         if run.payload["ArenaMatch"] == true {
-            if connected.is_empty() || !run.started {return cancel(s,&run).await;}
+            if connected.is_empty() || (!run.started && run.payload["Draft"].is_null()) {return cancel(s,&run).await;}
             if let Some(a)=disconnected.filter(|a|!connected.contains(a)) {return arena::depart(s,&mut run,a).await;}
             return Ok(());
         }

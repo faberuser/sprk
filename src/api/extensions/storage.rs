@@ -1,5 +1,9 @@
 use super::*;
 
+// EquipPresetInfo.SaveEquipParts: armor, secondary gear, accessory, orb, artifact.
+// Weapons and treasures are hero-specific and are not changed by Gear Custom.
+const SAVE_PARTS: [i64; 5] = [2, 4, 3, 6, 5];
+
 fn blank(index: i64) -> Value {
     let mut v = json!({"EquipStorageSlotIndex":index,"Name":"","LinkInfo":"[]"});
     for i in 1..=10 {
@@ -84,7 +88,8 @@ pub(super) async fn execute(
     }
     match action {
         "change_equip_storage_slot_name" | "add_equip_storage_slot" => {
-            let name = req.text("Name").trim();
+            let name = req.0.get("Name").map(|s| s.trim())
+                .unwrap_or_else(|| v["Name"].as_str().unwrap_or(""));
             if name.chars().count() > 40 || name.chars().any(char::is_control) {
                 return Err(rule("InvalidName"));
             }
@@ -95,19 +100,27 @@ pub(super) async fn execute(
                 let h = hero::info(db, account, hero_id).await?;
                 let parts: Vec<i64> = serde_json::from_str(req.text("HeroPartIndex"))
                     .map_err(|_| rule("InvalidEquipItem"))?;
-                let slots = ids(req, "EquipItemSlotIndex")?;
+                // Zero denotes an empty position; repeated zeros are valid.
+                let slots: Vec<i64> = serde_json::from_str(req.text("EquipItemSlotIndex"))
+                    .map_err(|_| rule("InvalidEquipItemSlotIndex"))?;
                 if slots.is_empty()
+                    || slots.len() > SAVE_PARTS.len()
                     || parts.len() != slots.len()
                     || parts.iter().collect::<BTreeSet<_>>().len() != parts.len()
+                    || parts.iter().any(|p| !SAVE_PARTS.contains(p))
+                    || slots.iter().any(|s| *s < 0)
+                    || slots.iter().filter(|s| **s > 0).collect::<BTreeSet<_>>().len()
+                        != slots.iter().filter(|s| **s > 0).count()
+                    || !slots.iter().any(|s| *s > 0)
                 {
-                    return Err(rule("InvalidEquipItem"));
+                    return Err(rule("InvalidEquipItemSlotIndex"));
                 }
                 for i in 1..=10 {
                     v[format!("EquipItemSlotIndex{i}")] = json!(0);
                 }
                 for (part, slot) in parts.into_iter().zip(slots) {
-                    if !(1..=10).contains(&part) {
-                        return Err(rule("InvalidEquipItem"));
+                    if slot == 0 {
+                        continue;
                     }
                     let eq = equip(db, account, slot).await?;
                     compatible(state, &h, &eq, part)?;
@@ -144,7 +157,7 @@ pub(super) async fn execute(
             let mut removed = vec![];
             let mut old_removed = vec![];
             let mut old_hero = 0;
-            for part in 1..=10 {
+            for part in SAVE_PARTS {
                 let key = format!("EquipItemSlotIndex{part}");
                 let slot = n(&v, &key);
                 if slot > 0 {
@@ -152,7 +165,7 @@ pub(super) async fn execute(
                     compatible(state, &h, &eq, part)?;
                 }
             }
-            for part in 1..=10 {
+            for part in SAVE_PARTS {
                 let key = format!("EquipItemSlotIndex{part}");
                 let slot = n(&v, &key);
                 let previous = n(&h, &key);
@@ -185,7 +198,9 @@ pub(super) async fn execute(
             out["OldHeroIndex"] = json!(old_hero);
             out["NewEquippedSlotIndex"] = json!(equipped);
             out["NewUnEquippedSlotIndex"] = json!(removed);
-            out["UnEquippedSlotIndices"] = json!(removed);
+            // The native preset helper must clear previous owners in its cache too.
+            out["UnEquippedSlotIndices"] = json!(removed.iter().chain(&old_removed)
+                .copied().collect::<BTreeSet<_>>());
             out["OldUnEquippedSlotIndex"] = json!(old_removed);
             out["HeroInfo"] = hero::info(db, account, hero_id).await?;
         }

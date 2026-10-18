@@ -25,7 +25,13 @@ pub(super) fn season_info(s: &AppState, kind: i64) -> Value {
     .get(kind as usize)
     .copied()
     .unwrap_or("Normal");
-    json!({"Index":index,"Name":"Local arena season","Begin":time(start),"End":time(end),"Description":"","SeasonIndex":index,"ShowSeasonIndex":index,"ArenaType":name,"MatchSeasonType":"Regular","IsTakeReward":false,"PlayTimeBegin":"00:00:00","PlayTimeEnd":"23:59:59","LimitedHeroStar":0,"LimitedHeroLevel":0,"LimitedHeroCount":4,"ActiveTier":true})
+    json!({"Index":index,"Name":"Local arena season","Begin":time(start),"End":time(end),"Description":"","SeasonIndex":index,"ShowSeasonIndex":index,"ArenaType":name,"MatchSeasonType":"Regular","IsTakeReward":false,"PlayTimeBegin":"00:00:00","PlayTimeEnd":"23:59:59","LimitedHeroStar":0,"LimitedHeroLevel":0,"LimitedHeroCount":if kind==1{constant(s,"MatchingBanPickHeroCountMin",12)}else{4},"ActiveTier":true})
+}
+pub(crate) async fn match_tickets(db:&mut SqliteConnection,s:&AppState,a:i64,kind:i64,amount:i64)->Result<Value> {
+    if kind==1 {
+        if amount>0 {crate::api::account::stamina::refund(db,s,a,13,amount).await}
+        else {crate::api::battle::charge_key(db,s,a,13,-amount).await}
+    } else {tickets(db,s,a,"Sword",amount).await}
 }
 pub(crate) async fn tickets(
     db: &mut SqliteConnection,
@@ -230,7 +236,7 @@ async fn ranking_kind(db: &mut SqliteConnection, s: &AppState, season: i64, kind
 pub(super) async fn battle_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     battle_info_kind(db, s, a, 0).await
 }
-async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<Value> {
+pub(crate) async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<Value> {
     ensure_kind(db, s, a, kind).await?;
     let rank = ranking_kind(db, s, season(s).0, kind)
         .await?
@@ -263,18 +269,20 @@ async fn execute_inner(
     action: &str,
     trusted: bool,
 ) -> Result<Value> {
-    let kind = int(r, "ArenaType")?;
+    // Native polls, cancellation and result requests omit ArenaType. Resolve
+    // their durable run instead of accidentally operating on Victory's partition.
+    let kind = if matches!(action,"wait_match"|"cancel_match"|"get_match_result") {
+        let uid=r.number("MatchUid",0)?;
+        sqlx::query_scalar::<_,i64>("SELECT kind FROM arena_runs WHERE account=? AND ((?=0 AND status IN ('waiting','battle')) OR (?!=0 AND (id=? OR json_extract(data,'$.OnlineMatchUid')=?))) ORDER BY id DESC LIMIT 1")
+            .bind(a).bind(uid).bind(uid).bind(uid).bind(uid).fetch_optional(&mut *db).await?.unwrap_or(int(r,"ArenaType")?)
+    } else {int(r,"ArenaType")?};
     if action == "get_season_info" {
         if kind == 5 {
             return Ok(json!({"SeasonData":super::super::battle::match_calendar(s)?}));
         }
         return Ok(json!({"SeasonData":season_info(s,kind)}));
     }
-    // Honor rank reads have their own score partition. Combat remains gated
-    // until its live ban/pick protocol is implemented.
-    if kind != 0 && !(kind == 1 && matches!(action,
-        "get_match_rank" | "get_match_ranker" | "get_server_ranker" |
-        "get_world_ranker" | "get_server_group_ranker")) {
+    if !(0..=1).contains(&kind) {
         return Err(rule("ContentsDisabled"));
     }
     ensure_kind(db, s, a, kind).await?;
@@ -332,10 +340,18 @@ async fn execute_inner(
             if n(&user(db, a).await?, "TeamLevel") < constant(s, "ArenaOpenTeamLevel", 10) {
                 return Err(rule("ContentsDisabled"));
             }
-            let heroes = ids(r, "HeroIndices", 4)?;
+            let heroes = ids(r, "HeroIndices", if kind==1{200}else{4})?;
             owned(db, a, &heroes).await?;
+            if kind==1 {
+                if heroes.len() < constant(s,"MatchingBanPickHeroCountMin",12) as usize {return Err(rule("NoHeroes"));}
+                for id in &heroes {
+                    let h=cached_hero(db,a,*id).await?;
+                    if n(&h,"Level")<constant(s,"MatchingBanPickHeroLevelMin",1) || n(&h,"Star")<constant(s,"MatchingBanPickHeroStarMin",1) {return Err(rule("InvalidHero"));}
+                }
+                if n(&match_tickets(db,s,a,kind,0).await?,"NewValue")<1 {return Err(rule("NotEnoughSword"));}
+            }
             let leader = int(r, "LeaderHeroIndex")?;
-            if leader > 0 && !heroes.contains(&leader) {
+            if kind==0 && leader > 0 && !heroes.contains(&leader) {
                 return Err(rule("InvalidHero"));
             }
             let active = sqlx::query(
@@ -354,23 +370,27 @@ async fn execute_inner(
             super::ensure_available(db, a, &heroes).await?;
             let mut mine = account(db, a, &heroes, false).await?;
             mine["LeaderHeroIndex"] = json!(if leader == 0 { heroes[0] } else { leader });
-            mine["BattleInfo"] = battle_info(db, s, a).await?;
+            mine["ArenaType"]=json!(if kind==1{"BanPick"}else{"Normal"});
+            mine["BattleInfo"] = battle_info_kind(db, s, a,kind).await?;
             mine["Rank"] = mine["BattleInfo"]["Rank"].clone();
             mine["TierIndex"] = mine["BattleInfo"]["TierIndex"].clone();
             out["AccountInfo"] = mine;
-            out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
-            out["DeckInfo"] =
-                json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}});
-            let data = json!({"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
-            sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,0,?,'waiting',?)").bind(a).bind(now()).bind(data.to_string()).execute(db).await?;
+            out["SwordResult"] = match_tickets(db, s, a,kind,0).await?;
+            // Honor registers the eligible collection, not a saved party deck.
+            // Applying it as DeckInfo would replace the client's four-hero deck.
+            out["DeckInfo"] = if kind==1 {Value::Null} else {
+                json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}})
+            };
+            let data = json!({"Kind":kind,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
+            sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,'waiting',?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).execute(db).await?;
         }
         "cancel_match" => {
             if online::cancel_account(db, s, a).await? {
-                out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
+                out["SwordResult"] = match_tickets(db, s, a,kind,0).await?;
                 return Ok(out);
             }
             sqlx::query("UPDATE arena_runs SET status='canceled' WHERE account=? AND status IN ('waiting','battle')").bind(a).execute(&mut *db).await?;
-            out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
+            out["SwordResult"] = match_tickets(db, s, a,kind,0).await?;
         }
         "wait_match" => {
             let run = sqlx::query(
@@ -392,7 +412,7 @@ async fn execute_inner(
                     .execute(&mut *db)
                     .await?;
                 out["Result"] = json!("Canceled");
-                out["SwordResult"] = tickets(db, s, a, "Sword", 0).await?;
+                out["SwordResult"] = match_tickets(db, s, a,kind,0).await?;
                 return Ok(out);
             }
             if run.get::<String, _>("status") == "battle" {
@@ -404,7 +424,7 @@ async fn execute_inner(
             if let Some(matched) = online::pair(db, s, a, id, &data).await? {
                 return Ok(matched);
             }
-            if !flag(r, "PlayOfflineMatch")? {
+            if kind==1 || !flag(r, "PlayOfflineMatch")? {
                 out["Result"] = json!("WaitMore");
                 return Ok(out);
             }
@@ -553,7 +573,8 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
 }
 
 async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,trusted:bool)->Result<Value> {
-    if int(r,"ArenaType")? != 0 {return Err(rule("ContentsDisabled"));}
+    let kind=int(r,"ArenaType")?;
+    if !(0..=1).contains(&kind) {return Err(rule("ContentsDisabled"));}
     let mut out=item::success();
     let run = sqlx::query("SELECT * FROM arena_runs WHERE account=? AND status='battle'")
         .bind(a)
@@ -561,6 +582,7 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
         .await?
         .ok_or_else(|| rule("MatchingAborted"))?;
     let id = run.get::<i64, _>("id");
+    if run.get::<i64,_>("kind")!=kind {return Err(rule("MatchingAborted"));}
     let mut data: Value = parse(&run.get::<String, _>("data"))?;
     if data["OnlineMatchUid"].is_null() && run.get::<i64,_>("started") < now()-settings(s,"ArenaMatchExpirySeconds",900) {
         return Err(rule("MatchingAborted"));
@@ -580,7 +602,7 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     if alive.iter().any(|h| !heroes.contains(h)) {
         return Err(rule("InvalidHero"));
     }
-    let previous = battle_info(db, s, a).await?;
+    let previous = battle_info_kind(db, s, a,kind).await?;
     let delta = if win == 1 {
         settings(s, "ArenaWinScore", 20)
     } else {
@@ -589,7 +611,7 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     let score = (n(&previous, "MatchScore") + delta).clamp(0, i32::MAX as i64);
     let delta = score - n(&previous, "MatchScore");
     let details = json!({"SuccessiveWin":if win==1{n(&previous,"SuccessiveWin")+1}else{0},"SuccessiveLose":if win==0{n(&previous,"SuccessiveLose")+1}else{0},"LastMatchTime":time(now())});
-    sqlx::query("UPDATE arena_scores SET score=?,wins=wins+?,losses=losses+?,data=? WHERE account=? AND kind=0 AND season=?").bind(score).bind(win).bind(1-win).bind(details.to_string()).bind(a).bind(season(s).0).execute(&mut *db).await?;
+    sqlx::query("UPDATE arena_scores SET score=?,wins=wins+?,losses=losses+?,data=? WHERE account=? AND kind=? AND season=?").bind(score).bind(win).bind(1-win).bind(details.to_string()).bind(a).bind(kind).bind(season(s).0).execute(&mut *db).await?;
     let currency = hero::currency(
         db,
         a,
@@ -605,16 +627,16 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
         ),
     )
     .await?;
-    let current = battle_info(db, s, a).await?;
-    out["MatchResult"] = json!({"MatchUid":id,"ArenaType":"Normal","Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":tickets(db,s,a,"Sword",0).await?,"CurrencyResults":[currency]});
-    out["BattleInfo"] = current;
+    let current = battle_info_kind(db, s, a,kind).await?;
+    out["MatchResult"] = json!({"MatchUid":id,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[currency]});
+    out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}] = current;
     data["End"] = out.clone();
     sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
         .bind(data.to_string())
         .bind(id)
         .execute(&mut *db)
         .await?;
-    put(
+    if kind==0 {put(
         db,
         a,
         "arena_daily",
@@ -622,6 +644,6 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
         // Preserve the existing one-based daily reward snapshot format.
         &json!({"Day":day(),"TierIndex":out["BattleInfo"]["TierIndex"],"Rank":n(&out["BattleInfo"], "Rank") + 1}),
     )
-    .await?;
+    .await?;}
     Ok(out)
 }

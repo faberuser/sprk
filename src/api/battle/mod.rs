@@ -20,6 +20,7 @@ use std::collections::BTreeSet;
 mod campaign;
 pub(crate) mod entry_costs;
 mod contents;
+mod punishment;
 mod karma;
 pub mod campaign_handlers;
 mod dispatch;
@@ -393,7 +394,7 @@ pub(crate) async fn abandon_local_run_on_lobby(
                 && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
                 && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
         if (campaign::is_story_entry(s,&entry) || solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
-            || entry["ShakmehStoryFinal"] == true)
+              || entry["ShakmehStoryFinal"] == true || entry["PunishmentShard"].is_object())
             && !session.is_empty()
             && request["SessionKey"].as_str() == Some(session)
             && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true

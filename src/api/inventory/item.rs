@@ -64,8 +64,9 @@ pub(crate) async fn consume(
     if count <= 0 {
         return Err(rule("InvalidItemCount"));
     }
+    let reserved=crate::api::battle::entry_costs::held(db,account,"Item",index as i64).await?;
     let row=sqlx::query("UPDATE items SET count=count-? WHERE account_id=? AND item_index=? AND count>=? AND locked=0 RETURNING count,locked")
-        .bind(count).bind(account).bind(index).bind(count).fetch_optional(&mut *db).await?;
+        .bind(count).bind(account).bind(index).bind(count as i64+reserved).fetch_optional(&mut *db).await?;
     let Some(row) = row else {
         return Err(rule("ItemNotOwned"));
     };

@@ -1,5 +1,19 @@
 # DLL patcher
 
+Battlefield of Ordeals accepts the account's tutorial-skip setting as well as
+completion of its configured League of Victory introduction (normally 2130).
+The account guards and seasonal availability checks remain native. Apply this
+focused change to an already patched client with:
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --ordeal-unlock-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-ordeal-unlock
+```
+
+`--stage-only` prepares/verifies the DLL without installing it. Full adventure
+unlock patching also includes this gate; signed publishing is required after
+installing the client change.
+
 | File                         | Responsibility                                                                                        |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `HeroInn.cs`                 | Loads Unity references and coordinates hero inn patches                                               |
@@ -35,6 +49,15 @@
 The SDK automatically includes the C# files in `Patches/`.
 
 Run from the server directory:
+
+`--honor-only` preserves the installed assembly and repairs the Honor tier reward
+panel when a historical weekly box references a missing reward row. The panel
+hides that unavailable box and continues showing the ranks and other rewards.
+`--stage-only` prepares `Assembly-CSharp.dll.honor-staged`;
+`--verify-honor` validates the installed hook (`--stage-only` selects staging).
+Installation also checks repeat application and IL control flow. Honor combat
+and its native ban/pick protocol run on the server; see
+[League of Honor](../../docs/league-of-honor.md).
 
 ```powershell
 dotnet build scripts/DllPatcher
@@ -132,3 +155,38 @@ Patch implementations are partial members of `Program` under `Patches/`:
 socket close callbacks against replacement sessions. After installation, use
 `--verify-websocket-lifecycle` to verify that guard. Verify consecutive party
 battles with one host Start Battle click each before publishing the update.
+
+### Chat channel selection
+
+`dotnet run --project scripts/DllPatcher -- ../sprk-client --chat-channels-only`
+preserves installed patches and fixes the Change Channel dialog: custom channels
+use 1–99, reopening shows the current channel, and the numeric input supports
+Backspace, Delete, caret movement and clipboard shortcuts through native NGUI
+editing. The language-channel option keeps its existing behavior. The focused
+patch installs `SprkChatChannels.dll` and hooks the installed `Assembly-CSharp.dll`.
+`--stage-only` prepares both files without installing them;
+`--verify-chat-channels` checks the installed hooks (add `--stage-only` for the
+staged assembly). Close all clients before installation, then publish a signed
+client update as described in `docs/client-updates.md`.
+
+`--chat-send-only` installs the same focused chat controls with a **Send** button
+to the left of **Share** in Channel, Guild, Party and Whisper chat. Send submits the
+existing text input, preserving native recipients and cooldowns; Share retains
+its gear-link action. Empty or unavailable inputs disable Send. Use
+`--verify-chat-send` to check the installed hooks and IL control flow.
+
+### Mission Claim All
+
+`--mission-claim-all-only` preserves installed patches and enables the native
+Claim All header control in Growth, Battle, Raid, Arena, Story, Guild and other
+node-based mission categories. Existing list-based and Guideline controls remain
+available. Claims use the selected subcategory's native reward request, currency
+cap warning, reward popup and refresh. The button stays visible and disables when
+the selected page has no eligible rewards, is locked or has expired.
+
+The focused installer adds `SprkMissionClaimAll.dll` and two header hooks to
+`Assembly-CSharp.dll`, checking IL control flow and repeat installation. Add
+`--stage-only` to prepare both files with `.mission-claim-all-staged` suffixes;
+`--verify-mission-claim-all` checks the installed hooks and native bulk requests
+(also supports `--stage-only`). Close clients before installation, restart after
+installation, and publish a signed client update using the release workflow.

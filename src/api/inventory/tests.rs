@@ -8,6 +8,51 @@ use axum::{body::Bytes, extract::State};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
+#[tokio::test]
+async fn archived_arena_shops_restore_catalog_prices_and_purchase_receipts() {
+    use crate::api::inventory::shop;
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    for kind in ["GloryPoint","RankingPoint","OrdealArenaPoint"] {
+        sqlx::query("INSERT INTO battle_currencies(account,kind,value) VALUES(?,?,1000000)")
+            .bind(a).bind(kind).execute(&s.db).await.unwrap();
+    }
+    // Existing empty/retired stock must refresh without deleting purchase receipts.
+    for id in [15,35] {
+        sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,?,1,0,0,'[]')")
+            .bind(a).bind(id).execute(&s.db).await.unwrap();
+        let out=shop::get_shop_list(State(s.clone()),form(&u,&format!("ShopIndex={id}"))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","{out}");
+        assert_eq!(out["ShopItems"].as_array().unwrap().len(),if id==15 {38}else{6});
+        let rows:Vec<_>=s.tables.hero_shop.shop_items.iter().filter(|r|r["ShopIndex"]==id).collect();
+        for row in rows {
+            let index=item::n(row,"Index");
+            let currency=match item::n(row,"BuyCostTypeForItem") {12=>"GloryPoint",15=>"RankingPoint",20=>"OrdealArenaPoint",_=>panic!("Wrong archive currency")};
+            let price=if item::n(row,"TargetPrice")>0 {item::n(row,"TargetPrice")}else{
+                item::n(&s.tables.hero_shop.items[&(item::n(row,"ItemIndex") as i32)],&format!("Buy{currency}"))*item::n(row,"Count")
+            };
+            let args=format!("ShopIndex={id}&ShopItemIndex={index}&ShopItemPurchaseCount=1");
+            let bought=shop::buy_shop_item(State(s.clone()),form(&u,&args)).await.unwrap().0;
+            assert_eq!(bought["Result"],"Success","row={row}, result={bought}");
+            assert_eq!(bought["CurrencyResults"][0]["CurrencyType"],currency);
+            assert_eq!(bought["CurrencyResults"][0]["AddValue"],-price);
+            assert_eq!(bought["ItemResult"]["ItemIndex"],row["ItemIndex"]);
+            assert_eq!(bought["ItemResult"]["AddCount"],row["Count"]);
+        }
+        sqlx::query("UPDATE shop_stock SET stock='[]' WHERE account_id=? AND shop_index=?").bind(a).bind(id).execute(&s.db).await.unwrap();
+        let out=shop::get_shop_list(State(s.clone()),form(&u,&format!("ShopIndex={id}"))).await.unwrap().0;
+        assert!(out["ShopItems"].as_array().unwrap().iter().all(|r|r["Purchased"]==1),"{out}");
+    }
+    let out=shop::buy_shop_item(State(s.clone()),form(&u,"ShopIndex=35&ShopItemIndex=7&ShopItemPurchaseCount=1")).await.unwrap().0;
+    assert_ne!(out["Result"],"Success");
+    let args="ShopIndex=35&ShopItemIndex=2&ShopItemPurchaseCount=9";
+    assert_eq!(shop::buy_shop_item(State(s.clone()),form(&u,args)).await.unwrap().0["Result"],"Success");
+    let before: i64=sqlx::query_scalar("SELECT value FROM battle_currencies WHERE account=? AND kind='OrdealArenaPoint'").bind(a).fetch_one(&s.db).await.unwrap();
+    let out=shop::buy_shop_item(State(s.clone()),form(&u,"ShopIndex=35&ShopItemIndex=2&ShopItemPurchaseCount=1")).await.unwrap().0;
+    assert_ne!(out["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='OrdealArenaPoint'").bind(a).fetch_one(&s.db).await.unwrap(),before);
+}
+
 async fn setup() -> (AppState, user::LoginResponse) {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)

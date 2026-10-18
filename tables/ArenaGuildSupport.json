@@ -1,5 +1,197 @@
 {
   "Tables": {
+    "MatchBanPickState": [
+      {
+        "State": 1,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": "MATCH_PICKBAN_BAN_MYTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_BAN_MYTURN",
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 20,
+        "PenaltyTime4Deck2": 20,
+        "PenaltyTime4Deck3": 20,
+        "AnimMe1P": [
+          "HonorLeague_FirstBan_Start",
+          " HonorLeague_FirstBan_End"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_FirstBan_Start",
+          " HonorLeague_FirstBan_End"
+        ]
+      },
+      {
+        "State": 2,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_MYTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_1P_Pick_Start"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_2P_Pick_Start"
+        ]
+      },
+      {
+        "State": 3,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_MYTURN",
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_From1PTo2P"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_From2PToAP"
+        ]
+      },
+      {
+        "State": 4,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_MYTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_From2PToAP"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_From1PTo2P"
+        ]
+      },
+      {
+        "State": 5,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_MYTURN",
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_From1PTo2P"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_From2PToAP"
+        ]
+      },
+      {
+        "State": 6,
+        "TeamType": 0,
+        "IsPick": true,
+        "SelectableCount4Deck": 2,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_MYTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "WaitTime4Deck": 40,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_From2PToAP"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_From1PTo2P"
+        ]
+      },
+      {
+        "State": 7,
+        "TeamType": 1,
+        "IsPick": true,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 2,
+        "LocalMessage1P": "MATCH_PICKBAN_PICK_YOURTURN",
+        "LocalMessage2P": "MATCH_PICKBAN_PICK_MYTURN",
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 5,
+        "PenaltyTime4Deck3": 5,
+        "AnimMe1P": [
+          "HonorLeague_From1PTo2P",
+          " HonorLeague_2P_Pick_End"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_From2PToAP",
+          " HonorLeague_1P_Pick_End"
+        ]
+      },
+      {
+        "State": 8,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 1,
+        "SelectableCount8Deck": 4,
+        "LocalMessage1P": "MATCH_BAN_EACH_PICK",
+        "LocalMessage2P": "MATCH_BAN_EACH_PICK",
+        "WaitTime4Deck": 20,
+        "PenaltyTime4Deck1": 20,
+        "PenaltyTime4Deck2": 20,
+        "PenaltyTime4Deck3": 20,
+        "AnimMe1P": [
+          "HonorLeague_LastBan_Start"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_LastBan_Start"
+        ]
+      },
+      {
+        "State": 9,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 0,
+        "SelectableCount8Deck": 0,
+        "LocalMessage1P": "MATCH_WAIT_SETTING",
+        "LocalMessage2P": "MATCH_WAIT_SETTING",
+        "WaitTime4Deck": 10,
+        "PenaltyTime4Deck1": 10,
+        "PenaltyTime4Deck2": 10,
+        "PenaltyTime4Deck3": 10,
+        "AnimMe1P": null,
+        "AnimMe2P": null
+      },
+      {
+        "State": 10,
+        "TeamType": 2,
+        "IsPick": false,
+        "SelectableCount4Deck": 0,
+        "SelectableCount8Deck": 0,
+        "LocalMessage1P": "MATCH_BANPICK_START",
+        "LocalMessage2P": "MATCH_BANPICK_START",
+        "WaitTime4Deck": 0,
+        "PenaltyTime4Deck1": 0,
+        "PenaltyTime4Deck2": 0,
+        "PenaltyTime4Deck3": 0,
+        "AnimMe1P": [
+          "HonorLeague_Ready"
+        ],
+        "AnimMe2P": [
+          "HonorLeague_Ready"
+        ]
+      }
+    ],
     "MatchTier": [
       {
         "Index": 11,

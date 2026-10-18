@@ -9,6 +9,14 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--ordeal-unlock-only")) { InstallOrdealUnlock(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-ordeal-unlock")) { VerifyOrdealUnlockFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--mission-claim-all-only")) { InstallMissionClaimAll(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-mission-claim-all")) { VerifyMissionClaimAllFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--chat-channels-only") || args.Contains("--chat-send-only")) { InstallChatChannels(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-chat-channels") || args.Contains("--verify-chat-send")) { VerifyChatChannelsFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--honor-only")) { InstallHonor(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-honor")) { VerifyHonorFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-runes")) { VerifyRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
@@ -147,6 +155,7 @@ namespace DllPatcher
                 PatchOrvelVisuals(module);
                 PatchArenaRematchPrompt(module);
                 PatchArenaResponsiveness(module);
+                PatchHonor(module);
                 PatchAdventureUnlocks(module);
                 PatchTrialHeroReward(module);
                 PatchVoiceLanguage(module);
@@ -225,6 +234,10 @@ namespace DllPatcher
                 File.Move(dllPath + ".story-auto-staged", patchedPath, true);
                 InstallImageRecovery(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".image-recovery-staged", patchedPath, true);
+                InstallChatChannels(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".chat-channels-staged", patchedPath, true);
+                InstallMissionClaimAll(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".mission-claim-all-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -235,6 +248,8 @@ namespace DllPatcher
             InstallWebSockets(clientRoot, false);
             InstallStoryAuto(clientRoot, false);
             InstallImageRecovery(clientRoot, false);
+            InstallChatChannels(clientRoot, false);
+            InstallMissionClaimAll(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

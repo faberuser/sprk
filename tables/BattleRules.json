@@ -56,5 +56,13 @@
   "UnderPrisonMaxDailyAttempts": 3,
   "KarmaMaxClearWaves": 100,
   "KarmaMinSecondsPerWave": 1,
-  "KarmaMaxShardsPerRun": 100000
+  "KarmaMaxShardsPerRun": 100000,
+  "KarmaRewardPolicy": {
+    "Description": "SPRK-designed balance, not a recovered historical formula. Filled shards keep native gauge conversion.",
+    "Version": 1,
+    "FragmentsPerSqrtWave": 10,
+    "MaxFragmentsPerRun": 100,
+    "BonusEveryClearedWaves": 10,
+    "MaxBonusBundlesPerRun": 5
+  }
 }
