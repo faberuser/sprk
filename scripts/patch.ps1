@@ -177,17 +177,10 @@ if ($Restore) {
 }
 
 if (-not $Restore) {
-    Write-Host "Removing obsolete login provider SDKs and startup registrations..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_login_providers.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Login provider removal failed with exit code $LASTEXITCODE" }
-    Write-Host "Removing real-money payment SDKs and startup registrations..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_client_payments.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Payment removal failed with exit code $LASTEXITCODE" }
-    Write-Host "Removing client telemetry code, SDKs, and startup assets..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_client_telemetry.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Client telemetry removal failed with exit code $LASTEXITCODE" }
-    python "$ScriptDir\enable_multiple_windows.py" "$ClientPath" --install
-    if ($LASTEXITCODE -ne 0) { throw "Multiple-window setup failed with exit code $LASTEXITCODE" }
+    # The distributed baseline already contains SDK removal and multi-window
+    # setup. Verify that patching preserves telemetry removal.
+    dotnet run --project "$DllPatcherDir" -- "$ClientPath" --verify-no-telemetry
+    if ($LASTEXITCODE -ne 0) { throw "Telemetry verification failed with exit code $LASTEXITCODE" }
 }
 
 Write-Host ""

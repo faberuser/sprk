@@ -6,7 +6,7 @@ RUN cargo build --locked --release
 
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libssl3 curl \
+    && apt-get install -y --no-install-recommends ca-certificates libssl3 curl openssl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 sprk \
     && useradd --uid 10001 --gid sprk --no-create-home sprk \
@@ -14,6 +14,11 @@ RUN apt-get update \
     && chown sprk:sprk /data
 COPY --from=build /build/target/release/sprk-server /usr/local/bin/sprk-server
 COPY tables /app/tables
+COPY config/client-update-public.pem /app/client-update-public.pem
+ARG CLIENT_UPDATE_TAG=""
+ARG CLIENT_UPDATE_REPO=""
+ENV SPRK_UPDATES_GITHUB_TAG=${CLIENT_UPDATE_TAG} SPRK_UPDATES_GITHUB_REPO=${CLIENT_UPDATE_REPO}
+ENV SPRK_UPDATES_PUBLIC_KEY_FILE=/app/client-update-public.pem
 ENV SPRK_SERVICE_MODE=game GAME_TABLES_PATH=/app/tables PORT=8080
 WORKDIR /data
 USER sprk

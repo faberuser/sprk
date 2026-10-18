@@ -7,3 +7,5 @@
 !src/**
 !tables/
 !tables/**
+!config/
+!config/client-update-public.pem

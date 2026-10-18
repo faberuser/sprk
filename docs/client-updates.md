@@ -20,6 +20,10 @@ works in every mode. Existing installations default to game mode.
 
 ## Publish a client release
 
+To replace manual SFTP uploads with verified, startup-only downloads from GitHub
+Releases, see [GitHub client update sync](github-client-updates.md). Each server
+image pins its compatible client release; running servers do not poll for changes.
+
 Run from the repository root with Python 3.10+:
 
 ```powershell
@@ -87,9 +91,11 @@ client-updates/
       files/King's Raid_Data/...
 ```
 
-Never modify published release files. Keep older releases available while
-players might be downloading them. These artifacts are ignored by Git and
-excluded from the Docker image.
+Never modify published release files. GitHub startup sync retains the active
+release and the two most recently published other local releases, deleting older
+recognized releases immediately after successful activation, without a grace
+period. GitHub release assets remain available. These artifacts are ignored by
+Git and excluded from the Docker image.
 
 ## Endpoints and launcher contract
 
@@ -158,46 +164,42 @@ directly.
 
 ## Portainer / Docker
 
-For GitHub Actions builds that publish to GHCR and trigger a Portainer webhook,
-use `docker-compose.ghcr.yml` and follow [GitHub Actions setup](github-actions.md).
-The configuration below describes building directly on the deployment host.
+Use the single `docker-compose.yml` file for Docker Standalone and Portainer.
+It pulls the shared `SPRK_IMAGE` for both services, defaulting to
+`ghcr.io/faberuser/sprk:latest`. GitHub Actions builds the image and triggers the
+Portainer webhook; see [GitHub CI and client updates](github-client-updates.md).
+The former `docker-compose.ghcr.yml` has been removed. If an existing Git stack
+uses that filename, change its Compose path to `docker-compose.yml` while keeping
+the same stack name and volumes.
 
-For a Docker Standalone environment, deploy this repository as a Git stack with
-Compose path `docker-compose.yml` (relative to the repository root). When
-Portainer connects to the Docker socket in your LXC, the LXC's Docker engine
-builds the image from the repository's Dockerfile. No manual image build or
-registry is required. Push your changes to the selected Git branch before
-deploying so Portainer receives the updated Compose file and source.
+`pull_policy: always` refreshes the image on deployment. Enable Portainer's
+**Re-pull image** option for webhook redeployment. Portainer needs registry access
+but no Rust toolchain or source build step. Set stack variables from `.env.example`.
+If `SPRK_IMAGE` was previously set to a local tag, update it to the full GHCR path.
 
-Both services share the same build context and `SPRK_IMAGE` tag.
-`pull_policy: build` requests a build on deployment, even when an older image
-with that tag exists; unchanged layers use Docker's build cache. Leave
-Portainer's **Re-pull image** disabled. Later source changes take effect when
-you pull and redeploy the Git stack, or configure GitOps updates.
+Create `/srv/sprk/client-updates` on the host and make it writable by container
+UID/GID `10001`. The update service downloads its pinned release at startup and
+retains the active release and two recent previous releases there, pruning older
+recognized releases immediately after successful startup sync. For an image without a pinned release, manually
+published artifacts can still be placed in the same directory.
 
-The first build downloads the Rust toolchain image and compiles the server,
-so it needs outbound internet access and may take several minutes. Rust is
-provided by the build container; it does not need installing in the LXC.
+For local development, build the Dockerfile explicitly and use the same Compose
+file with a local image and pulling disabled. For example, in PowerShell:
 
-This configuration assumes Portainer uses the local Docker socket. Portainer
-documents a [build limitation for remote Docker environments](https://docs.portainer.io/faqs/known-issues/docker-compose-files-including-build-steps-fail).
-For remote/Agent environments or Swarm, build the image on the target host or
-in CI and use an image-only Compose configuration instead. A manual build on
-the target host, from this repository directory, is:
-
-```sh
-docker build -t sprk-server:latest .
+```powershell
+docker build -t sprk-server:local .
+$env:SPRK_IMAGE = "sprk-server:local"
+docker compose up -d --pull never
 ```
 
-Create `/srv/sprk/client-updates` on that host and place the published artifacts
-there. Ensure the container user (UID/GID `10001`) can read the releases and
-traverse their directories. Set the stack variables using `.env.example` as a
-reference. Client update releases are excluded from the image and must still
-be transferred to this host directory separately.
+An image built without `CLIENT_UPDATE_TAG` has automatic client sync disabled.
+See [Docker's Compose CLI](https://docs.docker.com/reference/cli/docker/compose/up/)
+for the `--pull` option. Override `SPRK_UPDATES_HOST_DIR` for a local host path
+that already exists and contains any manually published client updates.
 
 - `game`: HTTP and player WebSockets on host port 8080; database and
   optional service configuration persist in the `game-data` volume at `/data`.
-- `updates`: HTTP on host port 8081; published artifacts mounted read-only at
+- `updates`: HTTP on host port 8081; published artifacts mounted at
   `/client-updates`; no database volume. Default limits are one CPU and 256 MB.
 
 Set `SPRK_GAME_HOST` to the game HTTP hostname/port advertised to players.
