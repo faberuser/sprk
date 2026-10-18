@@ -346,8 +346,15 @@ pub(crate) async fn reward_with_loot_booster(
     }
     tutorial::currency(db, account, "Gold", row.roll_gold(), rewards).await?;
     tutorial::currency(db, account, "Gem", row.roll_gem(), rewards).await?;
-    for drop in row.roll_items(&state.tables.reward_string_pool) {
-        let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
+    for mut drop in row.roll_items(&state.tables.reward_string_pool) {
+        let (mut code, mut filter) = crate::tables::parse_item_code(&drop.item_code);
+        if state.tables.get_item_index(&code).is_none() && state.tables.item_groups.contains(&code) {
+            let (leaf,count,minimum,maximum)=state.tables.roll_reward_from_group_code(&code,&filter)
+                .ok_or_else(||rule("ItemDataNotFound"))?;
+            drop.count=drop.count.checked_mul(count).ok_or_else(||rule("InvalidItemCount"))?;
+            drop.star_min=minimum;drop.star_max=maximum;
+            (code,filter)=crate::tables::parse_item_code(&leaf);
+        }
         // Currency can appear in the drop list as well as the reward's fixed
         // currency fields (e.g. the Level Up Package has two Gem entries).
         if matches!(code.as_str(), "Gold" | "Gem" | "Mileage" | "FriendshipPoint" | "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "PvpCoin" | "RaidPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {

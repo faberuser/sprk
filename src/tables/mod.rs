@@ -141,7 +141,7 @@ impl GameTables {
         Ok(Self {
             services: Arc::new(BattleTable::load_with_rules(&table_dir.join("ServicesSupport.json"), "ServicesRules.json")?),
             live,
-            arena_guild: Arc::new(BattleTable::load_with_rules(&table_dir.join("ArenaGuildSupport.json"), "ArenaGuildRules.json")?),
+            arena_guild: Arc::new(BattleTable::load_arena(&table_dir.join("ArenaGuildSupport.json"))?),
             battle,
             extensions: Arc::new(ExtensionTable::load(&table_dir.join("ExtensionSupport.json"))?),
             progression: Arc::new(ProgressionTable::load(table_dir)?),
@@ -195,6 +195,23 @@ impl GameTables {
     /// Roll from an item group given a string code directly
     pub fn roll_item_from_group_code(&self, group_code: &str, grade_filter: &[i32]) -> Option<(i32, i32, i32, i32)> {
         self.roll_item_recursive(group_code, grade_filter, 0)
+    }
+
+    /// Preserve a group's leaf code so reward consumers can also grant currency
+    /// (Honor weekly chests include Gold alongside ordinary item drops).
+    pub(crate) fn roll_reward_from_group_code(&self, code: &str, filter: &[i32]) -> Option<(String,i32,i32,i32)> {
+        fn resolve(tables: &GameTables, code: &str, filter: &[i32], depth: usize) -> Option<(String,i32,i32,i32)> {
+            if depth>10 {return None;}
+            let group=tables.item_groups.get(code)?;
+            let (leaf,count,minimum,maximum)=if depth==0 && !filter.is_empty() {
+                group.roll_item_with_filter(filter)
+            } else {group.roll_item()}?;
+            if tables.item_groups.contains(&leaf) {
+                let (leaf,n,minimum,maximum)=resolve(tables,&leaf,&[],depth+1)?;
+                Some((leaf,count.checked_mul(n)?,minimum,maximum))
+            } else {Some((leaf,count,minimum,maximum))}
+        }
+        resolve(self,code,filter,0)
     }
     
     fn roll_item_recursive(&self, code: &str, grade_filter: &[i32], depth: i32) -> Option<(i32, i32, i32, i32)> {

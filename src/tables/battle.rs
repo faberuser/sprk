@@ -13,6 +13,15 @@ pub struct BattleTable {
     pub rules: Value,
 }
 impl BattleTable {
+    pub fn load_arena(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut data = Self::load_with_rules(path, "ArenaGuildRules.json")?;
+        let recovered: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("HonorRewards.json"))?)?;
+        for name in ["HonorTierReward", "HonorRewardBundle", "HonorSeasonBooster"] {
+            let rows = recovered["Tables"][name].as_array().ok_or_else(|| format!("Missing Honor reward table: {name}"))?;
+            data.tables.insert(name.into(), rows.clone());
+        }
+        Ok(data)
+    }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data = Self::load_with_rules(path, "BattleRules.json")?;
         let recovered: Value = serde_json::from_reader(std::fs::File::open(

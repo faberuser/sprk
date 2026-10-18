@@ -158,6 +158,10 @@ directly.
 
 ## Portainer / Docker
 
+For GitHub Actions builds that publish to GHCR and trigger a Portainer webhook,
+use `docker-compose.ghcr.yml` and follow [GitHub Actions setup](github-actions.md).
+The configuration below describes building directly on the deployment host.
+
 For a Docker Standalone environment, deploy this repository as a Git stack with
 Compose path `docker-compose.yml` (relative to the repository root). When
 Portainer connects to the Docker socket in your LXC, the LXC's Docker engine

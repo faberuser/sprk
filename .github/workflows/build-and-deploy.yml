@@ -1,0 +1,113 @@
+name: Build and deploy server
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Finish a deployment before another run can replace its latest tag.
+concurrency:
+  group: sprk-server-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test server
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        run: rustup toolchain install 1.93.0 --profile minimal
+
+      - name: Test
+        run: cargo +1.93.0 test --locked
+
+  build-and-deploy:
+    name: Publish image and update Portainer
+    needs: test
+    # Pull requests and manual runs on other branches cannot deploy.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=sprk-server
+          cache-to: type=gha,scope=sprk-server,mode=max
+
+      - name: Record published image
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "Published ${IMAGE}:latest and ${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image digest: ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update Portainer stack
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$PORTAINER_WEBHOOK_URL" ]]; then
+            echo "::error::Set the PORTAINER_WEBHOOK_URL repository Actions secret. The image was published, but deployment was not triggered."
+            exit 1
+          fi
+          # Do not retry a POST that may already have started a deployment.
+          # Suppress response bodies and curl errors that could expose the URL.
+          if ! status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --request POST --connect-timeout 15 --max-time 120 \
+            "$PORTAINER_WEBHOOK_URL"); then
+            echo "::error::Could not reach the Portainer webhook, or the request timed out. Check Portainer before retrying."
+            exit 1
+          fi
+          if [[ "$status" != 2?? ]]; then
+            echo "::error::Portainer webhook returned HTTP ${status}; expected 2xx."
+            exit 1
+          fi
+          echo "Portainer accepted the deployment request (HTTP ${status}). Check stack health in Portainer." >> "$GITHUB_STEP_SUMMARY"

@@ -31,11 +31,36 @@ partial class Program
                 Instruction.Create(OpCodes.Call, hide), Instruction.Create(OpCodes.Ret)
             }) il.InsertBefore(next, instruction);
         }
+        var result = module.GetType("NGame2.NUI.NWindow.NBattle.PvpResult");
+        var init = result.Methods.Single(m => m.Name == "Init_BanPickOnly");
+        if (!init.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "OpenRewardPopup"))
+        {
+            var normal = result.Methods.Single(m => m.Name == "Init_Pvp");
+            var popup = normal.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "OpenRewardPopup");
+            var field = (FieldReference)popup.Next.Operand;
+            var hide = normal.Body.Instructions.Last(i => i.Operand is MethodReference m && m.Name == "EnableGameObject");
+            var il = init.Body.GetILProcessor();
+            var end = init.Body.Instructions.Last();
+            // Match the normal result screen: create the receipt hidden, then
+            // let UpdateEffectEnd reveal it after the victory/defeat animation.
+            foreach (var instruction in new[] {
+                Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Ldarg_1),
+                Instruction.Create(OpCodes.Call, (MethodReference)popup.Operand), Instruction.Create(OpCodes.Stfld, field),
+                Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Ldfld, field),
+                Instruction.Create(OpCodes.Ldc_I4_0), Instruction.Create(OpCodes.Ldc_I4_0),
+                Instruction.Create(OpCodes.Call, (MethodReference)hide.Operand)
+            }) il.InsertBefore(end, instruction);
+        }
         VerifyHonor(module);
     }
 
     static void VerifyHonor(ModuleDefinition module)
     {
+        var init = module.GetType("NGame2.NUI.NWindow.NBattle.PvpResult").Methods.Single(m => m.Name == "Init_BanPickOnly");
+        VerifyArenaResultStack(init);
+        if (init.Body.Instructions.Count(i => i.Operand is MethodReference m && m.Name == "OpenRewardPopup") != 1 ||
+            !init.Body.Instructions.Any(i => i.OpCode == OpCodes.Stfld && i.Operand is FieldReference f && f.Name == "_rewardPopup"))
+            throw new InvalidOperationException("Honor results must open the currency and item reward receipt exactly once.");
         var method = HonorWeeklyRewardMethod(module);
         VerifyArenaResultStack(method);
         var lookup = method.Body.Instructions.Single(i => i.Operand is MethodReference m &&
@@ -53,7 +78,7 @@ partial class Program
     {
         using var assembly = AssemblyDefinition.ReadAssembly(Path.Combine(clientRoot,"King's Raid_Data","Managed","Assembly-CSharp.dll" + (staged ? ".honor-staged" : "")));
         VerifyHonor(assembly.MainModule);
-        Console.WriteLine("Verified Honor weekly reward fallback and IL control flow.");
+        Console.WriteLine("Verified Honor duel payout display, weekly reward fallback and IL control flow.");
     }
 
     static void InstallHonor(string clientRoot, bool stageOnly)

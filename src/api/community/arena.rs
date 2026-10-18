@@ -1,6 +1,8 @@
 use super::*;
 #[path = "arena_online.rs"]
 pub(crate) mod online;
+#[path = "arena_honor_rewards.rs"]
+pub(crate) mod honor_rewards;
 pub(crate) fn season(s: &AppState) -> (i64, i64, i64) {
     let epoch = s.tables.arena_guild.rules["SeasonEpoch"]
         .as_str()
@@ -285,6 +287,7 @@ async fn execute_inner(
     if !(0..=1).contains(&kind) {
         return Err(rule("ContentsDisabled"));
     }
+    honor_rewards::settle(db, s, a).await?;
     ensure_kind(db, s, a, kind).await?;
     sqlx::query("UPDATE arena_runs SET status='expired' WHERE account=? AND status IN ('waiting','battle') AND json_extract(data,'$.OnlineMatchUid') IS NULL AND started<?").bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).execute(&mut *db).await?;
     let mut out = item::success();
@@ -546,6 +549,7 @@ async fn rank_mail(
     Ok(())
 }
 pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
+    honor_rewards::settle(db, s, a).await?;
     let days=sqlx::query("SELECT idx,data FROM community_state c WHERE owner=? AND kind='arena_daily' AND idx<? AND NOT EXISTS(SELECT 1 FROM community_claims x WHERE x.account=c.owner AND x.kind='arena_daily_reward' AND x.period=json_extract(c.data,'$.Day')) ORDER BY idx LIMIT 500").bind(a).bind(now()/86400).fetch_all(&mut *db).await?;
     for day in days {
         let v: Value = parse(&day.get::<String, _>("data"))?;
@@ -615,8 +619,10 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     let currency = hero::currency(
         db,
         a,
-        "PvpCoin",
-        settings(
+        if kind==1 { "GloryPoint" } else { "PvpCoin" },
+        if kind==1 {
+            settings(s,"HonorAttendanceMedals",10) + if win==1 {settings(s,"HonorWinBonusMedals",40)} else {0}
+        } else { settings(
             s,
             if win == 1 {
                 "ArenaWinCoins"
@@ -624,10 +630,11 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
                 "ArenaLossCoins"
             },
             10,
-        ),
+        ) },
     )
     .await?;
     let current = battle_info_kind(db, s, a,kind).await?;
+    if kind==1 {honor_rewards::record(db,a,&current,now()).await?;}
     out["MatchResult"] = json!({"MatchUid":id,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[currency]});
     out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}] = current;
     data["End"] = out.clone();

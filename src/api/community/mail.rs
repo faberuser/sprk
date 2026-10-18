@@ -71,6 +71,11 @@ pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
 
 // Materialize a global announcement once per account. The delivery ledger survives claims.
 async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
+    // Native mailbox polling also delivers newly closed Honor periods while a
+    // player stays logged in. Reward claims and messages commit together.
+    let mut honor = state.db.begin().await?;
+    super::arena::honor_rewards::settle(&mut honor, state, account).await?;
+    honor.commit().await?;
     // Most checks have nothing to deliver. Avoid acquiring SQLite's writer
     // lock for this common path; recheck under the existing transaction below.
     let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id))")

@@ -251,6 +251,11 @@ mod tests {
         let (s,users,mut worker)=fixture().await;
         let matched=matched(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
         let before=[balance(&s,&users[0]).await,balance(&s,&users[1]).await];
+        let mut victory_coins=Vec::new();
+        for u in &users {
+            victory_coins.push(sqlx::query_scalar::<_,i64>("SELECT pvp_coin FROM user_info WHERE account_id=?")
+                .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap());
+        }
         let (_server,mut clients)=draft(&s,&users,&matched).await;
         // Forged phase, duplicate choices and unowned/invalid heroes are errors,
         // not disconnects that could forfeit the other player.
@@ -275,6 +280,22 @@ mod tests {
             assert_eq!(out["MatchResult"]["ArenaType"],"BanPick");
             assert_eq!(out["BattleBanPickInfo"]["MatchScore"],if i==0{1020}else{990});
             assert_eq!(out["MatchResult"]["SwordResult"]["Type"],"Sword2");
+            let medals=if i==0 {50} else {10};
+            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
+            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],medals);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+                .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),1);
+            // Duplicate worker packets and result polling must never mint twice.
+            let repeated=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
+            assert_eq!(repeated["MatchResult"]["CurrencyResults"],out["MatchResult"]["CurrencyResults"]);
+            let account=number(&u["UserInfo"],"AccountId");
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'")
+                .bind(account).fetch_one(&s.db).await.unwrap(),medals);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pvp_coin FROM user_info WHERE account_id=?")
+                .bind(account).fetch_one(&s.db).await.unwrap(),victory_coins[i]);
+            let logged=login(&s,if i==0 {"honor-a"}else{"honor-b"}).await;
+            assert_eq!(logged["UserInfo"]["GloryPoint"],medals);
+            assert!(logged["PlayerCurrencyInfos"].as_array().unwrap().iter().any(|c|c["CurrencyType"]=="GloryPoint" && c["Amount"]==medals));
             let normal=call(&s,u,"match/get_match_rank","").await;
             assert_eq!(normal["BattleInfo"]["MatchScore"],1000);
         }
@@ -292,6 +313,8 @@ mod tests {
         recover_orphaned(&s).await.unwrap();recover_orphaned(&s).await.unwrap();
         let out=call(&s,&users[0],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!(out["MatchResult"]["GiveUp"],true);assert_eq!(out["MatchResult"]["NewMatchScore"],990);
+        assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
+        assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],10);
         assert_eq!(balance(&s,&users[0]).await,(before.0,before.1-1));
     }
     #[tokio::test]
@@ -319,6 +342,11 @@ mod tests {
             assert_eq!(balance(&s,u).await,before[i]);
             let out=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
             assert_eq!(out["MatchResult"]["Canceled"],true);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+                .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),0);
+            assert!(out["MatchResult"]["CurrencyResults"].as_array().unwrap().is_empty());
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'),0)")
+                .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),0);
             assert_eq!(out["BattleBanPickInfo"]["MatchScore"],1000);
         }
     }
@@ -378,11 +406,16 @@ mod tests {
         for task in tasks {results.push(tokio::time::timeout(std::time::Duration::from_secs(120),task).await.unwrap().unwrap());}
         assert!(!results[0].0.is_empty());assert_eq!(results[0].0,results[1].0);
         assert_eq!(results[0].1["Win"],true);assert_eq!(results[1].1["Win"],false);
+        let mut receipts=vec![];
         for (i,u) in users.iter().enumerate() {
             let out=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
             assert_eq!(out["MatchResult"]["Win"],i==0);
+            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
+            assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],if i==0 {50}else{10});
             assert_eq!(out["BattleBanPickInfo"]["SeasonWin"],if i==0{1}else{0});
+            receipts.push(out["MatchResult"].clone());
         }
+        std::fs::write("target/honor-research/native-match-receipts.json",json!(receipts).to_string()).unwrap();
         std::fs::write("target/honor-research/native-results.json",json!(results).to_string()).unwrap();
         task.abort();
     }
