@@ -1392,6 +1392,137 @@ async fn equipment_option_selection_validates_options_and_persists_them() {
 }
 
 #[tokio::test]
+async fn gear_tickets_accept_native_repeated_options_and_preserve_duplicates() {
+    let (state, u) = setup().await;
+    // Pre-Doomsday T8 Legendary and two-option Technomagic selectors.
+    for ticket in [2833, 2826] {
+        let selector = &state.tables.inventory.equipment_selectors[&ticket];
+        let target = selector["ItemIndices"][0].as_i64().unwrap() as i32;
+        let data = &state.tables.inventory.equipment[&target];
+        assert_eq!(data["EnableDuplicationOption"], true);
+        let group = data["OptionGroupIndex"][0].as_i64().unwrap() as i32;
+        let option = state.tables.inventory.option_groups[&group][0];
+        let required = item::n(selector, "SelectOptionCount") as usize;
+        let mut fields = format!("ItemIndex={ticket}&ItemCount=1&EquipOptionItemIndex={target}");
+        // Native WWWForm repeats the key, including identical values. It sends
+        // a scalar zero for the unused extra-option slot on ordinary tickets.
+        for _ in 0..required { fields.push_str(&format!("&EquipOptionIndices={option}")); }
+        if selector["SelectUniqueOption"] == true {
+            let group = data["UniqueOptionGroupIndex"][0].as_i64().unwrap() as i32;
+            fields.push_str(&format!("&EquipExtraOptionIndices={}", state.tables.inventory.option_groups[&group][0]));
+        } else {
+            fields.push_str("&EquipExtraOptionIndices=0");
+        }
+        put(&state, &u, ticket, 1).await;
+        let result = item::use_equip_option_select_item(State(state.clone()), form(&u, &fields)).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "ticket {ticket}: {result}");
+        assert_eq!(count(&state, &u, ticket).await, 0);
+        let gear = &result["EquipItemResults"][0];
+        for slot in 1..=required { assert_eq!(gear[format!("OptionIndex{slot}")], option); }
+        let stored: String = sqlx::query_scalar("SELECT json_array(option_index_1,option_index_2,option_index_3,option_index_4) FROM equip_items WHERE account_id=? AND slot_index=?")
+            .bind(u.user_info.account_id).bind(gear["SlotIndex"].as_i64().unwrap()).fetch_one(&state.db).await.unwrap();
+        let stored: Vec<i32> = serde_json::from_str(&stored).unwrap();
+        assert!(stored[..required].iter().all(|id| *id == option));
+    }
+}
+
+#[tokio::test]
+async fn gear_tickets_all_definitions_accept_native_and_json_forms() {
+    use crate::models::equip::EquipItemInfo;
+    let (state, u) = setup().await;
+    // This archive table also contains Soulstone and other non-gear selectors,
+    // which use different native endpoints and are outside gear redemption.
+    let mut tickets: Vec<_> = state.tables.inventory.equipment_selectors.iter()
+        .filter(|(_, selector)| selector["ItemIndices"].as_array().unwrap().iter()
+            .all(|id| state.tables.inventory.equipment.contains_key(&(id.as_i64().unwrap() as i32))))
+        .map(|(ticket, _)| *ticket).collect();
+    tickets.sort_unstable();
+    assert_eq!(tickets.len(), 459);
+    for ticket in tickets {
+        let selector = &state.tables.inventory.equipment_selectors[&ticket];
+        let target = selector["ItemIndices"][0].as_i64().unwrap() as i32;
+        let data = &state.tables.inventory.equipment[&target];
+        let required = item::n(selector, "SelectOptionCount").min(item::n(data, "OptionCount")) as usize;
+        let mut generated = EquipItemInfo::new(0, target, 0, state.server_time_str());
+        item::make_options(&state, target, &mut generated, &[]).unwrap();
+        let options = [generated.option_index_1, generated.option_index_2, generated.option_index_3, generated.option_index_4][..required].to_vec();
+        let extra = if selector["SelectUniqueOption"] == true {
+            let group = data["UniqueOptionGroupIndex"][0].as_i64().unwrap() as i32;
+            vec![state.tables.inventory.option_groups[&group][0]]
+        } else { vec![0] };
+        put(&state, &u, ticket, 2).await;
+        let option_ticket = item::n(&state.tables.inventory.items[&ticket], "Type") == 27;
+        for native in [true, false] {
+            let key = if option_ticket { "EquipOptionItemIndex" } else { "WeaponUniqueItemIndex" };
+            let mut fields = format!("ItemIndex={ticket}&ItemCount=1&{key}={target}");
+            if option_ticket {
+                if native {
+                    // An empty native array contributes no form fields.
+                    for id in &options { fields.push_str(&format!("&EquipOptionIndices={id}")); }
+                    for id in &extra { fields.push_str(&format!("&EquipExtraOptionIndices={id}")); }
+                } else {
+                    fields.push_str(&format!("&EquipOptionIndices={}&EquipExtraOptionIndices={}", json!(options), json!(extra)));
+                }
+            }
+            let result = if option_ticket {
+                item::use_equip_option_select_item(State(state.clone()), form(&u, &fields)).await.unwrap().0
+            } else {
+                item::use_weapon_unique_select_item(State(state.clone()), form(&u, &fields)).await.unwrap().0
+            };
+            assert_eq!(result["Result"], "Success", "ticket={ticket}, native={native}: {result}");
+            let gear = &result["EquipItemResults"][0];
+            assert_eq!(gear["ItemIndex"], target);
+            assert_eq!(gear["Star"], selector["Star"]);
+            assert_eq!(gear["Level"], selector["Level"]);
+            for (slot, id) in options.iter().enumerate() { assert_eq!(gear[format!("OptionIndex{}", slot + 1)], *id); }
+            if selector["SelectUniqueOption"] == true { assert_eq!(gear["ExtraOptionIndex1"], extra[0]); }
+            // Keep this catalog sweep independent of inventory capacity.
+            sqlx::query("DELETE FROM equip_items WHERE account_id=?").bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+        }
+        assert_eq!(count(&state, &u, ticket).await, 0);
+    }
+}
+
+#[tokio::test]
+async fn gear_tickets_invalid_selections_roll_back_without_consuming_tickets() {
+    let (state, u) = setup().await;
+    // This selector includes gear whose archive explicitly forbids duplicates.
+    let ticket = 2502;
+    let target = 60028;
+    let data = &state.tables.inventory.equipment[&target];
+    assert_eq!(data["EnableDuplicationOption"], false);
+    let required = item::n(&state.tables.inventory.equipment_selectors[&ticket], "SelectOptionCount")
+        .min(item::n(data, "OptionCount")) as usize;
+    assert!(required > 1);
+    let group = data["OptionGroupIndex"][0].as_i64().unwrap() as i32;
+    let option = state.tables.inventory.option_groups[&group][0];
+    put(&state, &u, ticket, 2).await;
+    let repeated = std::iter::repeat_n(format!("&EquipOptionIndices={option}"), required).collect::<String>();
+    let selected = std::iter::repeat_n(option, required).collect::<Vec<_>>();
+    let cases = [
+        ("".to_string(), "NotCorrectOptionCount"),
+        (format!("&EquipOptionIndices={option}"), "NotCorrectOptionCount"),
+        (format!("{repeated}&EquipOptionIndices=0"), "NotCorrectOptionCount"),
+        ("&EquipOptionIndices=invalid".to_string(), "NotCorrectOptionCount"),
+        (format!("&EquipOptionIndices={}", json!(vec![0; required])), "NotCorrectOptionCount"),
+        (format!("&EquipOptionIndices={}", json!(vec![-1; required])), "NotCorrectOptionCount"),
+        (format!("&EquipOptionIndices={}", json!(vec![i32::MAX; required])), "NoAvailableOption"),
+        (repeated, "NoAvailableOption"),
+        (format!("&EquipOptionIndices={}", json!(selected)), "NoAvailableOption"),
+    ];
+    for (options, expected) in cases {
+        let result = item::use_equip_option_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={ticket}&ItemCount=1&EquipOptionItemIndex={target}{options}&EquipExtraOptionIndices=0")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], expected, "{result}");
+        assert_eq!(count(&state, &u, ticket).await, 2);
+        let gear: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+        assert_eq!(gear, 0);
+    }
+}
+
+#[tokio::test]
 async fn dismantle_material_rewards_and_locked_reward_stacks_keep_correct_counts() {
     let (state, u) = setup().await;
     let (&id, _) = state

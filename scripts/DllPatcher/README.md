@@ -1,5 +1,19 @@
 # DLL patcher
 
+Recommended Friends samples the server's full eligible player population, including
+offline players regardless of last logout time. The client preserves the random
+server order and fetches a fresh sample whenever Accept/Request opens. Existing
+friends and pending invitations remain excluded; the server bounds the response.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --friend-recommendations-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-friend-recommendations --stage-only
+# Close King's Raid, then install and publish a new signed client update.
+dotnet run --project scripts/DllPatcher -- ../sprk-client --friend-recommendations-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-friend-recommendations
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-friend-recommendations
+```
+
 Battlefield of Ordeals accepts the account's tutorial-skip setting as well as
 completion of its configured League of Victory introduction (normally 2130).
 The account guards and seasonal availability checks remain native. Apply this

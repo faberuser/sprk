@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--friend-recommendations-only")) { InstallFriendRecommendations(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-friend-recommendations")) { VerifyFriendRecommendationsFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-friend-recommendations")) { TestFriendRecommendations(args[0]); return; }
             if (args.Contains("--ordeal-unlock-only")) { InstallOrdealUnlock(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-ordeal-unlock")) { VerifyOrdealUnlockFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-claim-all-only")) { InstallMissionClaimAll(args[0], args.Contains("--stage-only")); return; }
@@ -164,6 +167,7 @@ namespace DllPatcher
                 PatchMissionThumbnails(module);
                 PatchBattleEntry(module);
                 PatchAwakenDelay(module);
+                PatchFriendRecommendations(module);
                 PatchCompletionBanners(module);
                 PatchRaidSocial(module);
                 PatchPartyJoinUnlock(module);
