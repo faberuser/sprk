@@ -7,7 +7,7 @@ import tarfile
 import tempfile
 import unittest
 
-from build_client_release import extract_baseline, file_hash, validate_recipe
+from build_client_release import extract_baseline, file_hash, managed_build_files
 from prepare_client_baseline import prepare
 from publish_client_update import find_openssl, ignored, publish
 
@@ -61,15 +61,23 @@ class BaselineTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 extract_baseline(destination, self.root / case, file_hash(destination), self.public)
 
-    def test_unknown_patcher_flags_fail_instead_of_silently_running_full_patch(self):
-        config = {"schema_version": 1, "patch_steps": [["--does-not-exist"]], "verify_steps": [], "deleted_files": []}
-        with self.assertRaisesRegex(ValueError, "Unknown DLL patcher"):
-            validate_recipe(config)
-
     def test_generated_automation_backup_is_not_a_managed_client_file(self):
         self.assertTrue(ignored(Path("Assembly-CSharp.dll.before_automation_20261019_001")))
         self.assertTrue(ignored(Path("Assembly-CSharp.dll.backup_before_patch")))
         self.assertFalse(ignored(Path("Assembly-CSharp.dll")))
+
+    def test_build_automatically_publishes_new_assets_and_carries_removed_files(self):
+        original = "King's Raid_Data/Managed/fixture.dll"
+        (self.client / original).unlink()
+        added = "King's Raid_Data/NewAssets/options.json"
+        asset = self.client / added
+        asset.parent.mkdir(parents=True)
+        asset.write_bytes(b"new tracked or generated asset")
+        (self.client / (original + ".before_automation_001")).write_bytes(b"backup")
+        manifest = publish(self.client, self.updates, "next-fixture", "stable",
+                           managed_build_files(self.client), self.key)
+        self.assertEqual([item["path"] for item in manifest["files"]], [added])
+        self.assertIn(original, manifest["deleted_files"])
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
             if (args.Contains("--inspect-settings")) { InspectSettings(args[0]); return; }
             if (args.Contains("--settings-persistence-only")) { InstallSettingsPersistence(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-settings-persistence")) { VerifySettingsPersistenceFile(args[0]); return; }

@@ -11,8 +11,9 @@ import subprocess
 import tarfile
 import tempfile
 
-from publish_client_update import DEFAULT_INCLUDES, IDENTIFIER, publish, safe_path
+from publish_client_update import IDENTIFIER, ignored, publish, safe_path
 from client_update_bundle import package, verified_manifest
+from client_baseline import BASELINE
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -87,17 +88,10 @@ def apply_overrides(source: Path, client: Path) -> list[str]:
     return added
 
 
-def validate_recipe(config: dict):
-    if config["schema_version"] != 1:
-        raise ValueError("Unsupported client build schema")
-    program = (REPO / "scripts/DllPatcher/Program.cs").read_text()
-    known = set(re.findall(r'args.Contains\("(--[a-z-]+)"\)', program))
-    for key in ("patch_steps", "verify_steps"):
-        for step in config[key]:
-            if not isinstance(step, list) or any(flag not in known for flag in step):
-                raise ValueError(f"Unknown DLL patcher flags in {key}: {step}")
-    for relative in config["deleted_files"]:
-        safe_path(relative)
+def managed_build_files(client: Path) -> list[str]:
+    """Select the complete prepared client, including newly generated assets."""
+    return [p.relative_to(client).as_posix() for p in sorted(client.rglob("*"))
+            if p.is_file() and not ignored(p)]
 
 
 def previous_release(repo: str, destination: Path, public_key: Path) -> bytes | None:
@@ -117,49 +111,29 @@ def previous_release(repo: str, destination: Path, public_key: Path) -> bytes | 
     return raw
 
 
-def build(config: dict, baseline: Path, work: Path, version: str, signing_key: Path,
+def build(baseline: Path, work: Path, version: str, signing_key: Path,
           public_key: Path, previous: bytes | None = None) -> tuple[Path, Path]:
-    validate_recipe(config)
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch("client-" + version):
         raise ValueError("Invalid client release version")
     if work.exists():
         raise ValueError("Build workspace already exists; choose a new path")
     work.mkdir(parents=True)
     client = work / "client"
-    metadata = extract_baseline(baseline, client, config["baseline"]["sha256"], public_key)
-    added = apply_overrides(REPO / "client-overrides/files", client)
-    for step in config.get("prepare_steps", []):
-        if not step or not all(isinstance(arg, str) for arg in step):
-            raise ValueError("prepare_steps must contain command argument arrays")
-        subprocess.run([arg.replace("{client}", str(client)) for arg in step], cwd=REPO, check=True)
+    metadata = extract_baseline(baseline, client, BASELINE["sha256"], public_key)
+    apply_overrides(REPO / "client-overrides/files", client)
     tools = work / "tools"
     subprocess.run(["dotnet", "build", str(REPO / "scripts/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
-    patcher = ["dotnet", str(tools / "DllPatcher.dll"), str(client)]
-    original = client / "King's Raid_Data/Managed/Assembly-CSharp.dll"
-    for step in config["patch_steps"]:
-        subprocess.run(patcher + step + (["--stage-only"] if not step else []), check=True)
-        if not step:
-            staged = original.with_name(original.name + ".patched")
-            if not staged.is_file():
-                raise ValueError("Full patcher did not produce its expected staged assembly")
-            shutil.copyfile(staged, original)
-    for step in config["verify_steps"]:
-        subprocess.run(patcher + step, check=True)
-    for relative in config["deleted_files"]:
-        path = client / relative
-        if path.exists():
-            if not path.is_file():
-                raise ValueError("deleted_files entries must be files")
-            path.unlink()
+    subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
     output = work / "updates"
     (output / "stable").mkdir(parents=True)
     previous = previous or (json.dumps(metadata["previous_manifest"]) + "\n").encode()
     verified_manifest(previous, public_key)
     (output / "stable/manifest.json").write_bytes(previous)
-    # Explicit baseline and override paths preserve non-default managed assets.
-    deleted = set(config["deleted_files"])
-    includes = DEFAULT_INCLUDES + [item["path"] for item in metadata["files"] if item["path"] not in deleted] + [p for p in added if p not in deleted]
-    manifest = publish(client, output, version, "stable", includes, signing_key, config["deleted_files"])
+    # The isolated client contains only baseline + override + patcher output.
+    # Include new assets automatically, and let the publisher carry removals
+    # forward when patcher code deletes an obsolete file.
+    includes = managed_build_files(client)
+    manifest = publish(client, output, version, "stable", includes, signing_key)
     release = output / "releases" / version
     if (release / "manifest.json").read_bytes() != (output / "stable/manifest.json").read_bytes():
         raise ValueError("Published manifests do not match")
@@ -169,7 +143,6 @@ def build(config: dict, baseline: Path, work: Path, version: str, signing_key: P
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=REPO / "client-build.json")
     parser.add_argument("--baseline", type=Path, help="Use a local archive instead of downloading")
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--version", required=True)
@@ -178,7 +151,6 @@ def main():
     parser.add_argument("--repo", default="faberuser/sprk")
     parser.add_argument("--publish", action="store_true")
     args = parser.parse_args()
-    config = json.loads(args.config.read_text())
     # Do not propagate the private key's environment value to patcher processes.
     secret = os.environ.pop("CLIENT_UPDATE_SIGNING_KEY", None)
     with tempfile.TemporaryDirectory(prefix="sprk-client-ci-") as temporary:
@@ -192,12 +164,12 @@ def main():
             key.chmod(0o600)
         baseline = args.baseline
         if baseline is None:
-            pin = config["baseline"]
+            pin = BASELINE
             subprocess.run(["gh", "release", "download", pin["tag"], "--repo", pin["repository"],
                             "--pattern", pin["asset"], "--dir", str(temporary)], check=True)
             baseline = temporary / pin["asset"]
         previous = previous_release(args.repo, temporary / "previous", args.public_key) if args.publish else None
-        archive, manifest = build(config, baseline.resolve(strict=True), args.work.resolve(), args.version,
+        archive, manifest = build(baseline.resolve(strict=True), args.work.resolve(), args.version,
                                   key.resolve(strict=True), args.public_key.resolve(strict=True), previous)
         tag = "client-" + args.version
         if args.publish:

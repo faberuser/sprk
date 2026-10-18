@@ -7,11 +7,12 @@ after the one-time baseline setup.
 ## Pipeline
 
 1. Ubuntu runs the server tests and client build-tool tests.
-2. Windows downloads the immutable baseline pinned by `client-build.json`,
+2. Windows downloads the immutable baseline pinned by `scripts/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.
-3. It applies tracked files from `client-overrides/files/`, preparation commands,
-   DLL patches, and patch verifiers. The telemetry-free distribution is retained;
+3. It applies tracked files from `client-overrides/files/` and runs the patcher's
+   single `--build-release` command. That command owns the full patch path,
+   companion helpers, and verification. The telemetry-free distribution is retained;
    no deleted telemetry-removal Python script is needed.
 4. It generates a complete signed snapshot, using the previous GitHub client
    release's verified manifest for deletion history. On the first build, the
@@ -41,7 +42,9 @@ errors are logged and do not prevent a verified active release from being served
 The initial baseline is the existing distributed signed snapshot plus a support
 file referenced by its baked-data integrity metadata. It preserves existing
 patches, native tables, privacy removals and managed file selection. Its archive
-location and SHA-256 are recorded in `client-build.json`. No signing keys or user
+location and SHA-256 are recorded in `scripts/client_baseline.py`. This fixed pin
+is maintained by the baseline preparation tool; routine patcher changes never
+require editing it. No signing keys or user
 configuration enter the archive.
 
 `config/client-update-public.pem` is the existing public key, tracked and included
@@ -54,7 +57,7 @@ enter Git, release assets or container images.
 
 The current repository's baseline and environment are already configured. For a
 new repository, run `python scripts/prepare_client_baseline.py --upload --repo
-owner/repository` once against its signed distribution, commit `client-build.json`
+owner/repository` once against its signed distribution, commit the generated `scripts/client_baseline.py`
 and the matching public key, and configure the environment secret. Baseline
 preparation refuses to overwrite its local archive or an existing release.
 
@@ -80,22 +83,24 @@ cached-release reuse. Archives are limited to 2 GiB.
 
 ## Changing client inputs
 
-Change patcher code and embedded resources under `scripts/DllPatcher`. Add new
-focused modes to `patch_steps` and their checks to `verify_steps` in
-`client-build.json`. Unknown mode flags fail instead of silently selecting the
-patcher's default full mode.
+Change patcher code and embedded resources under `scripts/DllPatcher`, commit to
+`development`, then merge the PR to `main`. CI builds and publishes the new
+client and server automatically. No release ID, JSON recipe, or manual upload
+is needed. A new patch must be called by the patcher's full build path; existing
+patch fixes use their existing calls. Both the build logic and its verification
+live in patcher code, including `BuildRelease.cs`.
 
 Place native table/asset replacements under `client-overrides/files/`, preserving
 client-relative paths. Keep changed tables and their SPRK-Native*.json integrity
-metadata together. For source-generated data, add command argument arrays to
-`prepare_steps`; `{client}` expands to the disposable CI client directory. All
-sources and tools must be tracked. The sibling table-data project currently
+metadata together. Source-generated transformations belong in the patcher's
+full build code. All sources and tools must be tracked. The sibling table-data project currently
 decodes tables; it is not a complete baked-data regeneration pipeline. Untracked
 local changes cannot become CI inputs automatically.
 
-Use `deleted_files` for deliberate removals. The publisher preserves baseline
-managed paths and newly generated/default-managed files, excludes generated
-backups/staging files, and carries deletion history forward. Local hosting keeps
+The isolated build starts with the baseline and tracked overrides. CI packages
+all resulting client files automatically, excluding generated backups/staging
+files. If the patcher deletes an obsolete file, the publisher carries that
+removal forward relative to the previous signed release. Local hosting keeps
 the active release plus two previous releases; downloads of a pruned release
 must restart using the current stable manifest.
 

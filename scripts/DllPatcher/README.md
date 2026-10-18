@@ -1,5 +1,13 @@
 # DLL patcher
 
+For routine fixes, modify the patcher source and commit it. CI invokes the single
+`--build-release` entry point, which runs the full patch path, companion helpers,
+and verification before signing. There is no separate JSON patch recipe to edit.
+Wire new patches into the patcher's normal full build code, just as for local
+patching; fixes to an existing patch need no additional registration in CI.
+`--build-release` is for a fresh disposable build workspace, not an installed
+client. Focused installation commands below remain available for local changes.
+
 Settings changes that reload the game preserve saved accounts. Native session
 cleanup synchronizes any renewed refresh token and releases the account lease;
 only confirmed Log Out or account deletion forgets the active saved account.

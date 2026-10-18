@@ -6,6 +6,7 @@
 | --- | --- |
 | `build_client_release.py` | CI/local isolated baseline download, patching, verification, signing, and GitHub publishing |
 | `prepare_client_baseline.py` | Prepare a new immutable baseline when the distributed client changes |
+| `client_baseline.py` | Automatically maintained fixed baseline reference; no routine edits |
 | `publish_client_update.py` | Generate a signed snapshot from an installed/patched client; required for local client changes |
 | `client_update_bundle.py` | Shared signature verification and archive packaging; imported by CI tools |
 | `create_update_signing_key.py` | Bootstrap keys for a new installation; keep existing keys for this installation |

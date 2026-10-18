@@ -7,9 +7,10 @@ to the client root, for example:
 
 CI copies these files onto the pinned distributed baseline before patching.
 Update the corresponding SPRK-Native*.json integrity manifests when changing
-baked tables. For transformations built from source, add a command array to
-`prepare_steps` in `client-build.json`; `{client}` expands to the disposable CI
-client directory. All necessary sources/tools must be tracked in this repository.
+baked tables. Source-generated transformations belong in the patcher's full build
+code. All necessary sources/tools must be tracked in this repository; no JSON
+build recipe is required.
 
-Manage obsolete files through `deleted_files` in `client-build.json`.
+The patcher can delete obsolete files from its disposable build directory; the
+publisher records their removal relative to the previous signed release.
 Do not place complete installed clients, backups, or signing keys here.
