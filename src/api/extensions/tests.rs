@@ -1070,6 +1070,59 @@ async fn awakening_validates_materials_and_charges_once() {
     assert_eq!(gold(&s).await, 99950000);
 }
 #[tokio::test]
+async fn soul_weapon_ether_accepts_native_arrays_and_rolls_back_failed_injections() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let slot = give(&s, account, 1001, 1).await.equipment[0].slot_index;
+    give(&s, account, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    give(&s, account, 5100, 10).await;
+    give(&s, account, 5103, 10).await;
+    let original = get(&mut s.db.acquire().await.unwrap(), account, "soul", slot as i64).await.unwrap();
+    let initial_gold = gold(&s).await;
+    let inventory = || async {
+        sqlx::query_as::<_, (i32, i32)>("SELECT item_index,count FROM items WHERE account_id=? AND item_index IN (5100,5103) ORDER BY item_index")
+            .bind(account).fetch_all(&s.db).await.unwrap()
+    };
+    let initial_inventory = inventory().await;
+    for materials in [
+        "InjectionItemInfos=5100&InjectionItemInfos=1&InjectionItemInfos=5103", // missing count
+        "InjectionItemInfos=[5100,1,5100,1]", // duplicate ether
+        "InjectionItemInfos=[5100,0]",
+        "InjectionItemInfos=[5100,-1]",
+        "InjectionItemInfos=[5100,100001]",
+        "InjectionItemInfos=[5100,1,5103,11]", // first debit must roll back
+        "InjectionItemInfos=[5100,1,99999999,1]",
+    ] {
+        let response = call(&s, &u, "soul_weapon_ether_injection", &format!("EquipItemSlotIndex={slot}&{materials}")).await;
+        assert_ne!(response["Result"], "Success", "{response}");
+        assert_eq!(gold(&s).await, initial_gold);
+        assert_eq!(inventory().await, initial_inventory);
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(), account, "soul", slot as i64).await.unwrap(), original);
+    }
+    for materials in [
+        "InjectionItemInfos=5100&InjectionItemInfos=1&InjectionItemInfos=5103&InjectionItemInfos=1",
+        "InjectionItemInfos=[5100,1,5103,1]",
+        "InjectionItemInfos=[\"5100\",\"1\",\"5103\",\"1\"]",
+    ] {
+        let before = gold(&s).await;
+        let response = call(&s, &u, "soul_weapon_ether_injection", &format!("EquipItemSlotIndex={slot}&{materials}")).await;
+        assert_eq!(response["Result"], "Success", "{response}");
+        assert_eq!(response["CurrencyResult"]["AddValue"], -480000);
+        assert_eq!(gold(&s).await, before - 480000);
+        assert_eq!(response["RemovedItemResultInfos"].as_array().unwrap().len(), 2);
+        for removed in response["RemovedItemResultInfos"].as_array().unwrap() {
+            assert_eq!(removed["AddCount"], -1);
+        }
+    }
+    let saved = get(&mut s.db.acquire().await.unwrap(), account, "soul", slot as i64).await.unwrap();
+    assert_eq!(saved["Exp"], 330);
+    assert_eq!(inventory().await, vec![(5100, 7), (5103, 7)]);
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.soul_weapon_infos[0]["Exp"], 330);
+}
+
+#[tokio::test]
 async fn soul_liberation_is_atomic_and_equipment_cannot_be_sacrificed() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
