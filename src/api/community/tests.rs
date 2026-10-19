@@ -314,6 +314,22 @@ async fn guild_raid_damage_advances_shared_boss_and_charges_once() {
         .unwrap();
     assert_eq!(current["DungeonIndex"], 2);
     assert_eq!(current["MonsterHp0"],104_803_241_581i64);
+    // The archived GuildRaidShop has no static catalog. Boss loot is its stock;
+    // verify that a real raid clear populates it and that stock can be bought.
+    let stock = call(&s, &u, "guild_raid/get_guild_raid_all_booty_items", "").await;
+    assert_eq!(stock["Result"], "Success", "{stock}");
+    let drops: Vec<&Value> = stock["ItemInfos"].as_array().unwrap().iter()
+        .chain(stock["EquipItemInfos"].as_array().unwrap().iter()).collect();
+    assert!(!drops.is_empty(), "Defeated raid boss did not stock the raid shop: {stock}");
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        hero::currency(&mut db, n(&u["UserInfo"], "AccountId"), "GuildPoint", 1_000_000).await.unwrap();
+    }
+    let drop = drops[0];
+    let args = format!("Id={}&ShopIndex=20&ItemIndex={}&Count=1", n(drop,"Id"), n(drop,"ItemIndex"));
+    let bought = call(&s, &u, "guild_raid/buy_guild_raid_booty_item", &args).await;
+    assert_eq!(bought["Result"], "Success", "{bought}");
+    assert!(n(&bought["GuildPointResult"], "AddValue") < 0, "{bought}");
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM mails WHERE title='Guild raid boss defeated'")
             .fetch_one(&s.db)

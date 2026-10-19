@@ -38,6 +38,10 @@ partial class Program
         VerifyMailUpdates(clientRoot);
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
+        VerifyShopPurchaseLimitsFile(clientRoot, false);
+        TestShopPurchaseLimits(clientRoot);
+        VerifySelectorCountLimitFile(clientRoot, false);
+        TestSelectorCountLimit(clientRoot);
         TestCampaignSurvivors();
         TestMailUpdates();
         Console.WriteLine("Complete client release patching and verification passed.");
