@@ -9,7 +9,15 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
+            if (args.Contains("--restore-soul-weapon-cinematic")) {
+                var source = Array.IndexOf(args, "--source");
+                if (source < 0 || source + 1 >= args.Length) throw new ArgumentException("Cinematic restoration requires --source <original-assembly>");
+                RestoreSoulWeaponCinematic(args[0], args[source + 1], args.Contains("--stage-only")); return;
+            }
+            if (args.Contains("--verify-soul-weapon-cinematic")) { VerifySoulWeaponCinematicFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--selector-count-limit-only")) { InstallSelectorCountLimit(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-selector-count-limit")) { VerifySelectorCountLimitFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-selector-count-limit")) { TestSelectorCountLimit(args[0]); return; }
@@ -176,6 +184,7 @@ namespace DllPatcher
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
                 PatchSelectorCountLimit(module);
+                VerifySoulWeaponCinematic(module);
                 PatchAccessoryShopDuplicates(module);
                 PatchMissionThumbnails(module);
                 PatchBattleEntry(module);
@@ -255,6 +264,8 @@ namespace DllPatcher
                 File.Move(dllPath + ".chat-channels-staged", patchedPath, true);
                 InstallMissionClaimAll(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".mission-claim-all-staged", patchedPath, true);
+                InstallSoulLiberationCost(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".soul-cost-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -267,6 +278,7 @@ namespace DllPatcher
             InstallImageRecovery(clientRoot, false);
             InstallChatChannels(clientRoot, false);
             InstallMissionClaimAll(clientRoot, false);
+            InstallSoulLiberationCost(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

@@ -260,6 +260,28 @@ The focused installer adds `SprkMissionClaimAll.dll` and two header hooks to
 (also supports `--stage-only`). Close clients before installation, restart after
 installation, and publish a signed client update using the release workflow.
 
+### Soul Weapon unlock cinematic
+
+`--soul-liberation-cost-only` restores the gold requirement on the initial
+Unleash screen using the selected weapon's native upgrade-price table. A native
+gold icon and formatted price appear above the button; insufficient gold is red.
+The display updates on selection and balance changes and releases its pooled
+icon when closed. The focused installer preserves other patches and installs
+`SprkSoulLiberationCost.dll`. Use `--stage-only` to prepare the files or
+`--verify-soul-liberation-cost` to check the installed hook and price source.
+Close the client before installation and publish a signed update afterwards.
+
+The full native unlock cinematic must remain enabled. Release verification checks
+the waiting sequence, Kain action sequence, hero-specific liberation sequence,
+fade/audio callbacks, native stat/skill result panel, and dismissal. Do not replace
+the sequence with an immediate result panel to avoid a crash.
+
+`--restore-soul-weapon-cinematic --source <original-assembly>` restores only
+`SetNodeTreePlay` from a compatible original or pre-bypass assembly, preserving
+other installed patches. Nested callbacks must already match the source.
+Use `--stage-only` to stage the DLL and `--verify-soul-weapon-cinematic` to verify
+the installed or staged cinematic. Publish a signed client update after installing.
+
 ### Inventory selector quantity limit
 
 `--selector-count-limit-only` caps the shared item selector's Max button,
