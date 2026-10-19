@@ -113,7 +113,8 @@ fn mail_info(row: &SqliteRow) -> Result<Value> {
         .map(|v| (v.and_utc() - chrono::Utc::now()).num_seconds().max(0))
         .unwrap_or(0);
     let equipment: Vec<EquipItemInfo> = attachments(row, "reward_equipment")?;
-    let items: Vec<MailItemInfo> = attachments(row, "reward_items")?;
+    let mut items: Vec<MailItemInfo> = attachments(row, "reward_items")?;
+    items.retain(|item| !crate::models::item::disabled_reward(item.item_index));
     let currencies: Vec<Value> = attachments(row, "reward_currencies")?;
     Ok(
         json!({"MailIndex":row.get::<i64,_>("mail_id"),"OpenIndex":0,"SenderId":0,"SenderName":row.get::<String,_>("sender"),
@@ -206,6 +207,9 @@ async fn claim(
     tutorial::currency(db, account, "Gold", gold, &mut rewards).await?;
     tutorial::currency(db, account, "Gem", gem, &mut rewards).await?;
     for item in attachments::<MailItemInfo>(row, "reward_items")? {
+        if crate::models::item::disabled_reward(item.item_index) {
+            continue;
+        }
         if item.item_count <= 0 {
             return Err(ServerError::Internal("Invalid mail item count".into()));
         }
@@ -379,7 +383,10 @@ pub async fn send_system_mail(
     gem: i64,
     items: Option<Vec<MailItemInfo>>,
 ) -> Result<i64> {
-    let items_json = items.map(|i| serde_json::to_string(&i).unwrap_or_default());
+    let items_json = items.map(|mut i| {
+        i.retain(|item| !crate::models::item::disabled_reward(item.item_index));
+        serde_json::to_string(&i).unwrap_or_default()
+    });
 
     let result = sqlx::query(
         r#"INSERT INTO mails (account_id, sender, title, content, 

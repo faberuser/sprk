@@ -21,6 +21,14 @@ partial class Program
         Prefix(cache.Methods.Single(m => m.Name == "GetCachedAsset"), "BeforeCachedAsset", OpCodes.Ldarg_0, OpCodes.Ldarg_1, OpCodes.Ldarg_2);
         Prefix(cache.Methods.Single(m => m.Name == "GetCachedResource"), "BeforeCachedResource", OpCodes.Ldarg_0, OpCodes.Ldarg_1);
         var loader = module.GetType("NGame2.NUI.UIBundleLoader");
+        var loadTexture = loader.Methods.Single(m => m.Name == "LoadAssetTexture");
+        if (!loadTexture.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == "TryTpIcon")) {
+            var il = loadTexture.Body.GetILProcessor(); var first = loadTexture.Body.Instructions[0];
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Call, Hook("TryTpIcon")));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Brfalse, first));
+            il.InsertBefore(first, Instruction.Create(OpCodes.Ret));
+        }
         var update = loader.Methods.SingleOrDefault(m => m.Name == "Update");
         if (update == null) {
             update = new MethodDefinition("Update", MethodAttributes.Private | MethodAttributes.HideBySig, module.TypeSystem.Void);
@@ -36,7 +44,7 @@ partial class Program
     {
         var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
             .Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.Name == "SprkImageRecovery").ToArray();
-        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "Tick", "TickGlobal", "Reset" })
+        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickGlobal", "Reset" })
             if (calls.Count(m => m.Name == name) != (name == "Reset" ? 2 : 1)) throw new InvalidOperationException("Missing or duplicate image recovery hook: " + name);
         Console.WriteLine("Verified image cache guards, bounded widget recovery, atlas retry scheduling and lifecycle cleanup.");
     }
@@ -58,7 +66,9 @@ partial class Program
         var refs = Directory.GetFiles(managed, "*.dll").Where(p => Path.GetFileName(p) != "SprkImageRecovery.dll").Select(p => MetadataReference.CreateFromFile(p));
         var compilation = CSharpCompilation.Create("SprkImageRecovery", new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
-        using var compiled = new MemoryStream(); var result = compilation.Emit(compiled);
+        var images = new[] { 10, 15 }.Select(value => new ResourceDescription("SprkTpIcons." + value + ".png",
+            () => typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.TpIcons." + value + ".png")!, true));
+        using var compiled = new MemoryStream(); var result = compilation.Emit(compiled, manifestResources: images);
         if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
         compiled.Position = 0;
         using var helper = AssemblyDefinition.ReadAssembly(compiled);

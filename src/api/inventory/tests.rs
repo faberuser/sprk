@@ -1901,3 +1901,29 @@ async fn native_item_batch_sales_keep_item_count_pairing_and_rollback_invalid_en
         assert_eq!(again.items.iter().find(|i|i.item_index==id).unwrap().count,remaining);
     }
 }
+
+#[tokio::test]
+async fn retired_hero_rewards_cannot_be_granted_or_rolled() {
+    let (state, u) = setup().await;
+    let mut tx = state.db.begin().await.unwrap();
+    let mut rewards = crate::api::tutorial::Rewards::default();
+    for index in [30005,30010,30015,30020,30025,30030,30035,91006,9001001] {
+        let grant = ItemGrant {index,count:10,star:0,custom:0};
+        item::give(&mut tx,&state,u.user_info.account_id,grant,&mut rewards).await.unwrap();
+        crate::api::tutorial::grant_item(&mut tx,&state,u.user_info.account_id,grant,&mut rewards).await.unwrap();
+    }
+    assert!(rewards.items.is_empty());
+    tx.commit().await.unwrap();
+    assert!(state.tables.roll_item_from_group_code("PACKAGE_SKILLBOOK_5_GROUP",&[]).is_none());
+    put(&state,&u,91006,1).await;
+    let opened=item::use_package_item(State(state.clone()),form(&u,"ItemIndex=91006&ItemCount=1")).await.unwrap().0;
+    assert_ne!(opened["Result"],"Success");
+    assert_eq!(count(&state,&u,91006).await,1);
+
+    for index in [45044,45045,45046] {
+        let mut tx = state.db.begin().await.unwrap();
+        item::give(&mut tx,&state,u.user_info.account_id,ItemGrant{index,count:1,star:0,custom:0},&mut rewards).await.unwrap();
+        tx.commit().await.unwrap();
+        assert_eq!(count(&state,&u,index).await,1);
+    }
+}

@@ -130,6 +130,16 @@ impl GameTables {
         
         // Load item code→index mapping
         let items = ItemTable::load(table_dir.join("ItemCodeToIndex.json"))?;
+        // Retire unsupported rewards before rolling; mixed groups keep their
+        // remaining weights rather than rolling an unusable item.
+        for group in item_groups.entries.values_mut() {
+            let before = group.sub_data_list.len();
+            group.sub_data_list.retain(|leaf| !items.get_index(&leaf.item_code)
+                .is_some_and(crate::models::item::disabled_reward));
+            if group.sub_data_list.len() != before {
+                group.total_rate = group.sub_data_list.iter().map(|leaf| leaf.rate).sum();
+            }
+        }
         tracing::info!("Loaded {} item code→index mappings", items.len());
         
         // Load tutorial table

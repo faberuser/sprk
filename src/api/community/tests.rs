@@ -611,6 +611,14 @@ async fn arena_pages_and_reward_rollover_are_persistent() {
         .await
         .unwrap();
     assert_eq!(count, 2);
+    let mails: Vec<(String, String)> = sqlx::query_as(
+        "SELECT reward_items,reward_currencies FROM mails WHERE sender='Arena'",
+    ).fetch_all(&s.db).await.unwrap();
+    for (items, currencies) in mails {
+        assert!(parse::<Value>(&items).unwrap().as_array().unwrap().iter()
+            .all(|item| !crate::models::item::disabled_reward(n(item,"ItemIndex") as i32)));
+        assert!(!parse::<Value>(&currencies).unwrap().as_array().unwrap().is_empty());
+    }
 }
 
 #[tokio::test]

@@ -196,6 +196,9 @@ pub(crate) async fn give(
     if count <= 0 {
         return Err(rule("InvalidItemCount"));
     }
+    if crate::models::item::disabled_reward(index) {
+        return Ok(());
+    }
     let metadata = state
         .tables
         .items
@@ -728,6 +731,9 @@ async fn execute(
             out["ItemTimeDurationInfos"] = json!(buffs);
         }
         "use_package_item" => {
+            if crate::models::item::disabled_reward(index) {
+                return Err(rule("InvalidItemType"));
+            }
             let package = state
                 .tables
                 .inventory

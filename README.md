@@ -108,3 +108,7 @@ This will:
 dotnet run --project scripts/DllPatcher -- "D:\path\to\game\client"
 dotnet run --project scripts/DllDisasm -- "D:\path\to\game\client"
 ```
+
+## Credits
+
+Thanks to Shamomylle/keirakoro/zanezonair for providing clients for this project.

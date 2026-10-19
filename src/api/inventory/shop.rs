@@ -99,6 +99,7 @@ fn purchasable(state: &AppState, shop: &Value, row: &Value) -> bool {
         n(shop, "BuyCostType")
     };
     kind(cost).is_ok()
+        && !crate::models::item::disabled_reward(n(row, "ItemIndex") as i32)
         && n(row, "ItemIndex") > 0
         && n(row, "Condition") == 0
         && state
@@ -183,8 +184,9 @@ async fn stock(
         .bind(shop_id)
         .fetch_one(&mut *db)
         .await?;
-    let rows: Vec<Value> = serde_json::from_str(row.get::<String, _>("stock").as_str())
+    let mut rows: Vec<Value> = serde_json::from_str(row.get::<String, _>("stock").as_str())
         .map_err(|_| rule("NoShopItemInfo"))?;
+    rows.retain(|r| !crate::models::item::disabled_reward(n(r, "ItemIndex") as i32));
     let time = row.get::<i64, _>("restock_time");
     let info = json!({"ShopIndex":shop_id,"ShopItemListIndex":row.get::<i64,_>("revision"),"RestockTime":if time>0 {Utc.timestamp_opt(time,0).single().map(|d|d.format("%Y-%m-%d %H:%M:%S").to_string())}else{None},"RestockCount":row.get::<i64,_>("restock_count"),"RestockCountResetTime":null});
     Ok((rows, info))

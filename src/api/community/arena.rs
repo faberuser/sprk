@@ -538,7 +538,9 @@ async fn rank_mail(
             .tables
             .get_item_index(code)
             .ok_or_else(|| rule("ItemDataNotFound"))?;
-        items.push(json!({"ItemIndex":id,"ItemCount":count}));
+        if !crate::models::item::disabled_reward(id) {
+            items.push(json!({"ItemIndex":id,"ItemCount":count}));
+        }
     }
     let currencies = if amount > 0 {
         json!([{"CurrencyType":currency,"Amount":amount}])
