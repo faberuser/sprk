@@ -42,7 +42,7 @@ def safe_path(value: str) -> str:
 
 def ignored(path: Path) -> bool:
     name = path.name.lower()
-    return ".backup" in name or ".before-" in name or name.endswith(
+    return ".backup" in name or ".before-" in name or ".before_" in name or name.endswith(
         (".patched", ".eye-patched", ".staged", "-staged", ".log", ".tmp", ".bak")
     )
 

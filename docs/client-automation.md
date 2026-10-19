@@ -91,8 +91,8 @@ click from login to lobby, Portal open/close smoke test, and concurrent client
 instances. Startup observations include missing Constant/EventTrigger/DeviceModel
 table messages and a certificate-decoding error. Those are captured findings,
 not fixed by installing automation. Dragon and story parties use the native
-battle worker; configure it with `python scripts/setup_native_battle.py` and
-restart the server. Test both clients through combat and settlement, since a
+battle worker; configure its executable before starting the server. The old
+`setup_native_battle.py` helper is no longer included. Test both clients through combat and settlement, since a
 successful invitation/join alone does not verify battle support.
 
 Final installed-patch validation on 2026-09-30:
@@ -109,11 +109,9 @@ Final installed-patch validation on 2026-09-30:
   `target/client-automation/20260930-154523-313b0a/report-cfd87151fdd94e77a755edc39a5cef4c.json`
   and `a7061fce8da14fdaaf083aa6dda1ad34.png` in that directory.
 
-Run harness tests with:
-
-```powershell
-python -m unittest discover -s scripts -p test_client_automation.py
-```
+The old standalone `test_client_automation.py` suite is no longer included.
+Use the real-client scenarios above for automation checks; current build and
+packaging tests are listed in [the scripts inventory](../scripts/README.md).
 
 The patcher keeps timestamped `Assembly-CSharp.dll.before_automation_*` backups
 of the currently restored client and helper backups. Reapplying is idempotent.
@@ -127,7 +125,6 @@ Read-only material diagnosis: `python scripts/client_automation.py renderers`
 adds active renderer hierarchy, material name, shader name, support and visibility
 to the reply. Reinstall `--automation-only` after updating the bridge. This command
 does not change materials or gameplay. Null slots on visible renderers can identify
-magenta effects. Field projectile repair is separate:
-`python scripts/repair_field_raid_effect.py <client directory>` (UnityPy required).
-Close the client first. It retains original bundle backups; restoring those files
-reverts the approximation. A client asset update can overwrite this local repair.
+magenta effects. The old standalone field-projectile asset repair script is no
+longer included. Asset changes now belong in the tracked client build inputs
+described in [CI client releases](github-client-updates.md).

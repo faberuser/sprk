@@ -11,6 +11,43 @@ using UnityEngine;
 
 public static class SprkImageRecovery
 {
+    static readonly Dictionary<int, Texture2D> tpIcons = new Dictionary<int, Texture2D>();
+
+    // These two valid legacy consumables have no native atlas entries. Keep the
+    // icons in the helper so every quality setting uses the same numbered art.
+    public static bool TryTpIcon(UIBundleLoader loader)
+    {
+        if (loader == null) return false;
+        string path = loader.AssetPath;
+        int value = String.Equals(path, "Icon/Item/TRANSCEND_10POINT", StringComparison.OrdinalIgnoreCase) ? 10
+            : String.Equals(path, "Icon/Item/TRANSCEND_15POINT", StringComparison.OrdinalIgnoreCase) ? 15 : 0;
+        if (value == 0) return false;
+        Texture2D icon;
+        if (!tpIcons.TryGetValue(value, out icon) || icon == null) {
+            using (var stream = typeof(SprkImageRecovery).Assembly.GetManifestResourceStream("SprkTpIcons." + value + ".png")) {
+                if (stream == null) throw new InvalidOperationException("Missing TP icon: " + value);
+                var bytes = new byte[(int)stream.Length];
+                int offset = 0;
+                while (offset < bytes.Length) {
+                    int read = stream.Read(bytes, offset, bytes.Length - offset);
+                    if (read == 0) throw new System.IO.EndOfStreamException();
+                    offset += read;
+                }
+                icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!ImageConversion.LoadImage(icon, bytes, true)) throw new InvalidOperationException("Invalid TP icon: " + value);
+                icon.name = "SPRK " + value + " TP";
+                icon.hideFlags = HideFlags.HideAndDontSave;
+                tpIcons[value] = icon;
+            }
+        }
+        var ui = loader.UiTex;
+        if (ui != null) {
+            ui.material = null;
+            ui.mainTexture = icon;
+            ui.uvRect = new Rect(0, 0, 1, 1);
+        }
+        return true;
+    }
     sealed class State {
         public string Path;
         public int Attempts;
@@ -94,6 +131,7 @@ public static class SprkImageRecovery
 
     public static void TickGlobal()
     {
+        ProbeTpIcons();
         if (atlases.Count == 0) return;
         var due = new List<string>();
         foreach (var item in atlases) if (Time.realtimeSinceStartup >= item.Value.At) due.Add(item.Key);
@@ -103,6 +141,41 @@ public static class SprkImageRecovery
             try { atlas.Open(code); }
             catch (Exception error) { Debug.LogWarning("[SPRK Images] Atlas retry failed: " + error.Message); }
             finally { NguiAtlasContainer.ReleaseAtlas(atlas, false); }
+        }
+    }
+
+    static bool probedTpIcons;
+    static void ProbeTpIcons()
+    {
+        string report = Environment.GetEnvironmentVariable("SPRK_TP_ICON_PROBE");
+        if (probedTpIcons || String.IsNullOrEmpty(report)) return;
+        probedTpIcons = true;
+        GameObject go = null;
+        try {
+            go = new GameObject("SPRK TP icon probe");
+            go.AddComponent<UITexture>();
+            var loader = go.AddComponent<UIBundleLoader>();
+            typeof(UIBundleLoader).GetField("_uiTex", flags).SetValue(loader, go.GetComponent<UITexture>());
+            loader.SetAssetPath(UIHelper.GetItemIconPath("TRANSCEND_10POINT"), (UIHelper.EAssetTextureAssign)4);
+            var ten = loader.UiTex.mainTexture;
+            if (ten == null || ten.name != "SPRK 10 TP" || ten.width != 124 || ten.height != 124)
+                throw new InvalidOperationException("10 TP did not bind through the native loader");
+            loader.SetAssetPath(UIHelper.GetItemIconPath("TRANSCEND_15POINT"), (UIHelper.EAssetTextureAssign)4);
+            var fifteen = loader.UiTex.mainTexture;
+            if (fifteen == null || fifteen.name != "SPRK 15 TP" || fifteen == ten)
+                throw new InvalidOperationException("15 TP did not bind a distinct icon");
+            loader.SetAssetPath("", (UIHelper.EAssetTextureAssign)4);
+            if (loader.UiTex.mainTexture != null) throw new InvalidOperationException("Pooled icon retained stale TP art");
+            loader.SetAssetPath(UIHelper.GetItemIconPath("TRANSCEND_10POINT"), (UIHelper.EAssetTextureAssign)4);
+            if (loader.UiTex.mainTexture != ten) throw new InvalidOperationException("10 TP texture was not cached");
+            go.SetActive(false); go.SetActive(true);
+            if (loader.UiTex.mainTexture != ten) throw new InvalidOperationException("TP icon did not survive re-enable");
+            System.IO.File.WriteAllText(report, "{\"success\":true,\"distinctIcons\":true,\"poolReset\":true,\"cacheReuse\":true,\"reenable\":true}");
+        } catch (Exception error) {
+            System.IO.File.WriteAllText(report, "{\"success\":false,\"error\":\"" + error.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n") + "\"}");
+        } finally {
+            if (go != null) UnityEngine.Object.Destroy(go);
+            Application.Quit();
         }
     }
 

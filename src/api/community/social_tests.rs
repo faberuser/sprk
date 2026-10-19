@@ -1495,3 +1495,25 @@ async fn chat_equipment_links_use_owned_snapshot() {
     assert_eq!(content["LinkedItem"][0]["MaxEquipLevel"],0);
     assert!(chat::send_world_chat(State(state.clone()),form(&b,&format!("Chat=item&LinkedItem={link}"))).await.is_err());
 }
+
+#[tokio::test]
+async fn retired_hero_rewards_are_hidden_and_skipped_in_old_mail() {
+    let (state, a, _) = setup().await;
+    let id = add_mail(&state, &a, 123, 7, None).await;
+    // Simulate mail queued by an older server, bypassing send-time filtering.
+    sqlx::query("UPDATE mails SET reward_items=? WHERE mail_id=?")
+        .bind(json!([{"ItemIndex":9001001,"ItemCount":180},
+            {"ItemIndex":30005,"ItemCount":5},{"ItemIndex":91006,"ItemCount":1},
+            {"ItemIndex":45045,"ItemCount":1}]).to_string())
+        .bind(id).execute(&state.db).await.unwrap();
+    let list = mail::get_mail_list(State(state.clone()), form(&a, "MaxCount=50")).await.unwrap().0;
+    let info = list["MailInfos"].as_array().unwrap().iter().find(|v|v["MailIndex"]==id).unwrap();
+    assert_eq!(info["ItemInfos"],json!([{"ItemIndex":45045,"ItemCount":1}]));
+    let claimed = mail::receive_mail(State(state.clone()), form(&a, &format!("MailIndex={id}"))).await.unwrap().0;
+    assert_eq!(claimed["Result"],"Success");
+    assert_eq!(claimed["MailReceiveResult"]["ItemResults"].as_array().unwrap().len(),1);
+    let blocked:i64=sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=? AND item_index IN (9001001,30005,91006)")
+        .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(blocked,0);
+    assert_eq!(mail::receive_mail(State(state.clone()), form(&a, &format!("MailIndex={id}"))).await.unwrap().0["Result"],"Fail");
+}

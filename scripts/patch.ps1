@@ -76,6 +76,12 @@ if (-not (Test-Path $ClientPath)) {
 if (-not (Test-Path $ManagedDir)) {
     Write-Error "Managed dir not found at: $ManagedDir`nMake sure ClientPath points to the game root (contains 'King's Raid_Data')."; exit 1
 }
+if (-not $Restore) {
+    python -c "import UnityPy"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Install client dependencies first: python -m pip install -r scripts/requirements-client.txt"
+    }
+}
 
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  sprk Client Patcher" -ForegroundColor Cyan
@@ -91,6 +97,12 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 # Step 1: Patch / Restore DLL
 # ---------------------------------------------------------------------------
+# Cleanup must run before DLL patching so it can discover original telemetry
+# types and remove their serialized scripts before those type definitions vanish.
+if (-not $Restore) {
+    python "$ScriptDir\remove_client_telemetry.py" "$ClientPath"
+    if ($LASTEXITCODE -ne 0) { throw "Telemetry cleanup failed with exit code $LASTEXITCODE" }
+}
 if ($Restore) {
     Write-Host "[1/2] Restoring Assembly-CSharp.dll from backup..." -ForegroundColor Yellow
     $backupPath = "$DllPath.backup_before_patch"
@@ -177,17 +189,9 @@ if ($Restore) {
 }
 
 if (-not $Restore) {
-    Write-Host "Removing obsolete login provider SDKs and startup registrations..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_login_providers.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Login provider removal failed with exit code $LASTEXITCODE" }
-    Write-Host "Removing real-money payment SDKs and startup registrations..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_client_payments.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Payment removal failed with exit code $LASTEXITCODE" }
-    Write-Host "Removing client telemetry code, SDKs, and startup assets..." -ForegroundColor Yellow
-    python "$ScriptDir\remove_client_telemetry.py" "$ClientPath"
-    if ($LASTEXITCODE -ne 0) { throw "Client telemetry removal failed with exit code $LASTEXITCODE" }
-    python "$ScriptDir\enable_multiple_windows.py" "$ClientPath" --install
-    if ($LASTEXITCODE -ne 0) { throw "Multiple-window setup failed with exit code $LASTEXITCODE" }
+    # Verify that patching preserves the completed telemetry cleanup.
+    dotnet run --project "$DllPatcherDir" -- "$ClientPath" --verify-no-telemetry
+    if ($LASTEXITCODE -ne 0) { throw "Telemetry verification failed with exit code $LASTEXITCODE" }
 }
 
 Write-Host ""

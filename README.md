@@ -32,6 +32,8 @@ See [feature status](docs/feature-status.md) for implemented capabilities, testi
 - `scripts/`: client patching, publishing, and local server tools
 - `tests/`: Python tool and Windows process-lifetime checks
 
+See [the scripts inventory](scripts/README.md) for active CI and development tools.
+
 See [development checks](docs/development.md) before changing server behavior.
 
 ## Building the Server
@@ -106,3 +108,7 @@ This will:
 dotnet run --project scripts/DllPatcher -- "D:\path\to\game\client"
 dotnet run --project scripts/DllDisasm -- "D:\path\to\game\client"
 ```
+
+## Credits
+
+Thanks to Shamomylle/keirakoro/zanezonair for providing clients for this project.

@@ -1,12 +1,8 @@
-# Deploy from Git on Docker Standalone with Portainer's local Docker socket.
-# Both services build the same image from the checked-out repository.
+# GitHub Actions builds the shared game/update image; Portainer pulls it from GHCR.
+# For a local image, build with Dockerfile and use `docker compose up --pull never`.
 x-sprk-image: &sprk-image
-  image: ${SPRK_IMAGE:-sprk-server:latest}
-  build:
-    context: .
-    dockerfile: Dockerfile
-  # Re-evaluate the build on deployment; unchanged layers use Docker's cache.
-  pull_policy: build
+  image: ${SPRK_IMAGE:-ghcr.io/faberuser/sprk:latest}
+  pull_policy: always
 
 services:
   game:
@@ -37,17 +33,23 @@ services:
     <<: *sprk-image
     restart: unless-stopped
     init: true
+    healthcheck:
+      # Startup may download and verify a full client release before listening.
+      start_period: 20m
     environment:
       SPRK_SERVICE_MODE: updates
       PORT: "8080"
       SPRK_UPDATES_DIR: /client-updates
+      # The release tag/repository are pinned in the image by CI.
+      SPRK_UPDATES_PUBLIC_KEY: ${SPRK_UPDATES_PUBLIC_KEY:-}
     ports:
       - "${SPRK_UPDATE_PORT:-8081}:8080"
     volumes:
       - type: bind
         source: ${SPRK_UPDATES_HOST_DIR:-/srv/sprk/client-updates}
         target: /client-updates
-        read_only: true
+        # Startup sync stages a verified release before switching stable.
+        read_only: false
         bind:
           create_host_path: false
     cpus: "${SPRK_UPDATE_CPUS:-1.0}"

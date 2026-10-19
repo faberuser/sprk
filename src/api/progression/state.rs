@@ -211,7 +211,8 @@ impl View {
                     .filter(|v| {
                         n(v, "MainCategoryIndex") == n(category, "MainCategoryIndex")
                             && n(v, "SubCategoryIndex") == n(category, "SubCategoryIndex")
-                            && n(v, "QuestType") == 1
+                            // ProgressionSupport exports this enum by name.
+                            && v["QuestType"] == "SubQuest"
                     })
                     .collect();
                 let done = |v: &Value| {

@@ -196,6 +196,9 @@ pub(crate) async fn give(
     if count <= 0 {
         return Err(rule("InvalidItemCount"));
     }
+    if crate::models::item::disabled_reward(index) {
+        return Ok(());
+    }
     let metadata = state
         .tables
         .items
@@ -453,6 +456,9 @@ endpoint!(
 );
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let arrays: &[&str] = match action {
+        // WWWForm emits one field per selected option. Preserve order and
+        // repeated values: some legacy gear explicitly permits duplicate stats.
+        "use_equip_option_select_item" => &["EquipOptionIndices", "EquipExtraOptionIndices"],
         "sell_equip" => &["EquipItemSlotIndices"],
         "set_chest" | "unset_chest" => &["EquipItemSlotIndex"],
         "sell_item" => &["ItemIndices", "ItemCount"],
@@ -725,6 +731,9 @@ async fn execute(
             out["ItemTimeDurationInfos"] = json!(buffs);
         }
         "use_package_item" => {
+            if crate::models::item::disabled_reward(index) {
+                return Err(rule("InvalidItemType"));
+            }
             let package = state
                 .tables
                 .inventory
@@ -826,7 +835,9 @@ async fn execute(
             {
                 return Err(rule("WeaponUniqueNotSelectable"));
             }
-            let options: Vec<i32> = if action == "use_equip_option_select_item" {
+            let options: Vec<i32> = if action == "use_equip_option_select_item"
+                && !req.text("EquipOptionIndices").is_empty()
+            {
                 serde_json::from_str(req.text("EquipOptionIndices"))
                     .map_err(|_| rule("NotCorrectOptionCount"))?
             } else {
@@ -840,8 +851,10 @@ async fn execute(
                     .get(&selected)
                     .map(|e| n(e, "OptionCount"))
                     .unwrap_or(0);
-                if options.iter().filter(|i| **i > 0).count() as i64
-                    != n(selector, "SelectOptionCount").min(max)
+                // Zero-option tickets omit the native array entirely. Other
+                // tickets send exactly the chosen slots, without placeholders.
+                if options.len() as i64 != n(selector, "SelectOptionCount").min(max)
+                    || options.iter().any(|i| *i <= 0)
                 {
                     return Err(rule("NotCorrectOptionCount"));
                 }

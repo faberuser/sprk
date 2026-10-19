@@ -1,5 +1,74 @@
 # DLL patcher
 
+For routine fixes, modify the patcher source and commit it. CI invokes the single
+`--build-release` entry point, which runs the full patch path, companion helpers,
+and verification before signing. There is no separate JSON patch recipe to edit.
+Wire new patches into the patcher's normal full build code, just as for local
+patching; fixes to an existing patch need no additional registration in CI.
+`--build-release` is for a fresh disposable build workspace, not an installed
+client. Focused installation commands below remain available for local changes.
+
+## Telemetry cleanup
+
+Install the asset dependency once with
+`python -m pip install -r scripts/requirements-client.txt` (.NET 8 is also required).
+`scripts/patch.ps1` and the Python CI release builder automatically run the complete
+cleanup. The DLL patcher alone removes managed telemetry code; the Python wrapper
+also removes SDK files, serialized telemetry scripts/prefabs, startup hooks, Unity
+service destinations and cloud identifiers.
+
+```powershell
+python scripts/remove_client_telemetry.py ../sprk-client --stage-only
+python scripts/remove_client_telemetry.py ../sprk-client
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-no-telemetry
+```
+
+The first command validates without installing. Recovery files and reports stay
+under `target/telemetry-removal/`, outside the client. Cleanup preserves existing
+privacy deletion history and is safe to rerun. Close the game before installation;
+after changing installed files, publish a signed update using `docs/client-updates.md`.
+Rerun cleanup after restoring original files; `patch.ps1 -Restore` does not undo
+the full privacy cleanup.
+
+Settings changes that reload the game preserve saved accounts. Native session
+cleanup synchronizes any renewed refresh token and releases the account lease;
+only confirmed Log Out or account deletion forgets the active saved account.
+Install with `--accounts-only`, then check the installed routing with
+`--verify-account-session`. Settings such as texture quality and sound remain
+local Unity PlayerPrefs shared by accounts under the same Windows user.
+
+Saved settings are reapplied once when the UI starts, even on clients whose
+legacy `SingletonCreator.InitializeOnStartup` was disabled. The original option
+initializer restores the FPS limit and rendering options; legacy battery-mode
+migration only runs when no saved FPS preference exists. User option changes and
+texture changes flush PlayerPrefs to disk.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --settings-persistence-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-settings-persistence
+python scripts/check_settings_persistence.py --client ../sprk-client
+```
+
+The real-client check launches and closes three test windows using a new isolated
+preference profile. It verifies saved and applied 30/60 FPS limits, measured frame
+rates, texture quality, BGM volume, outline, and preservation of the FPS preference
+when an old battery-mode value exists. It requires a graphics device. Normal player
+preferences are untouched. Publish a signed client update after installation.
+
+Recommended Friends samples the server's full eligible player population, including
+offline players regardless of last logout time. The client preserves the random
+server order and fetches a fresh sample whenever Accept/Request opens. Existing
+friends and pending invitations remain excluded; the server bounds the response.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --friend-recommendations-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-friend-recommendations --stage-only
+# Close King's Raid, then install and publish a new signed client update.
+dotnet run --project scripts/DllPatcher -- ../sprk-client --friend-recommendations-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-friend-recommendations
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-friend-recommendations
+```
+
 Battlefield of Ordeals accepts the account's tutorial-skip setting as well as
 completion of its configured League of Victory introduction (normally 2130).
 The account guards and seasonal availability checks remain native. Apply this

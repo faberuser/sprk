@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      client_release_tag:
+        description: "Reuse a compatible client-<version> release; blank builds a new client release from this commit"
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -32,9 +37,86 @@ jobs:
       - name: Test
         run: cargo +1.93.0 test --locked
 
+      - name: Test client release packaging
+        run: python3 -m unittest discover -s scripts -p 'test_*client*.py'
+
+  client-release:
+    name: Build and publish client update
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    environment: client-release
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.reuse.outputs.tag || steps.build.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install client patch dependencies
+        run: python -m pip install -r scripts/requirements-client.txt
+
+      - name: Select an existing release override
+        id: reuse
+        env:
+          INPUT_TAG: ${{ inputs.client_release_tag }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        shell: python
+        run: |
+          import json, os, re, subprocess, sys, tempfile
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from client_update_bundle import verified_manifest
+          tag = os.environ.get('INPUT_TAG', '')
+          if tag and (len(tag) > 128 or not re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', tag)):
+              raise SystemExit('Expected a client-<version> release tag')
+          if tag:
+              repo = os.environ['RELEASE_REPOSITORY']
+              release = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases/tags/{tag}']))
+              assets = {asset['name'] for asset in release['assets'] if asset['state'] == 'uploaded'}
+              if release['draft'] or release['prerelease'] or not {'client-update-manifest.json', 'client-update.tar.gz'} <= assets:
+                  raise SystemExit('Expected a complete published client release')
+              with tempfile.TemporaryDirectory() as folder:
+                  subprocess.run(['gh', 'release', 'download', tag, '--repo', repo, '--pattern', 'client-update-manifest.json', '--dir', folder], check=True)
+                  manifest = verified_manifest((Path(folder) / 'client-update-manifest.json').read_bytes(), Path('config/client-update-public.pem'))
+                  if tag != 'client-' + manifest['version']:
+                      raise SystemExit('Tag differs from the signed manifest version')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\n')
+
+      - name: Build, verify, sign and publish client release
+        id: build
+        if: steps.reuse.outputs.tag == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_UPDATE_SIGNING_KEY: ${{ secrets.CLIENT_UPDATE_SIGNING_KEY }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        shell: pwsh
+        run: |
+          $version = "ci-$($env:GITHUB_SHA.Substring(0,12))-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          python scripts/build_client_release.py `
+            --work "$env:RUNNER_TEMP/client-build" `
+            --version $version --repo $env:RELEASE_REPOSITORY --publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   build-and-deploy:
     name: Publish image and update Portainer
-    needs: test
+    needs: [test, client-release]
     # Pull requests and manual runs on other branches cannot deploy.
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -71,6 +153,9 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
+          build-args: |
+            CLIENT_UPDATE_REPO=${{ github.repository }}
+            CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
           tags: |
             ${{ steps.image.outputs.name }}:latest
             ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
@@ -84,9 +169,11 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build.outputs.digest }}
+          CLIENT_TAG: ${{ needs.client-release.outputs.tag }}
         run: |
           echo "Published ${IMAGE}:latest and ${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
           echo "Image digest: ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pinned client release: ${CLIENT_TAG:-none (automatic client sync disabled)}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update Portainer stack
         env:

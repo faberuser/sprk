@@ -199,6 +199,9 @@ pub(crate) async fn grant_item(
         star,
         custom,
     } = grant;
+    if crate::models::item::disabled_reward(index) {
+        return Ok(());
+    }
     let support = &state.tables.tutorials.support;
     let data = support
         .items
