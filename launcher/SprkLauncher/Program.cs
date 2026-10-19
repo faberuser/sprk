@@ -82,6 +82,7 @@ sealed class LauncherForm : Form
 
     public LauncherForm(string root, LauncherConfig config)
     {
+        SuspendLayout();
         this.root = root;
         this.config = config;
         Text = "SPRK Launcher";
@@ -93,8 +94,11 @@ sealed class LauncherForm : Form
         BackColor = Color.FromArgb(18, 22, 31);
         ForeColor = Color.FromArgb(234, 238, 245);
         Font = new Font("Segoe UI", 10);
+        // All bounds below are authored at 100% (96 DPI). Record that baseline
+        // before resuming layout so fonts, controls and the window scale together.
+        AutoScaleDimensions = new SizeF(96, 96);
         AutoScaleMode = AutoScaleMode.Dpi;
-        var title = new Label { Text = "SPRK", Location = new Point(30, 24), Size = new Size(350, 50), Font = new Font("Segoe UI", 28, FontStyle.Bold) };
+        var title = new Label { Text = "SPRK", Location = new Point(30, 24), Size = new Size(350, 56), Font = new Font("Segoe UI", 28, FontStyle.Bold) };
         var subtitle = new Label { Text = "KING’S RAID", Location = new Point(33, 81), Size = new Size(350, 28), ForeColor = Color.FromArgb(156, 172, 195) };
         version.SetBounds(33, 160, 535, 25);
         version.ForeColor = Color.FromArgb(156, 172, 195);
@@ -142,6 +146,8 @@ sealed class LauncherForm : Form
             cancellation.Cancel();
             status.Text = "Finishing safely…";
         };
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     void ManageServers()

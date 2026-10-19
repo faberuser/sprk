@@ -12,10 +12,13 @@ sealed class ServerManagerForm : Form
 
     public ServerManagerForm(LauncherConfig config)
     {
+        SuspendLayout();
         Configuration = JsonSerializer.Deserialize<LauncherConfig>(JsonSerializer.Serialize(config))!;
         Text = "Manage Servers";
         ClientSize = new Size(480, 330);
         Font = new Font("Segoe UI", 10);
+        AutoScaleDimensions = new SizeF(96, 96);
+        AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -53,6 +56,8 @@ sealed class ServerManagerForm : Form
             remove.Enabled = servers.SelectedItem is ServerProfile profile && profile.Id != "local";
         };
         RefreshServers(config.SelectedProfile);
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     void EditServer(ServerProfile? profile)
@@ -81,9 +86,12 @@ sealed class ServerEditorForm : Form
 
     public ServerEditorForm(LauncherConfig config, ServerProfile? profile)
     {
+        SuspendLayout();
         Text = profile == null ? "Add Server" : "Edit Server";
         ClientSize = new Size(650, 440);
         Font = new Font("Segoe UI", 10);
+        AutoScaleDimensions = new SizeF(96, 96);
+        AutoScaleMode = AutoScaleMode.Dpi;
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -134,6 +142,8 @@ sealed class ServerEditorForm : Form
             }
             catch (Exception error) when (error is InvalidDataException or IOException or ArgumentException) { ShowError(error); }
         };
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     void ShowError(Exception error) => MessageBox.Show(this, error.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
