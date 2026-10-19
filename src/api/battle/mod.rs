@@ -374,7 +374,7 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
     out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
     Ok(out)
 }
-/// Release withdrawn local stories and raids on lobby return, including results
+/// Release withdrawn local battles on lobby return, including results
 /// never submitted by the client. Keep service-owned runs and other sessions intact.
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
@@ -386,16 +386,11 @@ pub(crate) async fn abandon_local_run_on_lobby(
     if let Some(old) = old {
         let mut entry: Value = read_json(&old.get::<String, _>("entry"))?;
         let request = &entry["Request"];
-        let raid_index = request["RaidIndex"].as_str().and_then(|v| v.parse::<i64>().ok());
-        let raid_level = request["RaidLevel"].as_str().and_then(|v| v.parse::<i64>().ok());
-        let solo_technomagic = raid_index.zip(raid_level)
-            .and_then(|(index, level)| s.tables.battle.find("Raid", &[("Index", index), ("Level", level)]))
-            .is_some_and(|raid| matches!(n(raid, "Type"), 15 | 17)
-                && n(raid, "ChapterIndex") == n(&entry, "ChapterIndex")
-                && n(raid, "DungeonIndex") == n(&entry, "DungeonIndex"));
-        if (campaign::is_story_entry(s,&entry) || solo_technomagic || karma::is_entry(s, &entry) || entry["VictoryEntryCosts"].is_array()
-              || entry["ShakmehStoryFinal"] == true || entry["PunishmentShard"].is_object())
-            && !session.is_empty()
+        // A lobby return explicitly withdraws the local run even if the client
+        // skipped its end request or the defeat report was rejected. Restricting
+        // this to selected story/raid types left ordinary parties reserved until
+        // relogin. Real dispatches live separately and are never removed here.
+        if !session.is_empty()
             && request["SessionKey"].as_str() == Some(session)
             && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true
         {
