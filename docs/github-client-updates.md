@@ -10,10 +10,11 @@ after the one-time baseline setup.
 2. Windows downloads the immutable baseline pinned by `scripts/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.
-3. It applies tracked files from `client-overrides/files/` and runs the patcher's
-   single `--build-release` command. That command owns the full patch path,
-   companion helpers, and verification. The telemetry-free distribution is retained;
-   no deleted telemetry-removal Python script is needed.
+3. It applies tracked files from `client-overrides/files/`, runs telemetry cleanup
+   with `remove_client_telemetry.py`, and runs the patcher's single
+   `--build-release` command. That command owns the full patch path, companion
+   helpers, and verification. Cleanup also supports original clients and is safe
+   to rerun against the telemetry-free baseline.
 4. It generates a complete signed snapshot, using the previous GitHub client
    release's verified manifest for deletion history. On the first build, the
    baseline distribution supplies that history.
@@ -109,7 +110,8 @@ must restart using the current stable manifest.
 Run a complete local build without modifying the installed client:
 
 ```powershell
-python scripts/build_client_release.py --baseline client-updates/ci-baseline/client-baseline.tar.gz --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
+python -m pip install -r scripts/requirements-client.txt
+python scripts/build_client_release.py --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
 ```
 
 Choose a fresh work path and release ID. Without `--publish`, no GitHub release

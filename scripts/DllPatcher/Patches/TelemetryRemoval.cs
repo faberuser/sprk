@@ -260,8 +260,10 @@ partial class Program
             // Old symbol files contain removed code and no longer match the rewritten assembly.
             if (File.Exists(Path.ChangeExtension(file, ".pdb"))) removedFiles.Add(Path.GetRelativePath(data, Path.ChangeExtension(file, ".pdb")));
         }
-        foreach (var file in Directory.GetFiles(Path.Combine(data, "Plugins"), "Firebase*.dll", SearchOption.AllDirectories))
-            removedFiles.Add(Path.GetRelativePath(data, file));
+        var plugins = Path.Combine(data, "Plugins");
+        if (Directory.Exists(plugins))
+            foreach (var file in Directory.GetFiles(plugins, "Firebase*.dll", SearchOption.AllDirectories))
+                removedFiles.Add(Path.GetRelativePath(data, file));
         foreach (var name in new[] { "google-services-desktop.json", "UnityServicesProjectConfiguration.json" })
         {
             var relative = Path.Combine("StreamingAssets", name);

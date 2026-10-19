@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 
@@ -123,6 +124,8 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
     apply_overrides(REPO / "client-overrides/files", client)
     tools = work / "tools"
     subprocess.run(["dotnet", "build", str(REPO / "scripts/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
+    subprocess.run([sys.executable, str(REPO / "scripts/remove_client_telemetry.py"),
+                    str(client), "--patcher", str(tools / "DllPatcher.dll")], check=True)
     subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
     output = work / "updates"
     (output / "stable").mkdir(parents=True)

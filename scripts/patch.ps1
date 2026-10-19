@@ -76,6 +76,12 @@ if (-not (Test-Path $ClientPath)) {
 if (-not (Test-Path $ManagedDir)) {
     Write-Error "Managed dir not found at: $ManagedDir`nMake sure ClientPath points to the game root (contains 'King's Raid_Data')."; exit 1
 }
+if (-not $Restore) {
+    python -c "import UnityPy"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Install client dependencies first: python -m pip install -r scripts/requirements-client.txt"
+    }
+}
 
 Write-Host "================================================" -ForegroundColor Cyan
 Write-Host "  sprk Client Patcher" -ForegroundColor Cyan
@@ -91,6 +97,12 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 # Step 1: Patch / Restore DLL
 # ---------------------------------------------------------------------------
+# Cleanup must run before DLL patching so it can discover original telemetry
+# types and remove their serialized scripts before those type definitions vanish.
+if (-not $Restore) {
+    python "$ScriptDir\remove_client_telemetry.py" "$ClientPath"
+    if ($LASTEXITCODE -ne 0) { throw "Telemetry cleanup failed with exit code $LASTEXITCODE" }
+}
 if ($Restore) {
     Write-Host "[1/2] Restoring Assembly-CSharp.dll from backup..." -ForegroundColor Yellow
     $backupPath = "$DllPath.backup_before_patch"
@@ -177,8 +189,7 @@ if ($Restore) {
 }
 
 if (-not $Restore) {
-    # The distributed baseline already contains SDK removal and multi-window
-    # setup. Verify that patching preserves telemetry removal.
+    # Verify that patching preserves the completed telemetry cleanup.
     dotnet run --project "$DllPatcherDir" -- "$ClientPath" --verify-no-telemetry
     if ($LASTEXITCODE -ne 0) { throw "Telemetry verification failed with exit code $LASTEXITCODE" }
 }

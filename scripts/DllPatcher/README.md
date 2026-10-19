@@ -8,6 +8,28 @@ patching; fixes to an existing patch need no additional registration in CI.
 `--build-release` is for a fresh disposable build workspace, not an installed
 client. Focused installation commands below remain available for local changes.
 
+## Telemetry cleanup
+
+Install the asset dependency once with
+`python -m pip install -r scripts/requirements-client.txt` (.NET 8 is also required).
+`scripts/patch.ps1` and the Python CI release builder automatically run the complete
+cleanup. The DLL patcher alone removes managed telemetry code; the Python wrapper
+also removes SDK files, serialized telemetry scripts/prefabs, startup hooks, Unity
+service destinations and cloud identifiers.
+
+```powershell
+python scripts/remove_client_telemetry.py ../sprk-client --stage-only
+python scripts/remove_client_telemetry.py ../sprk-client
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-no-telemetry
+```
+
+The first command validates without installing. Recovery files and reports stay
+under `target/telemetry-removal/`, outside the client. Cleanup preserves existing
+privacy deletion history and is safe to rerun. Close the game before installation;
+after changing installed files, publish a signed update using `docs/client-updates.md`.
+Rerun cleanup after restoring original files; `patch.ps1 -Restore` does not undo
+the full privacy cleanup.
+
 Settings changes that reload the game preserve saved accounts. Native session
 cleanup synchronizes any renewed refresh token and releases the account lease;
 only confirmed Log Out or account deletion forgets the active saved account.
