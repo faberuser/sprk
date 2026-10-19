@@ -10,6 +10,12 @@ namespace DllPatcher
         static void Main(string[] args)
         {
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
+            if (args.Contains("--selector-count-limit-only")) { InstallSelectorCountLimit(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-selector-count-limit")) { VerifySelectorCountLimitFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-selector-count-limit")) { TestSelectorCountLimit(args[0]); return; }
+            if (args.Contains("--shop-purchase-limits-only")) { InstallShopPurchaseLimits(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-shop-purchase-limits")) { VerifyShopPurchaseLimitsFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-shop-purchase-limits")) { TestShopPurchaseLimits(args[0]); return; }
             if (args.Contains("--inspect-settings")) { InspectSettings(args[0]); return; }
             if (args.Contains("--settings-persistence-only")) { InstallSettingsPersistence(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-settings-persistence")) { VerifySettingsPersistenceFile(args[0]); return; }
@@ -168,6 +174,8 @@ namespace DllPatcher
                 PatchTrialHeroReward(module);
                 PatchVoiceLanguage(module);
                 PatchShopFeaturedCatalog(module);
+                PatchShopPurchaseLimits(module);
+                PatchSelectorCountLimit(module);
                 PatchAccessoryShopDuplicates(module);
                 PatchMissionThumbnails(module);
                 PatchBattleEntry(module);

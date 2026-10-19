@@ -259,3 +259,26 @@ The focused installer adds `SprkMissionClaimAll.dll` and two header hooks to
 `--verify-mission-claim-all` checks the installed hooks and native bulk requests
 (also supports `--stage-only`). Close clients before installation, restart after
 installation, and publish a signed client update using the release workflow.
+
+### Inventory selector quantity limit
+
+`--selector-count-limit-only` caps the shared item selector's Max button,
+plus button, typed quantity and OK validation at the lower of owned boxes and
+1,000 per use, matching the server limit. The inventory icon retains the full
+owned count. Use `--stage-only` to prepare the patch,
+`--verify-selector-count-limit` to verify installed/staged controls, and
+`--self-test-selector-count-limit` for boundary and repeat-install checks.
+Close the game before installing, then generate a signed client update.
+
+### Shop purchase limits
+
+`--shop-purchase-limits-only` fixes the shared multiple-buy popup treating
+purchase-history entries for unlimited items (`PurchasableCount <= 0`) as
+remaining-stock limits. This affects guild and other NPC shops. Affordability,
+positive purchase limits, rotating stock and per-transaction caps retain native
+behavior. The focused installer preserves other installed patches and requires
+the game to be closed. Use `--stage-only` to prepare the DLL first,
+`--verify-shop-purchase-limits` to verify it (also supports `--stage-only`), and
+`--self-test-shop-purchase-limits` to execute the production IL guard with
+unlimited/limited stock and missing/present history. Publish a signed update
+after installation.
