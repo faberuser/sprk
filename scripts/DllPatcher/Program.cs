@@ -9,7 +9,18 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--craft-shortcut-only")) { InstallCraftShortcut(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-craft-shortcut")) { VerifyCraftShortcutFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-craft-shortcut")) { TestCraftShortcut(args[0]); return; }
+            if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
+            if (args.Contains("--restore-soul-weapon-cinematic")) {
+                var source = Array.IndexOf(args, "--source");
+                if (source < 0 || source + 1 >= args.Length) throw new ArgumentException("Cinematic restoration requires --source <original-assembly>");
+                RestoreSoulWeaponCinematic(args[0], args[source + 1], args.Contains("--stage-only")); return;
+            }
+            if (args.Contains("--verify-soul-weapon-cinematic")) { VerifySoulWeaponCinematicFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--selector-count-limit-only")) { InstallSelectorCountLimit(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-selector-count-limit")) { VerifySelectorCountLimitFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-selector-count-limit")) { TestSelectorCountLimit(args[0]); return; }
@@ -66,6 +77,8 @@ namespace DllPatcher
             if (args.Contains("--battle-entry-only")) { InstallBattleEntry(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-battle-entry")) { TestBattleEntry(args[0]); return; }
             if (args.Contains("--story-auto-only")) { InstallStoryAuto(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-story-auto-cancel")) { TestStoryAutoCancellation(); return; }
+            if (args.Contains("--verify-story-auto")) { VerifyStoryAutoFile(args[0]); return; }
             if (args.Contains("--remove-app-review-only")) { InstallAppReviewRemoval(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--background-chat-only")) { InstallBackgroundChat(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--combat-only")) { InstallCombat(args[0], args.Contains("--stage-only")); return; }
@@ -99,7 +112,7 @@ namespace DllPatcher
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
-            if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
+            if (args.Contains("--automation-only")) { InstallAutomation(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }
             if (args.Contains("--mail-updates-only")) { InstallMailUpdates(args[0], args.Contains("--stage-only")); return; }
@@ -176,6 +189,8 @@ namespace DllPatcher
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
                 PatchSelectorCountLimit(module);
+                PatchCraftShortcut(module);
+                VerifySoulWeaponCinematic(module);
                 PatchAccessoryShopDuplicates(module);
                 PatchMissionThumbnails(module);
                 PatchBattleEntry(module);
@@ -255,6 +270,8 @@ namespace DllPatcher
                 File.Move(dllPath + ".chat-channels-staged", patchedPath, true);
                 InstallMissionClaimAll(clientRoot, true, patchedPath);
                 File.Move(dllPath + ".mission-claim-all-staged", patchedPath, true);
+                InstallSoulLiberationCost(clientRoot, true, patchedPath);
+                File.Move(dllPath + ".soul-cost-staged", patchedPath, true);
                 Console.WriteLine($"Staged patched assembly: {patchedPath}");
                 return;
             }
@@ -267,6 +284,7 @@ namespace DllPatcher
             InstallImageRecovery(clientRoot, false);
             InstallChatChannels(clientRoot, false);
             InstallMissionClaimAll(clientRoot, false);
+            InstallSoulLiberationCost(clientRoot, false);
             Console.WriteLine("Done! The DLL has been patched successfully.");
             if (chatOnly || campaignOnly || shopOnly || dealerPopupOnly || adventureUnlocksOnly || portalOnly || selectorsOnly) return;
 

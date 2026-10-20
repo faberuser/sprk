@@ -69,6 +69,8 @@ pub async fn handle(
         Request::parse_with_integer_arrays(&body, &["HeroPartIndex", "EquipItemSlotIndex"])?
     } else if matches!(uri.path(), "/equip/awaken_equip" | "/equip/upgrade_equip") {
         Request::parse_with_integer_arrays(&body, &["MaterialSlotIndices", "MaterialItemInfors"])?
+    } else if uri.path() == "/equip/soul_weapon_ether_injection" {
+        Request::parse_with_integer_arrays(&body, &["InjectionItemInfos"])?
     } else { Request::parse(&body)? };
     let account = req.account(&state)?;
     let action = uri.path().rsplit('/').next().unwrap_or("");

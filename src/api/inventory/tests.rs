@@ -77,6 +77,96 @@ async fn login(state: &AppState) -> user::LoginResponse {
 fn form(u: &user::LoginResponse, fields: &str) -> Bytes {
     Bytes::from(format!("SessionKey={}&{fields}", u.user_info.session_key))
 }
+
+async fn hero_level_request(state: &AppState, u: &user::LoginResponse, path: &str, fields: &str) -> Value {
+    use axum::{Router, routing::post, middleware, http::Request, body::{Body,to_bytes}};
+    use tower::ServiceExt;
+    let app=Router::new()
+        .route("/equip/set_equip",post(super::equip::set_equip))
+        .route("/equip/unset_equip",post(super::equip::unset_equip))
+        .route("/item/use_potion_item",post(item::use_potion_item))
+        .route("/item/get_inventory",post(item::get_inventory))
+        .layer(middleware::from_fn_with_state(state.clone(),super::hero_level::notify))
+        .with_state(state.clone());
+    let response=app.oneshot(Request::post(path).body(Body::from(form(u,fields))).unwrap()).await.unwrap();
+    let status=response.status();
+    let bytes=to_bytes(response.into_body(),16*1024*1024).await.unwrap();
+    assert!(status.is_success(),"{path}: {status}: {}",String::from_utf8_lossy(&bytes));
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+#[tokio::test]
+async fn hero_level_equipment_repairs_login_without_changing_ordinary_gear_or_other_accounts() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut slots=Vec::new();
+    for item in [1001,101001,50001] {
+        slots.push(sqlx::query("INSERT INTO equip_items(account_id,item_index,level,star,locked) VALUES(?,?,0,3,1)")
+            .bind(a).bind(item).execute(&s.db).await.unwrap().last_insert_rowid());
+    }
+    // UW, UT and ordinary gear on the same level-90 hero.
+    sqlx::query("UPDATE heroes SET level=90,equip_item_slot_index_1=?,equip_item_slot_index_7=?,equip_item_slot_index_2=? WHERE account_id=? AND hero_index=1")
+        .bind(slots[0]).bind(slots[1]).bind(slots[2]).bind(a).execute(&s.db).await.unwrap();
+    let again=login(&s).await;
+    for (i,slot) in slots.iter().enumerate() {
+        let gear=again.equip_items.iter().find(|e|e.slot_index as i64==*slot).unwrap();
+        assert_eq!(gear.level,if i<2 {90}else{0});
+        assert_eq!((gear.star,gear.locked),(3,1));
+    }
+    let other=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=other-gear-account")).await.unwrap().0;
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(other.user_info.account_id).execute(&s.db).await.unwrap();
+    assert!(super::hero_level::synchronize(&mut *s.db.acquire().await.unwrap(),&s,other.user_info.account_id).await.unwrap().is_empty());
+    assert_eq!(login(&s).await.equip_items.iter().find(|e|e.slot_index as i64==slots[0]).unwrap().level,90);
+}
+
+#[tokio::test]
+async fn hero_level_equipment_updates_on_equip_transfer_and_potions_without_relogin() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let class=s.tables.extensions.rows("EquipItem").iter()
+        .find(|r|item::n(r,"DetailIndex")==90003).unwrap();
+    let class=item::n(class,"ItemIndex");
+    let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,level) VALUES(?,?,0)")
+        .bind(a).bind(class).execute(&s.db).await.unwrap().last_insert_rowid();
+    sqlx::query("UPDATE heroes SET level=30 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    let out=hero_level_request(&s,&u,"/equip/set_equip",&format!("HeroIndex=1&HeroPartIndex=1&EquipItemSlotIndex={slot}")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert_eq!(out["ReservedUpdatedEquipItemInfos"],json!([{"SlotIndex":slot,"ItemIndex":class,"Level":30}]));
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    assert!(out.get("ReservedUpdatedEquipItemInfos").is_none(),"No repeated unchanged notifications");
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,5)").bind(a).execute(&s.db).await.unwrap();
+    let out=hero_level_request(&s,&u,"/equip/set_equip",&format!("HeroIndex=2&HeroPartIndex=1&EquipItemSlotIndex={slot}")).await;
+    assert_eq!(out["ReservedUpdatedEquipItemInfos"][0]["Level"],1);
+    let (id,_)=potion(&s,3);
+    put(&s,&u,id,3).await;
+    let out=hero_level_request(&s,&u,"/item/use_potion_item",&format!("HeroIndex=2&ItemIndex={id}&ItemCount=3")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    let level=out["HeroExpResult"]["NewLevel"].as_i64().unwrap();
+    assert!(level>1);
+    assert_eq!(out["ReservedUpdatedEquipItemInfos"][0]["Level"],level);
+    let out=hero_level_request(&s,&u,"/equip/unset_equip",&format!("EquipItemSlotIndex={slot}")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT level FROM equip_items WHERE slot_index=?").bind(slot).fetch_one(&s.db).await.unwrap(),level);
+}
+
+#[tokio::test]
+async fn hero_level_equipment_repairs_full_inventory_snapshots_and_ignores_failed_actions() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,star,level) VALUES(?,101001,3,0)")
+        .bind(a).execute(&s.db).await.unwrap().last_insert_rowid();
+    sqlx::query("UPDATE heroes SET level=100,equip_item_slot_index_7=? WHERE account_id=? AND hero_index=1")
+        .bind(slot).bind(a).execute(&s.db).await.unwrap();
+    // Failed gameplay must not silently write equipment state.
+    let out=hero_level_request(&s,&u,"/item/use_potion_item","HeroIndex=1&ItemIndex=999999&ItemCount=1").await;
+    assert_ne!(out["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT level FROM equip_items WHERE slot_index=?").bind(slot).fetch_one(&s.db).await.unwrap(),0);
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    assert_eq!(out["ReservedUpdatedEquipItemInfos"][0]["Level"],100);
+    let gear=out["EquipItems"].as_array().unwrap().iter().find(|r|r["SlotIndex"]==slot).unwrap();
+    assert_eq!(gear["Level"],100);
+    assert_eq!(gear["Star"],3);
+}
 async fn put(state: &AppState, u: &user::LoginResponse, id: i32, count: i32) {
     sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES (?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET count=excluded.count").bind(u.user_info.account_id).bind(id).bind(count).execute(&state.db).await.unwrap();
 }

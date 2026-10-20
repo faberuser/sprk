@@ -967,6 +967,215 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
 }
 
 #[tokio::test]
+async fn world_boss_guideline_restores_existing_participation_and_claims_once() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let quest=s.tables.progression.sub_quests.iter().find(|q|n(q,"QuestIndex")==10731).unwrap();
+    let mut db=s.db.acquire().await.unwrap();
+    record(&mut db,a,"EnterDungeon",1,1,10).await.unwrap();
+    assert_eq!(View::load(&mut db,a).await.unwrap().quest(&s,quest),0);
+    // This is the persisted metric written by validated World Boss entry before
+    // the Guideline evaluator supported EnterWorldBoss. No migration or new run
+    // should be needed, even if participation was in a previous season.
+    record(&mut db,a,"EnterDungeon",7003,1,1).await.unwrap();
+    sqlx::query("UPDATE progression_metrics SET day='2020-01-01' WHERE account_id=? AND arg=7003")
+        .bind(a).execute(&mut *db).await.unwrap();
+    assert_eq!(View::load(&mut db,a).await.unwrap().quest(&s,quest),1);
+    drop(db);
+    let login=relogin(&s).await;
+    assert!(login.sub_quest_infos.iter().any(|v|n(v,"SubQuestIndex")==10731 && n(v,"Progress")==1 && n(v,"LastStep")==0));
+    let before=currency(&s,&login).await;
+    async fn points(s:&AppState,a:i64)->i64 {
+        sqlx::query_scalar("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+            .bind(a).fetch_optional(&s.db).await.unwrap().unwrap_or(0)
+    }
+    let before_points=points(&s,a).await;
+    let claim=call(&s,&login,"complete_sub_quest","SubQuestIndices=[10731]").await;
+    assert_eq!(claim["Result"],"Success","{claim}");
+    assert_eq!(points(&s,a).await,before_points+2000);
+    assert_eq!(currency(&s,&login).await,before);
+    assert_ne!(call(&s,&login,"complete_sub_quest","SubQuestIndices=[10731]").await["Result"],"Success");
+    assert_eq!(points(&s,a).await,before_points+2000);
+}
+
+#[tokio::test]
+async fn world_boss_guideline_notifies_on_valid_entry_without_a_kill_or_duplicate_credit() {
+    use tower::Service;
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE heroes SET level=60 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET world_boss_ticket=2 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let mut app=axum::Router::new()
+        .route("/campaign/begin",axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign))
+        .route("/campaign/end",axum::routing::post(crate::api::battle::campaign_handlers::end_campaign))
+        .layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify)).with_state(s.clone());
+    async fn send(app:&mut axum::Router,u:&user::LoginResponse,path:&str,args:&str)->Value {
+        let r=app.call(axum::http::Request::builder().method("POST").uri(path)
+            .header("Content-Type","application/x-www-form-urlencoded")
+            .body(axum::body::Body::from(form(u,args))).unwrap()).await.unwrap();
+        serde_json::from_slice(&axum::body::to_bytes(r.into_body(),usize::MAX).await.unwrap()).unwrap()
+    }
+    let entry="ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1";
+    let bad=send(&mut app,&u,"/campaign/begin",&entry.replace("WorldBossIndex=1","WorldBossIndex=2")).await;
+    assert_ne!(bad["Result"],"Success");
+    assert_eq!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[10731]").await["Result"],"Fail");
+    let first=send(&mut app,&u,"/campaign/begin",entry).await;
+    assert_eq!(first["Result"],"Success","{first}");
+    assert!(first["ReservedSubQuestInfos"].as_array().unwrap().iter().any(|v|n(v,"SubQuestIndex")==10731 && n(v,"Progress")==1));
+    let again=send(&mut app,&u,"/campaign/begin",entry).await;
+    assert_eq!(again["Result"],"Success");
+    assert!(!again["ReservedSubQuestInfos"].as_array().unwrap().iter().any(|v|n(v,"SubQuestIndex")==10731));
+    let end=send(&mut app,&u,"/campaign/end","ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&Completed=false&TotalDamage=1000").await;
+    assert_eq!(end["Result"],"Success","{end}");
+    let mut db=s.db.acquire().await.unwrap();
+    let view=View::load(&mut db,a).await.unwrap();
+    for quest in s.tables.progression.sub_quests.iter().filter(|q|q["Kind"]=="EnterWorldBoss") {
+        assert_eq!(view.quest(&s,quest),1);
+    }
+    assert_eq!(view.metric("EnterDungeon","all",Some(7001),Some(1)),1);
+}
+
+#[tokio::test]
+async fn battle_missions_filter_modes_and_respect_daily_and_weekly_periods() {
+    use chrono::{Duration,Utc};
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let today=Utc::now().date_naive();
+    let yesterday=(today-Duration::days(1)).to_string();
+    let old=(today-Duration::days(8)).to_string();
+    for (day,kind,chapter,dungeon,value) in [
+        (today.to_string(),"ClearDungeon",20001,1,1), (yesterday.clone(),"ClearDungeon",20001,1,2), (old.clone(),"ClearDungeon",20001,1,7),
+        (today.to_string(),"ClearDungeon",5001,1,2), (yesterday.clone(),"ClearDungeon",5001,2,3), (old.clone(),"ClearDungeon",5001,1,9),
+        (today.to_string(),"ClearDungeon",1,1,1000),
+        (today.to_string(),"CompleteWorldBoss",1,0,1), (yesterday.clone(),"CompleteWorldBoss",1,0,2), (old,"CompleteWorldBoss",1,0,7),
+    ] {
+        sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,?,?,?,?,?)")
+            .bind(a).bind(day).bind(kind).bind(chapter).bind(dungeon).bind(value).execute(&s.db).await.unwrap();
+    }
+    let mut db=s.db.acquire().await.unwrap();
+    let view=View::load(&mut db,a).await.unwrap();
+    for (id,daily,previous) in [(1105,1,0),(1107,2,0),(1108,1,0),(1706,1,2),(1707,2,3),(1721,2,3),(1710,1,2)] {
+        let row=s.tables.progression.achievements.iter().find(|r|n(r,"Index")==id).unwrap();
+        let expected=daily+if previous>0 && yesterday>=period(row) {previous} else {0};
+        assert_eq!(view.achievement(&s,row).0,expected,"mission {id}");
+    }
+    for (kind,chapter,dungeon,value) in [("ClearDungeon",20001,1,10),("ClearDungeon",5001,1,10),("CompleteWorldBoss",1,0,3)] {
+        record(&mut db,a,kind,chapter,dungeon,value).await.unwrap();
+    }
+    drop(db);
+    let batch="AchievementIndices=1706&Steps=0&AchievementIndices=1707&Steps=0&AchievementIndices=1721&Steps=0&AchievementIndices=1710&Steps=0";
+    let claimed=call(&s,&u,"reward_achievement",batch).await;
+    assert_eq!(claimed["Result"],"Success","{claimed}");
+    for id in [1706,1707,1721,1710] {
+        assert!(claimed["AchievementInfos"].as_array().unwrap().iter().any(|r|n(r,"AchievementIndex")==id && n(r,"LastStep")==1));
+    }
+    assert_ne!(call(&s,&u,"reward_achievement",batch).await["Result"],"Success");
+}
+
+#[tokio::test]
+async fn battle_missions_notify_clears_sweeps_and_finished_world_boss_without_duplicate_claims() {
+    use tower::Service;
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE heroes SET level=60 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET world_boss_ticket=2,gold=10000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let mut app=axum::Router::new()
+        .route("/campaign/begin_campaign",axum::routing::post(crate::api::battle::handle))
+        .route("/campaign/end_campaign",axum::routing::post(crate::api::battle::handle))
+        .route("/sweep/sweep_dungeon",axum::routing::post(crate::api::battle::handle))
+        .layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify)).with_state(s.clone());
+    async fn send(app:&mut axum::Router,u:&user::LoginResponse,path:&str,args:&str)->Value {
+        let r=app.call(axum::http::Request::builder().method("POST").uri(path)
+            .header("Content-Type","application/x-www-form-urlencoded")
+            .body(axum::body::Body::from(form(u,args))).unwrap()).await.unwrap();
+        serde_json::from_slice(&axum::body::to_bytes(r.into_body(),usize::MAX).await.unwrap()).unwrap()
+    }
+    fn progress(r:&Value,id:i64)->i64 {
+        n(r["AchievementInfos"].as_array().expect("Gameplay must return mission updates").iter()
+            .find(|v|n(v,"AchievementIndex")==id).unwrap(),"Achievement")
+    }
+    let tower="ChapterIndex=5001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&TowerIndex=21&TowerFloor=1";
+    assert_eq!(send(&mut app,&u,"/campaign/begin_campaign",tower).await["Result"],"Success");
+    let defeat=send(&mut app,&u,"/campaign/end_campaign",&format!("{tower}&Completed=false")).await;
+    assert_eq!(defeat["Result"],"Success","{defeat}");
+    assert_eq!(progress(&defeat,1107),0);
+    assert_eq!(send(&mut app,&u,"/campaign/begin_campaign",tower).await["Result"],"Success");
+    let won=send(&mut app,&u,"/campaign/end_campaign",&format!("{tower}&Completed=true&AliveHeroIndices=[1]")).await;
+    assert_eq!(won["Result"],"Success","{won}");
+    assert_eq!(progress(&won,1107),1);
+    assert_eq!(progress(&won,1707),1);
+    assert_eq!(progress(&won,1105),0);
+    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,120125,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10")
+        .bind(a).execute(&s.db).await.unwrap();
+    let sweep=send(&mut app,&u,"/sweep/sweep_dungeon","ChapterIndex=5001&DungeonIndex=1&DungeonDifficulty=0&SweepCount=2").await;
+    assert_eq!(sweep["Result"],"Success","{sweep}");
+    assert_eq!(progress(&sweep,1107),3);
+    assert_eq!(progress(&sweep,1707),3);
+    let stockade="ChapterIndex=20001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]";
+    assert_eq!(send(&mut app,&u,"/campaign/begin_campaign",stockade).await["Result"],"Success");
+    let won=send(&mut app,&u,"/campaign/end_campaign",&format!("{stockade}&Completed=true&AliveHeroIndices=[1]")).await;
+    assert_eq!(won["Result"],"Success","{won}");
+    assert_eq!(progress(&won,1105),1);
+    assert_eq!(progress(&won,1706),1);
+    let boss="ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1";
+    let begin=send(&mut app,&u,"/campaign/begin_campaign",boss).await;
+    assert_eq!(begin["Result"],"Success","{begin}");
+    assert_eq!(progress(&begin,1108),0,"Entry alone must not count as a completed fight");
+    let ending=format!("{boss}&Completed=false&TotalDamage=1000");
+    let end=send(&mut app,&u,"/campaign/end_campaign",&ending).await;
+    assert_eq!(end["Result"],"Success","{end}");
+    assert_eq!(progress(&end,1108),1);
+    assert_eq!(progress(&end,1710),1);
+    assert_ne!(send(&mut app,&u,"/campaign/end_campaign",&ending).await["Result"],"Success");
+    let batch="AchievementIndices=1105&Steps=0&AchievementIndices=1107&Steps=0&AchievementIndices=1108&Steps=0";
+    let flask=s.tables.get_item_index("RUBYFLASK_EMPTY_13").unwrap() as i64;
+    let material=s.tables.get_item_index("MATERIAL_56").unwrap() as i64;
+    let before_flask=count(&s,&u,flask).await;
+    let before_material=count(&s,&u,material).await;
+    let claim=call(&s,&u,"reward_achievement",batch).await;
+    assert_eq!(claim["Result"],"Success","{claim}");
+    assert_eq!(count(&s,&u,flask).await,before_flask+3);
+    assert_eq!(count(&s,&u,material).await,before_material+10);
+    let points:i64=sqlx::query_scalar("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(points,1000);
+    let after=currency(&s,&u).await;
+    assert_ne!(call(&s,&u,"reward_achievement",batch).await["Result"],"Success");
+    assert_eq!(currency(&s,&u).await,after);
+    assert_eq!(count(&s,&u,flask).await,before_flask+3);
+    assert_eq!(count(&s,&u,material).await,before_material+10);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+        .bind(a).fetch_one(&s.db).await.unwrap(),1000);
+}
+
+#[tokio::test]
+async fn battle_missions_world_boss_history_migration_and_score_writes_are_idempotent() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    for trigger in ["progress_world_boss_complete_insert","progress_world_boss_complete_update"] {
+        sqlx::query(&format!("DROP TRIGGER {trigger}")).execute(&s.db).await.unwrap();
+    }
+    for family in ["world_boss","event_world_boss","challenge"] {
+        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,1,1,?,date('now'),1000,60)")
+            .bind(family).bind(a).execute(&s.db).await.unwrap();
+    }
+    for _ in 0..2 {crate::api::battle::migrate(&s.db).await.unwrap();}
+    async fn completions(s:&AppState,a:i64)->i64 {
+        let mut db=s.db.acquire().await.unwrap();
+        View::load(&mut db,a).await.unwrap().metric("CompleteWorldBoss","all",None,None)
+    }
+    assert_eq!(completions(&s,a).await,1);
+    sqlx::query("UPDATE battle_scores SET score=score+1000 WHERE account=? AND family='world_boss'").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(completions(&s,a).await,2);
+    let mut tx=s.db.begin().await.unwrap();
+    sqlx::query("UPDATE battle_scores SET score=score+1000 WHERE account=? AND family='world_boss'").bind(a).execute(&mut *tx).await.unwrap();
+    tx.rollback().await.unwrap();
+    sqlx::query("UPDATE battle_scores SET score=score WHERE account=?").bind(a).execute(&s.db).await.unwrap();
+    crate::api::battle::migrate(&s.db).await.unwrap();
+    assert_eq!(completions(&s,a).await,2,"Retries, rollback and other boss modes must not create extra completions");
+}
+
+#[tokio::test]
 async fn story_mission_notifications_do_not_replay_after_battles_or_lobby_refresh() {
     use tower::Service;
     async fn send(app: &mut axum::Router, u: &user::LoginResponse, path: &str, data: &str) -> Value {

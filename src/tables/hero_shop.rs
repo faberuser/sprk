@@ -12,7 +12,6 @@ pub struct HeroShopTable {
     pub growth_items: Vec<Value>,
     pub multi_hero_items: Vec<Value>,
     pub costume_selectors: Vec<Value>,
-    pub costume_groups: HashMap<String, String>,
     pub prices: Vec<Value>,
     pub stars: Vec<Value>,
     pub equip_star_prices: Vec<Value>,

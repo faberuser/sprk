@@ -20,7 +20,7 @@ using NVespa.NGlobal;
 using UnityEngine;
 
 // Uses the native next-stage, entry, reward, and Skip paths. Never fabricates clears.
-public static class SprkStoryAuto
+public static partial class SprkStoryAuto
 {
     static BattlePartySetting waitingParty;
     static bool waitingForEvent;
@@ -198,6 +198,7 @@ public static class SprkStoryAuto
 
     public static bool ShowChoice(EnterDungeonData enter)
     {
+        if (pendingStop != null) return true;
         // Required substories use their native map action during an existing run.
         if (enter != null && IsRequiredSubstory(enter.Chapter, enter.OriginalDungeon)) return false;
         if (!IsStory(enter)) return false;
@@ -273,31 +274,6 @@ public static class SprkStoryAuto
     {
         if (!allowed && Active()) Stop();
         return allowed;
-    }
-
-    public static void Stop()
-    {
-        bool active = Active();
-        Cancelled();
-        if (active) AutoNextBattle.instance.OnClickStopWithoutMessage();
-    }
-
-    // Called by native Stop/defeat too, so a queued lobby continuation cannot
-    // restart the run after the player cancels it.
-    public static void Cancelled()
-    {
-        continuousStory = false;
-        waitingParty = null;
-        waitingForEvent = false;
-        pendingNext = null;
-        movingToNext = openingNextParty = false;
-        lastTutorialStep = null;
-        lastSubstoryStep = null;
-        caveCompletionRequested = false;
-        nextScriptedSkill = 0;
-        scriptedSkillCursor = 0;
-        storyMainParty = storySubParty = null;
-        if (runner != null && runner.gameObject.activeSelf) runner.gameObject.SetActive(false);
     }
 
     public static bool CanNext()
@@ -821,6 +797,8 @@ public static class SprkStoryAuto
 
     public static void Tick()
     {
+        // Drain cancellation even after Continuous Story has been disarmed.
+        if (FinishPendingStop()) return;
         if (Time.realtimeSinceStartup < nextTick) return;
         nextTick = Time.realtimeSinceStartup + 0.25f;
         if (!Active()) {

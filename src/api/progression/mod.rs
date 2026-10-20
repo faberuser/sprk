@@ -301,7 +301,7 @@ async fn achievement_reward(
                 let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET stamina=stamina+? WHERE account_id=? AND stamina+?<=2147483647 RETURNING stamina").bind(count).bind(account).bind(count).fetch_optional(&mut *db).await?;
                 stamina.push(json!({"Type":"Chicken","AddValue":count,"NewValue":value.ok_or_else(||rule("InvalidRewardData"))?,"StaminaRechargeTime":null,"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}));
             }
-            "Gold" | "Gem" | "PvpCoin" | "FriendshipPoint" | "RaidPoint" => rewards
+            "Gold" | "Gem" | "PvpCoin" | "FriendshipPoint" | "RaidPoint" | "WorldBossPoint" => rewards
                 .currencies
                 .push(hero::currency(db, account, kind, amount).await?),
             _ => return Err(rule("InvalidRewardData")),
@@ -357,12 +357,21 @@ async fn execute(
                 if view.last("achievement", id, &p) != last_step {
                     return Err(rule("InvalidStep"));
                 }
+                let (value, target) = view.achievement(state, row);
+                // Completing these server-validated battles proves access to
+                // their native menus. Their client System predicates are not
+                // general server conditions; do not reject an earned daily or
+                // weekly reward solely because those predicates are unknown.
+                let battle_access = value >= target && matches!(n(row,"Type"),2|5) && (
+                    (matches!(row["Kind"].as_str(),Some("ClearWorldBossDaily"|"ClearWorldBossWeekly")) &&
+                        row["OpenCondition"]==json!(["System","MenuOpenCheckManager","WorldBoss"])) ||
+                    (matches!(row["Kind"].as_str(),Some("ClearChallengeTowerDaily"|"ClearChallengeTowerWeekly")) &&
+                        row["OpenCondition"]==json!(["System","CanGoDungeon","2","27"])));
                 if (matches!(n(row, "Type"), 3 | 7 | 8 | 9) && !state::daily_hot_time(row))
-                    || !view.condition(&row["OpenCondition"])
+                    || (!view.condition(&row["OpenCondition"]) && !battle_access)
                 {
                     return Err(rule("RewardTimeEnded"));
                 }
-                let (value, target) = view.achievement(state, row);
                 if value < target {
                     return Err(rule("AchievementNotCleared"));
                 }

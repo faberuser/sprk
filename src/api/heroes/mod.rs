@@ -1246,10 +1246,11 @@ async fn collection_item(
                     .as_array()
                     .is_some_and(|v| v.contains(&c["CostumeIndex"]))
                     || selector["CostumeCategories"].as_array().is_some_and(|v| {
-                        table
-                            .costume_groups
-                            .get(c["Group"].as_str().unwrap_or(""))
-                            .is_some_and(|g| v.contains(&json!(g)))
+                        // Native GetDataByGroup uses the exact group ID (Preppy,
+                        // Preppy2, ...), not its shared display category (PREPPY).
+                        v.contains(&c["Group"])
+                            && !(c["BonusCostumeIndices"].as_array().is_some_and(|b| !b.is_empty())
+                                && c["MainIndex"] != c["CostumeIndex"])
                     })
             })
             .map(|(id, _)| *id)

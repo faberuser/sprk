@@ -3624,12 +3624,50 @@ async fn lobby_withdrawal_keeps_service_runs_dispatches_and_other_sessions() {
             .unwrap()["State"],
         "Battle"
     );
-    // Ordinary campaign battles retain their existing reconnect behavior.
+    // Returning to the lobby also withdraws ordinary local campaign battles.
     sqlx::query("UPDATE battle_runs SET completed=0,entry=? WHERE account=?")
         .bind(original).bind(a).execute(&s.db).await.unwrap();
     abandon_local_run_on_lobby(&s,a,session).await.unwrap();
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?")
-        .bind(a).fetch_one(&s.db).await.unwrap(),0);
+        .bind(a).fetch_one(&s.db).await.unwrap(),1);
+}
+
+#[tokio::test]
+async fn ordinary_battle_exit_and_rejected_defeat_release_heroes_without_relogin() {
+    for ending in [None, Some("Completed=false&Star=0&AliveHeroIndices=[]"),
+        Some("Completed=false&Star=0&AliveHeroIndices=[99999]")] {
+        let (s,u)=setup().await;
+        let a=account(&u);
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
+        let before=sqlx::query_as::<_,(i64,i64,i64,i64)>("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let items=sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        if let Some(ending)=ending {
+            let response=call(&s,&u,"campaign/end_campaign",&format!("{ENTRY}&{ending}")).await;
+            assert_eq!(response["Result"],if ending.contains("99999") {"HeroNotFound"} else {"Success"});
+        }
+        let next=ENTRY.replace("DungeonDifficulty=1","DungeonDifficulty=0");
+        let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+        abandon_local_run_on_lobby(&s,a,"unrelated-session").await.unwrap();
+        if ending.is_none() || ending.unwrap().contains("99999") {
+            assert_eq!(call(&s,&u,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+        }
+        for _ in 0..2 {abandon_local_run_on_lobby(&s,a,session).await.unwrap();}
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT completed FROM battle_runs WHERE account=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(),1);
+        assert_eq!(sqlx::query_as::<_,(i64,i64,i64,i64)>("SELECT gold,gem,stamina,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(),before);
+        assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap(),items);
+        assert_ne!(call(&s,&u,"campaign/end_campaign",END).await["Result"],"Success");
+        put(&mut s.db.acquire().await.unwrap(),a,"dispatch",1,
+            &json!({"SlotIndex":1,"State":"Simulation","HeroIndices":"[1]"})).await.unwrap();
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&next).await["Result"],"AlreadyOnBattleHero");
+        put(&mut s.db.acquire().await.unwrap(),a,"dispatch",1,
+            &json!({"SlotIndex":1,"State":"Cancel","HeroIndices":"[1]"})).await.unwrap();
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&next).await["Result"],"Success");
+    }
 }
 
 #[tokio::test]

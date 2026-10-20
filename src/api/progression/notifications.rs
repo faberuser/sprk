@@ -40,6 +40,7 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             | "item"
             | "equip"
             | "campaign"
+            | "sweep"
             | "shop"
             | "friend"
             | "mail"

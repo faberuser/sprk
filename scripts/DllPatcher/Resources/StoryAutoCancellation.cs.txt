@@ -1,0 +1,84 @@
+using System;
+using System.Reflection;
+using NGame2.NUI;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NBattle;
+using UnityEngine;
+
+public static partial class SprkStoryAuto
+{
+    static AutoNextBattle pendingStop;
+    static int stopReadyFrame = -1;
+    static BattlePartySetting.ExtraOptionData pendingEntryOption;
+    static readonly FieldInfo repeatEnabled = typeof(AutoBattle).GetField("_repeatEnabled", BindingFlags.Instance | BindingFlags.NonPublic);
+    static readonly FieldInfo autoElapsed = typeof(BattlePartySetting).GetField("_autoCampaignElapsedTime", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    public static void TrackEntryOption(BattlePartySetting.ExtraOptionData option)
+    {
+        if (continuousStory) pendingEntryOption = option;
+    }
+
+    public static bool DeferOpeningStop(AutoNextBattle window)
+    {
+        if (window == null) return false;
+        if (object.ReferenceEquals(pendingStop, window)) return true;
+        if (!continuousStory || (!window.ReservedOpenTask && window.WindowState == BaseWindow.EState.OpenedShow)) return false;
+        // Open() queues a task that owns the opening animation/input blocker.
+        // Releasing its pooled window now leaves that task using a closed object.
+        // Disarm immediately, but let the opening task finish before releasing it.
+        pendingStop = window;
+        stopReadyFrame = -1;
+        repeatEnabled.SetValue(window, false);
+        UIHelper.EnableButton(window.StopButton, false);
+        Cancelled();
+        return true;
+    }
+
+    static bool FinishPendingStop()
+    {
+        if (pendingStop == null) { pendingStop = null; return false; }
+        if (pendingStop.ReservedOpenTask || pendingStop.WindowState == BaseWindow.EState.AnimateShow ||
+            pendingStop.WindowState == BaseWindow.EState.OpenedHide) return true;
+        // The window reaches OpenedShow before its wrapper finalizes. Allow a
+        // complete update frame for that wrapper to return its input ownership.
+        if (stopReadyFrame < 0) { stopReadyFrame = Time.frameCount; return true; }
+        if (Time.frameCount <= stopReadyFrame + 1) return true;
+        var window = pendingStop;
+        pendingStop = null;
+        window.OnClickStopWithoutMessage();
+        return true;
+    }
+
+    public static void Stop()
+    {
+        bool active = continuousStory || Active();
+        if (active && DeferOpeningStop(AutoNextBattle.instance)) return;
+        Cancelled();
+        if (active) AutoNextBattle.instance.OnClickStopWithoutMessage();
+    }
+
+    public static void Cancelled()
+    {
+        continuousStory = false;
+        // The native success callback captures this same options object. A stop
+        // while its request is in flight must not re-open Continuous Story.
+        if (pendingEntryOption != null) pendingEntryOption.AutoNext = false;
+        pendingEntryOption = null;
+        if (waitingParty != null && waitingParty.IsOpen()) {
+            autoStarted.SetValue(waitingParty, false);
+            autoElapsed.SetValue(waitingParty, 0f);
+        }
+        waitingParty = null;
+        waitingForEvent = false;
+        pendingNext = null;
+        movingToNext = openingNextParty = false;
+        lastTutorialStep = null;
+        lastSubstoryStep = null;
+        caveCompletionRequested = false;
+        nextScriptedSkill = 0;
+        scriptedSkillCursor = 0;
+        storyMainParty = storySubParty = null;
+        // Keep the runner alive only while an opening window is draining.
+        if (runner != null) runner.gameObject.SetActive(pendingStop != null);
+    }
+}

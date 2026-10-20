@@ -362,6 +362,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .fallback(api::system::fallback::handle_fallback)
         // Middleware
         .layer(middleware::from_fn_with_state(state.clone(), api::progression::notifications::notify))
+        .layer(middleware::from_fn_with_state(state.clone(), api::inventory::hero_level::notify))
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::decrypt_request))
         .with_state(state);
 

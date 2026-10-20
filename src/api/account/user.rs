@@ -441,6 +441,12 @@ pub async fn login(
         uid: row.get::<i32,_>("item_index").to_string(),
     }).collect();
 
+    // Repair existing hero-scaled gear before the initial native stat snapshot.
+    {
+        let mut tx = state.db.begin().await?;
+        crate::api::inventory::hero_level::synchronize(&mut tx, &state, account_id).await?;
+        tx.commit().await?;
+    }
     // Fetch equipment items
     let equip_rows = sqlx::query(
         "SELECT * FROM equip_items WHERE account_id = ?"
