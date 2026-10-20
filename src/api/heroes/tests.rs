@@ -1034,6 +1034,60 @@ async fn selectors_and_growth_items_validate_allowed_targets() {
     .unwrap();
     assert_eq!(get(&s, &u, 1).await["Level"], 100);
 }
+
+#[tokio::test]
+async fn category_costume_tickets_accept_native_group_ids_and_preserve_failed_claims() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut tested=0;
+    for selector in &s.tables.hero_shop.costume_selectors {
+        let Some(groups)=selector["CostumeCategories"].as_array().filter(|v|!v.is_empty()) else {continue;};
+        if item::n(selector,"CostumeSelectItemType")!=0 {continue;}
+        let id=item::n(selector,"ItemIndex") as i32;
+        let selected=*s.tables.hero_shop.costumes.iter().find(|(_,c)|groups.contains(&c["Group"])
+            && !c["BonusCostumeIndices"].as_array().is_some_and(|b|!b.is_empty() && c["MainIndex"]!=c["CostumeIndex"]))
+            .expect("Shipped ticket must offer costumes").0;
+        let outside=*s.tables.hero_shop.costumes.iter().find(|(_,c)| !groups.contains(&c["Group"])
+            && !selector["CostumeIndices"].as_array().is_some_and(|v|v.contains(&c["CostumeIndex"]))).unwrap().0;
+        sqlx::query("DELETE FROM costumes WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        put(&s,&u,id,2).await;
+        let failed=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={id}&CostumeIndex={outside}"))).await.unwrap().0;
+        assert_ne!(failed["Result"],"Success","{id}: {failed}");
+        assert_eq!(count(&s,&u,id).await,2);
+        let out=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={id}&CostumeIndex={selected}"))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","ticket {id}, costume {selected}: {out}");
+        assert_eq!(out["CostumeResults"][0]["CostumeIndex"],selected);
+        assert_eq!(count(&s,&u,id).await,1);
+        let duplicate=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={id}&CostumeIndex={selected}"))).await.unwrap().0;
+        assert_ne!(duplicate["Result"],"Success");
+        assert_eq!(count(&s,&u,id).await,1);
+        tested+=1;
+    }
+    assert_eq!(tested,38);
+}
+
+#[tokio::test]
+async fn category_costume_ticket_other_reward_requires_every_eligible_costume() {
+    let (s,u)=setup().await;
+    let selector=s.tables.hero_shop.costume_selectors.iter().find(|r|r["ItemIndex"]==2137).unwrap();
+    let groups=selector["CostumeCategories"].as_array().unwrap();
+    put(&s,&u,2137,2).await;
+    let request="ItemIndex=2137&GetOtherReward=true";
+    let failed=hero::use_costume_select_item(State(s.clone()),form(&u,request)).await.unwrap().0;
+    assert_ne!(failed["Result"],"Success");
+    assert_eq!(count(&s,&u,2137).await,2);
+    for (id,costume) in &s.tables.hero_shop.costumes {
+        if groups.contains(&costume["Group"]) {
+            sqlx::query("INSERT OR IGNORE INTO costumes(account_id,costume_index) VALUES(?,?)")
+                .bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
+        }
+    }
+    let out=hero::use_costume_select_item(State(s.clone()),form(&u,request)).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert_eq!(count(&s,&u,2137).await,1);
+    assert!(out["CurrencyResults"].as_array().is_some_and(|v|!v.is_empty())
+        || out["ItemResults"].as_array().is_some_and(|v|!v.is_empty()));
+}
 #[tokio::test]
 async fn multiple_hero_selector_grants_two_allowed_heroes_and_rolls_back_partial_failure() {
     let (s, u) = setup().await;

@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--craft-shortcut-only")) { InstallCraftShortcut(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-craft-shortcut")) { VerifyCraftShortcutFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-craft-shortcut")) { TestCraftShortcut(args[0]); return; }
             if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
@@ -186,6 +189,7 @@ namespace DllPatcher
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
                 PatchSelectorCountLimit(module);
+                PatchCraftShortcut(module);
                 VerifySoulWeaponCinematic(module);
                 PatchAccessoryShopDuplicates(module);
                 PatchMissionThumbnails(module);
