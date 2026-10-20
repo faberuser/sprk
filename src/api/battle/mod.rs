@@ -56,6 +56,19 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS eclipse_run_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL)",
         "CREATE TABLE IF NOT EXISTS battle_entry_holds(account INTEGER NOT NULL,owner TEXT NOT NULL,family TEXT NOT NULL,kind INTEGER NOT NULL,amount INTEGER NOT NULL CHECK(amount>0),expires INTEGER NOT NULL,PRIMARY KEY(account,owner,family,kind))",
     ] { sqlx::query(query).execute(db).await?; }
+    // Legacy scores prove at least one completed fight per boss/day/season,
+    // though they cannot reconstruct multiple fights aggregated in that row.
+    // Seed that known minimum once; subsequent validated score writes count
+    // every fight transactionally, including fights without a boss kill.
+    sqlx::query("INSERT OR IGNORE INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account,day,'CompleteWorldBoss',boss,0,COUNT(*) FROM battle_scores WHERE family='world_boss' AND score>0 GROUP BY account,day,boss")
+        .execute(db).await?;
+    for (name,event,condition) in [
+        ("world_boss_complete_insert","INSERT","NEW.family='world_boss' AND NEW.score>0"),
+        ("world_boss_complete_update","UPDATE","NEW.family='world_boss' AND NEW.score>OLD.score"),
+    ] {
+        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END"))
+            .execute(db).await?;
+    }
     // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
     sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
         .execute(db).await?;

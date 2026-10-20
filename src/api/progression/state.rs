@@ -247,6 +247,16 @@ impl View {
             "ClearDungeon" => {
                 self.metric("ClearDungeon", "all", a.first().copied(), a.get(1).copied())
             }
+            "EnterWorldBoss" => {
+                // Validated campaign entry already records these dungeon keys.
+                // Read that history so participation before this evaluator was
+                // added also counts, without awarding a win or requiring a kill.
+                let locations: BTreeSet<_> = state.tables.battle.rows("WorldBoss").iter()
+                    .map(|boss| (n(boss,"ChapterIndex"),n(boss,"DungeonIndex"))).collect();
+                self.metrics.iter()
+                    .filter(|(_,kind,chapter,dungeon,_)| kind=="EnterDungeon" && locations.contains(&(*chapter,*dungeon)))
+                    .map(|(_,_,_,_,count)| *count).sum()
+            }
             "BuyShopItem"
             | "ResetShop"
             | "UseItem"
@@ -327,6 +337,22 @@ impl View {
             "AddFriend" => self.friends,
             "GuildJoin" => self.guild as i64,
             "ClearDungeon" => self.metric("ClearDungeon", &p, None, None),
+            "ClearUnderPrison" => self.metrics.iter().filter(|(day,kind,chapter,dungeon,_)|
+                (p=="all" || day>=&p) && kind=="ClearDungeon" && state.tables.battle
+                    .find("CampaignDungeon",&[("ChapterIndex",*chapter),("DungeonIndex",*dungeon)])
+                    .is_some_and(|d|n(d,"BattleType")==37))
+                .map(|v|v.4).sum(),
+            "ClearChallengeTowerDaily" | "ClearChallengeTowerWeekly" | "ClearOrdealTowerWeekly" => {
+                let tower=if kind=="ClearOrdealTowerWeekly" {11} else {21};
+                self.metrics.iter().filter(|(day,kind,chapter,dungeon,_)|
+                    (p=="all" || day>=&p) && kind=="ClearDungeon" && state.tables.battle.rows("TowerFloor").iter()
+                        .any(|floor|n(floor,"TowerIndex")==tower && n(floor,"ChapterIndex")==*chapter &&
+                            (n(floor,"DungeonIndex")==*dungeon || floor["DungeonIndices"].as_array()
+                                .is_some_and(|ids|ids.contains(&json!(dungeon))))))
+                    .map(|v|v.4).sum()
+            }
+            "ClearWorldBossDaily" | "ClearWorldBossWeekly" | "JoinWorldBoss" =>
+                self.metric("CompleteWorldBoss",&p,None,None),
             "BuyShopItem" => self.metric(
                 "BuyShopItem",
                 &p,
