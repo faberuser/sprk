@@ -1,0 +1,103 @@
+using System;
+using System.Reflection;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NBattle;
+
+// Controlled native lifecycle/clock stand-ins. The cancellation partial is the
+// identical source compiled into the shipping helper, not a copy of its logic.
+namespace UnityEngine {
+    public static class Time { public static int frameCount; }
+    public sealed class GameObject { public bool activeSelf = true; public void SetActive(bool value) { activeSelf = value; } }
+}
+namespace NGame2.NUI {
+    public static class UIHelper { public static void EnableButton(UIButton button, bool value) { button.enabled = value; } }
+}
+public sealed class UIButton { public bool enabled = true; }
+namespace NGame2.NUI.NWindow {
+    public class BaseWindow {
+        public enum EState { Closed, OpenedHide, AnimateShow, OpenedShow }
+        public bool ReservedOpenTask; public EState WindowState;
+    }
+    public sealed class BattlePartySetting {
+        private bool _isAutoCampaign = true;
+        private float _autoCampaignElapsedTime = 2f;
+        public sealed class ExtraOptionData { public bool AutoNext; }
+        public bool IsOpen() { return true; }
+        public bool AutoStarted { get { return _isAutoCampaign; } }
+        public float Elapsed { get { return _autoCampaignElapsedTime; } }
+    }
+}
+namespace NGame2.NUI.NWindow.NBattle {
+    public class AutoBattle : BaseWindow {
+        protected bool _repeatEnabled = true;
+        public bool Enabled { get { return _repeatEnabled; } }
+        public UIButton StopButton = new UIButton();
+    }
+    public sealed class AutoNextBattle : AutoBattle {
+        public static AutoNextBattle instance;
+        public int Releases;
+        public void OnClickStopWithoutMessage() {
+            if (SprkStoryAuto.DeferOpeningStop(this)) return;
+            SprkStoryAuto.Cancelled();
+            if (ReservedOpenTask || WindowState == EState.AnimateShow || WindowState == EState.OpenedHide)
+                throw new Exception("Released an opening window before its input wrapper completed");
+            _repeatEnabled = false; Releases++; WindowState = EState.Closed;
+        }
+    }
+}
+public sealed class SprkStoryAutoRunner { public UnityEngine.GameObject gameObject = new UnityEngine.GameObject(); }
+public static partial class SprkStoryAuto {
+    static BattlePartySetting waitingParty;
+    static bool continuousStory, waitingForEvent, movingToNext, openingNextParty, caveCompletionRequested;
+    static object pendingNext, lastTutorialStep, lastSubstoryStep;
+    static float nextScriptedSkill;
+    static int scriptedSkillCursor;
+    static int[] storyMainParty, storySubParty;
+    static SprkStoryAutoRunner runner;
+    static readonly FieldInfo autoStarted = typeof(BattlePartySetting).GetField("_isAutoCampaign", BindingFlags.Instance | BindingFlags.NonPublic);
+    static bool Active() { return continuousStory && AutoNextBattle.instance.Enabled; }
+    static void Check(bool ok, string why) { if (!ok) throw new Exception(why); }
+    static AutoNextBattle Arm(BaseWindow.EState state, bool reserved) {
+        pendingStop = null; pendingEntryOption = null; stopReadyFrame = -1;
+        continuousStory = waitingForEvent = true;
+        movingToNext = openingNextParty = true;
+        waitingParty = new BattlePartySetting();
+        pendingNext = new object(); runner = new SprkStoryAutoRunner();
+        UnityEngine.Time.frameCount = 100;
+        return AutoNextBattle.instance = new AutoNextBattle { WindowState = state, ReservedOpenTask = reserved };
+    }
+    public static void RunTests() {
+        int cases = 0;
+        foreach (var state in new[] { BaseWindow.EState.Closed, BaseWindow.EState.OpenedHide, BaseWindow.EState.AnimateShow }) {
+            foreach (bool internalStop in new[] { false, true }) {
+                var view = Arm(state, state == BaseWindow.EState.Closed);
+                var party = waitingParty;
+                var option = new BattlePartySetting.ExtraOptionData { AutoNext = true };
+                TrackEntryOption(option);
+                if (internalStop) Stop(); else view.OnClickStopWithoutMessage();
+                Check(!continuousStory && !waitingForEvent && pendingNext == null && !movingToNext && !openingNextParty, "Queued entry survived Stop");
+                Check(!view.Enabled && !view.StopButton.enabled && !option.AutoNext, "Repeat or response callback remained armed");
+                Check(!party.AutoStarted && party.Elapsed == 0, "Party auto-start latch was not reset");
+                Check(view.Releases == 0 && runner.gameObject.activeSelf, "Opening window was released or cleanup runner stopped early");
+                view.OnClickStopWithoutMessage(); // Repeated Stop must stay idempotent.
+                Check(FinishPendingStop() && view.Releases == 0, "Opening task was not allowed to drain");
+                view.ReservedOpenTask = false; view.WindowState = BaseWindow.EState.OpenedShow;
+                FinishPendingStop(); UnityEngine.Time.frameCount++; FinishPendingStop();
+                Check(view.Releases == 0, "Wrapper finalization frame was skipped");
+                UnityEngine.Time.frameCount++; FinishPendingStop();
+                Check(view.Releases == 1 && pendingStop == null && !runner.gameObject.activeSelf, "Deferred Stop failed to finish exactly once");
+                Check(!FinishPendingStop() && view.Releases == 1, "Deferred Stop repeated");
+                cases++;
+            }
+        }
+        var stable = Arm(BaseWindow.EState.OpenedShow, false);
+        var inFlight = new BattlePartySetting.ExtraOptionData { AutoNext = true };
+        TrackEntryOption(inFlight); stable.OnClickStopWithoutMessage();
+        Check(stable.Releases == 1 && !inFlight.AutoNext && pendingStop == null, "In-flight response can rearm Continuous Story"); cases++;
+        var ordinary = Arm(BaseWindow.EState.AnimateShow, true); continuousStory = false;
+        Check(!DeferOpeningStop(ordinary) && ordinary.Enabled && pendingStop == null, "Non-story native repetition changed"); cases++;
+        var restarted = Arm(BaseWindow.EState.OpenedShow, false); Stop();
+        Check(restarted.Releases == 1 && !continuousStory && waitingParty == null, "New run after cancellation could not stop"); cases++;
+        Console.WriteLine("PASS: " + cases + " production cancellation scenarios: instant Stop across opening states, repeated Stop, wrapper finalization, party reset, late response, normal repetition and restart.");
+    }
+}

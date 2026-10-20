@@ -16,6 +16,8 @@
     <EmbeddedResource Include="Resources/MailUpdates.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdates.cs.txt" />
     <EmbeddedResource Include="Resources/MailUpdatesTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdatesTests.cs.txt" />
     <EmbeddedResource Include="Resources/StoryAuto.cs.txt" WithCulture="false" LogicalName="DllPatcher.StoryAuto.cs.txt" />
+    <EmbeddedResource Include="Resources/StoryAutoCancellation.cs.txt" WithCulture="false" LogicalName="DllPatcher.StoryAutoCancellation.cs.txt" />
+    <EmbeddedResource Include="Resources/StoryAutoCancellationTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.StoryAutoCancellationTests.cs.txt" />
     <EmbeddedResource Include="Resources/WebSocketTransport.cs.txt" WithCulture="false" LogicalName="DllPatcher.WebSocketTransport.cs.txt" />
     <EmbeddedResource Include="Resources/Accounts.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accounts.cs.txt" />
     <EmbeddedResource Include="Resources/AdventureUnlocks.cs.txt" WithCulture="false" LogicalName="DllPatcher.AdventureUnlocks.cs.txt" />

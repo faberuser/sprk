@@ -44,6 +44,8 @@ partial class Program
         TestSelectorCountLimit(clientRoot);
         VerifySoulWeaponCinematicFile(clientRoot, false);
         VerifySoulLiberationCostFile(clientRoot);
+        VerifyStoryAutoFile(clientRoot);
+        TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
         Console.WriteLine("Complete client release patching and verification passed.");

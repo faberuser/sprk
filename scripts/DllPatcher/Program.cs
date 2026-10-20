@@ -74,6 +74,8 @@ namespace DllPatcher
             if (args.Contains("--battle-entry-only")) { InstallBattleEntry(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-battle-entry")) { TestBattleEntry(args[0]); return; }
             if (args.Contains("--story-auto-only")) { InstallStoryAuto(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-story-auto-cancel")) { TestStoryAutoCancellation(); return; }
+            if (args.Contains("--verify-story-auto")) { VerifyStoryAutoFile(args[0]); return; }
             if (args.Contains("--remove-app-review-only")) { InstallAppReviewRemoval(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--background-chat-only")) { InstallBackgroundChat(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--combat-only")) { InstallCombat(args[0], args.Contains("--stage-only")); return; }
@@ -107,7 +109,7 @@ namespace DllPatcher
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
-            if (args.Contains("--automation-only")) { InstallAutomation(args[0]); return; }
+            if (args.Contains("--automation-only")) { InstallAutomation(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }
             if (args.Contains("--mail-updates-only")) { InstallMailUpdates(args[0], args.Contains("--stage-only")); return; }

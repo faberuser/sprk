@@ -7,7 +7,7 @@ namespace DllPatcher;
 
 partial class Program
 {
-    static void InstallAutomation(string clientRoot)
+    static void InstallAutomation(string clientRoot, bool stageOnly = false)
     {
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
         var dll = Path.Combine(managed, "Assembly-CSharp.dll");
@@ -60,6 +60,9 @@ partial class Program
         File.WriteAllBytes(helper + ".staged", compiled.ToArray());
         if (changed) assembly.Write(dll + ".staged");
         assembly.Dispose();
+        if (stageOnly) { Console.WriteLine("Staged opt-in client automation."); return; }
+        if (System.Diagnostics.Process.GetProcessesByName("King's Raid").Length != 0)
+            throw new InvalidOperationException("Automation staged. Close King's Raid before installing.");
         File.Move(helper + ".staged", helper, true);
         if (changed) File.Move(dll + ".staged", dll, true);
         Console.WriteLine("Installed opt-in client automation. Set SPRK_AUTOMATION_DIR only in the test client process.");

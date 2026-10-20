@@ -260,6 +260,25 @@ The focused installer adds `SprkMissionClaimAll.dll` and two header hooks to
 (also supports `--stage-only`). Close clients before installation, restart after
 installation, and publish a signed client update using the release workflow.
 
+### Continuous Story cancellation
+
+`--story-auto-only` also fixes stopping immediately after selecting Continuous
+Story. Cancellation immediately disarms the queued start, clears the party's
+auto-start timer and cancels the captured AutoNext option for an in-flight
+request. If the native Stop overlay is still opening, its pooled window is
+released after its opening task and input wrapper finish. Other native repeat
+modes retain their behavior. Native close cleanup also completes before the
+overlay returns to its pool, so its Back-stack registration and observers are
+removed. Use `--verify-story-auto` to check installed hooks
+and `--self-test-story-auto-cancel` to exercise the shipping cancellation source
+with controlled native lifecycle and clock stand-ins. Close the game before
+installing and publish a signed update afterwards.
+
+The opt-in automation bridge supports `ui-navigation-probe` to inspect the native
+Back stack and input-block owners. `click-and-stop-story` clicks a specified
+Continuous Story button and immediately invokes the native Stop action in the
+same update, for reproducible cancellation testing without a battle request.
+
 ### Soul Weapon unlock cinematic
 
 `--soul-liberation-cost-only` restores the gold requirement on the initial

@@ -7,6 +7,34 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static void TestStoryAutoCancellation()
+    {
+        var trees = new[] { "StoryAutoCancellation", "StoryAutoCancellationTests" }.Select(name => {
+            using var resource = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher." + name + ".cs.txt")!;
+            using var reader = new StreamReader(resource);
+            return CSharpSyntaxTree.ParseText(reader.ReadToEnd());
+        });
+        var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create("StoryAutoCancellationTests", trees, refs,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var bytes = new MemoryStream();
+        var result = compilation.Emit(bytes);
+        if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics));
+        System.Reflection.Assembly.Load(bytes.ToArray()).GetType("SprkStoryAuto")!.GetMethod("RunTests")!.Invoke(null, null);
+    }
+
+    static void VerifyStoryAutoFile(string clientRoot)
+    {
+        var managed = Path.Combine(clientRoot, "King's Raid_Data", "Managed");
+        using var assembly = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "Assembly-CSharp.dll"));
+        VerifyStoryAuto(assembly.MainModule);
+        using var helper = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "SprkStoryAuto.dll"));
+        var tick = helper.MainModule.GetType("SprkStoryAuto").Methods.Single(m => m.Name == "Tick");
+        if (tick.Body.Instructions[0].Operand is not MethodReference { Name: "FinishPendingStop" })
+            throw new InvalidOperationException("Pending Stop cleanup must run before the active-mode and clock guards.");
+        Console.WriteLine("Verified opening-window cancellation guards, option tracking and cleanup after disarming.");
+    }
+
     static void InstallStoryAuto(string clientRoot, bool stageOnly, string? sourcePath = null)
     {
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
@@ -16,7 +44,9 @@ partial class Program
         using var reader = new StreamReader(resource);
         var refs = Directory.GetFiles(managed, "*.dll").Where(p => Path.GetFileName(p) != "SprkStoryAuto.dll")
             .Select(p => MetadataReference.CreateFromFile(p));
-        var compilation = CSharpCompilation.Create("SprkStoryAuto", new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, refs,
+        using var cancellationResource = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.StoryAutoCancellation.cs.txt")!;
+        using var cancellationReader = new StreamReader(cancellationResource);
+        var compilation = CSharpCompilation.Create("SprkStoryAuto", new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(cancellationReader.ReadToEnd()) }, refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
         var result = compilation.Emit(compiled);
@@ -45,6 +75,8 @@ partial class Program
                 Instruction.Create(OpCodes.Ldc_I4_1), Instruction.Create(OpCodes.Ret));
         }
         var start = Method("NGame2.NUI.NWindow.BattlePartySetting", "TryStartBattle");
+        if (!Hooked(start, "TrackEntryOption"))
+            Prefix(start, Instruction.Create(OpCodes.Ldarg_1), Instruction.Create(OpCodes.Call, Hook("TrackEntryOption")));
         var startClick = Method("NGame2.NUI.NWindow.BattlePartySetting", "OnClickStartBattle");
         var oldChoice = startClick.Body.Instructions.FirstOrDefault(i => i.Operand is MethodReference r && r.DeclaringType.Name == "SprkStoryAuto" && r.Name == "ChooseForParty");
         if (oldChoice != null && startClick.Body.Instructions.IndexOf(oldChoice) == 4) {
@@ -95,6 +127,24 @@ partial class Program
         foreach (var name in new[] { "OnClickStop", "OnBattleLose", "OnClickStopWithoutMessage" }) {
             var stop = Method("NGame2.NUI.NWindow.NBattle.AutoNextBattle", name);
             if (!Hooked(stop, "Cancelled")) Prefix(stop, Instruction.Create(OpCodes.Call, Hook("Cancelled")));
+            if (!Hooked(stop, "DeferOpeningStop"))
+                Prefix(stop, Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Call, Hook("DeferOpeningStop")),
+                    Instruction.Create(OpCodes.Brfalse, stop.Body.Instructions[0]), Instruction.Create(OpCodes.Ret));
+        }
+        // ReleaseWindow calls Close(), then immediately returns this object to
+        // its pool. An animated Close can never reach CloseInternal afterwards,
+        // leaving its Back-stack entry behind. Finish native cleanup before pool
+        // release; retain AutoNextBattle.Close's coroutine cancellation as well.
+        var enableRepeat = Method("NGame2.NUI.NWindow.NBattle.AutoNextBattle", "EnableRepeat");
+        if (!enableRepeat.Body.Instructions.Any(i => i.Operand is MethodReference { Name: "Close2" })) {
+            var release = enableRepeat.Body.Instructions.Single(i => i.Operand is MethodReference { Name: "ReleaseWindow" });
+            var receiver = release.Previous;
+            if (receiver.OpCode != OpCodes.Ldsfld) throw new InvalidOperationException("Unexpected AutoNext window release receiver.");
+            foreach (var instruction in new[] {
+                Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Callvirt, Method("NGame2.NUI.NWindow.NBattle.AutoNextBattle", "Close")),
+                Instruction.Create(OpCodes.Ldarg_0), Instruction.Create(OpCodes.Ldc_I4_1),
+                Instruction.Create(OpCodes.Callvirt, Method("NGame2.NUI.NWindow.BaseWindow", "Close2")) })
+                enableRepeat.Body.GetILProcessor().InsertBefore(receiver, instruction);
         }
         if (!Hooked(checkNext, "LowerDifficultyCleared")) {
             var call = checkNext.Body.Instructions.Single(i => i.Operand is MethodReference r && r.Name == "IsCompleted");
@@ -175,6 +225,8 @@ partial class Program
         File.WriteAllBytes(helperPath + ".staged", compiled.ToArray());
         using (var verified = AssemblyDefinition.ReadAssembly(staged)) VerifyStoryAuto(verified.MainModule);
         if (!stageOnly) {
+            if (System.Diagnostics.Process.GetProcessesByName("King's Raid").Length != 0)
+                throw new InvalidOperationException("Story fix staged. Close King's Raid before installing and publishing.");
             var backup = Path.Combine("target", "story-auto-backups", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
             Directory.CreateDirectory(backup);
             File.Copy(dll, Path.Combine(backup, "Assembly-CSharp.dll"));
@@ -188,7 +240,7 @@ partial class Program
 
     static void VerifyStoryAuto(ModuleDefinition module)
     {
-        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "NextDifficulty", "Tick", "ContinueType", "SaveStoryPosition", "PrepareStoryRequest", "StoryProvider" }) {
+        foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "TrackEntryOption", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "NextDifficulty", "Tick", "ContinueType", "SaveStoryPosition", "PrepareStoryRequest", "StoryProvider" }) {
             var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody)
                 .SelectMany(m => m.Body.Instructions).Count(i => i.Operand is MethodReference r && r.DeclaringType.Name == "SprkStoryAuto" && r.Name == name);
             if (calls != 1) throw new InvalidOperationException($"Expected one {name} hook; found {calls}.");
@@ -198,6 +250,17 @@ partial class Program
             if (!next.Body.Instructions.Any(i => i.Operand is MethodReference r && r.Name == check))
                 throw new InvalidOperationException("Missing native safety check: " + check);
         var lose = module.GetType("NGame2.NUI.NWindow.NBattle.AutoNextBattle").Methods.Single(m => m.Name == "OnBattleLose");
+        var releaseBody = lose.DeclaringType.Methods.Single(m => m.Name == "EnableRepeat").Body.Instructions;
+        var releaseCall = releaseBody.Single(i => i.Operand is MethodReference { Name: "ReleaseWindow" });
+        if (releaseCall.Previous.Previous.Operand is not MethodReference { Name: "Close2" } ||
+            releaseCall.Previous.Previous.Previous.OpCode != OpCodes.Ldc_I4_1)
+            throw new InvalidOperationException("AutoNext must complete native close before returning its window to the pool.");
+        foreach (var name in new[] { "OnClickStop", "OnBattleLose", "OnClickStopWithoutMessage" }) {
+            var stop = lose.DeclaringType.Methods.Single(m => m.Name == name);
+            if (stop.Body.Instructions[0].OpCode != OpCodes.Ldarg_0 || stop.Body.Instructions[1].Operand is not MethodReference { Name: "DeferOpeningStop" }
+                || stop.Body.Instructions[2].OpCode != OpCodes.Brfalse || stop.Body.Instructions[3].OpCode != OpCodes.Ret)
+                throw new InvalidOperationException("Missing opening-window cancellation guard: " + name);
+        }
         if (!lose.Body.Instructions.Any(i => i.Operand is MethodReference r && r.DeclaringType.Name == "AutoBattle" && r.Name == "OnBattleLose"))
             throw new InvalidOperationException("Missing native stop-on-defeat path.");
         Console.WriteLine("Verified unique hooks, native entry/inventory/difficulty checks, and stop-on-defeat path.");
