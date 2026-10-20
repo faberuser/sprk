@@ -47,6 +47,45 @@ async fn currency(s: &AppState, u: &user::LoginResponse) -> (i64, i64) {
 }
 
 #[tokio::test]
+async fn sanctum_missions_recover_existing_souls_and_enforce_level_and_grade_filters() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let other = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=sanctum-other"))
+        .await.unwrap().0.user_info.account_id;
+    let mut rewards = Rewards::default();
+    let slot;
+    {
+        let mut db = s.db.acquire().await.unwrap();
+        item::give(&mut db, &s, a, ItemGrant { index: 1001, count: 1, star: 0, custom: 0 }, &mut rewards).await.unwrap();
+        slot = rewards.equipment[0].slot_index as i64;
+        // Existing persisted state needs no new liberation or enhancement event.
+        crate::api::extensions::put(&mut db, a, "soul", slot,
+            &json!({"EquipItemSlotIndex":slot,"ItemIndex":1001,"ReinforceLevel":20,"Grade":2})).await.unwrap();
+        crate::api::extensions::put(&mut db, a, "soul", 999999,
+            &json!({"ReinforceLevel":20,"Grade":2})).await.unwrap();
+        let view = View::load(&mut db, a).await.unwrap();
+        for (values, expected) in [(json!(null),1), (json!(["20","2"]),1), (json!(["21"]),0), (json!(["0","3"]),0)] {
+            assert_eq!(view.quest(&s, &json!({"Kind":"SoulWeaponCount","StateValue":values})), expected);
+        }
+        assert_eq!(View::load(&mut db, other).await.unwrap()
+            .quest(&s, &json!({"Kind":"SoulWeaponCount"})), 0);
+        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='soul' AND idx=999999")
+            .bind(a).execute(&mut *db).await.unwrap();
+    }
+    let login = relogin(&s).await;
+    for quest in [10892, 10952] {
+        assert!(login.sub_quest_infos.iter().any(|q| q["SubQuestIndex"] == quest && q["Progress"] == 1));
+        let args = format!("SubQuestIndices=[{quest}]");
+        assert_eq!(call(&s, &login, "complete_sub_quest", &args).await["Result"], "Success");
+        assert_ne!(call(&s, &login, "complete_sub_quest", &args).await["Result"], "Success");
+    }
+    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(slot).execute(&s.db).await.unwrap();
+    let mut db = s.db.acquire().await.unwrap();
+    assert_eq!(View::load(&mut db,a).await.unwrap().quest(&s,&json!({"Kind":"SoulWeaponCount"})),0);
+}
+
+#[tokio::test]
 async fn world_boss_normal_achievement_claim_uses_completed_battle_access_proof() {
     let (mut s,u)=setup().await;
     let a=u.user_info.account_id;

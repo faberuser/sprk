@@ -37,6 +37,7 @@ pub(super) fn period(row: &Value) -> String {
 }
 pub(super) struct View {
     pub heroes: Vec<Value>,
+    pub soul_weapons: Vec<Value>,
     pub dungeons: Vec<(i64, i64, i64, i64)>,
     pub metrics: Vec<(String, String, i64, i64, i64)>,
     pub claims: Vec<(String, i64, i64, String, String)>,
@@ -58,6 +59,12 @@ impl View {
             .collect();
         Ok(Self {
             heroes,
+            // Count owned weapons, including stored/unequipped ones. The join
+            // excludes orphaned soul records without treating them as ownership.
+            soul_weapons: sqlx::query_scalar::<_, String>("SELECT s.data FROM extension_state s JOIN equip_items e ON e.account_id=s.account_id AND e.slot_index=s.idx WHERE s.account_id=? AND s.kind='soul'")
+                .bind(account).fetch_all(&mut *db).await?
+                .into_iter().map(|data| serde_json::from_str(&data)).collect::<std::result::Result<_, _>>()
+                .map_err(|e| ServerError::Internal(format!("Invalid saved Soul Weapon: {e}")))?,
             dungeons:sqlx::query_as("SELECT chapter_id,dungeon_id,clear_count,best_star FROM campaign_progress WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
             metrics:sqlx::query_as("SELECT day,kind,arg,arg2,value FROM progression_metrics WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
             claims:sqlx::query_as("SELECT family,idx,step,period,claimed_time FROM progression_claims WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
@@ -181,6 +188,11 @@ impl View {
                 })
                 .sum(),
             "CostumeCount" => self.costumes,
+            // StateValue is [minimum Ether reinforcement, minimum awakening].
+            // These are ownership predicates, so existing saves qualify too.
+            "SoulWeaponCount" => self.soul_weapons.iter()
+                .filter(|s| n(s, "ReinforceLevel") >= arg(0) && n(s, "Grade") >= arg(1))
+                .count() as i64,
             "LoginDaily" => self.login_days,
             "JoinGuild" => self.guild as i64,
             "FriendRegistration" => self.friends,
