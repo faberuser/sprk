@@ -1,4 +1,32 @@
 use super::*;
+use crate::models::item::ItemGrant;
+
+async fn participation_reward(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64, damage: i64, reward: &mut Rewards) -> Result<()> {
+    let tier=s.tables.battle.rows("WorldBossScoreReward").iter().find(|r|
+        n(r,"WorldBossIndex")==id && damage>=n(r,"MinScore") &&
+        (n(r,"MaxScore")==0 || damage<=n(r,"MaxScore")))
+        .ok_or_else(||rule("ItemDataNotFound"))?;
+    let data=s.tables.get_reward(n(tier,"RewardIndex") as i32).ok_or_else(||rule("ItemDataNotFound"))?;
+    tutorial::currency(db,a,"Gold",data.roll_gold(),reward).await?;
+    tutorial::currency(db,a,"Gem",data.roll_gem(),reward).await?;
+    tutorial::currency(db,a,"WorldBossPoint",n(tier,"WorldBossPoint"),reward).await?;
+    for drop in data.roll_items(&s.tables.reward_string_pool) {
+        let (code,filter)=crate::tables::parse_item_code(&drop.item_code);
+        if s.tables.item_groups.contains(&code) {
+            // Two random boxes means two independent draws, not one roll whose
+            // quantity is multiplied by two (which forces identical rarities).
+            for _ in 0..drop.count {
+                let (index,count,star,_)=s.tables.roll_item_from_group_code(&code,&filter)
+                    .ok_or_else(||rule("ItemDataNotFound"))?;
+                item::give(db,s,a,ItemGrant {index,count,star,custom:0},reward).await?;
+            }
+        } else {
+            let index=s.tables.get_item_index(&code).ok_or_else(||rule("ItemDataNotFound"))?;
+            item::give(db,s,a,ItemGrant {index,count:drop.count,star:drop.star_min,custom:drop.custom_option_index},reward).await?;
+        }
+    }
+    Ok(())
+}
 pub(super) fn match_season(s: &AppState, r: &Request) -> Result<Value> {
     let arena = int(r, "ArenaType")?;
     if !matches!(arena, 0 | 5) {
@@ -22,6 +50,23 @@ pub(super) fn season(s: &AppState) -> (i64, i64, i64) {
         epoch + (number - 1) * length,
         epoch + number * length,
     )
+}
+fn world_boss_season(s: &AppState) -> (i64,i64,i64) {
+    let (_,start,end)=season(s);
+    let offset=s.tables.services.rows("Constant").iter()
+        .find(|v|v["Key"]=="WorldBossGlobalUtcOffSetHour")
+        .and_then(|v|v["Value"].as_str()).and_then(|v|v.parse::<i64>().ok()).unwrap_or(9)*3600;
+    let length=end-start;
+    let (number,_,_)=season(s);
+    if now()>=end-offset {(number+1,end-offset,end+length-offset)}
+    else {(number,start-offset,end-offset)}
+}
+fn boss_season(s: &AppState, family: &str, id: i64) -> Result<(i64,i64,i64)> {
+    Ok(if family=="world_boss" && source(s,family,id)?["IsGlobal"]==true {world_boss_season(s)} else {season(s)})
+}
+fn world_boss_day(at:i64)->String {
+    // Recovered WorldBossGlobalDailyRewardResetTime=15:00:00 UTC.
+    chrono::DateTime::from_timestamp(at+9*3600,0).unwrap().date_naive().to_string()
 }
 fn source<'a>(s: &'a AppState, family: &str, id: i64) -> Result<&'a Value> {
     let name = if family == "event_world_boss" {
@@ -56,12 +101,67 @@ fn active_world_boss(s: &AppState, season: i64) -> Result<i64> {
     }
     Ok(cycle[((season - 1).max(0) as usize) % cycle.len()])
 }
+// Global World Boss is a timed score competition in the recovered tables:
+// DealBattleDuration=518400, NormalBattleDuration=0, KillRewardIndex=0.
+// Keep positive HP for the native persistent-HP protocol during scoring; it is
+// a per-battle compatibility value, not a finite pool consumed by players.
+fn refresh_global_boss(v: &mut Value, def: &Value, start: i64, season_end: i64, at: i64) {
+    let end = start.saturating_add(n(def, "DealBattleDuration").max(0)).min(season_end);
+    let active = at >= start && at < end;
+    v["MaxHp"] = json!(n(v, "MaxHp").max(1));
+    v["MonsterHp0"] = json!(if active { n(v, "MaxHp") } else { 0 });
+    v["Status"] = json!(if active { "ActiveDeal" } else { "Ended" });
+    v["CreatedTime"] = json!(time(start));
+    v["BeginTime"] = json!(time(start));
+    v["EndedTime"] = json!(time(end));
+    v["EndTime"] = json!(time(end));
+    v["NextOpenTime"] = json!(time(season_end));
+    v["BattleCompletedTime"] = if active { Value::Null } else { json!(time(end)) };
+}
+
+#[cfg(test)]
+mod global_schedule_tests {
+    use super::*;
+
+    #[test]
+    fn world_boss_global_schedule_uses_six_days_and_repairs_only_active_period() {
+        let start = 1_767_571_200_i64;
+        let end = start + 7 * 86400;
+        let def = json!({"DealBattleDuration":518400,"NormalBattleDuration":0});
+        let original = json!({"MaxHp":1000000000000_i64,"MonsterHp0":0,"Status":"Ended",
+            "TotalDamage":6164131807809_i64,"RewardedTime":"saved-reward","DailyRewarding":1});
+        for at in [start, start + 518399] {
+            let mut v = original.clone();
+            refresh_global_boss(&mut v,&def,start,end,at);
+            assert_eq!(v["Status"],"ActiveDeal");
+            assert!(n(&v,"MonsterHp0")>0);
+            assert_eq!(v["TotalDamage"],original["TotalDamage"]);
+            assert_eq!(v["RewardedTime"],original["RewardedTime"]);
+            assert_eq!(v["DailyRewarding"],1);
+            assert_eq!(v["EndTime"],time(start+518400));
+            assert_eq!(v["NextOpenTime"],time(end));
+            let before=v.clone();
+            refresh_global_boss(&mut v,&def,start,end,at);
+            assert_eq!(v,before,"Repair must be idempotent");
+        }
+        for at in [start-1,start+518400,end-1,end] {
+            let mut v=original.clone();
+            refresh_global_boss(&mut v,&def,start,end,at);
+            assert_eq!(v["Status"],"Ended");
+            assert_eq!(v["MonsterHp0"],0);
+        }
+        let mut v=original;
+        refresh_global_boss(&mut v,&def,end,end+7*86400,end);
+        assert_eq!(v["Status"],"ActiveDeal");
+    }
+}
+
 async fn boss(db: &mut SqliteConnection, s: &AppState, family: &str, id: i64) -> Result<Value> {
     let def = source(s, family, id)?;
     if family == "event_world_boss" && def["IsOpen"] != true {
         return Err(rule("WorldBossNotActive"));
     }
-    let (season, start, end) = season(s);
+    let (season, start, end) = boss_season(s,family,id)?;
     let key = campaign::key(id, season);
     let mut v = get(db, 0, family, key).await?;
     if v.is_null() {
@@ -72,6 +172,13 @@ async fn boss(db: &mut SqliteConnection, s: &AppState, family: &str, id: i64) ->
         };
         v = json!({"Index":id,"Season":season,"MonsterHp0":hp,"MaxHp":hp,"TotalDamage":0,"Status":"ActiveDeal","CreatedTime":time(start),"EndedTime":time(end),"BeginTime":time(start),"EndTime":time(end),"NextOpenTime":time(end),"BossLevel":1,"OrderNo":1,"DailyBossKillCount":0,"RewardedTime":null,"DailyRewardedTime":null,"DailyRewarding":0,"BattleCompletedTime":null});
         put(db, 0, family, key, &v).await?;
+    }
+    if family == "world_boss" && def["IsGlobal"] == true {
+        let previous = v.clone();
+        refresh_global_boss(&mut v, def, start, end, now());
+        // This also repairs bosses incorrectly ended by the former HP pool,
+        // without changing scores, total damage, claim ledgers or rewards.
+        if v != previous { put(db, 0, family, key, &v).await?; }
     }
     Ok(v)
 }
@@ -159,8 +266,9 @@ async fn score(
     a: i64,
     damage: i64,
     battle_time: i64,
+    date: &str,
 ) -> Result<()> {
-    sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,?,?,?,?,?,?) ON CONFLICT(family,boss,season,account,day) DO UPDATE SET score=score+excluded.score,battle_time=battle_time+excluded.battle_time").bind(family).bind(id).bind(season).bind(a).bind(day()).bind(damage).bind(battle_time).execute(db).await?;
+    sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,?,?,?,?,?,?) ON CONFLICT(family,boss,season,account,day) DO UPDATE SET score=score+excluded.score,battle_time=battle_time+excluded.battle_time").bind(family).bind(id).bind(season).bind(a).bind(date).bind(damage).bind(battle_time).execute(db).await?;
     Ok(())
 }
 // The native campaign client leaves TotalDamage unset and reports received
@@ -219,7 +327,8 @@ pub(super) async fn finish(
             .fetch_one(&mut *db)
             .await?;
         let entry: Value = read_json(&saved)?;
-        if n(&entry, "BossSeason") != season(s).0 {
+        let current_season=boss_season(s,family,id)?.0;
+        if n(&entry, "BossSeason") != current_season {
             return Err(rule("WorldBossSeasonChanged"));
         }
         let damage = if damage == 0 && family == "world_boss" {
@@ -240,19 +349,34 @@ pub(super) async fn finish(
         if dealt <= 0 {
             return Err(rule("WorldBossNotActive"));
         }
-        v["MonsterHp0"] = json!(n(&v, "MonsterHp0") - dealt);
+        let global = family == "world_boss" && source(s, family, id)?["IsGlobal"] == true;
+        // Legacy and event bosses keep their finite HP behavior. Global bosses
+        // retain their per-battle HP and accept every validated scoring attempt.
+        let credited = if family == "world_boss" { damage } else { dealt };
+        if !global { v["MonsterHp0"] = json!(n(&v, "MonsterHp0") - dealt); }
         v["TotalDamage"] = json!(n(&v, "TotalDamage")
-            .checked_add(dealt)
+            .checked_add(credited)
             .ok_or_else(|| rule("WorldBossHpError"))?);
-        let killed = n(&v, "MonsterHp0") == 0;
+        let killed = !global && n(&v, "MonsterHp0") == 0;
         if killed {
             v["Status"] = json!("Ended");
             v["BattleCompletedTime"] = json!(time(now()));
         }
-        put(db, 0, family, campaign::key(id, season(s).0), &v).await?;
-        score(db, family, id, season(s).0, a, dealt, elapsed).await?;
+        put(db, 0, family, campaign::key(id, current_season), &v).await?;
+        // The score ledger also drives ordinary UTC daily quests. Keep that
+        // calendar intact; World Boss's 15:00 reset has its own daily snapshot.
+        score(db, family, id, current_season, a, credited, elapsed,&day()).await?;
+        if global {
+            let previous=get(db,a,"world_boss_daily_score",id).await?;
+            let date=world_boss_day(now());
+            let same=previous["Day"]==date && n(&previous,"Season")==current_season;
+            let score=if same {n(&previous,"Score")} else {0};
+            let count=if same {n(&previous,"Count")} else {0};
+            put(db,a,"world_boss_daily_score",id,&json!({"Day":date,"Season":current_season,
+                "Score":score.checked_add(credited).ok_or_else(||rule("WorldBossHpError"))?,"Count":count+1})).await?;
+        }
         if family == "world_boss" {
-            let mut rank = rankers(db, family, id, season(s).0).await?
+            let mut rank = rankers(db, family, id, current_season).await?
                 .into_iter().find(|v| n(v,"AccountId")==a).ok_or_else(||rule("InvalidRank"))?;
             rank["Rank"] = json!(n(&rank,"Rank")-1);
             out["WorldBossRankInfo"] = rank;
@@ -265,6 +389,7 @@ pub(super) async fn finish(
         }] = json!(killed);
         let mut reward = Rewards::default();
         let def = source(s, family, id)?;
+        if global { participation_reward(db,s,a,id,damage,&mut reward).await?; }
         if family == "event_world_boss" {
             let claim_kind = format!("{family}_participant");
             let exists:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind=? AND idx=? AND period=?)").bind(a).bind(&claim_kind).bind(id).bind(season(s).0.to_string()).fetch_one(&mut *db).await?;
@@ -305,6 +430,7 @@ pub(super) async fn finish(
             a,
             damage.max(1),
             elapsed,
+            &day(),
         )
         .await?;
         out["ChallengeRaidRankerInfo"] = rankers(db, "challenge", raid, season(s).0)
@@ -321,7 +447,7 @@ async fn rankers(
     id: i64,
     season: i64,
 ) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT b.account,SUM(b.score) score,SUM(b.battle_time) battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=? AND b.boss=? AND b.season=? GROUP BY b.account ORDER BY score DESC,b.account LIMIT 10000").bind(family).bind(id).bind(season).fetch_all(db).await?;
+    let rows=sqlx::query("SELECT b.account,SUM(b.score) score,SUM(b.battle_time) battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=? AND b.boss=? AND b.season=? GROUP BY b.account ORDER BY score DESC,b.account").bind(family).bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)|json!({"Rank":i+1,"AccountId":r.get::<i64,_>("account"),"Nick":r.get::<String,_>("nick"),"Score":r.get::<i64,_>("score"),"CurrentScore":r.get::<i64,_>("score"),"BattleTime":r.get::<i64,_>("battle_time"),"CurrentBattleTime":r.get::<i64,_>("battle_time"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"CountryCode":"","ServerGroup":"Local"})).collect())
 }
 pub(super) async fn execute(
@@ -342,7 +468,7 @@ pub(super) async fn execute(
             "EventWorldBoss"
         };
         let ids = if family == "world_boss" {
-            BTreeSet::from([active_world_boss(s, season(s).0)?])
+            BTreeSet::from([active_world_boss(s, world_boss_season(s).0)?])
         } else { s
             .tables
             .battle
@@ -371,7 +497,7 @@ pub(super) async fn execute(
             "WorldBossIndex"
         },
     )?;
-    let current = season(s).0;
+    let current = if family=="world_boss" {boss_season(s,family,id)?.0} else {season(s).0};
     let season = r.number("Season", current)?;
     if season < 1 || season > current {
         return Err(rule("NotFoundSeasonData"));
@@ -381,12 +507,16 @@ pub(super) async fn execute(
         return Ok(out);
     }
     if action.contains("daily_score") || action.contains("score_info") {
-        let score:i64=sqlx::query_scalar("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)").bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(db).await?;
+        let mut score:i64=sqlx::query_scalar("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)").bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
+        if family=="world_boss" && source(s,family,id)?["IsGlobal"]==true && action.contains("daily") {
+            let daily=get(db,a,"world_boss_daily_score",id).await?;
+            score=if daily["Day"]==world_boss_day(now()) && n(&daily,"Season")==season {n(&daily,"Score")} else {0};
+        }
         out[if action.contains("daily") {
             "WorldBossDailyScore"
         } else {
             "ScoreInfo"
-        }] = json!({"AccountId":a,"WorldBossIndex":id,"Season":season,"Score":score,"IsGetDailyParticipantReward":0,"GetDailyAchievementStep":0,"UpdateTime":time(now())});
+        }] = json!({"AccountId":a,"WorldBossIndex":id,"Season":season,"Score":score,"IsGetDailyParticipantReward":if score>0 {1}else{0},"GetDailyAchievementStep":0,"UpdateTime":time(now())});
         return Ok(out);
     }
     if action.contains("rank") {
@@ -433,14 +563,19 @@ pub(super) async fn execute(
 // Settle closed daily/season records lazily into the existing persistent mailbox.
 // The ledger and mail are written in the same transaction, including after reconnect.
 pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
-    let records=sqlx::query("SELECT family,boss,season,day,score FROM battle_scores b WHERE account=? AND ((family='world_boss' AND day<? AND NOT EXISTS(SELECT 1 FROM battle_reward_claims c WHERE c.account=b.account AND c.kind='world_boss_daily' AND c.idx=b.boss AND c.period=CAST(b.season AS TEXT)||':'||b.day)) OR (family IN ('world_boss','challenge') AND season<? AND NOT EXISTS(SELECT 1 FROM battle_reward_claims c WHERE c.account=b.account AND c.kind=b.family||'_season' AND c.idx=b.boss AND c.period=CAST(b.season AS TEXT)))) ORDER BY season,day LIMIT 500").bind(a).bind(day()).bind(season(s).0).fetch_all(&mut *db).await?;
+    let legacy_bosses=json!(s.tables.battle.rows("WorldBoss").iter()
+        .filter(|r|r["IsGlobal"]!=true).map(|r|n(r,"Index")).collect::<Vec<_>>()).to_string();
+    let records=sqlx::query("SELECT family,boss,season,day,score FROM battle_scores b WHERE account=? AND ((family='world_boss' AND boss IN (SELECT CAST(value AS INTEGER) FROM json_each(?)) AND day<? AND NOT EXISTS(SELECT 1 FROM battle_reward_claims c WHERE c.account=b.account AND c.kind='world_boss_daily' AND c.idx=b.boss AND c.period=CAST(b.season AS TEXT)||':'||b.day)) OR (family IN ('world_boss','challenge') AND season<=? AND NOT EXISTS(SELECT 1 FROM battle_reward_claims c WHERE c.account=b.account AND c.kind=b.family||'_season' AND c.idx=b.boss AND c.period=CAST(b.season AS TEXT)))) ORDER BY season,day LIMIT 500").bind(a).bind(legacy_bosses).bind(day()).bind(world_boss_season(s).0.max(season(s).0)).fetch_all(&mut *db).await?;
     for record in records {
         let family: String = record.get("family");
         let id: i64 = record.get("boss");
         let old: i64 = record.get("season");
         let date: String = record.get("day");
         let score: i64 = record.get("score");
-        if family == "world_boss" && date < day() {
+        let global=family=="world_boss" && source(s,&family,id)?["IsGlobal"]==true;
+        // These are participation drops, already paid at the end of each
+        // global attempt. Do not pay another set as a next-day score mail.
+        if family == "world_boss" && !global && date < day() {
             if let Some(reward) = s
                 .tables
                 .battle
@@ -449,7 +584,7 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
                 .find(|v| {
                     n(v, "WorldBossIndex") == id
                         && score >= n(v, "MinScore")
-                        && score <= n(v, "MaxScore")
+                        && (n(v,"MaxScore")==0 || score <= n(v, "MaxScore"))
                 })
             {
                 deliver(
@@ -467,9 +602,10 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
                 .await?;
             }
         }
-        if old >= season(s).0 || family == "event_world_boss" {
-            continue;
-        }
+        let current=if global {world_boss_season(s)} else {season(s)};
+        let closed=old<current.0 || (global && old==current.0 &&
+            now()>=current.1+n(source(s,&family,id)?,"DealBattleDuration"));
+        if !closed || family == "event_world_boss" { continue; }
         let ranks = rankers(db, &family, id, old).await?;
         let Some(me) = ranks.iter().find(|v| n(v, "AccountId") == a) else {
             continue;
@@ -477,6 +613,8 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
         let rank = n(me, "Rank");
         let data = if family == "challenge" {
             "ChallengeRaidReward"
+        } else if global {
+            "WorldBossGlobalReward"
         } else {
             "WorldBossReward"
         };
@@ -555,6 +693,10 @@ async fn deliver(
         items.push(json!({"ItemIndex":index,"ItemCount":count}));
     }
     claim(db, a, kind, id, period).await?;
-    sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_currencies,expires_at) VALUES(?,'System',?,?,?,?,?,?,?)").bind(a).bind(title).bind(format!("Reward for boss {id}, period {period}.")).bind(data.roll_gold()).bind(data.roll_gem()).bind(json!(items).to_string()).bind(json!(currencies).to_string()).bind(time(now()+7*86400)).execute(db).await?;
+    let expiry=if kind=="world_boss_season" && source(s,"world_boss",id)?["IsGlobal"]==true {
+        s.tables.services.rows("Constant").iter().find(|v|v["Key"]=="WorldBossGlobalRewardMailExpireHour")
+            .and_then(|v|v["Value"].as_str()).and_then(|v|v.parse::<i64>().ok()).unwrap_or(72)*3600
+    } else {7*86400};
+    sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_currencies,expires_at) VALUES(?,'System',?,?,?,?,?,?,?)").bind(a).bind(title).bind(format!("Reward for boss {id}, period {period}.")).bind(data.roll_gold()).bind(data.roll_gem()).bind(json!(items).to_string()).bind(json!(currencies).to_string()).bind(time(now()+expiry)).execute(db).await?;
     Ok(())
 }

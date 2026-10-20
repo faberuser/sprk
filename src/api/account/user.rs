@@ -425,6 +425,9 @@ pub async fn login(
 
     let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
+    // Recover auto-use achievement tokens retained by earlier unsupported
+    // potion responses before sending item and achievement login snapshots.
+    crate::api::inventory::item::recover_pending_achievement_tokens(&state,account_id).await?;
     // Fetch items
     let item_rows = sqlx::query(
         "SELECT * FROM items WHERE account_id = ? AND count > 0"

@@ -353,6 +353,7 @@ impl View {
             }
             "ClearWorldBossDaily" | "ClearWorldBossWeekly" | "JoinWorldBoss" =>
                 self.metric("CompleteWorldBoss",&p,None,None),
+            "WinGuildSuppress" => self.metric("WinGuildSuppress",&p,None,None),
             "BuyShopItem" => self.metric(
                 "BuyShopItem",
                 &p,

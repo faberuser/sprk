@@ -236,6 +236,57 @@ fn craft_form(u: &user::LoginResponse, r: &Value, count: i32) -> Bytes {
 }
 
 #[tokio::test]
+async fn mail_achievement_token_auto_use_records_progress_once_and_preserves_rewards() {
+    use crate::api::{community::mail,progression};
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mail_id=mail::send_system_mail(&s,a,"Conquest reward","Victory",123,7,
+        Some(vec![mail::MailItemInfo {item_index:990203,item_count:1}])).await.unwrap();
+    let before:(i64,i64)=sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    let claimed=mail::receive_mail(State(s.clone()),form(&u,&format!("MailIndex={mail_id}"))).await.unwrap().0;
+    assert_eq!(claimed["Result"],"Success","{claimed}");
+    assert_eq!(count(&s,&u,990203).await,1);
+    let use_token=|| form(&u,"ItemIndex=990203&ItemCount=1&AchievementIndex=999999&Progress=999999");
+    let result=item::use_potion_item(State(s.clone()),use_token()).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["ItemResult"]["AddCount"],-1);
+    assert_eq!(result["AchievementInfos"].as_array().unwrap().iter()
+        .find(|r|r["AchievementIndex"]==203).unwrap()["Achievement"],1);
+    assert_eq!(count(&s,&u,990203).await,0);
+    assert_ne!(item::use_potion_item(State(s.clone()),use_token()).await.unwrap().0["Result"],"Success");
+    assert_ne!(mail::receive_mail(State(s.clone()),form(&u,&format!("MailIndex={mail_id}"))).await.unwrap().0["Result"],"Success");
+    let after:(i64,i64)=sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(after,(before.0+123,before.1+7));
+    let reward=progression::reward_achievement(State(s.clone()),form(&u,"AchievementIndices=[203]&Steps=[0]")).await.unwrap().0;
+    assert_eq!(reward["Result"],"Success","{reward}");
+    assert_ne!(progression::reward_achievement(State(s.clone()),form(&u,"AchievementIndices=[203]&Steps=[0]")).await.unwrap().0["Result"],"Success");
+}
+
+#[tokio::test]
+async fn mail_achievement_token_failed_use_rolls_back_and_login_recovers_once() {
+    let (mut s,u)=setup().await;
+    put(&s,&u,990203,2).await;
+    Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory)
+        .potions.get_mut(&990203).unwrap()["ActionSubValue"]=json!("UnimplementedAction");
+    let bad=item::use_potion_item(State(s.clone()),form(&u,"ItemIndex=990203&ItemCount=1")).await.unwrap().0;
+    assert_eq!(bad["Result"],"InvalidAction");
+    assert_eq!(count(&s,&u,990203).await,2);
+    Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory)
+        .potions.get_mut(&990203).unwrap()["ActionSubValue"]=json!("WinGuildSuppress");
+    for _ in 0..2 {
+        let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=inventory-test")).await.unwrap().0;
+        assert_eq!(count(&s,&u,990203).await,0);
+        assert!(!login.items.iter().any(|r|r.item_index==990203));
+        assert_eq!(login.achievement_infos.iter().find(|r|r["AchievementIndex"]==203).unwrap()["Achievement"],2);
+    }
+    let progress:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='WinGuildSuppress'")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap();
+    assert_eq!(progress,2);
+}
+
+#[tokio::test]
 async fn potions_use_client_amounts_and_full_recovery_uses_team_capacity() {
     let (state, u) = setup().await;
     let (id, p) = potion(&state, 1);

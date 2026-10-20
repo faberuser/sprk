@@ -32,6 +32,11 @@ impl BattleTable {
                 .ok_or_else(|| format!("Missing Divine Punishment table: {name}"))?;
             data.tables.insert(name.into(), rows.clone());
         }
+        let world: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("WorldBossSupport.json"))?)?;
+        for name in ["WorldBossGlobalReward", "WorldBossServerReward", "WorldBossDailyReward", "WorldBossDailyAchievement"] {
+            let rows = world["Tables"][name].as_array().ok_or_else(|| format!("Missing recovered World Boss table: {name}"))?;
+            data.tables.insert(name.into(), rows.clone());
+        }
         Ok(data)
     }
     pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {

@@ -454,6 +454,41 @@ endpoint!(
     set_chest,
     unset_chest
 );
+async fn complete_achievement_token(
+    db: &mut SqliteConnection, state: &AppState, account: i64, potion: &Value, amount: i64,
+) -> Result<Value> {
+    // The recovered Guild Conquest mail token awards one victory towards the
+    // WinGuildSuppress achievement. The action comes from trusted item data,
+    // never from client-supplied achievement indices or progress.
+    if potion["ActionSubValue"] != "WinGuildSuppress" || n(potion,"ActionValue2") != 0 || amount <= 0 {
+        return Err(rule("InvalidAction"));
+    }
+    crate::api::progression::record(db,account,"WinGuildSuppress",0,0,amount).await?;
+    Ok(crate::api::progression::snapshot(db,state,account).await?["AchievementInfos"].clone())
+}
+
+pub(crate) async fn recover_pending_achievement_tokens(state: &AppState, account: i64) -> Result<()> {
+    let mut tx=state.db.begin().await?;
+    // Serialize against a concurrent native auto-use request. Tokens left by
+    // the old unsupported-action response are consumed and credited together.
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(account).execute(&mut *tx).await?;
+    for (&index,potion) in &state.tables.inventory.potions {
+        if potion["AutoUse"] != true || n(potion,"ActionType") != 8 ||
+            potion["ActionSubValue"] != "WinGuildSuppress" || n(potion,"ActionValue2") != 0 { continue; }
+        let count:Option<i32>=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=? AND count>0")
+            .bind(account).bind(index).fetch_optional(&mut *tx).await?;
+        if let Some(count)=count {
+            let amount=n(potion,"ActionValue").checked_mul(count as i64)
+                .filter(|v|*v>0).ok_or_else(||rule("InvalidActionValue"))?;
+            consume(&mut tx,account,index,count).await?;
+            complete_achievement_token(&mut tx,state,account,potion,amount).await?;
+        }
+    }
+    tx.commit().await?;
+    Ok(())
+}
+
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let arrays: &[&str] = match action {
         // WWWForm emits one field per selected option. Preserve order and
@@ -584,6 +619,9 @@ async fn execute(
                 return Err(rule("InvalidActionValue"));
             }
             match n(potion, "ActionType") {
+                8 => {
+                    out["AchievementInfos"] = complete_achievement_token(db,state,account,potion,amount).await?;
+                }
                 1 | 2 => {
                     let kind = potion["ActionSubValue"].as_str().unwrap_or("");
                     let kind=if matches!(kind,""|"Stamina"){"Chicken"}else{kind};

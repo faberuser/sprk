@@ -12,9 +12,10 @@
   "SeasonDays": 7,
   "WorldBossMaxHp": 1000000000000,
   "WorldBossRotationStart": 3,
-  "WorldBossMaxDamagePerSecond": 1000000000,
+  "WorldBossMaxDamagePerSecond": 1000000000000,
   "BossTicketsPerBattle": 1,
   "EntryRechargeOverrides": {
+    "WorldBossGlobalTicket": {"ResetCount": [0, 2, 2, 2, 2, 2, 2], "MaxCountValue": 2, "UtcOffsetSeconds": 32400, "Accumulate": false},
     "Sword": {"IntervalSeconds": 1800, "InitialCount": 10},
     "GuildRaidTicket": {"GrantCount": 2, "Accumulate": true},
     "GodkingTrialKey": {"PeriodDays": 7, "GrantCount": 2, "Accumulate": false},

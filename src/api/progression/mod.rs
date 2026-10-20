@@ -360,12 +360,13 @@ async fn execute(
                 let (value, target) = view.achievement(state, row);
                 // Completing these server-validated battles proves access to
                 // their native menus. Their client System predicates are not
-                // general server conditions; do not reject an earned daily or
-                // weekly reward solely because those predicates are unknown.
-                let battle_access = value >= target && matches!(n(row,"Type"),2|5) && (
-                    (matches!(row["Kind"].as_str(),Some("ClearWorldBossDaily"|"ClearWorldBossWeekly")) &&
+                // general server conditions; do not reject an earned reward
+                // solely because its exact menu predicate is unknown.
+                let battle_access = value >= target && (
+                    (((matches!(n(row,"Type"),2|5) && matches!(row["Kind"].as_str(),Some("ClearWorldBossDaily"|"ClearWorldBossWeekly"))) ||
+                        (n(row,"Type")==1 && row["Kind"]=="JoinWorldBoss")) &&
                         row["OpenCondition"]==json!(["System","MenuOpenCheckManager","WorldBoss"])) ||
-                    (matches!(row["Kind"].as_str(),Some("ClearChallengeTowerDaily"|"ClearChallengeTowerWeekly")) &&
+                    (matches!(n(row,"Type"),2|5) && matches!(row["Kind"].as_str(),Some("ClearChallengeTowerDaily"|"ClearChallengeTowerWeekly")) &&
                         row["OpenCondition"]==json!(["System","CanGoDungeon","2","27"])));
                 if (matches!(n(row, "Type"), 3 | 7 | 8 | 9) && !state::daily_hot_time(row))
                     || (!view.condition(&row["OpenCondition"]) && !battle_access)
