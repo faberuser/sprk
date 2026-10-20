@@ -33,12 +33,20 @@ pub(crate) fn at(
     let name = def["AttributeName"]
         .as_str()
         .ok_or_else(|| rule("InvalidStaminaType"))?;
-    let cap = def["MaxCountValue"]
+    let cap = overrides["MaxCountValue"].as_i64().or_else(||def["MaxCountValue"]
         .as_str()
-        .and_then(|v| v.parse::<i64>().ok())
+        .and_then(|v| v.parse::<i64>().ok()))
         .unwrap_or(initial)
         .max(0);
-    let initial = overrides["InitialCount"].as_i64().unwrap_or(initial).max(0);
+    let offset = n(overrides,"UtcOffsetSeconds");
+    let calendar = now + Duration::seconds(offset);
+    let counts = overrides["ResetCount"].as_array().or_else(||def["ResetCount"].as_array());
+    let calendar_grant = counts.and_then(|counts|counts.get(if counts.len()==7 {
+        calendar.weekday().num_days_from_sunday() as usize
+    } else {0})).and_then(Value::as_i64);
+    let initial = overrides["InitialCount"].as_i64()
+        .or_else(||overrides["ResetCount"].as_array().and(calendar_grant))
+        .unwrap_or(initial).max(0);
     let old = if info.is_null() {
         initial
     } else {
@@ -73,7 +81,7 @@ pub(crate) fn at(
         if !matches!(days, 1 | 7) {
             return Err(rule("InvalidStaminaType"));
         }
-        let today = period(now.date_naive(), days);
+        let today = period(calendar.date_naive(), days);
         let last = info["Period"]
             .as_str()
             .or_else(|| info["Day"].as_str())
@@ -81,14 +89,13 @@ pub(crate) fn at(
             .map(|v| period(v, days))
             .unwrap_or(today);
         let elapsed = (today - last).num_days().max(0) / days;
-        let counts = def["ResetCount"]
-            .as_array()
+        let counts = counts
             .ok_or_else(|| rule("InvalidStaminaType"))?;
         let grant = overrides["GrantCount"]
             .as_i64()
             .unwrap_or_else(|| {
                 let index = if counts.len() == 7 {
-                    now.weekday().num_days_from_sunday() as usize
+                    calendar.weekday().num_days_from_sunday() as usize
                 } else {
                     0
                 };
@@ -107,7 +114,7 @@ pub(crate) fn at(
             grant + (old - cap).max(0)
         };
         let reset = last.max(today);
-        anchor = reset.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
+        anchor = reset.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp() - offset;
         saved["Period"] = json!(reset.to_string());
         saved["Day"] = json!(reset.to_string());
         (
@@ -145,6 +152,28 @@ pub(crate) fn at(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn world_boss_two_entry_override_uses_archived_15_utc_reset_without_accumulating() {
+        let def=json!({"AttributeName":"WorldBossGlobalTicket","UpdateType":2,"MaxCountValue":"1","ResetCount":[0,1,1,1,1,1,1]});
+        let overrides=json!({"ResetCount":[0,2,2,2,2,2,2],"MaxCountValue":2,"UtcOffsetSeconds":32400,"Accumulate":false});
+        let at=|info:&Value,time:&str,cost| super::at(info,&def,&overrides,1,time.parse().unwrap(),cost).unwrap();
+        let (first,balance)=at(&Value::Null,"2026-10-20T14:59:59Z",1);
+        assert_eq!(balance["NewValue"],1);
+        let (_,same)=at(&first,"2026-10-20T14:59:59Z",0);
+        assert_eq!(same["NewValue"],1);
+        let (next,balance)=at(&first,"2026-10-20T15:00:00Z",0);
+        assert_eq!(balance["NewValue"],2);
+        assert_eq!(balance["NextRechargeRemainTime"],86400);
+        assert_eq!(next["Period"],"2026-10-21");
+        let (_,again)=at(&next,"2026-10-21T15:00:00Z",0);
+        assert_eq!(again["NewValue"],2);
+        let (_,closed)=at(&next,"2026-10-24T15:00:00Z",0);
+        assert_eq!(closed["NewValue"],0,"No regular Sunday admission grant");
+        let mut overflow=next;
+        overflow["Count"]=json!(10);
+        let (_,preserved)=at(&overflow,"2026-10-21T15:00:00Z",0);
+        assert_eq!(preserved["NewValue"],10,"Purchased/testing overflow remains intact");
+    }
     fn weekly(info: &Value, stamp: &str, cost: i64) -> (Value, Value) {
         at(
             info,

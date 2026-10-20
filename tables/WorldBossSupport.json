@@ -1,0 +1,599 @@
+{
+  "Provenance": {
+    "ArchiveBuild": 1558,
+    "Source": "Pre-Doomsday decoded MessagePack tables",
+    "SourceHashes": {
+      "WorldBossGlobalRewardTable.json": "4142ff27bdb9172f628c8163eb17efdb6b38d61fdaacd8f1daf5558ab821fc42",
+      "WorldBossServerRewardTable.json": "a1238401e138a6764be12059853854664a93eb468cb02029a9d0d5ca6c08ad93",
+      "WorldBossDailyRewardTable.json": "1b67817d5e90aa31b923ede517a05d1c6bde7068a256c52b2770a66b0249e4c5",
+      "WorldBossDailyAchievementTable.json": "898e6a26a58690990f34a84f702db4d5d8178d850fe7af559a3c35249223a32a"
+    }
+  },
+  "Tables": {
+    "WorldBossGlobalReward": [
+      {
+        "Index": 1,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 304001,
+        "RewardServerBuffType": 1,
+        "RewardServerBuffValue": [
+          "BonusExp",
+          "5"
+        ],
+        "RewardServerBuffCode": "BOOSTER_GOLD_WORLDBOSS_REWARD_1ST"
+      },
+      {
+        "Index": 2,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 304002,
+        "RewardServerBuffType": 1,
+        "RewardServerBuffValue": [
+          "BonusExp",
+          "3"
+        ],
+        "RewardServerBuffCode": "BOOSTER_GOLD_WORLDBOSS_REWARD_2ND"
+      },
+      {
+        "Index": 3,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 304003,
+        "RewardServerBuffType": 1,
+        "RewardServerBuffValue": [
+          "BonusExp",
+          "2"
+        ],
+        "RewardServerBuffCode": "BOOSTER_GOLD_WORLDBOSS_REWARD_3RD"
+      },
+      {
+        "Index": 4,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 304004,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 5,
+        "MinRank": 11,
+        "MaxRank": 30,
+        "Percentage": 0,
+        "RewardIndex": 304005,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 6,
+        "MinRank": 31,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 304006,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 7,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 304007,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 8,
+        "MinRank": 101,
+        "MaxRank": 200,
+        "Percentage": 0,
+        "RewardIndex": 304008,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 9,
+        "MinRank": 201,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 304009,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 10,
+        "MinRank": 301,
+        "MaxRank": 400,
+        "Percentage": 0,
+        "RewardIndex": 304010,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 11,
+        "MinRank": 401,
+        "MaxRank": 500,
+        "Percentage": 0,
+        "RewardIndex": 304011,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 12,
+        "MinRank": 501,
+        "MaxRank": 600,
+        "Percentage": 0,
+        "RewardIndex": 304012,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 13,
+        "MinRank": 601,
+        "MaxRank": 800,
+        "Percentage": 0,
+        "RewardIndex": 304013,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 14,
+        "MinRank": 801,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 304014,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 15,
+        "MinRank": 1001,
+        "MaxRank": 1200,
+        "Percentage": 0,
+        "RewardIndex": 304015,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 16,
+        "MinRank": 1201,
+        "MaxRank": 1400,
+        "Percentage": 0,
+        "RewardIndex": 304016,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 17,
+        "MinRank": 1401,
+        "MaxRank": 1600,
+        "Percentage": 0,
+        "RewardIndex": 304017,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 18,
+        "MinRank": 1601,
+        "MaxRank": 1900,
+        "Percentage": 0,
+        "RewardIndex": 304018,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 19,
+        "MinRank": 1901,
+        "MaxRank": 2200,
+        "Percentage": 0,
+        "RewardIndex": 304019,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 20,
+        "MinRank": 2201,
+        "MaxRank": 2500,
+        "Percentage": 0,
+        "RewardIndex": 304020,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 21,
+        "MinRank": 2501,
+        "MaxRank": 2800,
+        "Percentage": 0,
+        "RewardIndex": 304021,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 22,
+        "MinRank": 2801,
+        "MaxRank": 3100,
+        "Percentage": 0,
+        "RewardIndex": 304022,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 23,
+        "MinRank": 3101,
+        "MaxRank": 3500,
+        "Percentage": 0,
+        "RewardIndex": 304023,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 24,
+        "MinRank": 3501,
+        "MaxRank": 3900,
+        "Percentage": 0,
+        "RewardIndex": 304024,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 25,
+        "MinRank": 3901,
+        "MaxRank": 4300,
+        "Percentage": 0,
+        "RewardIndex": 304025,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 26,
+        "MinRank": 4301,
+        "MaxRank": 4700,
+        "Percentage": 0,
+        "RewardIndex": 304026,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 27,
+        "MinRank": 4701,
+        "MaxRank": 5100,
+        "Percentage": 0,
+        "RewardIndex": 304027,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 28,
+        "MinRank": 5101,
+        "MaxRank": 5600,
+        "Percentage": 0,
+        "RewardIndex": 304028,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 29,
+        "MinRank": 5601,
+        "MaxRank": 6100,
+        "Percentage": 0,
+        "RewardIndex": 304029,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 30,
+        "MinRank": 6101,
+        "MaxRank": 6600,
+        "Percentage": 0,
+        "RewardIndex": 304030,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 31,
+        "MinRank": 6601,
+        "MaxRank": 7100,
+        "Percentage": 0,
+        "RewardIndex": 304031,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 32,
+        "MinRank": 7101,
+        "MaxRank": 7600,
+        "Percentage": 0,
+        "RewardIndex": 304032,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 33,
+        "MinRank": 7601,
+        "MaxRank": 8200,
+        "Percentage": 0,
+        "RewardIndex": 304033,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 34,
+        "MinRank": 8201,
+        "MaxRank": 8800,
+        "Percentage": 0,
+        "RewardIndex": 304034,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 35,
+        "MinRank": 8801,
+        "MaxRank": 9400,
+        "Percentage": 0,
+        "RewardIndex": 304035,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 36,
+        "MinRank": 9401,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 304036,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 37,
+        "MinRank": 10001,
+        "MaxRank": 15000,
+        "Percentage": 0,
+        "RewardIndex": 304037,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 38,
+        "MinRank": 15001,
+        "MaxRank": 30000,
+        "Percentage": 0,
+        "RewardIndex": 304038,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 39,
+        "MinRank": 30001,
+        "MaxRank": 50000,
+        "Percentage": 0,
+        "RewardIndex": 304039,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 40,
+        "MinRank": 50001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 304040,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      }
+    ],
+    "WorldBossServerReward": [
+      {
+        "Index": 0,
+        "MinRank": 0,
+        "MaxRank": 0,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      }
+    ],
+    "WorldBossDailyReward": [
+      {
+        "Index": 1,
+        "MinRank": 1,
+        "MaxRank": 1,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 2,
+        "MinRank": 2,
+        "MaxRank": 2,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 3,
+        "MinRank": 3,
+        "MaxRank": 3,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 4,
+        "MinRank": 4,
+        "MaxRank": 10,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 5,
+        "MinRank": 11,
+        "MaxRank": 50,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 6,
+        "MinRank": 51,
+        "MaxRank": 100,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 7,
+        "MinRank": 101,
+        "MaxRank": 300,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 8,
+        "MinRank": 301,
+        "MaxRank": 600,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 9,
+        "MinRank": 601,
+        "MaxRank": 1000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 10,
+        "MinRank": 1001,
+        "MaxRank": 2000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 11,
+        "MinRank": 2001,
+        "MaxRank": 3000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 12,
+        "MinRank": 3001,
+        "MaxRank": 10000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 13,
+        "MinRank": 10001,
+        "MaxRank": 20000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 14,
+        "MinRank": 20001,
+        "MaxRank": 30000,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      },
+      {
+        "Index": 15,
+        "MinRank": 30001,
+        "MaxRank": 999999,
+        "Percentage": 0,
+        "RewardIndex": 0,
+        "RewardServerBuffType": 0,
+        "RewardServerBuffValue": null,
+        "RewardServerBuffCode": null
+      }
+    ],
+    "WorldBossDailyAchievement": [
+      {
+        "WorldBossIndex": 0,
+        "Index": 0,
+        "MinScore": 0,
+        "MaxScore": 0,
+        "WorldBossPoint": 0,
+        "RewardIndex": 0
+      }
+    ]
+  }
+}

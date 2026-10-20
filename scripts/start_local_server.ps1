@@ -19,6 +19,11 @@ foreach ($port in @(8080, 8081)) {
     finally { $probe.Stop() }
 }
 
+# The native worker is a generated view of the installed client. Recreate it
+# after target cleanup, before paying for a build or starting any services.
+& python (Join-Path $PSScriptRoot 'prepare_local_worker.py')
+if ($LASTEXITCODE -ne 0) { throw 'Battle worker preparation failed; no services were started.' }
+
 Write-Host 'Starting server...'
 & cargo build --release
 if ($LASTEXITCODE -ne 0) { throw 'Server build failed; no services were started.' }

@@ -47,6 +47,45 @@ async fn currency(s: &AppState, u: &user::LoginResponse) -> (i64, i64) {
 }
 
 #[tokio::test]
+async fn world_boss_normal_achievement_claim_uses_completed_battle_access_proof() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let claim="AchievementIndices=[20]&Steps=[0]";
+    // A menu predicate alone must never grant participation or a reward.
+    assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
+    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,date('now'),'CompleteWorldBoss',4,0,1)")
+        .bind(a).execute(&s.db).await.unwrap();
+    let infos=call(&s,&u,"get_achievements","").await;
+    assert_eq!(infos["AchievementInfos"].as_array().unwrap().iter()
+        .find(|r|r["AchievementIndex"]==20).unwrap()["Achievement"],1);
+    // Only the exact World Boss menu condition can use this proof.
+    let row=Arc::make_mut(&mut Arc::make_mut(&mut s.tables).progression)
+        .achievements.iter_mut().find(|r|r["Index"]==20 && r["Step"]==1).unwrap();
+    let original=row["OpenCondition"].clone();
+    row["OpenCondition"]=json!(["TeamLevel","999"]);
+    assert_eq!(call(&s,&u,"reward_achievement",claim).await["Result"],"RewardTimeEnded");
+    Arc::make_mut(&mut Arc::make_mut(&mut s.tables).progression)
+        .achievements.iter_mut().find(|r|r["Index"]==20 && r["Step"]==1).unwrap()["OpenCondition"]=original;
+    // A retired event in Claim All still rolls the whole transaction back.
+    assert_eq!(call(&s,&u,"reward_achievement","AchievementIndices=[20,5000010]&Steps=[0,0]").await["Result"],"RewardTimeEnded");
+    let points=|s:AppState| async move {
+        sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'),0)")
+            .bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    assert_eq!(points(s.clone()).await,0);
+    let result=call(&s,&u,"reward_achievement",claim).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(points(s.clone()).await,1000);
+    assert_eq!(call(&s,&u,"reward_achievement",claim).await["Result"],"InvalidStep");
+    assert_eq!(call(&s,&u,"reward_achievement","AchievementIndices=[20]&Steps=[1]").await["Result"],"AchievementNotCleared");
+    assert_eq!(points(s.clone()).await,1000);
+    let relogged=relogin(&s).await;
+    let result=call(&s,&relogged,"get_achievements","").await;
+    assert_eq!(result["AchievementInfos"].as_array().unwrap().iter()
+        .find(|r|r["AchievementIndex"]==20).unwrap()["LastStep"],1);
+}
+
+#[tokio::test]
 async fn attendance_claim_once_per_day_and_persist() {
     let (s, u) = setup().await;
     assert_eq!(u.attendance_datas[0]["AttendanceRewardableDays"], 1);

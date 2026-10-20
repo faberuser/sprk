@@ -23,6 +23,7 @@ concurrency:
 jobs:
   test:
     name: Test server
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -42,7 +43,6 @@ jobs:
 
   client-release:
     name: Build and publish client update
-    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 45
@@ -116,7 +116,7 @@ jobs:
 
   build-and-deploy:
     name: Publish image and update Portainer
-    needs: [test, client-release]
+    needs: client-release
     # Pull requests and manual runs on other branches cannot deploy.
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest

@@ -25,6 +25,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::service_mode::ServiceMode;
 use crate::state::AppState;
 use crate::tables::GameTables;
+use anyhow::Context;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -120,7 +121,9 @@ async fn game_router() -> anyhow::Result<Router> {
         config["Executable"].as_str().map(str::to_owned)
     }) {
         let key=state.battle_service_key.as_ref().as_ref().ok_or_else(||anyhow::anyhow!("Conquest worker configured without a service key"))?.clone();
-        let executable=std::fs::canonicalize(executable)?;
+        let executable=std::fs::canonicalize(&executable).with_context(|| format!(
+            "Cannot resolve configured battle worker executable '{executable}'. Restore the worker or correct BATTLE_WORKER_EXECUTABLE / conquest-service.json. For local startup, run start_server.bat to prepare the generated worker."
+        ))?;
         let port=state.conquest.port;
         let worker_host = format!("http://127.0.0.1:{}/host.json", std::env::var("PORT").unwrap_or_else(|_| "8080".into()));
         let log=std::env::current_dir()?.join("conquest-worker.log");
