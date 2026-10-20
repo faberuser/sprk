@@ -178,8 +178,9 @@ Run `--self-test-hero-stats <dll>` with the DLL path as the first argument to
 check archived native outputs, progression/bonus combinations and idempotence.
 See the [stat audit](../../docs/hero-stat-audit.md) for provenance and coverage.
 
-`--orvel-visuals-only` removes the floating EVENT effects and red event portal
-from Orvel by filtering their prop records before native asset creation. Town
+`--orvel-visuals-only` removes the floating EVENT effects, red event portal,
+and obsolete hero-dungeon glow over Central Neighborhood from Orvel by
+filtering their prop records before native asset creation. Town
 labels, other markers and other chapters retain their existing props. It
 preserves the installed client patches; `--stage-only` prepares the DLL and
 `--verify-orvel-visuals` checks the hook (also supports `--stage-only`).

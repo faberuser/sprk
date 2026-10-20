@@ -6,7 +6,9 @@ namespace DllPatcher;
 partial class Program
 {
     const string OrvelVisualsType = "SprkOrvelVisuals";
-    static readonly string[] OrvelHiddenProps = { "UI.EventPopup", "UI.EventPopup3", "UI.EventPopupFire", "UI.Node.Portal" };
+    // The retired Pancirone hero-dungeon marker overlaps Central Neighborhood
+    // (99/41). Its aura is a separate prop, not part of the clickable node.
+    static readonly string[] OrvelHiddenProps = { "UI.EventPopup", "UI.EventPopup3", "UI.EventPopupFire", "UI.Node.Portal", "UI.Node.HeroDungeon" };
 
     static void PatchOrvelVisuals(ModuleDefinition module)
     {
@@ -51,7 +53,7 @@ partial class Program
             // and asset creation. Keep the table and its cached list untouched.
             refresh.Body.GetILProcessor().InsertAfter(read, Instruction.Create(OpCodes.Call, filter));
         }
-        Console.WriteLine("Filtered Orvel EVENT effects and the red event portal before prop creation.");
+        Console.WriteLine("Filtered Orvel EVENT effects, the red event portal, and the obsolete Central Neighborhood hero-dungeon glow before prop creation.");
     }
 
     static void InstallOrvelVisuals(string clientRoot, bool stageOnly)
