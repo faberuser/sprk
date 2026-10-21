@@ -8,6 +8,7 @@ pub(crate) async fn calculate(
     battle: i64,
 ) -> Result<(i64, i64)> {
     let guild_bonus = crate::api::community::guild_reward_boost(db, s, a).await?;
+    crate::api::inventory::item::normalize_booster_timers(db, s, a).await?;
     let active: Vec<i32> = sqlx::query_scalar(
         "SELECT item_index FROM item_boosters WHERE account_id=? AND end_time>datetime('now')",
     )
@@ -16,14 +17,14 @@ pub(crate) async fn calculate(
     .await?;
     let (mut gold, mut exp) = (0, 0);
     for id in active {
-        if let Some(b) = s.tables.inventory.boosters.get(&id) {
+        if let Some(b) = s.tables.inventory.booster_effect(id) {
             if b["BattleTypes"]
                 .as_array()
                 .is_some_and(|v| v.contains(&json!(battle)))
             {
                 match n(b, "Type") {
-                    1 => exp = exp.max(n(b, "Value")),
-                    3 => gold = gold.max(n(b, "Value")),
+                    1 => exp += n(b, "Value"),
+                    3 => gold += n(b, "Value"),
                     _ => {}
                 }
             }

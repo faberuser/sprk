@@ -1070,6 +1070,49 @@ async fn awakening_validates_materials_and_charges_once() {
     assert_eq!(gold(&s).await, 99950000);
 }
 #[tokio::test]
+async fn sanctum_missions_follow_soul_ownership_and_successful_ether_enhancement() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    async fn progress(s: &AppState, a: i64, quest: i64) -> Value {
+        let mut db = s.db.acquire().await.unwrap();
+        crate::api::progression::snapshot(&mut db, s, a).await.unwrap()["SubQuestInfos"]
+            .as_array().unwrap().iter().find(|q| q["SubQuestIndex"] == quest).unwrap()["Progress"].clone()
+    }
+    async fn claim(s: &AppState, u: &user::LoginResponse, quest: i64) -> Value {
+        crate::api::progression::complete_sub_quest(State(s.clone()),
+            Bytes::from(format!("SessionKey={}&SubQuestIndices=[{quest}]", u.user_info.session_key)))
+            .await.unwrap().0
+    }
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    let args = format!("EquipItemSlotIndex={slot}");
+    assert_eq!(progress(&s, a, 10892).await, 0, "A Unique Weapon alone is not a Soul Weapon");
+    assert_ne!(claim(&s, &u, 10892).await["Result"], "Success");
+    assert_ne!(call(&s, &u, "soul_weapon_liberation", &args).await["Result"], "Success");
+    assert_eq!(progress(&s, a, 10892).await, 0);
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &args).await["Result"], "Success");
+    assert_eq!(progress(&s, a, 10892).await, 1);
+    assert_eq!(progress(&s, a, 10952).await, 0);
+    assert_ne!(claim(&s, &u, 10952).await["Result"], "Success");
+    assert_ne!(call(&s, &u, "soul_weapon_reinforce", &args).await["Result"], "Success");
+    assert_eq!(progress(&s, a, 10952).await, 0);
+    give(&s, a, 5100, 50).await;
+    assert_eq!(call(&s, &u, "soul_weapon_ether_injection",
+        &format!("{args}&InjectionItemInfos=[5100,50]")).await["Result"], "Success");
+    assert_eq!(progress(&s, a, 10952).await, 0, "Injected Ether alone does not satisfy level 1");
+    let enhanced = call(&s, &u, "soul_weapon_reinforce", &args).await;
+    assert_eq!(enhanced["Result"], "Success", "{enhanced}");
+    assert_eq!(enhanced["ReinforceSuccess"], true);
+    assert_eq!(progress(&s, a, 10952).await, 1);
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    for quest in [10892, 10952] {
+        assert_eq!(progress(&s, a, quest).await, 1);
+        assert_eq!(claim(&s, &login, quest).await["Result"], "Success");
+        assert_ne!(claim(&s, &login, quest).await["Result"], "Success", "Reward must only be granted once");
+    }
+}
+
+#[tokio::test]
 async fn soul_weapon_ether_accepts_native_arrays_and_rolls_back_failed_injections() {
     let (s, u) = setup().await;
     let account = u.user_info.account_id;

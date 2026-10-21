@@ -429,8 +429,9 @@ pub(crate) async fn reward_response(
     for index in &r.heroes {
         heroes.push(tutorial::hero_info(db, account, *index).await?);
     }
+    let boosters = booster_snapshot(db, state, account).await?;
     Ok(
-        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":[],"EquipItemBoostInfos":r.equipment_boosts,"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
+        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":boosters,"EquipItemBoostInfos":r.equipment_boosts,"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
     )
 }
 
@@ -742,7 +743,6 @@ async fn execute(
                 }
                 _ => return Err(rule("InvalidAction")),
             }
-            let mut buffs = vec![];
             for booster in potion["BoosterCodes"].as_array().into_iter().flatten() {
                 if let Some(code) = booster.as_str() {
                     let data = state.tables.inventory.booster_definitions.get(code)
@@ -750,23 +750,14 @@ async fn execute(
                     if !matches!(n(data, "Type"), 1..=3) || data["IsOnetime"] == true {
                         return Err(rule("ItemTypeMismatch"));
                     }
-                    let effect = i32::try_from(n(data, "BoosterItemIndex"))
-                        .ok().filter(|id| *id > 0).ok_or_else(|| rule("BoosterDataNotFound"))?;
-                    buffs.push(activate_booster_definition(db, state, account, effect, count, data).await?);
+                    activate_booster_definition(db, state, account, count, data).await?;
                     continue;
                 }
-                buffs.push(
-                    activate_booster(
-                        db,
-                        state,
-                        account,
-                        booster.as_i64().unwrap_or(0) as i32,
-                        count,
-                    )
-                    .await?,
-                );
+                activate_booster(db, state, account, booster.as_i64().unwrap_or(0) as i32, count).await?;
             }
-            out["ItemTimeDurationInfos"] = json!(buffs);
+            // Native Apply(array) replaces the entire active-booster list.
+            // Even a potion with no booster must preserve existing timers.
+            out["ItemTimeDurationInfos"] = json!(booster_snapshot(db, state, account).await?);
         }
         "use_package_item" => {
             if crate::models::item::disabled_reward(index) {
@@ -1282,14 +1273,13 @@ pub(crate) async fn activate_booster(
     if !matches!(n(data, "Type"), 1 | 3) || data["IsOnetime"] == true {
         return Err(rule("ItemTypeMismatch"));
     }
-    activate_booster_definition(db, state, account, index, count, data).await
+    activate_booster_definition(db, state, account, count, data).await
 }
 
 async fn activate_booster_definition(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
-    index: i32,
     count: i32,
     data: &Value,
 ) -> Result<Value> {
@@ -1299,6 +1289,9 @@ async fn activate_booster_definition(
     if duration <= 0 || duration > 31536000 {
         return Err(rule("Fail"));
     }
+    let index = i32::try_from(n(data, "BoosterItemIndex"))
+        .ok().filter(|id| *id > 0).ok_or_else(|| rule("BoosterDataNotFound"))?;
+    normalize_booster_timers(db, state, account).await?;
     let now = state.server_time_str();
     let row=sqlx::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time) VALUES (?,?,?,datetime(?,?)) ON CONFLICT(account_id,item_index) DO UPDATE SET start_time=CASE WHEN end_time>excluded.start_time THEN start_time ELSE excluded.start_time END,end_time=datetime(MAX(end_time,excluded.start_time),?) RETURNING start_time,end_time")
         .bind(account).bind(index).bind(&now).bind(&now).bind(format!("+{duration} seconds")).bind(format!("+{duration} seconds")).fetch_one(db).await?;
@@ -1307,10 +1300,47 @@ async fn activate_booster_definition(
     )
 }
 pub(crate) async fn booster_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
+    let mut tx = state.db.begin().await?;
+    // Serialize legacy timer repair against an item use or battle settlement.
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(account).execute(&mut *tx).await?;
+    let result = booster_snapshot(&mut tx, state, account).await?;
+    tx.commit().await?;
+    Ok(result)
+}
+
+pub(crate) async fn normalize_booster_timers(
+    db: &mut SqliteConnection, state: &AppState, account: i64,
+) -> Result<()> {
+    let now = state.server_time_str();
+    for (&index, data) in &state.tables.inventory.boosters {
+        let group = n(data, "BoosterItemIndex");
+        if !matches!(n(data, "Type"), 1 | 3) || group <= 0 || group == i64::from(index) {
+            continue;
+        }
+        // Older servers stored day/week consumable IDs separately, while the
+        // client maps both onto one timer. Preserve every unexpired second once
+        // and delete the alias in the same caller-owned transaction.
+        sqlx::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time)
+            SELECT account_id,?,start_time,end_time FROM item_boosters
+            WHERE account_id=? AND item_index=? AND end_time>?
+            ON CONFLICT(account_id,item_index) DO UPDATE SET
+            start_time=CASE WHEN item_boosters.end_time>? THEN MIN(item_boosters.start_time,excluded.start_time) ELSE excluded.start_time END,
+            end_time=datetime(MAX(item_boosters.end_time,?), '+' || (strftime('%s',excluded.end_time)-strftime('%s',?)) || ' seconds')")
+            .bind(group).bind(account).bind(index).bind(&now)
+            .bind(&now).bind(&now).bind(&now).execute(&mut *db).await?;
+        sqlx::query("DELETE FROM item_boosters WHERE account_id=? AND item_index=?")
+            .bind(account).bind(index).execute(&mut *db).await?;
+    }
+    Ok(())
+}
+
+async fn booster_snapshot(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
+    normalize_booster_timers(db, state, account).await?;
     let rows =
-        sqlx::query("SELECT * FROM item_boosters WHERE account_id=? AND end_time>datetime('now')")
+        sqlx::query("SELECT * FROM item_boosters WHERE account_id=? AND end_time>datetime('now') ORDER BY item_index")
             .bind(account)
-            .fetch_all(&state.db)
+            .fetch_all(db)
             .await?;
     Ok(rows.iter().map(|r|json!({"ItemIndex":r.get::<i32,_>("item_index"),"StartTime":r.get::<String,_>("start_time"),"EndTime":r.get::<String,_>("end_time")})).collect())
 }
