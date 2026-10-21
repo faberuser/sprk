@@ -727,6 +727,96 @@ async fn npc_gifts_and_claims_validate_step_and_charge_once() {
     );
 }
 #[tokio::test]
+async fn technomagic_reforge_charges_materials_for_both_options_without_currency() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    for detail in [9001, 9002, 9003, 9011, 9012, 9013] {
+        let data = s.tables.extensions.rows("EquipItem").iter()
+            .find(|r| n(r, "DetailIndex") == detail).unwrap();
+        let mut eq = give(&s, a, n(data, "ItemIndex") as i32, 1).await.equipment.remove(0);
+        eq.identified = 0;
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        let identified = call(&s, &u, "valance_identified",
+            &format!("EquipItemSlotIndices={}", eq.slot_index)).await;
+        assert_eq!(identified["Result"], "Success", "{identified}");
+        let mut current = identified["EquipItemResults"][0].clone();
+        let price = row(&s, "EquipItemDetail", &[("DetailIndex", detail)]).unwrap();
+        let fragment = n(price, "RenewItemIndex2") as i32;
+        give(&s, a, 2200, 2).await;
+        give(&s, a, fragment, 600).await;
+        let currencies: (i64, i64) = sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        for slot in 1..=2 {
+            let args = format!("EquipItemSlotIndex={}&OptionSlotIndex={slot}", eq.slot_index);
+            let r = call(&s, &u, "renew_equip_option", &args).await;
+            assert_eq!(r["Result"], "Success", "detail={detail}, slot={slot}: {r}");
+            assert_eq!(r["ItemResults"].as_array().unwrap().len(), 2);
+            assert!(n(&r, "NewOptionIndex") > 0);
+            let r = call(&s, &u, "renew_confirm_equip_option",
+                &format!("{args}&IsNew=true&ConfirmOptionIndex={}", n(&r, "NewOptionIndex"))).await;
+            assert_eq!(r["Result"], "Success", "{r}");
+            for other in 1..=2 {
+                if other != slot {
+                    for field in ["OptionIndex", "OptionStep"] {
+                        let key = format!("{field}{other}");
+                        assert_eq!(r["ResultEquipItem"][&key], current[&key]);
+                    }
+                }
+                for field in ["ExtraOptionIndex", "ExtraOptionStep"] {
+                    let key = format!("{field}{other}");
+                    assert_eq!(r["ResultEquipItem"][&key], current[&key]);
+                }
+            }
+            current = r["ResultEquipItem"].clone();
+            for id in [2200, fragment] {
+                let remaining: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?")
+                    .bind(a).bind(id).fetch_one(&s.db).await.unwrap();
+                assert_eq!(remaining, (2-slot) * if id == 2200 { 1 } else { 300 });
+            }
+        }
+        assert_eq!(sqlx::query_as::<_, (i64, i64)>("SELECT gold,gem FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(), currencies);
+        // An unfunded retry must leave the item and pending choice unchanged.
+        let rejected = call(&s, &u, "renew_equip_option",
+            &format!("EquipItemSlotIndex={}&OptionSlotIndex=1", eq.slot_index)).await;
+        assert_ne!(rejected["Result"], "Success");
+        let saved = equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap();
+        assert_eq!(json!(saved), current);
+        let pending: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!(pending, 0);
+    }
+}
+
+#[tokio::test]
+async fn technomagic_reforge_rolls_back_ticket_when_fragments_are_insufficient() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911301, 1).await.equipment.remove(0);
+    eq.identified = 0;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    let identified = call(&s, &u, "valance_identified",
+        &format!("EquipItemSlotIndices={}", eq.slot_index)).await;
+    assert_eq!(identified["Result"], "Success", "{identified}");
+    let price = row(&s, "EquipItemDetail", &[("DetailIndex", n(meta(&s, eq.item_index).unwrap(), "DetailIndex"))]).unwrap();
+    let fragment = n(price, "RenewItemIndex2") as i32;
+    give(&s, a, 2200, 1).await;
+    give(&s, a, fragment, 299).await;
+    let args = format!("EquipItemSlotIndex={}&OptionSlotIndex=2", eq.slot_index);
+    let rejected = call(&s, &u, "renew_equip_option", &args).await;
+    assert_ne!(rejected["Result"], "Success");
+    for (id, expected) in [(2200, 1), (fragment, 299)] {
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?")
+            .bind(a).bind(id).fetch_one(&s.db).await.unwrap(), expected);
+    }
+    assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap()),
+        identified["EquipItemResults"][0]);
+    give(&s, a, fragment, 1).await;
+    let retried = call(&s, &u, "renew_equip_option", &args).await;
+    assert_eq!(retried["Result"], "Success", "{retried}");
+}
+
+#[tokio::test]
 async fn rerolls_recover_pending_options_and_reject_forged_confirmation() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

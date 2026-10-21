@@ -660,7 +660,9 @@ async fn renew(
                 return Err(rule("InvalidMaterial"));
             }
             consumed.push(item::consume(db, account, coupon as i32, 1).await?);
-        } else {
+        } else if n(detail, "RenewCurrencyType") != 0 {
+            // Technomagic has no currency price: its ticket and fragments are
+            // charged through RenewItemIndex/Count below.
             let prices = detail["RenewPrice"]
                 .as_array()
                 .filter(|p| !p.is_empty())
