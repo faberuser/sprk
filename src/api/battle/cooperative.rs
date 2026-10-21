@@ -19,7 +19,7 @@ pub(super) use party::begin_party;
 
 type Packet=(String,Value);
 type Sender=mpsc::Sender<Packet>;
-struct Worker {id:String,sender:Sender,arena_version:i64}
+struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64}
 struct Peer {id:String,run:String,sender:Sender}
 pub(crate) struct BattleHub {
     worker:RwLock<Option<Worker>>,
@@ -277,7 +277,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         if key.len()!=supplied.len() || !key.as_bytes().iter().zip(supplied.as_bytes()).fold(0_u8,|v,(a,b)|v|(a^b)).eq(&0) {return Err(rule("Unauthorized"));}
                         let mut active=s.conquest.worker.write().await;
                         if active.is_some() {return Err(rule("AlreadyOnBattleHero"));}
-                        *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion")});worker=true;
+                        *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion")});worker=true;
                         tx.send(("WorkerLoginRes".into(),json!({"Result":"Success"}))).await.map_err(|_|rule("InvalidValue"))?;
                     } else if name=="BattleLoginReq" {
                         let session=s.get_session(body["SessionKey"].as_str().unwrap_or("")).ok_or_else(||rule("SessionExpired"))?;
@@ -699,7 +699,7 @@ mod tests {
             }
             sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
             let (tx,mut worker)=mpsc::channel(100);
-            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0});
+            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0,challenge_version:0});
             let prefix=format!("SessionKey={}&ChapterIndex=9900&DungeonIndex=101&DungeonDifficulty=0&RaidIndex=90001&RaidLevel=101&MultiplayMasterId={a}&MultiplayMemberIds=[{a}]&AccountIds=[{a},{a},{a}]",u["UserInfo"]["SessionKey"].as_str().unwrap());
             for invalid in ["HeroIndices=[1,2,3,4]&AiHeroIndices=[5,6]","HeroIndices=[1,2,3]&AiHeroIndices=[3,4,5]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,99999]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,6]&GroupHeroIndices=[4]"] {
                 let out=crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(format!("{prefix}&{invalid}"))).await.unwrap();
@@ -759,7 +759,7 @@ mod tests {
             let mut db=s.db.acquire().await.unwrap();
             put(&mut db,*a,"party_member",1,&json!({"IsBattleReady":true,"DeckHeros":{(i+1).to_string():{"HeroIndex":i+1}},"SubDeckHeros":{}})).await.unwrap();
         }
-        let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0});
+        let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0,challenge_version:0});
         let mut db=s.db.begin().await.unwrap();
         let args=request(json!({"RaidRoomNo":1,"RaidIndex":90001,"RaidLevel":level,"ChapterIndex":9900,"DungeonIndex":level,"DungeonDifficulty":0,
             "MultiplayMasterId":members[0],"MultiplayMemberIds":members,"HeroIndices":if level>100 {vec![1,2,3]}else{vec![1,4]},

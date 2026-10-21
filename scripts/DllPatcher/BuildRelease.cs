@@ -24,6 +24,7 @@ partial class Program
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
+        VerifyArcdimWorker(clientRoot);
         InstallDispatch(clientRoot, false);
         InstallAutomation(clientRoot);
         InstallMailUpdates(clientRoot, false);
@@ -31,6 +32,7 @@ partial class Program
 
         VerifyNoTelemetry(clientRoot, null);
         VerifyFriendRecommendationsFile(clientRoot, false);
+        VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
         VerifyWebSocketLifecycle(clientRoot);

@@ -23,13 +23,13 @@ pub(super) fn party(s: &AppState, r: &Request, rule_index: i64) -> Result<()> {
     }
     let mut main = ids(r, "HeroIndices", 32)?;
     let group = ids(r, "GroupHeroIndices", 32)?;
-    let all = if (r.number("ChapterIndex", 0)? == 10
+    let all = if campaign::dungeon(s,r).ok().is_some_and(|d|n(d,"BattleType")==25) || (r.number("ChapterIndex", 0)? == 10
             && matches!(n(campaign::dungeon(s, r)?, "BattleType"), 40 | 41 | 42 | 45 | 46))
         || (r.number("ChapterIndex", 0)? == 50000
             && n(campaign::dungeon(s, r)?, "BattleType") == 38)
     {
         let all = campaign::selected_heroes(s, r)?;
-        let support = if matches!(n(campaign::dungeon(s,r)?,"BattleType"),40|41|42) {
+        let support = if matches!(n(campaign::dungeon(s,r)?,"BattleType"),25|40|41|42) {
             ids(r,"AiHeroIndices",32)?
         } else {group};
         main.retain(|id| !support.contains(id));

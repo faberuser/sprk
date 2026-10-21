@@ -547,11 +547,11 @@ pub async fn login(
         // Only unlock 1-1, NOT completed - player starts fresh and must play 1-1 first
         tracing::info!("Tutorial skipped - unlocking dungeon 1-1 (not completed)");
         
-        sqlx::query(
-            "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked, clear_count, best_star, completed_time) 
-             VALUES (?, 1, 1, 1, 0, 0, NULL)
-             ON CONFLICT(account_id, chapter_id, dungeon_id) DO NOTHING"
-        )
+        sqlx::query(concat!(
+            "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked, clear_count, best_star, completed_time) ",
+            "VALUES (?, 1, 1, 1, 0, 0, NULL) ",
+            "ON CONFLICT(account_id, chapter_id, dungeon_id) DO NOTHING"
+        ))
         .bind(account_id)
         .execute(&state.db)
         .await
@@ -752,7 +752,8 @@ pub async fn login(
         player_any_miscs: vec![],
         soul_weapon_infos,
         player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().into_iter().flatten().chain(products.as_array().into_iter().flatten()).cloned().collect(),
-        drop_bonus_events: crate::api::episodes::events(&state),
+        drop_bonus_events: crate::api::episodes::events(&state).into_iter()
+            .chain(crate::api::battle::challenge::events(&state)).collect(),
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos,
         chat_ban_infos: vec![],

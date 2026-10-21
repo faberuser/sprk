@@ -81,7 +81,7 @@ pub(crate) async fn begin_party(
                 ("Level", n(&room, "RaidLevel")),
             ],
         )?;
-        if !matches!(n(def, "Type"), 0 | 2 | 12 | 14 | 16) || def["IsOnlineSingle"] != false {
+        if !matches!(n(def, "Type"), 0 | 2 | 7 | 12 | 14 | 16) || def["IsOnlineSingle"] != false {
             return Err(rule("BattleServerNotFound"));
         }
         def
@@ -106,6 +106,7 @@ pub(crate) async fn begin_party(
         .read()
         .await
         .as_ref()
+        .filter(|worker| n(def,"Type")!=7 || worker.challenge_version>=1)
         .ok_or_else(|| rule("BattleServerNotFound"))?
         .id
         .clone();
@@ -191,6 +192,7 @@ pub(crate) async fn begin_party(
             }
         }
         let mut fields = r.0.clone();
+        if family=="raid" && n(def,"Type")==7 { fields.insert("AffixIndices".into(),room["AffixIndices"].to_string()); }
         for key in [
             "RaidRoomNo",
             "MultiRoomNo",
@@ -222,6 +224,7 @@ pub(crate) async fn begin_party(
         entry["CoopMaster"] = json!(master);
         entry["CoopCharged"] = json!(false);
         entry["PartyCampaign"] = json!(true);
+        if n(def,"Type")==7 { entry["ChallengeTeam"]=json!(members); }
         entry["CoopRoom"] = json!(room_id);
         entry["PartyResourceChoicePending"] = json!(!use_stamina);
         let mut info = conquest::combat_buffs(db, s, *account).await?;
@@ -260,6 +263,13 @@ pub(crate) async fn begin_party(
         fields.insert("GroupHeroIndices".into(),"[]".into());
         restrictions::party(s,&Request(fields),n(def,"BanIndex"))?;
     }
+    if family=="raid" && n(def,"Type")==7 {
+        let mut fields=r.0.clone();
+        fields.insert("HeroIndices".into(),json!(all).to_string());
+        fields.insert("GroupHeroIndices".into(),"[]".into());
+        fields.insert("AffixIndices".into(),room["AffixIndices"].to_string());
+        challenge::validate_affix_party(s,&Request(fields))?;
+    }
     let result = entries.iter().find(|v| v.0 == a).unwrap().2.clone();
     for (account, entry, out) in entries {
         sqlx::query("UPDATE battle_runs SET run_id=?,entry=?,begin_response=? WHERE account=?")
@@ -280,6 +290,7 @@ pub(crate) async fn begin_party(
         .await?;
     let payload = json!({"RunId":id,"PartyCampaign":true,"BossHp":0,"BossIndex":0,"Seed":now()%i32::MAX as i64,
         "RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],
+        "AffixIndices":if family=="raid" && n(def,"Type")==7 {room["AffixIndices"].clone()} else {json!([])},
         "Simulation":{"Uid":id,"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"DungeonDifficulty":campaign::difficulty(r)?,"AccountInfos":accounts}});
     s.conquest.runs.insert(
         id.clone(),
@@ -334,6 +345,11 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
             || entry["PartyResourceChoicePending"] == true {
             return Err(rule("InvalidValue"));
         }
+        if n(&entry,"ChallengeIndex")>0 {
+            let participants:Vec<_>=run.members.iter().filter(|id|!run.cancelled.contains(id)).collect();
+            sqlx::query("UPDATE battle_runs SET entry=json_set(entry,'$.ChallengeTeam',json(?)) WHERE account=?")
+                .bind(json!(participants).to_string()).bind(account).execute(&mut *db).await?;
+        }
         let alive: Vec<_> = creatures
             .iter()
             .filter(|v| {
@@ -347,6 +363,7 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
         fields["Completed"] = body["Win"].clone();
         fields["Star"] = json!(if body["Win"] == true { 3 } else { 0 });
         fields["PureBattleTime"] = json!(number(body, "TimeMs") / 1000);
+        if n(&entry,"ChallengeIndex")>0 { fields["ElapsedBattleTime"] = json!(number(body,"TimeMs")); }
         // A party victory still counts for a participant whose own heroes died.
         if !alive.is_empty() {
             fields["AliveHeroIndices"] = json!(alive);
@@ -415,10 +432,40 @@ mod tests {
         let (tx, rx) = mpsc::channel(100);
         *s.conquest.worker.write().await = Some(Worker {
             arena_version: 0,
+            challenge_version: 1,
             id: "party-worker".into(),
             sender: tx,
         });
         rx
+    }
+    #[tokio::test]
+    async fn challenge_party_uses_room_affixes_and_native_team_ranking() {
+        let (mut s,users,_)=fixture().await;
+        std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+            .rules["ChallengeRaidRotation"]=json!([70001]);
+        let _worker=attach_worker(&s).await;
+        let members:Vec<_>=users.iter().map(account).collect();
+        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.DungeonDifficulty',0,'$.AffixIndices',json('[6]'))")
+            .execute(&s.db).await.unwrap();
+        let args=format!("ChapterIndex=951&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70001&RaidLevel=1&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices=[1]&AccountIds=[{}]&AffixIndices=[999999]",members[0],json!(members),members[0]);
+        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=0;
+        assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"BattleServerNotFound");
+        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
+        assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success");
+        let run=s.conquest.runs.iter().next().unwrap().value().clone();
+        let run=run.lock().await;
+        assert_eq!(run.payload["AffixIndices"],json!([6]));
+        sqlx::query("UPDATE battle_runs SET started=started-60,entry=json_set(entry,'$.CoopCharged',json('true'),'$.PartyResourceChoicePending',json('false'))").execute(&s.db).await.unwrap();
+        let body=json!({"Win":true,"TimeMs":60000,"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
+        settle_party(&s,&run,&body).await.unwrap();
+        settle_party(&s,&run,&body).await.unwrap();
+        let rank=call(&s,&users[0],"raid/get_multi_play_challenge_raid_ranker_list","RaidIndex=70001").await;
+        assert_eq!(rank["Result"],"Success");
+        assert_eq!(rank["RankerInfos"].as_array().unwrap().len(),1);
+        assert_eq!(rank["RankerInfos"][0]["Score"],3300);
+        assert_eq!(rank["RankerInfos"][0]["RankerInfos"].as_array().unwrap().len(),2);
     }
     fn guest_args(users: &[Value], args: &str, use_stamina: bool) -> String {
         format!("{}&UseStamina={use_stamina}",args.replace("HeroIndices=[1]", "HeroIndices=[2]").replace(
@@ -568,6 +615,7 @@ mod tests {
                     assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success");
                     let handle=s.conquest.runs.iter().next().unwrap().value().clone();let run=handle.lock().await;
                     assert_eq!(run.payload["Simulation"]["DungeonIndex"],new_dungeon);
+                    assert_eq!(run.payload["AffixIndices"],json!([]),"Other raid modes must not execute unvalidated room affixes");
                 }
             }
         }
@@ -990,29 +1038,34 @@ mod tests {
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
     async fn native_story_party_combat_and_settlement() {
-        native_party_combat_and_settlement(false,0,false).await;
+        native_party_combat_and_settlement(false,0,false,false).await;
     }
 
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
     async fn native_story_party_early_departures() {
-        native_party_combat_and_settlement(false,-1,false).await;
-        native_party_combat_and_settlement(false,1,false).await;
+        native_party_combat_and_settlement(false,-1,false,false).await;
+        native_party_combat_and_settlement(false,1,false,false).await;
     }
 
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
     async fn native_dragon_party_later_wave_departure() {
-        native_party_combat_and_settlement(true,2,false).await;
+        native_party_combat_and_settlement(true,2,false,false).await;
     }
 
     #[tokio::test]
     #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
     async fn native_dragon_party_after_room_settings() {
-        native_party_combat_and_settlement(true,0,true).await;
+        native_party_combat_and_settlement(true,0,true,false).await;
     }
 
-    async fn native_party_combat_and_settlement(dragon:bool,leave_wave:i64,change_stage:bool) {
+    #[tokio::test]
+    #[ignore = "Requires the patched native Unity worker in CONQUEST_NATIVE_EXECUTABLE"]
+    async fn native_challenge_party_combat_and_settlement() {
+        native_party_combat_and_settlement(true,0,false,true).await;
+    }
+    async fn native_party_combat_and_settlement(dragon:bool,leave_wave:i64,change_stage:bool,challenge_raid:bool) {
         let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::WARN).try_init();
         use tokio::io::{AsyncBufReadExt, BufReader};
         struct Native(std::process::Child);
@@ -1041,6 +1094,11 @@ mod tests {
             sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',1,'$.RaidLevel',7,'$.ChapterIndex',901,'$.DungeonIndex',7,'$.DungeonDifficulty',0,'$.Capacity',2)").execute(&s.db).await.unwrap();
             let host=account(&users[0]);
             args=format!("ChapterIndex=901&DungeonIndex=7&DungeonDifficulty=0&RaidIndex=1&RaidLevel=7&RaidRoomNo=1&MultiplayMasterId={host}&MultiplayMemberIds=[{host},{}]&HeroIndices=[1,3,4]&AccountIds=[{host},{host},{host}]",account(&users[1]));
+        }
+        if challenge_raid {
+            Arc::make_mut(&mut Arc::make_mut(&mut s.tables).battle).rules["ChallengeRaidRotation"]=json!([70001]);
+            sqlx::query("UPDATE battle_rooms SET data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.Capacity',3,'$.AffixIndices',json('[6]'))").execute(&s.db).await.unwrap();
+            args=args.replace("ChapterIndex=901", "ChapterIndex=951").replace("DungeonIndex=7", "DungeonIndex=1").replace("RaidIndex=1&", "RaidIndex=70001&").replace("RaidLevel=7", "RaidLevel=1");
         }
         let key = uuid::Uuid::new_v4().to_string(); s.battle_service_key = Arc::new(Some(key.clone()));
         if change_stage {

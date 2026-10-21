@@ -37,6 +37,12 @@ partial class Program {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
         var prepare=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="Prepare");
+        if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SetExtraData")
+            || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="set_AffixIndices"))
+            throw new InvalidOperationException("Challenge Raid worker must apply server-validated affixes before building the battle.");
+        if(!helper.MainModule.GetType("SprkConquest").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions)
+            .Any(i=>i.OpCode==OpCodes.Ldstr && (string?)i.Operand=="ChallengeRaidVersion"))
+            throw new InvalidOperationException("Challenge Raid worker capability handshake missing.");
         if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_GroupHeroInfos")
             || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="ContainsKey")
             || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="AddEachWaveEachTeamBattleCreatureCreateInfo")

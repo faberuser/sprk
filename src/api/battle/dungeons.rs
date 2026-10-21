@@ -546,10 +546,11 @@ pub(super) async fn validate_inner(
     }
     if matches!(
         battle_type,
-        4 | 9 | 20 | 30 | 32 | 36 | 43 | 44
+        4 | 9 | 20 | 32 | 36 | 43 | 44
     ) {
         return Err(rule("ContentsDisabled"));
     }
+    if matches!(battle_type,25|30) { challenge::validate(s,r,service)?; }
     if matches!(battle_type, 12 | 29) {
         // Dragon solo variants still use BattleType.Raid in the client table.
         // Native multiplayer variants require an authenticated worker run.
@@ -607,7 +608,7 @@ pub(super) async fn validate_inner(
     if battle_type == 19 && int(r, "EventWorldBossIndex")? == 0 {
         return Err(rule("MissingEventWorldBossIndex"));
     }
-    if matches!(battle_type, 21 | 25 | 33 | 40 | 41 | 42 | 45 | 46 | 47)
+    if matches!(battle_type, 21 | 25 | 30 | 32 | 33 | 40 | 41 | 42 | 45 | 46 | 47)
         && int(r, "RaidIndex")? == 0
     {
         return Err(rule("MissingRaidIndex"));
@@ -947,6 +948,7 @@ pub(super) async fn enter(
             entry["ShakmehFinal"] = json!(true);
         }
     }
+    challenge::enter(s,r,entry)?;
     if int(r, "WorldBossIndex")? > 0 || int(r, "EventWorldBossIndex")? > 0 {
         seasons::enter(db, s, a, r, entry, out).await?;
     }
@@ -1207,7 +1209,7 @@ pub(super) fn append_rewards(out: &mut Value, v: &Value) {
         out[key] = json!(values);
     }
 }
-fn raid_data<'a>(s: &'a AppState, r: &Request) -> Result<&'a Value> {
+pub(super) fn raid_data<'a>(s: &'a AppState, r: &Request) -> Result<&'a Value> {
     row(
         s,
         "Raid",

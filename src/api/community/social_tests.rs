@@ -571,6 +571,55 @@ async fn invalid_friend_actions_cannot_change_other_accounts() {
 }
 
 #[tokio::test]
+async fn friendship_exchange_all_preserves_native_repeated_fields() {
+    let (state, a, b) = setup().await;
+    let c = login(&state, "points-third").await;
+    befriend(&state, &a, &b).await;
+    befriend(&state, &a, &c).await;
+    let aid = a.user_info.account_id;
+    let bid = b.user_info.account_id;
+    let cid = c.user_info.account_id;
+    // Both friends have sent points; exchange-all must send and receive with
+    // each friend in one request, including mixed native/JSON array formats.
+    for other in [&b, &c] {
+        let sent = friend::send_friendship_point(State(state.clone()), form(other, &format!("FriendIds={aid}"))).await.unwrap().0;
+        assert_eq!(sent["Result"], "Success");
+    }
+    let fields = format!("SendFriendIds={bid}&SendFriendIds={cid}&SendFriendIds={bid}&RecvFriendIds={bid}&RecvFriendIds={cid}");
+    let result = friend::send_recv_friendship_point(State(state.clone()), form(&a, &fields)).await.unwrap().0;
+    assert_eq!(result["Result"], "Success");
+    assert_eq!(result["FriendshipPointResult"]["AddValue"], 4 * friend::POINTS_PER_ACTION);
+    assert_eq!(result["FriendshipPointInfos"].as_array().unwrap().len(), 2);
+    let retry = friend::send_recv_friendship_point(State(state.clone()), form(&a, &fields)).await.unwrap().0;
+    assert_eq!(retry["FriendshipPointResult"]["AddValue"], 0);
+    sqlx::query("UPDATE friend_points SET last_send_time=NULL,last_recv_time=NULL WHERE account_id=?")
+        .bind(aid).execute(&state.db).await.unwrap();
+    let sent = friend::send_friendship_point(State(state.clone()), form(&a, &format!("FriendIds={bid}&FriendIds={cid}"))).await.unwrap().0;
+    assert_eq!(sent["FriendshipPointResult"]["AddValue"], 2 * friend::POINTS_PER_ACTION);
+    let recv = friend::recv_friendship_point(State(state.clone()), form(&a, &format!("FriendIds={bid}&FriendIds={cid}"))).await.unwrap().0;
+    assert_eq!(recv["FriendshipPointResult"]["AddValue"], 2 * friend::POINTS_PER_ACTION);
+}
+
+#[tokio::test]
+async fn friend_list_preserves_persisted_disconnect_time() {
+    let (state, a, b) = setup().await;
+    befriend(&state, &a, &b).await;
+    state.sessions.clear();
+    sqlx::query("UPDATE accounts SET last_login='2026-10-01 01:00:00',last_logout='2026-10-01 05:00:00' WHERE account_id=?")
+        .bind(b.user_info.account_id).execute(&state.db).await.unwrap();
+    for _ in 0..2 {
+        let (_, friends, _, _) = friend::login_data(&state, a.user_info.account_id).await.unwrap();
+        assert_eq!(friends[0]["IsOnline"], false);
+        assert_eq!(friends[0]["LastOnlineTime"], "2026-10-01 05:00:00");
+        assert_eq!(friends[0]["LastLogoutTime"], "2026-10-01 05:00:00");
+    }
+    sqlx::query("UPDATE accounts SET last_login='2026-10-02 01:00:00' WHERE account_id=?")
+        .bind(b.user_info.account_id).execute(&state.db).await.unwrap();
+    let info = friend::profile(&state, b.user_info.account_id).await.unwrap();
+    assert_eq!(info["LastOnlineTime"], "2026-10-02 01:00:00");
+}
+
+#[tokio::test]
 async fn friendship_points_are_reciprocal_daily_and_retry_safe() {
     let (state, a, b) = setup().await;
     befriend(&state, &a, &b).await;
@@ -1119,6 +1168,10 @@ async fn raid_invites_presence_groups_private_join_and_sender_validation() {
         if disconnected.len() == 2 { break; }
     }
     assert_eq!(disconnected.len(), 2);
+    let saved: Option<String> = sqlx::query_scalar("SELECT last_logout FROM accounts WHERE account_id=?")
+        .bind(b.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    let saved = chrono::NaiveDateTime::parse_from_str(&saved.expect("disconnect timestamp persisted"), "%Y-%m-%d %H:%M:%S").unwrap();
+    assert!((chrono::Utc::now().naive_utc() - saved).num_seconds().abs() < 5);
     server.abort();
 }
 #[tokio::test]

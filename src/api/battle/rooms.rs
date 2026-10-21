@@ -103,6 +103,7 @@ async fn definition<'a>(db: &mut SqliteConnection, s: &'a AppState, a: i64, r: &
                 ("Level", int(r, "RaidLevel")?),
             ],
         )?;
+        if matches!(n(v,"Type"),7|9) { challenge::require_active(s,v)?; }
         if matches!(n(v,"Type"),0|2) {
             if v["IsOnlineSingle"]!=false {return Err(rule("NoRaidData"));}
             dungeons::require_dragon_unlock(db,s,a,v).await.map_err(|error|match error {
@@ -165,7 +166,7 @@ pub(super) async fn execute(
             .bind(a)
             .fetch_one(&mut *db)
             .await?;
-        let mut v = json!({"RoomNo":0,"RaidIndex":int(r,"RaidIndex")?,"RaidLevel":int(r,"RaidLevel")?,"RaidMonsterLevel":int(r,"RaidMonsterLevel")?,"GoalIndex":int(r,"GoalIndex")?,"DungeonType":int(r,"DungeonType")?,"ChapterIndex":n(def,"ChapterIndex"),"DungeonIndex":n(def,"DungeonIndex"),"DungeonDifficulty":int(r,"DungeonDifficulty")?,"Opened":opened,"MasterAccountId":a,"MasterNick":nick,"CurPartyMember":1,"IsAutoRoot":false,"AffixIndices":ids(r,"AffixIndices",20)?,"Status":0,"Capacity":n(def,"PlayerCount").clamp(1,8)});
+        let mut v = json!({"RoomNo":0,"RaidIndex":int(r,"RaidIndex")?,"RaidLevel":int(r,"RaidLevel")?,"RaidMonsterLevel":int(r,"RaidMonsterLevel")?,"GoalIndex":int(r,"GoalIndex")?,"DungeonType":int(r,"DungeonType")?,"ChapterIndex":n(def,"ChapterIndex"),"DungeonIndex":n(def,"DungeonIndex"),"DungeonDifficulty":int(r,"DungeonDifficulty")?,"Opened":opened,"MasterAccountId":a,"MasterNick":nick,"CurPartyMember":1,"IsAutoRoot":false,"AffixIndices":ids(r,"AffixIndices",128)?,"Status":0,"Capacity":n(def,"PlayerCount").clamp(1,8)});
         let id =
             sqlx::query("INSERT INTO battle_rooms(family,master,data,updated) VALUES(?,?,?,?)")
                 .bind(family)
@@ -307,7 +308,7 @@ pub(super) async fn execute(
         if family == "raid" {
             v["ChapterIndex"]=json!(n(def,"ChapterIndex"));
             v["DungeonIndex"]=json!(n(def,"DungeonIndex"));
-            if r.0.contains_key("AffixIndices") { v["AffixIndices"]=json!(ids(r,"AffixIndices",20)?); }
+            if r.0.contains_key("AffixIndices") { v["AffixIndices"]=json!(ids(r,"AffixIndices",128)?); }
         }
         if n(&v, "Status") > 1 {
             return Err(rule("InvalidRoomInfo"));

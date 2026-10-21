@@ -1279,7 +1279,7 @@ async fn booster_groups_stack_with_hot_time_and_potions_without_counting_days_tw
 }
 
 #[tokio::test]
-async fn potion_and_reward_snapshots_preserve_all_unrelated_boosters() {
+async fn unchanged_potions_and_rewards_preserve_boosters_without_reannouncing_them() {
     let (state, u) = setup().await;
     let account = u.user_info.account_id;
     for id in [110001,110008,110018] {
@@ -1291,16 +1291,23 @@ async fn potion_and_reward_snapshots_preserve_all_unrelated_boosters() {
         put(&state,&u,id,1).await;
         let response = item::use_potion_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
         assert_eq!(response["Result"],"Success","{response}");
-        let snapshot=response["ItemTimeDurationInfos"].as_array().unwrap();
-        assert_eq!(snapshot.len(),4);
-        for timer in &original { assert!(snapshot.contains(timer),"Unrelated timer lost: {timer}"); }
-        assert!(snapshot.iter().any(|r|r["ItemIndex"]==300001));
+        if id == 41010 {
+            let snapshot=response["ItemTimeDurationInfos"].as_array().unwrap();
+            assert_eq!(snapshot.len(),4);
+            for timer in &original { assert!(snapshot.contains(timer),"Unrelated timer lost: {timer}"); }
+            assert!(snapshot.iter().any(|r|r["ItemIndex"]==300001));
+        } else {
+            assert!(response["ItemTimeDurationInfos"].is_null(),"Ordinary potions must neither clear boosters nor replay activation messages");
+        }
     }
-    let mut tx = state.db.begin().await.unwrap();
-    let reward = item::reward_response(&mut tx,&state,account,crate::api::tutorial::Rewards::default()).await.unwrap();
-    tx.commit().await.unwrap();
-    let restored = item::booster_login(&state,account).await.unwrap();
-    assert_eq!(reward["ItemTimeDurationInfos"],json!(restored),"Claiming a reward must not clear the client's booster list");
+    let before = item::booster_login(&state,account).await.unwrap();
+    for _ in 0..3 {
+        let mut tx = state.db.begin().await.unwrap();
+        let reward = item::reward_response(&mut tx,&state,account,crate::api::tutorial::Rewards::default()).await.unwrap();
+        tx.commit().await.unwrap();
+        assert!(reward["ItemTimeDurationInfos"].is_null(),"Repeated reward claims must not announce active boosters again");
+        assert_eq!(item::booster_login(&state,account).await.unwrap(),before,"Existing timers remain intact");
+    }
 }
 
 #[tokio::test]

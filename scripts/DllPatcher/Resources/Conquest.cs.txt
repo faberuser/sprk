@@ -167,7 +167,7 @@ public sealed class SprkConquest : MonoBehaviour {
                 int port; if(!Int32.TryParse(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_PORT"),out port))port=9002;
                 socket.Connect(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_HOST") ?? "127.0.0.1",port);
                 writer=new StreamWriter(socket.GetStream(),new UTF8Encoding(false)){AutoFlush=true,NewLine="\r\n"};connected=true;
-                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")},{"ArenaVersion",1}});
+                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")},{"ArenaVersion",1},{"ChallengeRaidVersion",1}});
                 using(var reader=new StreamReader(socket.GetStream())) {
                     string line;while((line=reader.ReadLine())!=null) {
                         if(line.Length>8*1024*1024)throw new IOException("Oversized worker message");
@@ -232,6 +232,8 @@ public sealed class SprkConquest : MonoBehaviour {
         GameRoot.Instance.OnDataContainerLoaded(false);
         var info=JM_NShared_BattleSimulationInfo.Parse(MiniJSON.Json.Serialize(data["Simulation"]));
         var builder=new BattleInstanceBuilder();builder.SetCampaignDungeon(info.ChapterIndex,info.DungeonIndex,info.DungeonDifficulty,false);builder.EnableSnapshot(false);
+        var affixes=data.Contains("AffixIndices")?data["AffixIndices"] as IList:null;
+        if(affixes!=null)builder.SetExtraData(new BattleInstanceExtraData{AffixIndices=affixes.Cast<object>().Select(Convert.ToInt32).ToArray()});
         var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"]),arena=data.Contains("ArenaMatch") && Convert.ToBoolean(data["ArenaMatch"])};
         var dungeon=GameRoot.Instance.CampaignDungeonDataContainer.GetData(info.ChapterIndex,info.DungeonIndex);
         bool alternating=dungeon!=null && (dungeon.BattleType==BattleType.ArcdimRaid || dungeon.BattleType==BattleType.ArcdimHardRaid);

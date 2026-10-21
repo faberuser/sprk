@@ -357,6 +357,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
 
     // Additive migrations also work with databases created by earlier builds.
     for (table, column, definition) in [
+        ("accounts", "last_logout", "TEXT"),
         ("tutorial_progress", "completion_response", "TEXT"),
         ("user_info", "event_dungeon_point", "INTEGER NOT NULL DEFAULT 0"),
     ] {

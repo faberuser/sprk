@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--friend-presence-only")) { InstallFriendPresence(args[0]); return; }
+            if (args.Contains("--verify-friend-presence")) { VerifyFriendPresenceFile(args[0]); return; }
             if (args.Contains("--craft-shortcut-only")) { InstallCraftShortcut(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-craft-shortcut")) { VerifyCraftShortcutFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-craft-shortcut")) { TestCraftShortcut(args[0]); return; }
@@ -197,6 +199,7 @@ namespace DllPatcher
                 PatchBattleEntry(module);
                 PatchAwakenDelay(module);
                 PatchFriendRecommendations(module);
+                PatchFriendPresence(module);
                 PatchCompletionBanners(module);
                 PatchRaidSocial(module);
                 PatchPartyJoinUnlock(module);

@@ -429,9 +429,10 @@ pub(crate) async fn reward_response(
     for index in &r.heroes {
         heroes.push(tutorial::hero_info(db, account, *index).await?);
     }
-    let boosters = booster_snapshot(db, state, account).await?;
+    // No booster activation occurs here. Native Apply(null) preserves timers;
+    // a populated array marks every entry as new and replays its notification.
     Ok(
-        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":boosters,"EquipItemBoostInfos":r.equipment_boosts,"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
+        json!({"CurrencyResults":r.currencies,"ItemResults":r.items,"EquipItemResults":r.equipment,"HeroInfos":heroes,"PetInfos":r.pets,"ExpResultInfos":r.team_exp,"StaminaResultInfos":[],"ItemTimeDurationInfos":null,"EquipItemBoostInfos":r.equipment_boosts,"HeroFriendlyInfos":[],"PlayerAnyMiscs":[]}),
     )
 }
 
@@ -755,9 +756,14 @@ async fn execute(
                 }
                 activate_booster(db, state, account, booster.as_i64().unwrap_or(0) as i32, count).await?;
             }
-            // Native Apply(array) replaces the entire active-booster list.
-            // Even a potion with no booster must preserve existing timers.
-            out["ItemTimeDurationInfos"] = json!(booster_snapshot(db, state, account).await?);
+            // Native Apply(array) replaces all timers and announces its entries.
+            // Only activating a booster needs a snapshot; null preserves the
+            // existing timers silently for ordinary stamina/EXP/etc. potions.
+            out["ItemTimeDurationInfos"] = if potion["BoosterCodes"].as_array().is_some_and(|v| !v.is_empty()) {
+                json!(booster_snapshot(db, state, account).await?)
+            } else {
+                Value::Null
+            };
         }
         "use_package_item" => {
             if crate::models::item::disabled_reward(index) {

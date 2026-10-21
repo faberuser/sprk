@@ -10,6 +10,7 @@
   "RoomTimeoutSeconds": 120,
   "SeasonEpoch": "2026-01-05 00:00:00",
   "SeasonDays": 7,
+  "ChallengeRaidRotation": [70002, 70001, 70004, 70003, 70006, 70005, 70008, 70007, 70010, 70009, 70012, 70011, 70014, 70013, 70016, 70015],
   "WorldBossMaxHp": 1000000000000,
   "WorldBossRotationStart": 3,
   "WorldBossMaxDamagePerSecond": 1000000000000,

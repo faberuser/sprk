@@ -117,6 +117,8 @@ pub async fn delete_account(State(state): State<AppState>, Json(body): Json<Dele
     // The schema is server-owned. Remove per-player rows across all content tables,
     // including features added after this endpoint; never touch shared global rows.
     sqlx::query("PRAGMA defer_foreign_keys=ON").execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM challenge_teams WHERE EXISTS(SELECT 1 FROM json_each(challenge_teams.team) WHERE value=?)")
+        .bind(session.account_id).execute(&mut *tx).await?;
     let tables:Vec<String>=sqlx::query_scalar("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetch_all(&mut *tx).await?;
     for table in tables {
         if table=="accounts" {continue;}

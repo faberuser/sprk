@@ -21,8 +21,6 @@ This project is for educational and preservation purposes only.
 - Replays, rankings, and supporting services
 - Configuration and development tools
 
-See [feature status](docs/feature-status.md) for implemented capabilities, testing status, limitations, and remaining work.
-
 ## Source layout
 
 - `src/api/`: account, gameplay, GM, and protocol handlers
@@ -34,14 +32,25 @@ See [feature status](docs/feature-status.md) for implemented capabilities, testi
 
 See [the scripts inventory](scripts/README.md) for active CI and development tools.
 
-See [development checks](docs/development.md) before changing server behavior.
-
 ## Building the Server
 
 ### Prerequisites
 
 - Rust 1.93+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
 - SQLite ([bundled with the project](https://www.sqlite.org/download.html))
+
+### VS Code Rust analysis
+
+Install the analyzer and standard-library sources for your active Rust toolchain:
+
+```bash
+rustup component add rust-analyzer rust-src
+```
+
+The workspace settings use this toolchain's `rust-analyzer` from `PATH` instead
+of the extension's bundled version, keeping analysis compatible with the compiler.
+The parent SPRK workspace explicitly links `sprk-server/Cargo.toml`. After changing
+these settings, run **rust-analyzer: Restart server** in VS Code.
 
 ### Build Steps
 
@@ -59,10 +68,6 @@ cargo build --release
 serve client update manifests/files without initializing the game, or `all` to
 run both. See [client updates and Portainer setup](docs/client-updates.md) for the
 publishing script, download endpoints, and shared-image container stack.
-
-The [Windows launcher](launcher/README.md) installs changed client files before
-starting the game. Build it with `scripts/build_launcher.ps1`; the EXE and its
-configuration are placed in `../sprk-client` by default.
 
 ```bash
 # Run the server (default port 8080)

@@ -403,42 +403,6 @@ pub(super) async fn finish(
         }
         dungeons::append_rewards(out, &rewards(db, s, a, reward).await?);
     }
-    let raid = int(r, "RaidIndex")?;
-    if raid > 0
-        && s.tables
-            .battle
-            .rows("ChallengeRaid")
-            .iter()
-            .any(|v| n(v, "RaidIndex") == raid)
-        && boolean(end, "Completed", false)?
-    {
-        if damage < 0
-            || damage
-                > elapsed.max(1).saturating_mul(settings(
-                    s,
-                    "WorldBossMaxDamagePerSecond",
-                    1000000000,
-                ))
-        {
-            return Err(rule("ChallengeRaidScoreError"));
-        }
-        score(
-            db,
-            "challenge",
-            raid,
-            season(s).0,
-            a,
-            damage.max(1),
-            elapsed,
-            &day(),
-        )
-        .await?;
-        out["ChallengeRaidRankerInfo"] = rankers(db, "challenge", raid, season(s).0)
-            .await?
-            .into_iter()
-            .find(|v| n(v, "AccountId") == a)
-            .unwrap_or(Value::Null);
-    }
     Ok(())
 }
 async fn rankers(
@@ -646,13 +610,13 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     }
     Ok(())
 }
-struct SeasonClaim<'a> {
-    kind: &'a str,
-    id: i64,
-    period: &'a str,
+pub(super) struct SeasonClaim<'a> {
+    pub kind: &'a str,
+    pub id: i64,
+    pub period: &'a str,
 }
 
-async fn deliver(
+pub(super) async fn deliver(
     db: &mut SqliteConnection,
     s: &AppState,
     a: i64,
@@ -673,7 +637,7 @@ async fn deliver(
     let mut currencies = vec![];
     for drop in data.roll_items(&s.tables.reward_string_pool) {
         let (code, filter) = crate::tables::parse_item_code(&drop.item_code);
-        if code == "WorldBossPoint" || code == "RaidPoint" {
+        if code == "WorldBossPoint" || code == "RaidPoint" || code == "ChallengeRaidPoint" {
             currencies.push(json!({"CurrencyType":code,"Amount":drop.count}));
             continue;
         }
