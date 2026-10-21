@@ -238,6 +238,10 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
 }
 
 async fn presence(state: &AppState, account: i64, protocol: &str) -> Result<()> {
+    if protocol == "Logout" && !state.chat.online(account) {
+        sqlx::query("UPDATE accounts SET last_logout=? WHERE account_id=?")
+            .bind(state.server_time_str()).bind(account).execute(&state.db).await?;
+    }
     let ids: Vec<i64> = sqlx::query_scalar("SELECT CASE WHEN account_id = ? THEN friend_account_id ELSE account_id END FROM friends WHERE status = 'accepted' AND (account_id = ? OR friend_account_id = ?)")
         .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
     for id in ids {

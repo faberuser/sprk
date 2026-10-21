@@ -18,16 +18,18 @@ fn response(result: &str) -> Value {
 }
 
 pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
-    let row = sqlx::query("SELECT a.account_id, a.nick, a.last_login, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = ? AND a.is_banned = 0")
+    let row = sqlx::query("SELECT a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = ? AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
     Ok(profile_row(state, &row))
 }
 pub(super) fn profile_row(state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Value {
     let account: i64 = row.get("account_id");
     let last: Option<String> = row.get("last_login");
+    let logout: Option<String> = row.get("last_logout");
+    let last_online = last.iter().chain(logout.iter()).max().cloned();
     let online = online(state, account);
     json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
-        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last, "LastLogoutTime": if online { None } else { last.clone() }, "TierIndex":0, "MatchScore":0, "LastChapterIndex":1, "LastDungeonIndex":1})
+        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":1, "LastDungeonIndex":1})
 }
 
 pub(super) fn online(state: &AppState, account: i64) -> bool {
@@ -44,7 +46,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     req.account(&state)?;
     let target = req.number("TargetAccountId", 0)?;
     let mut db = state.db.begin().await?;
-    let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
+    let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
     let user = profile_row(&state, &row);
@@ -68,7 +70,7 @@ pub async fn login_data(
     state: &AppState,
     account: i64,
 ) -> Result<(Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>)> {
-    let rows = sqlx::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = ? THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = ? OR f.friend_account_id = ?) AND a.is_banned = 0 ORDER BY f.id")
+    let rows = sqlx::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = ? THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = ? OR f.friend_account_id = ?) AND a.is_banned = 0 ORDER BY f.id")
         .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
     let mut outgoing = Vec::new();
     let mut incoming = Vec::new();
@@ -119,7 +121,7 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     // The native client requests recommendations with an omitted/empty Keyword
     // when opening Accept/Request, and uses this same endpoint for Find.
     let mut query = QueryBuilder::<Sqlite>::new(
-        "SELECT a.account_id,a.nick,a.last_login,u.team_level,u.avatar_hero_index \
+        "SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index \
          FROM accounts a JOIN user_info u USING(account_id) \
          LEFT JOIN credentials c ON c.login_id = a.login_id \
          WHERE a.is_banned = 0 AND u.team_level > 0 AND COALESCE(a.nick, '') != '' \
@@ -346,7 +348,7 @@ pub async fn send_recv_friendship_point(
     points(state, body, 2).await
 }
 async fn points(state: AppState, body: Bytes, mode: u8) -> Result<Json<Value>> {
-    let req = Request::parse(&body)?;
+    let req = Request::parse_with_integer_arrays(&body, &["FriendIds", "SendFriendIds", "RecvFriendIds"])?;
     let account = req.account(&state)?;
     let send = if mode == 1 {
         vec![]

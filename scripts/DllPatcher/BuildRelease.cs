@@ -31,6 +31,7 @@ partial class Program
 
         VerifyNoTelemetry(clientRoot, null);
         VerifyFriendRecommendationsFile(clientRoot, false);
+        VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
         VerifyWebSocketLifecycle(clientRoot);
