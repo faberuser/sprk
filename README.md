@@ -43,6 +43,19 @@ See [development checks](docs/development.md) before changing server behavior.
 - Rust 1.93+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
 - SQLite ([bundled with the project](https://www.sqlite.org/download.html))
 
+### VS Code Rust analysis
+
+Install the analyzer and standard-library sources for your active Rust toolchain:
+
+```bash
+rustup component add rust-analyzer rust-src
+```
+
+The workspace settings use this toolchain's `rust-analyzer` from `PATH` instead
+of the extension's bundled version, keeping analysis compatible with the compiler.
+The parent SPRK workspace explicitly links `sprk-server/Cargo.toml`. After changing
+these settings, run **rust-analyzer: Restart server** in VS Code.
+
 ### Build Steps
 
 ```bash
