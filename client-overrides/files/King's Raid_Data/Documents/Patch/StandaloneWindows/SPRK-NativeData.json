@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "source": "Effective installed SPRK restoration patches",
+  "files": {
+    "ContentsDefine/SoulWeaponLimitBreak.json": {
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
+    },
+    "LocalizationJit/LocalizationAll_English.jit": {
+      "sha256": "91a85a8ae536d99ec213f41822b5a1b71820a3de6865a2dfc78ac32c94f63f47",
+      "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
+    },
+    "TableJit/AccessoryCostumeTable.jit": {
+      "sha256": "ad424f4b984893b0edec91deaed27e04dd091b3716841f26deb7b5a75141ca78",
+      "originalSha256": "9cbc16478412dc04fb84e64d5267174f27238a7232fd7796b2e387a6b27c6a3e"
+    },
+    "TableJit/CampaignChapterTable.jit": {
+      "sha256": "f7e3a4cae1b9d9744577e171e34bf2ea6e18fc23e43f8e9e348ea2b2b7f4abbc",
+      "originalSha256": "f7e3a4cae1b9d9744577e171e34bf2ea6e18fc23e43f8e9e348ea2b2b7f4abbc"
+    },
+    "TableJit/CampaignNodeTable.jit": {
+      "sha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b",
+      "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
+    },
+    "TableJit/CostumeTable.jit": {
+      "sha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22",
+      "originalSha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22"
+    },
+    "TableJit/CraftItemTable.jit": {
+      "sha256": "fdc833a05c23fd900d299e4d24a5477627c7b6ccd0fd19263411ba23e75dc37e",
+      "originalSha256": "4808cae77c0ae41b16b076b83ba1fba464a036ab60c206c04bb5b5d4a5eb018b"
+    },
+    "TableJit/CreatureTable.jit": {
+      "sha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a",
+      "originalSha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a"
+    },
+    "TableJit/GodkingTrialGroupTable.jit": {
+      "sha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a",
+      "originalSha256": "c5b32e18082bd8705100ff671d12ec4b4e07a564817a3967748fc0025a84f29a"
+    },
+    "TableJit/GuildSuppressDungeonTable.jit": {
+      "sha256": "9cf5be1aa810d3375bd9a0b15d155939c0d606891e5dd8daeacb5a78a31fea20",
+      "originalSha256": "f41a3d828c20789a1d792f79f988fcae64f3c272a84172e14767c3e374401f80"
+    },
+    "TableJit/HairCostumeTable.jit": {
+      "sha256": "70354f602f18829e85836ecf2faf2bc38c9a41ac0bf312313fb09f982820e199",
+      "originalSha256": "70354f602f18829e85836ecf2faf2bc38c9a41ac0bf312313fb09f982820e199"
+    },
+    "TableJit/HeroSelectItemTable.jit": {
+      "sha256": "d549a292db84809d92989ef0040d25b78674db5a1f292bbcc788fb2cc3fd7b64",
+      "originalSha256": "d549a292db84809d92989ef0040d25b78674db5a1f292bbcc788fb2cc3fd7b64"
+    },
+    "TableJit/InventoryExtendTable.jit": {
+      "sha256": "5d5f9cb25785f61382fa914c79aef9099689705df10e9e8ca9bef88b25991520",
+      "originalSha256": "8bf19aefb08af18c8760f18cbec330d6ec75e3357bbefe3e4e1e4e4f486a3b9d"
+    },
+    "TableJit/MainStoryTable.jit": {
+      "sha256": "ea1ac2f9fad67b337b1b1e3d54f3be548a6791e16f4fecbcaef5640d438cdf11",
+      "originalSha256": "2f4bcaf658a4f2f59e66665799adad02303ce07b7f04fa43961a65c3f81d6d08"
+    },
+    "TableJit/NPCTable.jit": {
+      "sha256": "888d9a6322443499b6291db88fe902d7586df5d18521053633924c20ae446eac",
+      "originalSha256": "ad6b3ba5a4210ff90145a547928e2eeee41ef2bf5bc388b62daa5c75a4f8ffc7"
+    },
+    "TableJit/OptionSellTable.jit": {
+      "sha256": "d996eb18896a8743856ecabbc13e90b3c980995230e70a4f7a7527c0cafcb3e9",
+      "originalSha256": "84669507a5f5e0b729bae7d4d860effdf8a4771805376b5c11695daeb960751a"
+    },
+    "TableJit/PortalRenewalTable.jit": {
+      "sha256": "60d0ade5608d18e9e8668de5e030051543b984227bd48293a280c5f7872a5fb2",
+      "originalSha256": "69a81846676ab716f9a87c2fd65376984a7eefc38dc261092136eddb42fdba54"
+    },
+    "TableJit/PortalTable.jit": {
+      "sha256": "152208bb7fe484d32b7383bac3527d45bf2f2ac4c21d15ab5fc7491949becfc5",
+      "originalSha256": "152208bb7fe484d32b7383bac3527d45bf2f2ac4c21d15ab5fc7491949becfc5"
+    },
+    "TableJit/RaidTable.jit": {
+      "sha256": "98a46300a6fe1aa3006ffd62f03435ff1ec456e3f8e2f9e66cd905451370dfe2",
+      "originalSha256": "33469d38380589cfe9b79d9e3289d4270078fb49a5a673814c4a481c217d639e"
+    },
+    "TableJit/SelectItemTable.jit": {
+      "sha256": "9fe85fe191b375f02124ea953dcf788fa34f811230a7ab47a9f1baafb03632b1",
+      "originalSha256": "9fe85fe191b375f02124ea953dcf788fa34f811230a7ab47a9f1baafb03632b1"
+    },
+    "TableJit/ShopItemTable.jit": {
+      "sha256": "71e46f097da081242889bb5e552d3081983ced649cf098225b9f4615a0992ed1",
+      "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
+    },
+    "TableJit/WeaponCostumeTable.jit": {
+      "sha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1",
+      "originalSha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1"
+    },
+    "TableJit/WeaponUniqueSelectItemTable.jit": {
+      "sha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28",
+      "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
+    }
+  },
+  "staticRuntimeDataOverrides": false,
+  "conquestScheduleSource": "server response SPRKConquestSessionDefinitions",
+  "englishOnlyLocalization": true,
+  "nativeLookupChecks": 14781
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "source": "Installed SPRK RestoredPortal CombatRestoration; pre-Doomsday build1558",
+  "sourcePayloadSha256": "d529f0bbecad99e17d08139600f381d06fc79f727ffa4150209b658b3a366e0b",
+  "files": {
+    "LocalizationJit/LocalizationAll_English.jit": {
+      "sha256": "91a85a8ae536d99ec213f41822b5a1b71820a3de6865a2dfc78ac32c94f63f47",
+      "originalSha256": "cb79850afb990b5aa9de9539e717f20fe0d4010b07dd14bfbd4659794515fd60"
+    },
+    "TableJit/BattleDefineTable.jit": {
+      "sha256": "f5dde709e6223350aa61e2ab0dda4b1af37993a3d1ff5b20657dbc98e1a99de6",
+      "originalSha256": "0127b99aa30f0f279b65c51258193cc4992cb7112d9859962f5c143241864b8f"
+    },
+    "TableJit/ConstantTable.jit": {
+      "sha256": "c47977d7a01032122af9c66be7c0af7b48bb1454983effc2f6643c73d790db06",
+      "originalSha256": "00272ad31da7cfdb76f49a1c664fb31ee97282167a4dfe0335d465655dc38cfd"
+    },
+    "TableJit/CreatureStarGradeStatTable.jit": {
+      "sha256": "fa422488861541ad0e9d86cfdb33e6bb34abf8745d53ac03d0a350023361e1db",
+      "originalSha256": "c8fe43a41b937d39d2a900530220d2f09b01a01ef9c45ce6be76a4441464496f"
+    },
+    "TableJit/CreatureTable.jit": {
+      "sha256": "a94d0223b4a3b5b6b8aecbd6e7c4baca260a82681c9106877c1f59606034bd4a",
+      "originalSha256": "fe39a7531ec7af361a06551f3909471a3a53f0a2c1dffdf1eea868abfde06876"
+    },
+    "TableJit/MonsterTierTable.jit": {
+      "sha256": "7cb5421f3822d8f813cb158fa003b62b8ca8ee13450f55e2a40e2fc53a3a6a69",
+      "originalSha256": "7cb5421f3822d8f813cb158fa003b62b8ca8ee13450f55e2a40e2fc53a3a6a69"
+    },
+    "TableJit/SkillLevelFactorTable.jit": {
+      "sha256": "d7e283bb6a9bd7af53f2c28e50326021ba01c9f50895a637d9ca709e36580380",
+      "originalSha256": "3082c526ba0a1cb11a412e6ad7d8ea73546c6bc68d7b4bed317b760585946ac4"
+    },
+    "TableJit/SkillProjectileTable.jit": {
+      "sha256": "86c82f79877a2d70ec6b4f284cc889ca7e9f085adc19f29004733f5fe4fd7d63",
+      "originalSha256": "5efd96bbee11625973bc4ad3bf796c094559d3088ec465aba472bb14dec35caf"
+    },
+    "TableJit/SkillTable.jit": {
+      "sha256": "2743fc236f2aadf1f7df49a00868a7cf1209577fbc4dd44ded73e4c027e74c8e",
+      "originalSha256": "dee6d656113f42ff6de771bd7fbf9e73fa1411d10714d55ab53b06044e36b97b"
+    },
+    "TableJit/SoulWeaponOptionTable.jit": {
+      "sha256": "85d8c46abec4c528d40e48b7252c06c8ca1737245d46301798ec8ebf70872636",
+      "originalSha256": "aa9dfe35f24e89e2a64cd4694b06ba44e67e280a9a6711b9aa9b388b5d4a18fd"
+    },
+    "TableJit/StateTable.jit": {
+      "sha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed",
+      "originalSha256": "84b9439d6f4983b9104bb19574953fe67d472f58553eacb21a2e6f9ed3fa91ed"
+    }
+  },
+  "descriptionCorrections": 6,
+  "runtimeDataOverrides": false,
+  "combatAlgorithmPatchesRetained": true
+}

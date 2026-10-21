@@ -1,5 +1,46 @@
 # SPRK development instructions
 
+## Reproducible client changes and CI deployment
+
+Follow [GitHub client releases](docs/github-client-updates.md) for CI inputs,
+isolated validation, signing and deployment.
+
+- Keep client changes reproducible from tracked inputs. Implement DLL patches
+  and embedded resources under `scripts/DllPatcher`; new patches and their
+  verifiers must run through its full build path (`--build-release`, including
+  `BuildRelease.cs`). Existing patch fixes use their existing calls. Track any
+  additional transformation tools and invoke them from the release build.
+- Put replacement tables/assets under `client-overrides/files/` using
+  client-relative paths. Include matching `SPRK-Native*.json` integrity metadata
+  whenever the changed data requires it. Changes only in `../sprk-client` or
+  ignored local release folders do not become CI inputs automatically.
+- Routine patches do not require a baseline change, a manual CI release version,
+  or `client-build.json`. `scripts/client_baseline.py` pins the fixed distributed
+  snapshot; use the baseline preparation tool only when deliberately replacing
+  that snapshot.
+- Preserve complete telemetry cleanup. The Python release builder and
+  `scripts/patch.ps1` run `scripts/remove_client_telemetry.py` before full DLL
+  patching, while original type definitions are available for serialized asset
+  cleanup. Keep its dependencies in `scripts/requirements-client.txt`. Managed
+  DLL stripping alone does not replace the serialized asset and SDK cleanup.
+- For explicitly source-only work or CI/build-tool changes that do not install
+  client assets, validate relevant checks in a fresh isolated workspace. For a
+  complete signed build use `scripts/build_client_release.py` without
+  `--publish`, with a unique work path/version and the existing signing key.
+  Do not change the installed client or normal local stable manifest for that
+  validation. Report that no installed-client release was generated. This does
+  not waive the local release requirement below when installed files change.
+- The normal deployment path is commit to `development`, PR, then merge to
+  `main`. GitHub-hosted runners build, verify, sign and publish the client update,
+  push the matching server image to GHCR, and trigger Portainer. No routine
+  SFTP upload or SSH deployment step is needed. A local signed release alone
+  does not publish a GitHub release or deploy the host.
+- The updates container downloads only its image-pinned client release at
+  startup, verifies it before activation, and keeps the active release plus two
+  previous releases. Preserve startup-only pinning so older server code cannot
+  automatically serve a newer incompatible client. Its `/client-updates` mount
+  must be writable by container UID/GID `10001`.
+
 ## Required client update after client changes
 
 When a task changes installed game client code, DLLs, TableData, TableJit,
@@ -42,13 +83,16 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
    Review `deleted_files` and ensure deletions are intentional. A complete managed
    snapshot is expected; the launcher downloads only changed or missing files.
 6. Verify that the stable and release manifests match, the signature verifies
-   with `client-updates/update-signing/public.pem`, and each release file matches
+   with the tracked `config/client-update-public.pem`, and each release file matches
    its manifest size and SHA-256 hash. Confirm the changed installed files appear
    in the release with their current hashes. Do not edit signed manifests by hand.
 7. In the final response report the generated release ID, checks performed, and
-   any restart needed. For public players, identify the new release folder and
-   updated `stable/manifest.json` to upload; creating local artifacts does not
-   mean the homelab update host has been deployed.
+   any restart needed. Distinguish the local installed-client release from a
+   published GitHub release and a completed Portainer deployment. Public rollout
+   normally uses the tracked inputs and CI path above. If the user explicitly
+   requests manual hosting, identify the release folder and updated
+   `stable/manifest.json` to upload; do not claim a deployment from local
+   artifact creation alone.
 
 Never print or commit private signing-key contents, regenerate/rotate existing
 keys to bypass a problem, or silently publish unsigned updates. If required files,
