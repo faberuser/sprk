@@ -234,9 +234,9 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
     let group = ids(r, "GroupHeroIndices", 32)?;
     let d = dungeon(s, r)?;
     let battle_type = n(d, "BattleType");
-    let raid_squard = if matches!(battle_type,33|40|41|42) {
+    let raid_squard = if matches!(battle_type,25|33|40|41|42) {
         s.tables.battle.find("Raid", &[("Index",int(r,"RaidIndex")?),("Level",int(r,"RaidLevel")?)])
-            .filter(|v|matches!(n(v,"Type"),13|15))
+            .filter(|v|matches!(n(v,"Type"),9|13|15))
     } else {None};
     if battle_type==26 && int(r,"RaidIndex")?==90001 && (101..=103).contains(&int(r,"RaidLevel")?) {
         if !group.is_empty() {return Err(rule("NotMatchHeroIndices"));}
@@ -549,6 +549,7 @@ async fn end_inner(
     )
     .await?;
     seasons::finish(db, s, a, &request, r, elapsed, &mut out).await?;
+    challenge::finish(db,s,a,r,&entry,elapsed,&mut out).await?;
     rooms::finish(db, s, a, &request, completed, &mut out).await?;
     super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, &request)?, "BattleType"), &mut out).await?;
     if completed {crate::api::services::records::record_clear(db,a,&entry,r.number("PureBattleTime",elapsed)?).await?;}

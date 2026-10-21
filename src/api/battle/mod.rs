@@ -31,6 +31,7 @@ mod rooms;
 pub(crate) mod cooperative;
 pub(crate) mod party_messages;
 mod seasons;
+pub(crate) mod challenge;
 mod treasure;
 mod special;
 #[cfg(test)]
@@ -46,6 +47,8 @@ mod loot_booster;
 
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for query in [
+        "CREATE TABLE IF NOT EXISTS challenge_results(season INTEGER NOT NULL,challenge INTEGER NOT NULL,account INTEGER NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,current_score INTEGER NOT NULL,current_time INTEGER NOT NULL,PRIMARY KEY(season,challenge,account))",
+        "CREATE TABLE IF NOT EXISTS challenge_teams(season INTEGER NOT NULL,challenge INTEGER NOT NULL,team TEXT NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(season,challenge,team))",
         "CREATE TABLE IF NOT EXISTS battle_state(account INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,kind,idx))",
         "CREATE TABLE IF NOT EXISTS battle_runs(account INTEGER PRIMARY KEY,run_id TEXT NOT NULL,started INTEGER NOT NULL,completed INTEGER NOT NULL DEFAULT 0,entry TEXT NOT NULL,begin_response TEXT NOT NULL)",
         "CREATE TABLE IF NOT EXISTS battle_rooms(id INTEGER PRIMARY KEY AUTOINCREMENT,family TEXT NOT NULL,master INTEGER NOT NULL,data TEXT NOT NULL,updated INTEGER NOT NULL)",
@@ -160,6 +163,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             rooms::execute(&mut tx, s, a, &req, path).await
         }
         "world_boss" | "event_world_boss" => seasons::execute(&mut tx, s, a, &req, path).await,
+        "raid" if action.contains("challenge_raid_rank") => challenge::execute(&mut tx, s, a, &req, action).await,
         "raid" if action.contains("rank") => seasons::execute(&mut tx, s, a, &req, path).await,
         "eclipse" | "ordeal_arena" => special::execute(&mut tx, s, a, &req, path).await,
         _ => match action {
@@ -439,6 +443,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
     seasons::settle(&mut tx, s, a).await?;
+    challenge::settle(&mut tx, s, a).await?;
     treasure::info(&mut tx, s, a).await?;
     let towers = dungeons::tower_list(&mut tx, s, a).await?;
     let mut under = list(&mut tx, a, "under_prison").await?;

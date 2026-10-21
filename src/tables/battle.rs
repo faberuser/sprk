@@ -24,6 +24,9 @@ impl BattleTable {
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data = Self::load_with_rules(path, "BattleRules.json")?;
+        let challenge: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("ChallengeRaidSupport.json"))?)?;
+        data.tables.insert("ChallengeAffix".into(), challenge["Tables"]["ChallengeAffix"].as_array()
+            .ok_or("Missing recovered Challenge Raid affixes")?.clone());
         let recovered: Value = serde_json::from_reader(std::fs::File::open(
             path.with_file_name("DivinePunishmentSupport.json"),
         )?)?;

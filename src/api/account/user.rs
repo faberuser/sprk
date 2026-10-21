@@ -752,7 +752,8 @@ pub async fn login(
         player_any_miscs: vec![],
         soul_weapon_infos,
         player_product_purchase_infos: progression["PlayerProductPurchaseInfos"].as_array().into_iter().flatten().chain(products.as_array().into_iter().flatten()).cloned().collect(),
-        drop_bonus_events: crate::api::episodes::events(&state),
+        drop_bonus_events: crate::api::episodes::events(&state).into_iter()
+            .chain(crate::api::battle::challenge::events(&state)).collect(),
         pay_shop_item_event_infos: vec![],
         npc_friendly_infos,
         chat_ban_infos: vec![],

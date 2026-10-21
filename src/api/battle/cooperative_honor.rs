@@ -180,7 +180,7 @@ mod tests {
             }
         }
         let (tx,rx)=mpsc::channel(100);
-        *s.conquest.worker.write().await=Some(Worker{id:"honor-worker".into(),sender:tx,arena_version:1});
+        *s.conquest.worker.write().await=Some(Worker{id:"honor-worker".into(),sender:tx,arena_version:1,challenge_version:0});
         (s,users,rx)
     }
     async fn register(s:&AppState,u:&Value,kind:&str) {

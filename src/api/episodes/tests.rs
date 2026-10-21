@@ -76,10 +76,10 @@ async fn episodes_native_gifts_claim_original_rewards_and_persist_on_login() {
         let p=login.npc_friendly_infos.iter().find(|v|n(v,"HeroIndex")==e.npc).unwrap();
         assert_eq!(p["Step"],8);assert_eq!(p["EndRewardCount"],1);
     }
-    assert_eq!(login.drop_bonus_events.len(),13);
+    assert_eq!(login.drop_bonus_events.len(),19);
     assert_eq!(login.drop_bonus_events.iter().filter(|e|e["BonusType"]=="EventDungeon").count(),7);
     assert_eq!(login.drop_bonus_events.iter().filter(|e|e["BonusType"]=="EventShop").count(),6);
-    for e in &login.drop_bonus_events {
+    for e in login.drop_bonus_events.iter().filter(|e|e["BonusType"]=="EventDungeon" || e["BonusType"]=="EventShop") {
         assert_eq!(e["DungeonType"],json!(["EventDungeon"]));
         assert_eq!(e["MoveTaskType"],"None");
         assert_eq!(e["BuffPosition"],"None");
