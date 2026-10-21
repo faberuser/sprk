@@ -27,6 +27,15 @@ pub struct InventoryTable {
     pub constants: HashMap<String, i64>,
 }
 impl InventoryTable {
+    /// Potion effects can have a group ID without a standalone inventory item.
+    pub fn booster_effect(&self, index: i32) -> Option<&Value> {
+        self.boosters.get(&index).or_else(|| {
+            self.booster_definitions.values().find(|data| {
+                data["BoosterItemIndex"].as_i64() == Some(i64::from(index))
+            })
+        })
+    }
+
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }

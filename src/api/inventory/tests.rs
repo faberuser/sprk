@@ -1201,19 +1201,106 @@ async fn potion_booster_missing_second_definition_rolls_back_the_whole_use() {
 }
 
 #[tokio::test]
-async fn original_day_and_week_boosters_use_distinct_inventory_items() {
+async fn day_and_week_boosters_extend_one_timer_in_either_order() {
     let (state, u) = setup().await;
-    for (id, seconds) in [(110007,604800_i64),(110008,604800),(110013,86400),(110014,86400)] {
-        put(&state, &u, id, 1).await;
-        let result=item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1")))
-            .await.unwrap().0;
-        assert_eq!(result["Result"],"Success","{id}: {result}");
-        let duration: i64=sqlx::query_scalar("SELECT CAST(strftime('%s',end_time) AS INTEGER)-CAST(strftime('%s',start_time) AS INTEGER) FROM item_boosters WHERE account_id=? AND item_index=?")
-            .bind(u.user_info.account_id).bind(id).fetch_one(&state.db).await.unwrap();
-        assert_eq!(duration,seconds,"Booster item {id}");
-        assert_eq!(count(&state,&u,id).await,0);
+    for (group, ids) in [(110007,[110007,110013]), (110008,[110014,110008])] {
+        let mut total = 0;
+        let mut first_start = None;
+        for id in ids.into_iter().chain(ids.into_iter().rev()) {
+            put(&state, &u, id, 1).await;
+            total += item::n(&state.tables.inventory.boosters[&id], "Duration");
+            let result=item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1")))
+                .await.unwrap().0;
+            assert_eq!(result["Result"],"Success","{id}: {result}");
+            let timer = &result["ItemTimeDurationInfo"];
+            assert_eq!(timer["ItemIndex"], group);
+            let parse = |key: &str| chrono::NaiveDateTime::parse_from_str(timer[key].as_str().unwrap(), "%Y-%m-%d %H:%M:%S").unwrap();
+            let start = *first_start.get_or_insert_with(|| parse("StartTime"));
+            assert_eq!(parse("StartTime"), start);
+            assert_eq!((parse("EndTime")-start).num_seconds(),total);
+            assert_eq!(count(&state,&u,id).await,0,"Consumes the original inventory item");
+        }
     }
-    assert_eq!(login(&state).await.item_time_durations.len(),4);
+    let restored = login(&state).await.item_time_durations;
+    assert_eq!(restored.len(),2);
+    let ids: Vec<i32> = sqlx::query_scalar("SELECT item_index FROM item_boosters ORDER BY item_index")
+        .fetch_all(&state.db).await.unwrap();
+    assert_eq!(ids,vec![110007,110008]);
+}
+
+#[tokio::test]
+async fn legacy_booster_timers_merge_remaining_time_once_and_ignore_expired_aliases() {
+    let (state, u) = setup().await;
+    let account = u.user_info.account_id;
+    let now = state.server_time_str();
+    for (id, seconds) in [(110008,3600),(110014,7200),(110007,1800),(110013,-60)] {
+        sqlx::query("INSERT INTO item_boosters VALUES(?,?,?,datetime(?,?))")
+            .bind(account).bind(id).bind(&now).bind(&now).bind(format!("{seconds:+} seconds"))
+            .execute(&state.db).await.unwrap();
+    }
+    // A second account's legacy data must remain untouched.
+    sqlx::query("INSERT INTO item_boosters VALUES(?,110014,?,datetime(?,'+1 day'))")
+        .bind(account+1).bind(&now).bind(&now).execute(&state.db).await.unwrap();
+    let restored = item::booster_login(&state,account).await.unwrap();
+    assert_eq!(restored.len(),2);
+    let gold = restored.iter().find(|r|r["ItemIndex"]==110008).unwrap();
+    let start = chrono::NaiveDateTime::parse_from_str(&now,"%Y-%m-%d %H:%M:%S").unwrap();
+    let end = chrono::NaiveDateTime::parse_from_str(gold["EndTime"].as_str().unwrap(),"%Y-%m-%d %H:%M:%S").unwrap();
+    assert!((10798..=10800).contains(&(end-start).num_seconds()),"{gold}");
+    let exp = restored.iter().find(|r|r["ItemIndex"]==110007).unwrap();
+    assert_eq!(exp["EndTime"],json!((start+chrono::Duration::seconds(1800)).format("%Y-%m-%d %H:%M:%S").to_string()));
+    let restarted = AppState::new(state.db.clone(),state.tables.as_ref().clone());
+    assert_eq!(item::booster_login(&restarted,account).await.unwrap(),restored);
+    let aliases: Vec<(i64,i32)> = sqlx::query_as("SELECT account_id,item_index FROM item_boosters WHERE item_index IN (110013,110014)")
+        .fetch_all(&state.db).await.unwrap();
+    assert_eq!(aliases,vec![(account+1,110014)]);
+}
+
+#[tokio::test]
+async fn booster_groups_stack_with_hot_time_and_potions_without_counting_days_twice() {
+    let (state, u) = setup().await;
+    let account = u.user_info.account_id;
+    for id in [110001,110007,110017,110003,110008,110018,110013,110014] {
+        put(&state,&u,id,1).await;
+        let response = item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
+        assert_eq!(response["Result"],"Success","{response}");
+    }
+    let bonus = crate::api::battle::bonuses::calculate(&mut state.db.acquire().await.unwrap(),&state,account,1).await.unwrap();
+    assert_eq!(bonus,(300,300),"Hour, day/week, and Hot Time each add 100%");
+    put(&state,&u,41014,1).await;
+    let potion = item::use_potion_item(State(state.clone()),form(&u,"ItemIndex=41014&ItemCount=1")).await.unwrap().0;
+    assert_eq!(potion["Result"],"Success");
+    assert_eq!(potion["ItemTimeDurationInfos"].as_array().unwrap().len(),8);
+    assert_eq!(crate::api::battle::bonuses::calculate(&mut state.db.acquire().await.unwrap(),&state,account,1).await.unwrap(),(350,350),"Potion-only effect groups also contribute");
+    assert_eq!(crate::api::battle::bonuses::calculate(&mut state.db.acquire().await.unwrap(),&state,account,999).await.unwrap(),(0,0),"Battle restrictions remain enforced");
+    sqlx::query("UPDATE item_boosters SET end_time='2000-01-01 00:00:00' WHERE account_id=? AND item_index IN (110001,110003)")
+        .bind(account).execute(&state.db).await.unwrap();
+    assert_eq!(crate::api::battle::bonuses::calculate(&mut state.db.acquire().await.unwrap(),&state,account,1).await.unwrap(),(250,250),"Expired groups stop contributing");
+}
+
+#[tokio::test]
+async fn potion_and_reward_snapshots_preserve_all_unrelated_boosters() {
+    let (state, u) = setup().await;
+    let account = u.user_info.account_id;
+    for id in [110001,110008,110018] {
+        put(&state,&u,id,1).await;
+        assert_eq!(item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0["Result"],"Success");
+    }
+    let original = item::booster_login(&state,account).await.unwrap();
+    for id in [41010,41001] { // Gold stamina potion, then ordinary stamina potion.
+        put(&state,&u,id,1).await;
+        let response = item::use_potion_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
+        assert_eq!(response["Result"],"Success","{response}");
+        let snapshot=response["ItemTimeDurationInfos"].as_array().unwrap();
+        assert_eq!(snapshot.len(),4);
+        for timer in &original { assert!(snapshot.contains(timer),"Unrelated timer lost: {timer}"); }
+        assert!(snapshot.iter().any(|r|r["ItemIndex"]==300001));
+    }
+    let mut tx = state.db.begin().await.unwrap();
+    let reward = item::reward_response(&mut tx,&state,account,crate::api::tutorial::Rewards::default()).await.unwrap();
+    tx.commit().await.unwrap();
+    let restored = item::booster_login(&state,account).await.unwrap();
+    assert_eq!(reward["ItemTimeDurationInfos"],json!(restored),"Claiming a reward must not clear the client's booster list");
 }
 
 #[tokio::test]
