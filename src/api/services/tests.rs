@@ -61,7 +61,12 @@ async fn every_automatic_entry_currency_publishes_a_future_timer_when_depleted()
         .bind(now.timestamp()).bind(a).execute(&mut *db).await.unwrap();
     for def in s.tables.services.rows("Stamina").iter().filter(|d|n(d,"UpdateType")>0) {
         let k=n(def,"StaminaType");
-        crate::api::battle::put(&mut db,a,"key",k,&json!({"Count":0,"Day":now.date_naive().to_string(),"RechargeTime":now.timestamp()})).await.unwrap();
+        // Seed a depletion in the currency's current reset period. World Boss
+        // uses UTC+9, so a UTC date would trigger a refill after 15:00 UTC.
+        let policy = &s.tables.battle.rules["EntryRechargeOverrides"][def["AttributeName"].as_str().unwrap()];
+        let calendar = now + chrono::Duration::seconds(n(policy,"UtcOffsetSeconds"));
+        let period = crate::api::account::recharge::period(calendar.date_naive(), n(policy,"PeriodDays").max(1));
+        crate::api::battle::put(&mut db,a,"key",k,&json!({"Count":0,"Day":period.to_string(),"RechargeTime":now.timestamp()})).await.unwrap();
     }
     for (kind, value) in [("tickets", json!({"Value":0,"RechargeTime":now.timestamp()})),
         ("guild_ticket", json!({"Day":now.date_naive().to_string(),"Count":0}))] {

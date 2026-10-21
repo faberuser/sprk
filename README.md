@@ -21,8 +21,6 @@ This project is for educational and preservation purposes only.
 - Replays, rankings, and supporting services
 - Configuration and development tools
 
-See [feature status](docs/feature-status.md) for implemented capabilities, testing status, limitations, and remaining work.
-
 ## Source layout
 
 - `src/api/`: account, gameplay, GM, and protocol handlers
@@ -33,8 +31,6 @@ See [feature status](docs/feature-status.md) for implemented capabilities, testi
 - `tests/`: Python tool and Windows process-lifetime checks
 
 See [the scripts inventory](scripts/README.md) for active CI and development tools.
-
-See [development checks](docs/development.md) before changing server behavior.
 
 ## Building the Server
 
@@ -72,10 +68,6 @@ cargo build --release
 serve client update manifests/files without initializing the game, or `all` to
 run both. See [client updates and Portainer setup](docs/client-updates.md) for the
 publishing script, download endpoints, and shared-image container stack.
-
-The [Windows launcher](launcher/README.md) installs changed client files before
-starting the game. Build it with `scripts/build_launcher.ps1`; the EXE and its
-configuration are placed in `../sprk-client` by default.
 
 ```bash
 # Run the server (default port 8080)
