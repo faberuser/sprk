@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using NGame2.NUI;
+using NGame2.NUI.NHelper;
+using NGame2.NUI.NWindow.NLoading;
 using NGameAsset;
 using NGameAsset.NNguiAtlas;
 using NVespa;
@@ -108,7 +110,7 @@ public static class SprkImageRecovery
 
     public static void Reset(UIBundleLoader loader) { states.Remove(loader); }
 
-    static void PrepareAtlas(string path)
+    internal static void PrepareAtlas(string path)
     {
         var link = SingletonAuto<AtlasDataContainer>.instance.GetAtlasLink(path);
         if (link == null || atlases.ContainsKey(link.AtlasCode)) return;
@@ -117,7 +119,7 @@ public static class SprkImageRecovery
         bool retained = false;
         try {
             var async = (IAsyncLoad<UIAtlas>)atlas;
-            if (!async.IsDone || (async.IsValid && async.Value != null) || atlas.AssetAsync == null) return;
+            if (!async.IsDone || (async.IsValid && async.Value != null && async.Value.texture != null) || atlas.AssetAsync == null) return;
             // Retain one native atlas lease while its failed underlying request is
             // released. Give native bundle cleanup a frame before reopening it.
             atlas.AssetAsync.Close(true);
@@ -142,6 +144,50 @@ public static class SprkImageRecovery
             catch (Exception error) { Debug.LogWarning("[SPRK Images] Atlas retry failed: " + error.Message); }
             finally { NguiAtlasContainer.ReleaseAtlas(atlas, false); }
         }
+    }
+
+    static bool loadingProbeStarted;
+    static bool loadingProbeAssets;
+    public static void ProbeLoadingBackground()
+    {
+        string report = Environment.GetEnvironmentVariable("SPRK_LOADING_BACKGROUND_PROBE");
+        if (loadingProbeStarted || String.IsNullOrEmpty(report)) return;
+        if (!loadingProbeAssets) {
+            loadingProbeAssets = true;
+            string root = System.IO.Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");
+            var files = new Dictionary<string, NShared.AssetInfo>();
+            foreach (string file in System.IO.Directory.GetFiles(System.IO.Path.Combine(root, "Assetbundle"), "*", System.IO.SearchOption.AllDirectories)) {
+                string entry = file.Substring(root.Length + 1).Replace('\\', '/');
+                files[entry] = new NShared.AssetInfo { EntryName = entry };
+            }
+            SingletonAuto<AssetFileManager>.instance.Setup(files);
+        }
+        // This isolated, account-free probe reads the already installed assets
+        // before login would normally enable the native bundle loader.
+        var bundles = SingletonAuto<BundleManager>.instance;
+        NGameAsset.Define.PatchDownloaded = true;
+        if (!bundles.IsReady) return;
+        if (SingletonAuto<AtlasDataContainer>.instance.GetAtlasLink("LoadingTip/GamePlayTip/OrvelTown") == null) return;
+        loadingProbeStarted = true;
+        new GameObject("SPRK loading background probe").AddComponent<SprkLoadingBackgroundProbe>().Run(report);
+    }
+
+    public static void WatchLoadingTip(LoadingGamePlayTipComponent view)
+    {
+        WatchLoading(view, view.BackgroundImageTexture, "_backgroundImageAsset");
+    }
+
+    public static void WatchLoadingHero(LoadingHeroIntroComponent view)
+    {
+        WatchLoading(view, view.HeroBackgroundImageTexture, "_imageAsset");
+    }
+
+    static void WatchLoading(Component view, UITexture target, string field)
+    {
+        if (target == null) return;
+        var guard = view.GetComponent<SprkLoadingBackground>();
+        if (guard == null) guard = view.gameObject.AddComponent<SprkLoadingBackground>();
+        guard.Open(view, target, view.GetType().GetField(field, flags));
     }
 
     static bool probedTpIcons;
@@ -232,5 +278,159 @@ public static class SprkImageRecovery
             state.Disabled = true;
             Debug.LogWarning("[SPRK Images] Thumbnail recovery stopped: " + error.Message);
         }
+    }
+}
+
+// Loading images use PlainAssetHolder, not UIBundleLoader. Keep their native
+// ownership and completion checks, and repair only the loading image binding.
+public sealed class SprkLoadingBackground : MonoBehaviour
+{
+    Component owner;
+    UITexture target;
+    FieldInfo assetField;
+    AssetTexture asset;
+    string path;
+    float missingSince, nextPoll;
+    int attempts;
+    bool watching;
+
+    public void Open(Component view, UITexture texture, FieldInfo field)
+    {
+        owner = view; target = texture; assetField = field;
+        asset = (AssetTexture)field.GetValue(view);
+        path = asset == null ? "" : asset.Path;
+        missingSince = Time.realtimeSinceStartup;
+        nextPoll = 0; attempts = 0; watching = true;
+        BindOrCover();
+    }
+
+    bool BindOrCover()
+    {
+        var info = asset == null ? null : asset.GetTextureInfo();
+        if (info != null && info.Tex != null) {
+            if (target.mainTexture != info.Tex || target.material != info.Mtrl)
+                UIHelper.SetTextureInfo(target, info, UIHelper.EAssetTextureAssign.None);
+            return true;
+        }
+        // Native async completion can clear the widget on failure. Cover it
+        // again in LateUpdate before rendering, without delaying scene entry.
+        target.material = null;
+        target.mainTexture = Texture2D.blackTexture;
+        target.uvRect = new Rect(0, 0, 1, 1);
+        return false;
+    }
+
+    void LateUpdate()
+    {
+        if (!watching || owner == null || target == null) return;
+        try {
+            // Native release owns the asset and cancels its pending callback.
+            if (!ReferenceEquals(assetField.GetValue(owner), asset)) { watching = false; return; }
+            if (BindOrCover()) { missingSince = Time.realtimeSinceStartup; return; }
+            float now = Time.realtimeSinceStartup;
+            if (now < nextPoll || String.IsNullOrEmpty(path) || attempts >= 3) return;
+            if (now - missingSince < (asset != null && !asset.IsDone ? 8f : 0.5f)) return;
+            attempts++;
+            var holder = target.GetComponent<PlainAssetHolder>();
+            if (holder != null) holder.Close();
+            if (asset != null) asset.Close();
+            SprkImageRecovery.PrepareAtlas(path);
+            asset = UIHelper.GetPlainTexture(path);
+            assetField.SetValue(owner, asset);
+            holder = UIHelper.ResetPlaneAssetTextureAsync(owner, target, asset, UIHelper.EAssetTextureAssign.None, null);
+            if (holder != null) holder.ReleaseAssetOnClose = true;
+            missingSince = now;
+            nextPoll = now + attempts * 0.5f;
+            BindOrCover();
+            if (attempts == 1) Debug.LogWarning("[SPRK Images] Retrying loading background: " + path);
+        } catch (Exception error) {
+            watching = false;
+            Debug.LogWarning("[SPRK Images] Loading background recovery stopped: " + error.Message);
+        }
+    }
+
+    void OnDisable() { watching = false; }
+}
+
+// Opt-in regression probe runs in a separate client process, through the patched
+// native initializer and real atlas/PlainAssetHolder asynchronous lifecycle.
+public sealed class SprkLoadingBackgroundProbe : MonoBehaviour
+{
+    string report;
+    GameObject viewObject;
+    readonly List<string> passed = new List<string>();
+    const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+    static readonly MethodInfo initialize = typeof(LoadingGamePlayTipComponent).GetMethod("InitBackgroundImage", flags);
+    static readonly FieldInfo nativeAsset = typeof(LoadingGamePlayTipComponent).GetField("_backgroundImageAsset", flags);
+
+    public void Run(string path) { report = path; StartCoroutine(Observe(Check())); }
+    IEnumerator Observe(IEnumerator checks)
+    {
+        while (true) {
+            object current = null;
+            bool more = false;
+            Exception failure = null;
+            try { more = checks.MoveNext(); if (more) current = checks.Current; }
+            catch (Exception error) { failure = error; }
+            if (failure != null || !more) {
+                string error = failure == null ? "" : failure.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
+                System.IO.File.WriteAllText(report, "{\"success\":" + (failure == null ? "true" : "false") + ",\"checks\":[\"" + String.Join("\",\"", passed.ToArray()) + "\"],\"error\":\"" + error + "\"}");
+                if (viewObject != null) Destroy(viewObject);
+                Application.Quit();
+                yield break;
+            }
+            yield return current;
+        }
+    }
+    void Require(bool value, string name)
+    {
+        if (!value) throw new InvalidOperationException(name);
+        passed.Add(name);
+    }
+    IEnumerator Check()
+    {
+        viewObject = new GameObject("Loading tip test");
+        var imageObject = new GameObject("Background");
+        imageObject.transform.SetParent(viewObject.transform, false);
+        var texture = imageObject.AddComponent<UITexture>();
+        var view = viewObject.AddComponent<LoadingGamePlayTipComponent>();
+        view.BackgroundImageTexture = texture;
+        initialize.Invoke(view, new object[] { "OrvelTown" });
+        Require(texture.mainTexture != null, "opaque before asynchronous completion");
+        float deadline = Time.realtimeSinceStartup + 15f;
+        while ((texture.mainTexture == null || texture.mainTexture == Texture2D.blackTexture) && Time.realtimeSinceStartup < deadline) yield return null;
+        Require(texture.mainTexture != null && texture.mainTexture != Texture2D.blackTexture, "native background atlas loads");
+        var original = texture.mainTexture;
+        texture.mainTexture = null;
+        yield return null; yield return null;
+        Require(texture.mainTexture == original, "lost binding repaired without reloading");
+
+        var holder = texture.GetComponent<PlainAssetHolder>();
+        holder.Close();
+        var invalid = new AssetTexture(); invalid.Open("LoadingTip/GamePlayTip/SPRK_MISSING_TEST");
+        nativeAsset.SetValue(view, invalid);
+        SprkImageRecovery.WatchLoadingTip(view);
+        Require(texture.mainTexture == Texture2D.blackTexture, "failed request has opaque fallback");
+        deadline = Time.realtimeSinceStartup + 4f;
+        while (Time.realtimeSinceStartup < deadline) yield return null;
+        var guard = view.GetComponent<SprkLoadingBackground>();
+        Require((int)typeof(SprkLoadingBackground).GetField("attempts", flags).GetValue(guard) == 3, "failed requests retry exactly three times");
+        var exhausted = nativeAsset.GetValue(view);
+        deadline = Time.realtimeSinceStartup + 1f;
+        while (Time.realtimeSinceStartup < deadline) yield return null;
+        Require(ReferenceEquals(exhausted, nativeAsset.GetValue(view)), "exhausted request does not loop");
+
+        initialize.Invoke(view, new object[] { "OrvelTown" });
+        deadline = Time.realtimeSinceStartup + 15f;
+        while ((texture.mainTexture == null || texture.mainTexture == Texture2D.blackTexture) && Time.realtimeSinceStartup < deadline) yield return null;
+        Require(texture.mainTexture != null && texture.mainTexture != Texture2D.blackTexture, "next loading screen recovers original art");
+        viewObject.SetActive(false);
+        typeof(LoadingGamePlayTipComponent).GetMethod("NVespa.NPrefab2.InitOnCreate.OnRelease", flags).Invoke(view, null);
+        Require(nativeAsset.GetValue(view) == null && texture.mainTexture == null, "native pool release clears asset and binding");
+        viewObject.SetActive(true);
+        initialize.Invoke(view, new object[] { "OrvelTown" });
+        deadline = Time.realtimeSinceStartup + 15f;
+        while ((texture.mainTexture == null || texture.mainTexture == Texture2D.blackTexture) && Time.realtimeSinceStartup < deadline) yield return null;
+        Require(texture.mainTexture != null && texture.mainTexture != Texture2D.blackTexture, "pooled loading screen reloads art");
     }
 }

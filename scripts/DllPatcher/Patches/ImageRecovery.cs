@@ -6,6 +6,19 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program
 {
+    static void PrepareLoadingBackgroundProbe(string managed)
+    {
+        // Test runner passes its copied Managed directory; never install this
+        // opt-in probe hook into the player's automation assembly.
+        var path = Path.Combine(Path.GetFullPath(managed), "SprkAutomation.dll");
+        using var assembly = AssemblyDefinition.ReadAssembly(path, new ReaderParameters { InMemory = true });
+        using var helper = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "SprkImageRecovery.dll"));
+        var method = assembly.MainModule.GetType("SprkAutomation").Methods.Single(m => m.Name == "Update");
+        var hook = assembly.MainModule.ImportReference(helper.MainModule.GetType("SprkImageRecovery").Methods.Single(m => m.Name == "ProbeLoadingBackground"));
+        method.Body.GetILProcessor().InsertBefore(method.Body.Instructions[0], Instruction.Create(OpCodes.Call, hook));
+        assembly.Write(path);
+    }
+
     static void PatchImageRecovery(ModuleDefinition module, ModuleDefinition helper)
     {
         var worker = helper.GetType("SprkImageRecovery");
@@ -37,6 +50,19 @@ partial class Program
         Prefix(update, "Tick", OpCodes.Ldarg_0);
         foreach (var name in new[] { "OnDisable", "OnDestroy" }) Prefix(loader.Methods.Single(m => m.Name == name), "Reset", OpCodes.Ldarg_0);
         Prefix(module.GetTypes().Single(t => t.Name == "GlobalUpdateBehaviour").Methods.Single(m => m.Name == "Update"), "TickGlobal");
+        foreach (var entry in new[] {
+            ("LoadingGamePlayTipComponent", "InitBackgroundImage", "WatchLoadingTip"),
+            ("LoadingHeroIntroComponent", "InitHeroBackground", "WatchLoadingHero") }) {
+            var method = module.GetTypes().Single(t => t.Name == entry.Item1).Methods.Single(m => m.Name == entry.Item2);
+            if (method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == entry.Item3)) continue;
+            // Rewrite each return so existing branches also pass through the hook.
+            var il = method.Body.GetILProcessor();
+            foreach (var ret in method.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray()) {
+                ret.OpCode = OpCodes.Ldarg_0;
+                var call = Instruction.Create(OpCodes.Call, Hook(entry.Item3));
+                il.InsertAfter(ret, call); il.InsertAfter(call, Instruction.Create(OpCodes.Ret));
+            }
+        }
         VerifyImageRecovery(module);
     }
 
@@ -44,8 +70,8 @@ partial class Program
     {
         var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
             .Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.Name == "SprkImageRecovery").ToArray();
-        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickGlobal", "Reset" })
-            if (calls.Count(m => m.Name == name) != (name == "Reset" ? 2 : 1)) throw new InvalidOperationException("Missing or duplicate image recovery hook: " + name);
+        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickGlobal", "Reset", "WatchLoadingTip", "WatchLoadingHero" })
+            if (calls.Count(m => m.Name == name) != (name == "Reset" || name == "WatchLoadingHero" ? 2 : 1)) throw new InvalidOperationException("Missing or duplicate image recovery hook: " + name);
         Console.WriteLine("Verified image cache guards, bounded widget recovery, atlas retry scheduling and lifecycle cleanup.");
     }
 

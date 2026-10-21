@@ -50,6 +50,7 @@ namespace DllPatcher
             if (args.Contains("--verify-orvel-visuals")) { VerifyOrvelVisualsFile(Path.Combine(args[0],"King's Raid_Data","Managed","Assembly-CSharp.dll"+(args.Contains("--stage-only")?".orvel-visuals-staged":""))); return; }
             if (args.Contains("--verify-conquest-session-cache")) { VerifyConquestSessionCache(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-conquest-party-cleanup")) { VerifyConquestPartyCleanup(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--prepare-loading-background-probe")) { PrepareLoadingBackgroundProbe(args[0]); return; }
             if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-image-recovery")) { VerifyImageRecoveryFile(args[0]); return; }
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
