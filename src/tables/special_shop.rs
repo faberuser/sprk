@@ -28,7 +28,7 @@ pub(super) fn append(live: &mut BattleTable, directory: &Path) -> Result<(), Box
             return Err(format!("Unsupported Special Shop currency {currency}").into());
         }
         let price_type = live.enums.get("CurrencyType").and_then(|e| e.get(currency)).ok_or("Unknown Special Shop currency")?;
-        let price = setting("Price").as_i64().filter(|v| *v > 0 && *v <= i32::MAX as i64).ok_or("Invalid Special Shop price")?;
+        let price = setting("Price").as_i64().filter(|v| *v >= 0 && *v <= i32::MAX as i64).ok_or("Invalid Special Shop price")?;
         let limit = setting("PurchasableCount").as_i64().filter(|v| *v >= 0 && *v <= i32::MAX as i64).ok_or("Invalid Special Shop stock limit")?;
         let reset = setting("ResetSeconds").as_i64().filter(|v| *v == 0 || *v == 86400 || *v == 604800).ok_or("Special Shop reset must be 0, 86400 or 604800 seconds")?;
         let name = row["ProductName"].as_str().filter(|v| !v.is_empty()).ok_or("Missing Special Shop product name")?;
@@ -37,7 +37,7 @@ pub(super) fn append(live: &mut BattleTable, directory: &Path) -> Result<(), Box
             "DailyReset":reset==86400,"WeeklyReset":if reset==604800{vec![1]}else{vec![]},"MonthlyResetDate":[],
             "Begin":row["Begin"].as_i64().unwrap_or(0),"End":row["End"].as_i64().unwrap_or(0),"Enabled":row["Enabled"]!=false,
             "BeginTime":"","EndTime":"","Durational":0,
-            "CardType":2,"ShowIndex":id,"Flag":0,"UseItemCode":[],"Count":[],"ItemInfos":[],
+            "CardType":2,"ShowIndex":id,"Flag":if price==0{2}else{0},"UseItemCode":[],"Count":[],"ItemInfos":[],
             "StepProductGroup":[],"ExceptServer":[],"SelectAttendanceIndices":[],"BonusProductInfos":[],"ProbabilityIndices":[]});
         if let Some(code) = row["ItemCode"].as_str() {
             let index = codes.get(code).filter(|v| **v > 0).ok_or_else(|| format!("Unknown Special Shop item {code}"))?;

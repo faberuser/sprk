@@ -5,7 +5,7 @@ fn products(s: &AppState) -> impl Iterator<Item = &Value> {
         .as_array()
         .into_iter()
         .flatten()
-        .filter(|v| active(v) && n(v, "PriceType") > 0 && n(v, "Price") > 0)
+        .filter(|v| active(v) && n(v, "PriceType") > 0 && n(v, "Price") >= 0)
 }
 fn period(v: &Value) -> i64 {
     if n(v, "ResetSeconds") > 0 {
@@ -108,7 +108,7 @@ async fn price(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<(i64, Val
         0
     };
     let p = n(d, "Price") * (100 - discount) / 100;
-    if p <= 0 {
+    if p < 0 || (p == 0 && n(d, "Price") > 0) {
         return Err(rule("InvalidCost"));
     }
     Ok((
@@ -277,7 +277,11 @@ pub(super) async fn execute(
             if n(base, "PurchasableCount") > 0 && count >= n(base, "PurchasableCount") {
                 return Err(rule("ExceededPurchaseCount"));
             }
-            let dec = charge(db, s, a, n(base, "PriceType"), n(&d, "Price")).await?;
+            let dec = if n(&d, "Price") == 0 {
+                Value::Null
+            } else {
+                charge(db, s, a, n(base, "PriceType"), n(&d, "Price")).await?
+            };
             let mut rewards = Rewards::default();
             for i in d["ItemInfos"].as_array().into_iter().flatten() {
                 item::give(
@@ -332,7 +336,9 @@ pub(super) async fn execute(
             // The native shop applies CurrencyResults to the account. Its
             // DecCurrencyResult field alone does not refresh the displayed
             // balance. Apply the debit first, before any currency rewards.
-            out["CurrencyResults"].as_array_mut().unwrap().insert(0, dec.clone());
+            if !dec.is_null() {
+                out["CurrencyResults"].as_array_mut().unwrap().insert(0, dec.clone());
+            }
             out["DecCurrencyResult"] = dec;
             out["PlayerProductPurchaseInfo"] = v;
             out["firstPurchase"] = Value::Null;

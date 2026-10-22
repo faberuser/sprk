@@ -6411,6 +6411,7 @@
       "Index": 3094170,
       "Category": "Event",
       "ProductName": "Free Gold",
+      "Price": 0,
       "ItemCode": "PACKAGE_PAY_GOLD_FREE_10000000",
       "ItemIndex": 94170,
       "ItemCount": 1
@@ -8563,6 +8564,7 @@
       "Index": 3094594,
       "Category": "Event",
       "ProductName": "World Tree Mission Free Package A",
+      "Price": 0,
       "ItemCode": "PACKAGE_PAY_WORLDTREE_COMPLETE_1",
       "ItemIndex": 94594,
       "ItemCount": 1
@@ -8571,6 +8573,7 @@
       "Index": 3094595,
       "Category": "Event",
       "ProductName": "World Tree Mission Free Package B",
+      "Price": 0,
       "ItemCode": "PACKAGE_PAY_WORLDTREE_COMPLETE_2",
       "ItemIndex": 94595,
       "ItemCount": 1
