@@ -92,7 +92,13 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         _ => events::execute(&mut tx, s, a, &r, action).await,
     };
     match result {
-        Ok(v) => {
+        Ok(mut v) => {
+            if contract["Response"].get("OpendMissionCategories").is_some() {
+                // Native shop handling replaces the entire unlocked-category
+                // list. An empty default would lock missions until lobby entry.
+                v["OpendMissionCategories"] =
+                    crate::api::progression::mission_categories(&mut tx, s, a).await?;
+            }
             tx.commit().await?;
             let mut out = item::success();
             if let Some(fields) = contract["Response"].as_object() {

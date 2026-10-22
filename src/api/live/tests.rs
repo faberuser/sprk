@@ -132,6 +132,34 @@ async fn unlimited_shop_repeated_purchases_and_cached_selection_use_current_stoc
 }
 
 #[tokio::test]
+async fn shop_purchases_preserve_current_mission_unlocks() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    for progressed in [false, true] {
+        if progressed {
+            sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'subquest',10110,1,'all')")
+                .bind(a).execute(&s.db).await.unwrap();
+        }
+        let expected = crate::api::progression::login(&s, a).await.unwrap()["OpendMissionCategories"].clone();
+        let purchase = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
+        ok(&purchase);
+        let categories = purchase["OpendMissionCategories"].as_array().unwrap();
+        // These sections have no prerequisite and must stay usable after buying.
+        for main in [2, 3, 6, 7, 8, 9, 10, 11, 12] {
+            assert!(categories.iter().any(|c| n(c, "MainCategoryIndex") == main), "Missing section {main}");
+        }
+        assert_eq!(purchase["OpendMissionCategories"], expected);
+        assert_eq!(categories.contains(&json!({"MainCategoryIndex":4,"SubCategoryIndex":1})), progressed);
+        assert!(!categories.iter().any(|c| n(c, "MainCategoryIndex") >= 98));
+    }
+    // Failed purchases must not send a replacement list either.
+    sqlx::query("UPDATE user_info SET gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let rejected = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
+    assert_ne!(rejected["Result"], "Success");
+    assert!(rejected["OpendMissionCategories"].is_null());
+}
+
+#[tokio::test]
 async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
     let (mut s, u) = setup().await;
     daily_limit(&mut s, &[3093009]);
