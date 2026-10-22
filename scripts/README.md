@@ -17,16 +17,20 @@ See [CI client releases](../docs/github-client-updates.md) and
 
 ## Development tools
 
-| File/directory                                   | Purpose                                                           |
-| ------------------------------------------------ | ----------------------------------------------------------------- |
-| `DllPatcher/`                                    | Client patch source, embedded resources, verifiers and self-tests |
-| `DllDisasm/`                                     | Read-only DLL inspection tool documented in the repository README |
-| `patch.ps1`, `patch.bat`                         | Manual DLL/assets patching and restore entry points               |
-| `requirements-client.txt`                        | Pinned UnityPy dependency for client asset cleanup                |
-| `build_launcher.ps1`                             | Build/install the Windows launcher                                |
-| `start_local_server.ps1`                         | Start local game/update services; called by `../start_server.bat` |
-| `import_local_env.ps1`, `LocalServerLifetime.cs` | Local server environment loading and child-process cleanup        |
-| `client_automation.py`, `client-scenarios/`      | Opt-in real-client development and gameplay smoke scenarios       |
+| File/directory                                   | Purpose                                                                          |
+| ------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `DllPatcher/`                                    | Client patch source, embedded resources, verifiers and self-tests                |
+| `DllDisasm/`                                     | Read-only DLL inspection tool documented in the repository README                |
+| `patch.ps1`, `patch.bat`                         | Manual DLL/assets patching and restore entry points                              |
+| `requirements-client.txt`                        | Pinned UnityPy dependency for client asset cleanup                               |
+| `build_android_endpoint_test.py`                 | Build and verify a signed Android bootstrap-endpoint test APK                    |
+| `build_android_accounts.py`, `android/`          | Build and verify the Android SPRK password-account test APK                      |
+| `convert_android_bundle_pack.py`                 | Convert archived Android metadata to native JsonBin v2, verifying the value tree |
+| `install_android_content.py`                     | Install a separately signed Android snapshot and verify every device file        |
+| `build_launcher.ps1`                             | Build/install the Windows launcher                                               |
+| `start_local_server.ps1`                         | Start local game/update services; called by `../start_server.bat`                |
+| `import_local_env.ps1`, `LocalServerLifetime.cs` | Local server environment loading and child-process cleanup                       |
+| `client_automation.py`, `client-scenarios/`      | Opt-in real-client development and gameplay smoke scenarios                      |
 
 The standalone WebSocket probe was removed because its test driver no longer
 exists. The standalone client uploader was replaced by the CI build/publish
