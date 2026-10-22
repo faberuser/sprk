@@ -41,6 +41,8 @@ partial class Program
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
         VerifyShopPurchaseLimitsFile(clientRoot, false);
+        VerifyPetFeedingFile(clientRoot);
+        TestPetFeeding(clientRoot);
         TestShopPurchaseLimits(clientRoot);
         VerifySelectorCountLimitFile(clientRoot, false);
         TestSelectorCountLimit(clientRoot);

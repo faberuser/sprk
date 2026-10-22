@@ -17,6 +17,9 @@ namespace DllPatcher
             if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
+            if (args.Contains("--pet-feeding-only")) { InstallPetFeeding(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-pet-feeding")) { VerifyPetFeedingFile(args[0]); return; }
+            if (args.Contains("--self-test-pet-feeding")) { TestPetFeeding(args[0]); return; }
             if (args.Contains("--restore-soul-weapon-cinematic")) {
                 var source = Array.IndexOf(args, "--source");
                 if (source < 0 || source + 1 >= args.Length) throw new ArgumentException("Cinematic restoration requires --source <original-assembly>");
@@ -191,6 +194,7 @@ namespace DllPatcher
                 PatchVoiceLanguage(module);
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
+                PatchPetFeeding(module);
                 PatchSelectorCountLimit(module);
                 PatchCraftShortcut(module);
                 VerifySoulWeaponCinematic(module);
