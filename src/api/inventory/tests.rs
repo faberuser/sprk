@@ -9,6 +9,47 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
+async fn unequip_all_preserves_native_repeated_slots_and_clears_every_gear_position() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut slots = Vec::new();
+    for _ in 1..=10 {
+        slots.push(sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)")
+            .bind(a).execute(&s.db).await.unwrap().last_insert_rowid());
+    }
+    for encoding in ["native", "array", "json"] {
+        for (part, slot) in slots.iter().enumerate() {
+            sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{}=? WHERE account_id=? AND hero_index=1", part+1))
+                .bind(slot).bind(a).execute(&s.db).await.unwrap();
+        }
+        let body = match encoding {
+            "native" => form(&u, &slots.iter().map(|slot| format!("EquipItemSlotIndex={slot}")).collect::<Vec<_>>().join("&")),
+            "array" => form(&u, &format!("EquipItemSlotIndex={}", json!(slots))),
+            _ => Bytes::from(json!({"SessionKey":u.user_info.session_key,"EquipItemSlotIndex":slots}).to_string()),
+        };
+        let response = super::equip::unset_equip(State(s.clone()), body).await.unwrap().0;
+        assert_eq!(response.result, "Success");
+        assert_eq!(response.unequipped_slot_index.iter().map(|v| *v as i64).collect::<Vec<_>>(), slots);
+        let hero = crate::api::heroes::info(&mut s.db.acquire().await.unwrap(), a, 1).await.unwrap();
+        for part in 1..=10 { assert_eq!(hero[format!("EquipItemSlotIndex{part}")], 0); }
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(), 10);
+    }
+    // Invalid trailing values must not unequip the valid leading slot.
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1")
+        .bind(slots[0]).bind(a).execute(&s.db).await.unwrap();
+    for trailing in ["bad", "0", "-1", "2147483648"] {
+        let body = form(&u, &format!("EquipItemSlotIndex={}&EquipItemSlotIndex={trailing}", slots[0]));
+        assert!(super::equip::unset_equip(State(s.clone()), body).await.is_err());
+    }
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT equip_item_slot_index_1 FROM heroes WHERE account_id=? AND hero_index=1")
+        .bind(a).fetch_one(&s.db).await.unwrap(), slots[0]);
+    // Single-item clicks still use the same endpoint successfully.
+    let response = super::equip::unset_equip(State(s.clone()), form(&u, &format!("EquipItemSlotIndex={}", slots[0]))).await.unwrap().0;
+    assert_eq!(response.unequipped_slot_index, vec![slots[0] as i32]);
+}
+
+#[tokio::test]
 async fn archived_arena_shops_restore_catalog_prices_and_purchase_receipts() {
     use crate::api::inventory::shop;
     let (s,u)=setup().await;
