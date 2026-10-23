@@ -206,6 +206,16 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(selected==null || !selected.OpenRoot.gameObject.activeInHierarchy)
                     throw new InvalidOperationException("Raid node is not open");
                 selected.OnClickEnter();
+            } else if(cmd.action=="video-probe") {
+                if(!String.IsNullOrEmpty(cmd.text)) {
+                    if(String.IsNullOrEmpty(NShared.GameRoot.Instance.VideoDataContainer.GetVideoPath(cmd.text)))
+                        throw new InvalidOperationException("Unknown cinematic video code");
+                    if(NGame2.NUI.NWindow.VideoManager.IsPlaying())
+                        throw new InvalidOperationException("A cinematic is already running");
+                    NGame2.NUI.NWindow.VideoManager.Open_VideoCode(cmd.text);
+                } else if(cmd.target==1 && NGame2.NUI.NWindow.VideoManager.IsPlaying()) {
+                    NGame2.NUI.NWindow.VideoManager.SkipToClose(null);
+                }
             } else if(cmd.action=="story-auto-probe") {
                 if(!String.IsNullOrEmpty(cmd.text)) {
                     var parts=cmd.text.Split(':');
@@ -286,6 +296,19 @@ public sealed class SprkAutomation : MonoBehaviour
                 {"texture",(int)NVespa.SystemOptionData.Spec},{"bgm",NVespa.SystemOptionData.Sound_BgmVolume},
                 {"outline",NVespa.SystemOptionData.Render_EnableOutline},
                 {"prefsPath",Application.persistentDataPath}});
+            if(cmd.action=="video-probe") {
+                var manager=NVespa.SingletonUpdater<NGame2.NUI.NWindow.VideoManager>.instance;
+                var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public;
+                var type=manager.GetType();
+                var player=(UnityEngine.Video.VideoPlayer)type.GetField("VideoPlayer",flags).GetValue(manager);
+                reply.materials.Add(new Dictionary<string,object>{{"kind","video"},
+                    {"state",type.GetField("_state",flags).GetValue(manager).ToString()},
+                    {"active",NGame2.NUI.NWindow.VideoManager.IsPlaying()},
+                    {"prepared",player!=null && player.isPrepared},{"playing",player!=null && player.isPlaying},
+                    {"frame",player==null?-1:player.frame},{"time",player==null?0:player.time},
+                    {"url",player==null?"":player.url},{"width",player==null?0:player.width},
+                    {"height",player==null?0:player.height}});
+            }
             if(cmd.action=="story-auto-probe") {
                 var helper=AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a=>a.GetName().Name=="SprkStoryAuto");
                 bool active=helper!=null && (bool)helper.GetType("SprkStoryAuto").GetMethod("Active").Invoke(null,null);

@@ -36,6 +36,7 @@ The default selection includes all files under:
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/TableData`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit`
+- `King's Raid_Data/Documents/Patch/StandaloneWindows/Video`
 
 Generate release-signing keys once with
 `python scripts/release/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`

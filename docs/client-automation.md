@@ -128,3 +128,10 @@ does not change materials or gameplay. Null slots on visible renderers can ident
 magenta effects. The old standalone field-projectile asset repair script is no
 longer included. Asset changes now belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
+
+The opt-in bridge also accepts `video-probe` through the Python `request` API.
+Without parameters it reports native cinematic state, preparation, playback,
+decoded frame, dimensions and resolved URL. Set `text` to a valid video-table
+code to play that movie through the native manager; `target=1` invokes native
+Skip. It does not mark tutorials or stages complete. This probe requires the
+automation environment and is unavailable in ordinary client launches.
