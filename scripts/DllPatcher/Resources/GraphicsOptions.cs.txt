@@ -105,10 +105,20 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             if(tab.GameOptionTab!=GameOptionTab.Game)continue;
             Add(tab,"Anti-aliasing", "Preset",new[]{"Off","Performance","Balanced","Quality"});
             Add(tab,"Render scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
+            foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true))ConfigureFrameRow(row);
             PlaceBelowScreen(tab);
             tab.GameOptionGrid.RepositionGrid();
         }
     }
+    public static bool IsFrameRow(GameOptionToggle4Component row) {
+        return row.gameOptionData!=null && row.gameOptionData.FieldName=="Graphic_FrameControl";
+    }
+    public static bool ConfigureFrameRow(GameOptionToggle4Component row) {
+        if(!IsFrameRow(row))return false;
+        ConfigureChoices(row,"Frame",new[]{"30","60","144","Auto","Auto+"});
+        return true;
+    }
+    static readonly int[] frameValues={30,60,144,2,4};
     static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab) {
         var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
         var screen=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_WindowControl");
@@ -148,6 +158,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         row.ParentRoot.Root.SetActive(true);row.ChildRoot.Root.SetActive(false);
         row.ParentRoot.Label_OptionName.text=title;
         if(row.ParentRoot.ToolTipImage!=null)row.ParentRoot.ToolTipImage.SetActive(false);
+        ConfigureChoices(row,key,choices);
+    }
+    static void ConfigureChoices(GameOptionToggle4Component row,string key,string[] choices) {
         var toggles=new List<UIToggle>{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4};
         if(choices.Length==5) {
             var fifth=toggles[3].transform.parent.Find("Toggle5");
@@ -174,6 +187,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                 if(syncing)return;
                 if(toggle.value) {
                     if(key=="Preset")ApplyPreset(choice);
+                    else if(key=="Frame"){NVespa.SystemOptionData.Graphic_FrameControl=(EFrameControl)frameValues[choice];SprkTestPrefs.Save();}
                     else {SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100+25*choice);SprkTestPrefs.Save();}
                     instance.ResetHistories();
                 }
@@ -184,6 +198,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         if(optionGrid!=null)optionGrid.Reposition();
     }
     static int ReadIndex(string key) {
+        if(key=="Frame")return Mathf.Max(0,Array.IndexOf(frameValues,(int)NVespa.SystemOptionData.Graphic_FrameControl));
         if(key=="Preset"){EnsurePreset();return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Preset",2),0,3);}
         int n=SprkTestPrefs.GetInt("Sprk.Graphics."+key,key=="MSAA"?2:key=="Scale"?100:key=="Jitter"?2:key=="Sharpness"?1:key=="Stationary"||key=="Motion"?3:0);
         if(key=="MSAA")return n==2?1:n==4?2:n==8?3:0;
@@ -235,6 +250,26 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         for(int cycle=0;cycle<8;cycle++)Setup(window);
         report.Add("settingsOrder="+String.Join(",",wrapper.Grid.GetChildList().Select(t=>t.name).ToArray()));
 
+        var frameRow=UIHelper.AddGridItem<GameOptionToggle4Component>(wrapper,GameOptionToggle4Component.PrefabAuto);
+        frameRow.gameOptionData=new GameOptionData{FieldName="Graphic_FrameControl"};
+        ConfigureFrameRow(frameRow);
+        var frameChoices=new[]{frameRow.toggleInfo.Toggle1,frameRow.toggleInfo.Toggle2,frameRow.toggleInfo.Toggle3,frameRow.toggleInfo.Toggle4,frameRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>()};
+        foreach(var toggle in frameChoices)typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
+        bool frameOk=true;
+        // Exercise native fixed and automatic setters, ending at 144 FPS.
+        foreach(int i in new[]{0,1,2,3,4,2}) {
+            frameChoices[i].Set(true);
+            frameOk &= (int)NVespa.SystemOptionData.Graphic_FrameControl==frameValues[i];
+            if(i<3)frameOk &= Application.targetFrameRate==frameValues[i] && QualitySettings.vSyncCount==0;
+            if(i==3)frameOk &= Application.targetFrameRate==-1 && QualitySettings.vSyncCount==1;
+            if(i==4)frameOk &= Application.targetFrameRate>0;
+            for(int cycle=0;cycle<8;cycle++)frameRow.Refresh();
+            frameRow.OnClickToggle();
+            frameOk &= frameChoices[i].value && frameChoices.Count(t=>t.value)==1 && (int)NVespa.SystemOptionData.Graphic_FrameControl==frameValues[i];
+        }
+        frameOk &= frameChoices.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"30","60","144","Auto","Auto+"});
+        frameOk &= new NVespa.LocalStorageEnum<EFrameControl>(EFrameControl.Manual_30,"KingsRaid_SystemOption_graphicFrameContorl").Value==EFrameControl.Manual_144;
+        report.Add("frameChoicesAnd144="+frameOk+" target="+Application.targetFrameRate+" saved="+SprkTestPrefs.GetString("KingsRaid_SystemOption_graphicFrameContorl","missing"));
         Destroy(uiHost);
         SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
         for(int preset=0;preset<4;preset++) {

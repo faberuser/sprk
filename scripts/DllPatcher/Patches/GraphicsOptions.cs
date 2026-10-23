@@ -30,6 +30,15 @@ partial class Program {
             throw new InvalidOperationException("Temporary AA comparison hook must be inert.");
         if(bridge.Methods.Any(m=>m.Name=="OnGUI" || m.Name=="PollComparisonInput" || m.Name=="ComparisonPreset"))
             throw new InvalidOperationException("Temporary AA comparison input or popup remains.");
+        if(Convert.ToInt32(game.MainModule.GetType("NShared.EFrameControl").Fields.Single(f=>f.Name=="Manual_144").Constant)!=144)
+            throw new InvalidOperationException("Missing native 144 FPS mode.");
+        foreach(var pair in new[]{("Refresh","ConfigureFrameRow"),("OnClickToggle","IsFrameRow")}) {
+            var method=game.MainModule.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component").Methods.Single(m=>m.Name==pair.Item1);
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkGraphicsOptions" && r.Name==pair.Item2))throw new InvalidOperationException("Missing FPS row hook.");
+            VerifyArenaResultStack(method);
+        }
+        var displayCheck=game.MainModule.GetType("NGame2.NUI.NWindow.GameOptionWindow").Methods.Single(m=>m.Name=="CheckDeviceRefreshRate");
+        if(displayCheck.Body.Instructions.Count!=1 || displayCheck.Body.Instructions[0].OpCode!=OpCodes.Ret)throw new InvalidOperationException("FPS choices must remain available at every refresh rate.");
         var add=bridge.Methods.Single(m=>m.Name=="Add");
         if(!add.Body.Instructions.Any(i=>i.Operand is GenericInstanceMethod m && m.Name=="AddGridItem" && m.GenericArguments.Any(t=>t.Name=="GameOptionToggle4Component")))throw new InvalidOperationException("Graphics choices must use the native toggle row prefab.");
         foreach(var call in new[]{"GetRenderTextureSupportedMSAASampleCount","Init","ResetHistory","Blit","get_supportsMotionVectors"})
@@ -63,6 +72,20 @@ partial class Program {
                 var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item3)));
                 il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
             }
+        }
+        // Keep the full native row available on 60 Hz displays too.
+        var refreshRate=module.GetType("NGame2.NUI.NWindow.GameOptionWindow").Methods.Single(m=>m.Name=="CheckDeviceRefreshRate");
+        refreshRate.Body.Instructions.Clear();refreshRate.Body.Variables.Clear();refreshRate.Body.ExceptionHandlers.Clear();
+        refreshRate.Body.GetILProcessor().Emit(OpCodes.Ret);
+        var toggleType=module.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component");
+        foreach(var pair in new[]{("Refresh","ConfigureFrameRow"),("OnClickToggle","IsFrameRow")}) {
+            var method=toggleType.Methods.Single(m=>m.Name==pair.Item1);
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkGraphicsOptions" && r.Name==pair.Item2))continue;
+            var il=method.Body.GetILProcessor();var first=method.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item2))));
+            il.InsertBefore(first,il.Create(OpCodes.Brfalse,first));
+            il.InsertBefore(first,il.Create(OpCodes.Ret));
         }
         var factory=module.GetType("NShader.FilterBase").Methods.Single(m=>m.Name=="CreateRenderTarget");
         factory.Body.Instructions.Clear();factory.Body.Variables.Clear();factory.Body.ExceptionHandlers.Clear();

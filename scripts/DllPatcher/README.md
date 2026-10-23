@@ -339,3 +339,5 @@ Graphics settings use the native GameOptionToggle4Component checkbox row rather 
 
 
 Temporary AA comparison hotkeys and their popup have been removed. Change AA presets through Settings. The old preview hook remains inert for compatibility with previously patched clients.
+
+The native Max Frame row exposes 30 / 60 / 144 / Auto / Auto+ on all display refresh rates. The 144 choice uses EFrameControl.Manual_144 and native settings persistence; fixed frame modes disable V-Sync. The fifth native-style toggle is reused across refreshes. Validate the staged helper and native FPS setters with python scripts/client/verify_graphics_options.py in a fresh isolated client. This verifies the requested FPS target, not sustained gameplay performance.
