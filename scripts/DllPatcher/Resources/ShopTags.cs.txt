@@ -1,0 +1,72 @@
+using System;
+using System.Linq;
+using NShared;
+using NGame2.NAccount;
+using NVespa.NSingleton;
+
+// Reconstructed offers have new product IDs. Keep native tag UI and ordering,
+// but classify those offers using their server-provided category/name.
+public static class SprkShopTags {
+    static readonly System.Collections.Generic.Dictionary<NewPayShopTagData,int[]> sourceIndices=new System.Collections.Generic.Dictionary<NewPayShopTagData,int[]>();
+    public static bool Matches(int tag,string name,string category,int type) {
+        name=(name??"").ToUpperInvariant();
+        switch(tag) {
+            case 1:return name.Contains("HERO") && !name.Contains("HEROIC");
+            case 2:return category=="Beginner";
+            case 3:return category=="Return";
+            case 4:return name.Contains("UNIQUE WEAPON");
+            case 5:return name.Contains("UNIQUE TREASURE");
+            case 6:return name.Contains("ARTIFACT");
+            case 7:case 20:return type==2 || name.Contains("RUBY");
+            case 8:return name.Contains("SKILL BOOK") || name.Contains("SKILLBOOK");
+            case 9:return name.Contains("AWAKEN");
+            case 10:return name.Contains("EXP ") || name.Contains("EXPERIENCE");
+            case 11:return category=="Booster" || name.Contains("BOOST");
+            case 12:return name.Contains("FRAGMENT");
+            case 13:return type==3 || name.Contains("GOLD");
+            case 14:return category=="Stamina" || name.Contains("STAMINA");
+            case 15:return name.Contains("ARMOR");
+            case 16:return name.Contains("COSTUME");
+            case 17:return name.Contains("SUMMON") || name.Contains("GACHA");
+            case 18:return name.Contains("RUNE");
+            case 19:return name.Contains("ATTENDANCE");
+            case 21:return name.Contains("REFORGE");
+            case 22:return name.Contains("NPC");
+            case 24:return name.Contains("SOUL WEAPON") || name.Contains("SOULWEAPON");
+            case 25:return name.Contains("SOULSTONE") || name.Contains("SOUL STONE");
+            case 27:return name.Contains("ETHER");
+            case 28:return name.Contains("TRANSCENDENCE POINT");
+            case 30:return name.Contains("WEEKLY");
+            case 31:return name.Contains("INVENTORY") || name.Contains("BAG EXPANSION");
+            case 32:return name.Contains("ENCHANT");
+            case 33:return name.Contains("ACCESSORY");
+            case 34:return category=="Technomagic" || name.Contains("TECHNOMAGIC");
+            case 35:return name.Contains("CRYSTAL");
+            case 36:return name.Contains("REINFORC");
+            case 37:return category=="Event";
+            case 38:return name.Contains("RESTORE");
+            case 40:return name.Contains("CHANGE");
+            case 41:return name.Contains("AWAKENING STONE");
+            case 42:return name.Contains("HOT DEAL") || name.Contains("HOTDEAL");
+            case 43:return name.Contains("SHARD");
+            default:return false;
+        }
+    }
+    public static void Refresh(NewPayShopTagDataContainer tags) {
+        if(!GlobalAutoBehaviour<AccountManager>.isValidInstance)return;
+        var manager=GlobalAutoBehaviour<AccountManager>.instance.NewPayShopProductManager;
+        if(manager==null)return;
+        var products=manager.GetValues();
+        if(products==null || products.Length==0)return;
+        foreach(var tag in tags.GetAllData()) {
+            // Hero and costume tags retain their own native index systems.
+            if((int)tag.IndexType!=0)continue;
+            int[] original;
+            if(!sourceIndices.TryGetValue(tag,out original)) {
+                original=tag.Indices??new int[0];sourceIndices[tag]=original;
+            }
+            tag.Indices=products.Where(p=>original.Contains(p.Index) || Matches(tag.Index,p.ProductName,p.Category,(int)p.ProductType))
+                .OrderBy(p=>p.ShowIndex).ThenBy(p=>p.Index).Select(p=>p.Index).ToArray();
+        }
+    }
+}

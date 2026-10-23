@@ -1,0 +1,47 @@
+using UnityEngine;
+using NGame2.NUI.NWindow;
+
+public static class SprkRaidInfoScroll {
+    public static void Refresh(RaidInfoBase info) {
+        if(info==null || info.RaidTacticLabel==null)return;
+        var label=info.RaidTacticLabel;
+        var viewport=label.transform.parent;
+        if(viewport.name!="SprkCharacteristicsScroll") {
+            var parent=viewport;
+            int width=label.width, height=label.height;
+            var corners=label.worldCorners;
+            var center=parent.InverseTransformPoint((corners[0]+corners[2])*.5f);
+            var go=new GameObject("SprkCharacteristicsScroll");
+            go.layer=label.gameObject.layer;
+            viewport=go.transform;
+            viewport.SetParent(parent,false);
+            viewport.localPosition=center;
+            var panel=go.AddComponent<UIPanel>();
+            var ancestor=NGUITools.FindInParents<UIPanel>(parent.gameObject);
+            panel.depth=ancestor==null?1:ancestor.depth+1;
+            panel.clipping=UIDrawCall.Clipping.SoftClip;
+            panel.clipSoftness=new Vector2(2,2);
+            panel.baseClipRegion=new Vector4(0,0,width,height);
+            var scroll=go.AddComponent<UIScrollView>();
+            scroll.movement=UIScrollView.Movement.Vertical;
+            scroll.contentPivot=UIWidget.Pivot.TopLeft;
+            scroll.restrictWithinPanel=true;
+            scroll.disableDragIfFits=true;
+            label.transform.SetParent(viewport,false);
+            label.leftAnchor.target=null;label.rightAnchor.target=null;
+            label.topAnchor.target=null;label.bottomAnchor.target=null;
+            label.pivot=UIWidget.Pivot.TopLeft;
+            label.overflowMethod=UILabel.Overflow.ResizeHeight;
+            label.transform.localPosition=new Vector3(-width*.5f,height*.5f,0);
+        }
+        var view=viewport.GetComponent<UIScrollView>();
+        label.overflowMethod=UILabel.Overflow.ResizeHeight;
+        label.MarkAsChanged();
+        NGUITools.AddWidgetCollider(label.gameObject);
+        var drag=label.GetComponent<UIDragScrollView>();
+        if(drag==null)drag=label.gameObject.AddComponent<UIDragScrollView>();
+        drag.scrollView=view;
+        view.DisableSpring();view.currentMomentum=Vector3.zero;
+        view.InvalidateBounds();view.ResetPosition();
+    }
+}

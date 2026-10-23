@@ -9,6 +9,10 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--shop-tags-only")) { InstallShopTags(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-shop-tags")) { VerifyShopTagsFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--raid-info-scroll-only")) { InstallRaidInfoScroll(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-raid-info-scroll")) { VerifyRaidInfoScrollFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--friend-presence-only")) { InstallFriendPresence(args[0]); return; }
             if (args.Contains("--verify-friend-presence")) { VerifyFriendPresenceFile(args[0]); return; }
             if (args.Contains("--craft-shortcut-only")) { InstallCraftShortcut(args[0], args.Contains("--stage-only")); return; }
