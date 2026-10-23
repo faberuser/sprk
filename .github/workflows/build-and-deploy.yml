@@ -80,6 +80,8 @@ jobs:
         run: |
           import json, os, re, subprocess, sys, tempfile
           from pathlib import Path
+          # Actions executes this script from RUNNER_TEMP, outside the checkout.
+          sys.path.insert(0, os.environ['GITHUB_WORKSPACE'])
           from scripts.release.client_update_bundle import verified_manifest
           tag = os.environ.get('INPUT_TAG', '')
           if tag and (len(tag) > 128 or not re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', tag)):
