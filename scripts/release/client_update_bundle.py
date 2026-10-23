@@ -8,7 +8,13 @@ import subprocess
 import tarfile
 import tempfile
 
-from publish_client_update import IDENTIFIER, find_openssl, safe_path
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.publish_client_update import IDENTIFIER, find_openssl, safe_path
 
 
 def verified_manifest(raw: bytes, public_key: Path) -> dict:

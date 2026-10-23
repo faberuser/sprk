@@ -1,2 +1,2 @@
 # Linux entrypoints must remain executable shell text after Windows checkouts.
-scripts/docker-*.sh text eol=lf
+scripts/docker/*.sh text eol=lf

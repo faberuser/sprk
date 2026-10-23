@@ -16,9 +16,9 @@ COPY --from=build /build/target/release/sprk-server /usr/local/bin/sprk-server
 COPY tables /app/tables
 COPY config/client-update-public.pem /app/client-update-public.pem
 COPY --chown=sprk:sprk build-input/worker /opt/sprk-worker
-COPY --chmod=755 scripts/docker-entrypoint.sh /usr/local/bin/sprk-entrypoint
-COPY --chmod=755 scripts/docker-battle-worker.sh /usr/local/bin/sprk-battle-worker
-COPY --chmod=755 scripts/docker-healthcheck.sh /usr/local/bin/sprk-healthcheck
+COPY --chmod=755 scripts/docker/docker-entrypoint.sh /usr/local/bin/sprk-entrypoint
+COPY --chmod=755 scripts/docker/docker-battle-worker.sh /usr/local/bin/sprk-battle-worker
+COPY --chmod=755 scripts/docker/docker-healthcheck.sh /usr/local/bin/sprk-healthcheck
 ARG CLIENT_UPDATE_TAG=""
 ARG CLIENT_UPDATE_REPO=""
 ENV SPRK_UPDATES_GITHUB_TAG=${CLIENT_UPDATE_TAG} SPRK_UPDATES_GITHUB_REPO=${CLIENT_UPDATE_REPO}

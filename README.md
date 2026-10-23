@@ -88,15 +88,15 @@ The server will:
 Use the unified patcher to patch both `Assembly-CSharp.dll` and `resources.assets` in one command — just point it at your game client root folder:
 
 ```batch
-scripts\patch.bat "D:\path\to\game\client"
-scripts\patch.bat --restore "D:\path\to\game\client"
+scripts\client\patch.bat "D:\path\to\game\client"
+scripts\client\patch.bat --restore "D:\path\to\game\client"
 ```
 
 Or via PowerShell:
 
 ```powershell
-.\scripts\patch.ps1 -ClientPath "D:\path\to\game\client"
-.\scripts\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
+.\scripts\client\patch.ps1 -ClientPath "D:\path\to\game\client"
+.\scripts\client\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
 ```
 
 This will:

@@ -25,7 +25,7 @@ $ErrorActionPreference = "Stop"
 # Resolve paths
 # ---------------------------------------------------------------------------
 $ScriptDir = Split-Path -Parent $PSCommandPath
-$DllPatcherDir = "$ScriptDir\DllPatcher"
+$DllPatcherDir = Join-Path $ScriptDir '../DllPatcher'
 $ManagedDir = Join-Path $ClientPath "King's Raid_Data\Managed"
 $DllPath = Join-Path $ManagedDir "Assembly-CSharp.dll"
 $AssetsPath = Join-Path $ClientPath "King's Raid_Data\resources.assets"
@@ -79,7 +79,7 @@ if (-not (Test-Path $ManagedDir)) {
 if (-not $Restore) {
     python -c "import UnityPy"
     if ($LASTEXITCODE -ne 0) {
-        throw "Install client dependencies first: python -m pip install -r scripts/requirements-client.txt"
+        throw "Install client dependencies first: python -m pip install -r scripts/client/requirements-client.txt"
     }
 }
 

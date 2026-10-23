@@ -10,10 +10,16 @@ import subprocess
 import tarfile
 import tempfile
 
-from client_update_bundle import verified_manifest
-from publish_client_update import ignored, safe_path
+import sys
 
-REPO = Path(__file__).resolve().parent.parent
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.client_update_bundle import verified_manifest
+from scripts.release.publish_client_update import ignored, safe_path
+
+REPO = Path(__file__).resolve().parents[2]
 DATA = "King's Raid_Data"
 
 

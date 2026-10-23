@@ -8,8 +8,14 @@ import shlex
 import shutil
 import subprocess
 
-from client_update_bundle import verified_manifest
-from publish_client_update import safe_path
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.client_update_bundle import verified_manifest
+from scripts.release.publish_client_update import safe_path
 
 
 def digest(path):
@@ -105,7 +111,7 @@ def install(release, public_key, adb, serial, report_dir, verify_only=False):
 
 
 if __name__ == "__main__":
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release", type=Path, required=True)
     parser.add_argument("--public-key", type=Path, default=root / "config/client-update-public.pem")

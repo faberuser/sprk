@@ -37,6 +37,8 @@ target
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+# Release tooling is source, not .NET build output.
+!/scripts/release/
 x64/
 x86/
 [Ww][Ii][Nn]32/

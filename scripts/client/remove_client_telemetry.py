@@ -13,7 +13,7 @@ import shutil
 import struct
 import subprocess
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 
 
 def telemetry_assembly(name):

@@ -12,11 +12,15 @@ import sys
 import tarfile
 import tempfile
 
-from publish_client_update import IDENTIFIER, ignored, publish, safe_path
-from client_update_bundle import package, verified_manifest
-from client_baseline import BASELINE
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-REPO = Path(__file__).resolve().parent.parent
+from scripts.release.publish_client_update import IDENTIFIER, ignored, publish, safe_path
+from scripts.release.client_update_bundle import package, verified_manifest
+from scripts.release.client_baseline import BASELINE
+
+REPO = Path(__file__).resolve().parents[2]
 
 
 def file_hash(path):
@@ -124,7 +128,7 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
     apply_overrides(REPO / "client-overrides/files", client)
     tools = work / "tools"
     subprocess.run(["dotnet", "build", str(REPO / "scripts/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
-    subprocess.run([sys.executable, str(REPO / "scripts/remove_client_telemetry.py"),
+    subprocess.run([sys.executable, str(REPO / "scripts/client/remove_client_telemetry.py"),
                     str(client), "--patcher", str(tools / "DllPatcher.dll")], check=True)
     subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
     output = work / "updates"

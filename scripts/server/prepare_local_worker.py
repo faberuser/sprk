@@ -3,7 +3,13 @@ import json
 import os
 from pathlib import Path
 
-from client_automation import REPO, RUNS, client_view
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.automation.client_automation import REPO, RUNS, client_view
 
 
 def prepare():

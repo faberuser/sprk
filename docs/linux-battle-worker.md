@@ -18,7 +18,7 @@ and the large downloaded asset cache.
 One-time runtime preparation, from the repository root:
 
 ```powershell
-python scripts/linux_worker.py seed --client ../sprk-client --archive target/worker-runtime.tar.gz
+python scripts/server/linux_worker.py seed --client ../sprk-client --archive target/worker-runtime.tar.gz
 ```
 
 This creates the archive and updates the tracked pin. Publish that archive under
@@ -27,7 +27,7 @@ for changed runtime files, never replace an existing asset. No signing private
 key belongs in this archive or the container. Routine client patches do not
 require rebuilding this runtime seed.
 
-For CI, `scripts/linux_worker.py build` downloads the pinned runtime and the
+For CI, `scripts/server/linux_worker.py build` downloads the pinned runtime and the
 image's exact client release. It verifies the runtime hash, signed manifest,
 every client file's size/hash and the tag/version relationship. Only a complete
 verified directory is activated as `build-input/worker`. The image copies it to
@@ -36,9 +36,9 @@ verified directory is activated as `build-input/worker`. The image copies it to
 Local image validation (use a compatible published client tag):
 
 ```powershell
-python scripts/linux_worker.py build --tag client-<version>
+python scripts/server/linux_worker.py build --tag client-<version>
 docker build -t sprk-linux-worker:test .
-python scripts/smoke_linux_worker.py sprk-linux-worker:test
+python scripts/server/smoke_linux_worker.py sprk-linux-worker:test
 docker build --target native-tests -t sprk-native-tests:test .
 docker run --rm --init sprk-native-tests:test conquest_native_tcp_battle --ignored --nocapture
 docker run --rm --init sprk-native-tests:test native_challenge_party_combat_and_settlement --ignored --nocapture

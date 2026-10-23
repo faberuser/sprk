@@ -10,7 +10,8 @@
 !config/
 !config/client-update-public.pem
 !scripts/
-!scripts/docker-*.sh
+!scripts/docker/
+!scripts/docker/*.sh
 !scripts/DllPatcher/
 !scripts/DllPatcher/Resources/
 !scripts/DllPatcher/Resources/LegacyData/

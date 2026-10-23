@@ -5,8 +5,14 @@ import tarfile
 import tempfile
 import unittest
 
-from publish_client_update import find_openssl, publish
-from client_update_bundle import package
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.publish_client_update import find_openssl, publish
+from scripts.release.client_update_bundle import package
 
 
 class BundleTests(unittest.TestCase):

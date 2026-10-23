@@ -9,7 +9,13 @@ import tarfile
 import urllib.request
 import zipfile
 
-from build_android_endpoint_test import CONFIG_ENTRY, SIGNER_SHA256, is_signature, patch_config, read_config, sha256
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.android.build_android_endpoint_test import CONFIG_ENTRY, SIGNER_SHA256, is_signature, patch_config, read_config, sha256
 
 TOOLS = {
     "apktool_3.0.3.jar": (
@@ -26,7 +32,7 @@ TOOLS = {
         SIGNER_SHA256),
 }
 SOURCE_HASH = "f10e636e24433c91cb765b1e598e09d6e8490e8cbeb38c20692cd848675fc08e"
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def run(*args):

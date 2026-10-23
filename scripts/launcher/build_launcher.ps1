@@ -1,10 +1,10 @@
 param(
-    [string]$ClientPath = (Join-Path $PSScriptRoot '../../sprk-client'),
+    [string]$ClientPath = (Join-Path $PSScriptRoot '../../../sprk-client'),
     [string]$ManifestUrl = 'http://127.0.0.1:8081/updates/stable/manifest.json',
     [string]$PublicKeyFile = ''
 )
 $ErrorActionPreference = 'Stop'
-$repoPath = Split-Path $PSScriptRoot -Parent
+$repoPath = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $projectPath = Join-Path $repoPath 'launcher/SprkLauncher/SprkLauncher.csproj'
 $publishPath = Join-Path $repoPath 'artifacts/launcher'
 $resolvedClient = (Resolve-Path -LiteralPath $ClientPath).Path

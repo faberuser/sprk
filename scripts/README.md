@@ -1,39 +1,42 @@
 # Scripts
 
-## Client releases
+Run commands from the `sprk-server` repository root unless noted otherwise.
 
-| File                                                           | Purpose                                                                                        |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `build_client_release.py`                                      | CI/local isolated baseline download, patching, verification, signing, and GitHub publishing    |
-| `prepare_client_baseline.py`                                   | Prepare a new immutable baseline when the distributed client changes                           |
-| `client_baseline.py`                                           | Automatically maintained fixed baseline reference; no routine edits                            |
-| `publish_client_update.py`                                     | Generate a signed snapshot from an installed/patched client; required for local client changes |
-| `client_update_bundle.py`                                      | Shared signature verification and archive packaging; imported by CI tools                      |
-| `linux_worker.py`, `smoke_linux_worker.py`                     | Assemble a verified Linux/Wine worker and require image readiness before deployment           |
-| `create_update_signing_key.py`                                 | Bootstrap keys for a new installation; keep existing keys for this installation                |
-| `test_build_client_release.py`, `test_client_update_bundle.py` | Build-input and packaging regression checks used by CI                                         |
+| Directory | Purpose | Main entry points |
+| --- | --- | --- |
+| [release/](release/) | Signed client snapshots, CI builds, baseline preparation, packaging and regression tests | `build_client_release.py`, `publish_client_update.py`, `prepare_client_baseline.py` |
+| [client/](client/) | Manual Windows client patching, telemetry cleanup and UnityPy dependencies | `patch.ps1`, `patch.bat`, `remove_client_telemetry.py`, `requirements-client.txt` |
+| [android/](android/) | Android APK builds, content conversion, installation and bundled adapters | `build_android_accounts.py`, `build_android_endpoint_test.py`, `convert_android_bundle_pack.py`, `install_android_content.py` |
+| [automation/](automation/) | Opt-in real-client gameplay automation and smoke scenarios | `client_automation.py`, `scenarios/` |
+| [server/](server/) | Local service startup, process cleanup and Windows/Linux battle worker preparation | `start_local_server.ps1`, `prepare_local_worker.py`, `linux_worker.py`, `smoke_linux_worker.py` |
+| [docker/](docker/) | Container startup, battle worker execution and health checks | `docker-entrypoint.sh`, `docker-battle-worker.sh`, `docker-healthcheck.sh` |
+| [launcher/](launcher/) | Windows launcher build and installation | `build_launcher.ps1` |
+| [DllPatcher/](DllPatcher/) | Reproducible client patches, embedded resources, verifiers and self-tests | `dotnet run --project scripts/DllPatcher -- ...` |
+| [DllDisasm/](DllDisasm/) | Read-only managed DLL inspection | `dotnet run --project scripts/DllDisasm -- ...` |
 
-See [CI client releases](../docs/github-client-updates.md) and
-[local publishing](../docs/client-updates.md).
+The former root scripts now live in these directories; use their new paths.
+Python tools support direct execution, for example:
 
-## Development tools
+```powershell
+python -m pip install -r scripts/client/requirements-client.txt
+python scripts/release/build_client_release.py --help
+python scripts/release/publish_client_update.py --help
+python scripts/automation/client_automation.py --help
+python scripts/server/linux_worker.py --help
+```
 
-| File/directory                                   | Purpose                                                                          |
-| ------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `DllPatcher/`                                    | Client patch source, embedded resources, verifiers and self-tests                |
-| `DllDisasm/`                                     | Read-only DLL inspection tool documented in the repository README                |
-| `patch.ps1`, `patch.bat`                         | Manual DLL/assets patching and restore entry points                              |
-| `requirements-client.txt`                        | Pinned UnityPy dependency for client asset cleanup                               |
-| `build_android_endpoint_test.py`                 | Build and verify a signed Android bootstrap-endpoint test APK                    |
-| `build_android_accounts.py`, `android/`          | Build and verify the Android SPRK password-account test APK                      |
-| `convert_android_bundle_pack.py`                 | Convert archived Android metadata to native JsonBin v2, verifying the value tree |
-| `install_android_content.py`                     | Install a separately signed Android snapshot and verify every device file        |
-| `build_launcher.ps1`                             | Build/install the Windows launcher                                               |
-| `start_local_server.ps1`                         | Start local game/update services; called by `../start_server.bat`                |
-| `import_local_env.ps1`, `LocalServerLifetime.cs` | Local server environment loading and child-process cleanup                       |
-| `client_automation.py`, `client-scenarios/`      | Opt-in real-client development and gameplay smoke scenarios                      |
+Python tools also support package invocation, such as
+`python -m scripts.release.build_client_release --help`. Shared imports use the
+`scripts` package. Discover release and worker regression tests recursively with:
 
-The standalone WebSocket probe was removed because its test driver no longer
-exists. The standalone client uploader was replaced by the CI build/publish
-entry point; its reusable verification/packaging code remains in the shared
-module. Local development tools remain available independently of CI.
+```powershell
+python -m unittest discover -s scripts -t . -p 'test_*client*.py'
+```
+
+`start_server.bat` at the repository root calls `server/start_local_server.ps1`.
+Docker and GitHub Actions use the organized paths directly.
+
+See [CI client releases](../docs/github-client-updates.md),
+[local publishing](../docs/client-updates.md),
+[client automation](../docs/client-automation.md), and
+[Linux battle workers](../docs/linux-battle-worker.md) for their workflows.

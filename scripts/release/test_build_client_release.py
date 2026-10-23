@@ -7,9 +7,15 @@ import tarfile
 import tempfile
 import unittest
 
-from build_client_release import extract_baseline, file_hash, managed_build_files
-from prepare_client_baseline import prepare
-from publish_client_update import find_openssl, ignored, publish
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.build_client_release import extract_baseline, file_hash, managed_build_files
+from scripts.release.prepare_client_baseline import prepare
+from scripts.release.publish_client_update import find_openssl, ignored, publish
 
 
 class BaselineTests(unittest.TestCase):

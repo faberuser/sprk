@@ -297,7 +297,7 @@ partial class Program
         var manifest = new { removedFiles, modifiedFiles, removedTypes };
         File.WriteAllText(Path.Combine(stage, "manifest.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
         if (!stageOnly)
-            throw new InvalidOperationException("Use --stage-only, then scripts/remove_client_telemetry.py to install with serialized assets and backups.");
+            throw new InvalidOperationException("Use --stage-only, then scripts/client/remove_client_telemetry.py to install with serialized assets and backups.");
         Console.WriteLine($"Staged {modifiedFiles.Count} modified files and {removedFiles.Count} removals at {stage}");
     }
 

@@ -13,7 +13,7 @@ from pathlib import Path
 import struct
 import subprocess
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE_HASH = "fc5310c4f426d32fe9f574cbc2bf9d26f0c1b302fdb00a58b0833ce99fca7c15"
 
 

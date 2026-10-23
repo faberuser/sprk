@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 # them up when the terminal closes or this PowerShell process is terminated.
 Add-Type -Path (Join-Path $PSScriptRoot 'LocalServerLifetime.cs')
 [LocalServerLifetime]::Enable()
-$project = Split-Path $PSScriptRoot -Parent
+$project = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 Set-Location -LiteralPath $project
 . (Join-Path $PSScriptRoot 'import_local_env.ps1')
 Import-LocalEnv -Path (Join-Path $project '.env')

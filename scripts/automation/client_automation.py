@@ -22,7 +22,7 @@ import time
 import urllib.request
 import uuid
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 RUNS = REPO / "target/client-automation"
 
 

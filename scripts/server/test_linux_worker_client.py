@@ -5,9 +5,15 @@ import tarfile
 import tempfile
 import unittest
 
-from client_update_bundle import package
-from linux_worker import DATA, assemble, digest, extract_runtime, runtime_files
-from publish_client_update import find_openssl, publish
+import sys
+
+# Allow both direct execution and package imports from any working directory.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.release.client_update_bundle import package
+from scripts.server.linux_worker import DATA, assemble, digest, extract_runtime, runtime_files
+from scripts.release.publish_client_update import find_openssl, publish
 
 
 class LinuxWorkerTests(unittest.TestCase):
