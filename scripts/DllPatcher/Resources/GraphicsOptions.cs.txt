@@ -1,0 +1,311 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using UnityEngine.SceneManagement;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NGame2.NUI;
+using NVespa.NGlobal;
+
+// Native UI controls and rendering configuration. Preferences use the isolated test adapter.
+public sealed class SprkGraphicsOptions : MonoBehaviour {
+    static SprkGraphicsOptions instance;
+    static readonly FieldInfo resourceField=typeof(PostProcessLayer).GetField("m_Resources",BindingFlags.Instance|BindingFlags.NonPublic);
+    PostProcessResources resources;
+    readonly Dictionary<Camera,PostProcessLayer> layers=new Dictionary<Camera,PostProcessLayer>();
+    readonly Dictionary<Camera,RenderTexture> redirected=new Dictionary<Camera,RenderTexture>();
+    readonly Dictionary<Camera,int> signatures=new Dictionary<Camera,int>();
+    readonly Dictionary<Camera,Vector3> positions=new Dictionary<Camera,Vector3>();
+    readonly Dictionary<Camera,Quaternion> rotations=new Dictionary<Camera,Quaternion>();
+    RenderTexture world;
+    Camera lastWorld;
+    int worldSignature;
+    int lastLogged;
+    string status="";
+    public static string Status { get { return instance==null?"Not initialized":instance.status; } }
+    void OnEnable() { Camera.onPostRender+=AfterCamera;SceneManager.activeSceneChanged+=SceneChanged; }
+    void OnDisable() { Camera.onPostRender-=AfterCamera;SceneManager.activeSceneChanged-=SceneChanged;RestoreTargets();ReleaseWorld(); }
+    void SceneChanged(Scene a,Scene b) { ResetHistories();RestoreTargets();ReleaseWorld(); }
+    void ResetHistories() { foreach(var layer in layers.Values)if(layer!=null)layer.ResetHistory(); }
+    void RestoreTargets() { foreach(var pair in redirected)if(pair.Key!=null && pair.Key.targetTexture==world)pair.Key.targetTexture=pair.Value;redirected.Clear();lastWorld=null; }
+    void ReleaseWorld() { if(world!=null){world.Release();Destroy(world);world=null;} }
+    void AfterCamera(Camera camera) {
+        if(camera!=lastWorld||world==null)return;
+        var previous=RenderTexture.active;
+        // Blit(null) follows Camera.main.targetTexture. Detach our stack temporarily
+        // so the resolved image is presented to the display rather than itself.
+        var detached=redirected.Keys.Where(c=>c!=null && c.targetTexture==world).ToArray();
+        foreach(var c in detached)c.targetTexture=null;
+        try { Graphics.Blit(world,(RenderTexture)null); }
+        finally { foreach(var c in detached)if(c!=null)c.targetTexture=world;RenderTexture.active=previous; }
+    }
+    bool FindResources() {
+        if(resources!=null)return true;
+        var prefab=Resources.Load<GameObject>("Prefab2/Render3D/RenderTargetCinema");
+        if(prefab!=null) {
+            var source=prefab.GetComponentInChildren<PostProcessLayer>(true);
+            if(source!=null)resources=(PostProcessResources)resourceField.GetValue(source);
+        }
+        if(resources==null)resources=Resources.FindObjectsOfTypeAll<PostProcessResources>().FirstOrDefault();
+        return resources!=null && resources.shaders!=null && resources.smaaLuts!=null && resources.smaaLuts.area!=null && resources.smaaLuts.search!=null;
+    }
+    static bool preferencesReady;
+    static void EnsurePreset() {
+        if(preferencesReady)return;
+        preferencesReady=true;
+        if(SprkTestPrefs.HasKey("Sprk.Graphics.Preset"))return;
+        int preset=2;
+        if(SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")) {
+            int old=SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",0);
+            preset=old==3?3:old==2?2:old==1?1:
+                SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")&&SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?2:0;
+        } else if(SprkTestPrefs.HasKey("Sprk.Graphics.MSAA"))preset=SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?2:0;
+        ApplyPreset(preset);
+    }
+    static void ApplyPreset(int preset) {
+        preset=Mathf.Clamp(preset,0,3);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Preset",preset);
+        SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",new[]{0,1,2,3}[preset]);
+        SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",preset==2?2:0);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Quality",preset<2?0:preset==2?1:2);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Jitter",2);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Sharpness",1);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Stationary",3);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Motion",3);
+        SprkTestPrefs.Save();
+    }
+    public static int Samples { get { EnsurePreset(); if(SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",0)==3)return 1; int n=SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",2); return n==2||n==4||n==8?n:1; } }
+    public static int Scale { get { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100),100,200); } }
+    public static RenderTexture CreateTarget(int width,int height,int depth) {
+        int limit=Mathf.Min(SystemInfo.maxTextureSize,8192);
+        float factor=Mathf.Min(Scale/100f,Mathf.Min(limit/(float)Mathf.Max(1,width),limit/(float)Mathf.Max(1,height)));
+        var rt=new RenderTexture(Mathf.Max(1,Mathf.RoundToInt(width*factor)),Mathf.Max(1,Mathf.RoundToInt(height*factor)),depth);
+        rt.filterMode=FilterMode.Bilinear;
+        var descriptor=rt.descriptor; descriptor.msaaSamples=Samples;
+        rt.antiAliasing=SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor);
+        return rt;
+    }
+    public static void Ensure() {
+        if(instance!=null)return;
+        EnsurePreset();
+        var go=new GameObject("SprkGraphicsOptions"); DontDestroyOnLoad(go);
+        instance=go.AddComponent<SprkGraphicsOptions>();
+        if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))instance.StartCoroutine(instance.Probe());
+    }
+    public static void Setup(GameOptionWindow window) {
+        Ensure();
+        foreach(var tab in window.MainTabs) {
+            if(tab.GameOptionTab!=GameOptionTab.Game)continue;
+            Add(tab,"Anti-aliasing", "Preset",new[]{"Off","Performance","Balanced","Quality"});
+            Add(tab,"Render scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
+            PlaceBelowScreen(tab);
+            tab.GameOptionGrid.RepositionGrid();
+        }
+    }
+    static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab) {
+        var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
+        var screen=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_WindowControl");
+        var resolution=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.OptionName=="OPTION_GAME_RESOULUTION");
+        var aa=rows.FirstOrDefault(r=>r.name=="SPRK Anti-aliasing");
+        var scale=rows.FirstOrDefault(r=>r.name=="SPRK Render scale");
+        var grid=tab.GameOptionGrid.Grid;
+        if(screen==null || aa==null || scale==null || grid==null)return;
+        bool hide=grid.hideInactive;grid.hideInactive=false;
+        var order=grid.GetChildList();grid.hideInactive=hide;
+        order.Remove(aa.transform);order.Remove(scale.transform);
+        int index=order.IndexOf(screen.transform);
+        if(index<0)return;
+        // Resolution is Screen's native child option. Keep that pair adjacent
+        // before inserting the additional graphics settings.
+        if(resolution!=null && order.Remove(resolution.transform)) {
+            index=order.IndexOf(screen.transform);
+            order.Insert(index+1,resolution.transform);
+            index++;
+        }
+        order.Insert(index+1,aa.transform);order.Insert(index+2,scale.transform);
+        // Preserve the native visual order, with the two inserted rows, across
+        // position/name sorting and subsequent native refreshes.
+        grid.sorting=UIGrid.Sorting.None;
+        typeof(UIGrid).GetField("sorted",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic).SetValue(grid,false);
+        for(int i=0;i<order.Count;i++)order[i].SetSiblingIndex(i);
+    }
+    static void Add(GameOptionWindow.TabUIInfo tab,string title,string key,string[] choices) {
+        // UISimpleGrid wraps a separate child UIGrid; rows are not direct children
+        // of its transform. Search descendants, then reuse and refresh the row.
+        string rowName="SPRK "+title;
+        var existing=tab.GameOptionGrid.GetComponentsInChildren<GameOptionButtonComponent>(true).Where(r=>r.name==rowName).ToArray();
+        var row=existing.FirstOrDefault();
+        if(row==null)row=UIHelper.AddGridItem<GameOptionButtonComponent>(tab.GameOptionGrid,GameOptionButtonComponent.PrefabAuto);
+        foreach(var duplicate in existing.Skip(1)) {
+            duplicate.gameObject.SetActive(false);
+            duplicate.transform.SetParent(null,false);
+            Destroy(duplicate.gameObject);
+        }
+        row.name=rowName;
+        row.ParentRoot.Root.SetActive(true);row.ChildRoot.Root.SetActive(false);
+        row.ParentRoot.Label_OptionName.text=title;
+        if(row.ParentRoot.ToolTipImage!=null)row.ParentRoot.ToolTipImage.SetActive(false);
+        int index=ReadIndex(key);
+        row.Label_Button.text=choices[index];
+        row.Button.onClick.Clear();
+        EventDelegate.Add(row.Button.onClick,delegate {
+            index=(index+1)%choices.Length;
+            int value=key=="MSAA"?new[]{0,2,4,8}[index]:key=="Scale"?100+25*index:index;
+            if(key=="Preset")ApplyPreset(value);
+            else { SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);SprkTestPrefs.Save(); }
+            row.Label_Button.text=choices[index];
+            instance.ResetHistories();
+            if(key=="Scale") MessagePopup.Open("Render scale","Reopen model previews to apply the new resolution.");
+
+        });
+    }
+    static int ReadIndex(string key) {
+        if(key=="Preset"){EnsurePreset();return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Preset",2),0,3);}
+        int n=SprkTestPrefs.GetInt("Sprk.Graphics."+key,key=="MSAA"?2:key=="Scale"?100:key=="Jitter"?2:key=="Sharpness"?1:key=="Stationary"||key=="Motion"?3:0);
+        if(key=="MSAA")return n==2?1:n==4?2:n==8?3:0;
+        if(key=="Scale")return Mathf.Clamp((n-100)/25,0,4);
+        int maximum=key=="Quality"?2:key=="Sharpness"?6:key=="Stationary"||key=="Motion"?4:3;
+        return Mathf.Clamp(n,0,maximum);
+    }
+    System.Collections.IEnumerator Probe() {
+        string root=Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST");
+        System.IO.Directory.CreateDirectory(root);
+        yield return new WaitForSecondsRealtime(3);
+        var report=new List<string>();
+        bool resourcesOk=FindResources();report.Add("resources="+resourcesOk);
+        var uiHost=new GameObject("GraphicsSettingsLifecycleProbe");uiHost.SetActive(false);
+        var wrapper=uiHost.AddComponent<NVespa.NNGUIExtension.UISimpleGrid>();
+        var gridHost=new GameObject("Grid");gridHost.transform.SetParent(uiHost.transform,false);wrapper.Grid=gridHost.AddComponent<UIGrid>();
+        var window=uiHost.AddComponent<GameOptionWindow>();
+        window.MainTabs=new[]{new GameOptionWindow.TabUIInfo{GameOptionTab=GameOptionTab.Game,GameOptionGrid=wrapper}};
+        for(int cycle=0;cycle<8;cycle++)Setup(window);
+        var rows=wrapper.GetComponentsInChildren<GameOptionButtonComponent>(true);
+        report.Add("settingsRows="+rows.Length);
+        var presetRow=rows.Single(r=>r.name=="SPRK Anti-aliasing");
+        ApplyPreset(1);Setup(window);
+        report.Add("settingsRefreshed="+presetRow.Label_Button.text);
+        EventDelegate.Execute(presetRow.Button.onClick);
+        report.Add("settingsClickPreset="+ReadIndex("Preset"));
+        var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-aliasing";
+        Setup(window);
+        report.Add("settingsAfterRepair="+wrapper.GetComponentsInChildren<GameOptionButtonComponent>(true).Length);
+        var screenRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);
+        screenRow.name="Screen";screenRow.gameOptionData=new GameOptionData{FieldName="Graphic_WindowControl"};
+        var afterRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);afterRow.name="ZZAfter";
+        var resolutionRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);
+        resolutionRow.name="Resolution";resolutionRow.gameOptionData=new GameOptionData{OptionName="OPTION_GAME_RESOULUTION"};
+        wrapper.Grid.sorting=UIGrid.Sorting.Alphabetic;
+        for(int cycle=0;cycle<8;cycle++)Setup(window);
+        report.Add("settingsOrder="+String.Join(",",wrapper.Grid.GetChildList().Select(t=>t.name).ToArray()));
+        Destroy(uiHost);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
+        for(int preset=0;preset<4;preset++) {
+            ApplyPreset(preset);
+            report.Add("preset="+preset+" mode="+ReadIndex("PostAA")+" samples="+Samples+" quality="+ReadIndex("Quality")+" scale="+Scale);
+        }
+        for(int old=0;old<4;old++) {
+            SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",old);SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",0);
+            preferencesReady=false;EnsurePreset();report.Add("legacy="+old+" preset="+ReadIndex("Preset"));
+        }
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.DeleteKey("Sprk.Graphics.MSAA");
+        preferencesReady=false;EnsurePreset();report.Add("defaultPreset="+ReadIndex("Preset"));
+        var host=new GameObject("GraphicsProbeCamera");var camera=host.AddComponent<Camera>();
+        camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.gray;
+        camera.transform.position=new Vector3(0,0,-4);camera.depth=0;
+        var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.layer=30;cube.transform.rotation=Quaternion.Euler(23,31,17);
+        var material=new Material(Shader.Find("Unlit/Texture"));material.mainTexture=Texture2D.whiteTexture;cube.GetComponent<Renderer>().material=material;
+        for(int mode=0;mode<4;mode++)for(int scale=100;scale<=200;scale+=25) {
+            SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",mode);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
+            SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",4);
+            var target=CreateTarget(320,240,24);target.Create();camera.targetTexture=target;
+            for(int frame=0;frame<12;frame++){camera.enabled=true;camera.targetTexture=target;camera.Render();yield return new WaitForEndOfFrame();}
+            camera.targetTexture=target;camera.Render();
+            var previous=RenderTexture.active;
+            var resolved=RenderTexture.GetTemporary(target.width,target.height,0);Graphics.Blit(target,resolved);RenderTexture.active=resolved;
+            var image=new Texture2D(target.width,target.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"aa-"+mode+"-"+scale+".png"),image.EncodeToPNG());
+            RenderTexture.active=previous;RenderTexture.ReleaseTemporary(resolved);
+            var layer=camera.GetComponent<PostProcessLayer>();
+            report.Add("mode="+mode+" scale="+scale+" size="+target.width+"x"+target.height+" samples="+target.antiAliasing+" applied="+(layer==null?"none":layer.antialiasingMode.ToString())+" status="+status);
+            camera.targetTexture=null;target.Release();Destroy(target);Destroy(image);
+        }
+        foreach(int sample in new[]{0,2,4,8}) {
+            SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",0);SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",sample);
+            var msaa=CreateTarget(320,240,24);msaa.Create();report.Add("requestedSamples="+sample+" actualSamples="+msaa.antiAliasing);msaa.Release();Destroy(msaa);
+        }
+        SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",2);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",150);
+        camera.targetTexture=null;
+        var uiDepths=Camera.allCameras.Where(c=>c.GetComponent<UICamera>()!=null).Select(c=>c.depth).ToArray();
+        camera.depth=uiDepths.Length==0?0:uiDepths.Min()-0.5f;
+        for(int frame=0;frame<12;frame++){camera.enabled=true;yield return new WaitForEndOfFrame();}
+        report.Add("screenWorld="+(world==null?"missing":world.width+"x"+world.height)+" stack="+redirected.Count);
+        Destroy(cube);Destroy(material);Destroy(host);
+        SprkTestPrefs.Save();
+        System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"report.txt"),report.ToArray());
+        Application.Quit();
+    }
+    void LateUpdate() {
+        RestoreTargets();
+        int mode=ReadIndex("PostAA"),quality=ReadIndex("Quality");
+        bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale");
+        if(!configured)return;
+        QualitySettings.antiAliasing=Samples==1?0:Samples;
+        var cameras=Camera.allCameras.Where(c=>c!=null&&c.isActiveAndEnabled).OrderBy(c=>c.depth).ToArray();
+        var ui=cameras.Where(c=>c.GetComponent<UICamera>()!=null).ToArray();
+        float firstUi=ui.Length==0?float.PositiveInfinity:ui.Min(c=>c.depth);
+        var onscreen=cameras.Where(c=>c.targetTexture==null && c.depth<firstUi && c.GetComponent<UICamera>()==null).ToArray();
+        var worldCameras=onscreen.Where(c=>!c.orthographic).ToArray();
+        bool fullRect=onscreen.All(c=>c.rect==new Rect(0,0,1,1));
+        if(worldCameras.Length>0 && fullRect) {
+            int signature=Screen.width*397^Screen.height*17^Scale^Samples*31;
+            if(world==null || signature!=worldSignature) {
+                ReleaseWorld();world=CreateTarget(Screen.width,Screen.height,24);world.name="SPRK World";
+                world.Create();worldSignature=signature;ResetHistories();
+            }
+            foreach(var c in onscreen){redirected[c]=null;c.targetTexture=world;c.allowMSAA=Samples>1;}
+            lastWorld=onscreen.Last();
+            if(lastLogged!=signature+mode*101) {
+                lastLogged=signature+mode*101;
+                Debug.Log("SPRK graphics: mode="+mode+" target="+world.width+"x"+world.height+" samples="+world.antiAliasing+" worldCameras="+onscreen.Length);
+            }
+        } else { ReleaseWorld(); }
+        bool available=mode==0||FindResources();
+        status=available?"Ready":"Native post-processing resources unavailable";
+        foreach(var camera in cameras) {
+            if(camera.GetComponent<UICamera>()!=null)continue;
+            camera.allowMSAA=Samples>1;
+            bool screen=onscreen.Contains(camera);
+            if(!screen && camera.targetTexture==null)continue;
+            // Spatial AA runs once after the world stack; preview cameras have independent targets.
+            bool apply=!screen || (mode==3?camera==worldCameras.FirstOrDefault():camera==lastWorld);
+            var layer=camera.GetComponent<PostProcessLayer>();
+            if(layer==null && mode!=0 && apply && available) {
+                layer=camera.gameObject.AddComponent<PostProcessLayer>();
+                layer.Init(resources);layer.volumeTrigger=camera.transform;layer.volumeLayer=0;
+                layer.fog.enabled=false;
+            }
+            if(layer==null)continue;
+            layers[camera]=layer;
+            // Enum order in Unity is None, FXAA, SMAA, TAA; validated by the patch verifier.
+            int effective=apply&&available?mode:0;
+            var target=camera.targetTexture;
+            if(effective==3 && (!SystemInfo.supportsMotionVectors || !layer.temporalAntialiasing.IsSupported() || (target!=null && target.antiAliasing>1)))effective=2;
+            int signature=effective*100000+quality*1000+(target==null?Screen.width:target.width)*31+(target==null?Screen.height:target.height);
+            bool cut=positions.ContainsKey(camera) && (Vector3.Distance(positions[camera],camera.transform.position)>3 || Quaternion.Angle(rotations[camera],camera.transform.rotation)>35);
+            if(!signatures.ContainsKey(camera)||signatures[camera]!=signature||cut)layer.ResetHistory();
+            signatures[camera]=signature;positions[camera]=camera.transform.position;rotations[camera]=camera.transform.rotation;
+            layer.antialiasingMode=(PostProcessLayer.Antialiasing)effective;
+            layer.fastApproximateAntialiasing.fastMode=quality==0;layer.fastApproximateAntialiasing.keepAlpha=true;
+            layer.subpixelMorphologicalAntialiasing.quality=(SubpixelMorphologicalAntialiasing.Quality)quality;
+            layer.temporalAntialiasing.jitterSpread=(ReadIndex("Jitter")+1)*0.25f;
+            layer.temporalAntialiasing.sharpness=ReadIndex("Sharpness")*0.5f;
+            layer.temporalAntialiasing.stationaryBlending=new[]{.6f,.7f,.8f,.9f,.95f}[ReadIndex("Stationary")];
+            layer.temporalAntialiasing.motionBlending=new[]{.5f,.6f,.7f,.8f,.85f}[ReadIndex("Motion")];
+        }
+        foreach(var dead in layers.Keys.Where(c=>c==null).ToArray()){layers.Remove(dead);signatures.Remove(dead);positions.Remove(dead);rotations.Remove(dead);}
+    }
+}
