@@ -19,6 +19,9 @@ pub(crate) mod consumables;
 mod cosmetics;
 mod equipment;
 mod npc;
+pub(crate) async fn npc_friendly_snapshot(db: &mut SqliteConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
+    npc::snapshot(db,state,account).await
+}
 pub(crate) mod punishment;
 mod runes;
 pub(crate) mod schema;
