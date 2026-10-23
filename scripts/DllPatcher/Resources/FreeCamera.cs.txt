@@ -65,8 +65,8 @@ public static class SprkFreeCamera {
         return texture!=null && hovered!=null && (hovered==texture.gameObject || (hovered.transform.IsChildOf(texture.transform) && hovered.GetComponentInParent<UIButton>()==null && hovered.GetComponentInParent<UIInput>()==null));
     }
     static void Orbit(State state,Vector2 delta) {
-        state.Yaw=Mathf.Repeat(state.Yaw-delta.x*.3f+180,360)-180;
-        state.Pitch=Mathf.Clamp(state.Pitch+delta.y*.3f,-85,85);
+        state.Yaw=Mathf.Repeat(state.Yaw+delta.x*.3f+180,360)-180;
+        state.Pitch=Mathf.Clamp(state.Pitch-delta.y*.3f,-85,85);
     }
     public static void EnsureProbe() {
         string root=Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST");
@@ -79,8 +79,8 @@ public static class SprkFreeCamera {
         Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
         check(SupportsWindow(typeof(HeroDetailView)) && SupportsWindow(typeof(HeroCostumeView)) && SupportsWindow(typeof(HeroModelView)) && !SupportsWindow(typeof(HeroFullSceneViewBase)),"Preview window scope");
         var state=new State();Orbit(state,new Vector2(200,100));
-        check(Mathf.Abs(state.Yaw+60)<.001f && Mathf.Abs(state.Pitch-30)<.001f,"Orbit axes");
-        Orbit(state,new Vector2(10000,10000));check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==85,"Orbit bounds");
+        check(Mathf.Abs(state.Yaw-60)<.001f && Mathf.Abs(state.Pitch+30)<.001f,"Orbit axes");
+        Orbit(state,new Vector2(10000,10000));check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==-85,"Orbit bounds");
         var initial=Quaternion.Euler(20,30,0)*Vector3.forward;
         check(Vector3.Distance(Direction(initial,0,0),initial)<.001f,"Native view preservation");
         for(int yaw=-720;yaw<=720;yaw+=30)for(int pitch=-180;pitch<=180;pitch+=15) {

@@ -4,8 +4,19 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static Instruction OutlineDefaultArgument(ModuleDefinition module) {
+        var initializer=module.GetType("NVespa.SystemOptionData").Methods.Single(m=>m.Name==".cctor");
+        var store=initializer.Body.Instructions.Single(i=>i.OpCode==OpCodes.Stsfld && i.Operand is FieldReference f && f.Name=="_render_EnableOutline");
+        var constructor=store.Previous;var key=constructor?.Previous;var argument=key?.Previous;
+        if(constructor?.OpCode!=OpCodes.Newobj || constructor.Operand is not MethodReference method || method.DeclaringType.FullName!="NVespa.LocalStorageBool" ||
+           key?.OpCode!=OpCodes.Ldstr || !Equals(key.Operand,"KingsRaid_GameOption_render_EnableOutline3") ||
+           argument==null || (argument.OpCode!=OpCodes.Ldc_I4_0 && argument.OpCode!=OpCodes.Ldc_I4_1))
+            throw new InvalidOperationException("Unexpected native Outline preference initializer.");
+        return argument;
+    }
     static void VerifyGraphicsOptions(ModuleDefinition module) {
-        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NShader.FilterBase","CreateRenderTarget","CreateTarget"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
+        if(OutlineDefaultArgument(module).OpCode!=OpCodes.Ldc_I4_0)throw new InvalidOperationException("Outline must default to Off while preserving its native preference key.");
+        foreach(var pair in new[]{("NGame2.NUI.NComponent2.GameOptionToggle3Component","SetToggle","CenterTextureChoices"),("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NShader.FilterBase","CreateRenderTarget","CreateTarget"),("NVespa.GlobalCameraManager","HasMainRenderTarget","HasMainRenderTarget"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name==pair.Item3))throw new InvalidOperationException("Missing graphics hook: "+pair.Item3);
             if(!method.Body.HasExceptionHandlers)VerifyArenaResultStack(method);
@@ -23,7 +34,7 @@ partial class Program {
         var setup=bridge.Methods.Single(m=>m.Name=="Setup");
         if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=2)
             throw new InvalidOperationException("Graphics settings must expose only preset and render scale.");
-        foreach(var required in new[]{"Performance","Balanced","Quality","Preset","Scale"})
+        foreach(var required in new[]{"Off","On","Preset","Scale"})
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing graphics preset control: "+required);
         var poll=bridge.Methods.Single(m=>m.Name=="PollComparisonKeys");
         if(poll.Body.Instructions.Any(i=>i.OpCode!=OpCodes.Ret && i.OpCode!=OpCodes.Nop))
@@ -39,6 +50,14 @@ partial class Program {
         }
         var displayCheck=game.MainModule.GetType("NGame2.NUI.NWindow.GameOptionWindow").Methods.Single(m=>m.Name=="CheckDeviceRefreshRate");
         if(displayCheck.Body.Instructions.Count!=1 || displayCheck.Body.Instructions[0].OpCode!=OpCodes.Ret)throw new InvalidOperationException("FPS choices must remain available at every refresh rate.");
+        var graphicsInstructions=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).ToArray();
+        if(!graphicsInstructions.Any(i=>i.Operand is MethodReference r && r.Name=="IsModelCamera") ||
+           !graphicsInstructions.Any(i=>i.Operand is MethodReference r && r.Name=="IsLobbyBackground"))
+            throw new InvalidOperationException("Missing lobby camera classification.");
+        if(!graphicsInstructions.Any(i=>i.Operand is FieldReference f && f.Name=="onPreRender"))throw new InvalidOperationException("World presentation must run before the main UI camera.");
+        if(!graphicsInstructions.Any(i=>i.Operand is FieldReference f && f.Name=="finalBlitToCameraTarget"))throw new InvalidOperationException("World effects must output to the shared texture.");
+        if(!graphicsInstructions.Any(i=>i.Operand is MethodReference r && r.Name=="AddCommandBuffer"))throw new InvalidOperationException("World presentation must execute inside the UI camera render sequence.");
+        if(helper.MainModule.GetType("SprkGraphicsPresenter")!=null)throw new InvalidOperationException("Removed trailing-camera presenter remains.");
         var add=bridge.Methods.Single(m=>m.Name=="Add");
         if(!add.Body.Instructions.Any(i=>i.Operand is GenericInstanceMethod m && m.Name=="AddGridItem" && m.GenericArguments.Any(t=>t.Name=="GameOptionToggle4Component")))throw new InvalidOperationException("Graphics choices must use the native toggle row prefab.");
         foreach(var call in new[]{"GetRenderTextureSupportedMSAASampleCount","Init","ResetHistory","Blit","get_supportsMotionVectors"})
@@ -63,12 +82,15 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         var module=game.MainModule;
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
-        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
+        // Change only the missing-preference default. LocalStorageBool.Init
+        // continues to honor existing saved On/Off values.
+        var outlineDefault=OutlineDefaultArgument(module);outlineDefault.OpCode=OpCodes.Ldc_I4_0;outlineDefault.Operand=null;
+        foreach(var pair in new[]{("NGame2.NUI.NComponent2.GameOptionToggle3Component","SetToggle","CenterTextureChoices"),("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions"))continue;
             var il=method.Body.GetILProcessor();
             foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
-                ret.OpCode=pair.Item3=="Setup"||pair.Item3=="PollComparisonKeys"?OpCodes.Ldarg_0:OpCodes.Nop;ret.Operand=null;
+                ret.OpCode=pair.Item3=="Setup"||pair.Item3=="PollComparisonKeys"||pair.Item3=="CenterTextureChoices"?OpCodes.Ldarg_0:OpCodes.Nop;ret.Operand=null;
                 var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item3)));
                 il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
             }
@@ -87,6 +109,10 @@ partial class Program {
             il.InsertBefore(first,il.Create(OpCodes.Brfalse,first));
             il.InsertBefore(first,il.Create(OpCodes.Ret));
         }
+        var mainTarget=module.GetType("NVespa.GlobalCameraManager").Methods.Single(m=>m.Name=="HasMainRenderTarget");
+        mainTarget.Body.Instructions.Clear();mainTarget.Body.Variables.Clear();mainTarget.Body.ExceptionHandlers.Clear();
+        var mainIl=mainTarget.Body.GetILProcessor();mainIl.Emit(OpCodes.Ldarg_0);
+        mainIl.Emit(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="HasMainRenderTarget")));mainIl.Emit(OpCodes.Ret);
         var factory=module.GetType("NShader.FilterBase").Methods.Single(m=>m.Name=="CreateRenderTarget");
         factory.Body.Instructions.Clear();factory.Body.Variables.Clear();factory.Body.ExceptionHandlers.Clear();
         var factoryIl=factory.Body.GetILProcessor();factoryIl.Emit(OpCodes.Ldarg_0);factoryIl.Emit(OpCodes.Ldarg_1);factoryIl.Emit(OpCodes.Ldarg_2);
