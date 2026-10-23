@@ -367,9 +367,12 @@ async fn game_router() -> anyhow::Result<Router> {
         .layer(middleware::from_fn_with_state(state.clone(), api::progression::notifications::notify))
         .layer(middleware::from_fn_with_state(state.clone(), api::inventory::hero_level::notify))
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::decrypt_request))
-        .with_state(state);
+        .with_state(state.clone());
 
-    Ok(app)
+    // Operational readiness must bypass the encrypted game-request middleware.
+    Ok(app.merge(Router::new().route("/health/battle", get(
+        |axum::extract::State(s): axum::extract::State<AppState>| async move { s.conquest.readiness().await }
+    )).with_state(state)))
 }
 
 fn service_router(game: Option<Router>, updates: Option<Router>) -> Router {

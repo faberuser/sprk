@@ -40,6 +40,14 @@ struct Run {
     logs:Vec<Packet>,pending_actions:Vec<Value>,result:Option<Value>,started:bool,wave_started:bool,prepared:bool,created:i64,time_ms:i64,
 }
 impl BattleHub {
+    pub(crate) async fn readiness(&self) -> axum::http::StatusCode {
+        let worker = self.worker.read().await;
+        if worker.as_ref().is_some_and(|w| !w.sender.is_closed() && w.challenge_version >= 1 && w.arena_version >= 1) {
+            axum::http::StatusCode::OK
+        } else {
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        }
+    }
     async fn send_worker(&self,name:&str,body:Value)->Result<()> {
         let worker=self.worker.read().await;
         let worker=worker.as_ref().ok_or_else(||rule("BattleServerNotFound"))?;
@@ -278,6 +286,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         let mut active=s.conquest.worker.write().await;
                         if active.is_some() {return Err(rule("AlreadyOnBattleHero"));}
                         *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion")});worker=true;
+                        tracing::info!(arena_version=number(&body,"ArenaVersion"), challenge_raid_version=number(&body,"ChallengeRaidVersion"), "Native battle worker authenticated");
                         tx.send(("WorkerLoginRes".into(),json!({"Result":"Success"}))).await.map_err(|_|rule("InvalidValue"))?;
                     } else if name=="BattleLoginReq" {
                         let session=s.get_session(body["SessionKey"].as_str().unwrap_or("")).ok_or_else(||rule("SessionExpired"))?;
@@ -682,6 +691,21 @@ async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn readiness_requires_live_worker_and_supported_capabilities() {
+        use super::*;
+        use axum::http::StatusCode;
+        let hub = BattleHub::default();
+        assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
+        let (sender, receiver) = mpsc::channel(1);
+        *hub.worker.write().await = Some(Worker { id: "health-test".into(), sender,
+            arena_version: 1, challenge_version: 0 });
+        assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
+        hub.worker.write().await.as_mut().unwrap().challenge_version = 1;
+        assert_eq!(hub.readiness().await, StatusCode::OK);
+        drop(receiver);
+        assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
+    }
     use super::*;
     use crate::api::community::tests::{setup,login,call,create};
     #[tokio::test]

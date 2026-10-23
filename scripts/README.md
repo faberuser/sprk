@@ -9,6 +9,7 @@
 | `client_baseline.py`                                           | Automatically maintained fixed baseline reference; no routine edits                            |
 | `publish_client_update.py`                                     | Generate a signed snapshot from an installed/patched client; required for local client changes |
 | `client_update_bundle.py`                                      | Shared signature verification and archive packaging; imported by CI tools                      |
+| `linux_worker.py`, `smoke_linux_worker.py`                     | Assemble a verified Linux/Wine worker and require image readiness before deployment           |
 | `create_update_signing_key.py`                                 | Bootstrap keys for a new installation; keep existing keys for this installation                |
 | `test_build_client_release.py`, `test_client_update_bundle.py` | Build-input and packaging regression checks used by CI                                         |
 

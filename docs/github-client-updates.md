@@ -21,8 +21,10 @@ after the one-time baseline setup.
 5. It publishes both `client-update-manifest.json` and `client-update.tar.gz` as
    `client-ci-<commit-prefix>-<run-id>-<attempt>`. Assets go to a draft before
    publishing. Existing releases are never replaced.
-6. Ubuntu builds the server image with that exact client tag, pushes to GHCR,
-   and calls Portainer only after the client release is available.
+6. Ubuntu assembles the [Linux battle worker](linux-battle-worker.md) from the
+   pinned Unity runtime and that verified client release, builds the image,
+   and requires worker readiness in an isolated container before pushing to
+   GHCR and calling Portainer.
 7. At startup, the update container downloads that exact release, verifies its
    signature and every file hash, installs it, atomically replaces the stable
    manifest last, removes older local releases, and only then starts serving requests.

@@ -138,6 +138,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Assemble verified Linux battle worker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_TAG: ${{ needs.client-release.outputs.tag }}
+        run: python3 scripts/linux_worker.py build --repo "$GITHUB_REPOSITORY" --tag "$CLIENT_TAG"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -145,14 +151,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build image for validation
         id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
           platforms: linux/amd64
-          push: true
+          load: true
+          push: false
           build-args: |
             CLIENT_UPDATE_REPO=${{ github.repository }}
             CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
@@ -165,10 +172,46 @@ jobs:
           cache-from: type=gha,scope=sprk-server
           cache-to: type=gha,scope=sprk-server,mode=max
 
+      - name: Require Linux battle worker readiness before publishing
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: python3 scripts/smoke_linux_worker.py "${IMAGE}:sha-${GITHUB_SHA}"
+
+      - name: Build native combat integration image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: native-tests
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: sprk-native-tests:ci
+          build-args: |
+            CLIENT_UPDATE_REPO=${{ github.repository }}
+            CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
+          cache-from: type=gha,scope=sprk-server
+          cache-to: type=gha,scope=sprk-server,mode=max
+
+      - name: Run Challenge Raid and Guild Conquest under Wine
+        run: |
+          docker run --rm --init sprk-native-tests:ci readiness_requires_live_worker_and_supported_capabilities --nocapture
+          docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
+          docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
+
+      - name: Push validated image
+        id: push
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: |
+          docker push "${IMAGE}:sha-${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+          echo "digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:sha-${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+
       - name: Record published image
         env:
           IMAGE: ${{ steps.image.outputs.name }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.push.outputs.digest }}
           CLIENT_TAG: ${{ needs.client-release.outputs.tag }}
         run: |
           echo "Published ${IMAGE}:latest and ${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
