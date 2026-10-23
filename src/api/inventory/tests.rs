@@ -1153,6 +1153,90 @@ async fn instant_craft_uses_server_time_and_collection_is_once_only() {
     );
 }
 #[tokio::test]
+async fn expansion_accepts_multiple_gear_and_chest_purchases_and_persists_them() {
+    let (state, u) = setup().await;
+    let account = u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=100,pay_gem=2000 WHERE account_id=?")
+        .bind(account).execute(&state.db).await.unwrap();
+    let gear = item::extend_equip(State(state.clone()), form(&u, "ReqGem=750"))
+        .await.unwrap().0;
+    assert_eq!(gear["Result"], "Success");
+    assert_eq!(gear["NewInventoryExtend"], 3);
+    assert_eq!(gear["CurrencyResult"]["AddValue"], -750);
+    let chest = item::extend_chest(State(state.clone()), form(&u, "ReqGem=1000"))
+        .await.unwrap().0;
+    assert_eq!(chest["Result"], "Success");
+    assert_eq!(chest["NewChestExtend"], 2);
+    assert_eq!(chest["CurrencyResult"]["AddValue"], -1000);
+    let again = login(&state).await;
+    assert_eq!(again.user_info.gem, 0);
+    assert_eq!(again.user_info.pay_gem, 350);
+    let misc = again.misc_info.unwrap();
+    assert_eq!(misc.inventory_extend, 3);
+    assert_eq!(misc.chest_extend, 2);
+}
+
+#[tokio::test]
+async fn expansion_totals_cross_price_tiers_without_skipping_or_partial_payment() {
+    let (mut state, u) = setup().await;
+    let mut tables = state.tables.as_ref().clone();
+    // Deliberately unsorted: prices apply to successive extension ranges.
+    Arc::make_mut(&mut tables.inventory).extensions = vec![
+        json!({"InventoryType":0,"EquipItemExtendCount":5,"EquipItemExtendPrice":300}),
+        json!({"InventoryType":0,"EquipItemExtendCount":2,"EquipItemExtendPrice":100}),
+    ];
+    state.tables = Arc::new(tables);
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=1 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+    // From count 1, three more extensions cost 100 + 300 + 300.
+    let invalid = item::extend_equip(State(state.clone()), form(&u, "ReqGem=600"))
+        .await.unwrap().0;
+    assert_eq!(invalid["Result"], "ReqGemError");
+    let ok = item::extend_equip(State(state.clone()), form(&u, "ReqGem=700"))
+        .await.unwrap().0;
+    assert_eq!(ok["Result"], "Success");
+    assert_eq!(ok["NewInventoryExtend"], 4);
+    assert_eq!(ok["CurrencyResult"]["AddValue"], -700);
+    assert_eq!(login(&state).await.user_info.gem, 99300);
+}
+
+#[tokio::test]
+async fn expansion_rejects_bad_totals_and_unaffordable_batches_without_mutation() {
+    let (state, u) = setup().await;
+    let account = u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=100,pay_gem=200 WHERE account_id=?")
+        .bind(account).execute(&state.db).await.unwrap();
+    for (price, expected) in [(0,"ReqGemError"),(-250,"ReqGemError"),(251,"ReqGemError"),
+                             (2147483648i64,"ReqGemError"),(500,"NotEnoughGem")] {
+        let result = item::extend_equip(State(state.clone()), form(&u, &format!("ReqGem={price}")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], expected, "price {price}");
+        let again = login(&state).await;
+        assert_eq!(again.user_info.gem, 100);
+        assert_eq!(again.user_info.pay_gem, 200);
+        assert_eq!(again.misc_info.unwrap().inventory_extend, 0);
+    }
+}
+
+#[tokio::test]
+async fn expansion_batches_respect_remaining_capacity_and_exact_maximum() {
+    let (state, u) = setup().await;
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=88 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
+    assert_eq!(item::extend_equip(State(state.clone()), form(&u,"ReqGem=750"))
+        .await.unwrap().0["Result"], "ReqGemError");
+    let ok = item::extend_equip(State(state.clone()), form(&u,"ReqGem=500"))
+        .await.unwrap().0;
+    assert_eq!(ok["Result"], "Success");
+    assert_eq!(ok["NewInventoryExtend"], 90);
+    assert_eq!(item::extend_equip(State(state.clone()), form(&u,"ReqGem=250"))
+        .await.unwrap().0["Result"], "ReqGemError");
+    let again = login(&state).await;
+    assert_eq!(again.user_info.gem, 99500);
+    assert_eq!(again.misc_info.unwrap().inventory_extend, 90);
+}
+
+#[tokio::test]
 async fn expansion_uses_table_prices_and_preserves_paid_ruby_balance() {
     let (state, u) = setup().await;
     sqlx::query("UPDATE user_info SET gem=100,pay_gem=200 WHERE account_id=?")

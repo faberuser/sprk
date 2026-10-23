@@ -1211,7 +1211,7 @@ async fn expand(
     .bind(account)
     .fetch_one(&mut *db)
     .await?;
-    let tier = state
+    let mut tiers: Vec<_> = state
         .tables
         .inventory
         .extensions
@@ -1220,17 +1220,41 @@ async fn expand(
             n(r, "InventoryType") == if chest { 1 } else { 0 }
                 && n(r, "EquipItemExtendCount") > count
         })
-        .min_by_key(|r| n(r, "EquipItemExtendCount"))
-        .ok_or_else(|| rule("ReqGemError"))?;
-    let price = n(tier, "EquipItemExtendPrice");
-    if req.number("ReqGem", 0)? != price {
+        .collect();
+    tiers.sort_by_key(|r| n(r, "EquipItemExtendCount"));
+    // The native request contains only the total price, not an expansion count.
+    // Recover the unique quantity from the same successive table tiers the
+    // client's GetTotalPrice uses. Never accept partial prices or skip a tier.
+    let price = req.number("ReqGem", 0)?;
+    if !(1..=i32::MAX as i64).contains(&price) {
+        return Err(rule("ReqGemError"));
+    }
+    let mut remaining = price;
+    let mut new_count = count;
+    for tier in tiers {
+        let unit_price = n(tier, "EquipItemExtendPrice");
+        if unit_price <= 0 {
+            return Err(rule("ReqGemError"));
+        }
+        let available = n(tier, "EquipItemExtendCount") - new_count;
+        if available <= 0 { continue; }
+        let purchased = (remaining / unit_price).min(available);
+        new_count += purchased;
+        remaining -= purchased * unit_price;
+        if remaining == 0 { break; }
+        if purchased < available {
+            return Err(rule("ReqGemError"));
+        }
+    }
+    if remaining != 0 || new_count == count {
         return Err(rule("ReqGemError"));
     }
     let mut out = success();
     out["CurrencyResult"] = money(db, account, "Gem", -price).await?;
     sqlx::query(&format!(
-        "UPDATE inventory_settings SET {column}={column}+1 WHERE account_id=?"
+        "UPDATE inventory_settings SET {column}=? WHERE account_id=?"
     ))
+    .bind(new_count)
     .bind(account)
     .execute(db)
     .await?;
@@ -1238,7 +1262,7 @@ async fn expand(
         "NewChestExtend"
     } else {
         "NewInventoryExtend"
-    }] = json!(count + 1);
+    }] = json!(new_count);
     Ok(out)
 }
 
