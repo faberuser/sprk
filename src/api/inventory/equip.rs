@@ -207,6 +207,7 @@ pub async fn set_equip(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnsetEquipRequest {
+    #[serde(alias = "SessionKey")]
     pub session_id: Option<String>,
     pub equip_item_slot_index: Option<Vec<i32>>,
 }
@@ -224,41 +225,26 @@ pub struct UnsetEquipResponse {
 }
 
 /// Parse unset equip request from form body
-fn parse_unset_equip_request(body: &str) -> UnsetEquipRequest {
-    // Try JSON first
-    if body.starts_with('{') {
-        if let Ok(req) = serde_json::from_str::<UnsetEquipRequest>(body) {
-            return req;
+fn parse_unset_equip_request(body: &[u8]) -> Result<UnsetEquipRequest> {
+    let invalid = || ServerError::InvalidRequest("Invalid equipment slot list".into());
+    let req = if body.iter().copied().find(|b| !b.is_ascii_whitespace()) == Some(b'{') {
+        serde_json::from_slice::<UnsetEquipRequest>(body).map_err(|_| invalid())?
+    } else {
+        let fields = crate::api::system::request::Request::parse_with_integer_arrays(body, &["EquipItemSlotIndex"])?;
+        UnsetEquipRequest {
+            session_id: fields.0.get("SessionKey").or(fields.0.get("SessionId")).cloned(),
+            equip_item_slot_index: if fields.text("EquipItemSlotIndex").is_empty() { None } else {
+                Some(serde_json::from_str(fields.text("EquipItemSlotIndex")).map_err(|_| invalid())?)
+            },
+        }
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    if let Some(slots) = &req.equip_item_slot_index {
+        if slots.len() > 1000 || slots.iter().any(|slot| *slot <= 0 || !seen.insert(*slot)) {
+            return Err(invalid());
         }
     }
-    
-    // Fall back to form parsing
-    use std::collections::HashMap;
-    let params: HashMap<String, String> = body
-        .split('&')
-        .filter_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            match (parts.next(), parts.next()) {
-                (Some(key), Some(value)) => {
-                    let decoded = urlencoding::decode(value)
-                        .map(|s| s.into_owned())
-                        .unwrap_or_else(|_| value.to_string());
-                    Some((key.to_string(), decoded))
-                }
-                _ => None,
-            }
-        })
-        .collect();
-
-    // Client sends SessionKey, not SessionId
-    UnsetEquipRequest {
-        session_id: params.get("SessionKey").or(params.get("SessionId")).cloned(),
-        equip_item_slot_index: params.get("EquipItemSlotIndex").and_then(|v| {
-            // Try as JSON array first, then as single value
-            serde_json::from_str(v).ok()
-                .or_else(|| v.parse::<i32>().ok().map(|i| vec![i]))
-        }),
-    }
+    Ok(req)
 }
 
 /// Handle unset equip request
@@ -266,10 +252,7 @@ pub async fn unset_equip(
     State(state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<UnsetEquipResponse>> {
-    let body_str = String::from_utf8_lossy(&body);
-    tracing::info!("UnsetEquip request: {}", body_str);
-    
-    let req = parse_unset_equip_request(&body_str);
+    let req = parse_unset_equip_request(&body)?;
     
     let session_id = req.session_id.ok_or_else(|| ServerError::SessionExpired)?;
     let equip_slot_indices = req.equip_item_slot_index.unwrap_or_default();
@@ -280,6 +263,7 @@ pub async fn unset_equip(
     tracing::info!("UnsetEquip: slots={:?}", equip_slot_indices);
 
     let mut unequipped_slots: Vec<i32> = Vec::new();
+    let mut tx = state.db.begin().await?;
 
     // For each equipment slot to unequip
     for equip_slot_index in equip_slot_indices {
@@ -292,7 +276,7 @@ pub async fn unset_equip(
             ))
             .bind(session.account_id)
             .bind(equip_slot_index)
-            .execute(&state.db)
+            .execute(&mut *tx)
             .await?;
 
             if result.rows_affected() > 0 {
@@ -303,6 +287,7 @@ pub async fn unset_equip(
         }
     }
 
+    tx.commit().await?;
     Ok(Json(UnsetEquipResponse {
         base_result: "Success".to_string(),
         result: "Success".to_string(),

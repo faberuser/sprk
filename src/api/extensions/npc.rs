@@ -1,4 +1,31 @@
 use super::*;
+
+fn repair_final_claim(state: &AppState, info: &mut Value) -> bool {
+    let id=n(info,"HeroIndex");
+    let rows=state.tables.extensions.rows("NPCFriendlyPoint");
+    let Some(last)=rows.iter().filter(|r|n(r,"HeroIndex")==id).max_by_key(|r|n(r,"Step")) else {return false;};
+    let threshold:i64=rows.iter().filter(|r|n(r,"HeroIndex")==id).map(|r|n(r,"ReqFriendlyPoint")).sum();
+    // Old code granted this final reward but advanced beyond the table without
+    // consuming its points. Repair only that specific completed-claim shape.
+    if n(last,"EndRewardRepeatCount")==0 && n(info,"Step")==n(last,"Step")+1
+        && n(info,"EndRewardCount")==0 && n(info,"FriendlyPoint")>=threshold {
+        info["Step"]=last["Step"].clone();
+        info["FriendlyPoint"]=json!(n(info,"FriendlyPoint")-n(last,"ReqFriendlyPoint"));
+        info["EndRewardCount"]=json!(1);
+        return true;
+    }
+    false
+}
+
+pub(super) async fn snapshot(db: &mut SqliteConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
+    let mut infos=list(db,account,"npc").await?;
+    for info in &mut infos {
+        if repair_final_claim(state,info) {
+            put(db,account,"npc",n(info,"HeroIndex"),info).await?;
+        }
+    }
+    Ok(infos)
+}
 pub(super) async fn execute(
     db: &mut SqliteConnection,
     state: &AppState,
@@ -25,6 +52,7 @@ pub(super) async fn execute(
     if info.is_null() {
         info = json!({"HeroIndex":id,"Step":1,"FriendlyPoint":0,"EndRewardCount":0});
     }
+    repair_final_claim(state,&mut info);
     let step = n(&info, "Step");
     let max = rows.iter().map(|r| n(r, "Step")).max().unwrap();
     let row = rows
@@ -115,11 +143,11 @@ pub(super) async fn execute(
         out["HeroResults"] = json!([]);
         if step < max {
             info["Step"] = json!(step + 1);
-        } else if n(row, "EndRewardRepeatCount") > n(&info, "EndRewardCount") {
+        } else {
+            // Zero means an unlimited repeat count. Keep the final valid step
+            // and spend one reward's points, including for single-step NPCs.
             info["EndRewardCount"] = json!(n(&info, "EndRewardCount") + 1);
             info["FriendlyPoint"] = json!(n(&info, "FriendlyPoint") - n(row, "ReqFriendlyPoint"));
-        } else {
-            info["Step"] = json!(step + 1);
         }
     }
     put(db, account, "npc", id, &info).await?;

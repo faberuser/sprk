@@ -96,12 +96,7 @@ pub(crate) async fn snapshot(
         "NewbieMissionInfos":view.claims.iter().filter(|c|c.0=="newbie").map(|c|json!({"MissionIndex":c.1,"UpdateTime":c.4})).collect::<Vec<_>>(),
         "ChapterRewardInfos":chapter.into_iter().map(|(id,mask)|json!({"ChapterIndex":id,"LastRewardDiff":mask})).collect::<Vec<_>>(),
         "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":view.claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
-    out["OpendMissionCategories"] = json!(state.tables.progression.mission_categories.iter().filter(|r| {
-        r["OpenConditionName"].as_str().unwrap_or("").is_empty() ||
-        (r["OpenConditionName"] == "ClearQuestIndex" && r["OpenConditionArgs"][0] == "SubQuest"
-         && r["OpenConditionArgs"][1].as_str().and_then(|s| s.parse::<i64>().ok())
-             .is_some_and(|id| view.category_subquest_complete(state, id)))
-    }).map(|r| json!({"MainCategoryIndex":r["MainCategoryIndex"],"SubCategoryIndex":r["SubCategoryIndex"]})).collect::<Vec<_>>());
+    out["OpendMissionCategories"] = opened_mission_categories(state, &view);
     let main: Option<(i64, i64)> =
         sqlx::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=?")
             .bind(account)
@@ -131,6 +126,23 @@ pub(crate) async fn snapshot(
         .collect::<Vec<_>>());
     Ok(out)
 }
+pub(crate) async fn mission_categories(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+) -> Result<Value> {
+    Ok(opened_mission_categories(state, &View::load(db, account).await?))
+}
+
+fn opened_mission_categories(state: &AppState, view: &View) -> Value {
+    json!(state.tables.progression.mission_categories.iter().filter(|r| {
+        r["OpenConditionName"].as_str().unwrap_or("").is_empty() ||
+        (r["OpenConditionName"] == "ClearQuestIndex" && r["OpenConditionArgs"][0] == "SubQuest"
+         && r["OpenConditionArgs"][1].as_str().and_then(|s| s.parse::<i64>().ok())
+             .is_some_and(|id| view.category_subquest_complete(state, id)))
+    }).map(|r| json!({"MainCategoryIndex":r["MainCategoryIndex"],"SubCategoryIndex":r["SubCategoryIndex"]})).collect::<Vec<_>>())
+}
+
 pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let req = Request::parse_with_arrays(&body, &["AchievementIndices", "Steps", "SubQuestIndices"])?;
     let account = req.account(&state)?;

@@ -29,6 +29,14 @@ partial class Program
         InstallAutomation(clientRoot);
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
+        InstallRoomShortcut(clientRoot, false);
+        VerifyRoomShortcutFile(clientRoot);
+        InstallPetPresentation(clientRoot, false);
+        VerifyPetPresentationFile(clientRoot);
+        InstallRaidInfoScroll(clientRoot, false);
+        InstallShopTags(clientRoot, false);
+        VerifyShopTagsFile(clientRoot);
+        VerifyRaidInfoScrollFile(clientRoot);
 
         VerifyNoTelemetry(clientRoot, null);
         VerifyFriendRecommendationsFile(clientRoot, false);
@@ -41,6 +49,8 @@ partial class Program
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
         VerifyShopPurchaseLimitsFile(clientRoot, false);
+        VerifyPetFeedingFile(clientRoot);
+        TestPetFeeding(clientRoot);
         TestShopPurchaseLimits(clientRoot);
         VerifySelectorCountLimitFile(clientRoot, false);
         TestSelectorCountLimit(clientRoot);

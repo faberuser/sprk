@@ -586,7 +586,7 @@ pub async fn login(
     crate::api::progression::notifications::subquest_updates(&state, &session_key, &progression["SubQuestInfos"]);
     let mut soul_weapon_infos = crate::api::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
     crate::api::extensions::refresh_soul_weapon_stats(&state,&mut soul_weapon_infos)?;
-    let npc_friendly_infos = crate::api::extensions::list(&mut *state.db.acquire().await?, account_id, "npc").await?;
+    let npc_friendly_infos = crate::api::extensions::npc_friendly_snapshot(&mut *state.db.acquire().await?, &state, account_id).await?;
     let mut extension_misc = crate::api::extensions::misc(&mut *state.db.acquire().await?, account_id).await?;
     let weapon_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"weapon").await?;
     let hair_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;

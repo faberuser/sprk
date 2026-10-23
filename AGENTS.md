@@ -15,17 +15,17 @@ isolated validation, signing and deployment.
   whenever the changed data requires it. Changes only in `../sprk-client` or
   ignored local release folders do not become CI inputs automatically.
 - Routine patches do not require a baseline change, a manual CI release version,
-  or `client-build.json`. `scripts/client_baseline.py` pins the fixed distributed
+  or `client-build.json`. `scripts/release/client_baseline.py` pins the fixed distributed
   snapshot; use the baseline preparation tool only when deliberately replacing
   that snapshot.
 - Preserve complete telemetry cleanup. The Python release builder and
-  `scripts/patch.ps1` run `scripts/remove_client_telemetry.py` before full DLL
+  `scripts/client/patch.ps1` run `scripts/client/remove_client_telemetry.py` before full DLL
   patching, while original type definitions are available for serialized asset
-  cleanup. Keep its dependencies in `scripts/requirements-client.txt`. Managed
+  cleanup. Keep its dependencies in `scripts/client/requirements-client.txt`. Managed
   DLL stripping alone does not replace the serialized asset and SDK cleanup.
 - For explicitly source-only work or CI/build-tool changes that do not install
   client assets, validate relevant checks in a fresh isolated workspace. For a
-  complete signed build use `scripts/build_client_release.py` without
+  complete signed build use `scripts/release/build_client_release.py` without
   `--publish`, with a unique work path/version and the existing signing key.
   Do not change the installed client or normal local stable manifest for that
   validation. Report that no installed-client release was generated. This does
@@ -69,7 +69,7 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
    pass. Use the existing signing key:
 
    ```powershell
-   python scripts/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
+   python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
    ```
 
    Replace `<new-release-id>` with the chosen identifier. The publisher creates

@@ -14,7 +14,7 @@ import unittest
 @unittest.skipUnless(os.name == "nt", "Windows process lifetime helper")
 class LocalServerLifetimeTests(unittest.TestCase):
     def check_exit(self, forced):
-        helper = Path(__file__).resolve().parents[1] / "scripts/LocalServerLifetime.cs"
+        helper = Path(__file__).resolve().parents[1] / "scripts/server/LocalServerLifetime.cs"
         quote = lambda text: "'" + str(text).replace("'", "''") + "'"
         with tempfile.TemporaryDirectory(prefix="sprk-lifetime-") as directory:
             root = Path(directory)

@@ -1,6 +1,6 @@
 # Client automation
 
-`scripts/client_automation.py` controls the real Unity client through an opt-in
+`scripts/automation/client_automation.py` controls the real Unity client through an opt-in
 helper installed by DllPatcher. Python uses only its standard library. Normal
 launches without `SPRK_AUTOMATION_DIR` do not start the bridge.
 
@@ -10,7 +10,7 @@ Close test clients before installing. From the server directory:
 
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --automation-only
-python scripts/client_automation.py launch --seed-db sprk.db
+python scripts/automation/client_automation.py launch --seed-db sprk.db
 ```
 
 The launcher starts the release server on ports 8080/9001 with a SQLite backup
@@ -29,9 +29,9 @@ the client while either instance runs. Engine settings and preferences in
 third-party assemblies are not fully virtualized.
 
 ```powershell
-python scripts/client_automation.py launch --seed-db sprk.db --profile host
+python scripts/automation/client_automation.py launch --seed-db sprk.db --profile host
 # Record the run directory printed above before starting the second client.
-python scripts/client_automation.py launch --external-server --profile guest --database <host-run>/sprk.db
+python scripts/automation/client_automation.py launch --external-server --profile guest --database <host-run>/sprk.db
 ```
 
 Fresh accounts retain their normal tutorial/unlocks. Use `new-guest.json` to
@@ -41,13 +41,13 @@ login-to-lobby and Portal smoke scenarios.
 ## Observe, act, and verify
 
 ```powershell
-python scripts/client_automation.py --session <run> snapshot
-python scripts/client_automation.py --session <run> screenshot
-python scripts/client_automation.py --session <run> click Portal
-python scripts/client_automation.py --session <run> text <input-path-or-id> <value>
-python scripts/client_automation.py --session <run> run scripts/client-scenarios/portal-smoke.json
-python scripts/client_automation.py --session <run> quit
-python scripts/client_automation.py --session <host-run> stop-server
+python scripts/automation/client_automation.py --session <run> snapshot
+python scripts/automation/client_automation.py --session <run> screenshot
+python scripts/automation/client_automation.py --session <run> click Portal
+python scripts/automation/client_automation.py --session <run> text <input-path-or-id> <value>
+python scripts/automation/client_automation.py --session <run> run scripts/automation/scenarios/portal-smoke.json
+python scripts/automation/client_automation.py --session <run> quit
+python scripts/automation/client_automation.py --session <host-run> stop-server
 ```
 
 Without `--session`, commands target the latest launch. Use explicit sessions
@@ -121,10 +121,17 @@ DLL backup from this installation, then remove SprkAutomation.dll. A full normal
 DLL repatch may remove the hooks; reapply `--automation-only` afterward.
 
 
-Read-only material diagnosis: `python scripts/client_automation.py renderers`
+Read-only material diagnosis: `python scripts/automation/client_automation.py renderers`
 adds active renderer hierarchy, material name, shader name, support and visibility
 to the reply. Reinstall `--automation-only` after updating the bridge. This command
 does not change materials or gameplay. Null slots on visible renderers can identify
 magenta effects. The old standalone field-projectile asset repair script is no
 longer included. Asset changes now belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
+
+The opt-in bridge also accepts `video-probe` through the Python `request` API.
+Without parameters it reports native cinematic state, preparation, playback,
+decoded frame, dimensions and resolved URL. Set `text` to a valid video-table
+code to play that movie through the native manager; `target=1` invokes native
+Skip. It does not mark tutorials or stages complete. This probe requires the
+automation environment and is unavailable in ordinary client launches.

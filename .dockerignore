@@ -9,3 +9,13 @@
 !tables/**
 !config/
 !config/client-update-public.pem
+!scripts/
+!scripts/docker/
+!scripts/docker/*.sh
+!scripts/DllPatcher/
+!scripts/DllPatcher/Resources/
+!scripts/DllPatcher/Resources/LegacyData/
+!scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json
+!build-input/
+!build-input/worker/
+!build-input/worker/**

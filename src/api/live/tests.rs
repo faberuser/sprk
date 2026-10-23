@@ -66,7 +66,12 @@ async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_it
         assert!(indices.insert(n(product, "Index")));
         assert!(product["ProductType"].is_string());
         assert!(product["PriceType"].is_string());
-        assert!(n(product, "Price") > 0);
+        if [3094170, 3094594, 3094595].contains(&n(product, "Index")) {
+            assert_eq!(product["Price"], 0);
+            assert_eq!(product["Flag"], "Free");
+        } else {
+            assert!(n(product, "Price") > 0);
+        }
         assert_eq!(product["Begin"], 0);
         assert_eq!(product["End"], 0);
         assert_eq!(product["BeginTime"], "");
@@ -129,6 +134,65 @@ async fn unlimited_shop_repeated_purchases_and_cached_selection_use_current_stoc
         assert_eq!(product["PurchasableCount"],0);assert_eq!(product["ResetType"],"None");
         assert_eq!(product["DailyReset"],false);
     }
+}
+
+#[tokio::test]
+async fn shop_purchases_preserve_current_mission_unlocks() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    for progressed in [false, true] {
+        if progressed {
+            sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'subquest',10110,1,'all')")
+                .bind(a).execute(&s.db).await.unwrap();
+        }
+        let expected = crate::api::progression::login(&s, a).await.unwrap()["OpendMissionCategories"].clone();
+        let purchase = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
+        ok(&purchase);
+        let categories = purchase["OpendMissionCategories"].as_array().unwrap();
+        // These sections have no prerequisite and must stay usable after buying.
+        for main in [2, 3, 6, 7, 8, 9, 10, 11, 12] {
+            assert!(categories.iter().any(|c| n(c, "MainCategoryIndex") == main), "Missing section {main}");
+        }
+        assert_eq!(purchase["OpendMissionCategories"], expected);
+        assert_eq!(categories.contains(&json!({"MainCategoryIndex":4,"SubCategoryIndex":1})), progressed);
+        assert!(!categories.iter().any(|c| n(c, "MainCategoryIndex") >= 98));
+    }
+    // Failed purchases must not send a replacement list either.
+    sqlx::query("UPDATE user_info SET gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let rejected = call(&s, &u, "shop/buy_payshop_product", "Index=3093009").await;
+    assert_ne!(rejected["Result"], "Success");
+    assert!(rejected["OpendMissionCategories"].is_null());
+}
+
+#[tokio::test]
+async fn explicitly_free_shop_offers_grant_packages_without_any_currency() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    sqlx::query("UPDATE user_info SET gold=0,gem=0,mileage=0 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    let catalog = shop_snapshot(&s, a).await.unwrap();
+    let products = catalog["PayShopProductInfos"].as_array().unwrap();
+    let free: Vec<_> = products.iter().filter(|p| n(p, "Price") == 0).collect();
+    assert_eq!(free.len(), 3);
+    for (id, item) in [(3094170, 94170), (3094594, 94594), (3094595, 94595)] {
+        let product = free.iter().find(|p| n(p, "Index") == id).unwrap();
+        assert_eq!(product["Flag"], "Free");
+        for expected in 1..=2 {
+            let result = call(&s, &u, "shop/buy_payshop_product", &format!("Index={id}")).await;
+            ok(&result);
+            assert!(result["DecCurrencyResult"].is_null());
+            assert_eq!(result["CurrencyResults"], json!([]));
+            assert_eq!(result["PlayerProductPurchaseInfo"]["PurchasedCount"], expected);
+            assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+                .bind(a).bind(item).fetch_one(&s.db).await.unwrap(), expected);
+        }
+    }
+    for currency in ["gold", "gem", "mileage"] {
+        assert_eq!(balance(&s, &u, currency).await, 0);
+    }
+    // A client cannot turn an ordinary paid package into a free purchase.
+    let paid = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Price=0").await;
+    assert_ne!(paid["Result"], "Success");
 }
 
 #[tokio::test]

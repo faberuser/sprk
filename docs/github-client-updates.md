@@ -7,7 +7,7 @@ after the one-time baseline setup.
 ## Pipeline
 
 1. Ubuntu runs the server tests and client build-tool tests.
-2. Windows downloads the immutable baseline pinned by `scripts/client_baseline.py`,
+2. Windows downloads the immutable baseline pinned by `scripts/release/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.
 3. It applies tracked files from `client-overrides/files/`, runs telemetry cleanup
@@ -21,8 +21,10 @@ after the one-time baseline setup.
 5. It publishes both `client-update-manifest.json` and `client-update.tar.gz` as
    `client-ci-<commit-prefix>-<run-id>-<attempt>`. Assets go to a draft before
    publishing. Existing releases are never replaced.
-6. Ubuntu builds the server image with that exact client tag, pushes to GHCR,
-   and calls Portainer only after the client release is available.
+6. Ubuntu assembles the [Linux battle worker](linux-battle-worker.md) from the
+   pinned Unity runtime and that verified client release, builds the image,
+   and requires worker readiness in an isolated container before pushing to
+   GHCR and calling Portainer.
 7. At startup, the update container downloads that exact release, verifies its
    signature and every file hash, installs it, atomically replaces the stable
    manifest last, removes older local releases, and only then starts serving requests.
@@ -43,7 +45,7 @@ errors are logged and do not prevent a verified active release from being served
 The initial baseline is the existing distributed signed snapshot plus a support
 file referenced by its baked-data integrity metadata. It preserves existing
 patches, native tables, privacy removals and managed file selection. Its archive
-location and SHA-256 are recorded in `scripts/client_baseline.py`. This fixed pin
+location and SHA-256 are recorded in `scripts/release/client_baseline.py`. This fixed pin
 is maintained by the baseline preparation tool; routine patcher changes never
 require editing it. No signing keys or user
 configuration enter the archive.
@@ -57,8 +59,8 @@ environments and removes its temporary key file after signing. Private keys neve
 enter Git, release assets or container images.
 
 The current repository's baseline and environment are already configured. For a
-new repository, run `python scripts/prepare_client_baseline.py --upload --repo
-owner/repository` once against its signed distribution, commit the generated `scripts/client_baseline.py`
+new repository, run `python scripts/release/prepare_client_baseline.py --upload --repo
+owner/repository` once against its signed distribution, commit the generated `scripts/release/client_baseline.py`
 and the matching public key, and configure the environment secret. Baseline
 preparation refuses to overwrite its local archive or an existing release.
 
@@ -110,8 +112,8 @@ must restart using the current stable manifest.
 Run a complete local build without modifying the installed client:
 
 ```powershell
-python -m pip install -r scripts/requirements-client.txt
-python scripts/build_client_release.py --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
+python -m pip install -r scripts/client/requirements-client.txt
+python scripts/release/build_client_release.py --work client-updates/ci-validation/new-build --version validation-unique-id --signing-key client-updates/update-signing/private.pem
 ```
 
 Choose a fresh work path and release ID. Without `--publish`, no GitHub release

@@ -11,15 +11,15 @@ client. Focused installation commands below remain available for local changes.
 ## Telemetry cleanup
 
 Install the asset dependency once with
-`python -m pip install -r scripts/requirements-client.txt` (.NET 8 is also required).
-`scripts/patch.ps1` and the Python CI release builder automatically run the complete
+`python -m pip install -r scripts/client/requirements-client.txt` (.NET 8 is also required).
+`scripts/client/patch.ps1` and the Python CI release builder automatically run the complete
 cleanup. The DLL patcher alone removes managed telemetry code; the Python wrapper
 also removes SDK files, serialized telemetry scripts/prefabs, startup hooks, Unity
 service destinations and cloud identifiers.
 
 ```powershell
-python scripts/remove_client_telemetry.py ../sprk-client --stage-only
-python scripts/remove_client_telemetry.py ../sprk-client
+python scripts/client/remove_client_telemetry.py ../sprk-client --stage-only
+python scripts/client/remove_client_telemetry.py ../sprk-client
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-no-telemetry
 ```
 

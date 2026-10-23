@@ -726,6 +726,58 @@ async fn npc_gifts_and_claims_validate_step_and_charge_once() {
         "Success"
     );
 }
+
+#[tokio::test]
+async fn npc_valance_final_reward_repeats_without_invalid_step_or_free_retry() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let cost=n(s.tables.extensions.find("NPCFriendlyPoint",&[("HeroIndex",111),("Step",1)]).unwrap(),"ReqFriendlyPoint");
+    put(&mut s.db.acquire().await.unwrap(),a,"npc",111,&json!({"HeroIndex":111,"Step":1,"FriendlyPoint":cost,"EndRewardCount":0})).await.unwrap();
+    let claim=call(&s,&u,"recv_reward_friendly_point","HeroIndex=111&Step=1").await;
+    assert_eq!(claim["Result"],"Success","{claim}");
+    assert_eq!(claim["FriendlyInfo"],json!({"HeroIndex":111,"Step":1,"FriendlyPoint":0,"EndRewardCount":1}));
+    assert!(!claim["EquipItemResults"].as_array().unwrap().is_empty());
+    assert_ne!(call(&s,&u,"recv_reward_friendly_point","HeroIndex=111&Step=1").await["Result"],"Success");
+    give(&s,a,143041,(cost/1000) as i32).await;
+    let gift=call(&s,&u,"give_gift_item",&format!("HeroIndex=111&ItemIndices=[143041]&ItemCount=[{}]",cost/1000)).await;
+    assert_eq!(gift["Result"],"Success","{gift}");
+    let again=call(&s,&u,"recv_reward_friendly_point","HeroIndex=111&Step=1").await;
+    assert_eq!(again["Result"],"Success","{again}");
+    assert_eq!(again["FriendlyInfo"]["EndRewardCount"],2);
+    assert_eq!(again["FriendlyInfo"]["Step"],1);
+}
+
+#[tokio::test]
+async fn npc_valance_login_repairs_old_claim_once_without_granting_rewards() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let cost=n(s.tables.extensions.find("NPCFriendlyPoint",&[("HeroIndex",111),("Step",1)]).unwrap(),"ReqFriendlyPoint");
+    put(&mut s.db.acquire().await.unwrap(),a,"npc",111,&json!({"HeroIndex":111,"Step":2,"FriendlyPoint":cost+9000,"EndRewardCount":0})).await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let info=login.npc_friendly_infos.iter().find(|r|r["HeroIndex"]==111).unwrap();
+    assert_eq!(*info,json!({"HeroIndex":111,"Step":1,"FriendlyPoint":9000,"EndRewardCount":1}));
+    let again=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(again.npc_friendly_infos,login.npc_friendly_infos);
+    let after:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(before,after);
+}
+
+#[tokio::test]
+async fn npc_limited_final_reward_still_stops_at_its_configured_cap() {
+    let (mut s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let tables=std::sync::Arc::make_mut(&mut s.tables);
+    let rows=std::sync::Arc::make_mut(&mut tables.extensions).0.get_mut("NPCFriendlyPoint").unwrap();
+    let row=rows.iter_mut().find(|r|r["HeroIndex"]==111 && r["Step"]==1).unwrap();
+    row["EndRewardRepeatCount"]=json!(1);
+    let cost=n(row,"ReqFriendlyPoint");
+    put(&mut s.db.acquire().await.unwrap(),a,"npc",111,&json!({"HeroIndex":111,"Step":1,"FriendlyPoint":cost*2,"EndRewardCount":0})).await.unwrap();
+    assert_eq!(call(&s,&u,"recv_reward_friendly_point","HeroIndex=111&Step=1").await["Result"],"Success");
+    let saved=get(&mut s.db.acquire().await.unwrap(),a,"npc",111).await.unwrap();
+    assert_ne!(call(&s,&u,"recv_reward_friendly_point","HeroIndex=111&Step=1").await["Result"],"Success");
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"npc",111).await.unwrap(),saved);
+}
 #[tokio::test]
 async fn technomagic_reforge_charges_materials_for_both_options_without_currency() {
     let (s, u) = setup().await;

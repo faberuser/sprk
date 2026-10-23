@@ -39,7 +39,7 @@ jobs:
         run: cargo +1.93.0 test --locked
 
       - name: Test client release packaging
-        run: python3 -m unittest discover -s scripts -p 'test_*client*.py'
+        run: python3 -m unittest discover -s scripts -t . -p 'test_*client*.py'
 
   client-release:
     name: Build and publish client update
@@ -68,7 +68,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Install client patch dependencies
-        run: python -m pip install -r scripts/requirements-client.txt
+        run: python -m pip install -r scripts/client/requirements-client.txt
 
       - name: Select an existing release override
         id: reuse
@@ -80,8 +80,7 @@ jobs:
         run: |
           import json, os, re, subprocess, sys, tempfile
           from pathlib import Path
-          sys.path.insert(0, 'scripts')
-          from client_update_bundle import verified_manifest
+          from scripts.release.client_update_bundle import verified_manifest
           tag = os.environ.get('INPUT_TAG', '')
           if tag and (len(tag) > 128 or not re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', tag)):
               raise SystemExit('Expected a client-<version> release tag')
@@ -109,7 +108,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "ci-$($env:GITHUB_SHA.Substring(0,12))-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          python scripts/build_client_release.py `
+          python scripts/release/build_client_release.py `
             --work "$env:RUNNER_TEMP/client-build" `
             --version $version --repo $env:RELEASE_REPOSITORY --publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -138,6 +137,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Assemble verified Linux battle worker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_TAG: ${{ needs.client-release.outputs.tag }}
+        run: python3 scripts/server/linux_worker.py build --repo "$GITHUB_REPOSITORY" --tag "$CLIENT_TAG"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -145,14 +150,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build image for validation
         id: build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
           platforms: linux/amd64
-          push: true
+          load: true
+          push: false
           build-args: |
             CLIENT_UPDATE_REPO=${{ github.repository }}
             CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
@@ -165,10 +171,46 @@ jobs:
           cache-from: type=gha,scope=sprk-server
           cache-to: type=gha,scope=sprk-server,mode=max
 
+      - name: Require Linux battle worker readiness before publishing
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: python3 scripts/server/smoke_linux_worker.py "${IMAGE}:sha-${GITHUB_SHA}"
+
+      - name: Build native combat integration image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: native-tests
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: sprk-native-tests:ci
+          build-args: |
+            CLIENT_UPDATE_REPO=${{ github.repository }}
+            CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
+          cache-from: type=gha,scope=sprk-server
+          cache-to: type=gha,scope=sprk-server,mode=max
+
+      - name: Run Challenge Raid and Guild Conquest under Wine
+        run: |
+          docker run --rm --init sprk-native-tests:ci readiness_requires_live_worker_and_supported_capabilities --nocapture
+          docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
+          docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
+
+      - name: Push validated image
+        id: push
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+        run: |
+          docker push "${IMAGE}:sha-${GITHUB_SHA}"
+          docker push "${IMAGE}:latest"
+          echo "digest=$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}:sha-${GITHUB_SHA}")" >> "$GITHUB_OUTPUT"
+
       - name: Record published image
         env:
           IMAGE: ${{ steps.image.outputs.name }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.push.outputs.digest }}
           CLIENT_TAG: ${{ needs.client-release.outputs.tag }}
         run: |
           echo "Published ${IMAGE}:latest and ${IMAGE}:sha-${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,66 @@
+using System.Collections;
+using UnityEngine;
+using NGame2.NUI.NManager;
+using NGame2.NUI.NWindow;
+using NGame2.NParty;
+using NVespa.NSingleton;
+
+public sealed class SprkRoomShortcut : MonoBehaviour {
+    static SprkRoomShortcut runner;
+    bool pending;
+    public static bool Intercept(InvenItemDesc popup,int action) {
+        if(!GlobalAutoBehaviour<PartyManager>.isValidInstance)return false;
+        var party=GlobalAutoBehaviour<PartyManager>.instance.PartyInfo;
+        if(party==null || party.PartyRoom==null)return false;
+        if(runner==null) {
+            var host=new GameObject("SprkRoomShortcut");
+            DontDestroyOnLoad(host);runner=host.AddComponent<SprkRoomShortcut>();
+        }
+        if(runner.pending)return true;
+        RaidPartySetting room=null;
+        foreach(var candidate in Resources.FindObjectsOfTypeAll<RaidPartySetting>())
+            if(candidate.gameObject.scene.IsValid() && candidate.IsOpen()) {room=candidate;break;}
+        if(room==null) {
+            MessagePopup.Open("Item shortcut","Leave the party room before using this shortcut.");
+            return true;
+        }
+        var original=party;
+        var target=room;
+        MessagePopup3Button.Open("Leave raid room?","This shortcut opens another location. Leave the raid room and continue?",
+            delegate {
+                if(runner.pending || popup==null || !target.IsOpen())return;
+                if(GlobalAutoBehaviour<PartyManager>.instance.PartyInfo!=original)return;
+                runner.pending=true;
+                runner.StartCoroutine(runner.LeaveAndContinue(target,popup,action,original));
+            },delegate {},"Leave Room","Stay");
+        return true;
+    }
+    IEnumerator LeaveAndContinue(RaidPartySetting room,InvenItemDesc popup,int action,NShared.NParty.PartyInfo original) {
+        // Use the ordinary room-close lifecycle, including its server request.
+        // Do not start a lobby activity or its input lock until departure finishes.
+        room.Close();
+        float deadline=Time.realtimeSinceStartup+15;
+        while(Time.realtimeSinceStartup<deadline) {
+            var party=GlobalAutoBehaviour<PartyManager>.instance.PartyInfo;
+            if(party==null || party.PartyRoom==null) {
+                // Raid list and Portal also hide the world map. Close their native
+                // managers, preserving the inventory and its item listener until replay.
+                GlobalAutoBehaviour<GlobalManagement>.instance.ForEach(delegate(IManagementWrapper manager) {
+                    if(!(manager is GenericManagementWrapper<InventoryManagement>))manager.CloseAll(true);
+                });
+                yield return null;
+                pending=false;
+                if(popup!=null) {
+                    if(action==1)popup.OnClickMoveDirect();
+                    else if(action==2)popup.OnClickRestoreSoulStone();
+                    else popup.OnClickShortcut();
+                }
+                yield break;
+            }
+            if(party!=original)break;
+            yield return null;
+        }
+        pending=false;
+        MessagePopup.Open("Item shortcut","The room could not be left. Please leave the room before using this shortcut.");
+    }
+}

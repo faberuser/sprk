@@ -1,0 +1,86 @@
+{
+  "source": "Pre-Doomsday/com.vespainteractive.KingsRaid/files/Documents/Patch/Android/Video",
+  "format": "H.264 MP4; original bytes; native quality fallback to Mid",
+  "files": [
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_1.mp4",
+      "size": 6573283,
+      "sha256": "875f1da189295551325ff2800049f103fbbe04a73d276a583f02c55d5ee98a7b"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_10.mp4",
+      "size": 15113209,
+      "sha256": "3d03401d3d34e0c02c774d9d2cb7a2246b77d13528705f5427143ee442a96f5b"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_2.mp4",
+      "size": 20617745,
+      "sha256": "c7bc0c22884a2a1178bd34d0516c5c00bec07be68914b2b035d52d8df0562a23"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_3.mp4",
+      "size": 7921132,
+      "sha256": "5348dbc0efd6bc20c9226d05e1c87c21bb089f803fbbc56236ec87dd535df0d6"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_4.mp4",
+      "size": 10361969,
+      "sha256": "b5725d655604c75ad28476d48d1d2a32cbc52b3bef45cb711410b377c49691f4"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_5.mp4",
+      "size": 5364434,
+      "sha256": "1ae43ceb9e369525481e74b337a00e2f100995f8ccc14d82e4bb191bb6f51996"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_6.mp4",
+      "size": 5174428,
+      "sha256": "baa1068f85efab4d7cf9df613e618de8f4becaa266cf4d5d1a1442c5c7d7537a"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_7.mp4",
+      "size": 4098308,
+      "sha256": "ffbf6ae43738b39e07f83940feedacb84c2e5f15ee97023ec60087e96c1f4b29"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_8.mp4",
+      "size": 19414158,
+      "sha256": "2f23899465ee75e98faae0689ba73d35b90e13522555a09457aa0da6de154c3e"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter10/Chapter10_9.mp4",
+      "size": 22848802,
+      "sha256": "7aac165e9fc27d55ea1f57b2c62f2ee078d7a39dc82b4e46c1dd04d74937cd09"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter11/Chapter11_1.mp4",
+      "size": 9010853,
+      "sha256": "40d845e2527eeae01941c87ca06f3e79d971e2f5c2328cb6719a2e5c1c3d9a65"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter11/Chapter11_2.mp4",
+      "size": 2343369,
+      "sha256": "faf843cec2b8fb1cb8763d4b69e50112c796d97b4f9ae67ee3fbf58ef61a9191"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter30036/Chapter30036_1.mp4",
+      "size": 13912982,
+      "sha256": "83875ae75090fd24e141788abc46889bbbbfb08d4c8cd3141ee5c0ba85fc5f00"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter30039/Chapter30039_1.mp4",
+      "size": 8898180,
+      "sha256": "96f3ef06671830bfb1717aef6e116df0ed4b49ab7aff82cf5af80f0ad5d953a4"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter70000/Chapter70000_1.mp4",
+      "size": 14755550,
+      "sha256": "0f066961128b19baccdda5af33387baeacd42a811a756c20b4975879e11ee864"
+    },
+    {
+      "path": "King's Raid_Data/Documents/Patch/StandaloneWindows/Video/Mid/Chapter95/Chapter95_1.mp4",
+      "size": 30146347,
+      "sha256": "0b73c3e85c10cd925c6a1f14e4cf0f8b7d4d4829bb76cc69b17d999bbdf1a379"
+    }
+  ]
+}
