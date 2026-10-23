@@ -1,0 +1,19 @@
+using UnityEngine;
+using NShared;
+using NGame2.NUI.NWindow;
+
+public static class SprkPetPresentation {
+    public static PortalRenewalCompType Shape(PortalRenewalCompType original,PortalRenewalData data) {
+        // Pet uses PortalPethouseComponent, with its own artwork and controls.
+        // Both the menu and content row must select the native Window layout.
+        return data.Category==PortalRenewalCategory.Pet ? PortalRenewalCompType.Window : original;
+    }
+    public static void Setup(MyInfoWindow window) {
+        if(window==null)return;
+        var button=window.transform.Find("Panel/Root/CategoryRoot/Button_Buff");
+        if(button==null)return;
+        button.gameObject.SetActive(true);
+        var click=button.GetComponent<UIButton>();
+        if(click!=null)EventDelegate.Set(click.onClick,PetTotalBuffPopup.OpenPopup);
+    }
+}

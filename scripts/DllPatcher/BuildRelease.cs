@@ -29,6 +29,8 @@ partial class Program
         InstallAutomation(clientRoot);
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
+        InstallPetPresentation(clientRoot, false);
+        VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
         InstallShopTags(clientRoot, false);
         VerifyShopTagsFile(clientRoot);

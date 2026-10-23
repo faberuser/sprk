@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/PetPresentation.cs.txt" WithCulture="false" LogicalName="DllPatcher.PetPresentation.cs.txt" />
     <EmbeddedResource Include="Resources/ShopTags.cs.txt" WithCulture="false" LogicalName="DllPatcher.ShopTags.cs.txt" />
     <EmbeddedResource Include="Resources/RaidInfoScroll.cs.txt" WithCulture="false" LogicalName="DllPatcher.RaidInfoScroll.cs.txt" />
     <EmbeddedResource Include="Resources/SoulLiberationCost.cs.txt" WithCulture="false" LogicalName="DllPatcher.SoulLiberationCost.cs.txt" />
