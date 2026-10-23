@@ -53,6 +53,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         if(resources==null)resources=Resources.FindObjectsOfTypeAll<PostProcessResources>().FirstOrDefault();
         return resources!=null && resources.shaders!=null && resources.smaaLuts!=null && resources.smaaLuts.area!=null && resources.smaaLuts.search!=null;
     }
+    // Compatibility entry point for previously patched clients; temporary AA
+    // comparison input has been removed.
+    public static void PollComparisonKeys(HeroFullSceneViewBase window) { }
     static bool preferencesReady;
     static void EnsurePreset() {
         if(preferencesReady)return;
@@ -134,34 +137,51 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         for(int i=0;i<order.Count;i++)order[i].SetSiblingIndex(i);
     }
     static void Add(GameOptionWindow.TabUIInfo tab,string title,string key,string[] choices) {
-        // UISimpleGrid wraps a separate child UIGrid; rows are not direct children
-        // of its transform. Search descendants, then reuse and refresh the row.
         string rowName="SPRK "+title;
-        var existing=tab.GameOptionGrid.GetComponentsInChildren<GameOptionButtonComponent>(true).Where(r=>r.name==rowName).ToArray();
-        var row=existing.FirstOrDefault();
-        if(row==null)row=UIHelper.AddGridItem<GameOptionButtonComponent>(tab.GameOptionGrid,GameOptionButtonComponent.PrefabAuto);
-        foreach(var duplicate in existing.Skip(1)) {
-            duplicate.gameObject.SetActive(false);
-            duplicate.transform.SetParent(null,false);
-            Destroy(duplicate.gameObject);
+        var existing=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true).Where(r=>r.name==rowName).ToArray();
+        var row=existing.OfType<GameOptionToggle4Component>().FirstOrDefault();
+        foreach(var duplicate in existing.Where(r=>r!=row)) {
+            duplicate.gameObject.SetActive(false);duplicate.transform.SetParent(null,false);Destroy(duplicate.gameObject);
         }
-        row.name=rowName;
+        if(row==null)row=UIHelper.AddGridItem<GameOptionToggle4Component>(tab.GameOptionGrid,GameOptionToggle4Component.PrefabAuto);
+        row.name=rowName;row.enabled=false;
         row.ParentRoot.Root.SetActive(true);row.ChildRoot.Root.SetActive(false);
         row.ParentRoot.Label_OptionName.text=title;
         if(row.ParentRoot.ToolTipImage!=null)row.ParentRoot.ToolTipImage.SetActive(false);
-        int index=ReadIndex(key);
-        row.Label_Button.text=choices[index];
-        row.Button.onClick.Clear();
-        EventDelegate.Add(row.Button.onClick,delegate {
-            index=(index+1)%choices.Length;
-            int value=key=="MSAA"?new[]{0,2,4,8}[index]:key=="Scale"?100+25*index:index;
-            if(key=="Preset")ApplyPreset(value);
-            else { SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);SprkTestPrefs.Save(); }
-            row.Label_Button.text=choices[index];
-            instance.ResetHistories();
-            if(key=="Scale") MessagePopup.Open("Render scale","Reopen model previews to apply the new resolution.");
-
-        });
+        var toggles=new List<UIToggle>{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4};
+        if(choices.Length==5) {
+            var fifth=toggles[3].transform.parent.Find("Toggle5");
+            if(fifth==null) {
+                var clone=NGUITools.AddChild(toggles[3].transform.parent.gameObject,toggles[3].gameObject);clone.name="Toggle5";fifth=clone.transform;
+            }
+            toggles.Add(fifth.GetComponent<UIToggle>());
+        }
+        var optionGrid=toggles[0].transform.parent.GetComponent<UIGrid>();
+        float spacing=840f/(choices.Length-1);
+        if(optionGrid!=null){optionGrid.cellWidth=spacing;optionGrid.maxPerLine=0;}
+        bool syncing=false;
+        Action refresh=delegate {
+            syncing=true;int selected=ReadIndex(key);
+            for(int i=0;i<toggles.Count;i++){toggles[i].startsActive=i==selected;toggles[i].Set(i==selected);}
+            syncing=false;
+        };
+        for(int i=0;i<toggles.Count;i++) {
+            int choice=i;var toggle=toggles[i];toggle.group=0;toggle.onChange.Clear();
+            var label=toggle.GetComponentInChildren<UILabel>(true);label.text=choices[i];
+            label.width=choices.Length==5?130:180;label.overflowMethod=UILabel.Overflow.ShrinkContent;
+            toggle.transform.localPosition=new Vector3(i*spacing,0,0);
+            EventDelegate.Add(toggle.onChange,delegate {
+                if(syncing)return;
+                if(toggle.value) {
+                    if(key=="Preset")ApplyPreset(choice);
+                    else {SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100+25*choice);SprkTestPrefs.Save();}
+                    instance.ResetHistories();
+                }
+                refresh();
+            });
+        }
+        refresh();
+        if(optionGrid!=null)optionGrid.Reposition();
     }
     static int ReadIndex(string key) {
         if(key=="Preset"){EnsurePreset();return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Preset",2),0,3);}
@@ -183,16 +203,29 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         var window=uiHost.AddComponent<GameOptionWindow>();
         window.MainTabs=new[]{new GameOptionWindow.TabUIInfo{GameOptionTab=GameOptionTab.Game,GameOptionGrid=wrapper}};
         for(int cycle=0;cycle<8;cycle++)Setup(window);
-        var rows=wrapper.GetComponentsInChildren<GameOptionButtonComponent>(true);
+        var rows=wrapper.GetComponentsInChildren<GameOptionToggle4Component>(true);
         report.Add("settingsRows="+rows.Length);
         var presetRow=rows.Single(r=>r.name=="SPRK Anti-aliasing");
+        // The fixture stays inactive to avoid opening a live game window. Mark
+        // toggles started so Set exercises native event dispatch and visuals.
+        foreach(var toggle in wrapper.GetComponentsInChildren<UIToggle>(true))typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
         ApplyPreset(1);Setup(window);
-        report.Add("settingsRefreshed="+presetRow.Label_Button.text);
-        EventDelegate.Execute(presetRow.Button.onClick);
+        report.Add("settingsRefreshed="+(presetRow.toggleInfo.Toggle2.value?"Performance":"wrong"));
+        presetRow.toggleInfo.Toggle3.Set(true);
         report.Add("settingsClickPreset="+ReadIndex("Preset"));
         var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-aliasing";
         Setup(window);
-        report.Add("settingsAfterRepair="+wrapper.GetComponentsInChildren<GameOptionButtonComponent>(true).Length);
+        report.Add("settingsAfterRepair="+wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK ")));
+        report.Add("settingsAASelected="+presetRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
+        var scaleRow=rows.Single(r=>r.name=="SPRK Render scale");
+        var fifth=scaleRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>();fifth.Set(true);
+        report.Add("settingsScale="+Scale+" selected="+scaleRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
+        var aaChoices=new[]{presetRow.toggleInfo.Toggle1,presetRow.toggleInfo.Toggle2,presetRow.toggleInfo.Toggle3,presetRow.toggleInfo.Toggle4};
+        var scaleChoices=new[]{scaleRow.toggleInfo.Toggle1,scaleRow.toggleInfo.Toggle2,scaleRow.toggleInfo.Toggle3,scaleRow.toggleInfo.Toggle4,fifth};
+        bool allChoices=true;
+        for(int i=0;i<aaChoices.Length;i++){aaChoices[i].Set(true);allChoices &= ReadIndex("Preset")==i && aaChoices.Count(t=>t.value)==1;}
+        for(int i=0;i<scaleChoices.Length;i++){scaleChoices[i].Set(true);allChoices &= Scale==100+25*i && scaleChoices.Count(t=>t.value)==1;}
+        report.Add("settingsAllChoices="+allChoices);
         var screenRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);
         screenRow.name="Screen";screenRow.gameOptionData=new GameOptionData{FieldName="Graphic_WindowControl"};
         var afterRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);afterRow.name="ZZAfter";
@@ -201,6 +234,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         wrapper.Grid.sorting=UIGrid.Sorting.Alphabetic;
         for(int cycle=0;cycle<8;cycle++)Setup(window);
         report.Add("settingsOrder="+String.Join(",",wrapper.Grid.GetChildList().Select(t=>t.name).ToArray()));
+
         Destroy(uiHost);
         SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
         for(int preset=0;preset<4;preset++) {
@@ -213,6 +247,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         }
         SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.DeleteKey("Sprk.Graphics.MSAA");
         preferencesReady=false;EnsurePreset();report.Add("defaultPreset="+ReadIndex("Preset"));
+
         var host=new GameObject("GraphicsProbeCamera");var camera=host.AddComponent<Camera>();
         camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.gray;
         camera.transform.position=new Vector3(0,0,-4);camera.depth=0;

@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--free-camera-only")) { InstallFreeCamera(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-free-camera")) { VerifyFreeCameraFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--graphics-options-only")) { InstallGraphicsOptions(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-graphics-options")) { VerifyGraphicsOptionsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--room-shortcut-only")) { InstallRoomShortcut(args[0],args.Contains("--stage-only")); return; }

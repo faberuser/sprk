@@ -324,3 +324,18 @@ the game to be closed. Use `--stage-only` to prepare the DLL first,
 `--self-test-shop-purchase-limits` to execute the production IL guard with
 unlimited/limited stock and missing/present history. Publish a signed update
 after installation.
+
+
+### Free preview camera
+
+See Motions (HeroDetailView.OpenOnlyViewMotion), the standalone HeroModelView, and Dressing Room (HeroCostumeView) support desktop model-area controls: wheel to zoom, left-drag to orbit, right/middle-drag or Shift-left-drag to pan, and R to reset free-camera offsets. Drags must begin over the model texture; menu buttons and text input do not start camera movement. Native mobile touch controls, preview animations and zoom buttons are preserved. Free-camera state resets when a window is recycled or its controller changes.
+
+Use `--free-camera-only --stage-only` to compile and stage the helper and hooks; `--verify-free-camera --stage-only` verifies the staged assembly. The focused installer preserves existing patches. The full `--build-release` path includes installation and verification. `python scripts/run_free_camera_probe.py` runs isolated Unity checks of orbit axes/limits, zoom limits, reset, native camera transform application and pointer ownership. Native pointer-event interaction on the two actual screens still requires a play check; the isolated probe does not establish that scene-specific colliders route input correctly. Close game clients and workers before installation, then generate and verify the signed client release required by AGENTS.md.
+
+
+Graphics settings use the native GameOptionToggle4Component checkbox row rather than a cycling button. AA exposes Off/Performance/Balanced/Quality; render scale exposes all five 100-200 percent choices in one row. Choices remain exclusive and preserve the Screen/Resolution/AA/render-scale order. `python scripts/run_graphics_choice_probe.py` checks every selection, exclusive checkmarks, refresh, duplicate repair and ordering in Unity. HeroDetailView free camera is limited to Animation/None tabs so skill and cinematic tabs preserve native behavior.
+
+
+
+
+Temporary AA comparison hotkeys and their popup have been removed. Change AA presets through Settings. The old preview hook remains inert for compatibility with previously patched clients.

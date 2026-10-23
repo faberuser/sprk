@@ -5,7 +5,7 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void VerifyGraphicsOptions(ModuleDefinition module) {
-        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NShader.FilterBase","CreateRenderTarget","CreateTarget")}) {
+        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NShader.FilterBase","CreateRenderTarget","CreateTarget"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name==pair.Item3))throw new InvalidOperationException("Missing graphics hook: "+pair.Item3);
             if(!method.Body.HasExceptionHandlers)VerifyArenaResultStack(method);
@@ -25,6 +25,13 @@ partial class Program {
             throw new InvalidOperationException("Graphics settings must expose only preset and render scale.");
         foreach(var required in new[]{"Performance","Balanced","Quality","Preset","Scale"})
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing graphics preset control: "+required);
+        var poll=bridge.Methods.Single(m=>m.Name=="PollComparisonKeys");
+        if(poll.Body.Instructions.Any(i=>i.OpCode!=OpCodes.Ret && i.OpCode!=OpCodes.Nop))
+            throw new InvalidOperationException("Temporary AA comparison hook must be inert.");
+        if(bridge.Methods.Any(m=>m.Name=="OnGUI" || m.Name=="PollComparisonInput" || m.Name=="ComparisonPreset"))
+            throw new InvalidOperationException("Temporary AA comparison input or popup remains.");
+        var add=bridge.Methods.Single(m=>m.Name=="Add");
+        if(!add.Body.Instructions.Any(i=>i.Operand is GenericInstanceMethod m && m.Name=="AddGridItem" && m.GenericArguments.Any(t=>t.Name=="GameOptionToggle4Component")))throw new InvalidOperationException("Graphics choices must use the native toggle row prefab.");
         foreach(var call in new[]{"GetRenderTextureSupportedMSAASampleCount","Init","ResetHistory","Blit","get_supportsMotionVectors"})
             if(!bridge.Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is MethodReference m && m.Name==call))throw new InvalidOperationException("Missing graphics integration: "+call);
         if(bridge.Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is MethodReference m && m.DeclaringType.FullName=="UnityEngine.PlayerPrefs"))throw new InvalidOperationException("Graphics preferences bypass test isolation.");
@@ -47,12 +54,12 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         var module=game.MainModule;
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
-        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup")}) {
+        foreach(var pair in new[]{("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions"))continue;
             var il=method.Body.GetILProcessor();
             foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
-                ret.OpCode=pair.Item3=="Setup"?OpCodes.Ldarg_0:OpCodes.Nop;ret.Operand=null;
+                ret.OpCode=pair.Item3=="Setup"||pair.Item3=="PollComparisonKeys"?OpCodes.Ldarg_0:OpCodes.Nop;ret.Operand=null;
                 var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item3)));
                 il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
             }
