@@ -1,0 +1,139 @@
+using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using UnityEngine;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NRender3D;
+
+public static class SprkFreeCamera {
+    sealed class State {
+        public object Controller;
+        public float Zoom=1,Yaw,Pitch;
+        public Vector3 Pan;
+        public Vector2 Last;
+        public int Button=-1;
+        public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
+    }
+    static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
+    static readonly FieldInfo cinemaField=typeof(HeroFullSceneViewBase).GetField("_cinema",BindingFlags.Instance|BindingFlags.NonPublic);
+    static readonly FieldInfo detailTab=typeof(HeroDetailView).GetField("_toggle",BindingFlags.Instance|BindingFlags.NonPublic);
+    public static bool SupportsWindow(Type type) { return typeof(HeroModelView).IsAssignableFrom(type)||typeof(HeroCostumeView).IsAssignableFrom(type)||typeof(HeroDetailView).IsAssignableFrom(type); }
+    static bool Eligible(HeroFullSceneViewBase window) {
+        if(window==null || !SupportsWindow(window.GetType()) || !window.isActiveAndEnabled || !window.IsOpen())return false;
+        if(window is HeroDetailView){string tab=detailTab.GetValue(window).ToString();if(tab!="Animation" && tab!="None")return false;}
+        return true;
+    }
+    static State Get(HeroFullSceneViewBase window) {
+        var state=states.GetOrCreateValue(window);
+        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;}
+        return state;
+    }
+    public static void Reset(HeroFullSceneViewBase window) { if(window!=null)states.Remove(window); }
+    public static bool InputCamera(HeroFullSceneViewBase window) {
+        if(!Eligible(window)||Application.isMobilePlatform||Input.touchCount>0)return false;
+        var state=Get(window);
+        if(window.CameraController==null || !Application.isFocused || UICamera.inputHasFocus){state.Button=-1;return true;}
+        var texture=window.Hero3DTexture;
+        var hovered=UICamera.hoveredObject;
+        bool over=OwnsPointer(texture,hovered);
+        Vector2 mouse=Input.mousePosition;
+        if(state.Button>=0 && !Input.GetMouseButton(state.Button))state.Button=-1;
+        if(state.Button<0 && over) {
+            for(int button=0;button<3;button++)if(Input.GetMouseButtonDown(button)){state.Button=button;state.Last=mouse;break;}
+        }
+        if(state.Button>=0) {
+            Vector2 delta=mouse-state.Last;state.Last=mouse;
+            if(state.Button==0 && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)) {
+                Orbit(state,delta);
+            } else {
+                var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
+                if(cinema!=null && cinema.CinemaCamera!=null) {
+                    var info=cinema.CinemaCamera.CameraInfo;
+                    var rotation=Quaternion.LookRotation(Direction(info.LookDir,state.Yaw,state.Pitch));
+                    float units=2*Mathf.Max(.15f,info.TargetDistance)*Mathf.Tan(info.FieldOfView*Mathf.Deg2Rad*.5f)/Mathf.Max(1,Screen.height);
+                    state.Pan=Vector3.ClampMagnitude(state.Pan-rotation*new Vector3(delta.x,delta.y,0)*units,40);
+                }
+            }
+        }
+        if(over) {
+            state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Exp(-Input.mouseScrollDelta.y*.15f),.02f,8);
+            if(Input.GetKeyDown(KeyCode.R))state.Reset();
+        }
+        return true;
+    }
+    public static bool OwnsPointer(UITexture texture,GameObject hovered) {
+        return texture!=null && hovered!=null && (hovered==texture.gameObject || (hovered.transform.IsChildOf(texture.transform) && hovered.GetComponentInParent<UIButton>()==null && hovered.GetComponentInParent<UIInput>()==null));
+    }
+    static void Orbit(State state,Vector2 delta) {
+        state.Yaw=Mathf.Repeat(state.Yaw+delta.x*.3f+180,360)-180;
+        state.Pitch=Mathf.Clamp(state.Pitch-delta.y*.3f,-85,85);
+    }
+    public static void EnsureProbe() {
+        string root=Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST");
+        if(String.IsNullOrEmpty(root)||String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR"))||String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE"))||probeStarted)return;
+        probeStarted=true;
+        var host=new GameObject("SprkFreeCameraTests");UnityEngine.Object.DontDestroyOnLoad(host);host.AddComponent<SprkFreeCameraTests>();
+    }
+    static bool probeStarted;
+    public static void RunProbe() {
+        Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
+        check(SupportsWindow(typeof(HeroDetailView)) && SupportsWindow(typeof(HeroCostumeView)) && SupportsWindow(typeof(HeroModelView)) && !SupportsWindow(typeof(HeroFullSceneViewBase)),"Preview window scope");
+        var state=new State();Orbit(state,new Vector2(200,100));
+        check(Mathf.Abs(state.Yaw-60)<.001f && Mathf.Abs(state.Pitch+30)<.001f,"Orbit axes");
+        Orbit(state,new Vector2(10000,10000));check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==-85,"Orbit bounds");
+        var initial=Quaternion.Euler(20,30,0)*Vector3.forward;
+        check(Vector3.Distance(Direction(initial,0,0),initial)<.001f,"Native view preservation");
+        for(int yaw=-720;yaw<=720;yaw+=30)for(int pitch=-180;pitch<=180;pitch+=15) {
+            var dir=Direction(initial,yaw,pitch);
+            check(!float.IsNaN(dir.x) && Mathf.Abs(dir.magnitude-1)<.001f && Mathf.Abs(dir.y)<.997f,"Stable pole limits");
+        }
+        check(Distance(8,.001f)==.15f && Distance(8,100)==40,"Zoom bounds");
+        check(Distance(8,.5f)==4 && Distance(8,2)==16,"Zoom factor");
+        state.Pan=new Vector3(1,2,3);state.Zoom=.2f;state.Reset();
+        check(state.Pan==Vector3.zero && state.Zoom==1 && state.Yaw==0 && state.Pitch==0 && state.Button==-1,"Reset");
+        var go=new GameObject("ProbeCamera");var camera=go.AddComponent<Camera>();
+        var cinema=new NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera(camera);
+        cinema.CameraInfo.TargetPos=new Vector3(1,2,0);cinema.CameraInfo.TargetDistance=4;
+        cinema.CameraInfo.LookDir=Direction(Vector3.forward,40,25);cinema.ChainUpdate();
+        check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*4)<.001f,"Native camera transform");
+        ApplyCamera(cinema,new Vector3(2,1,0),20,10,.5f);
+        check(Mathf.Abs(cinema.CameraInfo.TargetDistance-2)<.001f && Vector3.Distance(cinema.CameraInfo.TargetPos,new Vector3(3,3,0))<.001f,"Pan/zoom camera application");
+        check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*2)<.001f,"Applied camera transform");
+        var area=new GameObject("ModelArea");var texture=area.AddComponent<UITexture>();
+        var child=new GameObject("ModelPointer");child.transform.SetParent(area.transform);
+        var button=new GameObject("MenuButton");button.transform.SetParent(area.transform);button.AddComponent<UIButton>();
+        check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
+        UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
+        System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope");
+    }
+    public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
+        original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;
+        float baseYaw=Mathf.Atan2(original.x,original.z)*Mathf.Rad2Deg;
+        float basePitch=-Mathf.Asin(Mathf.Clamp(original.y,-1,1))*Mathf.Rad2Deg;
+        return Quaternion.Euler(Mathf.Clamp(basePitch+pitch,-85,85),baseYaw+yaw,0)*Vector3.forward;
+    }
+    public static float Distance(float original,float zoom) { return Mathf.Clamp(original*zoom,.15f,40); }
+    public static void Apply(HeroFullSceneViewBase window) {
+        if(!Eligible(window))return;
+        var state=Get(window);
+        var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
+        if(cinema==null || cinema.CinemaCamera==null || window.CameraController==null)return;
+        ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom);
+    }
+    static void ApplyCamera(NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera camera,Vector3 pan,float yaw,float pitch,float zoom) {
+        var info=camera.CameraInfo;
+        info.LookDir=Direction(info.LookDir,yaw,pitch);
+        info.TargetDistance=Distance(info.TargetDistance,zoom);
+        info.TargetPos+=pan;
+        camera.ChainUpdate();
+    }
+}
+
+public sealed class SprkFreeCameraTests : MonoBehaviour {
+    System.Collections.IEnumerator Start() {
+        yield return new WaitForSecondsRealtime(3);
+        SprkFreeCamera.RunProbe();
+        Application.Quit();
+    }
+}

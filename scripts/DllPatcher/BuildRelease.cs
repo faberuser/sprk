@@ -27,6 +27,10 @@ partial class Program
         VerifyArcdimWorker(clientRoot);
         InstallDispatch(clientRoot, false);
         InstallAutomation(clientRoot);
+        InstallFreeCamera(clientRoot, false);
+        VerifyFreeCameraFile(clientRoot);
+        InstallGraphicsOptions(clientRoot, false);
+        VerifyGraphicsOptionsFile(clientRoot);
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
         InstallRoomShortcut(clientRoot, false);

@@ -1,0 +1,624 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using UnityEngine.SceneManagement;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NGame2.NUI;
+using NVespa.NGlobal;
+
+// Native UI controls and rendering configuration. Preferences use the isolated test adapter.
+[DefaultExecutionOrder(32000)]
+public sealed class SprkGraphicsOptions : MonoBehaviour {
+    static SprkGraphicsOptions instance;
+    static readonly FieldInfo resourceField=typeof(PostProcessLayer).GetField("m_Resources",BindingFlags.Instance|BindingFlags.NonPublic);
+    PostProcessResources resources;
+    readonly Dictionary<Camera,PostProcessLayer> layers=new Dictionary<Camera,PostProcessLayer>();
+    readonly Dictionary<Camera,RenderTexture> redirected=new Dictionary<Camera,RenderTexture>();
+    readonly Dictionary<Camera,int> signatures=new Dictionary<Camera,int>();
+    readonly Dictionary<Camera,Vector3> positions=new Dictionary<Camera,Vector3>();
+    readonly Dictionary<Camera,Quaternion> rotations=new Dictionary<Camera,Quaternion>();
+    RenderTexture world;
+    Camera lastWorld;
+    Camera presentationCamera;
+    int presentationFrame=-1;
+    int worldSignature;
+    int lastLogged;
+    string status="";
+    public static bool HasMainRenderTarget(Camera camera) {
+        return camera.targetTexture==null || instance!=null && instance.world!=null && camera.targetTexture==instance.world && instance.redirected.ContainsKey(camera);
+    }
+    public static string Status { get { return instance==null?"Not initialized":instance.status; } }
+    void OnEnable() { Camera.onPreRender+=BeforeUI;SceneManager.activeSceneChanged+=SceneChanged; }
+    void OnDisable() { Camera.onPreRender-=BeforeUI;SceneManager.activeSceneChanged-=SceneChanged;RestoreTargets();ReleaseWorld();
+        foreach(var pair in presentationCommands){if(pair.Key!=null)pair.Key.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.BeforeForwardOpaque,pair.Value);pair.Value.Release();}presentationCommands.Clear();
+    }
+    void SceneChanged(Scene a,Scene b) { ResetHistories();RestoreTargets();ReleaseWorld(); }
+    void ResetHistories() { foreach(var layer in layers.Values)if(layer!=null)layer.ResetHistory(); }
+    readonly Dictionary<Camera,UnityEngine.Rendering.CommandBuffer> presentationCommands=new Dictionary<Camera,UnityEngine.Rendering.CommandBuffer>();
+    void RestoreTargets() { foreach(var command in presentationCommands.Values)command.Clear();foreach(var pair in redirected)if(pair.Key!=null && pair.Key.targetTexture==world)pair.Key.targetTexture=pair.Value;redirected.Clear();lastWorld=null;presentationCamera=null;presentationFrame=-1; }
+    void ReleaseWorld() { if(world!=null){ownedTargets.Remove(world);world.Release();Destroy(world);world=null;} }
+    void BeforeUI(Camera camera) {
+        if(world==null || !world.IsCreated() || lastWorld==null || camera.depth<=lastWorld.depth || camera.targetTexture!=null || !IsOverlayCamera(camera) || presentationFrame==Time.frameCount)return;
+        presentationFrame=Time.frameCount;presentationCamera=camera;
+        // Execute after Unity binds/clears this camera's actual render target.
+        // Graphics.Blit(..., null) in a camera callback can be overwritten by
+        // Unity's subsequent target binding in the automatic camera loop.
+        UnityEngine.Rendering.CommandBuffer command;
+        if(!presentationCommands.TryGetValue(camera,out command)) {
+            command=new UnityEngine.Rendering.CommandBuffer{name="SPRK world before UI"};
+            presentationCommands[camera]=command;
+            camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.BeforeForwardOpaque,command);
+        }
+        command.Clear();command.Blit(world,UnityEngine.Rendering.BuiltinRenderTextureType.CameraTarget);
+    }
+    bool FindResources() {
+        if(resources!=null)return true;
+        var prefab=Resources.Load<GameObject>("Prefab2/Render3D/RenderTargetCinema");
+        if(prefab!=null) {
+            var source=prefab.GetComponentInChildren<PostProcessLayer>(true);
+            if(source!=null)resources=(PostProcessResources)resourceField.GetValue(source);
+        }
+        if(resources==null)resources=Resources.FindObjectsOfTypeAll<PostProcessResources>().FirstOrDefault();
+        return resources!=null && resources.shaders!=null;
+    }
+    // Compatibility entry point for previously patched clients; temporary AA
+    // comparison input has been removed.
+    public static void PollComparisonKeys(HeroFullSceneViewBase window) { }
+    static bool preferencesReady;
+    static void EnsurePreset() {
+        if(preferencesReady)return;
+        preferencesReady=true;
+        // Preserve Off; every previous enabled preset migrates to TAA On.
+        int enabled=1;
+        if(SprkTestPrefs.HasKey("Sprk.Graphics.Preset"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.Preset",3)>0?1:0;
+        else if(SprkTestPrefs.HasKey("Sprk.Graphics.PostAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",0)>0 || SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
+        else if(SprkTestPrefs.HasKey("Sprk.Graphics.MSAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
+        ApplyPreset(enabled);
+    }
+    static void ApplyPreset(int preset) {
+        // Keep legacy values 0/3 on disk so older clients still read Off/TAA.
+        int mode=preset>0?3:0;
+        SprkTestPrefs.SetInt("Sprk.Graphics.Preset",mode);
+        SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",mode);
+        SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",0);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Quality",2);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Jitter",2);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Sharpness",1);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Stationary",3);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Motion",3);
+        SprkTestPrefs.Save();
+    }
+    public static int Samples { get { return 1; } }
+    public static int Scale { get { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100),100,200); } }
+    sealed class TargetSize {
+        public int width,height;
+        public TargetSize(int w,int h){width=w;height=h;}
+    }
+    // Retain native dimensions and the texture object: UITexture/material bindings
+    // stay valid when settings change, without reopening or moving the camera.
+    static readonly Dictionary<RenderTexture,TargetSize> ownedTargets=new Dictionary<RenderTexture,TargetSize>();
+    static int TargetSamples(Camera camera) {
+        return 1;
+    }
+    static bool ConfigureTarget(RenderTexture rt,TargetSize size,int samples) {
+        int limit=Mathf.Min(SystemInfo.maxTextureSize,8192);
+        float factor=Mathf.Min(Scale/100f,Mathf.Min(limit/(float)Mathf.Max(1,size.width),limit/(float)Mathf.Max(1,size.height)));
+        int width=Mathf.Max(1,Mathf.RoundToInt(size.width*factor)),height=Mathf.Max(1,Mathf.RoundToInt(size.height*factor));
+        var descriptor=rt.descriptor;descriptor.width=width;descriptor.height=height;descriptor.msaaSamples=samples;
+        int supported=SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor);
+        if(rt.width==width && rt.height==height && rt.antiAliasing==supported)return false;
+        bool created=rt.IsCreated();
+        if(created)rt.Release();
+        rt.width=width;rt.height=height;rt.antiAliasing=supported;
+        if(created)rt.Create();
+        return true;
+    }
+    public static RenderTexture CreateTarget(int width,int height,int depth) {
+        var rt=new RenderTexture(Mathf.Max(1,width),Mathf.Max(1,height),depth);
+        rt.filterMode=FilterMode.Bilinear;
+        var size=new TargetSize(width,height);ownedTargets[rt]=size;
+        ConfigureTarget(rt,size,Samples);
+        return rt;
+    }
+    public static void Ensure() {
+        if(instance!=null)return;
+        EnsurePreset();
+        var go=new GameObject("SprkGraphicsOptions"); DontDestroyOnLoad(go);
+        instance=go.AddComponent<SprkGraphicsOptions>();
+        if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))instance.StartCoroutine(instance.Probe());
+    }
+    public static void Setup(GameOptionWindow window) {
+        Ensure();
+        foreach(var tab in window.MainTabs) {
+            if(tab.GameOptionTab!=GameOptionTab.Game)continue;
+            Add(tab,"Anti-aliasing", "Preset",new[]{"Off","On"});
+            Add(tab,"Render scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
+            foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true))ConfigureFrameRow(row);
+            foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle3Component>(true))CenterTextureChoices(row);
+            PlaceBelowScreen(tab);
+            tab.GameOptionGrid.RepositionGrid();
+        }
+    }
+    public static bool IsFrameRow(GameOptionToggle4Component row) {
+        return row.gameOptionData!=null && row.gameOptionData.FieldName=="Graphic_FrameControl";
+    }
+    public static bool ConfigureFrameRow(GameOptionToggle4Component row) {
+        if(!IsFrameRow(row))return false;
+        ConfigureChoices(row,"Frame",new[]{"30","60","144","Auto","Auto+"});
+        return true;
+    }
+    static readonly int[] frameValues={30,60,144,2,4};
+    static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab) {
+        var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
+        var screen=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_WindowControl");
+        var resolution=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.OptionName=="OPTION_GAME_RESOULUTION");
+        var aa=rows.FirstOrDefault(r=>r.name=="SPRK Anti-aliasing");
+        var scale=rows.FirstOrDefault(r=>r.name=="SPRK Render scale");
+        var grid=tab.GameOptionGrid.Grid;
+        if(screen==null || aa==null || scale==null || grid==null)return;
+        bool hide=grid.hideInactive;grid.hideInactive=false;
+        var order=grid.GetChildList();grid.hideInactive=hide;
+        order.Remove(aa.transform);order.Remove(scale.transform);
+        int index=order.IndexOf(screen.transform);
+        if(index<0)return;
+        // Resolution is Screen's native child option. Keep that pair adjacent
+        // before inserting the additional graphics settings.
+        if(resolution!=null && order.Remove(resolution.transform)) {
+            index=order.IndexOf(screen.transform);
+            order.Insert(index+1,resolution.transform);
+            index++;
+        }
+        order.Insert(index+1,aa.transform);order.Insert(index+2,scale.transform);
+        // Preserve the native visual order, with the two inserted rows, across
+        // position/name sorting and subsequent native refreshes.
+        grid.sorting=UIGrid.Sorting.None;
+        typeof(UIGrid).GetField("sorted",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic).SetValue(grid,false);
+        for(int i=0;i<order.Count;i++)order[i].SetSiblingIndex(i);
+    }
+    static void Add(GameOptionWindow.TabUIInfo tab,string title,string key,string[] choices) {
+        string rowName="SPRK "+title;
+        var existing=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true).Where(r=>r.name==rowName).ToArray();
+        var row=existing.OfType<GameOptionToggle4Component>().FirstOrDefault();
+        foreach(var duplicate in existing.Where(r=>r!=row)) {
+            duplicate.gameObject.SetActive(false);duplicate.transform.SetParent(null,false);Destroy(duplicate.gameObject);
+        }
+        if(row==null)row=UIHelper.AddGridItem<GameOptionToggle4Component>(tab.GameOptionGrid,GameOptionToggle4Component.PrefabAuto);
+        row.name=rowName;row.enabled=false;
+        row.ParentRoot.Root.SetActive(true);row.ChildRoot.Root.SetActive(false);
+        row.ParentRoot.Label_OptionName.text=title;
+        if(row.ParentRoot.ToolTipImage!=null)row.ParentRoot.ToolTipImage.SetActive(false);
+        ConfigureChoices(row,key,choices);
+    }
+    static void ConfigureChoices(GameOptionToggle4Component row,string key,string[] choices) {
+        var toggles=new List<UIToggle>{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4};
+        if(choices.Length==5) {
+            var fifth=toggles[3].transform.parent.Find("Toggle5");
+            if(fifth==null) {
+                var clone=NGUITools.AddChild(toggles[3].transform.parent.gameObject,toggles[3].gameObject);clone.name="Toggle5";fifth=clone.transform;
+            }
+            toggles.Add(fifth.GetComponent<UIToggle>());
+        }
+        // Native prefab has four choices; unused choices must lose both
+        // their visuals and callbacks when reducing an existing row to two.
+        for(int i=0;i<toggles.Count;i++) {
+            toggles[i].onChange.Clear();
+            if(i>=choices.Length)toggles[i].Set(false);
+            toggles[i].gameObject.SetActive(i<choices.Length);
+        }
+        toggles=toggles.Take(choices.Length).ToList();
+        var optionGrid=toggles[0].transform.parent.GetComponent<UIGrid>();
+        float spacing=choices.Length==2?280f:840f/(choices.Length-1);
+        if(optionGrid!=null){optionGrid.cellWidth=spacing;optionGrid.maxPerLine=0;}
+        bool syncing=false;
+        Action refresh=delegate {
+            syncing=true;int selected=ReadIndex(key);
+            for(int i=0;i<toggles.Count;i++){toggles[i].startsActive=i==selected;toggles[i].Set(i==selected);}
+            syncing=false;
+        };
+        for(int i=0;i<toggles.Count;i++) {
+            int choice=i;var toggle=toggles[i];toggle.group=0;toggle.onChange.Clear();
+            var label=toggle.GetComponentInChildren<UILabel>(true);label.text=choices[i];
+            label.width=choices.Length==5?130:180;label.overflowMethod=UILabel.Overflow.ShrinkContent;
+            toggle.transform.localPosition=new Vector3((choices.Length==2?i+1:i)*spacing,0,0);
+            EventDelegate.Add(toggle.onChange,delegate {
+                if(syncing)return;
+                if(toggle.value) {
+                    if(key=="Preset")ApplyPreset(choice);
+                    else if(key=="Frame"){NVespa.SystemOptionData.Graphic_FrameControl=(EFrameControl)frameValues[choice];SprkTestPrefs.Save();}
+                    else {SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100+25*choice);SprkTestPrefs.Save();}
+                    instance.ResetHistories();
+                }
+                refresh();
+            });
+        }
+        refresh();
+        if(key=="Preset")CenterChoices(new[]{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4});
+        else if(optionGrid!=null)optionGrid.Reposition();
+    }
+    static void CenterChoices(IEnumerable<UIToggle> toggles,Transform row=null,float center=420f) {
+        var choices=toggles.Where(t=>t.gameObject.activeSelf).ToArray();
+        if(choices.Length==0)return;
+        var grid=choices[0].transform.parent.GetComponent<UIGrid>();
+        if(grid!=null) {
+            // Horizontal Reposition starts at zero and overwrites manual offsets.
+            // Keep the explicit native Screen-style positions through Start,
+            // delayed layout requests and subsequent settings refreshes.
+            grid.arrangement=UIGrid.Arrangement.CellSnap;grid.cellWidth=0;grid.cellHeight=0;
+            grid.pivot=UIWidget.Pivot.TopLeft;grid.animateSmoothly=false;
+        }
+        for(int i=0;i<choices.Length;i++) {
+            var choice=choices[i].transform;
+            if(row==null) {
+                var position=choice.localPosition;
+                position.x=center+(i-(choices.Length-1)*0.5f)*280f;
+                choice.localPosition=position;
+            } else {
+                // Different native prefabs have different option-parent origins.
+                // Align in row coordinates, not in each grid's local coordinates.
+                var position=row.InverseTransformPoint(choice.position);
+                position.x=center+(i-(choices.Length-1)*0.5f)*280f;
+                choice.position=row.TransformPoint(position);
+            }
+        }
+        if(grid!=null)grid.Reposition();
+    }
+    public static void CenterTextureChoices(GameOptionToggle3Component row) {
+        if(row.gameOptionData==null || row.gameOptionData.FieldName!="Spec")return;
+        var window=row.GetComponentInParent<GameOptionWindow>(true);
+        if(window==null)return;
+        var aa=window.GetComponentsInChildren<GameOptionToggle4Component>(true).FirstOrDefault(r=>r.name=="SPRK Anti-aliasing");
+        if(aa==null)return; // Setup applies the alignment once AA exists.
+        float center=(aa.transform.InverseTransformPoint(aa.toggleInfo.Toggle1.transform.position).x+aa.transform.InverseTransformPoint(aa.toggleInfo.Toggle2.transform.position).x)*0.5f;
+        CenterChoices(new[]{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3},row.transform,center);
+    }
+    static int ReadIndex(string key) {
+        if(key=="Frame")return Mathf.Max(0,Array.IndexOf(frameValues,(int)NVespa.SystemOptionData.Graphic_FrameControl));
+        if(key=="Preset"){EnsurePreset();return SprkTestPrefs.GetInt("Sprk.Graphics.Preset",3)>0?1:0;}
+        if(key=="PostAA"){EnsurePreset();return SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",3)>0?3:0;}
+        int n=SprkTestPrefs.GetInt("Sprk.Graphics."+key,key=="MSAA"?2:key=="Scale"?100:key=="Jitter"?2:key=="Sharpness"?1:key=="Stationary"||key=="Motion"?3:0);
+        if(key=="MSAA")return n==2?1:n==4?2:n==8?3:0;
+        if(key=="Scale")return Mathf.Clamp((n-100)/25,0,4);
+        int maximum=key=="Quality"?2:key=="Sharpness"?6:key=="Stationary"||key=="Motion"?4:3;
+        return Mathf.Clamp(n,0,maximum);
+    }
+    System.Collections.IEnumerator Probe() {
+        string root=Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST");
+        System.IO.Directory.CreateDirectory(root);
+        yield return new WaitForSecondsRealtime(3);
+        var report=new List<string>();
+        bool resourcesOk=FindResources();report.Add("resources="+resourcesOk);
+        var uiHost=new GameObject("GraphicsSettingsLifecycleProbe");uiHost.SetActive(false);
+        var wrapper=uiHost.AddComponent<NVespa.NNGUIExtension.UISimpleGrid>();
+        var gridHost=new GameObject("Grid");gridHost.transform.SetParent(uiHost.transform,false);wrapper.Grid=gridHost.AddComponent<UIGrid>();
+        var window=uiHost.AddComponent<GameOptionWindow>();
+        window.MainTabs=new[]{new GameOptionWindow.TabUIInfo{GameOptionTab=GameOptionTab.Game,GameOptionGrid=wrapper}};
+        for(int cycle=0;cycle<8;cycle++)Setup(window);
+        var rows=wrapper.GetComponentsInChildren<GameOptionToggle4Component>(true);
+        report.Add("settingsRows="+rows.Length);
+        var presetRow=rows.Single(r=>r.name=="SPRK Anti-aliasing");
+        // The fixture stays inactive to avoid opening a live game window. Mark
+        // toggles started so Set exercises native event dispatch and visuals.
+        foreach(var toggle in wrapper.GetComponentsInChildren<UIToggle>(true))typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
+        ApplyPreset(1);Setup(window);
+        report.Add("settingsRefreshed="+(presetRow.toggleInfo.Toggle2.value?"On":"wrong"));
+        presetRow.toggleInfo.Toggle1.Set(true);
+        report.Add("settingsClickPreset="+ReadIndex("Preset"));
+        var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-aliasing";
+        Setup(window);
+        report.Add("settingsAfterRepair="+wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK ")));
+        report.Add("settingsAASelected="+presetRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
+        var scaleRow=rows.Single(r=>r.name=="SPRK Render scale");
+        var fifth=scaleRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>();fifth.Set(true);
+        report.Add("settingsScale="+Scale+" selected="+scaleRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
+        var aaChoices=new[]{presetRow.toggleInfo.Toggle1,presetRow.toggleInfo.Toggle2};
+        var scaleChoices=new[]{scaleRow.toggleInfo.Toggle1,scaleRow.toggleInfo.Toggle2,scaleRow.toggleInfo.Toggle3,scaleRow.toggleInfo.Toggle4,fifth};
+        bool allChoices=true;
+        for(int i=0;i<aaChoices.Length;i++){aaChoices[i].Set(true);allChoices &= ReadIndex("Preset")==i && aaChoices.Count(t=>t.value)==1;}
+        for(int i=0;i<scaleChoices.Length;i++){scaleChoices[i].Set(true);allChoices &= Scale==100+25*i && scaleChoices.Count(t=>t.value)==1;}
+        allChoices &= !presetRow.toggleInfo.Toggle3.gameObject.activeSelf && !presetRow.toggleInfo.Toggle4.gameObject.activeSelf;
+        allChoices &= aaChoices.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"Off","On"});
+        report.Add("settingsAllChoices="+allChoices);
+        var textureRow=UIHelper.AddGridItem<GameOptionToggle3Component>(wrapper,GameOptionToggle3Component.PrefabAuto);
+        textureRow.gameOptionData=new GameOptionData{FieldName="Spec"};
+        var textureChoices=new[]{textureRow.toggleInfo.Toggle1,textureRow.toggleInfo.Toggle2,textureRow.toggleInfo.Toggle3};
+        foreach(var choice in textureChoices)choice.gameObject.SetActive(true);
+        bool centered=true;
+        for(int cycle=0;cycle<8;cycle++) {
+            CenterTextureChoices(textureRow);Setup(window);
+            aaChoices[0].transform.parent.GetComponent<UIGrid>().Reposition();
+            textureChoices[0].transform.parent.GetComponent<UIGrid>().Reposition();
+            centered &= Mathf.Approximately(aaChoices[0].transform.localPosition.x,280) && Mathf.Approximately(aaChoices[1].transform.localPosition.x,560);
+            float aaCenter=(presetRow.transform.InverseTransformPoint(aaChoices[0].transform.position).x+presetRow.transform.InverseTransformPoint(aaChoices[1].transform.position).x)*0.5f;
+            for(int i=0;i<textureChoices.Length;i++) {
+                float x=textureRow.transform.InverseTransformPoint(textureChoices[i].transform.position).x;
+                centered &= Mathf.Abs(x-(aaCenter+(i-1)*280))<0.1f;
+            }
+        }
+        report.Add("textureCheckboxRowX="+String.Join(",",textureChoices.Select(t=>textureRow.transform.InverseTransformPoint(t.transform.position).x.ToString("F1")).ToArray()));
+        report.Add("aaCheckboxRowX="+String.Join(",",aaChoices.Select(t=>presetRow.transform.InverseTransformPoint(t.transform.position).x.ToString("F1")).ToArray()));
+        report.Add("centeredGraphicsChoices="+centered);
+        textureRow.gameOptionData=null;textureRow.transform.SetParent(null,false);Destroy(textureRow.gameObject);
+        var screenRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);
+        screenRow.name="Screen";screenRow.gameOptionData=new GameOptionData{FieldName="Graphic_WindowControl"};
+        var afterRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);afterRow.name="ZZAfter";
+        var resolutionRow=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);
+        resolutionRow.name="Resolution";resolutionRow.gameOptionData=new GameOptionData{OptionName="OPTION_GAME_RESOULUTION"};
+        wrapper.Grid.sorting=UIGrid.Sorting.Alphabetic;
+        for(int cycle=0;cycle<8;cycle++)Setup(window);
+        report.Add("settingsOrder="+String.Join(",",wrapper.Grid.GetChildList().Select(t=>t.name).ToArray()));
+
+        var frameRow=UIHelper.AddGridItem<GameOptionToggle4Component>(wrapper,GameOptionToggle4Component.PrefabAuto);
+        frameRow.gameOptionData=new GameOptionData{FieldName="Graphic_FrameControl"};
+        ConfigureFrameRow(frameRow);
+        var frameChoices=new[]{frameRow.toggleInfo.Toggle1,frameRow.toggleInfo.Toggle2,frameRow.toggleInfo.Toggle3,frameRow.toggleInfo.Toggle4,frameRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>()};
+        foreach(var toggle in frameChoices)typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
+        bool frameOk=true;
+        // Exercise native fixed and automatic setters, ending at 144 FPS.
+        foreach(int i in new[]{0,1,2,3,4,2}) {
+            frameChoices[i].Set(true);
+            frameOk &= (int)NVespa.SystemOptionData.Graphic_FrameControl==frameValues[i];
+            if(i<3)frameOk &= Application.targetFrameRate==frameValues[i] && QualitySettings.vSyncCount==0;
+            if(i==3)frameOk &= Application.targetFrameRate==-1 && QualitySettings.vSyncCount==1;
+            if(i==4)frameOk &= Application.targetFrameRate>0;
+            for(int cycle=0;cycle<8;cycle++)frameRow.Refresh();
+            frameRow.OnClickToggle();
+            frameOk &= frameChoices[i].value && frameChoices.Count(t=>t.value)==1 && (int)NVespa.SystemOptionData.Graphic_FrameControl==frameValues[i];
+        }
+        frameOk &= frameChoices.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"30","60","144","Auto","Auto+"});
+        frameOk &= new NVespa.LocalStorageEnum<EFrameControl>(EFrameControl.Manual_30,"KingsRaid_SystemOption_graphicFrameContorl").Value==EFrameControl.Manual_144;
+        report.Add("frameChoicesAnd144="+frameOk+" target="+Application.targetFrameRate+" saved="+SprkTestPrefs.GetString("KingsRaid_SystemOption_graphicFrameContorl","missing"));
+        Destroy(uiHost);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
+        for(int preset=0;preset<2;preset++) {
+            ApplyPreset(preset);
+            report.Add("preset="+preset+" mode="+ReadIndex("PostAA")+" samples="+Samples+" quality="+ReadIndex("Quality")+" scale="+Scale);
+        }
+        bool migrationOk=true;
+        foreach(bool legacyPost in new[]{false,true})for(int old=0;old<4;old++) {
+            SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",old);SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",0);
+            if(!legacyPost)SprkTestPrefs.SetInt("Sprk.Graphics.Preset",old);
+            preferencesReady=false;EnsurePreset();
+            migrationOk &= ReadIndex("Preset")== (old==0?0:1) && ReadIndex("PostAA")== (old==0?0:3) && Samples==1;
+        }
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",2);
+        preferencesReady=false;EnsurePreset();migrationOk &= ReadIndex("Preset")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",-1)==0;
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.DeleteKey("Sprk.Graphics.MSAA");
+        preferencesReady=false;EnsurePreset();migrationOk &= ReadIndex("Preset")==1;
+        report.Add("taaOnlyMigration="+migrationOk);
+
+        var host=new GameObject("GraphicsProbeCamera");var camera=host.AddComponent<Camera>();
+        camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.gray;
+        camera.transform.position=new Vector3(0,0,-4);camera.depth=0;
+        var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.layer=30;cube.transform.rotation=Quaternion.Euler(23,31,17);
+        var material=new Material(Shader.Find("Unlit/Texture"));material.mainTexture=Texture2D.whiteTexture;cube.GetComponent<Renderer>().material=material;
+        for(int mode=0;mode<2;mode++)for(int scale=100;scale<=200;scale+=25) {
+            ApplyPreset(mode);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
+            var target=CreateTarget(320,240,24);target.Create();camera.targetTexture=target;
+            for(int frame=0;frame<12;frame++){camera.enabled=true;camera.targetTexture=target;camera.Render();yield return new WaitForEndOfFrame();}
+            camera.targetTexture=target;camera.Render();
+            var previous=RenderTexture.active;
+            var resolved=RenderTexture.GetTemporary(target.width,target.height,0);Graphics.Blit(target,resolved);RenderTexture.active=resolved;
+            var image=new Texture2D(target.width,target.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,target.width,target.height),0,0);image.Apply();
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"aa-"+mode+"-"+scale+".png"),image.EncodeToPNG());
+            RenderTexture.active=previous;RenderTexture.ReleaseTemporary(resolved);
+            var layer=camera.GetComponent<PostProcessLayer>();
+            report.Add("mode="+mode+" scale="+scale+" size="+target.width+"x"+target.height+" samples="+target.antiAliasing+" applied="+(layer==null?"none":layer.antialiasingMode.ToString())+" status="+status);
+            camera.targetTexture=null;target.Release();Destroy(target);Destroy(image);
+        }
+        ApplyPreset(2);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
+        var liveTarget=CreateTarget(320,240,24);liveTarget.Create();camera.targetTexture=liveTarget;camera.enabled=true;
+        var nativePosition=camera.transform.position;var nativeRotation=camera.transform.rotation;
+        bool liveOk=true;
+        foreach(bool orthographic in new[]{false,true}) {
+            camera.orthographic=orthographic;
+            foreach(int scale in new[]{200,125,100})foreach(int preset in new[]{1,0,1}) {
+                ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
+                for(int frame=0;frame<3;frame++)yield return new WaitForEndOfFrame();
+                int expectedSamples=1;
+                var descriptor=liveTarget.descriptor;descriptor.msaaSamples=expectedSamples;
+                expectedSamples=SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor);
+                var liveLayer=camera.GetComponent<PostProcessLayer>();
+                liveOk &= camera.targetTexture==liveTarget && liveTarget.IsCreated() && liveTarget.width==320*scale/100 && liveTarget.height==240*scale/100 && liveTarget.antiAliasing==expectedSamples;
+                liveOk &= (int)liveLayer.antialiasingMode==(preset==0?0:3);
+                liveOk &= camera.transform.position==nativePosition && camera.transform.rotation==nativeRotation;
+            }
+        }
+        report.Add("livePreviewSwitching="+liveOk);
+        camera.orthographic=false;camera.targetTexture=null;liveTarget.Release();Destroy(liveTarget);
+        ApplyPreset(1);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",150);
+        camera.targetTexture=null;
+        var uiDepths=Camera.allCameras.Where(c=>c.GetComponent<UICamera>()!=null).Select(c=>c.depth).ToArray();
+        camera.depth=uiDepths.Length==0?0:uiDepths.Min()-0.5f;
+        for(int frame=0;frame<12;frame++){camera.enabled=true;yield return new WaitForEndOfFrame();}
+        report.Add("nativeWorldCameraClassification="+(NVespa.GlobalCameraManager.HasMainRenderTarget(camera) && NVespa.GlobalCameraManager.CollectAllCameras().Any(c=>c.Cam==camera)));
+        report.Add("screenWorld="+(world==null?"missing":world.width+"x"+world.height)+" stack="+redirected.Count);
+        camera.enabled=false;
+        var lobbyHost=new GameObject("LobbyGraphicsProbe");
+        var backgroundHost=new GameObject("BottomUI Camera");backgroundHost.transform.SetParent(lobbyHost.transform,false);
+        var background=backgroundHost.AddComponent<Camera>();background.orthographic=true;background.depth=-5;
+        background.cullingMask=1<<LayerMask.NameToLayer("BottomUI");background.clearFlags=CameraClearFlags.SolidColor;background.backgroundColor=Color.gray;
+        backgroundHost.AddComponent<UICamera>();
+        var modelHost=new GameObject("Bottom3D Camera");modelHost.transform.SetParent(lobbyHost.transform,false);
+        var model=modelHost.AddComponent<Camera>();model.orthographic=true;model.orthographicSize=2;model.depth=-4;
+        model.transform.position=new Vector3(0,0,-4);model.clearFlags=CameraClearFlags.Depth;
+        model.cullingMask=1<<LayerMask.NameToLayer("Bottom3D");modelHost.AddComponent<UICamera>();cube.layer=LayerMask.NameToLayer("Bottom3D");
+        bool lobbyOk=true;
+        for(int preset=0;preset<2;preset++) {
+            ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
+            for(int frame=0;frame<12;frame++)yield return new WaitForEndOfFrame();
+            var modelLayer=model.GetComponent<PostProcessLayer>();
+            int effective=modelLayer==null?0:(int)modelLayer.antialiasingMode;
+            lobbyOk &= redirected.ContainsKey(background) && redirected.ContainsKey(model) && world!=null && world.width==Screen.width && world.height==Screen.height;
+            lobbyOk &= effective==(preset==0?0:3) && presentationCamera!=null;
+            var lobbyDescriptor=world.descriptor;lobbyDescriptor.msaaSamples=1;
+            lobbyOk &= world.antiAliasing==SystemInfo.GetRenderTextureSupportedMSAASampleCount(lobbyDescriptor);
+            lobbyOk &= Camera.allCameras.Where(c=>c.GetComponent<UICamera>()!=null && !IsLobbyBackground(c)).All(c=>c.targetTexture==null && !redirected.ContainsKey(c));
+            report.Add("lobbyPreset="+preset+" applied="+effective+" samples="+(world==null?0:world.antiAliasing));
+            presentationFrame=-1;
+            background.Render();model.Render();
+            var menu=Camera.allCameras.First(c=>c==presentationCamera);
+            var nativeClear=menu.clearFlags;menu.clearFlags=CameraClearFlags.Depth;
+            menu.Render();menu.clearFlags=nativeClear;
+            // Read the actual composed world target; startup UI can cover the
+            // backbuffer in this isolated fixture.
+            var previousTarget=RenderTexture.active;
+            RenderTexture.active=null;
+            var screenCapture=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);
+            screenCapture.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);screenCapture.Apply();
+            lobbyOk &= screenCapture.GetPixels32().Any(pixel=>pixel.r>200);
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"lobby-screen-"+preset+".png"),screenCapture.EncodeToPNG());Destroy(screenCapture);
+            var resolvedWorld=RenderTexture.GetTemporary(world.width,world.height,0);
+            Graphics.Blit(world,resolvedWorld);RenderTexture.active=resolvedWorld;
+            var capture=new Texture2D(world.width,world.height,TextureFormat.RGB24,false);
+            capture.ReadPixels(new Rect(0,0,world.width,world.height),0,0);capture.Apply();
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"lobby-"+preset+".png"),capture.EncodeToPNG());Destroy(capture);
+            RenderTexture.active=previousTarget;RenderTexture.ReleaseTemporary(resolvedWorld);
+        }
+        var trailingHost=new GameObject("Inactive trailing lobby camera");trailingHost.transform.SetParent(lobbyHost.transform,false);
+        var trailing=trailingHost.AddComponent<Camera>();trailing.orthographic=true;trailing.depth=-3;
+        trailing.cullingMask=1<<LayerMask.NameToLayer("Bottom3DUI");trailing.clearFlags=CameraClearFlags.Depth;trailingHost.AddComponent<UICamera>();
+        yield return new WaitForEndOfFrame();
+        bool trailingOk=lastWorld==model && !redirected.ContainsKey(trailing) && presentationCamera!=null;
+        trailing.enabled=false;
+        presentationFrame=-1;
+        background.Render();model.Render();
+        var mainMenu=Camera.allCameras.First(c=>c.GetComponent<UICamera>()!=null && !IsLobbyBackground(c));var menuClear=mainMenu.clearFlags;mainMenu.clearFlags=CameraClearFlags.Depth;
+        mainMenu.Render();mainMenu.clearFlags=menuClear;
+        var savedTarget=RenderTexture.active;RenderTexture.active=null;
+        var presentation=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);
+        presentation.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);presentation.Apply();
+        trailingOk &= presentation.GetPixels32().Any(pixel=>pixel.r>200);
+        Destroy(presentation);RenderTexture.active=savedTarget;
+        report.Add("disabledTrailingCameraPresentation="+trailingOk);
+        report.Add("lobbyCameraStack="+lobbyOk);
+        Destroy(lobbyHost);
+        yield return null;
+        var battleHost=new GameObject("BattleGraphicsProbe");
+        var battleBackgroundHost=new GameObject("BattleBackgroundUI Camera");battleBackgroundHost.transform.SetParent(battleHost.transform,false);
+        var battleBackground=battleBackgroundHost.AddComponent<Camera>();battleBackground.depth=-7;battleBackground.orthographic=true;
+        battleBackground.cullingMask=1<<LayerMask.NameToLayer("BattleBackgroundUI");battleBackground.clearFlags=CameraClearFlags.SolidColor;battleBackground.backgroundColor=Color.gray;battleBackgroundHost.AddComponent<UICamera>();
+        var battleModelHost=new GameObject("Default Camera");battleModelHost.transform.SetParent(battleHost.transform,false);
+        var battleModel=battleModelHost.AddComponent<Camera>();battleModel.depth=-6;battleModel.transform.position=new Vector3(0,0,-4);
+        battleModel.cullingMask=1<<LayerMask.NameToLayer("Default");battleModel.clearFlags=CameraClearFlags.Depth;cube.layer=LayerMask.NameToLayer("Default");
+        var battleOverlayHost=new GameObject("BattleUICamera");battleOverlayHost.transform.SetParent(battleHost.transform,false);
+        var battleOverlay=battleOverlayHost.AddComponent<Camera>();battleOverlay.depth=-5;battleOverlay.cullingMask=1<<LayerMask.NameToLayer("BattleUI");
+        // Reproduce the native HUD: a perspective camera without UICamera.
+        battleOverlay.clearFlags=CameraClearFlags.SolidColor;battleOverlay.backgroundColor=Color.black;
+        bool battleOk=true;
+        for(int preset=0;preset<2;preset++) {
+            ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
+            for(int frame=0;frame<12;frame++) {
+                yield return new WaitForEndOfFrame();presentationFrame=-1;
+                battleBackground.Render();battleModel.Render();battleOverlay.Render();
+            }
+            battleOk &= redirected.ContainsKey(battleBackground) && redirected.ContainsKey(battleModel) && !redirected.ContainsKey(battleOverlay) && presentationCamera==battleOverlay;
+            battleOk &= NVespa.GlobalCameraManager.HasMainRenderTarget(battleModel);
+            var modelAA=battleModel.GetComponent<PostProcessLayer>();int applied=modelAA==null?0:(int)modelAA.antialiasingMode;
+            battleOk &= applied==(preset==0?0:3) && battleOverlay.GetComponent<PostProcessLayer>()==null;
+            var oldTarget=RenderTexture.active;RenderTexture.active=null;
+            var shot=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);shot.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);shot.Apply();
+            battleOk &= shot.GetPixels32().Any(pixel=>pixel.r>200);
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"battle-"+preset+".png"),shot.EncodeToPNG());Destroy(shot);RenderTexture.active=oldTarget;
+            report.Add("battlePreset="+preset+" applied="+applied+" hudNative="+!redirected.ContainsKey(battleOverlay));
+        }
+        report.Add("battleCameraStack="+battleOk);Destroy(battleHost);
+        Destroy(cube);Destroy(material);Destroy(host);
+        SprkTestPrefs.Save();
+        System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"report.txt"),report.ToArray());
+        Application.Quit();
+    }
+    // Lobby models use orthographic NGUI cameras. Classify their actual
+    // rendering layers, rather than assuming every UICamera only draws UI.
+    static bool OnlyLayers(Camera camera,params string[] names) {
+        int mask=0;foreach(var name in names){int layer=LayerMask.NameToLayer(name);if(layer>=0)mask|=1<<layer;}
+        return camera.cullingMask!=0 && (camera.cullingMask & ~mask)==0;
+    }
+    static bool IsLobbyBackground(Camera camera) {
+        return OnlyLayers(camera,"BottomUI","BottomFixedUI","Bottom3D","Bottom3DUI","Pet","BattleBackgroundUI");
+    }
+    static bool IsModelCamera(Camera camera) {
+        return (camera.GetComponent<UICamera>()==null && !camera.orthographic && !OnlyLayers(camera,"BattleUI")) || OnlyLayers(camera,"Bottom3D","Pet");
+    }
+    static bool IsOverlayCamera(Camera camera) {
+        return camera.GetComponent<UICamera>()!=null || OnlyLayers(camera,"BattleUI");
+    }
+    void LateUpdate() {
+        RestoreTargets();
+        int mode=ReadIndex("PostAA"),quality=ReadIndex("Quality");
+        bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale");
+        if(!configured)return;
+        QualitySettings.antiAliasing=Samples==1?0:Samples;
+        var cameras=Camera.allCameras.Where(c=>c!=null&&c.isActiveAndEnabled).OrderBy(c=>c.depth).ToArray();
+        var ui=cameras.Where(c=>c.targetTexture==null && c.GetComponent<UICamera>()!=null && !IsLobbyBackground(c)).ToArray();
+        float firstUi=ui.Length==0?float.PositiveInfinity:ui.Min(c=>c.depth);
+        var onscreen=cameras.Where(c=>c.targetTexture==null && c.depth<firstUi && (c.GetComponent<UICamera>()==null || IsLobbyBackground(c))).ToArray();
+        var worldCameras=onscreen.Where(IsModelCamera).ToArray();
+        // Native Bottom3DUI contains map labels after the final model camera.
+        // Keep that overlay on the display, outside the post-processed target.
+        if(worldCameras.Length>0)onscreen=onscreen.Where(c=>c.depth<=worldCameras.Last().depth).ToArray();
+        bool fullRect=onscreen.All(c=>c.rect==new Rect(0,0,1,1));
+        if(worldCameras.Length>0 && fullRect) {
+            int worldSamples=TargetSamples(worldCameras.First());
+            int signature=Screen.width*397^Screen.height*17^Scale^worldSamples*31;
+            if(world==null || signature!=worldSignature) {
+                ReleaseWorld();world=CreateTarget(Screen.width,Screen.height,24);world.name="SPRK World";
+                ConfigureTarget(world,new TargetSize(Screen.width,Screen.height),worldSamples);
+                world.Create();worldSignature=signature;ResetHistories();
+            }
+            foreach(var c in onscreen){redirected[c]=null;c.targetTexture=world;c.allowMSAA=world.antiAliasing>1;}
+            lastWorld=onscreen.Last();
+            presentationCamera=cameras.FirstOrDefault(c=>c.depth>lastWorld.depth && c.targetTexture==null && !onscreen.Contains(c));
+            if(lastLogged!=signature+mode*101) {
+                lastLogged=signature+mode*101;
+                Debug.Log("SPRK graphics: mode="+mode+" target="+world.width+"x"+world.height+" samples="+world.antiAliasing+" worldCameras="+onscreen.Length);
+            }
+        } else { ReleaseWorld(); }
+        bool available=mode==0||FindResources();
+        status=available?"Ready":"Native post-processing resources unavailable";
+        foreach(var camera in cameras) {
+            bool screen=onscreen.Contains(camera);
+            if(camera.GetComponent<UICamera>()!=null && !screen)continue;
+            var previewTarget=camera.targetTexture;
+            TargetSize nativeSize;
+            if(!screen && previewTarget!=null && ownedTargets.TryGetValue(previewTarget,out nativeSize))
+                if(ConfigureTarget(previewTarget,nativeSize,TargetSamples(camera)))ResetHistories();
+            camera.allowMSAA=camera.targetTexture!=null?camera.targetTexture.antiAliasing>1:Samples>1;
+            if(!screen && camera.targetTexture==null)continue;
+            // Spatial AA runs once after the world stack; preview cameras have independent targets.
+            bool temporalWorld=mode==3 && worldCameras.Length>0;
+            bool apply=!screen || (temporalWorld?camera==worldCameras.FirstOrDefault():camera==lastWorld);
+            var layer=camera.GetComponent<PostProcessLayer>();
+            if(layer==null && mode!=0 && apply && available) {
+                layer=camera.gameObject.AddComponent<PostProcessLayer>();
+                layer.Init(resources);layer.volumeTrigger=camera.transform;layer.volumeLayer=0;
+                layer.fog.enabled=false;
+            }
+            if(layer==null)continue;
+            layers[camera]=layer;
+            // Preserve the image-effects output in the world texture for the
+            // subsequent UI-camera presentation, including native PP layers.
+            if(screen)layer.finalBlitToCameraTarget=false;
+            // Enum order in Unity is None, FXAA, SMAA, TAA; validated by the patch verifier.
+            int effective=apply&&available?mode:0;
+            var target=camera.targetTexture;
+            if(effective==3 && (!SystemInfo.supportsMotionVectors || !layer.temporalAntialiasing.IsSupported() || (target!=null && target.antiAliasing>1))){effective=0;status="TAA unavailable for camera "+camera.name;}
+            int signature=effective*100000+quality*1000+(target==null?Screen.width:target.width)*31+(target==null?Screen.height:target.height);
+            bool cut=positions.ContainsKey(camera) && (Vector3.Distance(positions[camera],camera.transform.position)>3 || Quaternion.Angle(rotations[camera],camera.transform.rotation)>35);
+            if(!signatures.ContainsKey(camera)||signatures[camera]!=signature||cut)layer.ResetHistory();
+            signatures[camera]=signature;positions[camera]=camera.transform.position;rotations[camera]=camera.transform.rotation;
+            layer.antialiasingMode=(PostProcessLayer.Antialiasing)effective;
+            layer.temporalAntialiasing.jitterSpread=(ReadIndex("Jitter")+1)*0.25f;
+            layer.temporalAntialiasing.sharpness=ReadIndex("Sharpness")*0.5f;
+            layer.temporalAntialiasing.stationaryBlending=new[]{.6f,.7f,.8f,.9f,.95f}[ReadIndex("Stationary")];
+            layer.temporalAntialiasing.motionBlending=new[]{.5f,.6f,.7f,.8f,.85f}[ReadIndex("Motion")];
+        }
+        foreach(var dead in presentationCommands.Keys.Where(c=>c==null).ToArray()){presentationCommands[dead].Release();presentationCommands.Remove(dead);}
+        foreach(var dead in ownedTargets.Keys.Where(t=>t==null).ToArray())ownedTargets.Remove(dead);
+        foreach(var dead in layers.Keys.Where(c=>c==null).ToArray()){layers.Remove(dead);signatures.Remove(dead);positions.Remove(dead);rotations.Remove(dead);}
+    }
+}

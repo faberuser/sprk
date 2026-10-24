@@ -1,1 +1,1 @@
-"""SPRK local server and battle worker tools."""
+"""Server tooling and discoverable client worker tests."""

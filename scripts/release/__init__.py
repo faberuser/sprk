@@ -1,1 +1,1 @@
-"""SPRK release tools."""
+"""Client release tooling and discoverable packaging tests."""

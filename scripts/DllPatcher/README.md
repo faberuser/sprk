@@ -324,3 +324,28 @@ the game to be closed. Use `--stage-only` to prepare the DLL first,
 `--self-test-shop-purchase-limits` to execute the production IL guard with
 unlimited/limited stock and missing/present history. Publish a signed update
 after installation.
+
+
+### Free preview camera
+
+See Motions (HeroDetailView.OpenOnlyViewMotion), the standalone HeroModelView, and Dressing Room (HeroCostumeView) support desktop model-area controls: wheel to zoom, left-drag to orbit (drag right increases yaw; drag up decreases pitch), right/middle-drag or Shift-left-drag to pan, and R to reset free-camera offsets. Drags must begin over the model texture; menu buttons and text input do not start camera movement. Native mobile touch controls, preview animations and zoom buttons are preserved. Free-camera state resets when a window is recycled or its controller changes.
+
+Use `--free-camera-only --stage-only` to compile and stage the helper and hooks; `--verify-free-camera --stage-only` verifies the staged assembly. The focused installer preserves existing patches. The full `--build-release` path includes installation and verification. `python scripts/run_free_camera_probe.py` runs isolated Unity checks of orbit axes/limits, zoom limits, reset, native camera transform application and pointer ownership. Native pointer-event interaction on the two actual screens still requires a play check; the isolated probe does not establish that scene-specific colliders route input correctly. Close game clients and workers before installation, then generate and verify the signed client release required by AGENTS.md.
+
+
+Graphics settings use the native GameOptionToggle4Component checkbox row rather than a cycling button. AA exposes Off/On (TAA only); render scale exposes all five 100-200 percent choices in one row. Choices remain exclusive and preserve the Screen/Resolution/AA/render-scale order. `python scripts/client/verify_lobby_graphics.py` checks every selection, exclusive checkmarks, refresh, duplicate repair and ordering in Unity. HeroDetailView free camera is limited to Animation/None tabs so skill and cinematic tabs preserve native behavior.
+
+
+
+
+Temporary AA comparison hotkeys and their popup have been removed. Change AA presets through Settings. The old preview hook remains inert for compatibility with previously patched clients.
+
+The native Max Frame row exposes 30 / 60 / 144 / Auto / Auto+ on all display refresh rates. The 144 choice uses EFrameControl.Manual_144 and native settings persistence; fixed frame modes disable V-Sync. The fifth native-style toggle is reused across refreshes. Validate the staged helper and native FPS setters with python scripts/client/verify_lobby_graphics.py in a fresh isolated client. This verifies the requested FPS target, not sustained gameplay performance.
+
+Lobby AA includes the orthographic Bottom3D model camera and the preceding background cameras in the shared scaled world target. Main UI cameras remain at native resolution. On uses the native TAA implementation for both orthographic and perspective model cameras. The native package includes orthographic projection jitter; do not force SMAA solely because a camera is orthographic. No FXAA, SMAA or MSAA fallback is applied: unavailable TAA is disabled for that camera and reported through the helper status. Previous enabled presets migrate to On, Off stays Off, and render scale is preserved. A command buffer copies the finished world texture into the first subsequent UI camera target, after Unity binds and clears that target. The world stack ends at the final model camera; trailing map-label cameras retain native rendering. This avoids both an empty overlay erasing the world and a disabled trailing camera preventing presentation. World PostProcessLayer instances disable finalBlitToCameraTarget so their results remain in the shared texture. Owned preview textures update size and MSAA in place on the next LateUpdate, preserving UI bindings and camera pose. Native base dimensions prevent repeated scale changes from compounding. Only helper-created camera targets are resized; arbitrary native targets and UI textures are excluded. The isolated lobby graphics probe checks live preset/scale switching on one perspective/orthographic preview target, unchanged camera pose, all presets, scaled targets, UI exclusion, nonblank presentation and pixel differences.
+
+Battle AA treats the perspective BattleUI-layer camera as a native overlay, not a model camera. Composite the scaled world before that HUD camera renders; leave its damage and skill overlays at native resolution. BattleBackgroundUI joins the background stack. The GlobalCameraManager.HasMainRenderTarget hook recognizes only our redirected screen cameras as still belonging to the display, preserving native enable/depth/clear handling through scene changes and captures. The Unity regression covers this perspective HUD layout for all four presets and verifies native camera-manager classification.
+
+AA Off/On and the native Texture choices share the Screen row option-area center. Texture alignment is measured in row coordinates against AA, accounting for the different three-choice and four-choice prefab origins. Explicit positions survive native UIGrid refreshes; the Texture hook runs after native SetToggle and preserves its values and callbacks.
+
+The graphics installer changes the native Outline preference initializer to Off. Existing saved Outline choices remain authoritative; the preference key and native getters/setters are preserved and the default is verified on staged and installed assemblies.

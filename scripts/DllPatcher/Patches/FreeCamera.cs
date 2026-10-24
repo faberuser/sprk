@@ -1,0 +1,73 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+namespace DllPatcher;
+partial class Program {
+    static void VerifyFreeCamera(ModuleDefinition module) {
+        var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
+        foreach(var pair in new[]{("UpdateHeroCamera","InputCamera"),("LateUpdate","Apply"),("Reset","Reset")}) {
+            var method=window.Methods.Single(m=>m.Name==pair.Item1);
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name==pair.Item2))throw new InvalidOperationException("Missing free camera hook: "+pair.Item1);
+            if(!method.Body.HasExceptionHandlers)VerifyArenaResultStack(method);
+        }
+        if(!window.Methods.Single(m=>m.Name=="LateUpdate").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="ChainLateUpdate"))throw new InvalidOperationException("Native preview camera was removed.");
+    }
+    static void VerifyFreeCameraFile(string root,bool staged=false) {
+        using var game=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".free-camera-staged":"")));
+        VerifyFreeCamera(game.MainModule);
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkFreeCamera.dll"+(staged?".staged":"")));
+        var scope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="SupportsWindow");
+        foreach(var name in new[]{"HeroDetailView","HeroCostumeView","HeroModelView"})
+            if(!scope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing preview window scope: "+name);
+        if(!game.MainModule.GetType("NGame2.NUI.NWindow.HeroDetailView").Methods.Any(m=>m.Name=="OpenOnlyViewMotion"))throw new InvalidOperationException("Native See Motions path missing.");
+        Console.WriteLine("Verified scoped free camera hooks and preserved native camera update.");
+    }
+    static void InstallFreeCamera(string root,bool stageOnly) {
+        var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));
+        var dll=Path.Combine(managed,"Assembly-CSharp.dll");
+        var helperPath=Path.Combine(managed,"SprkFreeCamera.dll");
+        using var resource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.FreeCamera.cs.txt")!;
+        using var reader=new StreamReader(resource);
+        var refs=Directory.GetFiles(managed,"*.dll").Where(p=>p!=helperPath).Select(p=>MetadataReference.CreateFromFile(p));
+        var compilation=CSharpCompilation.Create("SprkFreeCamera",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},refs,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
+        using var compiled=new MemoryStream();
+        var result=compilation.Emit(compiled);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics.Where(d=>d.Severity==DiagnosticSeverity.Error)));
+        compiled.Position=0;
+        using var helper=AssemblyDefinition.ReadAssembly(compiled);
+        using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
+        using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
+        var module=game.MainModule;
+        var bridge=helper.MainModule.GetType("SprkFreeCamera");
+        var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
+        foreach(var pair in new[]{("LateUpdate","Apply"),("Reset","Reset")}) {
+            var method=window.Methods.Single(m=>m.Name==pair.Item1);
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name==pair.Item2))continue;
+            var il=method.Body.GetILProcessor();
+            foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Ldarg_0;ret.Operand=null;
+                var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item2)));
+                il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
+            }
+        }
+        var input=window.Methods.Single(m=>m.Name=="UpdateHeroCamera");
+        if(!input.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera")) {
+            var first=input.Body.Instructions[0];var il=input.Body.GetILProcessor();
+            foreach(var instruction in new[]{il.Create(OpCodes.Ldarg_0),il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="InputCamera"))),il.Create(OpCodes.Brfalse,first),il.Create(OpCodes.Ret)})il.InsertBefore(first,instruction);
+        }
+        var awake=module.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
+        if(!awake.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="EnsureProbe"))
+            awake.Body.GetILProcessor().InsertBefore(awake.Body.Instructions[0],Instruction.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="EnsureProbe"))));
+        VerifyFreeCamera(game.MainModule);
+        var staged=dll+".free-camera-staged";
+        game.Write(staged);File.WriteAllBytes(helperPath+".staged",compiled.ToArray());
+        VerifyFreeCameraFile(root,true);
+        if(stageOnly)return;
+        if(System.Diagnostics.Process.GetProcesses().Any(p=>p.ProcessName=="King's Raid" || p.ProcessName.StartsWith("SprkTest-")))
+            throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
+        File.Copy(dll,dll+".before-free-camera-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+        File.Move(staged,dll,true);File.Move(helperPath+".staged",helperPath,true);
+        VerifyFreeCameraFile(root);
+    }
+}
