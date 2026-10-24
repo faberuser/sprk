@@ -9,8 +9,10 @@ partial class Program {
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");
         using var resource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Accounts.cs.txt")!;
         using var reader=new StreamReader(resource);
+        using var loginSettingsResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.LoginSettings.cs.txt")!;
+        using var loginSettingsReader=new StreamReader(loginSettingsResource);
         var references=Directory.GetFiles(managed,"*.dll").Where(p=>Path.GetFileName(p)!="SprkAccounts.dll").Select(p=>MetadataReference.CreateFromFile(p));
-        var compilation=CSharpCompilation.Create("SprkAccounts",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},references,
+        var compilation=CSharpCompilation.Create("SprkAccounts",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(loginSettingsReader.ReadToEnd())},references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release));
         using var bytes=new MemoryStream();var result=compilation.Emit(bytes,manifestResources:new[]{"ChatCommon.png","ChatCommon.json"}.Select(name=>new ResourceDescription(name,()=>typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!,true)));
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
@@ -41,6 +43,29 @@ partial class Program {
         }
 
         var bridge=helper.MainModule.Types.Single(t=>t.Name=="SprkAccounts");
+        var loginSettings=helper.MainModule.GetType("SprkLoginSettings");
+        var settingsOpen=module.GetType("NGame2.NUI.NWindow.GameOptionWindow").Methods.Single(m=>m.Name=="Open" && m.Parameters.Count==3);
+        if(!settingsOpen.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name=="PrepareSettings")) {
+            var processor=settingsOpen.Body.GetILProcessor();var first=settingsOpen.Body.Instructions[0];
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_0));processor.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_2));
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Call,module.ImportReference(loginSettings.Methods.Single(m=>m.Name=="PrepareSettings"))));
+        }
+        var atlas=module.GetType("NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase").Methods.Single(m=>m.Name=="GetAtlas");
+        if(!atlas.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name=="TryLoginAtlas")) {
+            var processor=atlas.Body.GetILProcessor();var first=atlas.Body.Instructions[0];var fallback=Instruction.Create(OpCodes.Pop);
+            foreach(var instruction in new[]{Instruction.Create(OpCodes.Ldarg_1),Instruction.Create(OpCodes.Call,module.ImportReference(loginSettings.Methods.Single(m=>m.Name=="TryLoginAtlas"))),Instruction.Create(OpCodes.Dup),Instruction.Create(OpCodes.Brfalse,fallback),Instruction.Create(OpCodes.Ret),fallback})processor.InsertBefore(first,instruction);
+        }
+        var uiAwake=module.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
+        if(!uiAwake.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name=="EnsureProbe"))
+            uiAwake.Body.GetILProcessor().InsertBefore(uiAwake.Body.Instructions[0],Instruction.Create(OpCodes.Call,module.ImportReference(loginSettings.Methods.Single(m=>m.Name=="EnsureProbe"))));
+        foreach(var name in new[]{"SetTextureQuality","SetPlayBGM"}) {
+            var method=module.GetType("NGame2.NUI.NComponent2.GameOptionBaseComponent").Methods.Single(m=>m.Name==name);
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name==name))continue;
+            var processor=method.Body.GetILProcessor();var first=method.Body.Instructions[0];
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_0));processor.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_1));
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Call,module.ImportReference(loginSettings.Methods.Single(m=>m.Name==name))));
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Brfalse,first));processor.InsertBefore(first,Instruction.Create(OpCodes.Ret));
+        }
         PatchLobbyAccessories(module,bridge);
         MethodReference Bridge(string name)=>module.ImportReference(bridge.Methods.Single(m=>m.Name==name));
         // Replace the legacy host:port parser and separate HTTPS-port convention.
@@ -159,8 +184,12 @@ partial class Program {
         if(File.Exists(policy) && System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(policy))?["real_money_payments"]?.GetValue<bool>()==false)
             RemovePaymentReferences(module);
         var staged=dll+".accounts-staged";
+        VerifyLoginSettings(module,helper.MainModule);
         File.WriteAllBytes(Path.Combine(managed,"SprkAccounts.dll.staged"),bytes.ToArray());assembly.Write(staged);
+        VerifyLoginSettingsFile(clientRoot,true);
         if(!stageOnly) {
+            if(System.Diagnostics.Process.GetProcesses().Any(p=>p.ProcessName=="King's Raid" || p.ProcessName.StartsWith("SprkTest-")))
+                throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
             var backup=Path.Combine(Environment.CurrentDirectory,"target","account-login-backups",DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
             Directory.CreateDirectory(backup);File.Copy(dll,Path.Combine(backup,"Assembly-CSharp.dll"));
             var helperPath=Path.Combine(managed,"SprkAccounts.dll");

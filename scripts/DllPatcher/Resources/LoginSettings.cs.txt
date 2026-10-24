@@ -1,0 +1,184 @@
+using System;
+using System.Collections;
+using System.Reflection;
+using System.Collections.Generic;
+using UnityEngine;
+using NShared;
+using NGameAsset;
+using NShared.NJit;
+using NGame2.NLogin;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NManager;
+using NVespa;
+using NVespa.NSingleton;
+
+public sealed class SprkLoginSettings : MonoBehaviour,GameOptionWindow.Listener,GameOptionWindow.IDataProvider {
+    LoginAccountInfo login;
+    GameOptionWindow settings;
+    public static void Configure(LoginAccountInfo view) {
+        if(view==null)return;
+        if(view.PatchValidationRoot!=null)view.PatchValidationRoot.SetActive(false);
+        if(view.VoiceButtonRoot!=null)view.VoiceButtonRoot.SetActive(false);
+        if(view.LanguageButtonRoot==null)return;
+        var bridge=view.GetComponent<SprkLoginSettings>();
+        if(bridge==null)bridge=view.gameObject.AddComponent<SprkLoginSettings>();
+        bridge.login=view;
+        foreach(var loc in view.LanguageButtonRoot.GetComponentsInChildren<UILocalize>(true))loc.enabled=false;
+        foreach(var loc in view.LanguageButtonRoot.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true))loc.enabled=false;
+        foreach(var label in view.LanguageButtonRoot.GetComponentsInChildren<UILabel>(true))label.text="Settings";
+        var button=view.LanguageButtonRoot.GetComponentInChildren<UIButton>(true);
+        if(button!=null){button.onClick.Clear();EventDelegate.Add(button.onClick,bridge.OpenSettings);}
+        if(view.ButtonGrid!=null){view.ButtonGrid.hideInactive=true;view.ButtonGrid.Reposition();}
+    }
+    static void PrepareOptions() {
+        // Load only the settings table from the installed client. Do not mark
+        // patch download complete or unlock unrelated gameplay tables at login.
+        var cache=(IDictionary)typeof(TableRoot).GetField("_dic",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(TableRoot.Instance);
+        lock(cache) {
+            if(cache.Contains(typeof(GameOptionDataContainer)))return;
+            var table=new GameOptionDataContainer();table.Load();
+            if(!table.IsLoaded)throw new InvalidOperationException("The installed settings table could not be loaded.");
+            cache.Add(typeof(GameOptionDataContainer),table);
+        }
+    }
+    public void OpenSettings() {
+        PrepareOptions();
+        // Login normally has only the small embedded localization dictionary.
+        // Settings uses the installed full dictionary and enum redirections.
+        SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(true);
+        var manager=SceneAutoBehaviour<LoginManagement>.instance;
+        settings=manager.GetInstance<GameOptionWindow>();
+        if(settings==null){manager.AddInstance<GameOptionWindow>(GameOptionWindow.PrefabPath);settings=manager.GetInstance<GameOptionWindow>();}
+        settings.Open(this,this,GameOptionTab.Game);
+    }
+    public sealed class LoginContext : MonoBehaviour {
+        public readonly Dictionary<GameObject,bool> Hidden=new Dictionary<GameObject,bool>();
+        public void Hide(GameObject go){if(go==null)return;if(!Hidden.ContainsKey(go))Hidden.Add(go,go.activeSelf);go.SetActive(false);}
+        public void Restore(){foreach(var item in Hidden)if(item.Key!=null)item.Key.SetActive(item.Value);Hidden.Clear();}
+    }
+    public static void PrepareSettings(GameOptionWindow view,GameOptionWindow.IDataProvider provider) {
+        var context=view.GetComponent<LoginContext>();
+        if(context!=null)context.Restore();
+        if(provider is SprkLoginSettings){if(context==null)view.gameObject.AddComponent<LoginContext>();}
+        else if(context!=null)UnityEngine.Object.DestroyImmediate(context);
+    }
+    public static void CleanSettings(GameOptionWindow view) {
+        var context=view.GetComponent<LoginContext>();if(context==null || !AtLogin)return;
+        var info=view.EtcInfo;
+        foreach(var item in new[]{info.Button_Coupon,info.Button_Logout,info.Button_MemberLeave})if(item!=null)context.Hide(item.gameObject);
+        foreach(var name in new[]{"Button_SwitchAccount","Button_ChangePassword","Button_DeleteAccount"})
+            foreach(var tm in view.GetComponentsInChildren<Transform>(true))if(tm.name==name)context.Hide(tm.gameObject);
+        foreach(var row in view.GetComponentsInChildren<GameOptionBaseComponent>(true))
+            if(row.gameOptionData!=null && (row.gameOptionData.PostProcessFunction=="OpenSkipRubyCountPopup" || row.gameOptionData.PostProcessFunction=="ManageBlockedUser"))context.Hide(row.gameObject);
+    }
+    static readonly Dictionary<string,UIAtlas> loginAtlases=new Dictionary<string,UIAtlas>();
+    public static UIAtlas TryLoginAtlas(string name) {
+        if((name!="GameOption" && name!="PayShop") || !AtLogin)return null;
+        return LoadLoginAtlas(name);
+    }
+    static UIAtlas LoadLoginAtlas(string name) {
+        string folder=SystemOptionData.Spec==ESpecType.Low?"LowLargeSpec":"HighAndMidSpec";
+        string key=folder+"/"+name;
+        UIAtlas atlas;if(loginAtlases.TryGetValue(key,out atlas) && atlas!=null)return atlas;
+        string path=System.IO.Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle",folder,"NguiAtlas_UI_Prefab_"+name+".unity3d");
+        var bundle=AssetBundle.LoadFromFile(path);
+        if(bundle==null)throw new InvalidOperationException("The installed settings artwork could not be loaded.");
+        atlas=bundle.mainAsset as UIAtlas;
+        if(atlas==null)throw new InvalidOperationException("The installed settings artwork has no atlas.");
+        // Bundle materials depend on the game's later shader preload. Use the
+        // already-shipped NGUI shader while opening these atlases before login.
+        var shader=Shader.Find("Unlit/Transparent Colored");
+        if(shader==null)throw new InvalidOperationException("The login UI shader is unavailable.");
+        var material=new Material(shader);material.mainTexture=atlas.texture;
+        if(material.mainTexture==null)throw new InvalidOperationException("The installed settings artwork has no texture.");
+        atlas.spriteMaterial=material;bundle.Unload(false);
+        loginAtlases[key]=atlas;return atlas;
+    }
+    static bool AtLogin { get { return SceneAutoBehaviour<LoginManagement>.isValidInstance && !SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.LobbyManagement>.isValidInstance; } }
+    public static bool SetTextureQuality(GameOptionBaseComponent row,object value) {
+        if(!AtLogin)return false;
+        SystemOptionData.Spec=(ESpecType)Enum.Parse(typeof(ESpecType),value.ToString());SprkTestPrefs.Save();
+        return true;
+    }
+    public static bool SetPlayBGM(GameOptionBaseComponent row,object value) { return AtLogin; }
+    public LoginMethodType GetLastLoginMethod(){return LoginData.LastLoginMethod;}
+    public CountryData GetCountryData(){return null;}
+    public CountryServerData GetCountryServerData(){return null;}
+    public void OnChangeLanguage(){login.OnClickChangeLanguage();}
+    public void OnLogout(){login.OnClickLogout();}
+    public void OnReset(){}
+    public void OnUseCoupon(){}
+    public void OnLeaveParty(){}
+    public void ChangeLoginMethod(LoginMethodType type){}
+    public void OnCsMailPopup(){}
+    public void OnOqupieWebView(){}
+    static bool probeStarted;
+    public static void EnsureProbe() {
+        if(probeStarted || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_SETTINGS_TEST")) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")))return;
+        probeStarted=true;
+        var host=new GameObject("LoginSettingsProbe");UnityEngine.Object.DontDestroyOnLoad(host);host.AddComponent<SprkLoginSettingsProbe>();
+    }
+}
+public sealed class SprkLoginSettingsProbe : MonoBehaviour {
+    IEnumerator Start() {
+        yield return new WaitForSecondsRealtime(4);
+        var manager=SceneAutoBehaviour<LoginManagement>.instance;
+        if(manager==null)throw new Exception("No native login management");
+        var login=manager.GetInstance<LoginAccountInfo>();
+        for(int i=0;i<8;i++)SprkLoginSettings.Configure(login);
+        if(login.PatchValidationRoot.activeSelf || login.VoiceButtonRoot.activeSelf)throw new Exception("Legacy buttons visible");
+        var button=login.LanguageButtonRoot.GetComponentInChildren<UIButton>(true);
+        if(button.onClick.Count!=1)throw new Exception("Duplicate Settings callbacks");
+        foreach(var label in login.LanguageButtonRoot.GetComponentsInChildren<UILabel>(true))if(label.text!="Settings")throw new Exception("Settings caption");
+        bool patchReady=TableRoot.PatchDownloadComplete;
+        EventDelegate.Execute(button.onClick);
+        yield return new WaitForSecondsRealtime(1);
+        var settings=manager.GetInstance<GameOptionWindow>();
+        if(settings==null || !settings.IsOpen())throw new Exception("Native settings did not open");
+        foreach(var label in settings.GetComponentsInChildren<UILabel>(true)) {
+            var value=label.text??"";
+            if(value.StartsWith("@") || value.StartsWith("OPTION_") || value=="CONTENT_GAMECONFIG" || value=="COMMON_ETC")throw new Exception("Untranslated settings label: "+value);
+        }
+        var rows=settings.GetComponentsInChildren<GameOptionBaseComponent>(true);
+        if(rows.Length<20)throw new Exception("Native settings rows missing: "+rows.Length);
+        int artwork=0;
+        foreach(var assigner in settings.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>(true)) {
+            if((assigner.AtlasName!="GameOption" && assigner.AtlasName!="PayShop") || assigner.Target==null)continue;
+            if(assigner.Target.atlas==null || assigner.Target.atlas.GetSprite(assigner.SpriteName)==null)throw new Exception("Missing settings artwork: "+assigner.SpriteName);
+            artwork++;
+        }
+        if(artwork==0)throw new Exception("Settings artwork was not checked");
+        if(TableRoot.PatchDownloadComplete!=patchReady)throw new Exception("Settings changed download state");
+        if(settings.EtcInfo.Button_Coupon.gameObject.activeSelf || settings.EtcInfo.Button_Logout.gameObject.activeSelf)throw new Exception("Lobby actions visible at login");
+        var texture=Array.Find(rows,r=>r.gameOptionData!=null && r.gameOptionData.PostProcessFunction=="SetTextureQuality");
+        if(texture==null)throw new Exception("Native texture row missing");
+        var originalSpec=SystemOptionData.Spec;
+        var otherSpec=originalSpec==ESpecType.Low?ESpecType.Mid:ESpecType.Low;
+        texture.SetTextureQuality(otherSpec);if(SystemOptionData.Spec!=otherSpec)throw new Exception("Login texture change failed");
+        texture.SetTextureQuality(originalSpec);
+        foreach(var tab in settings.MainTabs){tab.Toggle.Set(true);yield return null;}
+        settings.ReOpen();yield return null;
+        settings.Close();yield return null;
+        EventDelegate.Execute(button.onClick);yield return null;
+        if(!settings.IsOpen() || settings.GetComponents<SprkLoginSettings.LoginContext>().Length!=1)throw new Exception("Reopen or duplicate context");
+        var path=Environment.GetEnvironmentVariable("SPRK_LOGIN_SETTINGS_TEST");System.IO.Directory.CreateDirectory(path);
+        // The standalone test has no host server to advance beyond the BI
+        // intro. Remove that test-only overlay so the native panel is visible.
+        foreach(var camera in Camera.allCameras)if(camera.name=="BI UI Camera")camera.gameObject.SetActive(false);
+        yield return new WaitForSecondsRealtime(1);
+        yield return new WaitForEndOfFrame();
+        var diagnostics=new List<string>();
+        for(var tm=settings.transform;tm!=null;tm=tm.parent)diagnostics.Add(tm.name+" active="+tm.gameObject.activeInHierarchy+" pos="+tm.localPosition+" scale="+tm.localScale);
+        foreach(var panel in settings.GetComponentsInChildren<UIPanel>(true))diagnostics.Add("Panel "+panel.name+" alpha="+panel.alpha+" depth="+panel.depth+" active="+panel.gameObject.activeInHierarchy);
+        foreach(var camera in Camera.allCameras)diagnostics.Add("Camera "+camera.name+" mask="+camera.cullingMask+" depth="+camera.depth+" rect="+camera.rect);
+        System.IO.File.WriteAllLines(System.IO.Path.Combine(path,"diagnostics.txt"),diagnostics.ToArray());
+        var image=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);image.Apply();
+        System.IO.File.WriteAllBytes(System.IO.Path.Combine(path,"settings.png"),image.EncodeToPNG());Destroy(image);
+        var context=settings.GetComponent<SprkLoginSettings.LoginContext>();
+        SprkLoginSettings.PrepareSettings(settings,null);
+        if(settings.GetComponent<SprkLoginSettings.LoginContext>()!=null || !settings.EtcInfo.Button_Coupon.gameObject.activeSelf)throw new Exception("Login cleanup leaked into a reused in-game panel");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(path,"result.txt"),"PASS: native login buttons cleaned, one Settings callback, native settings opened before login with "+rows.Length+" rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; visible panel screenshot exported.");
+        Application.Quit();
+    }
+}
