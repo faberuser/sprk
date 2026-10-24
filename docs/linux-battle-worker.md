@@ -39,9 +39,9 @@ Local image validation (use a compatible published client tag):
 python scripts/server/linux_worker.py build --tag client-<version>
 docker build -t sprk-linux-worker:test .
 python scripts/server/smoke_linux_worker.py sprk-linux-worker:test
-docker build --target native-tests -t sprk-native-tests:test .
-docker run --rm --init sprk-native-tests:test conquest_native_tcp_battle --ignored --nocapture
-docker run --rm --init sprk-native-tests:test native_challenge_party_combat_and_settlement --ignored --nocapture
+docker buildx bake native-tests --load
+docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
+docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
 ```
 
 `--runtime <archive>` and `--release <archive>` allow local archives, with the
@@ -49,9 +49,17 @@ same verification. Choose a fresh `--output` directory for repeat assembly;
 Docker expects the final input at `build-input/worker`. Preparation does not
 modify the installed Windows client or the local stable update manifest.
 
-CI builds and loads the image, boots an isolated game container, and requires
-worker readiness and native Challenge Raid/Conquest combat tests before pushing
-either GHCR tag or invoking Portainer. The
+The PR workflow (`.github/workflows/test-pr.yml`) compiles the native test
+executable through `Dockerfile.tests` and
+`docker-bake.hcl`, reusing the production build/runtime stages. They run worker
+readiness and native Challenge Raid/Conquest combat tests against the latest
+complete signed published client release. These checks cover PR server changes
+against that released worker; they do not rebuild client-side worker changes
+from the PR. No publishing, signing secret or deployment is used in the PR job.
+
+Deployment builds and loads the production image, boots an isolated game
+container, and requires worker startup readiness against its exact new signed
+client release before pushing either GHCR tag or invoking Portainer. The
 smoke container has no production database or published ports and is removed
 after the check. Updates mode does not start Wine or generate a worker key.
 

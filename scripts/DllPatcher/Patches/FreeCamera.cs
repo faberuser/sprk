@@ -5,6 +5,9 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void VerifyFreeCamera(ModuleDefinition module) {
+        var refresh=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="UpdateDerived");
+        if(refresh.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="RefreshLayout")!=1)throw new InvalidOperationException("Missing or duplicated ultrawide layout hook.");
+        VerifyArenaResultStack(refresh);
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("UpdateHeroCamera","InputCamera"),("LateUpdate","Apply"),("Reset","Reset")}) {
             var method=window.Methods.Single(m=>m.Name==pair.Item1);
@@ -29,6 +32,15 @@ partial class Program {
             if(!scope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing preview window scope: "+name);
         var apply=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Apply");
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_ShapeBounds"))throw new InvalidOperationException("Free camera must use the hero's body bounds as its orbit pivot.");
+        if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="FitPreviewAspect"))throw new InvalidOperationException("Missing displayed preview aspect correction.");
+        var fit=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="FitPreviewAspect");
+        foreach(var name in new[]{"get_drawingDimensions","WorldToScreenPoint","get_uvRect","set_aspect"})
+            if(!fit.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Incomplete preview aspect correction: "+name);
+        var layout=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayout");
+        if(!layout.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name=="HeroDeck2"))throw new InvalidOperationException("Missing Heroes List layout scope.");
+        var layoutRoot=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayoutRoot");
+        foreach(var name in new[]{"ResetAnchors","ForceUpdateAnchors"})
+            if(!layoutRoot.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing native layout refresh: "+name);
         if(!game.MainModule.GetType("NGame2.NUI.NWindow.HeroDetailView").Methods.Any(m=>m.Name=="OpenOnlyViewMotion"))throw new InvalidOperationException("Native See Motions path missing.");
         Console.WriteLine("Verified scoped free camera hooks and preserved native camera update.");
     }
@@ -49,6 +61,12 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         var module=game.MainModule;
         var bridge=helper.MainModule.GetType("SprkFreeCamera");
+        var refresh=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="UpdateDerived");
+        if(!refresh.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="RefreshLayout")) {
+            var il=refresh.Body.GetILProcessor();var first=refresh.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="RefreshLayout"))));
+        }
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("LateUpdate","Apply"),("Reset","Reset")}) {
             var method=window.Methods.Single(m=>m.Name==pair.Item1);

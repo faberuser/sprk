@@ -6,7 +6,16 @@ after the one-time baseline setup.
 
 ## Pipeline
 
-1. Ubuntu runs the server tests and client build-tool tests.
+[PR tests](../.github/workflows/test-pr.yml) run server, packaging and native
+battle checks. [Build and deploy](../.github/workflows/build-and-deploy.yml)
+runs on pushes to `main` or manual dispatch, publishing the client before
+building and validating the server image and calling Portainer.
+
+1. On PRs, Ubuntu runs the server tests and client build-tool tests, then native
+   battle integration checks under Wine using the latest complete signed
+   published worker release. `Dockerfile.tests` shares production stages through
+   `docker-bake.hcl`; these checks do not rebuild client changes in the PR.
+   Native combat tests no longer run in the deployment job.
 2. Windows downloads the immutable baseline pinned by `scripts/release/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.

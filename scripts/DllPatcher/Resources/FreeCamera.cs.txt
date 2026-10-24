@@ -15,6 +15,26 @@ public static class SprkFreeCamera {
         public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
     }
     static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
+    sealed class LayoutState { public int Width,Height; public Transform Root; }
+    static readonly ConditionalWeakTable<BaseWindow,LayoutState> layouts=new ConditionalWeakTable<BaseWindow,LayoutState>();
+    public static void RefreshLayout(BaseWindow window) {
+        if(window==null || !window.isActiveAndEnabled || !window.IsOpen())return;
+        if(!(window is HeroDeck2) && !SupportsWindow(window.GetType()))return;
+        var root=window.transform.Find("Panel/Root");
+        if(root==null || !root.gameObject.activeInHierarchy)return;
+        var state=layouts.GetOrCreateValue(window);
+        if(state.Root==root && state.Width==Screen.width && state.Height==Screen.height)return;
+        RefreshLayoutRoot(root);
+        state.Root=root;state.Width=Screen.width;state.Height=Screen.height;
+    }
+    public static void RefreshLayoutRoot(Transform root) {
+        // These prefabs size their root only at Start. Recycled windows and
+        // fullscreen changes otherwise retain a centered 1920-wide canvas.
+        // Re-evaluate native anchors, including the frame, tiled background,
+        // scroll viewport and edge-aligned controls, without scaling content.
+        foreach(var rect in root.GetComponentsInChildren<UIRect>(true))rect.ResetAnchors();
+        foreach(var rect in root.GetComponentsInChildren<UIRect>(true))rect.ForceUpdateAnchors(false);
+    }
     static readonly FieldInfo cinemaField=typeof(HeroFullSceneViewBase).GetField("_cinema",BindingFlags.Instance|BindingFlags.NonPublic);
     static readonly FieldInfo detailTab=typeof(HeroDetailView).GetField("_toggle",BindingFlags.Instance|BindingFlags.NonPublic);
     public static bool SupportsWindow(Type type) { return typeof(HeroModelView).IsAssignableFrom(type)||typeof(HeroCostumeView).IsAssignableFrom(type)||typeof(HeroDetailView).IsAssignableFrom(type); }
@@ -39,7 +59,7 @@ public static class SprkFreeCamera {
     public static float ScaleLobbyZoom(float delta) {
         return Application.isMobilePlatform || Input.touchCount>0?delta:delta*LobbySensitivity;
     }
-    public static void Reset(HeroFullSceneViewBase window) { if(window!=null)states.Remove(window); }
+    public static void Reset(HeroFullSceneViewBase window) { if(window!=null){states.Remove(window);layouts.Remove(window);} }
     public static bool InputCamera(HeroFullSceneViewBase window) {
         if(!Eligible(window)||Application.isMobilePlatform||Input.touchCount>0)return false;
         var state=Get(window);
@@ -86,8 +106,39 @@ public static class SprkFreeCamera {
         var host=new GameObject("SprkFreeCameraTests");UnityEngine.Object.DontDestroyOnLoad(host);host.AddComponent<SprkFreeCameraTests>();
     }
     static bool probeStarted;
+    static void RunLayoutProbe(Action<bool,string> check) {
+        var host=new GameObject("UltrawideLayoutProbe");host.SetActive(false);
+        host.transform.localScale=Vector3.one*(2f/1080);
+        var cameraHost=new GameObject("UltrawideLayoutCamera");var uiCamera=cameraHost.AddComponent<Camera>();
+        uiCamera.orthographic=true;uiCamera.orthographicSize=1;uiCamera.cullingMask=1<<30;
+        foreach(var path in new[]{"Prefab2/Window/Hero/HeroDeck2","Prefab2/Window/FullScene/HeroDetailView","Prefab2/Window/FullScene/HeroCostumeView"}) {
+            var prefab=Resources.Load<GameObject>(path);
+            check(prefab!=null,"Load real layout prefab: "+path);
+            var instance=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+            foreach(var tm in instance.GetComponentsInChildren<Transform>(true))tm.gameObject.layer=30;
+            var root=instance.transform.Find("Panel/Root");check(root!=null,"Native layout root");
+            var widget=root.GetComponent<UIWidget>();
+            foreach(var size in new[]{new Vector2(1920,1080),new Vector2(3440,1440),new Vector2(5120,1440),new Vector2(1920,1080)}) {
+                uiCamera.pixelRect=new Rect(0,0,size.x,size.y);uiCamera.aspect=size.x/size.y;
+                // Start from the shipped 16:9 prefab, then resize repeatedly.
+                RefreshLayoutRoot(root);
+                var corners=widget.worldCorners;
+                var left=uiCamera.WorldToViewportPoint(corners[0]);var right=uiCamera.WorldToViewportPoint(corners[2]);
+                check(Mathf.Abs(left.x)<.002f && Mathf.Abs(right.x-1)<.002f,"Real prefab fills display: "+path+" "+size+" edges="+left.x+","+right.x);
+                var preview=instance.GetComponent<HeroFullSceneViewBase>();
+                if(preview!=null) {
+                    corners=preview.Hero3DTexture.worldCorners;
+                    left=uiCamera.WorldToViewportPoint(corners[0]);right=uiCamera.WorldToViewportPoint(corners[2]);
+                    check(Mathf.Abs(left.x)<.002f && Mathf.Abs(right.x-1)<.002f,"Preview background fills display");
+                }
+            }
+            UnityEngine.Object.Destroy(instance);
+        }
+        UnityEngine.Object.Destroy(host);UnityEngine.Object.Destroy(cameraHost);
+    }
     public static void RunProbe() {
         Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
+        RunLayoutProbe(check);
         check(SupportsWindow(typeof(HeroDetailView)) && SupportsWindow(typeof(HeroCostumeView)) && SupportsWindow(typeof(HeroModelView)) && !SupportsWindow(typeof(HeroFullSceneViewBase)),"Preview window scope");
         string[] sensitivityKeys={"Sprk.Graphics.CameraSensitivity","Sprk.Graphics.LobbyCameraSensitivity","Sprk.Graphics.ModelCameraSensitivity"};
         bool[] hadKeys=Array.ConvertAll(sensitivityKeys,k=>SprkTestPrefs.HasKey(k));
@@ -166,7 +217,8 @@ public static class SprkFreeCamera {
         var pivot=new Vector3(2,1,3);
         var nativeDirection=Quaternion.Euler(12,25,0)*Vector3.forward;
         var nativeRotation=Quaternion.LookRotation(nativeDirection);
-        foreach(float framing in new[]{0f,-1.2f})foreach(float yaw in new[]{-150f,-60f,0f,60f,150f})foreach(float pitch in new[]{-35f,0f,35f})foreach(float zoom in new[]{.5f,1f,1.8f}) {
+        foreach(float aspect in new[]{16f/9f,3440f/1440f})foreach(float framing in new[]{0f,-1.2f})foreach(float yaw in new[]{-150f,-60f,0f,60f,150f})foreach(float pitch in new[]{-35f,0f,35f})foreach(float zoom in new[]{.5f,1f,1.8f}) {
+            camera.aspect=aspect;
             var nativeTarget=pivot+nativeRotation*new Vector3(framing,.35f,0);
             cinema.CameraInfo.TargetPos=nativeTarget;cinema.CameraInfo.LookDir=nativeDirection;
             cinema.CameraInfo.TargetDistance=5;cinema.CameraInfo.FieldOfView=45;cinema.ChainUpdate();
@@ -179,12 +231,38 @@ public static class SprkFreeCamera {
             if(yaw==0 && pitch==0 && zoom==1)check(Vector3.Distance(originalPosition,camera.transform.position)<.001f,"Native/reset framing preserved");
         }
         var area=new GameObject("ModelArea");var texture=area.AddComponent<UITexture>();
+        var uiHost=new GameObject("PreviewAspectUICamera");var uiCamera=uiHost.AddComponent<Camera>();
+        uiCamera.orthographic=true;uiCamera.orthographicSize=540;uiCamera.cullingMask=1<<30;area.layer=30;
+        uiCamera.rect=new Rect(0,0,1,1);
+        var staleTarget=new RenderTexture(1280,720,0);camera.targetTexture=staleTarget;
+        camera.transform.position=new Vector3(0,0,-5);camera.transform.rotation=Quaternion.identity;
+        foreach(var size in new[]{new Vector2(1920,1080),new Vector2(2560,1440),new Vector2(3440,1440),new Vector2(5120,1440),new Vector2(1920,1080)}) {
+            texture.width=(int)size.x;texture.height=(int)size.y;texture.mainTexture=staleTarget;
+            foreach(float crop in new[]{1f,.8f}) {
+                texture.uvRect=new Rect(0,0,crop,1);
+                camera.aspect=16f/9f;
+                FitPreviewAspect(camera,texture);
+                var d=texture.drawingDimensions;
+                var a=uiCamera.WorldToScreenPoint(texture.transform.TransformPoint(d.x,d.y,0));
+                var b=uiCamera.WorldToScreenPoint(texture.transform.TransformPoint(d.z,d.y,0));
+                var c=uiCamera.WorldToScreenPoint(texture.transform.TransformPoint(d.x,d.w,0));
+                float displayWidth=Vector3.Distance(a,b),displayHeight=Vector3.Distance(a,c);
+                var origin=camera.WorldToViewportPoint(Vector3.zero);
+                var horizontal=camera.WorldToViewportPoint(Vector3.right);
+                var vertical=camera.WorldToViewportPoint(Vector3.up);
+                float pixelsX=(horizontal.x-origin.x)*displayWidth/crop;
+                float pixelsY=(vertical.y-origin.y)*displayHeight;
+                check(Mathf.Abs(pixelsX/pixelsY-1)<.001f,"Preview proportions after aspect/resolution change: "+size+" crop="+crop);
+            }
+        }
+        texture.uvRect=new Rect(0,0,1,1);
+        camera.targetTexture=null;UnityEngine.Object.Destroy(staleTarget);UnityEngine.Object.Destroy(uiHost);
         var child=new GameObject("ModelPointer");child.transform.SetParent(area.transform);
         var button=new GameObject("MenuButton");button.transform.SetParent(area.transform);button.AddComponent<UIButton>();
         check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
         UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
         System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: real Heroes List, See Motions and Dressing Room prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
     }
     public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
         original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;
@@ -193,11 +271,29 @@ public static class SprkFreeCamera {
         return Quaternion.Euler(Mathf.Clamp(basePitch+pitch,-85,85),baseYaw+yaw,0)*Vector3.forward;
     }
     public static float Distance(float original,float zoom) { return Mathf.Clamp(original*zoom,.15f,40); }
+    public static void FitPreviewAspect(Camera camera,UITexture texture) {
+        if(camera==null || texture==null || texture.mainTexture==null)return;
+        var uiCamera=texture.anchorCamera;
+        if(uiCamera==null)return;
+        // The render target can retain the startup resolution after switching
+        // fullscreen. Its pixel ratio is not the ratio of the displayed quad.
+        var rect=texture.drawingDimensions;
+        var tm=texture.transform;
+        var bottomLeft=uiCamera.WorldToScreenPoint(tm.TransformPoint(rect.x,rect.y,0));
+        var bottomRight=uiCamera.WorldToScreenPoint(tm.TransformPoint(rect.z,rect.y,0));
+        var topLeft=uiCamera.WorldToScreenPoint(tm.TransformPoint(rect.x,rect.w,0));
+        float width=Vector3.Distance(bottomLeft,bottomRight),height=Vector3.Distance(bottomLeft,topLeft);
+        var uv=texture.uvRect;
+        if(width<.001f || height<.001f || Mathf.Abs(uv.width)<.0001f || Mathf.Abs(uv.height)<.0001f)return;
+        camera.aspect=width/height*Mathf.Abs(uv.height/uv.width);
+    }
     public static void Apply(HeroFullSceneViewBase window) {
         if(!Eligible(window))return;
         var state=Get(window);
         var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
-        if(cinema==null || cinema.CinemaCamera==null || window.CameraController==null)return;
+        if(cinema==null)return;
+        FitPreviewAspect(cinema.MainCamera,window.Hero3DTexture);
+        if(cinema.CinemaCamera==null || window.CameraController==null)return;
         var info=cinema.CinemaCamera.CameraInfo;
         var facade=((MotionSequence.IDataProvider)window).GetRenderFacade();
         // ShapeBounds is the stable body volume, not animated mesh/weapon bounds.

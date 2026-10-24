@@ -204,6 +204,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     }
     public static void CleanLoginInfo(LoginAccountInfo view) {
         if(view.LoginButtonInfoRoot!=null)view.LoginButtonInfoRoot.SetActive(false);
+        SprkLoginSettings.Configure(view);
     }
     public static void SyncRefreshToken() {
         string token=LoginData.LastRefreshToken;
@@ -304,6 +305,7 @@ public sealed class SprkAccounts : MonoBehaviour {
                 parent.gameObject.SetActive(false);break;
             }
         }
+        SprkLoginSettings.CleanSettings(view);
     }
     static void AddChangePassword(GameOptionWindow view) {
         var source=view.EtcInfo.Button_Coupon;

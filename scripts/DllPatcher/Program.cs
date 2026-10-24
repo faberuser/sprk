@@ -9,6 +9,7 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--verify-login-settings")) { VerifyLoginSettingsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--free-camera-only")) { InstallFreeCamera(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-free-camera")) { VerifyFreeCameraFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--graphics-options-only")) { InstallGraphicsOptions(args[0],args.Contains("--stage-only")); return; }

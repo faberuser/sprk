@@ -52,6 +52,7 @@ partial class Program
         VerifyMailUpdates(clientRoot);
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
+        VerifyLoginSettingsFile(clientRoot);
         VerifyShopPurchaseLimitsFile(clientRoot, false);
         VerifyPetFeedingFile(clientRoot);
         TestPetFeeding(clientRoot);

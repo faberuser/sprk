@@ -3,8 +3,6 @@ name: Build and deploy server
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       client_release_tag:
@@ -21,26 +19,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    name: Test server
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Install Rust
-        run: rustup toolchain install 1.93.0 --profile minimal
-
-      - name: Test
-        run: cargo +1.93.0 test --locked
-
-      - name: Test client release packaging
-        run: python3 -m unittest discover -s scripts -t . -p 'test_*client*.py'
-
   client-release:
     name: Build and publish client update
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -177,28 +155,6 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
         run: python3 scripts/server/smoke_linux_worker.py "${IMAGE}:sha-${GITHUB_SHA}"
-
-      - name: Build native combat integration test image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile
-          target: native-tests
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: sprk-native-tests:ci
-          build-args: |
-            CLIENT_UPDATE_REPO=${{ github.repository }}
-            CLIENT_UPDATE_TAG=${{ needs.client-release.outputs.tag }}
-          cache-from: type=gha,scope=sprk-server
-          cache-to: type=gha,scope=sprk-server,mode=max
-
-      - name: Run worker tests under Wine
-        run: |
-          docker run --rm --init sprk-native-tests:ci readiness_requires_live_worker_and_supported_capabilities --nocapture
-          docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
-          docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
 
       - name: Push validated image
         id: push

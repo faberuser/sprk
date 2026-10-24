@@ -3,6 +3,7 @@
 !Cargo.toml
 !Cargo.lock
 !Dockerfile
+!Dockerfile.tests
 !src/
 !src/**
 !tables/

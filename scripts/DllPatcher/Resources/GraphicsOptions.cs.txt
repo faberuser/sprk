@@ -10,6 +10,7 @@ using NGame2.NUI.NComponent2;
 using NShared;
 using NGame2.NUI;
 using NVespa.NGlobal;
+using System.Runtime.InteropServices;
 
 // Native UI controls and rendering configuration. Preferences use the isolated test adapter.
 [DefaultExecutionOrder(32000)]
@@ -145,6 +146,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         EnsurePreset();
         var go=new GameObject("SprkGraphicsOptions"); DontDestroyOnLoad(go);
         instance=go.AddComponent<SprkGraphicsOptions>();
+        if(CustomWindow && !Screen.fullScreen && NVespa.SystemOptionData.Graphic_WindowControl)ApplyCustomResolution();
         if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))instance.StartCoroutine(instance.Probe());
     }
     public static void Setup(GameOptionWindow window) {
@@ -180,13 +182,105 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         foreach(var tab in window.MainTabs)if(tab.GameOptionTab==GameOptionTab.Game)RefreshRows(tab);
     }
     public static bool IsFrameRow(GameOptionToggle4Component row) {
-        return row.gameOptionData!=null && row.gameOptionData.FieldName=="Graphic_FrameControl";
+        return row.gameOptionData!=null && (row.gameOptionData.FieldName=="Graphic_FrameControl" || row.gameOptionData.FieldName=="Graphic_ResolutionControl");
+    }
+    public static bool IsResolutionRow(GameOptionToggle4Component row) {
+        return row.gameOptionData!=null && row.gameOptionData.FieldName=="Graphic_ResolutionControl" && !String.IsNullOrEmpty(row.gameOptionData.Value4);
     }
     public static bool ConfigureFrameRow(GameOptionToggle4Component row) {
         if(!IsFrameRow(row))return false;
+        if(row.gameOptionData.FieldName=="Graphic_ResolutionControl") {
+            ConfigureChoices(row,"Resolution",new[]{"HD","FHD","QHD","UHD","Custom"});
+            return true;
+        }
         ConfigureChoices(row,"Frame",new[]{"30","60","144","Auto","Auto+"});
         return true;
     }
+    public static void RestoreResolutionChoices(GameOptionToggle4Component row) {
+        if(row==null || row.gameOptionData==null || row.gameOptionData.FieldName!="Graphic_ResolutionControl")return;
+        // The native Full callback hides UHD on monitors narrower than 3840,
+        // then leaves that pooled toggle hidden when returning to Window.
+        // Keep the declared preset visible; native fullscreen availability and
+        // desktop-native fullscreen sizing are still controlled by the parent.
+        if(row.toggleInfo!=null && row.toggleInfo.Toggle4!=null) {
+            row.toggleInfo.Toggle4.gameObject.SetActive(!String.IsNullOrEmpty(row.gameOptionData.Value4));
+            if(!String.IsNullOrEmpty(row.gameOptionData.Value4))ConfigureFrameRow(row);
+        }
+    }
+    const int CustomResolution=5;
+    static readonly int[] resolutionValues={1,2,3,4,CustomResolution};
+    const int ResizeStyle=0x00040000|0x00010000;
+    delegate bool WindowVisitor(IntPtr window,IntPtr state);
+    [StructLayout(LayoutKind.Sequential)] struct WindowRect { public int Left,Top,Right,Bottom; }
+    [DllImport("user32.dll")] static extern bool EnumWindows(WindowVisitor visitor,IntPtr state);
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out uint pid);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] static extern bool IsWindow(IntPtr window);
+    [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr window);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr window,System.Text.StringBuilder name,int length);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongW")] static extern int GetWindowLong(IntPtr window,int index);
+    [DllImport("user32.dll",EntryPoint="SetWindowLongW")] static extern int SetWindowLong(IntPtr window,int index,int value);
+    [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr window,out WindowRect rect);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window,out WindowRect rect);
+    [DllImport("user32.dll")] static extern bool AdjustWindowRectEx(ref WindowRect rect,int style,bool menu,int extendedStyle);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
+    IntPtr gameWindow;
+    int originalResizeStyle;
+    bool resizeStyleCaptured;
+    int savedWidth,savedHeight;
+    float saveSizeAt;
+    static bool CustomWindow { get { return (int)NVespa.SystemOptionData.Graphic_ResolutionControl==CustomResolution; } }
+    public static bool ApplyCustomResolution() {
+        if(!CustomWindow)return false;
+        Ensure();
+        if(NVespa.SystemOptionData.Graphic_WindowControl) {
+            int width=Mathf.Max(320,SprkTestPrefs.GetInt("Sprk.Window.Width",Screen.width));
+            int height=Mathf.Max(240,SprkTestPrefs.GetInt("Sprk.Window.Height",Screen.height));
+            Screen.SetResolution(width,height,FullScreenMode.Windowed);
+        }
+        return true;
+    }
+    IntPtr FindGameWindow() {
+        if(gameWindow!=IntPtr.Zero && IsWindow(gameWindow))return gameWindow;
+        gameWindow=IntPtr.Zero;resizeStyleCaptured=false;
+        uint ownPid=(uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+        EnumWindows(delegate(IntPtr window,IntPtr state) {
+            uint pid;GetWindowThreadProcessId(window,out pid);
+            if(pid!=ownPid || !IsWindowVisible(window))return true;
+            var name=new System.Text.StringBuilder(64);GetClassName(window,name,name.Capacity);
+            if(name.ToString()!="UnityWndClass")return true;
+            gameWindow=window;return false;
+        },IntPtr.Zero);
+        return gameWindow;
+    }
+    void UpdateCustomWindow() {
+        if(Application.platform!=RuntimePlatform.WindowsPlayer || Screen.fullScreen)return;
+        var window=FindGameWindow();if(window==IntPtr.Zero)return;
+        int style=GetWindowLong(window,-16);
+        if(!resizeStyleCaptured){originalResizeStyle=style&ResizeStyle;resizeStyleCaptured=true;}
+        int desired=(style&~ResizeStyle)|(CustomWindow?ResizeStyle:originalResizeStyle);
+        if(style!=desired) {
+            WindowRect client,outer;
+            if(GetClientRect(window,out client) && GetWindowRect(window,out outer)) {
+                SetWindowLong(window,-16,desired);
+                AdjustWindowRectEx(ref client,desired,false,GetWindowLong(window,-20));
+                SetWindowPos(window,IntPtr.Zero,outer.Left,outer.Top,client.Right-client.Left,client.Bottom-client.Top,0x20|0x4|0x10);
+            }
+        }
+        if(!CustomWindow || IsIconic(window) || IsZoomed(window))return;
+        if(Screen.width<320 || Screen.height<240)return;
+        if(savedWidth!=Screen.width || savedHeight!=Screen.height) {
+            savedWidth=Screen.width;savedHeight=Screen.height;saveSizeAt=Time.realtimeSinceStartup+.5f;
+        } else if(saveSizeAt>0 && Time.realtimeSinceStartup>=saveSizeAt) {
+            SaveCustomSize();saveSizeAt=0;
+        }
+    }
+    void SaveCustomSize() {
+        if(savedWidth<320 || savedHeight<240)return;
+        SprkTestPrefs.SetInt("Sprk.Window.Width",savedWidth);SprkTestPrefs.SetInt("Sprk.Window.Height",savedHeight);SprkTestPrefs.Save();
+    }
+    void OnApplicationQuit() { if(CustomWindow && !Screen.fullScreen)SaveCustomSize(); }
     static readonly int[] frameValues={30,60,144,2,4};
     static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab) {
         var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
@@ -276,6 +370,10 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                 if(toggle.value) {
                     if(key=="Preset")ApplyPreset(choice);
                     else if(key=="Frame"){NVespa.SystemOptionData.Graphic_FrameControl=(EFrameControl)frameValues[choice];SprkTestPrefs.Save();}
+                    else if(key=="Resolution") {
+                        if(CustomWindow)instance.SaveCustomSize();
+                        NVespa.SystemOptionData.Graphic_ResolutionControl=(EResolutionControl)resolutionValues[choice];SprkTestPrefs.Save();
+                    }
                     else {
                         int value=key=="Scale"?100+25*choice:IsSensitivityKey(key)?50+25*choice:key=="MSAASamples"?(SupportedSamples().Length==0?1:SupportedSamples()[choice]):choice;
                         SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);SprkTestPrefs.Save();
@@ -283,7 +381,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                     if(!IsSensitivityKey(key))instance.ResetHistories();
                 }
                 refresh();
-                if(key!="Frame" && !IsSensitivityKey(key))RefreshRows(row.GetComponentInParent<GameOptionWindow>(true));
+                if(key!="Frame" && key!="Resolution" && !IsSensitivityKey(key))RefreshRows(row.GetComponentInParent<GameOptionWindow>(true));
             });
         }
         refresh();
@@ -330,6 +428,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     }
     static bool IsSensitivityKey(string key) { return key=="LobbyCameraSensitivity" || key=="ModelCameraSensitivity"; }
     static int ReadIndex(string key) {
+        if(key=="Resolution")return Mathf.Max(0,Array.IndexOf(resolutionValues,(int)NVespa.SystemOptionData.Graphic_ResolutionControl));
         if(key=="Frame")return Mathf.Max(0,Array.IndexOf(frameValues,(int)NVespa.SystemOptionData.Graphic_FrameControl));
         if(key=="Preset")return Method;
         if(key=="PostAA")return postModes[Method];
@@ -341,11 +440,83 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         if(key=="TAASharpness")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.TAASharpness",1),0,2);
         return 0;
     }
+    System.Collections.IEnumerator CustomWindowProbe(string root) {
+        Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
+        if(Environment.GetEnvironmentVariable("SPRK_CUSTOM_WINDOW_RESTART")=="1") {
+            NVespa.SystemOptionData.Graphic_WindowControl=true;
+            yield return new WaitForSecondsRealtime(1);
+            check(CustomWindow && Screen.width==1137 && Screen.height==777,"Custom size survives restart: "+Screen.width+"x"+Screen.height);
+            check((GetWindowLong(FindGameWindow(),-16)&ResizeStyle)==ResizeStyle,"Resizable border survives restart");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"custom-restart.txt"),"PASS: saved Custom selection, 1137x777 client size and resizable border survive restart.");
+            yield break;
+        }
+        SprkTestPrefs.DeleteKey("Sprk.Window.Width");SprkTestPrefs.DeleteKey("Sprk.Window.Height");
+        NVespa.SystemOptionData.Graphic_WindowControl=true;
+        var customHost=new GameObject("CustomWindowChoicesProbe");customHost.SetActive(false);
+        var prefab=Resources.Load<GameObject>("Prefab2/Component/GameOption/GameOptionToggle4Component");
+        var row=Instantiate(prefab,customHost.transform,false).GetComponent<GameOptionToggle4Component>();
+        row.gameOptionData=new GameOptionData{FieldName="Graphic_ResolutionControl",Value1="HD",Value2="FHD",Value3="QHD",Value4="UHD"};
+        row.SetToggle();
+        var toggles=new[]{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4,row.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>()};
+        foreach(var toggle in toggles)typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
+        check(toggles.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"HD","FHD","QHD","UHD","Custom"}),"Resolution labels");
+        toggles[0].Set(true);yield return new WaitForSecondsRealtime(1);
+        check(Screen.width==1280 && Screen.height==720,"Native HD preset");
+        toggles[4].Set(true);yield return new WaitForSecondsRealtime(1);
+        check(CustomWindow && (GetWindowLong(FindGameWindow(),-16)&ResizeStyle)==ResizeStyle,"Custom choice enables native resize border");
+        foreach(var size in new[]{new Vector2(1493,821),new Vector2(1137,777)}) {
+            var rect=new WindowRect{Right=(int)size.x,Bottom=(int)size.y};
+            int style=GetWindowLong(gameWindow,-16);AdjustWindowRectEx(ref rect,style,false,GetWindowLong(gameWindow,-20));
+            SetWindowPos(gameWindow,IntPtr.Zero,0,0,rect.Right-rect.Left,rect.Bottom-rect.Top,0x2|0x4|0x10);
+            yield return new WaitForSecondsRealtime(1);
+            check(Screen.width==(int)size.x && Screen.height==(int)size.y,"Unity follows arbitrary native resize: "+Screen.width+"x"+Screen.height);
+            check(SprkTestPrefs.GetInt("Sprk.Window.Width",0)==(int)size.x && SprkTestPrefs.GetInt("Sprk.Window.Height",0)==(int)size.y,"Custom dimensions saved");
+            for(int i=0;i<4;i++){row.Refresh();row.SetToggle();row.OnClickToggle();}
+            check(CustomWindow && toggles[4].value && toggles.Count(t=>t.value)==1,"Custom selection survives refresh");
+        }
+        toggles[0].Set(true);yield return new WaitForSecondsRealtime(1);
+        check(Screen.width==1280 && Screen.height==720 && (GetWindowLong(gameWindow,-16)&ResizeStyle)==originalResizeStyle,"Fixed preset restores native size and border");
+        toggles[4].Set(true);yield return new WaitForSecondsRealtime(1);
+        check(Screen.width==1137 && Screen.height==777,"Returning to Custom restores last size");
+        NVespa.SystemOptionData.Graphic_WindowControl=false;yield return new WaitForSecondsRealtime(1);
+        check(Screen.fullScreen,"Native fullscreen still works");
+        NVespa.SystemOptionData.Graphic_WindowControl=true;yield return new WaitForSecondsRealtime(1);
+        check(!Screen.fullScreen && Screen.width==1137 && Screen.height==777,"Fullscreen to Custom restores last size");
+        check(new NVespa.LocalStorageEnum<EResolutionControl>(EResolutionControl.FHD,"KingsRaid_SystemOption_graphicResolutionContorl").Value==(EResolutionControl)CustomResolution,"Native custom enum persistence");
+        Destroy(customHost);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(root,"custom.txt"),"PASS: five resolution choices; native HD; custom resize border; arbitrary 1493x821 and 1137x777 native window resizing reflected in Unity and saved; repeated row refresh; fixed-preset and fullscreen round trips; native Custom preference persistence.");
+    }
     System.Collections.IEnumerator Probe() {
         string root=Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST");
         System.IO.Directory.CreateDirectory(root);
         yield return new WaitForSecondsRealtime(3);
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_CUSTOM_WINDOW_ONLY")=="1") {
+            yield return StartCoroutine(CustomWindowProbe(root));Application.Quit();yield break;
+        }
         var report=new List<string>();
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESOLUTION_ONLY")=="1") {
+            var resolutionHost=new GameObject("ResolutionChoicesProbe");resolutionHost.SetActive(false);
+            var prefab=Resources.Load<GameObject>("Prefab2/Component/GameOption/GameOptionToggle4Component");
+            var row=Instantiate(prefab,resolutionHost.transform,false).GetComponent<GameOptionToggle4Component>();
+            row.gameOptionData=new GameOptionData{FieldName="Graphic_ResolutionControl",Value1="HD",Value2="FHD",Value3="QHD",Value4="UHD"};
+            row.SetToggle();
+            for(int cycle=0;cycle<4;cycle++)foreach(var parent in new[]{"False","True"}) {
+                row.toggleInfo.Toggle4.gameObject.SetActive(false);
+                row.SetValueByParent(parent=="True",new GameOptionValueInfo{Value=parent});
+                if(!row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("UHD lost after parent mode "+parent);
+                row.toggleInfo.Toggle4.gameObject.SetActive(false);row.SetToggle();
+                if(!row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("UHD lost after row rebuild");
+            }
+            row.gameOptionData.FieldName="OtherSetting";row.toggleInfo.Toggle4.gameObject.SetActive(false);
+            RestoreResolutionChoices(row);
+            if(row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("Unrelated row changed");
+            row.gameOptionData.FieldName="Graphic_ResolutionControl";row.gameOptionData.Value4="";
+            RestoreResolutionChoices(row);
+            if(row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("Undefined fourth choice exposed");
+            Destroy(resolutionHost);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"resolution.txt"),"PASS: real resolution prefab, repeated native Full/Window parent callbacks and row rebuilds restore UHD; unrelated rows and undefined choices preserved.");
+            Application.Quit();yield break;
+        }
         if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESTART_TEST")=="1") {
             bool ok=Method==4 && Scale==100 && ReadIndex("FXAAQuality")==0 && ReadIndex("SMAAQuality")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",0)==8 && ReadIndex("TAASharpness")==2 && ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==3;
             System.IO.File.WriteAllText(System.IO.Path.Combine(root,"restart.txt"),"preferencesSurviveRestart="+ok);
@@ -659,6 +830,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         return camera.GetComponent<UICamera>()!=null || OnlyLayers(camera,"BattleUI");
     }
     void LateUpdate() {
+        UpdateCustomWindow();
         RestoreTargets();
         int mode=ReadIndex("PostAA"),quality=ReadIndex("SMAAQuality");
         bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale");
