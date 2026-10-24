@@ -1,0 +1,96 @@
+name: Test pull request
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sprk-pr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test server
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        run: rustup toolchain install 1.93.0 --profile minimal
+
+      - name: Test
+        run: cargo +1.93.0 test --locked
+
+      - name: Test client release packaging
+        run: python3 -m unittest discover -s scripts -t . -p 'test_*client*.py'
+
+  native-tests:
+    name: Test native battles under Wine
+    if: github.event_name == 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Select latest published client for PR compatibility tests
+        id: client
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        shell: python
+        run: |
+          import json, os, re, subprocess
+          repo = os.environ['RELEASE_REPOSITORY']
+          releases = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases?per_page=100']))
+          required = {'client-update-manifest.json', 'client-update.tar.gz'}
+          candidates = [r for r in releases if not r['draft'] and not r['prerelease']
+                        and re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', r['tag_name'])
+                        and required <= {a['name'] for a in r['assets'] if a['state'] == 'uploaded'}]
+          if not candidates:
+              raise SystemExit('No complete published client release is available for PR native battle tests')
+          tag = max(candidates, key=lambda r: r['published_at'])['tag_name']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\n')
+          print(f'PR server compatibility tests will use signed worker release {tag}')
+
+      - name: Assemble verified Linux battle worker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_TAG: ${{ steps.client.outputs.tag }}
+        run: python3 scripts/server/linux_worker.py build --repo "$GITHUB_REPOSITORY" --tag "$CLIENT_TAG"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build native combat integration test image
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          files: docker-bake.hcl
+          targets: native-tests
+          load: true
+          push: false
+          set: |
+            *.cache-from=type=gha,scope=sprk-native-tests
+            *.cache-to=type=gha,scope=sprk-native-tests,mode=max
+
+      - name: Run worker tests under Wine
+        run: |
+          docker run --rm --init sprk-native-tests:ci readiness_requires_live_worker_and_supported_capabilities --nocapture
+          docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
+          docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
+

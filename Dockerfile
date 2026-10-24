@@ -31,25 +31,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=3m --retries=3 \
     CMD /usr/local/bin/sprk-healthcheck
 ENTRYPOINT ["sprk-entrypoint"]
 
-# Optional integration target: the real native combat tests run with the same
-# runtime, signed client and Wine wrapper as production, without a live DB.
-FROM build AS test-build
-COPY tables ./tables
-COPY scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json
-RUN cargo test --locked --no-run \
-    && find target/debug/deps -maxdepth 1 -type f -executable -name 'sprk_server-*' \
-       -exec cp {} /sprk-native-tests \;
-
-FROM runtime AS native-tests
-USER root
-COPY --from=test-build /sprk-native-tests /usr/local/bin/sprk-native-tests
-RUN mkdir -p /app/target/conquest-lab /app/target/party-followup \
-    && chown -R sprk:sprk /app/target
-USER sprk
-WORKDIR /app
-ENV CONQUEST_NATIVE_EXECUTABLE=/usr/local/bin/sprk-battle-worker
-ENV SPRK_TABLE_FIXTURE=/app/tables
-HEALTHCHECK NONE
-ENTRYPOINT ["sprk-native-tests"]
-
 FROM runtime AS production
