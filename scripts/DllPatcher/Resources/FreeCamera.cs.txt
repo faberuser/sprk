@@ -19,17 +19,36 @@ public static class SprkFreeCamera {
         public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
     }
     static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
-    sealed class LayoutState { public int Width,Height; public Transform Root; }
+    sealed class LayoutState { public int Width,Height,RefreshThrough; public Transform Root,Parent; public Camera Camera; }
     static readonly ConditionalWeakTable<BaseWindow,LayoutState> layouts=new ConditionalWeakTable<BaseWindow,LayoutState>();
+    public static bool IsScreenLayout(Transform root) {
+        if(root==null)return false;
+        var rect=root.GetComponent<UIRect>();
+        if(rect==null)return false;
+        var left=rect.leftAnchor;var right=rect.rightAnchor;
+        if(left.target==null || left.target!=right.target || left.relative!=0 || right.relative!=1 || left.absolute!=0 || right.absolute!=0)return false;
+        var panel=left.target.GetComponent<UIPanel>();
+        return left.target.GetComponent<Camera>()!=null || panel!=null && panel.clipping==UIDrawCall.Clipping.None;
+    }
+    public static void InvalidateLayout(BaseWindow window) { if(window!=null)layouts.Remove(window); }
+    public static Transform LayoutRoot(BaseWindow window) {
+        // Lobby menus anchor their children directly to panels/cameras and do
+        // not all have a stretchable Panel/Root widget.
+        if(window is LobbyTopmostMenu || window is LobbyRightMenu || window is LobbyRightGridWindow)return window.transform;
+        var root=window.transform.Find("Panel/Root");
+        return window is HeroDeck2 || SupportsWindow(window.GetType()) || IsScreenLayout(root)?root:null;
+    }
     public static void RefreshLayout(BaseWindow window) {
         if(window==null || !window.isActiveAndEnabled || !window.IsOpen())return;
-        if(!(window is HeroDeck2) && !SupportsWindow(window.GetType()))return;
-        var root=window.transform.Find("Panel/Root");
+        var root=LayoutRoot(window);
         if(root==null || !root.gameObject.activeInHierarchy)return;
         var state=layouts.GetOrCreateValue(window);
-        if(state.Root==root && state.Width==Screen.width && state.Height==Screen.height)return;
+        var camera=NGUITools.FindCameraForLayer(root.gameObject.layer);
+        if(state.Root!=root || state.Parent!=root.parent || state.Camera!=camera || state.Width!=Screen.width || state.Height!=Screen.height)
+            state.RefreshThrough=Time.frameCount+2;
+        if(Time.frameCount>state.RefreshThrough)return;
         RefreshLayoutRoot(root);
-        state.Root=root;state.Width=Screen.width;state.Height=Screen.height;
+        state.Root=root;state.Parent=root.parent;state.Camera=camera;state.Width=Screen.width;state.Height=Screen.height;
     }
     public static void RefreshLayoutRoot(Transform root) {
         // These prefabs size their root only at Start. Recycled windows and
@@ -114,12 +133,15 @@ public static class SprkFreeCamera {
         host.transform.localScale=Vector3.one*(2f/1080);
         var cameraHost=new GameObject("UltrawideLayoutCamera");var uiCamera=cameraHost.AddComponent<Camera>();
         uiCamera.orthographic=true;uiCamera.orthographicSize=1;uiCamera.cullingMask=1<<30;
-        foreach(var path in new[]{"Prefab2/Window/Hero/HeroDeck2","Prefab2/Window/FullScene/HeroDetailView","Prefab2/Window/FullScene/HeroCostumeView"}) {
+        foreach(var path in new[]{"Prefab2/Window/Hero/HeroDeck2","Prefab2/Window/FullScene/HeroDetailView","Prefab2/Window/FullScene/HeroCostumeView","Prefab2/Window/BattlePartySetting/BattlePartySetting","Prefab2/Window/Raid/RaidPartySetting","Prefab2/Window/Raid/RaidSinglePartySetting","Prefab2/Lobby/TopmostMenu","Prefab2/Lobby/RightMenu"}) {
             var prefab=Resources.Load<GameObject>(path);
             check(prefab!=null,"Load real layout prefab: "+path);
             var instance=UnityEngine.Object.Instantiate(prefab,host.transform,false);
             foreach(var tm in instance.GetComponentsInChildren<Transform>(true))tm.gameObject.layer=30;
-            var root=instance.transform.Find("Panel/Root");check(root!=null,"Native layout root");
+            var baseWindow=instance.GetComponent<BaseWindow>();
+            check(baseWindow!=null,"Native window component");
+            var root=LayoutRoot(baseWindow);check(root!=null,"Native layout root");
+            if(path.Contains("PartySetting"))check(IsScreenLayout(root),"Party layout included by full-width anchors: "+path);
             var detail=instance.GetComponent<HeroDetailView>();
             if(detail!=null) {
                 var carried=Get(detail);carried.Yaw=65;carried.Pitch=-20;carried.Zoom=.4f;carried.Pan=new Vector3(1,2,3);
@@ -144,7 +166,11 @@ public static class SprkFreeCamera {
                 for(int click=0;click<8;click++)EventDelegate.Execute(trigger.onClick);
                 check(((System.Collections.IList)list.GetValue(detail)).Count==1,"Model clicks preserve animation options");
             }
-            var widget=root.GetComponent<UIWidget>();
+            var widget=path.EndsWith("TopmostMenu")?instance.transform.Find("Panel/Root/Sprite_Topbar_Normal").GetComponent<UIWidget>():
+                path.EndsWith("RightMenu")?instance.transform.Find("Panel/MenuAnchor").GetComponent<UIWidget>():root.GetComponent<UIWidget>();
+            layouts.Add(baseWindow,new LayoutState{Root=root,Width=1920,Height=1080});
+            InvalidateLayout(baseWindow);LayoutState discarded;
+            check(!layouts.TryGetValue(baseWindow,out discarded),"Recycled window discards cached layout dimensions");
             foreach(var size in new[]{new Vector2(1920,1080),new Vector2(3440,1440),new Vector2(5120,1440),new Vector2(1920,1080)}) {
                 uiCamera.pixelRect=new Rect(0,0,size.x,size.y);uiCamera.aspect=size.x/size.y;
                 // Start from the shipped 16:9 prefab, then resize repeatedly.
@@ -161,6 +187,10 @@ public static class SprkFreeCamera {
             }
             UnityEngine.Object.Destroy(instance);
         }
+        var popup=new GameObject("FixedPopupLayout");var popupRect=popup.AddComponent<UIWidget>();
+        popupRect.leftAnchor.target=uiCamera.transform;popupRect.rightAnchor.target=uiCamera.transform;
+        popupRect.leftAnchor.relative=.5f;popupRect.rightAnchor.relative=.5f;
+        check(!IsScreenLayout(popup.transform),"Fixed-width popup is excluded");UnityEngine.Object.Destroy(popup);
         UnityEngine.Object.Destroy(host);UnityEngine.Object.Destroy(cameraHost);
     }
     public static void RunProbe() {
@@ -307,7 +337,7 @@ public static class SprkFreeCamera {
         check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
         UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
         System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: camera state and orbit retained across Animation/Cutscene/Costume/Skills and reset on window recycling; fixed camera under animated head/root movement across zoom blends, orbit, pan, zoom and reset; anchor refresh on model replacement; See Motions native preview click events do not select animations, press/release bindings preserved; real Heroes List, See Motions and Dressing Room prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: fullscreen party and raid layout scope, recycled window cache invalidation and fixed popup exclusion; camera state and orbit retained across Animation/Cutscene/Costume/Skills and reset on window recycling; fixed camera under animated head/root movement across zoom blends, orbit, pan, zoom and reset; anchor refresh on model replacement; See Motions native preview click events do not select animations, press/release bindings preserved; real Heroes List, See Motions, Dressing Room and party prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
     }
     public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
         original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;

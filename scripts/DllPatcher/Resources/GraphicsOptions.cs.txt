@@ -232,6 +232,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     float saveSizeAt;
     static bool CustomWindow { get { return (int)NVespa.SystemOptionData.Graphic_ResolutionControl==CustomResolution; } }
     public static bool ApplyCustomResolution() {
+        // Native settings callbacks can reapply a window preset while Full is
+        // selected. Borderless fullscreen must retain the desktop dimensions.
+        if(Application.platform==RuntimePlatform.WindowsPlayer && !NVespa.SystemOptionData.Graphic_WindowControl)return true;
         if(!CustomWindow)return false;
         Ensure();
         if(NVespa.SystemOptionData.Graphic_WindowControl) {
@@ -490,6 +493,38 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         string root=Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST");
         System.IO.Directory.CreateDirectory(root);
         yield return new WaitForSecondsRealtime(3);
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_FULLSCREEN_ONLY")=="1") {
+            NVespa.SystemOptionData.Graphic_WindowControl=false;
+            yield return new WaitForSecondsRealtime(1);
+            int width=Screen.width,height=Screen.height;
+            if(!Screen.fullScreen || width!=Screen.currentResolution.width || height!=Screen.currentResolution.height)throw new Exception("Desktop fullscreen initialization");
+            var fullscreenHost=new GameObject("FullscreenSettingsResolutionProbe");fullscreenHost.SetActive(false);
+            var prefab=Resources.Load<GameObject>("Prefab2/Component/GameOption/GameOptionToggle4Component");
+            var row=Instantiate(prefab,fullscreenHost.transform,false).GetComponent<GameOptionToggle4Component>();
+            row.gameOptionData=new GameOptionData{FieldName="Graphic_ResolutionControl",Value1="HD",Value2="FHD",Value3="QHD",Value4="UHD"};
+            foreach(int preset in resolutionValues) {
+                // The native property's callback is the shared path used by
+                // settings row rebuilds and child/parent synchronization.
+                NVespa.SystemOptionData.Graphic_ResolutionControl=(EResolutionControl)preset;
+                for(int cycle=0;cycle<4;cycle++) {
+                    row.Refresh();row.SetToggle();
+                    row.SetValueByParent(false,new GameOptionValueInfo{Value="False"});
+                    row.OnClickToggle();
+                }
+                yield return new WaitForSecondsRealtime(.2f);
+                if(!Screen.fullScreen || Screen.width!=width || Screen.height!=height)throw new Exception("Settings reapplied a window preset in fullscreen: "+preset+" "+Screen.width+"x"+Screen.height);
+            }
+            NVespa.SystemOptionData.Graphic_WindowControl=true;
+            NVespa.SystemOptionData.Graphic_ResolutionControl=EResolutionControl.HD;
+            yield return new WaitForSecondsRealtime(.5f);
+            if(Screen.fullScreen || Screen.width!=1280 || Screen.height!=720)throw new Exception("Windowed HD preset changed");
+            NVespa.SystemOptionData.Graphic_WindowControl=false;
+            yield return new WaitForSecondsRealtime(.5f);
+            if(!Screen.fullScreen || Screen.width!=width || Screen.height!=height)throw new Exception("Window/fullscreen round trip");
+            Destroy(fullscreenHost);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"fullscreen.txt"),"PASS: desktop fullscreen "+width+"x"+height+" retained across all five resolution setters and repeated native settings callbacks; windowed HD and fullscreen round trip preserved.");
+            Application.Quit();yield break;
+        }
         if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_CUSTOM_WINDOW_ONLY")=="1") {
             yield return StartCoroutine(CustomWindowProbe(root));Application.Quit();yield break;
         }

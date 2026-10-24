@@ -40,6 +40,10 @@ partial class Program {
             if(Convert.ToInt32(modes.Fields.Single(f=>f.Name==pair.Item1).Constant)!=pair.Item2)throw new InvalidOperationException("Unexpected native AA enum mapping.");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkGraphicsOptions.dll"+(staged?".staged":"")));
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
+        var fullscreenGuard=bridge.Methods.Single(m=>m.Name=="ApplyCustomResolution");
+        var windowCheck=fullscreenGuard.Body.Instructions.FirstOrDefault(i=>i.Operand is MethodReference m && m.Name=="get_Graphic_WindowControl");
+        var customCheck=fullscreenGuard.Body.Instructions.FirstOrDefault(i=>i.Operand is MethodReference m && m.Name=="get_CustomWindow");
+        if(windowCheck==null || customCheck==null || windowCheck.Offset>=customCheck.Offset)throw new InvalidOperationException("Fullscreen must bypass fixed window resolution presets.");
         var custom=bridge.Methods.Single(m=>m.Name=="UpdateCustomWindow");
         foreach(var name in new[]{"FindGameWindow","GetWindowLong","SetWindowLong","SetWindowPos","SaveCustomSize"})
             if(!custom.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing custom resize integration: "+name);

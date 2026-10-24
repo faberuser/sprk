@@ -13,6 +13,9 @@ partial class Program {
         var refresh=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="UpdateDerived");
         if(refresh.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="RefreshLayout")!=1)throw new InvalidOperationException("Missing or duplicated ultrawide layout hook.");
         VerifyArenaResultStack(refresh);
+        var disable=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="OnDisable");
+        if(disable.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="InvalidateLayout")!=1)throw new InvalidOperationException("Missing or duplicated recycled window layout invalidation.");
+        VerifyArenaResultStack(disable);
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("UpdateHeroCamera","InputCamera"),("LateUpdate","Apply"),("Reset","Reset")}) {
             var method=window.Methods.Single(m=>m.Name==pair.Item1);
@@ -45,7 +48,11 @@ partial class Program {
         foreach(var name in new[]{"get_drawingDimensions","WorldToScreenPoint","get_uvRect","set_aspect"})
             if(!fit.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Incomplete preview aspect correction: "+name);
         var layout=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayout");
-        if(!layout.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name=="HeroDeck2"))throw new InvalidOperationException("Missing Heroes List layout scope.");
+        if(!layout.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="LayoutRoot"))throw new InvalidOperationException("Missing fullscreen layout refresh.");
+        var layoutScope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="LayoutRoot");
+        foreach(var name in new[]{"HeroDeck2","LobbyTopmostMenu","LobbyRightMenu","LobbyRightGridWindow"})
+            if(!layoutScope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing layout scope: "+name);
+        if(!layoutScope.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="IsScreenLayout"))throw new InvalidOperationException("Missing fullscreen party layout scope.");
         var layoutRoot=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayoutRoot");
         foreach(var name in new[]{"ResetAnchors","ForceUpdateAnchors"})
             if(!layoutRoot.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing native layout refresh: "+name);
@@ -78,6 +85,12 @@ partial class Program {
             var il=refresh.Body.GetILProcessor();var first=refresh.Body.Instructions[0];
             il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
             il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="RefreshLayout"))));
+        }
+        var disable=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="OnDisable");
+        if(!disable.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="InvalidateLayout")) {
+            var il=disable.Body.GetILProcessor();var first=disable.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="InvalidateLayout"))));
         }
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("LateUpdate","Apply"),("Reset","Reset")}) {
