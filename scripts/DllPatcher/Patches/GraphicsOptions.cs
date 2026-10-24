@@ -15,6 +15,10 @@ partial class Program {
         return argument;
     }
     static void VerifyGraphicsOptions(ModuleDefinition module) {
+        if(Convert.ToInt32(module.GetType("NShared.EResolutionControl").Fields.Single(f=>f.Name=="Custom").Constant)!=5)throw new InvalidOperationException("Missing persisted custom resolution mode.");
+        var applyResolution=module.GetType("NVespa.SystemOptionData").Methods.Single(m=>m.Name=="ApplyResoultionSetting");
+        if(!applyResolution.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name=="ApplyCustomResolution"))throw new InvalidOperationException("Missing custom window resolution hook.");
+        VerifyArenaResultStack(applyResolution);
         foreach(var name in new[]{"SetToggle","SetValueByParent"}) {
             var method=module.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component").Methods.Single(m=>m.Name==name);
             if(method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).Any(i=>i.Previous.Operand is not MethodReference m || m.Name!="RestoreResolutionChoices" || m.DeclaringType.Name!="SprkGraphicsOptions"))throw new InvalidOperationException("Missing resolution visibility restoration: "+name);
@@ -36,6 +40,9 @@ partial class Program {
             if(Convert.ToInt32(modes.Fields.Single(f=>f.Name==pair.Item1).Constant)!=pair.Item2)throw new InvalidOperationException("Unexpected native AA enum mapping.");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkGraphicsOptions.dll"+(staged?".staged":"")));
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
+        var custom=bridge.Methods.Single(m=>m.Name=="UpdateCustomWindow");
+        foreach(var name in new[]{"FindGameWindow","GetWindowLong","SetWindowLong","SetWindowPos","SaveCustomSize"})
+            if(!custom.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing custom resize integration: "+name);
         var setup=bridge.Methods.Single(m=>m.Name=="Setup");
         if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=8)
             throw new InvalidOperationException("Graphics settings must expose method, four conditional adjustments, render scale and two independent camera sensitivities.");
@@ -87,6 +94,14 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         var module=game.MainModule;
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
+        var resolution=module.GetType("NShared.EResolutionControl");
+        if(!resolution.Fields.Any(f=>f.Name=="Custom"))resolution.Fields.Add(new FieldDefinition("Custom",FieldAttributes.Public|FieldAttributes.Static|FieldAttributes.Literal|FieldAttributes.HasDefault,resolution){Constant=5});
+        var applyResolution=module.GetType("NVespa.SystemOptionData").Methods.Single(m=>m.Name=="ApplyResoultionSetting");
+        if(!applyResolution.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name=="ApplyCustomResolution")) {
+            var il=applyResolution.Body.GetILProcessor();var first=applyResolution.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="ApplyCustomResolution"))));
+            il.InsertBefore(first,il.Create(OpCodes.Brfalse,first));il.InsertBefore(first,il.Create(OpCodes.Ret));
+        }
         // Change only the missing-preference default. LocalStorageBool.Init
         // continues to honor existing saved On/Off values.
         var outlineDefault=OutlineDefaultArgument(module);outlineDefault.OpCode=OpCodes.Ldc_I4_0;outlineDefault.Operand=null;
@@ -114,6 +129,16 @@ partial class Program {
                 var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="RestoreResolutionChoices")));
                 il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
             }
+        }
+        // Resolution now has five managed choices. Avoid the native four-choice
+        // initializer firing stale callbacks while the settings menu refreshes.
+        var setToggle=module.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component").Methods.Single(m=>m.Name=="SetToggle");
+        if(!setToggle.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name=="IsResolutionRow")) {
+            var il=setToggle.Body.GetILProcessor();var first=setToggle.Body.Instructions[0];
+            var restore=setToggle.Body.Instructions.Last(i=>i.OpCode==OpCodes.Ret).Previous.Previous;
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="IsResolutionRow"))));
+            il.InsertBefore(first,il.Create(OpCodes.Brtrue,restore));
         }
         foreach(var pair in new[]{("Refresh","ConfigureFrameRow"),("OnClickToggle","IsFrameRow")}) {
             var method=toggleType.Methods.Single(m=>m.Name==pair.Item1);
