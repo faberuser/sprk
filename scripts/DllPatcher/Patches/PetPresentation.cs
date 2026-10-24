@@ -24,6 +24,8 @@ partial class Program {
                 throw new InvalidOperationException("Missing native pet stats control: "+required);
         if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,"Panel/Root/CategoryRoot/Button_Buff")))
             throw new InvalidOperationException("Original My Info buff tab is not targeted.");
+        if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,"Panel/Root/WidgetAvatar/Sprite_TextureDeco")))
+            throw new InvalidOperationException("My Info legacy portrait backdrop cleanup is missing.");
         var native=game.MainModule.GetType("NGame2.NUI.NWindow.PetTotalBuffPopup").Methods.Single(m=>m.Name=="Init");
         foreach(var name in new[]{"GetPetStatDataBaseList","GetPetContentsStatDataBaseList","GetPetBonusDataBaseList"})
             if(!native.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))

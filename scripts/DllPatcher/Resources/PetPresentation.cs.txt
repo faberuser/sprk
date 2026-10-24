@@ -10,6 +10,10 @@ public static class SprkPetPresentation {
     }
     public static void Setup(MyInfoWindow window) {
         if(window==null)return;
+        // Legacy Bg_Deco sits behind both portrait cards and shows through
+        // around their borders. Keep the individual card frames and portraits.
+        var backdrop=window.transform.Find("Panel/Root/WidgetAvatar/Sprite_TextureDeco");
+        if(backdrop!=null)backdrop.gameObject.SetActive(false);
         var button=window.transform.Find("Panel/Root/CategoryRoot/Button_Buff");
         if(button==null)return;
         button.gameObject.SetActive(true);
