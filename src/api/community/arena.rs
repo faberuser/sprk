@@ -636,6 +636,7 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     )
     .await?;
     let current = battle_info_kind(db, s, a,kind).await?;
+    if kind==0 {crate::api::progression::play_record::best(db,a,"arena_tier",n(&current,"TierIndex")).await?;}
     if kind==1 {honor_rewards::record(db,a,&current,now()).await?;}
     out["MatchResult"] = json!({"MatchUid":id,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[currency]});
     out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}] = current;

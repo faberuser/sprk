@@ -2,6 +2,122 @@ use super::*;
 use crate::api::account::user;
 use crate::database;
 use std::sync::Arc;
+
+fn play_value(infos: &[Value], id: i64) -> &str {
+    infos.iter().find(|r|r["RecordIndex"]==id).unwrap()["RecordValue"].as_str().unwrap()
+}
+
+#[tokio::test]
+async fn play_records_recover_legacy_inventory_and_classify_battle_clears() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut rewards=Rewards::default();
+    let mut tx=s.db.begin().await.unwrap();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:1,star:3,custom:0},&mut rewards).await.unwrap();
+    // Simulate equipment saved before lifetime acquisition tracking existed.
+    sqlx::query("DELETE FROM play_record_values WHERE account_id=?").bind(a).execute(&mut *tx).await.unwrap();
+    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='AddEquip'").bind(a).execute(&mut *tx).await.unwrap();
+    let red=s.tables.battle.rows("Raid").iter().find(|r|n(r,"Index")==1).unwrap();
+    record(&mut tx,a,"ClearDungeon",n(red,"ChapterIndex"),n(red,"DungeonIndex"),3).await.unwrap();
+    let floor=s.tables.battle.rows("TowerFloor").iter().find(|r|n(r,"TowerIndex")==21 && n(r,"Floor")==10).unwrap();
+    record(&mut tx,a,"ClearDungeon",n(floor,"ChapterIndex"),n(floor,"DungeonIndex"),2).await.unwrap();
+    crate::api::battle::put(&mut tx,a,"eclipse_record",0,&json!({"BestWave":42})).await.unwrap();
+    tx.commit().await.unwrap();
+    play_record::migrate(&s.db).await.unwrap();
+    play_record::migrate(&s.db).await.unwrap();
+    let login=relogin(&s).await;
+    for (id,value) in [(201,"1"),(203,"3"),(606,"3"),(619,"2"),(620,"10"),(626,"42")] {assert_eq!(play_value(&login.play_record_infos,id),value,"record {id}");}
+}
+
+#[tokio::test]
+async fn play_records_track_inventory_history_transactionally_and_isolate_accounts() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let created:String=sqlx::query_scalar("SELECT created_at FROM accounts WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(play_value(&u.play_record_infos,1),created);
+    assert_eq!(play_value(&u.play_record_infos,2),"1");
+    assert_eq!(play_value(&u.play_record_infos,3),"1");
+    assert_eq!(play_value(&u.play_record_infos,101),u.heroes.len().to_string());
+    let initial:i64=play_value(&u.play_record_infos,201).parse().unwrap();
+    let mut rewards=Rewards::default();
+    let mut tx=s.db.begin().await.unwrap();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:1,star:5,custom:0},&mut rewards).await.unwrap();
+    let slot=rewards.equipment[0].slot_index;
+    crate::api::extensions::put(&mut tx,a,"soul",slot as i64,&json!({"EquipItemSlotIndex":slot,"ItemIndex":1001,"Grade":2,"ReinforceLevel":20})).await.unwrap();
+    play_record::liberated(&mut tx,a).await.unwrap();
+    tx.commit().await.unwrap();
+    let with_item=relogin(&s).await;
+    assert_eq!(play_value(&with_item.play_record_infos,201),(initial+1).to_string());
+    assert_eq!(play_value(&with_item.play_record_infos,203),"5");
+    assert_eq!(play_value(&with_item.play_record_infos,301),"1");
+    assert_eq!(play_value(&with_item.play_record_infos,302),"2");
+    assert_eq!(play_value(&with_item.play_record_infos,303),"20");
+    sqlx::query("DELETE FROM equip_items WHERE slot_index=?").bind(slot).execute(&s.db).await.unwrap();
+    sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='soul'").bind(a).execute(&s.db).await.unwrap();
+    let mut tx=s.db.begin().await.unwrap();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:1,star:0,custom:0},&mut Rewards::default()).await.unwrap();
+    tx.rollback().await.unwrap();
+    play_record::migrate(&s.db).await.unwrap();
+    play_record::migrate(&s.db).await.unwrap();
+    let after=relogin(&s).await;
+    for info in &with_item.play_record_infos {let id=n(info,"RecordIndex");assert_eq!(play_value(&after.play_record_infos,id),info["RecordValue"].as_str().unwrap());}
+    let other=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=record-other")).await.unwrap().0;
+    assert_eq!(play_value(&other.play_record_infos,203),"0");
+    assert_eq!(play_value(&other.play_record_infos,301),"0");
+}
+
+#[tokio::test]
+async fn play_records_login_streaks_use_calendar_days_and_login_is_idempotent() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='LoginDaily'").bind(a).execute(&s.db).await.unwrap();
+    for offset in [0,1,2,5,6,7,8] {
+        let date=(chrono::Utc::now().date_naive()-chrono::Duration::days(offset)).to_string();
+        sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,value) VALUES(?,?,'LoginDaily',1)").bind(a).bind(date).execute(&s.db).await.unwrap();
+    }
+    let login=relogin(&s).await;
+    assert_eq!(play_value(&login.play_record_infos,3),"3");
+    assert_eq!(play_value(&login.play_record_infos,4),"4");
+    assert_eq!(play_value(&relogin(&s).await.play_record_infos,2),"1");
+    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='LoginDaily' AND day=date('now','-1 day')").bind(a).execute(&s.db).await.unwrap();
+    let login=relogin(&s).await;
+    assert_eq!(play_value(&login.play_record_infos,3),"1");
+    assert_eq!(play_value(&login.play_record_infos,4),"4");
+}
+
+#[tokio::test]
+async fn play_records_arena_bests_and_totals_survive_losses_and_season_removal() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("INSERT INTO arena_scores(account,kind,season,score) VALUES(?,0,987654,1000)").bind(a).execute(&s.db).await.unwrap();
+    for (score,wins,losses,streak) in [(1020,1,0,1),(1040,2,0,2),(1030,2,1,0)] {
+        sqlx::query("UPDATE arena_scores SET score=?,wins=?,losses=?,data=? WHERE account=? AND kind=0 AND season=987654").bind(score).bind(wins).bind(losses).bind(json!({"SuccessiveWin":streak}).to_string()).bind(a).execute(&s.db).await.unwrap();
+    }
+    sqlx::query("DELETE FROM arena_scores WHERE account=? AND season=987654").bind(a).execute(&s.db).await.unwrap();
+    play_record::migrate(&s.db).await.unwrap();
+    let login=relogin(&s).await;
+    for (id,value) in [(401,"1040"),(403,"2"),(404,"2"),(405,"1")] {assert_eq!(play_value(&login.play_record_infos,id),value);}
+}
+
+#[tokio::test]
+async fn play_records_campaign_response_updates_native_cache_and_rejects_duplicate_clear() {
+    use tower::ServiceExt;
+    let (s,u)=setup().await;
+    let app=axum::Router::new()
+        .route("/campaign/begin",axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign))
+        .route("/campaign/end",axum::routing::post(crate::api::battle::campaign_handlers::end_campaign))
+        .layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify)).with_state(s.clone());
+    let entry="ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
+    for (path,args) in [("begin",entry.to_string()),("end",format!("{entry}&Completed=true&PureBattleTime=30"))] {
+        let response=app.clone().oneshot(axum::http::Request::builder().method("POST").uri(format!("/campaign/{path}"))
+            .header("Content-Type","application/x-www-form-urlencoded").body(axum::body::Body::from(form(&u,&args))).unwrap()).await.unwrap();
+        let out:Value=serde_json::from_slice(&axum::body::to_bytes(response.into_body(),usize::MAX).await.unwrap()).unwrap();
+        assert_eq!(out["Result"],"Success","{out}");
+        if path=="end" {assert_eq!(play_value(out["ReservedPlayRecordInfos"].as_array().unwrap(),6),"1");}
+    }
+    let login=relogin(&s).await;
+    let ids:BTreeSet<i64>=login.play_record_infos.iter().map(|r|n(r,"RecordIndex")).collect();
+    assert_eq!(ids.len(),42,"Every native row has a wire value after a story clear");
+    let invalid=crate::api::battle::campaign_handlers::end_campaign(State(s.clone()),form(&login,&format!("{entry}&Completed=true"))).await.unwrap().0;
+    assert_ne!(invalid["Result"],"Success");
+}
 async fn setup() -> (AppState, user::LoginResponse) {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)

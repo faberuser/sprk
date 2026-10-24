@@ -17,6 +17,7 @@ use std::collections::BTreeSet;
 mod attendance;
 pub mod notifications;
 pub(crate) mod schema;
+pub(crate) mod play_record;
 mod state;
 #[cfg(test)]
 mod tests;
@@ -87,6 +88,7 @@ pub(crate) async fn snapshot(
     account: i64,
 ) -> Result<Value> {
     let view = View::load(db, account).await?;
+    let play_records = play_record::snapshot(db, state, account, &view).await?;
     let mut chapter = std::collections::BTreeMap::<i64, i64>::new();
     for c in view.claims.iter().filter(|c| c.0 == "chapter") {
         *chapter.entry(c.1).or_default() |= 1 << c.2;
@@ -97,6 +99,7 @@ pub(crate) async fn snapshot(
         "ChapterRewardInfos":chapter.into_iter().map(|(id,mask)|json!({"ChapterIndex":id,"LastRewardDiff":mask})).collect::<Vec<_>>(),
         "ClearMissionInfos":state.tables.progression.clear_missions.iter().map(|r|json!({"MissionIndex":n(r,"Index"),"LastStep":view.last("clear",n(r,"Index"),"all"),"Progress":view.quest(state,r),"RewardedTime":view.claims.iter().find(|c|c.0=="clear"&&c.1==n(r,"Index")).map(|c|c.4.clone())})).collect::<Vec<_>>()});
     out["OpendMissionCategories"] = opened_mission_categories(state, &view);
+    out["PlayRecordInfos"] = json!(play_records);
     let main: Option<(i64, i64)> =
         sqlx::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=?")
             .bind(account)
@@ -156,6 +159,7 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
                 ("AchievementInfos", "AchievementInfos"),
                 ("ReservedMainQuestInfo", "MainQuestInfo"),
                 ("ReservedClearMissionInfos", "ClearMissionInfos"),
+                ("ReservedPlayRecordInfos", "PlayRecordInfos"),
             ] {
                 out[wire] = snapshot[field].clone();
             }

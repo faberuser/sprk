@@ -444,7 +444,7 @@ pub async fn gm_reset_account(
             .execute(&mut *tx).await?;
     }
 
-    for table in ["progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
+    for table in ["play_record_values","progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
         sqlx::query(&format!("DELETE FROM {table} WHERE account_id=?")).bind(account_id).execute(&mut *tx).await?;
     }
     for table in if keep_heroes {vec![]}else{vec!["equipment_pending","extension_state","hero_details"]} {

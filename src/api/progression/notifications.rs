@@ -50,6 +50,8 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             | "npc"
             | "valance"
             | "equip_storage_slot"
+            | "raid" | "tower" | "eclipse" | "ordeal_arena" | "arena" | "match"
+            | "equip_gacha" | "soul_weapon" | "party_dungeon"
     ) {
         return next.run(request).await;
     }
@@ -102,6 +104,7 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
                 ("AchievementInfos", "AchievementInfos"),
                 ("ReservedMainQuestInfo", "MainQuestInfo"),
                 ("ReservedClearMissionInfos", "ClearMissionInfos"),
+                ("ReservedPlayRecordInfos", "PlayRecordInfos"),
             ] {
                 value[wire] = updates[field].clone();
             }
