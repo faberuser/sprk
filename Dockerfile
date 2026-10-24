@@ -34,6 +34,7 @@ ENTRYPOINT ["sprk-entrypoint"]
 # Optional integration target: the real native combat tests run with the same
 # runtime, signed client and Wine wrapper as production, without a live DB.
 FROM build AS test-build
+COPY tables ./tables
 COPY scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json
 RUN cargo test --locked --no-run \
     && find target/debug/deps -maxdepth 1 -type f -executable -name 'sprk_server-*' \
