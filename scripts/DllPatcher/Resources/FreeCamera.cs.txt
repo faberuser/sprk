@@ -2,12 +2,16 @@ using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using NVespa;
 using NGame2.NUI.NWindow;
 using NGame2.NUI.NRender3D;
 
 public static class SprkFreeCamera {
     sealed class State {
         public object Controller;
+        public object AnchorModel;
+        public Vector3 AnchorPivot,AnchorHead;
+        public Transform Head;
         public float Zoom=1,Yaw,Pitch;
         public Vector3 Pan;
         public Vector2 Last;
@@ -40,12 +44,11 @@ public static class SprkFreeCamera {
     public static bool SupportsWindow(Type type) { return typeof(HeroModelView).IsAssignableFrom(type)||typeof(HeroCostumeView).IsAssignableFrom(type)||typeof(HeroDetailView).IsAssignableFrom(type); }
     static bool Eligible(HeroFullSceneViewBase window) {
         if(window==null || !SupportsWindow(window.GetType()) || !window.isActiveAndEnabled || !window.IsOpen())return false;
-        if(window is HeroDetailView){string tab=detailTab.GetValue(window).ToString();if(tab!="Animation" && tab!="None")return false;}
         return true;
     }
     static State Get(HeroFullSceneViewBase window) {
         var state=states.GetOrCreateValue(window);
-        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;}
+        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;state.AnchorModel=null;state.Head=null;}
         return state;
     }
     static float ReadSensitivity(string key) { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100)),50,150)/100f; }
@@ -117,6 +120,30 @@ public static class SprkFreeCamera {
             var instance=UnityEngine.Object.Instantiate(prefab,host.transform,false);
             foreach(var tm in instance.GetComponentsInChildren<Transform>(true))tm.gameObject.layer=30;
             var root=instance.transform.Find("Panel/Root");check(root!=null,"Native layout root");
+            var detail=instance.GetComponent<HeroDetailView>();
+            if(detail!=null) {
+                var carried=Get(detail);carried.Yaw=65;carried.Pitch=-20;carried.Zoom=.4f;carried.Pan=new Vector3(1,2,3);
+                carried.AnchorModel=new object();carried.AnchorPivot=new Vector3(2,1,0);
+                foreach(var tab in new[]{"Animation","Cinema","Costume","Skill","Animation"}) {
+                    detailTab.SetValue(detail,Enum.Parse(detailTab.FieldType,tab));
+                    var current=Get(detail);
+                    check(ReferenceEquals(current,carried) && current.Yaw==65 && current.Pitch==-20 && current.Zoom==.4f && current.Pan==new Vector3(1,2,3) && current.AnchorPivot==new Vector3(2,1,0),"Camera state retained across tab: "+tab);
+                    Orbit(current,new Vector2(10,5));
+                    check(current.Yaw==68 && current.Pitch==-21.5f,"Camera controls available after tab: "+tab);
+                    current.Yaw=65;current.Pitch=-20;
+                }
+                Reset(detail);check(!ReferenceEquals(Get(detail),carried),"Closing/recycling a preview still resets state");
+                detailTab.SetValue(detail,Enum.Parse(detailTab.FieldType,"Animation"));
+                var list=typeof(HeroDetailView).GetField("_heroViewAnimationComponentList",BindingFlags.Instance|BindingFlags.NonPublic);
+                var animation=instance.AddComponent<NGame2.NUI.NComponent2.HeroViewAnimationComponent>();
+                list.SetValue(detail,new System.Collections.Generic.List<NGame2.NUI.NComponent2.HeroViewAnimationComponent>{animation});
+                var trigger=detail.Hero3DTexture.GetComponent<UIEventTrigger>();
+                check(trigger!=null && trigger.onClick.Count>0 && trigger.onPress.Count>0 && trigger.onRelease.Count>0,"Native preview pointer bindings preserved");
+                // A populated animation list with no sequence would throw if
+                // the old random selection handler were reached by the click.
+                for(int click=0;click<8;click++)EventDelegate.Execute(trigger.onClick);
+                check(((System.Collections.IList)list.GetValue(detail)).Count==1,"Model clicks preserve animation options");
+            }
             var widget=root.GetComponent<UIWidget>();
             foreach(var size in new[]{new Vector2(1920,1080),new Vector2(3440,1440),new Vector2(5120,1440),new Vector2(1920,1080)}) {
                 uiCamera.pixelRect=new Rect(0,0,size.x,size.y);uiCamera.aspect=size.x/size.y;
@@ -205,6 +232,24 @@ public static class SprkFreeCamera {
         check(state.Pan==Vector3.zero && state.Zoom==1 && state.Yaw==0 && state.Pitch==0 && state.Button==-1,"Reset");
         var go=new GameObject("ProbeCamera");var camera=go.AddComponent<Camera>();
         var cinema=new NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera(camera);
+        var headHost=new GameObject("AnimatedHeadProbe");var neutralHead=new Vector3(0,2,0);
+        foreach(float blend in new[]{0f,.5f,1f})foreach(float yaw in new[]{0f,65f})foreach(float zoom in new[]{.5f,1f,1.8f}) {
+            var anchor=new State();var model=new object();Vector3 fixedPosition=Vector3.zero;
+            for(int frame=0;frame<32;frame++) {
+                float t=frame*Mathf.PI/8;
+                headHost.transform.position=neutralHead+new Vector3(Mathf.Sin(t)*.1f,Mathf.Sin(t)*.3f,0);
+                cinema.CameraInfo.TargetPos=Vector3.Lerp(headHost.transform.position+new Vector3(.1f,.2f,0),new Vector3(0,1,0),blend)+new Vector3(-.6f,0,0);
+                cinema.CameraInfo.LookDir=Vector3.forward;cinema.CameraInfo.TargetDistance=4;cinema.CameraInfo.FieldOfView=45;
+                var fixedPivot=StabilizeOrbit(anchor,model,new Vector3(0,1+Mathf.Sin(t)*.2f,0),headHost.transform,cinema.CameraInfo,blend);
+                ApplyCamera(cinema,new Vector3(.2f,.1f,0),yaw,15,zoom,fixedPivot);
+                if(frame==0)fixedPosition=camera.transform.position;
+                check(Vector3.Distance(fixedPosition,camera.transform.position)<.001f,"Fixed orbit during animated head/root motion at native zoom blend "+blend);
+                if(frame==12)anchor.Reset();
+            }
+            var changedModel=new object();var newPivot=new Vector3(1,2,3);
+            check(StabilizeOrbit(anchor,changedModel,newPivot,headHost.transform,cinema.CameraInfo,blend)==newPivot,"Anchor refreshes for a replaced model");
+        }
+        UnityEngine.Object.Destroy(headHost);
         cinema.CameraInfo.TargetPos=new Vector3(1,2,0);cinema.CameraInfo.TargetDistance=4;
         cinema.CameraInfo.LookDir=Direction(Vector3.forward,40,25);cinema.ChainUpdate();
         check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*4)<.001f,"Native camera transform");
@@ -262,7 +307,7 @@ public static class SprkFreeCamera {
         check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
         UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
         System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: real Heroes List, See Motions and Dressing Room prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: camera state and orbit retained across Animation/Cutscene/Costume/Skills and reset on window recycling; fixed camera under animated head/root movement across zoom blends, orbit, pan, zoom and reset; anchor refresh on model replacement; See Motions native preview click events do not select animations, press/release bindings preserved; real Heroes List, See Motions and Dressing Room prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
     }
     public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
         original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;
@@ -301,7 +346,22 @@ public static class SprkFreeCamera {
         var pivot=facade!=null && facade.ShapeBounds.size.y>.01f
             ? facade.transform.TransformPoint(facade.ShapeBounds.center)
             : info.TargetPos-window.CameraController.ExtraOffsetByDistance*info.TargetDistance;
+        if(facade!=null && facade.AssetCreatureAsync.ISDONE() && facade.Pivot!=null && facade.ShapeBounds.size.y>.01f) {
+            var head=ReferenceEquals(state.AnchorModel,facade) && state.Head!=null?state.Head:facade.Pivot.FindTransform("Bip001 Head");
+            pivot=StabilizeOrbit(state,facade,pivot,head,info,window.CameraController.ZoomOutRate);
+        }
         ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom,pivot);
+    }
+    static Vector3 StabilizeOrbit(State state,object model,Vector3 pivot,Transform head,NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera.CameraInfoData info,float zoomOutRate) {
+        if(!ReferenceEquals(state.AnchorModel,model) || state.Head!=head) {
+            state.AnchorModel=model;state.AnchorPivot=pivot;state.Head=head;
+            if(head!=null)state.AnchorHead=head.position;
+        }
+        // Native GetZoomInInfo follows the animated head, blended with the
+        // fixed zoom-out target. Remove only that animation displacement;
+        // retain native zoom, framing offsets and user camera controls.
+        if(head!=null)info.TargetPos-=(head.position-state.AnchorHead)*(1-Mathf.Clamp01(zoomOutRate));
+        return state.AnchorPivot;
     }
     static void ApplyCamera(NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera camera,Vector3 pan,float yaw,float pitch,float zoom,Vector3 pivot) {
         var info=camera.CameraInfo;
