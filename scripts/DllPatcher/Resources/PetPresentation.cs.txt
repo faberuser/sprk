@@ -3,6 +3,58 @@ using NShared;
 using NGame2.NUI.NWindow;
 
 public static class SprkPetPresentation {
+    static UIAtlas cleanFrameAtlas;
+    static Texture2D CopyFrame(UIAtlas atlas,UISpriteData sprite) {
+        var source=atlas.texture;
+        var target=RenderTexture.GetTemporary(source.width,source.height,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);
+        var previous=RenderTexture.active;
+        try {
+            Graphics.Blit(source,target);RenderTexture.active=target;
+            var copy=new Texture2D(sprite.Width,sprite.Height,TextureFormat.RGBA32,false);
+            copy.ReadPixels(new Rect(sprite.X,source.height-sprite.Y-sprite.Height,sprite.Width,sprite.Height),0,0);
+            copy.Apply();return copy;
+        } finally { RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target); }
+    }
+    static bool Gold(Color32 c) { return c.a>100 && c.r>=150 && c.g>=130 && c.b>=80 && c.r>=c.g && c.g>c.b*1.03f; }
+    static void RemoveOuterBorder(Texture2D texture) {
+        int width=texture.width,height=texture.height;
+        var pixels=texture.GetPixels32();var left=new int[height];var right=new int[height];
+        // Keep the gold silhouette and everything inside it, including the
+        // original nine-slice center. Two pixels retain the bevel/antialiasing.
+        for(int y=0;y<height;y++) {
+            left[y]=width;right[y]=-1;
+            for(int x=0;x<width;x++)if(Gold(pixels[y*width+x])) {left[y]=Mathf.Min(left[y],x);right[y]=x;}
+        }
+        for(int y=0;y<height;y++) {
+            int start=width,end=-1;
+            for(int row=Mathf.Max(0,y-2);row<=Mathf.Min(height-1,y+2);row++) {
+                start=Mathf.Min(start,left[row]-2);end=Mathf.Max(end,right[row]+2);
+            }
+            for(int x=0;x<width;x++)if(x<start || x>end)pixels[y*width+x]=new Color32(0,0,0,0);
+        }
+        texture.SetPixels32(pixels);texture.Apply();
+    }
+    static void CleanWindowFrame(UISprite frame) {
+        if(frame==null || frame.spriteName!="Common_Fram_Small2" || frame.atlas==null)return;
+        if(frame.atlas==cleanFrameAtlas)return;
+        if(cleanFrameAtlas==null) {
+            var source=frame.atlas.GetSprite(frame.spriteName);
+            // Scope the pixel operation to the inspected native artwork.
+            if(source==null || source.Width!=166 || source.Height!=161 || source.atlasScale!=1)return;
+            var texture=CopyFrame(frame.atlas,source);RemoveOuterBorder(texture);
+            texture.name="SPRK My Info gold frame";texture.wrapMode=TextureWrapMode.Clamp;
+            var host=new GameObject("SPRK My Info frame atlas");Object.DontDestroyOnLoad(host);
+            cleanFrameAtlas=host.AddComponent<UIAtlas>();
+            var material=new Material(frame.atlas.spriteMaterial);material.mainTexture=texture;
+            Object.DontDestroyOnLoad(material);Object.DontDestroyOnLoad(texture);
+            cleanFrameAtlas.spriteMaterial=material;cleanFrameAtlas.pixelSize=frame.atlas.pixelSize;
+            cleanFrameAtlas.atlasWidth=texture.width;cleanFrameAtlas.atlasHeight=texture.height;
+            var sprite=new UISpriteData();sprite.CopyFrom(source);sprite.SetRect(0,0,source.Width,source.Height);
+            cleanFrameAtlas.AddSprite(sprite);
+        }
+        // Never mutate or replace the shared Common atlas used by other windows.
+        frame.atlas=cleanFrameAtlas;
+    }
     public static PortalRenewalCompType Shape(PortalRenewalCompType original,PortalRenewalData data) {
         // Pet uses PortalPethouseComponent, with its own artwork and controls.
         // Both the menu and content row must select the native Window layout.
@@ -10,10 +62,54 @@ public static class SprkPetPresentation {
     }
     public static void Setup(MyInfoWindow window) {
         if(window==null)return;
+        var frame=window.transform.Find("Panel/Root/Sprite_Frame");
+        if(frame!=null)CleanWindowFrame(frame.GetComponent<UISprite>());
+        // Legacy Bg_Deco sits behind both portrait cards and shows through
+        // around their borders. Keep the individual card frames and portraits.
+        var backdrop=window.transform.Find("Panel/Root/WidgetAvatar/Sprite_TextureDeco");
+        if(backdrop!=null)backdrop.gameObject.SetActive(false);
         var button=window.transform.Find("Panel/Root/CategoryRoot/Button_Buff");
         if(button==null)return;
         button.gameObject.SetActive(true);
         var click=button.GetComponent<UIButton>();
         if(click!=null)EventDelegate.Set(click.onClick,PetTotalBuffPopup.OpenPopup);
+    }
+    static bool probeStarted;
+    public static void EnsureProbe() {
+        if(probeStarted || string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_MYINFO_FRAME_TEST")) ||
+           string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) ||
+           string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))return;
+        probeStarted=true;var host=new GameObject("SprkMyInfoFrameTests");Object.DontDestroyOnLoad(host);host.AddComponent<SprkMyInfoFrameTests>();
+    }
+    public static void RunProbe() {
+        var root=System.Environment.GetEnvironmentVariable("SPRK_MYINFO_FRAME_TEST");System.IO.Directory.CreateDirectory(root);
+        var prefab=Resources.Load<GameObject>("Prefab2/Window/GameOption/MyInfoWindow");
+        var native=prefab.transform.Find("Panel/Root/Sprite_Frame").GetComponent<UISprite>();
+        var shared=native.atlas;var source=shared.GetSprite(native.spriteName);
+        var before=CopyFrame(shared,source);var original=before.GetPixels32();
+        System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"before.png"),before.EncodeToPNG());
+        var host=new GameObject("FrameProbe");host.SetActive(false);var frame=host.AddComponent<UISprite>();
+        frame.atlas=shared;frame.spriteName=native.spriteName;frame.type=UIBasicSprite.Type.Sliced;frame.width=native.width;frame.height=native.height;
+        CleanWindowFrame(frame);var atlas=frame.atlas;CleanWindowFrame(frame);
+        if(atlas==shared || frame.atlas!=atlas || native.atlas!=shared || shared.GetSprite(source.name)!=source)throw new System.Exception("Frame scope/reuse regression");
+        var after=(Texture2D)frame.atlas.texture;var cleaned=after.GetPixels32();int removed=0,gold=0;
+        for(int i=0;i<original.Length;i++) {
+            if(Gold(original[i])) {gold++;if(!original[i].Equals(cleaned[i]))throw new System.Exception("Gold frame pixel changed");}
+            if(original[i].a>0 && cleaned[i].a==0)removed++;
+        }
+        if(removed<3000 || gold<500 || cleaned[80*166+8].a!=0 || frame.width!=native.width || frame.height!=native.height || frame.border!=native.border)
+            throw new System.Exception("Dark border removal or native geometry regression");
+        System.IO.File.WriteAllBytes(System.IO.Path.Combine(root,"after.png"),after.EncodeToPNG());
+        var untouched=CopyFrame(shared,source).GetPixels32();
+        for(int i=0;i<original.Length;i++)if(!original[i].Equals(untouched[i]))throw new System.Exception("Shared atlas changed");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(root,"result.txt"),"PASS native My Info sprite: outer border removed="+removed+", gold pixels preserved="+gold+", native nine-slice geometry, shared atlas isolation and reopen reuse");
+        Object.Destroy(host);
+    }
+}
+
+public sealed class SprkMyInfoFrameTests : MonoBehaviour {
+    System.Collections.IEnumerator Start() {
+        yield return new WaitForSecondsRealtime(3);
+        SprkPetPresentation.RunProbe();Application.Quit();
     }
 }

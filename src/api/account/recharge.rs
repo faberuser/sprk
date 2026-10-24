@@ -82,12 +82,21 @@ pub(crate) fn at(
             return Err(rule("InvalidStaminaType"));
         }
         let today = period(calendar.date_naive(), days);
-        let last = info["Period"]
+        let mut last = info["Period"]
             .as_str()
             .or_else(|| info["Day"].as_str())
             .and_then(|v| NaiveDate::parse_from_str(v, "%Y-%m-%d").ok())
             .map(|v| period(v, days))
             .unwrap_or(today);
+        // Old World Boss records used UTC+9 and can name tomorrow after
+        // 15:00 UTC. Re-anchor once without granting extra entries or delaying
+        // the next midnight refill. Keep balances and purchased overflow intact.
+        if name == "WorldBossGlobalTicket" && offset == 0 {
+            if info["CalendarUtcOffsetSeconds"].as_i64() != Some(0) {
+                last = last.min(today);
+            }
+            saved["CalendarUtcOffsetSeconds"] = json!(0);
+        }
         let elapsed = (today - last).num_days().max(0) / days;
         let counts = counts
             .ok_or_else(|| rule("InvalidStaminaType"))?;
@@ -153,26 +162,36 @@ pub(crate) fn at(
 mod tests {
     use super::*;
     #[test]
-    fn world_boss_two_entry_override_uses_archived_15_utc_reset_without_accumulating() {
+    fn world_boss_two_entry_override_resets_at_utc_midnight_without_accumulating() {
         let def=json!({"AttributeName":"WorldBossGlobalTicket","UpdateType":2,"MaxCountValue":"1","ResetCount":[0,1,1,1,1,1,1]});
-        let overrides=json!({"ResetCount":[0,2,2,2,2,2,2],"MaxCountValue":2,"UtcOffsetSeconds":32400,"Accumulate":false});
-        let at=|info:&Value,time:&str,cost| super::at(info,&def,&overrides,1,time.parse().unwrap(),cost).unwrap();
-        let (first,balance)=at(&Value::Null,"2026-10-20T14:59:59Z",1);
+        let rules: Value=serde_json::from_str(include_str!("../../../tables/BattleRules.json")).unwrap();
+        let overrides=&rules["EntryRechargeOverrides"]["WorldBossGlobalTicket"];
+        assert_eq!(overrides["UtcOffsetSeconds"],0);
+        let at=|info:&Value,time:&str,cost| super::at(info,&def,overrides,1,time.parse().unwrap(),cost).unwrap();
+        let (first,balance)=at(&Value::Null,"2026-10-20T23:59:59Z",1);
         assert_eq!(balance["NewValue"],1);
-        let (_,same)=at(&first,"2026-10-20T14:59:59Z",0);
+        let (_,same)=at(&first,"2026-10-20T23:59:59Z",0);
         assert_eq!(same["NewValue"],1);
-        let (next,balance)=at(&first,"2026-10-20T15:00:00Z",0);
+        let (next,balance)=at(&first,"2026-10-21T00:00:00Z",0);
         assert_eq!(balance["NewValue"],2);
         assert_eq!(balance["NextRechargeRemainTime"],86400);
         assert_eq!(next["Period"],"2026-10-21");
-        let (_,again)=at(&next,"2026-10-21T15:00:00Z",0);
+        let (_,again)=at(&next,"2026-10-22T00:00:00Z",0);
         assert_eq!(again["NewValue"],2);
-        let (_,closed)=at(&next,"2026-10-24T15:00:00Z",0);
+        let (_,closed)=at(&next,"2026-10-25T00:00:00Z",0);
         assert_eq!(closed["NewValue"],0,"No regular Sunday admission grant");
         let mut overflow=next;
         overflow["Count"]=json!(10);
-        let (_,preserved)=at(&overflow,"2026-10-21T15:00:00Z",0);
+        let (_,preserved)=at(&overflow,"2026-10-22T00:00:00Z",0);
         assert_eq!(preserved["NewValue"],10,"Purchased/testing overflow remains intact");
+        let (afternoon,_) = at(&Value::Null,"2026-10-20T14:59:59Z",1);
+        assert_eq!(at(&afternoon,"2026-10-20T15:00:00Z",0).1["NewValue"],1,"The old reset must not refill entries");
+        let old=json!({"Period":"2026-10-21","Day":"2026-10-21","Count":0});
+        let (migrated,balance)=at(&old,"2026-10-20T19:00:00Z",0);
+        assert_eq!(balance["NewValue"],0,"Changing reset timezone must not grant extra entries");
+        assert_eq!(balance["NextRechargeRemainTime"],5*3600);
+        assert_eq!(at(&migrated,"2026-10-21T00:00:00Z",0).1["NewValue"],2);
+
     }
     fn weekly(info: &Value, stamp: &str, cost: i64) -> (Value, Value) {
         at(

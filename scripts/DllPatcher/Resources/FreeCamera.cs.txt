@@ -28,6 +28,17 @@ public static class SprkFreeCamera {
         if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;}
         return state;
     }
+    static float ReadSensitivity(string key) { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100)),50,150)/100f; }
+    static float Sensitivity { get { return ReadSensitivity("ModelCameraSensitivity"); } }
+    static float LobbySensitivity { get { return ReadSensitivity("LobbyCameraSensitivity"); } }
+    static Vector2 ScaleDrag(Vector2 delta) { return delta*Sensitivity; }
+    static void ZoomStep(State state,float wheel) { state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Exp(-wheel*.15f*Sensitivity),.02f,8); }
+    public static Vector2 ScaleLobbyDrag(Vector2 delta) {
+        return Application.isMobilePlatform || Input.touchCount>0?delta:delta*LobbySensitivity;
+    }
+    public static float ScaleLobbyZoom(float delta) {
+        return Application.isMobilePlatform || Input.touchCount>0?delta:delta*LobbySensitivity;
+    }
     public static void Reset(HeroFullSceneViewBase window) { if(window!=null)states.Remove(window); }
     public static bool InputCamera(HeroFullSceneViewBase window) {
         if(!Eligible(window)||Application.isMobilePlatform||Input.touchCount>0)return false;
@@ -42,21 +53,21 @@ public static class SprkFreeCamera {
             for(int button=0;button<3;button++)if(Input.GetMouseButtonDown(button)){state.Button=button;state.Last=mouse;break;}
         }
         if(state.Button>=0) {
-            Vector2 delta=mouse-state.Last;state.Last=mouse;
+            Vector2 delta=ScaleDrag(mouse-state.Last);state.Last=mouse;
             if(state.Button==0 && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)) {
                 Orbit(state,delta);
             } else {
                 var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
                 if(cinema!=null && cinema.CinemaCamera!=null) {
                     var info=cinema.CinemaCamera.CameraInfo;
-                    var rotation=Quaternion.LookRotation(Direction(info.LookDir,state.Yaw,state.Pitch));
+                    var rotation=Quaternion.LookRotation(info.LookDir);
                     float units=2*Mathf.Max(.15f,info.TargetDistance)*Mathf.Tan(info.FieldOfView*Mathf.Deg2Rad*.5f)/Mathf.Max(1,Screen.height);
                     state.Pan=Vector3.ClampMagnitude(state.Pan-rotation*new Vector3(delta.x,delta.y,0)*units,40);
                 }
             }
         }
         if(over) {
-            state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Exp(-Input.mouseScrollDelta.y*.15f),.02f,8);
+            ZoomStep(state,Input.mouseScrollDelta.y);
             if(Input.GetKeyDown(KeyCode.R))state.Reset();
         }
         return true;
@@ -78,6 +89,56 @@ public static class SprkFreeCamera {
     public static void RunProbe() {
         Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
         check(SupportsWindow(typeof(HeroDetailView)) && SupportsWindow(typeof(HeroCostumeView)) && SupportsWindow(typeof(HeroModelView)) && !SupportsWindow(typeof(HeroFullSceneViewBase)),"Preview window scope");
+        string[] sensitivityKeys={"Sprk.Graphics.CameraSensitivity","Sprk.Graphics.LobbyCameraSensitivity","Sprk.Graphics.ModelCameraSensitivity"};
+        bool[] hadKeys=Array.ConvertAll(sensitivityKeys,k=>SprkTestPrefs.HasKey(k));
+        int[] oldValues=Array.ConvertAll(sensitivityKeys,k=>SprkTestPrefs.GetInt(k,100));
+        foreach(var key in sensitivityKeys)SprkTestPrefs.DeleteKey(key);
+        int originalSensitivity=SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100);
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.CameraSensitivity");
+        check(Sensitivity==1 && LobbySensitivity==1,"Default camera sensitivities");
+        SprkTestPrefs.SetInt("Sprk.Graphics.CameraSensitivity",75);
+        check(Sensitivity==.75f && LobbySensitivity==.75f,"Legacy sensitivity fallback for both cameras");
+        SprkTestPrefs.SetInt("Sprk.Graphics.LobbyCameraSensitivity",50);
+        foreach(int percent in new[]{50,75,100,125,150}) {
+            SprkTestPrefs.SetInt("Sprk.Graphics.ModelCameraSensitivity",percent);
+            var sample=new State();var drag=ScaleDrag(new Vector2(100,40));Orbit(sample,drag);
+            check(Mathf.Abs(sample.Yaw-30*percent/100f)<.001f && Mathf.Abs(sample.Pitch+12*percent/100f)<.001f,"Scaled orbit sensitivity");
+            check(Vector2.Distance(drag,new Vector2(percent,percent*.4f))<.001f,"Scaled pan input");
+            check(LobbySensitivity==.5f,"Model setting does not change lobby");
+            ZoomStep(sample,1);check(Mathf.Abs(sample.Zoom-Mathf.Exp(-.15f*percent/100f))<.001f,"Scaled wheel sensitivity");
+            sample.Reset();check(Sensitivity==percent/100f,"Reset preserves selected sensitivity");
+        }
+        // Invoke the native lobby camera methods so scaling is verified at
+        // the actual input-consumption points (the public drag ignores its arg).
+        var mapHost=new GameObject("LobbySensitivityProbe");mapHost.SetActive(false);
+        var viewer=mapHost.AddComponent<NGame2.NUI.NWorldMap.NMapLayout.MapViewer>();
+        var mode=new NGame2.NUI.NWorldMap.NMapLayout.NMapViewer.WorldMapMode();
+        mode.Open(new NGame2.NUI.NWorldMap.NMapLayout.Mediator {
+            MapComponent=new NGame2.NUI.NWorldMap.NMapLayout.MapComponent{Viewer=viewer},MapWidth=100000,MapHeight=100000
+        });
+        var mapType=mode.GetType();
+        var ortho=(NVespa.LocalAccountFloat)mapType.GetField("_orthoSize",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(mode);
+        var dragMethod=mapType.GetMethod("DragWorldMap",BindingFlags.Instance|BindingFlags.NonPublic);
+        var zoomMethod=mapType.GetMethod("ZoomWorldMap",BindingFlags.Instance|BindingFlags.NonPublic);
+        var targetField=mapType.GetField("_targetViewPos",BindingFlags.Instance|BindingFlags.NonPublic);
+        var validField=mapType.GetField("_validViewPos",BindingFlags.Instance|BindingFlags.NonPublic);
+        float nativeUnits=Mathf.Max(1920f/Screen.width,1080f/Screen.height);
+        foreach(int percent in new[]{50,75,100,125,150}) {
+            SprkTestPrefs.SetInt("Sprk.Graphics.LobbyCameraSensitivity",percent);
+            check(Sensitivity==1.5f,"Lobby setting does not change model");
+            ortho.Value=1;validField.SetValue(mode,new Vector3(100,50,0));
+            dragMethod.Invoke(mode,new object[]{new Vector2(100,40)});
+            var moved=(Vector3)targetField.GetValue(mode)-new Vector3(100,50,0);
+            check(Vector3.Distance(moved,-new Vector3(100,40,0)*nativeUnits*(percent/100f))<.001f,"Native lobby drag sensitivity");
+            zoomMethod.Invoke(mode,new object[]{40f});
+            check(Mathf.Abs(ortho.Value-Mathf.Pow(2,40f*(percent/100f)/Screen.height*viewer.ZoomSpeed))<.001f,"Native lobby wheel sensitivity");
+            check(viewer.ZoomSpeed==1,"Preserve native zoom speed setting");
+        }
+        UnityEngine.Object.Destroy(mapHost);
+        for(int i=0;i<sensitivityKeys.Length;i++) {
+            if(hadKeys[i])SprkTestPrefs.SetInt(sensitivityKeys[i],oldValues[i]);else SprkTestPrefs.DeleteKey(sensitivityKeys[i]);
+        }
+        SprkTestPrefs.Save();
         var state=new State();Orbit(state,new Vector2(200,100));
         check(Mathf.Abs(state.Yaw-60)<.001f && Mathf.Abs(state.Pitch+30)<.001f,"Orbit axes");
         Orbit(state,new Vector2(10000,10000));check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==-85,"Orbit bounds");
@@ -96,16 +157,34 @@ public static class SprkFreeCamera {
         cinema.CameraInfo.TargetPos=new Vector3(1,2,0);cinema.CameraInfo.TargetDistance=4;
         cinema.CameraInfo.LookDir=Direction(Vector3.forward,40,25);cinema.ChainUpdate();
         check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*4)<.001f,"Native camera transform");
-        ApplyCamera(cinema,new Vector3(2,1,0),20,10,.5f);
+        ApplyCamera(cinema,new Vector3(2,1,0),20,10,.5f,cinema.CameraInfo.TargetPos);
         check(Mathf.Abs(cinema.CameraInfo.TargetDistance-2)<.001f && Vector3.Distance(cinema.CameraInfo.TargetPos,new Vector3(3,3,0))<.001f,"Pan/zoom camera application");
         check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*2)<.001f,"Applied camera transform");
+        // Real native camera projection: the hero must retain its on-screen
+        // position while orbiting/zooming, including off-center Dressing Room.
+        camera.aspect=16f/9f;camera.nearClipPlane=.01f;camera.farClipPlane=1000;
+        var pivot=new Vector3(2,1,3);
+        var nativeDirection=Quaternion.Euler(12,25,0)*Vector3.forward;
+        var nativeRotation=Quaternion.LookRotation(nativeDirection);
+        foreach(float framing in new[]{0f,-1.2f})foreach(float yaw in new[]{-150f,-60f,0f,60f,150f})foreach(float pitch in new[]{-35f,0f,35f})foreach(float zoom in new[]{.5f,1f,1.8f}) {
+            var nativeTarget=pivot+nativeRotation*new Vector3(framing,.35f,0);
+            cinema.CameraInfo.TargetPos=nativeTarget;cinema.CameraInfo.LookDir=nativeDirection;
+            cinema.CameraInfo.TargetDistance=5;cinema.CameraInfo.FieldOfView=45;cinema.ChainUpdate();
+            var originalPosition=camera.transform.position;
+            var originalScreen=camera.WorldToViewportPoint(pivot);
+            ApplyCamera(cinema,Vector3.zero,yaw,pitch,zoom,pivot);
+            var screen=camera.WorldToViewportPoint(pivot);
+            check(screen.z>0 && Mathf.Abs(screen.x-originalScreen.x)<.001f && Mathf.Abs(screen.y-originalScreen.y)<.001f,"Hero remains framed during orbit/zoom");
+            check(Mathf.Abs(Vector3.Distance(camera.transform.position,pivot)-Vector3.Distance(originalPosition,pivot)*zoom)<.001f,"Orbit radius is centered on hero");
+            if(yaw==0 && pitch==0 && zoom==1)check(Vector3.Distance(originalPosition,camera.transform.position)<.001f,"Native/reset framing preserved");
+        }
         var area=new GameObject("ModelArea");var texture=area.AddComponent<UITexture>();
         var child=new GameObject("ModelPointer");child.transform.SetParent(area.transform);
         var button=new GameObject("MenuButton");button.transform.SetParent(area.transform);button.AddComponent<UIButton>();
         check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
         UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
         System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
     }
     public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
         original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;
@@ -119,13 +198,28 @@ public static class SprkFreeCamera {
         var state=Get(window);
         var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
         if(cinema==null || cinema.CinemaCamera==null || window.CameraController==null)return;
-        ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom);
+        var info=cinema.CinemaCamera.CameraInfo;
+        var facade=((MotionSequence.IDataProvider)window).GetRenderFacade();
+        // ShapeBounds is the stable body volume, not animated mesh/weapon bounds.
+        // Do not use the UI-shifted native target as the orbit center.
+        var pivot=facade!=null && facade.ShapeBounds.size.y>.01f
+            ? facade.transform.TransformPoint(facade.ShapeBounds.center)
+            : info.TargetPos-window.CameraController.ExtraOffsetByDistance*info.TargetDistance;
+        ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom,pivot);
     }
-    static void ApplyCamera(NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera camera,Vector3 pan,float yaw,float pitch,float zoom) {
+    static void ApplyCamera(NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera camera,Vector3 pan,float yaw,float pitch,float zoom,Vector3 pivot) {
         var info=camera.CameraInfo;
-        info.LookDir=Direction(info.LookDir,yaw,pitch);
-        info.TargetDistance=Distance(info.TargetDistance,zoom);
-        info.TargetPos+=pan;
+        var originalRotation=Quaternion.LookRotation(info.LookDir);
+        var direction=Direction(info.LookDir,yaw,pitch);
+        var orbit=Quaternion.LookRotation(direction)*Quaternion.Inverse(originalRotation);
+        float distance=Distance(info.TargetDistance,zoom);
+        float ratio=distance/Mathf.Max(.0001f,info.TargetDistance);
+        // Rotate/scale the framing offset with the camera. This preserves the
+        // hero's right-side screen position, but the physical orbit is around
+        // the hero rather than the center of the window.
+        info.TargetPos=pivot+orbit*(info.TargetPos-pivot)*ratio+pan;
+        info.LookDir=direction;
+        info.TargetDistance=distance;
         camera.ChainUpdate();
     }
 }

@@ -70,30 +70,45 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     // comparison input has been removed.
     public static void PollComparisonKeys(HeroFullSceneViewBase window) { }
     static bool preferencesReady;
+    // Method indices are UI values; post-processing uses Unity's separate enum.
+    static readonly int[] postModes={0,1,2,0,3};
+    static readonly string[] adjustmentNames={"FXAA Quality","SMAA Quality","MSAA Samples","TAA Sharpness"};
     static void EnsurePreset() {
         if(preferencesReady)return;
         preferencesReady=true;
-        // Preserve Off; every previous enabled preset migrates to TAA On.
-        int enabled=1;
-        if(SprkTestPrefs.HasKey("Sprk.Graphics.Preset"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.Preset",3)>0?1:0;
-        else if(SprkTestPrefs.HasKey("Sprk.Graphics.PostAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",0)>0 || SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
-        else if(SprkTestPrefs.HasKey("Sprk.Graphics.MSAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
-        ApplyPreset(enabled);
+        if(!SprkTestPrefs.HasKey("Sprk.Graphics.Method")) {
+            int enabled=1;
+            if(SprkTestPrefs.HasKey("Sprk.Graphics.Preset"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.Preset",3)>0?1:0;
+            else if(SprkTestPrefs.HasKey("Sprk.Graphics.PostAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",0)>0 || SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
+            else if(SprkTestPrefs.HasKey("Sprk.Graphics.MSAA"))enabled=SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",0)>0?1:0;
+            SprkTestPrefs.SetInt("Sprk.Graphics.Method",enabled==0?0:4);
+            SprkTestPrefs.Save();
+        }
     }
-    static void ApplyPreset(int preset) {
-        // Keep legacy values 0/3 on disk so older clients still read Off/TAA.
-        int mode=preset>0?3:0;
-        SprkTestPrefs.SetInt("Sprk.Graphics.Preset",mode);
-        SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",mode);
-        SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",0);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Quality",2);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Jitter",2);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Sharpness",1);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Stationary",3);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Motion",3);
+    static void ApplyPreset(int method) {
+        EnsurePreset();
+        method=Mathf.Clamp(method,0,4);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Method",method);
+        // Compatibility values for earlier clients; per-method adjustments are
+        // separate keys and are never reset by selecting another method.
+        SprkTestPrefs.SetInt("Sprk.Graphics.Preset",method==0?0:3);
+        SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",postModes[method]);
+        SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",method==3?Samples:0);
         SprkTestPrefs.Save();
     }
-    public static int Samples { get { return 1; } }
+    static int Method { get { EnsurePreset();return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Method",4),0,4); } }
+    static int[] supportedSamples;
+    static int[] SupportedSamples() {
+        if(supportedSamples!=null)return supportedSamples;
+        var descriptor=new RenderTextureDescriptor(128,128,RenderTextureFormat.ARGB32,24);
+        return supportedSamples=new[]{2,4,8}.Where(n=>{descriptor.msaaSamples=n;return SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor)==n;}).ToArray();
+    }
+    public static int Samples { get { return Method==3?SelectedSamples():1; } }
+    static int SelectedSamples() {
+        var supported=SupportedSamples();if(supported.Length==0)return 1;
+        int requested=SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",4);
+        return supported.Where(n=>n<=requested).DefaultIfEmpty(supported[0]).Max();
+    }
     public static int Scale { get { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100),100,200); } }
     sealed class TargetSize {
         public int width,height;
@@ -103,7 +118,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     // stay valid when settings change, without reopening or moving the camera.
     static readonly Dictionary<RenderTexture,TargetSize> ownedTargets=new Dictionary<RenderTexture,TargetSize>();
     static int TargetSamples(Camera camera) {
-        return 1;
+        return Samples;
     }
     static bool ConfigureTarget(RenderTexture rt,TargetSize size,int samples) {
         int limit=Mathf.Min(SystemInfo.maxTextureSize,8192);
@@ -136,13 +151,33 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         Ensure();
         foreach(var tab in window.MainTabs) {
             if(tab.GameOptionTab!=GameOptionTab.Game)continue;
-            Add(tab,"Anti-aliasing", "Preset",new[]{"Off","On"});
-            Add(tab,"Render scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
+            Add(tab,"Anti-Aliasing", "Preset",new[]{"Off","FXAA","SMAA","MSAA","TAA"});
+            Add(tab,"FXAA Quality","FXAAQuality",new[]{"Fast","Standard"});
+            Add(tab,"SMAA Quality","SMAAQuality",new[]{"Low","Medium","High"});
+            var samples=SupportedSamples();
+            Add(tab,"MSAA Samples","MSAASamples",samples.Length==0?new[]{"Unavailable"}:samples.Select(n=>n+"x").ToArray());
+            Add(tab,"TAA Sharpness","TAASharpness",new[]{"Low","Medium","High"});
+            Add(tab,"Render Scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
+            Add(tab,"Lobby Camera Sensitivity","LobbyCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
+            Add(tab,"Model Camera Sensitivity","ModelCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true))ConfigureFrameRow(row);
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle3Component>(true))CenterTextureChoices(row);
-            PlaceBelowScreen(tab);
-            tab.GameOptionGrid.RepositionGrid();
+            RefreshRows(tab);
         }
+    }
+    static void RefreshRows(GameOptionWindow.TabUIInfo tab) {
+        var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
+        for(int i=0;i<adjustmentNames.Length;i++) {
+            var row=rows.FirstOrDefault(r=>r.name=="SPRK "+adjustmentNames[i]);
+            if(row!=null)row.gameObject.SetActive(Method==i+1);
+        }
+        PlaceBelowScreen(tab);
+        tab.GameOptionGrid.Grid.hideInactive=true;
+        tab.GameOptionGrid.RepositionGrid();
+    }
+    static void RefreshRows(GameOptionWindow window) {
+        if(window==null)return;
+        foreach(var tab in window.MainTabs)if(tab.GameOptionTab==GameOptionTab.Game)RefreshRows(tab);
     }
     public static bool IsFrameRow(GameOptionToggle4Component row) {
         return row.gameOptionData!=null && row.gameOptionData.FieldName=="Graphic_FrameControl";
@@ -157,13 +192,21 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
         var screen=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_WindowControl");
         var resolution=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.OptionName=="OPTION_GAME_RESOULUTION");
-        var aa=rows.FirstOrDefault(r=>r.name=="SPRK Anti-aliasing");
-        var scale=rows.FirstOrDefault(r=>r.name=="SPRK Render scale");
+        var aa=rows.FirstOrDefault(r=>r.name=="SPRK Anti-Aliasing");
+        var scale=rows.FirstOrDefault(r=>r.name=="SPRK Render Scale");
         var grid=tab.GameOptionGrid.Grid;
         if(screen==null || aa==null || scale==null || grid==null)return;
         bool hide=grid.hideInactive;grid.hideInactive=false;
         var order=grid.GetChildList();grid.hideInactive=hide;
-        order.Remove(aa.transform);order.Remove(scale.transform);
+        var inserted=new List<Transform>{aa.transform};
+        foreach(var title in adjustmentNames) {
+            var row=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(row!=null)inserted.Add(row.transform);
+        }
+        inserted.Add(scale.transform);
+        foreach(var title in new[]{"Lobby Camera Sensitivity","Model Camera Sensitivity"}) {
+            var sensitivity=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(sensitivity!=null)inserted.Add(sensitivity.transform);
+        }
+        foreach(var row in inserted)order.Remove(row);
         int index=order.IndexOf(screen.transform);
         if(index<0)return;
         // Resolution is Screen's native child option. Keep that pair adjacent
@@ -173,8 +216,8 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             order.Insert(index+1,resolution.transform);
             index++;
         }
-        order.Insert(index+1,aa.transform);order.Insert(index+2,scale.transform);
-        // Preserve the native visual order, with the two inserted rows, across
+        order.InsertRange(index+1,inserted);
+        // Preserve the native visual order, with the inserted graphics rows, across
         // position/name sorting and subsequent native refreshes.
         grid.sorting=UIGrid.Sorting.None;
         typeof(UIGrid).GetField("sorted",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic).SetValue(grid,false);
@@ -202,6 +245,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                 var clone=NGUITools.AddChild(toggles[3].transform.parent.gameObject,toggles[3].gameObject);clone.name="Toggle5";fifth=clone.transform;
             }
             toggles.Add(fifth.GetComponent<UIToggle>());
+        } else {
+            var fifth=toggles[3].transform.parent.Find("Toggle5");
+            if(fifth!=null){var extra=fifth.GetComponent<UIToggle>();extra.onChange.Clear();extra.Set(false);fifth.gameObject.SetActive(false);}
         }
         // Native prefab has four choices; unused choices must lose both
         // their visuals and callbacks when reducing an existing row to two.
@@ -212,8 +258,8 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         }
         toggles=toggles.Take(choices.Length).ToList();
         var optionGrid=toggles[0].transform.parent.GetComponent<UIGrid>();
-        float spacing=choices.Length==2?280f:840f/(choices.Length-1);
-        if(optionGrid!=null){optionGrid.cellWidth=spacing;optionGrid.maxPerLine=0;}
+        float spacing=choices.Length<=3?280f:840f/(choices.Length-1);
+        if(optionGrid!=null){optionGrid.arrangement=UIGrid.Arrangement.Horizontal;optionGrid.pivot=UIWidget.Pivot.TopLeft;optionGrid.cellWidth=spacing;optionGrid.maxPerLine=0;optionGrid.hideInactive=true;}
         bool syncing=false;
         Action refresh=delegate {
             syncing=true;int selected=ReadIndex(key);
@@ -230,14 +276,18 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                 if(toggle.value) {
                     if(key=="Preset")ApplyPreset(choice);
                     else if(key=="Frame"){NVespa.SystemOptionData.Graphic_FrameControl=(EFrameControl)frameValues[choice];SprkTestPrefs.Save();}
-                    else {SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100+25*choice);SprkTestPrefs.Save();}
-                    instance.ResetHistories();
+                    else {
+                        int value=key=="Scale"?100+25*choice:IsSensitivityKey(key)?50+25*choice:key=="MSAASamples"?(SupportedSamples().Length==0?1:SupportedSamples()[choice]):choice;
+                        SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);SprkTestPrefs.Save();
+                    }
+                    if(!IsSensitivityKey(key))instance.ResetHistories();
                 }
                 refresh();
+                if(key!="Frame" && !IsSensitivityKey(key))RefreshRows(row.GetComponentInParent<GameOptionWindow>(true));
             });
         }
         refresh();
-        if(key=="Preset")CenterChoices(new[]{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4});
+        if(choices.Length<=3)CenterChoices(toggles);
         else if(optionGrid!=null)optionGrid.Reposition();
     }
     static void CenterChoices(IEnumerable<UIToggle> toggles,Transform row=null,float center=420f) {
@@ -269,28 +319,38 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     }
     public static void CenterTextureChoices(GameOptionToggle3Component row) {
         if(row.gameOptionData==null || row.gameOptionData.FieldName!="Spec")return;
+        UIHelper.SetLabelText(row.Label_ToggleMiddle,"Medium",false);
         var window=row.GetComponentInParent<GameOptionWindow>(true);
         if(window==null)return;
-        var aa=window.GetComponentsInChildren<GameOptionToggle4Component>(true).FirstOrDefault(r=>r.name=="SPRK Anti-aliasing");
+        var aa=window.GetComponentsInChildren<GameOptionToggle4Component>(true).FirstOrDefault(r=>r.name=="SPRK Anti-Aliasing");
         if(aa==null)return; // Setup applies the alignment once AA exists.
-        float center=(aa.transform.InverseTransformPoint(aa.toggleInfo.Toggle1.transform.position).x+aa.transform.InverseTransformPoint(aa.toggleInfo.Toggle2.transform.position).x)*0.5f;
+        var last=aa.toggleInfo.Toggle4.transform.parent.Find("Toggle5");
+        float center=(aa.transform.InverseTransformPoint(aa.toggleInfo.Toggle1.transform.position).x+aa.transform.InverseTransformPoint(last==null?aa.toggleInfo.Toggle4.transform.position:last.position).x)*0.5f;
         CenterChoices(new[]{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3},row.transform,center);
     }
+    static bool IsSensitivityKey(string key) { return key=="LobbyCameraSensitivity" || key=="ModelCameraSensitivity"; }
     static int ReadIndex(string key) {
         if(key=="Frame")return Mathf.Max(0,Array.IndexOf(frameValues,(int)NVespa.SystemOptionData.Graphic_FrameControl));
-        if(key=="Preset"){EnsurePreset();return SprkTestPrefs.GetInt("Sprk.Graphics.Preset",3)>0?1:0;}
-        if(key=="PostAA"){EnsurePreset();return SprkTestPrefs.GetInt("Sprk.Graphics.PostAA",3)>0?3:0;}
-        int n=SprkTestPrefs.GetInt("Sprk.Graphics."+key,key=="MSAA"?2:key=="Scale"?100:key=="Jitter"?2:key=="Sharpness"?1:key=="Stationary"||key=="Motion"?3:0);
-        if(key=="MSAA")return n==2?1:n==4?2:n==8?3:0;
-        if(key=="Scale")return Mathf.Clamp((n-100)/25,0,4);
-        int maximum=key=="Quality"?2:key=="Sharpness"?6:key=="Stationary"||key=="Motion"?4:3;
-        return Mathf.Clamp(n,0,maximum);
+        if(key=="Preset")return Method;
+        if(key=="PostAA")return postModes[Method];
+        if(IsSensitivityKey(key))return Mathf.Clamp((SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100))-50)/25,0,4);
+        if(key=="Scale")return Mathf.Clamp((Scale-100)/25,0,4);
+        if(key=="MSAASamples")return Mathf.Max(0,Array.IndexOf(SupportedSamples(),SelectedSamples()));
+        if(key=="FXAAQuality")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.FXAAQuality",1),0,1);
+        if(key=="SMAAQuality")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.SMAAQuality",2),0,2);
+        if(key=="TAASharpness")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.TAASharpness",1),0,2);
+        return 0;
     }
     System.Collections.IEnumerator Probe() {
         string root=Environment.GetEnvironmentVariable("SPRK_GRAPHICS_TEST");
         System.IO.Directory.CreateDirectory(root);
         yield return new WaitForSecondsRealtime(3);
         var report=new List<string>();
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESTART_TEST")=="1") {
+            bool ok=Method==4 && Scale==100 && ReadIndex("FXAAQuality")==0 && ReadIndex("SMAAQuality")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",0)==8 && ReadIndex("TAASharpness")==2 && ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==3;
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"restart.txt"),"preferencesSurviveRestart="+ok);
+            Application.Quit();yield break;
+        }
         bool resourcesOk=FindResources();report.Add("resources="+resourcesOk);
         var uiHost=new GameObject("GraphicsSettingsLifecycleProbe");uiHost.SetActive(false);
         var wrapper=uiHost.AddComponent<NVespa.NNGUIExtension.UISimpleGrid>();
@@ -300,29 +360,51 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         for(int cycle=0;cycle<8;cycle++)Setup(window);
         var rows=wrapper.GetComponentsInChildren<GameOptionToggle4Component>(true);
         report.Add("settingsRows="+rows.Length);
-        var presetRow=rows.Single(r=>r.name=="SPRK Anti-aliasing");
-        // The fixture stays inactive to avoid opening a live game window. Mark
-        // toggles started so Set exercises native event dispatch and visuals.
+        var presetRow=rows.Single(r=>r.name=="SPRK Anti-Aliasing");
         foreach(var toggle in wrapper.GetComponentsInChildren<UIToggle>(true))typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(toggle,true);
-        ApplyPreset(1);Setup(window);
-        report.Add("settingsRefreshed="+(presetRow.toggleInfo.Toggle2.value?"On":"wrong"));
-        presetRow.toggleInfo.Toggle1.Set(true);
-        report.Add("settingsClickPreset="+ReadIndex("Preset"));
-        var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-aliasing";
-        Setup(window);
-        report.Add("settingsAfterRepair="+wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK ")));
-        report.Add("settingsAASelected="+presetRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
-        var scaleRow=rows.Single(r=>r.name=="SPRK Render scale");
-        var fifth=scaleRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>();fifth.Set(true);
-        report.Add("settingsScale="+Scale+" selected="+scaleRow.GetComponentsInChildren<UIToggle>(true).Count(t=>t.value));
-        var aaChoices=new[]{presetRow.toggleInfo.Toggle1,presetRow.toggleInfo.Toggle2};
-        var scaleChoices=new[]{scaleRow.toggleInfo.Toggle1,scaleRow.toggleInfo.Toggle2,scaleRow.toggleInfo.Toggle3,scaleRow.toggleInfo.Toggle4,fifth};
-        bool allChoices=true;
-        for(int i=0;i<aaChoices.Length;i++){aaChoices[i].Set(true);allChoices &= ReadIndex("Preset")==i && aaChoices.Count(t=>t.value)==1;}
+        var fifth=presetRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>();
+        var aaChoices=new[]{presetRow.toggleInfo.Toggle1,presetRow.toggleInfo.Toggle2,presetRow.toggleInfo.Toggle3,presetRow.toggleInfo.Toggle4,fifth};
+        var scaleRow=rows.Single(r=>r.name=="SPRK Render Scale");
+        var scaleChoices=new[]{scaleRow.toggleInfo.Toggle1,scaleRow.toggleInfo.Toggle2,scaleRow.toggleInfo.Toggle3,scaleRow.toggleInfo.Toggle4,scaleRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>()};
+        bool allChoices=aaChoices.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"Off","FXAA","SMAA","MSAA","TAA"});
+        bool conditional=true,remembered=true;
+        for(int cycle=0;cycle<3;cycle++)for(int method=0;method<5;method++) {
+            aaChoices[method].Set(true);
+            allChoices &= Method==method && aaChoices.Count(t=>t.value)==1;
+            for(int i=0;i<adjustmentNames.Length;i++)conditional &= rows.Single(r=>r.name=="SPRK "+adjustmentNames[i]).gameObject.activeSelf==(method==i+1);
+            if(method>0) {
+                var adjustment=rows.Single(r=>r.name=="SPRK "+adjustmentNames[method-1]);
+                var options=new[]{adjustment.toggleInfo.Toggle1,adjustment.toggleInfo.Toggle2,adjustment.toggleInfo.Toggle3,adjustment.toggleInfo.Toggle4}.Where(t=>t.gameObject.activeSelf).ToArray();
+                for(int i=0;i<options.Length;i++){options[i].Set(true);allChoices &= options.Count(t=>t.value)==1;}
+                ApplyPreset((method+1)%5);ApplyPreset(method);
+                int actual=ReadIndex(new[]{"FXAAQuality","SMAAQuality","MSAASamples","TAASharpness"}[method-1]);
+                remembered &= actual==options.Length-1;
+            }
+            Setup(window);
+        }
         for(int i=0;i<scaleChoices.Length;i++){scaleChoices[i].Set(true);allChoices &= Scale==100+25*i && scaleChoices.Count(t=>t.value)==1;}
-        allChoices &= !presetRow.toggleInfo.Toggle3.gameObject.activeSelf && !presetRow.toggleInfo.Toggle4.gameObject.activeSelf;
-        allChoices &= aaChoices.Select(t=>t.GetComponentInChildren<UILabel>(true).text).SequenceEqual(new[]{"Off","On"});
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.CameraSensitivity");
+        foreach(var key in new[]{"LobbyCameraSensitivity","ModelCameraSensitivity"})SprkTestPrefs.DeleteKey("Sprk.Graphics."+key);
+        Setup(window);
+        bool cameraSettings=ReadIndex("LobbyCameraSensitivity")==2 && ReadIndex("ModelCameraSensitivity")==2;
+        SprkTestPrefs.SetInt("Sprk.Graphics.CameraSensitivity",75);Setup(window);
+        cameraSettings &= ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==1;
+        foreach(var kind in new[]{"Lobby","Model"}) {
+            var cameraRow=rows.Single(r=>r.name=="SPRK "+kind+" Camera Sensitivity");
+            var cameraChoices=new[]{cameraRow.toggleInfo.Toggle1,cameraRow.toggleInfo.Toggle2,cameraRow.toggleInfo.Toggle3,cameraRow.toggleInfo.Toggle4,cameraRow.toggleInfo.Toggle4.transform.parent.Find("Toggle5").GetComponent<UIToggle>()};
+            string other=kind=="Lobby"?"ModelCameraSensitivity":"LobbyCameraSensitivity";
+            int previous=ReadIndex(other);
+            for(int i=0;i<cameraChoices.Length;i++) {
+                cameraChoices[i].Set(true);Setup(window);
+                cameraSettings &= SprkTestPrefs.GetInt("Sprk.Graphics."+kind+"CameraSensitivity",0)==50+25*i && cameraChoices[i].value && cameraChoices.Count(t=>t.value)==1 && ReadIndex(other)==previous;
+            }
+        }
+        report.Add("cameraSensitivityChoices="+cameraSettings);
+        var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-Aliasing";Setup(window);
+        allChoices &= wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK "))==8;
         report.Add("settingsAllChoices="+allChoices);
+        report.Add("conditionalAARows="+conditional);
+        report.Add("rememberedAdjustments="+remembered);
         var textureRow=UIHelper.AddGridItem<GameOptionToggle3Component>(wrapper,GameOptionToggle3Component.PrefabAuto);
         textureRow.gameOptionData=new GameOptionData{FieldName="Spec"};
         var textureChoices=new[]{textureRow.toggleInfo.Toggle1,textureRow.toggleInfo.Toggle2,textureRow.toggleInfo.Toggle3};
@@ -332,8 +414,8 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             CenterTextureChoices(textureRow);Setup(window);
             aaChoices[0].transform.parent.GetComponent<UIGrid>().Reposition();
             textureChoices[0].transform.parent.GetComponent<UIGrid>().Reposition();
-            centered &= Mathf.Approximately(aaChoices[0].transform.localPosition.x,280) && Mathf.Approximately(aaChoices[1].transform.localPosition.x,560);
-            float aaCenter=(presetRow.transform.InverseTransformPoint(aaChoices[0].transform.position).x+presetRow.transform.InverseTransformPoint(aaChoices[1].transform.position).x)*0.5f;
+            centered &= Mathf.Approximately(aaChoices[0].transform.localPosition.x,0) && Mathf.Approximately(aaChoices[4].transform.localPosition.x,840);
+            float aaCenter=(presetRow.transform.InverseTransformPoint(aaChoices[0].transform.position).x+presetRow.transform.InverseTransformPoint(aaChoices[4].transform.position).x)*0.5f;
             for(int i=0;i<textureChoices.Length;i++) {
                 float x=textureRow.transform.InverseTransformPoint(textureChoices[i].transform.position).x;
                 centered &= Mathf.Abs(x-(aaCenter+(i-1)*280))<0.1f;
@@ -350,7 +432,25 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         resolutionRow.name="Resolution";resolutionRow.gameOptionData=new GameOptionData{OptionName="OPTION_GAME_RESOULUTION"};
         wrapper.Grid.sorting=UIGrid.Sorting.Alphabetic;
         for(int cycle=0;cycle<8;cycle++)Setup(window);
-        report.Add("settingsOrder="+String.Join(",",wrapper.Grid.GetChildList().Select(t=>t.name).ToArray()));
+        // Exercise native layout while active, without activating a partially
+        // constructed GameOptionWindow or contacting the game server.
+        var layoutHost=new GameObject("ActiveGraphicsLayoutProbe");
+        var layoutWrapper=layoutHost.AddComponent<NVespa.NNGUIExtension.UISimpleGrid>();layoutWrapper.Grid=wrapper.Grid;
+        gridHost.transform.SetParent(layoutHost.transform,false);
+        window.MainTabs[0].GameOptionGrid=layoutWrapper;
+        var layoutGrid=layoutWrapper.Grid;layoutGrid.arrangement=UIGrid.Arrangement.Vertical;layoutGrid.cellHeight=110;layoutGrid.pivot=UIWidget.Pivot.TopLeft;layoutGrid.animateSmoothly=false;
+        bool compact=true;
+        for(int method=0;method<5;method++) {
+            ApplyPreset(method);RefreshRows(window);
+            var visible=layoutGrid.GetChildList();
+            var expected=new List<string>{"Screen","Resolution","SPRK Anti-Aliasing"};
+            if(method>0)expected.Add("SPRK "+adjustmentNames[method-1]);
+            expected.Add("SPRK Render Scale");expected.Add("SPRK Lobby Camera Sensitivity");expected.Add("SPRK Model Camera Sensitivity");expected.Add("ZZAfter");
+            compact &= visible.Select(t=>t.name).SequenceEqual(expected);
+            for(int i=1;i<visible.Count;i++)compact &= Mathf.Abs(visible[i].localPosition.y-visible[i-1].localPosition.y+110)<0.1f;
+        }
+        report.Add("compactConditionalLayout="+compact);
+        gridHost.transform.SetParent(uiHost.transform,false);window.MainTabs[0].GameOptionGrid=wrapper;Destroy(layoutHost);
 
         var frameRow=UIHelper.AddGridItem<GameOptionToggle4Component>(wrapper,GameOptionToggle4Component.PrefabAuto);
         frameRow.gameOptionData=new GameOptionData{FieldName="Graphic_FrameControl"};
@@ -373,30 +473,21 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         frameOk &= new NVespa.LocalStorageEnum<EFrameControl>(EFrameControl.Manual_30,"KingsRaid_SystemOption_graphicFrameContorl").Value==EFrameControl.Manual_144;
         report.Add("frameChoicesAnd144="+frameOk+" target="+Application.targetFrameRate+" saved="+SprkTestPrefs.GetString("KingsRaid_SystemOption_graphicFrameContorl","missing"));
         Destroy(uiHost);
-        SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
-        for(int preset=0;preset<2;preset++) {
-            ApplyPreset(preset);
-            report.Add("preset="+preset+" mode="+ReadIndex("PostAA")+" samples="+Samples+" quality="+ReadIndex("Quality")+" scale="+Scale);
-        }
         bool migrationOk=true;
-        foreach(bool legacyPost in new[]{false,true})for(int old=0;old<4;old++) {
-            SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.SetInt("Sprk.Graphics.PostAA",old);SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",0);
-            if(!legacyPost)SprkTestPrefs.SetInt("Sprk.Graphics.Preset",old);
-            preferencesReady=false;EnsurePreset();
-            migrationOk &= ReadIndex("Preset")== (old==0?0:1) && ReadIndex("PostAA")== (old==0?0:3) && Samples==1;
+        for(int old=0;old<4;old++) {
+            SprkTestPrefs.DeleteKey("Sprk.Graphics.Method");SprkTestPrefs.SetInt("Sprk.Graphics.Preset",old);
+            preferencesReady=false;EnsurePreset();migrationOk &= Method==(old==0?0:4);
         }
-        SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.SetInt("Sprk.Graphics.MSAA",2);
-        preferencesReady=false;EnsurePreset();migrationOk &= ReadIndex("Preset")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAA",-1)==0;
-        SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.DeleteKey("Sprk.Graphics.MSAA");
-        preferencesReady=false;EnsurePreset();migrationOk &= ReadIndex("Preset")==1;
-        report.Add("taaOnlyMigration="+migrationOk);
-
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.Method");SprkTestPrefs.DeleteKey("Sprk.Graphics.Preset");SprkTestPrefs.DeleteKey("Sprk.Graphics.PostAA");SprkTestPrefs.DeleteKey("Sprk.Graphics.MSAA");
+        preferencesReady=false;EnsurePreset();migrationOk &= Method==4 && Scale==200;
+        SprkTestPrefs.SetInt("Sprk.Graphics.FXAAQuality",1);SprkTestPrefs.SetInt("Sprk.Graphics.SMAAQuality",2);SprkTestPrefs.SetInt("Sprk.Graphics.MSAASamples",4);SprkTestPrefs.SetInt("Sprk.Graphics.TAASharpness",1);
+        report.Add("aaMethodMigration="+migrationOk);
         var host=new GameObject("GraphicsProbeCamera");var camera=host.AddComponent<Camera>();
         camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.gray;
         camera.transform.position=new Vector3(0,0,-4);camera.depth=0;
         var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.layer=30;cube.transform.rotation=Quaternion.Euler(23,31,17);
         var material=new Material(Shader.Find("Unlit/Texture"));material.mainTexture=Texture2D.whiteTexture;cube.GetComponent<Renderer>().material=material;
-        for(int mode=0;mode<2;mode++)for(int scale=100;scale<=200;scale+=25) {
+        for(int mode=0;mode<5;mode++)for(int scale=100;scale<=200;scale+=25) {
             ApplyPreset(mode);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
             var target=CreateTarget(320,240,24);target.Create();camera.targetTexture=target;
             for(int frame=0;frame<12;frame++){camera.enabled=true;camera.targetTexture=target;camera.Render();yield return new WaitForEndOfFrame();}
@@ -416,18 +507,34 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         bool liveOk=true;
         foreach(bool orthographic in new[]{false,true}) {
             camera.orthographic=orthographic;
-            foreach(int scale in new[]{200,125,100})foreach(int preset in new[]{1,0,1}) {
+            foreach(int scale in new[]{200,125,100})foreach(int preset in new[]{4,3,2,1,0,4}) {
                 ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
                 for(int frame=0;frame<3;frame++)yield return new WaitForEndOfFrame();
-                int expectedSamples=1;
+                int expectedSamples=Samples;
                 var descriptor=liveTarget.descriptor;descriptor.msaaSamples=expectedSamples;
                 expectedSamples=SystemInfo.GetRenderTextureSupportedMSAASampleCount(descriptor);
                 var liveLayer=camera.GetComponent<PostProcessLayer>();
                 liveOk &= camera.targetTexture==liveTarget && liveTarget.IsCreated() && liveTarget.width==320*scale/100 && liveTarget.height==240*scale/100 && liveTarget.antiAliasing==expectedSamples;
-                liveOk &= (int)liveLayer.antialiasingMode==(preset==0?0:3);
+                liveOk &= (int)liveLayer.antialiasingMode==postModes[preset];
                 liveOk &= camera.transform.position==nativePosition && camera.transform.rotation==nativeRotation;
             }
         }
+        bool appliedAdjustments=true;
+        foreach(int method in new[]{1,2,3,4}) {
+            ApplyPreset(method);
+            for(int level=0;level<(method==1?2:3);level++) {
+                string key=new[]{"FXAAQuality","SMAAQuality","MSAASamples","TAASharpness"}[method-1];
+                int value=method==3?new[]{2,4,8}[level]:level;
+                SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);
+                yield return new WaitForEndOfFrame();
+                var layer=camera.GetComponent<PostProcessLayer>();
+                if(method==1)appliedAdjustments &= layer.fastApproximateAntialiasing.fastMode==(level==0);
+                if(method==2)appliedAdjustments &= (int)layer.subpixelMorphologicalAntialiasing.quality==level;
+                if(method==3){var desc=liveTarget.descriptor;desc.msaaSamples=Samples;appliedAdjustments &= liveTarget.antiAliasing==SystemInfo.GetRenderTextureSupportedMSAASampleCount(desc) && layer.antialiasingMode==PostProcessLayer.Antialiasing.None;}
+                if(method==4)appliedAdjustments &= layer.temporalAntialiasing.sharpness==new[]{0f,.5f,1f}[level];
+            }
+        }
+        report.Add("liveAdjustmentApplication="+appliedAdjustments);
         report.Add("livePreviewSwitching="+liveOk);
         camera.orthographic=false;camera.targetTexture=null;liveTarget.Release();Destroy(liveTarget);
         ApplyPreset(1);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",150);
@@ -448,14 +555,14 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         model.transform.position=new Vector3(0,0,-4);model.clearFlags=CameraClearFlags.Depth;
         model.cullingMask=1<<LayerMask.NameToLayer("Bottom3D");modelHost.AddComponent<UICamera>();cube.layer=LayerMask.NameToLayer("Bottom3D");
         bool lobbyOk=true;
-        for(int preset=0;preset<2;preset++) {
+        for(int preset=0;preset<5;preset++) {
             ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
             for(int frame=0;frame<12;frame++)yield return new WaitForEndOfFrame();
             var modelLayer=model.GetComponent<PostProcessLayer>();
             int effective=modelLayer==null?0:(int)modelLayer.antialiasingMode;
             lobbyOk &= redirected.ContainsKey(background) && redirected.ContainsKey(model) && world!=null && world.width==Screen.width && world.height==Screen.height;
-            lobbyOk &= effective==(preset==0?0:3) && presentationCamera!=null;
-            var lobbyDescriptor=world.descriptor;lobbyDescriptor.msaaSamples=1;
+            lobbyOk &= effective==postModes[preset] && presentationCamera!=null;
+            var lobbyDescriptor=world.descriptor;lobbyDescriptor.msaaSamples=Samples;
             lobbyOk &= world.antiAliasing==SystemInfo.GetRenderTextureSupportedMSAASampleCount(lobbyDescriptor);
             lobbyOk &= Camera.allCameras.Where(c=>c.GetComponent<UICamera>()!=null && !IsLobbyBackground(c)).All(c=>c.targetTexture==null && !redirected.ContainsKey(c));
             report.Add("lobbyPreset="+preset+" applied="+effective+" samples="+(world==null?0:world.antiAliasing));
@@ -510,7 +617,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         // Reproduce the native HUD: a perspective camera without UICamera.
         battleOverlay.clearFlags=CameraClearFlags.SolidColor;battleOverlay.backgroundColor=Color.black;
         bool battleOk=true;
-        for(int preset=0;preset<2;preset++) {
+        for(int preset=0;preset<5;preset++) {
             ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",125);
             for(int frame=0;frame<12;frame++) {
                 yield return new WaitForEndOfFrame();presentationFrame=-1;
@@ -519,7 +626,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             battleOk &= redirected.ContainsKey(battleBackground) && redirected.ContainsKey(battleModel) && !redirected.ContainsKey(battleOverlay) && presentationCamera==battleOverlay;
             battleOk &= NVespa.GlobalCameraManager.HasMainRenderTarget(battleModel);
             var modelAA=battleModel.GetComponent<PostProcessLayer>();int applied=modelAA==null?0:(int)modelAA.antialiasingMode;
-            battleOk &= applied==(preset==0?0:3) && battleOverlay.GetComponent<PostProcessLayer>()==null;
+            battleOk &= applied==postModes[preset] && battleOverlay.GetComponent<PostProcessLayer>()==null;
             var oldTarget=RenderTexture.active;RenderTexture.active=null;
             var shot=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);shot.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);shot.Apply();
             battleOk &= shot.GetPixels32().Any(pixel=>pixel.r>200);
@@ -528,6 +635,10 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         }
         report.Add("battleCameraStack="+battleOk);Destroy(battleHost);
         Destroy(cube);Destroy(material);Destroy(host);
+        ApplyPreset(4);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
+        SprkTestPrefs.SetInt("Sprk.Graphics.FXAAQuality",0);SprkTestPrefs.SetInt("Sprk.Graphics.SMAAQuality",1);SprkTestPrefs.SetInt("Sprk.Graphics.MSAASamples",8);SprkTestPrefs.SetInt("Sprk.Graphics.TAASharpness",2);
+        SprkTestPrefs.SetInt("Sprk.Graphics.LobbyCameraSensitivity",75);
+        SprkTestPrefs.SetInt("Sprk.Graphics.ModelCameraSensitivity",125);
         SprkTestPrefs.Save();
         System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"report.txt"),report.ToArray());
         Application.Quit();
@@ -549,7 +660,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     }
     void LateUpdate() {
         RestoreTargets();
-        int mode=ReadIndex("PostAA"),quality=ReadIndex("Quality");
+        int mode=ReadIndex("PostAA"),quality=ReadIndex("SMAAQuality");
         bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale");
         if(!configured)return;
         QualitySettings.antiAliasing=Samples==1?0:Samples;
@@ -607,15 +718,18 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             int effective=apply&&available?mode:0;
             var target=camera.targetTexture;
             if(effective==3 && (!SystemInfo.supportsMotionVectors || !layer.temporalAntialiasing.IsSupported() || (target!=null && target.antiAliasing>1))){effective=0;status="TAA unavailable for camera "+camera.name;}
-            int signature=effective*100000+quality*1000+(target==null?Screen.width:target.width)*31+(target==null?Screen.height:target.height);
+            int signature=effective*100000+quality*1000+ReadIndex("FXAAQuality")*101+ReadIndex("TAASharpness")*103+(target==null?Screen.width:target.width)*31+(target==null?Screen.height:target.height);
             bool cut=positions.ContainsKey(camera) && (Vector3.Distance(positions[camera],camera.transform.position)>3 || Quaternion.Angle(rotations[camera],camera.transform.rotation)>35);
             if(!signatures.ContainsKey(camera)||signatures[camera]!=signature||cut)layer.ResetHistory();
             signatures[camera]=signature;positions[camera]=camera.transform.position;rotations[camera]=camera.transform.rotation;
             layer.antialiasingMode=(PostProcessLayer.Antialiasing)effective;
-            layer.temporalAntialiasing.jitterSpread=(ReadIndex("Jitter")+1)*0.25f;
-            layer.temporalAntialiasing.sharpness=ReadIndex("Sharpness")*0.5f;
-            layer.temporalAntialiasing.stationaryBlending=new[]{.6f,.7f,.8f,.9f,.95f}[ReadIndex("Stationary")];
-            layer.temporalAntialiasing.motionBlending=new[]{.5f,.6f,.7f,.8f,.85f}[ReadIndex("Motion")];
+            layer.fastApproximateAntialiasing.fastMode=ReadIndex("FXAAQuality")==0;
+            layer.fastApproximateAntialiasing.keepAlpha=true;
+            layer.subpixelMorphologicalAntialiasing.quality=(SubpixelMorphologicalAntialiasing.Quality)quality;
+            layer.temporalAntialiasing.jitterSpread=.75f;
+            layer.temporalAntialiasing.sharpness=new[]{0f,.5f,1f}[ReadIndex("TAASharpness")];
+            layer.temporalAntialiasing.stationaryBlending=.9f;
+            layer.temporalAntialiasing.motionBlending=.8f;
         }
         foreach(var dead in presentationCommands.Keys.Where(c=>c==null).ToArray()){presentationCommands[dead].Release();presentationCommands.Remove(dead);}
         foreach(var dead in ownedTargets.Keys.Where(t=>t==null).ToArray())ownedTargets.Remove(dead);

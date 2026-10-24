@@ -64,10 +64,6 @@ fn world_boss_season(s: &AppState) -> (i64,i64,i64) {
 fn boss_season(s: &AppState, family: &str, id: i64) -> Result<(i64,i64,i64)> {
     Ok(if family=="world_boss" && source(s,family,id)?["IsGlobal"]==true {world_boss_season(s)} else {season(s)})
 }
-fn world_boss_day(at:i64)->String {
-    // Recovered WorldBossGlobalDailyRewardResetTime=15:00:00 UTC.
-    chrono::DateTime::from_timestamp(at+9*3600,0).unwrap().date_naive().to_string()
-}
 fn source<'a>(s: &'a AppState, family: &str, id: i64) -> Result<&'a Value> {
     let name = if family == "event_world_boss" {
         "EventWorldBoss"
@@ -363,18 +359,9 @@ pub(super) async fn finish(
             v["BattleCompletedTime"] = json!(time(now()));
         }
         put(db, 0, family, campaign::key(id, current_season), &v).await?;
-        // The score ledger also drives ordinary UTC daily quests. Keep that
-        // calendar intact; World Boss's 15:00 reset has its own daily snapshot.
+        // Daily quests and World Boss daily scores share the UTC score ledger.
+        // Existing UTC+9 snapshot records are no longer consulted.
         score(db, family, id, current_season, a, credited, elapsed,&day()).await?;
-        if global {
-            let previous=get(db,a,"world_boss_daily_score",id).await?;
-            let date=world_boss_day(now());
-            let same=previous["Day"]==date && n(&previous,"Season")==current_season;
-            let score=if same {n(&previous,"Score")} else {0};
-            let count=if same {n(&previous,"Count")} else {0};
-            put(db,a,"world_boss_daily_score",id,&json!({"Day":date,"Season":current_season,
-                "Score":score.checked_add(credited).ok_or_else(||rule("WorldBossHpError"))?,"Count":count+1})).await?;
-        }
         if family == "world_boss" {
             let mut rank = rankers(db, family, id, current_season).await?
                 .into_iter().find(|v| n(v,"AccountId")==a).ok_or_else(||rule("InvalidRank"))?;
@@ -471,11 +458,7 @@ pub(super) async fn execute(
         return Ok(out);
     }
     if action.contains("daily_score") || action.contains("score_info") {
-        let mut score:i64=sqlx::query_scalar("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)").bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
-        if family=="world_boss" && source(s,family,id)?["IsGlobal"]==true && action.contains("daily") {
-            let daily=get(db,a,"world_boss_daily_score",id).await?;
-            score=if daily["Day"]==world_boss_day(now()) && n(&daily,"Season")==season {n(&daily,"Score")} else {0};
-        }
+        let score:i64=sqlx::query_scalar("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)").bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
         out[if action.contains("daily") {
             "WorldBossDailyScore"
         } else {
