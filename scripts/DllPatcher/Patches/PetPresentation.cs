@@ -26,6 +26,13 @@ partial class Program {
             throw new InvalidOperationException("Original My Info buff tab is not targeted.");
         if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,"Panel/Root/WidgetAvatar/Sprite_TextureDeco")))
             throw new InvalidOperationException("My Info legacy portrait backdrop cleanup is missing.");
+        if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,"Panel/Root/Sprite_Frame")) ||
+           !setup.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="CleanWindowFrame"))
+            throw new InvalidOperationException("My Info outer window border cleanup is missing.");
+        var awake=game.MainModule.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
+        if(awake.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation" && m.Name=="EnsureProbe")!=1)
+            throw new InvalidOperationException("Missing or duplicated My Info frame validation hook.");
+        VerifyArenaResultStack(awake);
         var native=game.MainModule.GetType("NGame2.NUI.NWindow.PetTotalBuffPopup").Methods.Single(m=>m.Name=="Init");
         foreach(var name in new[]{"GetPetStatDataBaseList","GetPetContentsStatDataBaseList","GetPetBonusDataBaseList"})
             if(!native.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))
@@ -56,6 +63,9 @@ partial class Program {
             il.Append(il.Create(OpCodes.Call,game.MainModule.ImportReference(helper.MainModule.GetType("SprkPetPresentation").Methods.Single(m=>m.Name==pair.Item3))));
             il.Append(il.Create(OpCodes.Ret));
         }
+        var awake=game.MainModule.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
+        if(!awake.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation" && m.Name=="EnsureProbe"))
+            awake.Body.GetILProcessor().InsertBefore(awake.Body.Instructions[0],Instruction.Create(OpCodes.Call,game.MainModule.ImportReference(helper.MainModule.GetType("SprkPetPresentation").Methods.Single(m=>m.Name=="EnsureProbe"))));
         VerifyPetPresentation(game.MainModule);
         var staged=dll+".pet-presentation-staged";
         game.Write(staged);File.WriteAllBytes(helperPath+".staged",compiled.ToArray());

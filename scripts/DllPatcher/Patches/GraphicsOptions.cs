@@ -32,9 +32,9 @@ partial class Program {
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkGraphicsOptions.dll"+(staged?".staged":"")));
         var bridge=helper.MainModule.GetType("SprkGraphicsOptions");
         var setup=bridge.Methods.Single(m=>m.Name=="Setup");
-        if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=6)
-            throw new InvalidOperationException("Graphics settings must expose method, four conditional adjustments and render scale.");
-        foreach(var required in new[]{"Off","FXAA","SMAA","MSAA","TAA","Preset","Scale","FXAAQuality","SMAAQuality","MSAASamples","TAASharpness"})
+        if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=8)
+            throw new InvalidOperationException("Graphics settings must expose method, four conditional adjustments, render scale and two independent camera sensitivities.");
+        foreach(var required in new[]{"Off","FXAA","SMAA","MSAA","TAA","Preset","Scale","FXAAQuality","SMAAQuality","MSAASamples","TAASharpness","LobbyCameraSensitivity","ModelCameraSensitivity","Anti-Aliasing","FXAA Quality","SMAA Quality","MSAA Samples","TAA Sharpness","Render Scale","Lobby Camera Sensitivity","Model Camera Sensitivity"})
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing graphics preset control: "+required);
         var poll=bridge.Methods.Single(m=>m.Name=="PollComparisonKeys");
         if(poll.Body.Instructions.Any(i=>i.OpCode!=OpCodes.Ret && i.OpCode!=OpCodes.Nop))

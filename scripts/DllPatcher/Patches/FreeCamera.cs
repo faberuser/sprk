@@ -11,6 +11,13 @@ partial class Program {
             if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name==pair.Item2))throw new InvalidOperationException("Missing free camera hook: "+pair.Item1);
             if(!method.Body.HasExceptionHandlers)VerifyArenaResultStack(method);
         }
+        var lobby=module.GetType("NGame2.NUI.NWorldMap.NMapLayout.NMapViewer.WorldMapMode");
+        foreach(var pair in new[]{("DragWorldMap","ScaleLobbyDrag"),("ZoomWorldMap","ScaleLobbyZoom")}) {
+            var method=lobby.Methods.Single(m=>m.Name==pair.Item1);
+            if(method.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name==pair.Item2)!=1)
+                throw new InvalidOperationException("Missing or duplicated lobby sensitivity hook: "+pair.Item1);
+            VerifyArenaResultStack(method);
+        }
         if(!window.Methods.Single(m=>m.Name=="LateUpdate").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="ChainLateUpdate"))throw new InvalidOperationException("Native preview camera was removed.");
     }
     static void VerifyFreeCameraFile(string root,bool staged=false) {
@@ -20,6 +27,8 @@ partial class Program {
         var scope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="SupportsWindow");
         foreach(var name in new[]{"HeroDetailView","HeroCostumeView","HeroModelView"})
             if(!scope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing preview window scope: "+name);
+        var apply=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Apply");
+        if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_ShapeBounds"))throw new InvalidOperationException("Free camera must use the hero's body bounds as its orbit pivot.");
         if(!game.MainModule.GetType("NGame2.NUI.NWindow.HeroDetailView").Methods.Any(m=>m.Name=="OpenOnlyViewMotion"))throw new InvalidOperationException("Native See Motions path missing.");
         Console.WriteLine("Verified scoped free camera hooks and preserved native camera update.");
     }
@@ -55,6 +64,17 @@ partial class Program {
         if(!input.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera")) {
             var first=input.Body.Instructions[0];var il=input.Body.GetILProcessor();
             foreach(var instruction in new[]{il.Create(OpCodes.Ldarg_0),il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="InputCamera"))),il.Create(OpCodes.Brfalse,first),il.Create(OpCodes.Ret)})il.InsertBefore(first,instruction);
+        }
+        // Hook only native camera input, not NGUI/global pointer events or
+        // automatic chase/focus camera updates. Scale the consumed argument once.
+        var lobby=module.GetType("NGame2.NUI.NWorldMap.NMapLayout.NMapViewer.WorldMapMode");
+        foreach(var pair in new[]{("DragWorldMap","ScaleLobbyDrag"),("ZoomWorldMap","ScaleLobbyZoom")}) {
+            var method=lobby.Methods.Single(m=>m.Name==pair.Item1);
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name==pair.Item2))continue;
+            var il=method.Body.GetILProcessor();var first=method.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name==pair.Item2))));
+            il.InsertBefore(first,il.Create(OpCodes.Starg,method.Parameters[0]));
         }
         var awake=module.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
         if(!awake.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="EnsureProbe"))
