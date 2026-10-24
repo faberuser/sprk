@@ -3363,6 +3363,26 @@ async fn world_boss_unranked_entry_and_zero_based_ranking_match_client() {
 
 
 #[tokio::test]
+async fn world_boss_daily_score_uses_utc_ledger_and_ignores_old_timezone_snapshot() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let info=call(&s,&u,"world_boss/get_world_boss_info","").await;
+    let boss=&info["WorldBossInfos"][0];let id=n(boss,"Index");let season=n(boss,"Season");
+    let today=chrono::Utc::now().date_naive();
+    sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',?,?,?,?,123)")
+        .bind(id).bind(season).bind(a).bind(today.to_string()).execute(&s.db).await.unwrap();
+    put(&mut s.db.acquire().await.unwrap(),a,"world_boss_daily_score",id,&json!({"Day":(today+chrono::Duration::days(1)).to_string(),"Season":season,"Score":999})).await.unwrap();
+    let args=format!("WorldBossIndex={id}&Season={season}");
+    let daily=call(&s,&u,"world_boss/get_world_boss_daily_score_info",&args).await;
+    assert_eq!(daily["WorldBossDailyScore"]["Score"],123,"Use existing UTC damage, not the old UTC+9 snapshot");
+    sqlx::query("UPDATE battle_scores SET day=? WHERE account=?").bind((today-chrono::Duration::days(1)).to_string()).bind(a).execute(&s.db).await.unwrap();
+    let daily=call(&s,&u,"world_boss/get_world_boss_daily_score_info",&args).await;
+    assert_eq!(daily["WorldBossDailyScore"]["Score"],0,"Previous UTC day's score must not carry over");
+    let constant=s.tables.services.rows("Constant").iter().find(|v|v["Key"]=="WorldBossGlobalDailyRewardResetTime").unwrap();
+    assert_eq!(constant["Value"],"00:00:00");
+}
+
+#[tokio::test]
 async fn world_boss_archived_participation_drops_pay_two_boxes_per_attempt_with_two_entry_override() {
     let (s,u)=setup().await;
     let a=account(&u);

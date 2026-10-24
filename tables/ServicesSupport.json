@@ -5045,7 +5045,7 @@
       },
       {
         "Key": "WorldBossGlobalDailyRewardResetTime",
-        "Value": "15:00:00"
+        "Value": "00:00:00"
       },
       {
         "Key": "PartyDungeonPlayEnableHeroLevel",
