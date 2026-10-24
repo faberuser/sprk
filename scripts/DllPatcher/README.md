@@ -360,6 +360,12 @@ Lobby Camera Sensitivity and Model Camera Sensitivity in Game Options each offer
 
 Free-camera orbit uses the hero RenderFacade body bounds center, with a native target fallback while the model loads. Native framing offsets rotate and scale with the camera, preserving the right-side Dressing Room composition and initial/reset view. The projection regression checks centered and off-center framing across yaw, pitch and zoom using a real native CinemaCamera.
 
+Model previews update the cinema camera aspect from the UITexture's displayed drawing area and UV rectangle each frame. This preserves model proportions on ultrawide fullscreen displays even when the render texture retains the startup resolution. The Unity probe covers 16:9, ultrawide, 32:9, resolution transitions and cropped UVs against a stale 16:9 render target, plus orbit framing at 16:9 and ultrawide.
+
+Resolution choices restore the declared UHD toggle after native screen-mode callbacks and row initialization. The native width check otherwise hides it on displays below 3840 pixels and leaves it hidden when returning to Window. Fullscreen still uses the desktop resolution and native preset availability rules. The graphics probe's `SPRK_GRAPHICS_RESOLUTION_ONLY=1` mode checks repeated Full/Window callbacks and row rebuilds on the shipped control prefab.
+
+Heroes List (HeroDeck2) and supported model previews refresh their native layout anchors on first display and resolution changes. This includes first-start-only anchors in the root and descendants, letting backgrounds, frames, scroll viewports and edge controls expand horizontally without scaling portraits or models. The BaseWindow.UpdateDerived hook is scoped to these windows; the Unity probe checks the real shipped prefabs at 16:9, 3440×1440, 32:9 and back.
+
 The independent Lobby Camera Sensitivity preference scales native desktop lobby/world-map drag and wheel zoom at WorldMapMode.DragWorldMap / ZoomWorldMap. Native movement bounds, chase/focus transitions, menu scrolling and mobile touch handling are retained; sensitivity is applied exactly once at each camera-input consumer. The Unity probe invokes the real native methods at all five percentages.
 
 Both camera controls inherit the previous shared sensitivity when their own value has not yet been saved, and otherwise default to 100%. Each selection is persisted independently. The settings labels use Anti-Aliasing, FXAA Quality, SMAA Quality, MSAA Samples, TAA Sharpness and Render Scale.

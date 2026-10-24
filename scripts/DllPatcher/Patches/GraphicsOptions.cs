@@ -15,6 +15,11 @@ partial class Program {
         return argument;
     }
     static void VerifyGraphicsOptions(ModuleDefinition module) {
+        foreach(var name in new[]{"SetToggle","SetValueByParent"}) {
+            var method=module.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component").Methods.Single(m=>m.Name==name);
+            if(method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).Any(i=>i.Previous.Operand is not MethodReference m || m.Name!="RestoreResolutionChoices" || m.DeclaringType.Name!="SprkGraphicsOptions"))throw new InvalidOperationException("Missing resolution visibility restoration: "+name);
+            VerifyArenaResultStack(method);
+        }
         if(OutlineDefaultArgument(module).OpCode!=OpCodes.Ldc_I4_0)throw new InvalidOperationException("Outline must default to Off while preserving its native preference key.");
         foreach(var pair in new[]{("NGame2.NUI.NComponent2.GameOptionToggle3Component","SetToggle","CenterTextureChoices"),("UICamera","Awake","Ensure"),("NGame2.NUI.NWindow.GameOptionWindow","SetupOptionGrids","Setup"),("NShader.FilterBase","CreateRenderTarget","CreateTarget"),("NVespa.GlobalCameraManager","HasMainRenderTarget","HasMainRenderTarget"),("NGame2.NUI.NWindow.HeroFullSceneViewBase","UpdateDerived","PollComparisonKeys")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
@@ -100,6 +105,16 @@ partial class Program {
         refreshRate.Body.Instructions.Clear();refreshRate.Body.Variables.Clear();refreshRate.Body.ExceptionHandlers.Clear();
         refreshRate.Body.GetILProcessor().Emit(OpCodes.Ret);
         var toggleType=module.GetType("NGame2.NUI.NComponent2.GameOptionToggle4Component");
+        foreach(var name in new[]{"SetToggle","SetValueByParent"}) {
+            var method=toggleType.Methods.Single(m=>m.Name==name);
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name=="RestoreResolutionChoices"))continue;
+            var il=method.Body.GetILProcessor();
+            foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Ldarg_0;ret.Operand=null;
+                var call=il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="RestoreResolutionChoices")));
+                il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
+            }
+        }
         foreach(var pair in new[]{("Refresh","ConfigureFrameRow"),("OnClickToggle","IsFrameRow")}) {
             var method=toggleType.Methods.Single(m=>m.Name==pair.Item1);
             if(method.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkGraphicsOptions" && r.Name==pair.Item2))continue;

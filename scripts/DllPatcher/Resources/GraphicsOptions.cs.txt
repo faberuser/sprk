@@ -187,6 +187,15 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         ConfigureChoices(row,"Frame",new[]{"30","60","144","Auto","Auto+"});
         return true;
     }
+    public static void RestoreResolutionChoices(GameOptionToggle4Component row) {
+        if(row==null || row.gameOptionData==null || row.gameOptionData.FieldName!="Graphic_ResolutionControl")return;
+        // The native Full callback hides UHD on monitors narrower than 3840,
+        // then leaves that pooled toggle hidden when returning to Window.
+        // Keep the declared preset visible; native fullscreen availability and
+        // desktop-native fullscreen sizing are still controlled by the parent.
+        if(row.toggleInfo!=null && row.toggleInfo.Toggle4!=null)
+            row.toggleInfo.Toggle4.gameObject.SetActive(!String.IsNullOrEmpty(row.gameOptionData.Value4));
+    }
     static readonly int[] frameValues={30,60,144,2,4};
     static void PlaceBelowScreen(GameOptionWindow.TabUIInfo tab) {
         var rows=tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true);
@@ -346,6 +355,29 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         System.IO.Directory.CreateDirectory(root);
         yield return new WaitForSecondsRealtime(3);
         var report=new List<string>();
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESOLUTION_ONLY")=="1") {
+            var resolutionHost=new GameObject("ResolutionChoicesProbe");resolutionHost.SetActive(false);
+            var prefab=Resources.Load<GameObject>("Prefab2/Component/GameOption/GameOptionToggle4Component");
+            var row=Instantiate(prefab,resolutionHost.transform,false).GetComponent<GameOptionToggle4Component>();
+            row.gameOptionData=new GameOptionData{FieldName="Graphic_ResolutionControl",Value1="HD",Value2="FHD",Value3="QHD",Value4="UHD"};
+            row.SetToggle();
+            for(int cycle=0;cycle<4;cycle++)foreach(var parent in new[]{"False","True"}) {
+                row.toggleInfo.Toggle4.gameObject.SetActive(false);
+                row.SetValueByParent(parent=="True",new GameOptionValueInfo{Value=parent});
+                if(!row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("UHD lost after parent mode "+parent);
+                row.toggleInfo.Toggle4.gameObject.SetActive(false);row.SetToggle();
+                if(!row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("UHD lost after row rebuild");
+            }
+            row.gameOptionData.FieldName="OtherSetting";row.toggleInfo.Toggle4.gameObject.SetActive(false);
+            RestoreResolutionChoices(row);
+            if(row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("Unrelated row changed");
+            row.gameOptionData.FieldName="Graphic_ResolutionControl";row.gameOptionData.Value4="";
+            RestoreResolutionChoices(row);
+            if(row.toggleInfo.Toggle4.gameObject.activeSelf)throw new Exception("Undefined fourth choice exposed");
+            Destroy(resolutionHost);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"resolution.txt"),"PASS: real resolution prefab, repeated native Full/Window parent callbacks and row rebuilds restore UHD; unrelated rows and undefined choices preserved.");
+            Application.Quit();yield break;
+        }
         if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESTART_TEST")=="1") {
             bool ok=Method==4 && Scale==100 && ReadIndex("FXAAQuality")==0 && ReadIndex("SMAAQuality")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",0)==8 && ReadIndex("TAASharpness")==2 && ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==3;
             System.IO.File.WriteAllText(System.IO.Path.Combine(root,"restart.txt"),"preferencesSurviveRestart="+ok);
