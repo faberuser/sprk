@@ -1585,3 +1585,75 @@ async fn accessory_item_invalid_native_positions_do_not_consume_or_grant() {
         assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", cosmetics::accessory_key(1, 3100017).unwrap()).await.unwrap().is_null());
     }
 }
+
+#[tokio::test]
+async fn exp_flasks_reattach_same_type_until_stock_runs_out_and_persist() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 3).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    for completed in 1..=3 {
+        let mut tx = s.db.begin().await.unwrap();
+        let (result, items) = consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().unwrap();
+        assert_eq!(result["FilledFlaskCount"], 1);
+        assert_eq!(result["Info"]["ItemIndex"], if completed < 3 { 40001 } else { 0 });
+        assert_eq!(result["Info"]["NewExp"], 0);
+        let full = items.iter().find(|i| i["ItemIndex"] == 40005).unwrap();
+        assert_eq!(full["NewCount"], completed);
+        if completed < 3 {
+            let empty = items.iter().find(|i| i["ItemIndex"] == 40001).unwrap();
+            assert_eq!(empty["AddCount"], -1);
+            assert_eq!(empty["NewCount"], 2 - completed);
+        } else {
+            assert!(!items.iter().any(|i| i["ItemIndex"] == 40001));
+            assert!(consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().is_none());
+        }
+        tx.commit().await.unwrap();
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let h = login.heroes.iter().find(|h| h.hero_index == 1).unwrap();
+        assert_eq!(h.details["FlaskItemIndex"], if completed < 3 { 40001 } else { 0 });
+        assert_eq!(h.details["FlaskExp"], 0);
+    }
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40005").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+}
+
+#[tokio::test]
+async fn exp_flask_replacement_preserves_partial_progress_and_can_be_cancelled_once() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 2).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    let mut tx = s.db.begin().await.unwrap();
+    let (partial, items) = consumables::fill_flask(&mut tx, &s, a, 1, 50).await.unwrap().unwrap();
+    assert_eq!(partial["Info"]["NewExp"], 50);
+    assert_eq!(partial["FilledFlaskCount"], 0);
+    assert!(items.is_empty());
+    let (full, _) = consumables::fill_flask(&mut tx, &s, a, 1, 150).await.unwrap().unwrap();
+    assert_eq!(full["Info"]["ItemIndex"], 40001);
+    assert_eq!(full["Info"]["NewExp"], 0);
+    tx.commit().await.unwrap();
+    let cancel = call(&s, &u, "item/cancel_flask_item", "HeroIndex=1").await;
+    assert_eq!(cancel["Result"], "Success");
+    assert_eq!(cancel["ItemResult"]["ItemIndex"], 40001);
+    assert_eq!(cancel["ItemResult"]["NewCount"], 1);
+    assert_ne!(call(&s, &u, "item/cancel_flask_item", "HeroIndex=1").await["Result"], "Success");
+}
+
+#[tokio::test]
+async fn exp_flask_completion_keeps_locked_replacement_stock_and_never_switches_types() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 2).await;
+    give(&s, a, 40002, 3).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=40001").bind(a).execute(&s.db).await.unwrap();
+    let mut tx = s.db.begin().await.unwrap();
+    let (result, items) = consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().unwrap();
+    assert_eq!(result["FilledFlaskCount"], 1);
+    assert_eq!(result["Info"]["ItemIndex"], 0);
+    assert_eq!(items.len(), 1);
+    tx.commit().await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40002").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+}

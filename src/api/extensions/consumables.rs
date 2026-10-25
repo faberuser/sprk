@@ -502,6 +502,18 @@ pub(crate) async fn fill_flask(
         .await?;
         details["FlaskItemIndex"] = json!(0);
         details["FlaskExp"] = json!(0);
+        // Reserve the next flask immediately, just like manual attachment.
+        // Include its debit so the native battle response refreshes the stack.
+        match item::consume(db, account, id as i32, 1).await {
+            Ok(consumed) => {
+                details["FlaskItemIndex"] = json!(id);
+                rewards.items.push(consumed);
+            }
+            // Exhausted, locked or reserved stock ends the chain without
+            // rejecting the completed flask or the battle's other rewards.
+            Err(ServerError::InvalidRequest(code)) if code == "ItemNotOwned" => {},
+            Err(error) => return Err(error),
+        }
         filled = 1;
     } else {
         details["FlaskExp"] = json!(after);
