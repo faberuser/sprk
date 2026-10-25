@@ -127,7 +127,7 @@ partial class Program {
         game.Write(staged);File.WriteAllBytes(helperPath+".staged",compiled.ToArray());
         VerifyFreeCameraFile(root,true);
         if(stageOnly)return;
-        if(System.Diagnostics.Process.GetProcesses().Any(p=>p.ProcessName=="King's Raid" || p.ProcessName.StartsWith("SprkTest-")))
+        if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,root)))
             throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
         File.Copy(dll,dll+".before-free-camera-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
         File.Move(staged,dll,true);File.Move(helperPath+".staged",helperPath,true);

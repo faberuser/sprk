@@ -61,7 +61,7 @@ partial class Program
         if (changed) assembly.Write(dll + ".staged");
         assembly.Dispose();
         if (stageOnly) { Console.WriteLine("Staged opt-in client automation."); return; }
-        if (System.Diagnostics.Process.GetProcessesByName("King's Raid").Length != 0)
+        if (System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))
             throw new InvalidOperationException("Automation staged. Close King's Raid before installing.");
         File.Move(helper + ".staged", helper, true);
         if (changed) File.Move(dll + ".staged", dll, true);

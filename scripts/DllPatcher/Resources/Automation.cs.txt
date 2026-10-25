@@ -9,6 +9,15 @@ using UnityEngine.SceneManagement;
 // Separate account preferences for simultaneous test clients. Without both
 // environment variables these wrappers retain the original PlayerPrefs calls.
 public static class SprkTestPrefs {
+    struct IntPreference { public int Default,Value; }
+    struct StringPreference { public string Default,Value; }
+    static readonly Dictionary<string,IntPreference> graphicsInts=new Dictionary<string,IntPreference>();
+    static readonly Dictionary<string,StringPreference> graphicsStrings=new Dictionary<string,StringPreference>();
+    static readonly Dictionary<string,bool> graphicsKeys=new Dictionary<string,bool>();
+    public static int GraphicsStorageReads { get; private set; }
+    static bool CacheGraphics(string key) { return key.StartsWith("Sprk.Graphics.",StringComparison.Ordinal) || key.StartsWith("KingsRaid_SystemOption_graphic",StringComparison.Ordinal) || key.StartsWith("KingsRaid_GameOption_render_",StringComparison.Ordinal) || key.StartsWith("KingsRaid_SystemOption_render",StringComparison.Ordinal); }
+    static void Invalidate(string key) { graphicsInts.Remove(key);graphicsStrings.Remove(key);graphicsKeys.Remove(key); }
+    public static void ClearGraphicsCache() { graphicsInts.Clear();graphicsStrings.Clear();graphicsKeys.Clear(); }
     public static string DeviceId() {
         string prefix=Prefix();
         return prefix=="" ? SystemInfo.deviceUniqueIdentifier : "sprk-test-"+Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
@@ -19,21 +28,37 @@ public static class SprkTestPrefs {
         return String.IsNullOrEmpty(profile) ? "" : "SprkAutomation/"+profile+"/";
     }
     static string Key(string key) { return Prefix()+key; }
-    public static string GetString(string key) { return PlayerPrefs.GetString(Key(key)); }
-    public static string GetString(string key,string value) { return PlayerPrefs.GetString(Key(key),value); }
-    public static int GetInt(string key) { return PlayerPrefs.GetInt(Key(key)); }
-    public static int GetInt(string key,int value) { return PlayerPrefs.GetInt(Key(key),value); }
+    public static string GetString(string key) { return GetString(key,""); }
+    public static string GetString(string key,string value) {
+        string full=Key(key);if(!CacheGraphics(key))return PlayerPrefs.GetString(full,value);
+        StringPreference saved;
+        if(graphicsStrings.TryGetValue(full,out saved) && saved.Default==value)return saved.Value;
+        GraphicsStorageReads++;string result=PlayerPrefs.GetString(full,value);
+        graphicsStrings[full]=new StringPreference{Default=value,Value=result};return result;
+    }
+    public static int GetInt(string key) { return GetInt(key,0); }
+    public static int GetInt(string key,int value) {
+        string full=Key(key);if(!CacheGraphics(key))return PlayerPrefs.GetInt(full,value);
+        IntPreference saved;
+        if(graphicsInts.TryGetValue(full,out saved) && saved.Default==value)return saved.Value;
+        GraphicsStorageReads++;int result=PlayerPrefs.GetInt(full,value);
+        graphicsInts[full]=new IntPreference{Default=value,Value=result};return result;
+    }
     public static float GetFloat(string key) { return PlayerPrefs.GetFloat(Key(key)); }
     public static float GetFloat(string key,float value) { return PlayerPrefs.GetFloat(Key(key),value); }
-    public static void SetString(string key,string value) { PlayerPrefs.SetString(Key(key),value); }
-    public static void SetInt(string key,int value) { PlayerPrefs.SetInt(Key(key),value); }
-    public static void SetFloat(string key,float value) { PlayerPrefs.SetFloat(Key(key),value); }
-    public static bool HasKey(string key) { return PlayerPrefs.HasKey(Key(key)); }
-    public static void DeleteKey(string key) { PlayerPrefs.DeleteKey(Key(key)); }
+    public static void SetString(string key,string value) { string full=Key(key);PlayerPrefs.SetString(full,value);Invalidate(full); }
+    public static void SetInt(string key,int value) { string full=Key(key);PlayerPrefs.SetInt(full,value);Invalidate(full); }
+    public static void SetFloat(string key,float value) { string full=Key(key);PlayerPrefs.SetFloat(full,value);Invalidate(full); }
+    public static bool HasKey(string key) {
+        string full=Key(key);if(!CacheGraphics(key))return PlayerPrefs.HasKey(full);
+        bool result;if(graphicsKeys.TryGetValue(full,out result))return result;
+        GraphicsStorageReads++;result=PlayerPrefs.HasKey(full);graphicsKeys[full]=result;return result;
+    }
+    public static void DeleteKey(string key) { string full=Key(key);PlayerPrefs.DeleteKey(full);Invalidate(full); }
     public static void Save() { PlayerPrefs.Save(); }
     public static void DeleteAll() {
         if(Prefix()!="") throw new InvalidOperationException("DeleteAll is disabled for test profiles; choose a new profile name");
-        PlayerPrefs.DeleteAll();
+        PlayerPrefs.DeleteAll();ClearGraphicsCache();
     }
 }
 
