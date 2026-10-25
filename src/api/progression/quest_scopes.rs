@@ -12,8 +12,7 @@ impl View {
         });
         let count = |metric: &str, chapters: &[i64], types: &[i64]| self.metrics.iter()
             .filter(|(_,k,c,d,_)| k == metric && (chapters.is_empty() || chapters.contains(c))
-                && (types.is_empty() || s.tables.battle.find("CampaignDungeon", &[("ChapterIndex",*c),("DungeonIndex",*d)])
-                    .is_some_and(|r|types.contains(&n(r,"BattleType")))))
+                && (types.is_empty() || self.battle_type(s,*c,*d).is_some_and(|t|types.contains(&t))))
             .map(|v|v.4).sum::<i64>();
         let progress = |value: i64| {
             if n(row,"ReqProgress") > 0 { value }
@@ -33,9 +32,8 @@ impl View {
                 | "MAIN_MISSION_GOAL_34" | "MILESTONE_MISSION_GOAL_1") => {
                 let tower = if matches!(goal,"MAIN_MISSION_GOAL_34"|"MILESTONE_MISSION_GOAL_1") {11} else {21};
                 let floor = self.metrics.iter().filter(|(_,k,_,_,v)| k=="ClearDungeon" && *v>0)
-                    .flat_map(|(_,_,c,d,_)|s.tables.battle.rows("TowerFloor").iter()
-                        .filter(move |f|n(f,"TowerIndex")==tower && n(f,"ChapterIndex")==*c && n(f,"DungeonIndex")==*d))
-                    .map(|f|n(f,"Floor")).max().unwrap_or(0);
+                    .filter_map(|(_,_,c,d,_)|self.primary_tower_floor(s,tower,*c,*d))
+                    .max().unwrap_or(0);
                 required().is_some_and(|target| floor>=target) as i64
             }
             ("ClearDungeon", "MILESTONE_MISSION_GOAL_118") => progress(self.metric("CompleteWorldBoss","all",None,None)),

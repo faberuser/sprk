@@ -1589,3 +1589,42 @@ async fn guild_damage_progression_uses_saved_personal_raid_damage_and_64_bit_thr
     assert_eq!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[1002190]").await["Result"],"Success");
     assert_ne!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[1002190]").await["Result"],"Success");
 }
+
+
+/// Diagnostic harness: uses an explicit isolated database copy, never the live DB.
+#[tokio::test]
+#[ignore]
+async fn progression_latency_profile() {
+    let path=std::path::PathBuf::from(std::env::var("SPRK_PERF_DB").expect("Set SPRK_PERF_DB to an isolated target database copy"));
+    let path=path.canonicalize().unwrap();
+    assert!(path.starts_with(std::env::current_dir().unwrap().join("target").canonicalize().unwrap()));
+    let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&path).read_only(true)).await.unwrap();
+    let s=AppState::new(db,crate::tables::test_tables());
+    let account:i64=sqlx::query_scalar("SELECT account_id FROM heroes GROUP BY account_id ORDER BY COUNT(*) DESC LIMIT 1").fetch_one(&s.db).await.unwrap();
+    let mut connection=s.db.acquire().await.unwrap();
+    let now=std::time::Instant::now();let view=View::load(&mut connection,account).await.unwrap();println!("PROFILE view_load_ms={:.2} heroes={} metrics={} claims={}",now.elapsed().as_secs_f64()*1000.,view.heroes.len(),view.metrics.len(),view.claims.len());
+    let now=std::time::Instant::now();let achievements=view.achievement_infos(&s);println!("PROFILE achievements_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,achievements.len());
+    let now=std::time::Instant::now();let quests=view.subquest_infos(&s);println!("PROFILE subquests_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,quests.len());
+    let now=std::time::Instant::now();let records=play_record::snapshot(&mut connection,&s,account,&view).await.unwrap();println!("PROFILE records_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,records.len());
+    let now=std::time::Instant::now();let _=opened_mission_categories(&s,&view);println!("PROFILE categories_ms={:.2}",now.elapsed().as_secs_f64()*1000.);
+    let now=std::time::Instant::now();let result=snapshot(&mut connection,&s,account).await.unwrap();println!("PROFILE full_snapshot_ms={:.2}",now.elapsed().as_secs_f64()*1000.);
+    // PlayRecord timestamps describe response creation, not saved progress.
+    let mut comparable = result;
+    for row in comparable["PlayRecordInfos"].as_array_mut().unwrap() {
+        row.as_object_mut().unwrap().remove("UpdatedTime");
+    }
+    let output=std::path::PathBuf::from("target/api-latency/progression-golden.json");
+    if output.exists() {
+        let mut before:Value=serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
+        for row in before["PlayRecordInfos"].as_array_mut().unwrap() {
+            row.as_object_mut().unwrap().remove("UpdatedTime");
+        }
+        for (key, value) in comparable.as_object().unwrap() {
+            assert!(value == &before[key], "Changed snapshot field {key}");
+        }
+        assert_eq!(comparable.as_object().unwrap().len(),before.as_object().unwrap().len());
+        println!("PROFILE progression_payload_matches_baseline=true");
+    } else {
+        std::fs::write(output,serde_json::to_vec_pretty(&comparable).unwrap()).unwrap();
+    }
+}

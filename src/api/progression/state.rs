@@ -1,6 +1,36 @@
 use super::*;
 use chrono::{Datelike, Duration, Utc};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
+
+/// Immutable table lookups shared by evaluations within one account snapshot.
+/// Player progress is always loaded afresh; nothing survives into the next request.
+#[derive(Default)]
+struct BattleLookup {
+    types: BTreeMap<(i64, i64), i64>,
+    primary_floors: BTreeMap<(i64, i64, i64), i64>,
+    floors: BTreeSet<(i64, i64, i64)>,
+}
+impl BattleLookup {
+    fn new(table: &crate::tables::BattleTable) -> Self {
+        let mut out = Self::default();
+        for row in table.rows("CampaignDungeon") {
+            // Preserve BattleTable::find's first matching row semantics.
+            if let (Some(chapter), Some(dungeon)) = (row["ChapterIndex"].as_i64(), row["DungeonIndex"].as_i64()) {
+                out.types.entry((chapter, dungeon)).or_insert_with(|| n(row, "BattleType"));
+            }
+        }
+        for row in table.rows("TowerFloor") {
+            let (tower, chapter, dungeon, floor) = (n(row,"TowerIndex"), n(row,"ChapterIndex"), n(row,"DungeonIndex"), n(row,"Floor"));
+            out.primary_floors.entry((tower,chapter,dungeon)).and_modify(|f| *f=(*f).max(floor)).or_insert(floor);
+            out.floors.insert((tower,chapter,dungeon));
+            for dungeon in row["DungeonIndices"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
+                out.floors.insert((tower,chapter,dungeon));
+            }
+        }
+        out
+    }
+}
 
 pub(super) fn daily_hot_time(row: &Value) -> bool {
     // These native daily missions share Limited with retired event milestones,
@@ -36,6 +66,7 @@ pub(super) fn period(row: &Value) -> String {
     "all".into()
 }
 pub(super) struct View {
+    battle_lookup: OnceLock<BattleLookup>,
     pub heroes: Vec<Value>,
     pub soul_weapons: Vec<Value>,
     pub dungeons: Vec<(i64, i64, i64, i64)>,
@@ -60,6 +91,7 @@ impl View {
             .map(|h| serde_json::to_value(h).unwrap())
             .collect();
         Ok(Self {
+            battle_lookup: OnceLock::new(),
             heroes,
             guild_damage: sqlx::query_as::<_, (String, i64)>("SELECT kind,SUM(score) FROM guild_battle_scores WHERE account=? GROUP BY kind")
                 .bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
@@ -83,6 +115,15 @@ impl View {
             items:sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=?").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
             entitlements:sqlx::query_scalar::<_,i64>("SELECT product_index FROM progression_entitlements WHERE account_id=?").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
         })
+    }
+    pub(super) fn battle_type(&self, state: &AppState, chapter: i64, dungeon: i64) -> Option<i64> {
+        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).types.get(&(chapter,dungeon)).copied()
+    }
+    pub(super) fn primary_tower_floor(&self, state: &AppState, tower: i64, chapter: i64, dungeon: i64) -> Option<i64> {
+        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).primary_floors.get(&(tower,chapter,dungeon)).copied()
+    }
+    fn is_tower_floor(&self, state: &AppState, tower: i64, chapter: i64, dungeon: i64) -> bool {
+        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).floors.contains(&(tower,chapter,dungeon))
     }
     pub fn last(&self, family: &str, id: i64, p: &str) -> i64 {
         self.claims
@@ -364,17 +405,12 @@ impl View {
             "GuildJoin" => self.guild as i64,
             "ClearDungeon" => self.metric("ClearDungeon", &p, None, None),
             "ClearUnderPrison" => self.metrics.iter().filter(|(day,kind,chapter,dungeon,_)|
-                (p=="all" || day>=&p) && kind=="ClearDungeon" && state.tables.battle
-                    .find("CampaignDungeon",&[("ChapterIndex",*chapter),("DungeonIndex",*dungeon)])
-                    .is_some_and(|d|n(d,"BattleType")==37))
+                (p=="all" || day>=&p) && kind=="ClearDungeon" && self.battle_type(state,*chapter,*dungeon)==Some(37))
                 .map(|v|v.4).sum(),
             "ClearChallengeTowerDaily" | "ClearChallengeTowerWeekly" | "ClearOrdealTowerWeekly" => {
                 let tower=if kind=="ClearOrdealTowerWeekly" {11} else {21};
                 self.metrics.iter().filter(|(day,kind,chapter,dungeon,_)|
-                    (p=="all" || day>=&p) && kind=="ClearDungeon" && state.tables.battle.rows("TowerFloor").iter()
-                        .any(|floor|n(floor,"TowerIndex")==tower && n(floor,"ChapterIndex")==*chapter &&
-                            (n(floor,"DungeonIndex")==*dungeon || floor["DungeonIndices"].as_array()
-                                .is_some_and(|ids|ids.contains(&json!(dungeon))))))
+                    (p=="all" || day>=&p) && kind=="ClearDungeon" && self.is_tower_floor(state,tower,*chapter,*dungeon))
                     .map(|v|v.4).sum()
             }
             "ClearWorldBossDaily" | "ClearWorldBossWeekly" | "JoinWorldBoss" =>
@@ -455,5 +491,42 @@ impl View {
             infos.push(json!({"SubQuestIndex":id,"LastStep":last,"Progress":self.quest(state,row).min(n(row,"ReqProgress").max(1))}));
         }
         infos
+    }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    #[test]
+    fn battle_lookup_preserves_first_match_and_tower_variants() {
+        let mut table = crate::tables::BattleTable::default();
+        table.tables.insert("CampaignDungeon".into(), vec![
+            json!({"ChapterIndex":20001,"DungeonIndex":1,"BattleType":37}),
+            json!({"ChapterIndex":20001,"DungeonIndex":1,"BattleType":99}),
+            json!({"ChapterIndex":20001,"DungeonIndex":2,"BattleType":14}),
+        ]);
+        table.tables.insert("TowerFloor".into(), vec![
+            json!({"TowerIndex":21,"ChapterIndex":20001,"DungeonIndex":2,"DungeonIndices":[3,4],"Floor":5}),
+            json!({"TowerIndex":21,"ChapterIndex":20001,"DungeonIndex":2,"Floor":7}),
+            json!({"TowerIndex":11,"ChapterIndex":20001,"DungeonIndex":4,"Floor":8}),
+        ]);
+        let lookup = BattleLookup::new(&table);
+        for chapter in [20001,20002] {
+            for dungeon in 0..=5 {
+                let linear = table.find("CampaignDungeon", &[("ChapterIndex",chapter),("DungeonIndex",dungeon)]).map(|r|n(r,"BattleType"));
+                assert_eq!(lookup.types.get(&(chapter,dungeon)).copied(), linear);
+                for tower in [11,21,99] {
+                    let primary = table.rows("TowerFloor").iter()
+                        .filter(|r|n(r,"TowerIndex")==tower && n(r,"ChapterIndex")==chapter && n(r,"DungeonIndex")==dungeon)
+                        .map(|r|n(r,"Floor")).max();
+                    assert_eq!(lookup.primary_floors.get(&(tower,chapter,dungeon)).copied(),primary);
+                    let any = table.rows("TowerFloor").iter().any(|r|
+                        n(r,"TowerIndex")==tower && n(r,"ChapterIndex")==chapter &&
+                        (n(r,"DungeonIndex")==dungeon || r["DungeonIndices"].as_array().is_some_and(|ids|ids.contains(&json!(dungeon)))));
+                    assert_eq!(lookup.floors.contains(&(tower,chapter,dungeon)),any);
+                }
+            }
+        }
     }
 }
