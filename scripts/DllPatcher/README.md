@@ -512,3 +512,21 @@ Deploy the server before distributing this client patch.
 `--self-test-honor-buff` checks the shipping helper against native API stand-ins;
 `--verify-honor-buff` checks the installed hook and ordinary fallback. Both are
 included in `--build-release`, along with the new helper installation.
+
+
+### Isolated client storage and one-time migration
+
+`--client-storage-only` changes native Unity company `masangsoft` to `sprk`,
+retaining the product name. It stages/validates raw PlayerSettings without
+reserializing an incompatible Unity schema. Graphics verification accepts the
+original and isolated payloads, with the corresponding timing flag offsets.
+The automation/preference bridge performs a one-time, non-overwriting copy of
+SPRK account stores and selected preferences before normal settings load.
+Receipts prevent later official-client data from being imported again.
+
+`--self-test-client-storage` covers migration/retry/receipt behavior;
+`--verify-client-storage` checks installed assets and startup hooks. The full
+`--build-release` path installs, verifies and tests this change. Windows native
+validation is `python scripts/client/verify_client_storage.py` after staging.
+See [client storage migration and retirement](../../docs/client-storage-migration.md)
+for adoption reports, limits of offline-player coverage, and exact cleanup steps.

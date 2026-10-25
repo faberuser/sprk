@@ -68,13 +68,14 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
 4. Publish after all intended client changes are installed and relevant checks
    pass. Use the existing signing key:
 
-   ```powershell
-   python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
-   ```
+    ```powershell
+    python scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
+    ```
 
-   Replace `<new-release-id>` with the chosen identifier. The publisher creates
-   `client-updates/releases/<new-release-id>/` and updates
-   `client-updates/stable/manifest.json` atomically.
+    Replace `<new-release-id>` with the chosen identifier. The publisher creates
+    `client-updates/releases/<new-release-id>/` and updates
+    `client-updates/stable/manifest.json` atomically.
+
 5. Preserve the managed file selection across releases. Normally use the default
    includes. If modifying additional assets, inspect the publisher's
    `DEFAULT_INCLUDES` and the previous manifest, then supply **all** required

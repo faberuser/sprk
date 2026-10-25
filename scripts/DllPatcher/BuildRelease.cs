@@ -36,6 +36,9 @@ partial class Program
         VerifyFreeCameraFile(clientRoot);
         InstallGraphicsOptions(clientRoot, false);
         VerifyGraphicsOptionsFile(clientRoot);
+        InstallClientStorage(clientRoot, false);
+        VerifyClientStorage(clientRoot);
+        TestClientStorage();
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
         InstallRoomShortcut(clientRoot, false);

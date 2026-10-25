@@ -1,0 +1,71 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+public static class StorageMigrationTestRunner {
+    sealed class Preferences:SprkStorageMigration.Preferences {
+        public readonly Dictionary<string,string> Old=new Dictionary<string,string>(),New=new Dictionary<string,string>();
+        public string Receipt;public int Reads;public bool Fail;
+        public string ReadReceipt(){return Receipt;}
+        public IEnumerable<string> LegacyNames(){Reads++;return Old.Keys;}
+        public bool Contains(string name){return New.ContainsKey(name);}
+        public void Copy(string name){if(Fail)throw new IOException("Injected copy failure");New[name]=Old[name];}
+        public void SaveReceipt(string value){Receipt=value;}
+    }
+    static void Check(bool ok,string message){if(!ok)throw new Exception(message);}
+    public static void Run(){
+        string root=Path.Combine(Path.GetTempPath(),"SprkStorageTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
+        string old=Path.Combine(root,"old"),next=Path.Combine(root,"new");Directory.CreateDirectory(old);Directory.CreateDirectory(next);
+        string file=Path.Combine(old,"sprk-accounts.dat");File.WriteAllText(file,"saved accounts");File.WriteAllText(Path.Combine(old,"official-cache.dat"),"official");
+        var hash=new string('A',64);Directory.CreateDirectory(Path.Combine(old,"SprkServers",hash));File.WriteAllText(Path.Combine(old,"SprkServers",hash,"sprk-accounts.dat"),"server accounts");
+        Directory.CreateDirectory(Path.Combine(old,"sprk-accounts.dat.sessions"));File.WriteAllText(Path.Combine(old,"sprk-accounts.dat.sessions","active.lock"),"locked");
+        var prefs=new Preferences();prefs.Old["Sprk.Graphics.Method_h123"]="4";prefs.Old["KingsRaid_SystemOption_spec_h123"]="Original";prefs.Old["OfficialAccessToken"]="do not copy";prefs.Old["Sprk.Window.Mode_h123"]="1";
+        prefs.New["Sprk.Graphics.Method_h123"]="2";
+        string receipt=SprkStorageMigration.Migrate(old,next,prefs);
+        Check(File.ReadAllText(Path.Combine(next,"sprk-accounts.dat"))=="saved accounts","Saved accounts lost");
+        Check(File.ReadAllText(Path.Combine(next,"SprkServers",hash,"sprk-accounts.dat"))=="server accounts","Per-server account stores lost");
+        Check(!File.Exists(Path.Combine(next,"official-cache.dat"))&&!Directory.Exists(Path.Combine(next,"sprk-accounts.dat.sessions")),"Official cache or active leases copied");
+        Check(prefs.New["Sprk.Graphics.Method_h123"]=="2"&&prefs.New["KingsRaid_SystemOption_spec_h123"]=="Original"&&!prefs.New.ContainsKey("OfficialAccessToken")&&prefs.New["Sprk.Window.Mode_h123"]=="1","Preference scope/overwrite");
+        Check(File.ReadAllText(file)=="saved accounts","Source was changed");
+        File.WriteAllText(file,"future official data");prefs.Old["KingsRaid_SystemOption_spec_h123"]="future";File.Delete(Path.Combine(next,"sprk-accounts.dat"));
+        Check(SprkStorageMigration.Migrate(old,next,prefs)==receipt&&prefs.Reads==1&&!File.Exists(Path.Combine(next,"sprk-accounts.dat")),"Completed migration reread future old data");
+        File.Delete(Path.Combine(next,SprkStorageMigration.MarkerName));
+        Check(SprkStorageMigration.Migrate(old,next,prefs)==receipt&&prefs.Reads==1,"Registry tombstone did not prevent recopy");
+        var empty=new Preferences();string absent=Path.Combine(root,"not-created"),fresh=Path.Combine(root,"fresh");
+        SprkStorageMigration.Migrate(absent,fresh,empty);Directory.CreateDirectory(absent);File.WriteAllText(Path.Combine(absent,"sprk-accounts.dat"),"future client");
+        SprkStorageMigration.Migrate(absent,fresh,empty);Check(!File.Exists(Path.Combine(fresh,"sprk-accounts.dat"))&&empty.Reads==1,"Fresh install imported later official data");
+        var failure=new Preferences{Fail=true};failure.Old["Sprk.Graphics.Method_h123"]="3";string retry=Path.Combine(root,"retry");
+        bool threw=false;try{SprkStorageMigration.Migrate(old,retry,failure);}catch(IOException){threw=true;}
+        Check(threw&&failure.Receipt==null&&!File.Exists(Path.Combine(retry,SprkStorageMigration.MarkerName)),"Failed migration was marked complete");
+        failure.Fail=false;SprkStorageMigration.Migrate(old,retry,failure);Check(failure.New.Count==1&&File.Exists(Path.Combine(retry,SprkStorageMigration.MarkerName)),"Interrupted migration could not resume");
+        File.WriteAllText(Path.Combine(fresh,SprkStorageMigration.MarkerName),"corrupt");threw=false;
+        try{SprkStorageMigration.Migrate(absent,fresh,empty);}catch(InvalidDataException){threw=true;}
+        Check(threw&&empty.Reads==1,"Corrupt receipt triggered a fresh old-data import");
+        string busy=Path.Combine(root,"busy");Directory.CreateDirectory(busy);var locked=new Preferences();
+        using(var gate=new FileStream(Path.Combine(busy,"sprk-storage-migration-v1.lock"),FileMode.Create,FileAccess.ReadWrite,FileShare.None)) {
+            threw=false;try{SprkStorageMigration.Migrate(old,busy,locked);}catch(IOException){threw=true;}
+            Check(threw&&locked.Reads==0,"Concurrent migration touched legacy storage");
+        }
+        SprkStorageMigration.Migrate(old,busy,locked);Check(locked.Receipt!=null,"Lock retry failed");
+        Check(Path.GetFullPath(root).StartsWith(Path.GetFullPath(Path.GetTempPath()),StringComparison.OrdinalIgnoreCase),"Invalid test cleanup root");Directory.Delete(root,true);
+    }
+}
+namespace UnityEngine {
+ public class Object {public static void DontDestroyOnLoad(object value){}}
+ public class MonoBehaviour:Object {public object StartCoroutine(IEnumerator value){return null;}}
+ public class GameObject {public GameObject(string name){}public T AddComponent<T>() where T:new(){return new T();}}
+ public static class Application {public static string companyName="test",persistentDataPath="unused";public static void Quit(){}}
+ public static class Time {public static float realtimeSinceStartup;}
+ public static class Debug {public static void Log(string text){}public static void LogWarning(string text){}}
+ public static class PlayerPrefs {public static void SetInt(string key,int value){}public static void SetFloat(string key,float value){}public static void SetString(string key,string value){}public static int GetInt(string key,int value){return value;}public static void Save(){}}
+ public static class JsonUtility {public static string ToJson(object value){return "{}";}}
+}
+namespace UnityEngine.Networking {
+ public class UploadHandlerRaw {public UploadHandlerRaw(byte[] bytes){}}
+ public class DownloadHandlerBuffer {public string text="{\"Result\":\"Success\"}";}
+ public class UnityWebRequest:IDisposable {public UnityWebRequest(string url,string method){}public UploadHandlerRaw uploadHandler;public DownloadHandlerBuffer downloadHandler;public int timeout;public bool isNetworkError,isHttpError;public static string EscapeURL(string value){return value;}public void SetRequestHeader(string a,string b){}public object SendWebRequest(){return null;}public void Dispose(){}}
+}
+namespace NVespa {}
+namespace NVespa.NGlobal {public class WebServiceManager {public Requester Requester=new Requester();}public class Requester {public string SessionKey="",Host="http://localhost";}}
+namespace NVespa.NSingleton {public static class SingletonUpdater<T> where T:new(){public static T instance=new T();}}
+namespace LitJson {public class JsonData {public JsonData this[string key]{get{return this;}}public string valueStr="Success";public void ReleaseAll(){}}public static class JsonMapper {public static JsonData ToObject(string text){return new JsonData();}}}

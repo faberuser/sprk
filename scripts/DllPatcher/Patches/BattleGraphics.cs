@@ -40,21 +40,30 @@ partial class Program {
             throw new InvalidOperationException("Destroyed pool entries must continue to the next reusable entry.");
         VerifyArenaResultStack(dequeue);
     }
-    // Unity 6000.0.53f1's native 808-byte PlayerSettings object, captured before
-    // modification. Its entire serialized payload must match; only byte 648
-    // (enableFrameTimingStats) is changed. Never reserialize this asset using a
-    // mismatched Unity schema. All other globalgamemanagers bytes are retained.
+    // Match complete raw payloads for the baseline and isolated company name.
+    // Company conversion shortens the aligned string by eight bytes, shifting
+    // the timing flag from 648 to 640. Never guess Unity's opaque schema.
     const int FrameTimingFlag=648;
-    static int FindFrameTimingSettings(byte[] bytes,out bool enabled) {
+    static byte[] IsolatedPlayerSettings(byte[] original) {
+        if(original.Length!=808 || BitConverter.ToInt32(original,36)!=10 || System.Text.Encoding.UTF8.GetString(original,40,10)!="masangsoft")
+            throw new InvalidOperationException("Unsupported native company fingerprint.");
+        var result=new byte[800];Array.Copy(original,0,result,0,36);Array.Copy(BitConverter.GetBytes(4),0,result,36,4);
+        Array.Copy(System.Text.Encoding.UTF8.GetBytes("sprk"),0,result,40,4);Array.Copy(original,52,result,44,756);return result;
+    }
+    static byte[] OriginalPlayerSettings() {
         using var resource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.FrameTimingPlayerSettings.bin")!;
-        using var buffer=new MemoryStream();resource.CopyTo(buffer);var original=buffer.ToArray();
-        if(original.Length!=808 || original[FrameTimingFlag]!=0)throw new InvalidOperationException("Invalid native PlayerSettings fingerprint.");
-        var active=(byte[])original.Clone();active[FrameTimingFlag]=1;
-        int off=bytes.AsSpan().IndexOf(original),on=bytes.AsSpan().IndexOf(active);
-        int offset=off>=0?off:on;enabled=on>=0;
-        if(offset<0 || off>=0 && on>=0 || bytes.AsSpan(offset+1).IndexOf(enabled?active:original)>=0)
-            throw new InvalidOperationException("Unsupported or ambiguous PlayerSettings layout; refusing to change globalgamemanagers.");
-        return offset+FrameTimingFlag;
+        using var buffer=new MemoryStream();resource.CopyTo(buffer);return buffer.ToArray();
+    }
+    static int FindFrameTimingSettings(byte[] bytes,out bool enabled) {
+        var original=OriginalPlayerSettings();int match=-1;enabled=false;
+        foreach(var (pattern,flag) in new[]{(original,648),(IsolatedPlayerSettings(original),640)})
+        foreach(var value in new[]{0,1}) {
+            var candidate=(byte[])pattern.Clone();candidate[flag]=(byte)value;
+            int offset=bytes.AsSpan().IndexOf(candidate);if(offset<0)continue;
+            if(match>=0 || bytes.AsSpan(offset+1).IndexOf(candidate)>=0)throw new InvalidOperationException("Ambiguous PlayerSettings fingerprint.");
+            match=offset+flag;enabled=value==1;
+        }
+        if(match<0)throw new InvalidOperationException("Unsupported native PlayerSettings layout.");return match;
     }
     static void StageFrameTimingSettings(string root) {
         var path=Path.Combine(root,"King's Raid_Data","globalgamemanagers");var bytes=File.ReadAllBytes(path);

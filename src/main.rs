@@ -151,6 +151,7 @@ async fn game_router() -> anyhow::Result<Router> {
 
     // Build router with all API routes
     let app = Router::new()
+        .route("/client/storage_status", post(api::system::storage::report))
         .route("/ws/chat", get(websocket::chat))
         .route("/ws/battle", get(websocket::battle))
         .merge(api::services::routes(&state.tables.services))

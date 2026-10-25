@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="../client/isolate_client_storage.py" LogicalName="DllPatcher.isolate_client_storage.py" />
+    <EmbeddedResource Include="Resources/StorageMigrationTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.StorageMigrationTests.cs.txt" />
+    <EmbeddedResource Include="Resources/StorageMigration.cs.txt" WithCulture="false" LogicalName="DllPatcher.StorageMigration.cs.txt" />
     <EmbeddedResource Include="Resources/HonorBuffTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.HonorBuffTests.cs.txt" />
     <EmbeddedResource Include="Resources/HonorBuff.cs.txt" WithCulture="false" LogicalName="DllPatcher.HonorBuff.cs.txt" />
     <EmbeddedResource Include="Resources/SpecialShop.cs.txt" WithCulture="false" LogicalName="DllPatcher.SpecialShop.cs.txt" />

@@ -117,3 +117,8 @@ dotnet run --project scripts/DllDisasm -- "D:\path\to\game\client"
 ## Credits
 
 Thanks to Shamomylle/keirakoro/zanezonair for providing clients for this project.
+
+
+Client local data uses an isolated `sprk` namespace. See
+[storage migration, adoption checks and retirement](docs/client-storage-migration.md)
+for preserving existing players' settings and safely removing legacy import later.

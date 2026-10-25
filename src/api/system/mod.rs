@@ -6,3 +6,5 @@ pub mod middleware;
 pub mod ping;
 pub mod query;
 pub(crate) mod request;
+
+pub mod storage;
