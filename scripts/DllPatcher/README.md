@@ -474,3 +474,21 @@ Updated clients encode `ClaimUntilFull=true`; the matching server uses a
 savepoint per mail, commits earlier successful claims, and leaves every
 attachment of the blocked mail untouched. Legacy clients retain their atomic
 batch behavior. Deploy the matching server before distributing this client.
+
+
+### Progressive dispatch results
+
+`--dispatch-only` installs the native simulator helper with progressive uploads.
+Each polling pass prepares at most one battle per slot, saves the cumulative
+outcome/time prefix, and refreshes native dispatch UI. It resumes from server
+prefixes after relogging and retries an unacknowledged prefix before simulating
+another run. The matching server anchors time at entry, rejects rewritten
+prefixes, prevents collection while any runs remain unprepared, and settles
+only completed victories on cancellation. Saved outcomes progress offline;
+unprepared runs require a logged-in client to simulate them. Legacy full-batch
+reports keep their existing contract. Deploy the matching server first.
+
+`--self-test-dispatch` exercises the shipping coroutine with controlled native
+engine/network stand-ins: first result from a 200-run job, upload retry, persisted
+resume, slot fairness, timeout and session replacement. `--verify-dispatch` checks
+installed hooks and protocol fields. Both run in `--build-release`.

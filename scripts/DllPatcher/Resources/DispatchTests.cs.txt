@@ -1,0 +1,113 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+public static class DispatchTestRunner {
+    static void Check(bool ok,string label) {if(!ok)throw new Exception(label);}
+    static SprkDispatch Worker() {
+        var worker=new SprkDispatch();typeof(SprkDispatch).GetField("owner",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(worker,1L);return worker;
+    }
+    static IEnumerator Invoke(SprkDispatch w,string method,params object[] args) {
+        return (IEnumerator)typeof(SprkDispatch).GetMethod(method,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(w,args);
+    }
+    static void RunRoutine(IEnumerator routine) {
+        int count=0;
+        while(routine.MoveNext()) {
+            if(++count>500)throw new Exception("Unbounded dispatch coroutine");
+            if(routine.Current is IEnumerator)RunRoutine((IEnumerator)routine.Current);
+            UnityEngine.Time.realtimeSinceStartup+=1;
+        }
+    }
+    static SprkDispatch.Job Job(string id="job",int slot=1) {return new SprkDispatch.Job {SlotIndex=slot,ChapterIndex=1,DungeonIndex=1,Difficulty=1,RepeatCount=200,SimulationVersion=1,State="Simulation",HeroIndices="[1]",SimulationJobId=id};}
+    static void Reset() {FakeNetwork.Requests.Clear();FakeNetwork.Replies.Clear();FakeSimulator.Uids.Clear();FakeSimulator.Timeout=false;FakeSimulator.ChangeSession=false;UnityEngine.Time.realtimeSinceStartup=0;NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="session";}
+    public static void Run() {
+        Reset();var worker=Worker();var job=Job();
+        RunRoutine(Invoke(worker,"Prepare",job));
+        Check(FakeSimulator.Uids.Count==1,"First result waited for all 200 simulations");
+        var first=FakeNetwork.Requests.Single();
+        Check(first["Results"]=="[1]"&&first["TimesMs"]=="[1000]"&&first["Progressive"]=="true","First prefix payload");
+        // Fresh snapshot after a lost reply has no saved prefix. Retry cached combat.
+        RunRoutine(Invoke(worker,"Prepare",Job()));
+        Check(FakeSimulator.Uids.Count==1 && FakeNetwork.Requests.Count==2,"Lost-response retry reran combat");
+        job=Job();job.State="Battle";job.Saved.Outcomes.Add(1);job.Saved.Times.Add(1000);
+        RunRoutine(Invoke(worker,"Prepare",job));
+        Check(FakeSimulator.Uids.Last()=="sprk-dispatch:job:1" && FakeNetwork.Requests.Last()["Results"]=="[1,1]","Next prefix and deterministic run index");
+        Reset();worker=Worker();FakeNetwork.Replies.Enqueue("{\"Result\":\"Fail\"}");
+        RunRoutine(Invoke(worker,"Prepare",Job()));
+        job=Job();job.State="Battle";job.Saved.Outcomes.Add(0);job.Saved.Times.Add(1000);
+        RunRoutine(Invoke(worker,"Prepare",job));
+        Check(FakeNetwork.Requests.Last()["Results"]=="[0,1]","Rejected upload did not reload authoritative prefix");
+        Reset();worker=Worker();job=Job();job.State="Battle";job.Saved.Outcomes.Add(0);job.Saved.Times.Add(2000);
+        Check(SprkDispatch.NeedsPreparation(job),"Partial Battle state was abandoned");
+        RunRoutine(Invoke(worker,"Prepare",job));
+        Check(FakeNetwork.Requests.Single()["Results"]=="[0,1]"&&FakeSimulator.Uids.Single().EndsWith(":1"),"Resume from persisted server prefix");
+        job.State="Cancel";Check(!SprkDispatch.NeedsPreparation(job),"Cancelled job still pending");
+        job.State="Complete";Check(!SprkDispatch.NeedsPreparation(job),"Complete job still pending");
+        job.State="Battle";job.RepeatCount=job.Saved.Outcomes.Count;Check(!SprkDispatch.NeedsPreparation(job),"Prepared job still pending");
+        Reset();worker=Worker();FakeSimulator.Timeout=true;
+        RunRoutine(Invoke(worker,"Prepare",Job()));
+        Check(FakeNetwork.Requests.Count==0,"Timed out combat was uploaded");
+        Reset();worker=Worker();FakeSimulator.ChangeSession=true;
+        RunRoutine(Invoke(worker,"Prepare",Job()));
+        Check(FakeNetwork.Requests.Count==0,"Old-session combat was uploaded");
+        Reset();worker=Worker();
+        FakeNetwork.Replies.Enqueue("{\"Result\":\"Success\",\"DispatchBattleInfos\":["+JsonJob("one",1)+","+JsonJob("two",2)+"]}");
+        RunRoutine(Invoke(worker,"Poll"));
+        Check(FakeSimulator.Uids.SequenceEqual(new[]{"sprk-dispatch:one:0","sprk-dispatch:two:0"}),"A slot monopolized preparation");
+        Check(FakeNetwork.Requests.Count(r=>r.ContainsKey("Progressive"))==2,"Both slots did not upload a first prefix");
+    }
+    static string JsonJob(string id,int slot) {return "{\"SlotIndex\":"+slot+",\"ChapterIndex\":1,\"DungeonIndex\":1,\"Difficulty\":1,\"RepeatCount\":200,\"SimulationVersion\":1,\"State\":\"Simulation\",\"HeroIndices\":\"[1]\",\"SimulationJobId\":\""+id+"\"}";}
+}
+public static class FakeNetwork {
+    public static readonly List<Dictionary<string,string>> Requests=new List<Dictionary<string,string>>();
+    public static readonly Queue<string> Replies=new Queue<string>();
+}
+public static class FakeSimulator {public static readonly List<string> Uids=new List<string>();public static bool Timeout,ChangeSession;}
+namespace UnityEngine {
+    public class Object {public static void DontDestroyOnLoad(object o){}}
+    public class MonoBehaviour:Object {public object StartCoroutine(IEnumerator e){return null;}}
+    public class GameObject {public GameObject(string name){}public T AddComponent<T>() where T:new(){return new T();}}
+    public static class Time {public static float realtimeSinceStartup;public static int frameCount;}
+    public static class Debug {public static void Log(object o){}public static void LogWarning(object o){}}
+}
+namespace UnityEngine.Networking {
+    public class UploadHandlerRaw {public byte[] Bytes;public UploadHandlerRaw(byte[] b){Bytes=b;}}
+    public class DownloadHandlerBuffer {public string text;}
+    public class UnityWebRequest:IDisposable {
+        public UploadHandlerRaw uploadHandler;public DownloadHandlerBuffer downloadHandler;public int timeout;public bool isNetworkError,isHttpError;
+        public UnityWebRequest(string uri,string method){}
+        public static string EscapeURL(string s){return Uri.EscapeDataString(s);}
+        public void SetRequestHeader(string key,string value){}
+        public object SendWebRequest(){var form=System.Text.Encoding.UTF8.GetString(uploadHandler.Bytes).Split('&').ToDictionary(p=>Uri.UnescapeDataString(p.Split('=')[0]),p=>Uri.UnescapeDataString(p.Split('=')[1]));FakeNetwork.Requests.Add(form);downloadHandler.text=FakeNetwork.Replies.Count>0?FakeNetwork.Replies.Dequeue():"{\"Result\":\"Success\"}";return null;}
+        public void Dispose(){}
+    }
+}
+namespace NGame2.NAccount {public class AccountManager {public bool LoginResponseComplete=true;public UserInfo UserInfo=new UserInfo();}public class UserInfo {public long AccountId=1;}}
+namespace NGame2.NDispatchBattle {public static class DispatchHelper {public static void SendRQGetDispatchList(object callback){}}}
+namespace NGame2.NBattleSimulator {public static class BattleSimulationFacade {
+    public static NShared.BattleSimulationInstance RunBattleSimulation(string uid,int[] ids,int chapter,int dungeon,int difficulty,bool b){FakeSimulator.Uids.Add(uid);if(FakeSimulator.ChangeSession)NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="replaced";return new NShared.BattleSimulationInstance{IsBattleEnd=!FakeSimulator.Timeout};}
+    public static void RemoveInstance(NShared.BattleSimulationInstance instance){}
+}}
+namespace NShared {
+    public enum BaseResultType {Success,Fail}
+    public class BattleSimulationInstance {public bool IsBattleEnd,IsBattleStopped;public void Stop(){}public SimulationResult GetBattleSimulationResultInfo(){return new SimulationResult();}}
+    public class SimulationResult {public bool IsWin=true;public long RealTime=1000;}
+}
+namespace NShared.StartDispatch {public enum ResultType{Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;}}
+namespace NGame2.NUI.NWindow {public static class MessagePopup {public static void OpenError(object error){}public static void Open(string title,string text){}}}
+namespace NVespa {public class WebServiceManager {public Requester Requester=new Requester();}public class Requester {public string Host="http://localhost",SessionKey="session";}}
+namespace NVespa.NGlobal {public static class GlobalAutoBehaviour<T> where T:new(){public static T instance=new T();}}
+namespace NVespa.NSingleton {public static class SingletonUpdater<T> where T:new(){public static T instance=new T();}}
+namespace LitJson {
+    public class JsonData {
+        JsonElement data;public JsonData(JsonElement e){data=e;}
+        public JsonData this[string key] {get {JsonElement child;return data.ValueKind==JsonValueKind.Object&&data.TryGetProperty(key,out child)?new JsonData(child):new JsonData(default(JsonElement));}}
+        public int valueInt {get{return data.ValueKind==JsonValueKind.Number?data.GetInt32():0;}}
+        public string valueStr {get{return data.ValueKind==JsonValueKind.String?data.GetString():null;}}
+        public int Count {get{return data.GetArrayLength();}}public bool IsArray(){return data.ValueKind==JsonValueKind.Array;}
+        public JsonData GetFromArray(int i){return new JsonData(data[i]);}public void ReleaseAll(){}
+    }
+    public static class JsonMapper {public static JsonData ToObject(string text){return new JsonData(JsonDocument.Parse(text).RootElement.Clone());}}
+}

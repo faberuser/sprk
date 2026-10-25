@@ -26,6 +26,8 @@ partial class Program
         InstallConquest(clientRoot, false);
         VerifyArcdimWorker(clientRoot);
         InstallDispatch(clientRoot, false);
+        VerifyDispatchFile(clientRoot);
+        TestDispatch();
         InstallAutomation(clientRoot);
         InstallFreeCamera(clientRoot, false);
         VerifyFreeCameraFile(clientRoot);
