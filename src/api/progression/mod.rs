@@ -19,6 +19,7 @@ pub mod notifications;
 pub(crate) mod schema;
 pub(crate) mod play_record;
 mod state;
+mod quest_scopes;
 #[cfg(test)]
 mod tests;
 use state::{period, View};

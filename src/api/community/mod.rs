@@ -61,6 +61,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE UNIQUE INDEX IF NOT EXISTS arena_active_account ON arena_runs(account) WHERE status IN ('waiting','battle')",
         "CREATE TABLE IF NOT EXISTS arena_scores(account INTEGER NOT NULL,kind INTEGER NOT NULL,season INTEGER NOT NULL,score INTEGER NOT NULL,wins INTEGER NOT NULL DEFAULT 0,losses INTEGER NOT NULL DEFAULT 0,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account,kind,season))",
         "CREATE TABLE IF NOT EXISTS guild_battle_scores(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,kind TEXT NOT NULL,season INTEGER NOT NULL,stage INTEGER NOT NULL,score INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild_id,account,kind,season,stage))",
+        "CREATE INDEX IF NOT EXISTS guild_battle_scores_account_kind ON guild_battle_scores(account,kind)",
         "CREATE TABLE IF NOT EXISTS guild_arena_decks(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,season INTEGER NOT NULL,deck INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,season,deck))",
         "CREATE TABLE IF NOT EXISTS guild_arena_records(id INTEGER PRIMARY KEY AUTOINCREMENT,guild_id INTEGER NOT NULL,enemy_guild INTEGER NOT NULL,account INTEGER NOT NULL,enemy INTEGER NOT NULL,season INTEGER NOT NULL,win INTEGER NOT NULL,data TEXT NOT NULL)",
     ] {sqlx::query(q).execute(db).await?;}

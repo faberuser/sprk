@@ -1525,3 +1525,67 @@ async fn item_removal_does_not_count_as_use_and_stamina_reward_matches_native_ty
     assert_eq!(r["staminaResults"][0]["Type"], "Chicken");
     assert_eq!(r["staminaResults"][0]["AddValue"], 10);
 }
+
+
+#[tokio::test]
+async fn tutorial_progression_does_not_complete_scoped_stockade_guild_or_crafting_missions() {
+    let (s,u)=setup().await;
+    let account=u.user_info.account_id;
+    let completed=crate::api::tutorial::complete_tutorial(State(s.clone()),axum::extract::Form(crate::api::tutorial::TutorialRequest {
+        session_id:None,session_key:Some(u.user_info.session_key.clone()),tutorial_index:Some(14000),
+    })).await.unwrap().0;
+    assert_eq!(completed["Result"],"Success");
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+1")
+        .bind(account).execute(&s.db).await.unwrap();
+    for kind in ["ConsumeStamina","StaminaUses","AddItem","BuyShopItem","CraftItem","UseItem","EnterDungeon"] {
+        record(&mut s.db.acquire().await.unwrap(),account,kind,1,1,100).await.unwrap();
+    }
+    let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
+    for row in s.tables.progression.sub_quests.iter().filter(|r|r["Kind"]=="ClearDungeon" && r["StateValue"].is_null()) {
+        assert_eq!(view.quest(&s,row),0,"Unrelated tutorial clear credited quest {} ({})",row["QuestIndex"],row["Goal"]);
+    }
+    let balance=currency(&s,&u).await;
+    for id in [10161,1002190,1002200,1002240,1002260,1002090,1002100,1002130,1002150,1002210,1002070] {
+        let result=call(&s,&u,"complete_sub_quest",&format!("SubQuestIndices=[{id}]")).await;
+        assert_ne!(result["Result"],"Success","Unrelated tutorial progress made mission {id} claimable");
+    }
+    assert_eq!(currency(&s,&u).await,balance);
+    let restored=relogin(&s).await;
+    assert_eq!(restored.sub_quest_infos.iter().find(|r|r["SubQuestIndex"]==10161).unwrap()["Progress"],0);
+    // Correctly scoped tutorial and campaign missions still progress normally.
+    let tutorial=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==10140).unwrap();
+    assert_eq!(view.quest(&s,tutorial),1);
+}
+
+#[tokio::test]
+async fn stockade_progression_requires_fragment_clears_and_corrects_existing_unclaimed_progress() {
+    let (s,u)=setup().await;
+    let account=u.user_info.account_id;
+    let row=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==10161).unwrap();
+    for (chapter,expected) in [(1,0),(20004,0),(20002,0),(20001,1)] {
+        record(&mut s.db.acquire().await.unwrap(),account,"ClearDungeon",chapter,1,1).await.unwrap();
+        let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
+        assert_eq!(view.quest(&s,row),expected,"chapter {chapter}");
+    }
+    assert_eq!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[10161]").await["Result"],"Success");
+    assert_ne!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[10161]").await["Result"],"Success");
+}
+
+#[tokio::test]
+async fn guild_damage_progression_uses_saved_personal_raid_damage_and_64_bit_thresholds() {
+    let (s,u)=setup().await;
+    let account=u.user_info.account_id;
+    let row=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==1002190).unwrap();
+    record(&mut s.db.acquire().await.unwrap(),account,"ClearDungeon",1,1,999999).await.unwrap();
+    sqlx::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES(1,?,'suppress',1,1,90000000000),(1,?,'raid',1,1,4999999999)")
+        .bind(account).bind(account).execute(&s.db).await.unwrap();
+    let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
+    assert_eq!(view.quest(&s,row),0);
+    sqlx::query("UPDATE guild_battle_scores SET score=score+1 WHERE account=? AND kind='raid'").bind(account).execute(&s.db).await.unwrap();
+    let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
+    assert_eq!(view.quest(&s,row),1);
+    let next=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==1002200).unwrap();
+    assert_eq!(view.quest(&s,next),0);
+    assert_eq!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[1002190]").await["Result"],"Success");
+    assert_ne!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[1002190]").await["Result"],"Success");
+}
