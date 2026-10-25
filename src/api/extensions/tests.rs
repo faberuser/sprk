@@ -1657,3 +1657,70 @@ async fn exp_flask_completion_keeps_locked_replacement_stock_and_never_switches_
     assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 1);
     assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40002").bind(a).fetch_one(&s.db).await.unwrap(), 3);
 }
+
+#[tokio::test]
+async fn technomagic_restoration_accepts_max_star_locked_gear_and_native_costs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+    eq.star = 5;
+    eq.identified = 1;
+    eq.locked = 1;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    give(&s, a, 990000, 203).await;
+    let result = call(&s, &u, "upgrade_equip_tier", &format!("EquipItemSlotIndex={}", eq.slot_index)).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["ResultEquipItem"]["ItemIndex"], 901101);
+    assert_eq!(result["ResultEquipItem"]["Star"], 0);
+    assert_eq!(result["ResultEquipItem"]["Locked"], 1);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 90000000);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 163);
+}
+
+#[tokio::test]
+async fn technomagic_restoration_rejections_use_native_messages_and_preserve_costs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+    eq.star = 4; eq.identified = 1;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    give(&s, a, 990000, 203).await;
+    let args = format!("EquipItemSlotIndex={}", eq.slot_index);
+    for star in [0, 1, 4, 6, 10] {
+        eq.star = star;
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEquipMaxStar");
+    }
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", "EquipItemSlotIndex=2147483647").await["Result"], "EquipNotOwned");
+    eq.star = 5;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughMaterialItem");
+    sqlx::query("UPDATE items SET locked=0 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET gold=9999999 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughGold");
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 9999999);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 203);
+    assert_eq!(equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap().item_index, 911101);
+}
+
+#[tokio::test]
+async fn technomagic_restoration_preserves_equipped_hero_for_locked_and_unlocked_gear() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 990000, 500).await;
+    for locked in [0, 1] {
+        let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+        eq.star = 5; eq.identified = 1; eq.locked = locked;
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        sqlx::query("UPDATE heroes SET equip_item_slot_index_2=? WHERE account_id=? AND hero_index=1")
+            .bind(eq.slot_index).bind(a).execute(&s.db).await.unwrap();
+        let result = call(&s, &u, "upgrade_equip_tier", &format!("EquipItemSlotIndex={}", eq.slot_index)).await;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipHeroIndex"], 1, "The native client unequips the item unless its owner is returned");
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let hero = login.heroes.iter().find(|h| h.hero_index==1).unwrap();
+        assert_eq!(hero.equip_item_slot_index_2, eq.slot_index);
+        assert_eq!(result["ResultEquipItem"]["Locked"], locked);
+    }
+}
