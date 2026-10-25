@@ -1,0 +1,76 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+
+public sealed partial class SprkGraphicsOptions {
+    static readonly string[] scaleChoices={"100%","125%","150%","175%","200%"};
+    static int NormalizeScale(int value) { return Mathf.Clamp(Mathf.RoundToInt((value-100)/25f)*25+100,100,200); }
+    static void EnsureScaleSettings() {
+        if(SprkTestPrefs.HasKey("Sprk.Graphics.RenderScale"))return;
+        int world=NormalizeScale(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100));
+        int previous=SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0);
+        int preview=previous==0?world:NormalizeScale(previous);
+        SprkTestPrefs.SetInt("Sprk.Graphics.Scale",world);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",preview);
+        SprkTestPrefs.SetInt("Sprk.Graphics.RenderScale",world==preview?world:0);SprkTestPrefs.Save();
+    }
+    static int RenderScalePreset { get { EnsureScaleSettings();int value=SprkTestPrefs.GetInt("Sprk.Graphics.RenderScale",100);return value==0?0:NormalizeScale(value); } }
+    static bool CustomScaleMode { get { return RenderScalePreset==0; } }
+    public static int Scale { get { int preset=RenderScalePreset;return preset==0?NormalizeScale(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100)):preset; } }
+    static int PreviewScale { get { int preset=RenderScalePreset;return preset==0?NormalizeScale(SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",100)):preset; } }
+    static bool IsScaleChild(string key) { return key=="Scale" || key=="PreviewScale"; }
+    static void RefreshScaleChildren(GameOptionWindow.TabUIInfo tab) {
+        foreach(var title in new[]{"World Scale","Preview Scale"}) {
+            var row=tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true).FirstOrDefault(r=>r.name=="SPRK "+title);
+            if(row==null)continue;
+            var state=row.GetComponent<SprkScaleRow>();if(state!=null && state.Refresh!=null)state.Refresh();
+            row.ParentRoot.Root.SetActive(false);row.ChildRoot.Root.SetActive(true);row.ChildRoot.Label_OptionName.text=title;
+            row.SetUIState(CustomScaleMode);row.SetGrayScale(CustomScaleMode);ConfigureGraphicsHelp(row);
+        }
+    }
+    System.Collections.IEnumerator RenderScaleSettingsProbe(List<string> report,GameOptionWindow window) {
+        string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");bool migration=true;
+        try {
+            int[,] cases={{150,0,150,150},{200,125,0,125},{100,75,100,100},{175,150,0,150}};
+            for(int i=0;i<cases.GetLength(0);i++) {
+                Environment.SetEnvironmentVariable("SPRK_AUTOMATION_PROFILE",profile+"-scale-migration-"+i);
+                SprkTestPrefs.DeleteKey("Sprk.Graphics.RenderScale");SprkTestPrefs.SetInt("Sprk.Graphics.Scale",cases[i,0]);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",cases[i,1]);
+                EnsureScaleSettings();migration &= RenderScalePreset==cases[i,2] && Scale==cases[i,0] && PreviewScale==cases[i,3];
+            }
+        } finally { Environment.SetEnvironmentVariable("SPRK_AUTOMATION_PROFILE",profile); }
+        report.Add("renderScaleMigration="+migration);
+        var rows=window.GetComponentsInChildren<GameOptionToggle4Component>(true);
+        var parent=rows.Single(r=>r.name=="SPRK Render Scale");var world=rows.Single(r=>r.name=="SPRK World Scale");var preview=rows.Single(r=>r.name=="SPRK Preview Scale");
+        Func<GameOptionToggle4Component,UIToggle[]> choices=r=>r.GetComponentsInChildren<UIToggle>(true).Where(t=>t.gameObject.activeSelf).ToArray();
+        var presets=choices(parent);bool hierarchy=presets.Length==6 && choices(world).Length==5 && choices(preview).Length==5;
+        hierarchy &= world.ChildRoot.Root.activeSelf && !world.ParentRoot.Root.activeSelf && preview.ChildRoot.Root.activeSelf && !preview.ParentRoot.Root.activeSelf;
+        SprkTestPrefs.SetInt("Sprk.Graphics.RenderScale",0);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",150);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",175);Setup(window);
+        for(int i=0;i<5;i++) {
+            presets[i].Set(true);
+            hierarchy &= Scale==100+25*i && PreviewScale==Scale && world.GetComponent<UIWidget>().isGrayscale && preview.GetComponent<UIWidget>().isGrayscale;
+            hierarchy &= choices(world)[i].value && choices(preview)[i].value;
+            // The disabled rows must also reject direct/programmatic toggle events.
+            choices(world)[(i+1)%5].Set(true);choices(preview)[(i+2)%5].Set(true);
+            hierarchy &= Scale==100+25*i && PreviewScale==Scale && SprkTestPrefs.GetInt("Sprk.Graphics.Scale",0)==150 && SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0)==175;
+        }
+        presets[5].Set(true);
+        hierarchy &= CustomScaleMode && Scale==150 && PreviewScale==175 && !world.GetComponent<UIWidget>().isGrayscale && !preview.GetComponent<UIWidget>().isGrayscale;
+        for(int i=0;i<5;i++) {
+            choices(world)[i].Set(true);choices(preview)[4-i].Set(true);
+            hierarchy &= Scale==100+25*i && PreviewScale==200-25*i;
+        }
+        // Exercise actual texture sizing with a shared preset and independent values.
+        var a=CreateWorldTarget(320,240,24);var b=CreateTarget(320,240,24);
+        presets[2].Set(true);ConfigureTarget(a,ownedTargets[a],1);ConfigureTarget(b,ownedTargets[b],1);
+        hierarchy &= a.width==480 && b.width==480;
+        presets[5].Set(true);ConfigureTarget(a,ownedTargets[a],1);ConfigureTarget(b,ownedTargets[b],1);
+        hierarchy &= a.width==640 && b.width==320;
+        ownedTargets.Remove(a);ownedTargets.Remove(b);Destroy(a);Destroy(b);
+        report.Add("renderScaleParentChildren="+hierarchy);
+        SprkTestPrefs.SetInt("Sprk.Graphics.RenderScale",0);Setup(window);yield break;
+    }
+}
+
+public sealed class SprkScaleRow : MonoBehaviour { public Action Refresh; }

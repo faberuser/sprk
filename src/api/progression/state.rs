@@ -49,6 +49,8 @@ pub(super) struct View {
     pub tutorials: BTreeSet<i64>,
     pub items: BTreeMap<i64, i64>,
     pub entitlements: BTreeSet<i64>,
+    pub guild_damage: BTreeMap<String, i64>,
+    pub conquest_kills: i64,
 }
 impl View {
     pub async fn load(db: &mut SqliteConnection, account: i64) -> Result<Self> {
@@ -59,6 +61,10 @@ impl View {
             .collect();
         Ok(Self {
             heroes,
+            guild_damage: sqlx::query_as::<_, (String, i64)>("SELECT kind,SUM(score) FROM guild_battle_scores WHERE account=? GROUP BY kind")
+                .bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
+            conquest_kills: sqlx::query_scalar("SELECT COUNT(*) FROM community_claims WHERE account=? AND kind='guild_conquest_kill'")
+                .bind(account).fetch_one(&mut *db).await?,
             // Count owned weapons, including stored/unequipped ones. The join
             // excludes orphaned soul records without treating them as ownership.
             soul_weapons: sqlx::query_scalar::<_, String>("SELECT s.data FROM extension_state s JOIN equip_items e ON e.account_id=s.account_id AND e.slot_index=s.idx WHERE s.account_id=? AND s.kind='soul'")
@@ -148,6 +154,13 @@ impl View {
         }
     }
     pub fn quest(&self, state: &AppState, row: &Value) -> i64 {
+        // The archived public table omits server-only action filters. A null
+        // StateValue must never turn a specialized mission into an any-action
+        // counter. Resolve known goals explicitly; unknown scopes stay pending.
+        if !row["StateValue"].as_array().is_some_and(|v| !v.is_empty())
+            && matches!(row["Kind"].as_str(), Some("ClearDungeon" | "WearEquip" | "GiveFriendlyPoint" | "GiveMultipleGiftItem" | "BuyShopItem" | "AddItem" | "CraftItem" | "EnterDungeon" | "UseItem" | "ConsumeStamina" | "AwakenGear" | "UpgradeEquipOption" | "UpgradeEquipTier" | "RenewEquipOption" | "Enchant" | "EquipRune" | "ArtifactRestore" | "SoulRestore" | "SoulWeaponRenewOption")) {
+            return self.scoped_quest(state, row);
+        }
         let a: Vec<i64> = row["StateValue"]
             .as_array()
             .into_iter()
@@ -195,6 +208,7 @@ impl View {
                 .count() as i64,
             "LoginDaily" => self.login_days,
             "JoinGuild" => self.guild as i64,
+            "ClearGuildSuppress" => self.conquest_kills,
             "FriendRegistration" => self.friends,
             "WearEquip" => self
                 .heroes

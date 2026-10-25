@@ -85,7 +85,7 @@ fn advance(info: &mut Value, stamp: i64) {
     info["WinCount"] = json!(wins);
     info["LoseCount"] = json!(completed - wins);
     info["ServerResult"] = json!(result_string(&results[..completed]));
-    info["State"] = json!(if completed == results.len() {
+    info["State"] = json!(if completed == n(info, "RepeatCount") as usize {
         "ReadyToComplete"
     } else {
         "Battle"
@@ -102,7 +102,10 @@ async fn simulation_result(db: &mut SqliteConnection, a: i64, r: &Request) -> Re
     }
     let outcomes: Vec<i64> = read_json(r.text("Results")).map_err(|_| rule("InvalidCount"))?;
     let times: Vec<i64> = read_json(r.text("TimesMs")).map_err(|_| rule("InvalidCount"))?;
-    if outcomes.len() != n(&info, "RepeatCount") as usize
+    let progressive = r.text("Progressive") == "true";
+    if outcomes.is_empty()
+        || outcomes.len() > n(&info, "RepeatCount") as usize
+        || (!progressive && outcomes.len() != n(&info, "RepeatCount") as usize)
         || times.len() != outcomes.len()
         || outcomes.iter().any(|v| !matches!(v, 0 | 1))
         || times.iter().any(|v| !(1..=3600000).contains(v))
@@ -116,28 +119,35 @@ async fn simulation_result(db: &mut SqliteConnection, a: i64, r: &Request) -> Re
             .map(|(outcome, time)| json!({"Outcome":outcome,"TimeMs":time}))
             .collect::<Vec<_>>()
     );
-    if info["SimulationResults"].is_array() {
-        if info["SimulationResults"] != results {
+    let previous = info["SimulationResults"].as_array();
+    if let Some(previous) = previous {
+        // Retries may repeat an immutable prefix, but cannot change any saved
+        // outcome/time, truncate the job, or switch a legacy job's protocol.
+        let incoming = results.as_array().unwrap();
+        let overlap = previous.len().min(incoming.len());
+        if previous[..overlap] != incoming[..overlap]
+            || (info["ProgressiveResults"] != true && *previous != *incoming)
+            || (info["ProgressiveResults"] == true && !progressive)
+        {
             return Err(rule("AlreadyFinishDispatchBattle"));
         }
-    } else {
+    }
+    if previous.is_none_or(|old| outcomes.len() > old.len()) {
         let total: i64 = times.iter().sum();
-        let start = now();
-        let finish = start + (total + 999) / 1000;
+        // Progressive clients start the clock at dispatch entry, rather than
+        // restarting it after every upload or after all repeats are simulated.
+        let start = if progressive { n(&info, "StartTimestamp") } else { now() };
+        let average = (total / outcomes.len() as i64).max(1);
+        let estimate = total + average * (n(&info, "RepeatCount") - outcomes.len() as i64);
+        let finish = start + (estimate + 999) / 1000;
         info["SimulationResults"] = results;
-        info["ClientResult"] = json!(
-            outcomes
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        info["ClientResultTimeMs"] = json!((total / outcomes.len() as i64).max(1));
+        info["ProgressiveResults"] = json!(progressive);
+        info["ClientResult"] = json!(outcomes.iter().map(ToString::to_string).collect::<Vec<_>>().join(","));
+        info["ClientResultTimeMs"] = json!(average);
         info["StartTimestamp"] = json!(start);
         info["FinishTimestamp"] = json!(finish);
         info["BeginTime"] = json!(time(start));
         info["CompleteTime"] = json!(time(finish));
-        info["ServerResult"] = json!("");
         info["State"] = json!("Battle");
     }
     advance(&mut info, now());
@@ -290,7 +300,9 @@ pub(super) async fn execute(
     }
     let cancel = action == "cancel_dispatch";
     advance(&mut info, now());
-    if !cancel && (info["State"] == "Simulation" || now() < n(&info, "FinishTimestamp")) {
+    let preparing = n(&info, "SimulationVersion") == 1
+        && info["SimulationResults"].as_array().map_or(0, Vec::len) < n(&info, "RepeatCount") as usize;
+    if !cancel && (preparing || info["State"] == "Simulation" || now() < n(&info, "FinishTimestamp")) {
         return Err(rule("NotCompletedDungeon"));
     }
     let total = n(&info, "RepeatCount");

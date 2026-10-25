@@ -2,12 +2,16 @@ using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using NVespa;
 using NGame2.NUI.NWindow;
 using NGame2.NUI.NRender3D;
 
 public static class SprkFreeCamera {
     sealed class State {
         public object Controller;
+        public object AnchorModel;
+        public Vector3 AnchorPivot,AnchorHead;
+        public Transform Head;
         public float Zoom=1,Yaw,Pitch;
         public Vector3 Pan;
         public Vector2 Last;
@@ -15,17 +19,36 @@ public static class SprkFreeCamera {
         public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
     }
     static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
-    sealed class LayoutState { public int Width,Height; public Transform Root; }
+    sealed class LayoutState { public int Width,Height,RefreshThrough; public Transform Root,Parent; public Camera Camera; }
     static readonly ConditionalWeakTable<BaseWindow,LayoutState> layouts=new ConditionalWeakTable<BaseWindow,LayoutState>();
+    public static bool IsScreenLayout(Transform root) {
+        if(root==null)return false;
+        var rect=root.GetComponent<UIRect>();
+        if(rect==null)return false;
+        var left=rect.leftAnchor;var right=rect.rightAnchor;
+        if(left.target==null || left.target!=right.target || left.relative!=0 || right.relative!=1 || left.absolute!=0 || right.absolute!=0)return false;
+        var panel=left.target.GetComponent<UIPanel>();
+        return left.target.GetComponent<Camera>()!=null || panel!=null && panel.clipping==UIDrawCall.Clipping.None;
+    }
+    public static void InvalidateLayout(BaseWindow window) { if(window!=null)layouts.Remove(window); }
+    public static Transform LayoutRoot(BaseWindow window) {
+        // Lobby menus anchor their children directly to panels/cameras and do
+        // not all have a stretchable Panel/Root widget.
+        if(window is LobbyTopmostMenu || window is LobbyRightMenu || window is LobbyRightGridWindow)return window.transform;
+        var root=window.transform.Find("Panel/Root");
+        return window is HeroDeck2 || SupportsWindow(window.GetType()) || IsScreenLayout(root)?root:null;
+    }
     public static void RefreshLayout(BaseWindow window) {
         if(window==null || !window.isActiveAndEnabled || !window.IsOpen())return;
-        if(!(window is HeroDeck2) && !SupportsWindow(window.GetType()))return;
-        var root=window.transform.Find("Panel/Root");
+        var root=LayoutRoot(window);
         if(root==null || !root.gameObject.activeInHierarchy)return;
         var state=layouts.GetOrCreateValue(window);
-        if(state.Root==root && state.Width==Screen.width && state.Height==Screen.height)return;
+        var camera=NGUITools.FindCameraForLayer(root.gameObject.layer);
+        if(state.Root!=root || state.Parent!=root.parent || state.Camera!=camera || state.Width!=Screen.width || state.Height!=Screen.height)
+            state.RefreshThrough=Time.frameCount+2;
+        if(Time.frameCount>state.RefreshThrough)return;
         RefreshLayoutRoot(root);
-        state.Root=root;state.Width=Screen.width;state.Height=Screen.height;
+        state.Root=root;state.Parent=root.parent;state.Camera=camera;state.Width=Screen.width;state.Height=Screen.height;
     }
     public static void RefreshLayoutRoot(Transform root) {
         // These prefabs size their root only at Start. Recycled windows and
@@ -40,12 +63,11 @@ public static class SprkFreeCamera {
     public static bool SupportsWindow(Type type) { return typeof(HeroModelView).IsAssignableFrom(type)||typeof(HeroCostumeView).IsAssignableFrom(type)||typeof(HeroDetailView).IsAssignableFrom(type); }
     static bool Eligible(HeroFullSceneViewBase window) {
         if(window==null || !SupportsWindow(window.GetType()) || !window.isActiveAndEnabled || !window.IsOpen())return false;
-        if(window is HeroDetailView){string tab=detailTab.GetValue(window).ToString();if(tab!="Animation" && tab!="None")return false;}
         return true;
     }
     static State Get(HeroFullSceneViewBase window) {
         var state=states.GetOrCreateValue(window);
-        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;}
+        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;state.AnchorModel=null;state.Head=null;}
         return state;
     }
     static float ReadSensitivity(string key) { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100)),50,150)/100f; }
@@ -111,13 +133,44 @@ public static class SprkFreeCamera {
         host.transform.localScale=Vector3.one*(2f/1080);
         var cameraHost=new GameObject("UltrawideLayoutCamera");var uiCamera=cameraHost.AddComponent<Camera>();
         uiCamera.orthographic=true;uiCamera.orthographicSize=1;uiCamera.cullingMask=1<<30;
-        foreach(var path in new[]{"Prefab2/Window/Hero/HeroDeck2","Prefab2/Window/FullScene/HeroDetailView","Prefab2/Window/FullScene/HeroCostumeView"}) {
+        foreach(var path in new[]{"Prefab2/Window/Hero/HeroDeck2","Prefab2/Window/FullScene/HeroDetailView","Prefab2/Window/FullScene/HeroCostumeView","Prefab2/Window/BattlePartySetting/BattlePartySetting","Prefab2/Window/Raid/RaidPartySetting","Prefab2/Window/Raid/RaidSinglePartySetting","Prefab2/Lobby/TopmostMenu","Prefab2/Lobby/RightMenu"}) {
             var prefab=Resources.Load<GameObject>(path);
             check(prefab!=null,"Load real layout prefab: "+path);
             var instance=UnityEngine.Object.Instantiate(prefab,host.transform,false);
             foreach(var tm in instance.GetComponentsInChildren<Transform>(true))tm.gameObject.layer=30;
-            var root=instance.transform.Find("Panel/Root");check(root!=null,"Native layout root");
-            var widget=root.GetComponent<UIWidget>();
+            var baseWindow=instance.GetComponent<BaseWindow>();
+            check(baseWindow!=null,"Native window component");
+            var root=LayoutRoot(baseWindow);check(root!=null,"Native layout root");
+            if(path.Contains("PartySetting"))check(IsScreenLayout(root),"Party layout included by full-width anchors: "+path);
+            var detail=instance.GetComponent<HeroDetailView>();
+            if(detail!=null) {
+                var carried=Get(detail);carried.Yaw=65;carried.Pitch=-20;carried.Zoom=.4f;carried.Pan=new Vector3(1,2,3);
+                carried.AnchorModel=new object();carried.AnchorPivot=new Vector3(2,1,0);
+                foreach(var tab in new[]{"Animation","Cinema","Costume","Skill","Animation"}) {
+                    detailTab.SetValue(detail,Enum.Parse(detailTab.FieldType,tab));
+                    var current=Get(detail);
+                    check(ReferenceEquals(current,carried) && current.Yaw==65 && current.Pitch==-20 && current.Zoom==.4f && current.Pan==new Vector3(1,2,3) && current.AnchorPivot==new Vector3(2,1,0),"Camera state retained across tab: "+tab);
+                    Orbit(current,new Vector2(10,5));
+                    check(current.Yaw==68 && current.Pitch==-21.5f,"Camera controls available after tab: "+tab);
+                    current.Yaw=65;current.Pitch=-20;
+                }
+                Reset(detail);check(!ReferenceEquals(Get(detail),carried),"Closing/recycling a preview still resets state");
+                detailTab.SetValue(detail,Enum.Parse(detailTab.FieldType,"Animation"));
+                var list=typeof(HeroDetailView).GetField("_heroViewAnimationComponentList",BindingFlags.Instance|BindingFlags.NonPublic);
+                var animation=instance.AddComponent<NGame2.NUI.NComponent2.HeroViewAnimationComponent>();
+                list.SetValue(detail,new System.Collections.Generic.List<NGame2.NUI.NComponent2.HeroViewAnimationComponent>{animation});
+                var trigger=detail.Hero3DTexture.GetComponent<UIEventTrigger>();
+                check(trigger!=null && trigger.onClick.Count>0 && trigger.onPress.Count>0 && trigger.onRelease.Count>0,"Native preview pointer bindings preserved");
+                // A populated animation list with no sequence would throw if
+                // the old random selection handler were reached by the click.
+                for(int click=0;click<8;click++)EventDelegate.Execute(trigger.onClick);
+                check(((System.Collections.IList)list.GetValue(detail)).Count==1,"Model clicks preserve animation options");
+            }
+            var widget=path.EndsWith("TopmostMenu")?instance.transform.Find("Panel/Root/Sprite_Topbar_Normal").GetComponent<UIWidget>():
+                path.EndsWith("RightMenu")?instance.transform.Find("Panel/MenuAnchor").GetComponent<UIWidget>():root.GetComponent<UIWidget>();
+            layouts.Add(baseWindow,new LayoutState{Root=root,Width=1920,Height=1080});
+            InvalidateLayout(baseWindow);LayoutState discarded;
+            check(!layouts.TryGetValue(baseWindow,out discarded),"Recycled window discards cached layout dimensions");
             foreach(var size in new[]{new Vector2(1920,1080),new Vector2(3440,1440),new Vector2(5120,1440),new Vector2(1920,1080)}) {
                 uiCamera.pixelRect=new Rect(0,0,size.x,size.y);uiCamera.aspect=size.x/size.y;
                 // Start from the shipped 16:9 prefab, then resize repeatedly.
@@ -134,6 +187,10 @@ public static class SprkFreeCamera {
             }
             UnityEngine.Object.Destroy(instance);
         }
+        var popup=new GameObject("FixedPopupLayout");var popupRect=popup.AddComponent<UIWidget>();
+        popupRect.leftAnchor.target=uiCamera.transform;popupRect.rightAnchor.target=uiCamera.transform;
+        popupRect.leftAnchor.relative=.5f;popupRect.rightAnchor.relative=.5f;
+        check(!IsScreenLayout(popup.transform),"Fixed-width popup is excluded");UnityEngine.Object.Destroy(popup);
         UnityEngine.Object.Destroy(host);UnityEngine.Object.Destroy(cameraHost);
     }
     public static void RunProbe() {
@@ -205,6 +262,24 @@ public static class SprkFreeCamera {
         check(state.Pan==Vector3.zero && state.Zoom==1 && state.Yaw==0 && state.Pitch==0 && state.Button==-1,"Reset");
         var go=new GameObject("ProbeCamera");var camera=go.AddComponent<Camera>();
         var cinema=new NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera(camera);
+        var headHost=new GameObject("AnimatedHeadProbe");var neutralHead=new Vector3(0,2,0);
+        foreach(float blend in new[]{0f,.5f,1f})foreach(float yaw in new[]{0f,65f})foreach(float zoom in new[]{.5f,1f,1.8f}) {
+            var anchor=new State();var model=new object();Vector3 fixedPosition=Vector3.zero;
+            for(int frame=0;frame<32;frame++) {
+                float t=frame*Mathf.PI/8;
+                headHost.transform.position=neutralHead+new Vector3(Mathf.Sin(t)*.1f,Mathf.Sin(t)*.3f,0);
+                cinema.CameraInfo.TargetPos=Vector3.Lerp(headHost.transform.position+new Vector3(.1f,.2f,0),new Vector3(0,1,0),blend)+new Vector3(-.6f,0,0);
+                cinema.CameraInfo.LookDir=Vector3.forward;cinema.CameraInfo.TargetDistance=4;cinema.CameraInfo.FieldOfView=45;
+                var fixedPivot=StabilizeOrbit(anchor,model,new Vector3(0,1+Mathf.Sin(t)*.2f,0),headHost.transform,cinema.CameraInfo,blend);
+                ApplyCamera(cinema,new Vector3(.2f,.1f,0),yaw,15,zoom,fixedPivot);
+                if(frame==0)fixedPosition=camera.transform.position;
+                check(Vector3.Distance(fixedPosition,camera.transform.position)<.001f,"Fixed orbit during animated head/root motion at native zoom blend "+blend);
+                if(frame==12)anchor.Reset();
+            }
+            var changedModel=new object();var newPivot=new Vector3(1,2,3);
+            check(StabilizeOrbit(anchor,changedModel,newPivot,headHost.transform,cinema.CameraInfo,blend)==newPivot,"Anchor refreshes for a replaced model");
+        }
+        UnityEngine.Object.Destroy(headHost);
         cinema.CameraInfo.TargetPos=new Vector3(1,2,0);cinema.CameraInfo.TargetDistance=4;
         cinema.CameraInfo.LookDir=Direction(Vector3.forward,40,25);cinema.ChainUpdate();
         check(Vector3.Distance(camera.transform.position,cinema.CameraInfo.TargetPos-camera.transform.forward*4)<.001f,"Native camera transform");
@@ -262,7 +337,7 @@ public static class SprkFreeCamera {
         check(OwnsPointer(texture,area)&&OwnsPointer(texture,child)&&!OwnsPointer(texture,button)&&!OwnsPointer(texture,go)&&!OwnsPointer(texture,null),"Pointer capture scope");
         UnityEngine.Object.Destroy(area);UnityEngine.Object.Destroy(go);
         System.IO.Directory.CreateDirectory(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"));
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: real Heroes List, See Motions and Dressing Room prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
+        System.IO.File.WriteAllText(System.IO.Path.Combine(Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST"),"result.txt"),"PASS: fullscreen party and raid layout scope, recycled window cache invalidation and fixed popup exclusion; camera state and orbit retained across Animation/Cutscene/Costume/Skills and reset on window recycling; fixed camera under animated head/root movement across zoom blends, orbit, pan, zoom and reset; anchor refresh on model replacement; See Motions native preview click events do not select animations, press/release bindings preserved; real Heroes List, See Motions, Dressing Room and party prefabs fill the viewport through 16:9, ultrawide, 32:9 and back; preview proportions across aspect/resolution changes with stale 16:9 render target and UV cropping; five sensitivity levels, baseline default, scaled orbit/pan/wheel, orbit axes and limits, native orientation, zoom bounds, reset, native CinemaCamera transform, pan/zoom application, pointer capture scope, native lobby drag/zoom sensitivity, hero-centered orbit and stable off-center framing; loaded sensitivity="+originalSensitivity);
     }
     public static Vector3 Direction(Vector3 original,float yaw,float pitch) {
         original=original.sqrMagnitude<.0001f?Vector3.forward:original.normalized;
@@ -301,7 +376,22 @@ public static class SprkFreeCamera {
         var pivot=facade!=null && facade.ShapeBounds.size.y>.01f
             ? facade.transform.TransformPoint(facade.ShapeBounds.center)
             : info.TargetPos-window.CameraController.ExtraOffsetByDistance*info.TargetDistance;
+        if(facade!=null && facade.AssetCreatureAsync.ISDONE() && facade.Pivot!=null && facade.ShapeBounds.size.y>.01f) {
+            var head=ReferenceEquals(state.AnchorModel,facade) && state.Head!=null?state.Head:facade.Pivot.FindTransform("Bip001 Head");
+            pivot=StabilizeOrbit(state,facade,pivot,head,info,window.CameraController.ZoomOutRate);
+        }
         ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom,pivot);
+    }
+    static Vector3 StabilizeOrbit(State state,object model,Vector3 pivot,Transform head,NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera.CameraInfoData info,float zoomOutRate) {
+        if(!ReferenceEquals(state.AnchorModel,model) || state.Head!=head) {
+            state.AnchorModel=model;state.AnchorPivot=pivot;state.Head=head;
+            if(head!=null)state.AnchorHead=head.position;
+        }
+        // Native GetZoomInInfo follows the animated head, blended with the
+        // fixed zoom-out target. Remove only that animation displacement;
+        // retain native zoom, framing offsets and user camera controls.
+        if(head!=null)info.TargetPos-=(head.position-state.AnchorHead)*(1-Mathf.Clamp01(zoomOutRate));
+        return state.AnchorPivot;
     }
     static void ApplyCamera(NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera camera,Vector3 pan,float yaw,float pitch,float zoom,Vector3 pivot) {
         var info=camera.CameraInfo;

@@ -1221,19 +1221,19 @@ async fn expansion_rejects_bad_totals_and_unaffordable_batches_without_mutation(
 #[tokio::test]
 async fn expansion_batches_respect_remaining_capacity_and_exact_maximum() {
     let (state, u) = setup().await;
-    sqlx::query("UPDATE inventory_settings SET inventory_extend=88 WHERE account_id=?")
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=138 WHERE account_id=?")
         .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
     assert_eq!(item::extend_equip(State(state.clone()), form(&u,"ReqGem=750"))
         .await.unwrap().0["Result"], "ReqGemError");
     let ok = item::extend_equip(State(state.clone()), form(&u,"ReqGem=500"))
         .await.unwrap().0;
     assert_eq!(ok["Result"], "Success");
-    assert_eq!(ok["NewInventoryExtend"], 90);
+    assert_eq!(ok["NewInventoryExtend"], 140);
     assert_eq!(item::extend_equip(State(state.clone()), form(&u,"ReqGem=250"))
         .await.unwrap().0["Result"], "ReqGemError");
     let again = login(&state).await;
     assert_eq!(again.user_info.gem, 99500);
-    assert_eq!(again.misc_info.unwrap().inventory_extend, 90);
+    assert_eq!(again.misc_info.unwrap().inventory_extend, 140);
 }
 
 #[tokio::test]
@@ -2286,4 +2286,50 @@ async fn retired_hero_rewards_cannot_be_granted_or_rolled() {
         tx.commit().await.unwrap();
         assert_eq!(count(&state,&u,index).await,1);
     }
+}
+
+#[tokio::test]
+async fn large_inventory_ticket_adds_400_slots_caps_at_1400_and_preserves_unused_tickets() {
+    let (state, u) = setup().await;
+    let a = u.user_info.account_id;
+    assert_eq!(state.tables.inventory.potions[&2401]["ActionValue"], 50);
+    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,2401,3) ON CONFLICT(account_id,item_index) DO UPDATE SET count=3").bind(a).execute(&state.db).await.unwrap();
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=90 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    let result = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0;
+    assert_eq!(result["Result"], "Success");
+    assert_eq!(result["NewInventoryExtend"], 140);
+    assert_eq!(login(&state).await.misc_info.unwrap().inventory_extend, 140);
+    let remaining = || sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=2401").bind(a).fetch_one(&state.db);
+    assert_eq!(remaining().await.unwrap(), 2);
+    assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0["Result"], "Success");
+    assert_eq!(remaining().await.unwrap(), 2);
+    // A partial final ticket adds only the 80 slots remaining, without spending rubies.
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=130 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
+    assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=2")).await.unwrap().0["Result"], "Success");
+    assert_eq!(remaining().await.unwrap(), 2);
+    let result = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0;
+    assert_eq!(result["Result"], "Success");
+    assert_eq!(result["NewInventoryExtend"], 140);
+    assert_eq!(remaining().await.unwrap(), 1);
+    assert_eq!(login(&state).await.user_info.gem, 100000);
+    // The actual server delivery check uses the increased 1400-slot capacity.
+    let mut db = state.db.acquire().await.unwrap();
+    assert!(item::capacity(&mut db, &state, a, 0, 1400).await.is_ok());
+    assert!(item::capacity(&mut db, &state, a, 0, 1401).await.is_err());
+}
+
+#[tokio::test]
+async fn stamina_potion_batches_allow_1000_and_reject_1001_without_consumption() {
+    let (state, u) = setup().await;
+    put(&state, &u, 120001, 1000017).await;
+    let a = u.user_info.account_id;
+    let stamina: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
+    let rejected = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=120001&ItemCount=1001")).await.unwrap().0;
+    assert_eq!(rejected["Result"], "InvalidItemCount");
+    assert_eq!(count(&state, &u, 120001).await, 1000017);
+    let result = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=120001&ItemCount=1000")).await.unwrap().0;
+    assert_eq!(result["Result"], "Success");
+    assert_eq!(count(&state, &u, 120001).await, 999017);
+    let after: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
+    assert_eq!(after, stamina + 150000);
 }

@@ -1532,3 +1532,195 @@ async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)").bind(a).bind(first).bind(second).fetch_one(&s.db).await.unwrap(),2);
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
 }
+
+#[tokio::test]
+async fn accessory_items_accept_native_encoded_positions_and_survive_relogin() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let position = json!({"PositionX":"0", "PositionY":"0", "PositionZ":"0", "RotationX":"0", "RotationY":"0", "RotationZ":"0", "Scale":"1"});
+    // RequestInternal escapes strings, then WWWForm escapes them again.
+    let raw = position.to_string();
+    let escaped = urlencoding::encode(&raw).into_owned();
+    let wire = urlencoding::encode(&escaped);
+    let mut used = 0;
+    let mut granted = std::collections::HashSet::new();
+    for selector in s.tables.extensions.rows("AccessorySelectItem") {
+        let accessory = n(selector, "AccessoryIndex");
+        let data = row(&s, "AccessoryCostume", &[("Index", accessory)]).unwrap();
+        if selector["TargetHero"].as_array().is_some_and(|v| !v.is_empty() && !v.contains(&json!(1)))
+            || data["UnableHero"].as_array().is_some_and(|v| v.contains(&json!(1)))
+            || !granted.insert(accessory) { continue; }
+        let id = n(selector, "ItemIndex") as i32;
+        give(&s, a, id, 2).await;
+        let args = format!("ItemIndex={id}&AccessoryCostumeIndex={accessory}&HeroIndex=1&PositionInfo={wire}");
+        let result = call(&s, &u, "item/use_accessory_select_item", &args).await;
+        assert_eq!(result["Result"], "Success", "Native accessory {id}: {result}");
+        assert_eq!(result["PlayerAccessoryCostumeInfo"]["HeroIndex"], 1);
+        assert_eq!(result["PlayerAccessoryCostumeInfo"]["AccessoryCostumeIndex"], accessory);
+        let info: Value = serde_json::from_str(result["PlayerAccessoryCostumeInfo"]["PositionInfo"].as_str().unwrap()).unwrap();
+        assert_eq!(info, position);
+        assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
+        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            .bind(a).bind(id).fetch_one(&s.db).await.unwrap(), 1);
+        used += 1;
+    }
+    assert!(used > 100, "Expected the restored accessory catalog, got {used}");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.player_accessory_costume_infos.len(), used);
+}
+
+#[tokio::test]
+async fn accessory_item_invalid_native_positions_do_not_consume_or_grant() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 3100017, 1).await;
+    for position in ["%notjson".to_string(), "{}".to_string(),
+        json!({"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"0"}).to_string()] {
+        let escaped = urlencoding::encode(&position).into_owned();
+        let wire = urlencoding::encode(&escaped);
+        let args = format!("ItemIndex=3100017&AccessoryCostumeIndex=3100017&HeroIndex=1&PositionInfo={wire}");
+        assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
+        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=3100017")
+            .bind(a).fetch_one(&s.db).await.unwrap(), 1);
+        assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", cosmetics::accessory_key(1, 3100017).unwrap()).await.unwrap().is_null());
+    }
+}
+
+#[tokio::test]
+async fn exp_flasks_reattach_same_type_until_stock_runs_out_and_persist() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 3).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    for completed in 1..=3 {
+        let mut tx = s.db.begin().await.unwrap();
+        let (result, items) = consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().unwrap();
+        assert_eq!(result["FilledFlaskCount"], 1);
+        assert_eq!(result["Info"]["ItemIndex"], if completed < 3 { 40001 } else { 0 });
+        assert_eq!(result["Info"]["NewExp"], 0);
+        let full = items.iter().find(|i| i["ItemIndex"] == 40005).unwrap();
+        assert_eq!(full["NewCount"], completed);
+        if completed < 3 {
+            let empty = items.iter().find(|i| i["ItemIndex"] == 40001).unwrap();
+            assert_eq!(empty["AddCount"], -1);
+            assert_eq!(empty["NewCount"], 2 - completed);
+        } else {
+            assert!(!items.iter().any(|i| i["ItemIndex"] == 40001));
+            assert!(consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().is_none());
+        }
+        tx.commit().await.unwrap();
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let h = login.heroes.iter().find(|h| h.hero_index == 1).unwrap();
+        assert_eq!(h.details["FlaskItemIndex"], if completed < 3 { 40001 } else { 0 });
+        assert_eq!(h.details["FlaskExp"], 0);
+    }
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40005").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+}
+
+#[tokio::test]
+async fn exp_flask_replacement_preserves_partial_progress_and_can_be_cancelled_once() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 2).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    let mut tx = s.db.begin().await.unwrap();
+    let (partial, items) = consumables::fill_flask(&mut tx, &s, a, 1, 50).await.unwrap().unwrap();
+    assert_eq!(partial["Info"]["NewExp"], 50);
+    assert_eq!(partial["FilledFlaskCount"], 0);
+    assert!(items.is_empty());
+    let (full, _) = consumables::fill_flask(&mut tx, &s, a, 1, 150).await.unwrap().unwrap();
+    assert_eq!(full["Info"]["ItemIndex"], 40001);
+    assert_eq!(full["Info"]["NewExp"], 0);
+    tx.commit().await.unwrap();
+    let cancel = call(&s, &u, "item/cancel_flask_item", "HeroIndex=1").await;
+    assert_eq!(cancel["Result"], "Success");
+    assert_eq!(cancel["ItemResult"]["ItemIndex"], 40001);
+    assert_eq!(cancel["ItemResult"]["NewCount"], 1);
+    assert_ne!(call(&s, &u, "item/cancel_flask_item", "HeroIndex=1").await["Result"], "Success");
+}
+
+#[tokio::test]
+async fn exp_flask_completion_keeps_locked_replacement_stock_and_never_switches_types() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 40001, 2).await;
+    give(&s, a, 40002, 3).await;
+    assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=40001").bind(a).execute(&s.db).await.unwrap();
+    let mut tx = s.db.begin().await.unwrap();
+    let (result, items) = consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().unwrap();
+    assert_eq!(result["FilledFlaskCount"], 1);
+    assert_eq!(result["Info"]["ItemIndex"], 0);
+    assert_eq!(items.len(), 1);
+    tx.commit().await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40002").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+}
+
+#[tokio::test]
+async fn technomagic_restoration_accepts_max_star_locked_gear_and_native_costs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+    eq.star = 5;
+    eq.identified = 1;
+    eq.locked = 1;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    give(&s, a, 990000, 203).await;
+    let result = call(&s, &u, "upgrade_equip_tier", &format!("EquipItemSlotIndex={}", eq.slot_index)).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["ResultEquipItem"]["ItemIndex"], 901101);
+    assert_eq!(result["ResultEquipItem"]["Star"], 0);
+    assert_eq!(result["ResultEquipItem"]["Locked"], 1);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 90000000);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 163);
+}
+
+#[tokio::test]
+async fn technomagic_restoration_rejections_use_native_messages_and_preserve_costs() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+    eq.star = 4; eq.identified = 1;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    give(&s, a, 990000, 203).await;
+    let args = format!("EquipItemSlotIndex={}", eq.slot_index);
+    for star in [0, 1, 4, 6, 10] {
+        eq.star = star;
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEquipMaxStar");
+    }
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", "EquipItemSlotIndex=2147483647").await["Result"], "EquipNotOwned");
+    eq.star = 5;
+    save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughMaterialItem");
+    sqlx::query("UPDATE items SET locked=0 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET gold=9999999 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughGold");
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 9999999);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 203);
+    assert_eq!(equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap().item_index, 911101);
+}
+
+#[tokio::test]
+async fn technomagic_restoration_preserves_equipped_hero_for_locked_and_unlocked_gear() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 990000, 500).await;
+    for locked in [0, 1] {
+        let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
+        eq.star = 5; eq.identified = 1; eq.locked = locked;
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        sqlx::query("UPDATE heroes SET equip_item_slot_index_2=? WHERE account_id=? AND hero_index=1")
+            .bind(eq.slot_index).bind(a).execute(&s.db).await.unwrap();
+        let result = call(&s, &u, "upgrade_equip_tier", &format!("EquipItemSlotIndex={}", eq.slot_index)).await;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipHeroIndex"], 1, "The native client unequips the item unless its owner is returned");
+        let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let hero = login.heroes.iter().find(|h| h.hero_index==1).unwrap();
+        assert_eq!(hero.equip_item_slot_index_2, eq.slot_index);
+        assert_eq!(result["ResultEquipItem"]["Locked"], locked);
+    }
+}

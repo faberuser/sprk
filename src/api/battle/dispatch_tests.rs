@@ -136,7 +136,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         assert_eq!(done["DispatchBattleInfo"]["WinCount"], 3);
         assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 7);
         assert_eq!(stamina(&s, &u).await, 700);
-        assert_eq!(done["TeamExpResult"]["AddValue"], 30000);
+        assert_eq!(done["TeamExpResult"]["AddValue"], 3000);
         assert_eq!(done["EquipItemResults"], json!([]));
         let mail_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?")
             .bind(a)
@@ -411,7 +411,7 @@ async fn dispatch_persisted_mixed_results_complete_offline_and_rewards_follow_wi
     assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 2);
     assert_eq!(done["DispatchBattleInfo"]["ServerResult"], "1,0,0,1");
     assert_eq!(stamina(&s, &u).await, 1000 - 2 * cost);
-    assert_eq!(done["TeamExpResult"]["AddValue"], 2 * cost * 100);
+    assert_eq!(done["TeamExpResult"]["AddValue"], 2 * cost * 10);
     assert_ne!(
         call(
             &restarted,
@@ -423,4 +423,71 @@ async fn dispatch_persisted_mixed_results_complete_offline_and_rewards_follow_wi
         "Success"
     );
     assert_eq!(stamina(&s, &u).await, 1000 - 2 * cost);
+}
+
+
+#[tokio::test]
+async fn progressive_dispatch_exposes_first_result_before_all_repeats_and_keeps_entry_clock() {
+    let (s, u) = fixture(true).await;
+    sqlx::query("UPDATE user_info SET stamina=100000 WHERE account_id=?")
+        .bind(account(&u)).execute(&s.db).await.unwrap();
+    let mut job = start(&s, &u, 200).await;
+    let a = account(&u);
+    let slot = n(&job, "SlotIndex");
+    let started = now() - 120;
+    job["StartTimestamp"] = json!(started);
+    put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &job).await.unwrap();
+    let args = format!("{}&Progressive=true", report(&job, &[1]));
+    let first = call(&s, &u, "dispatch/complete_calculate_dispatch_result", &args).await;
+    assert_eq!(first["Result"], "Success", "{first}");
+    let info = &first["DispatchInfo"];
+    assert_eq!(info["StartTimestamp"], started);
+    assert_eq!(info["WinCount"], 1);
+    assert_eq!(info["ServerResult"], "1");
+    assert_eq!(info["State"], "Battle");
+    assert_eq!(info["SimulationResults"].as_array().unwrap().len(), 1);
+    finish_now(&s, &u, slot).await;
+    let collect = format!("SlotIndex={slot}");
+    assert_ne!(call(&s, &u, "dispatch/request_complete_dispatch", &collect).await["Result"], "Success");
+    let cancelled = call(&s, &u, "dispatch/cancel_dispatch", &collect).await;
+    assert_eq!(cancelled["Result"], "Success", "{cancelled}");
+    assert_eq!(cancelled["DispatchBattleInfo"]["WinCount"], 1);
+    assert_eq!(cancelled["DispatchBattleInfo"]["LoseCount"], 0);
+    assert_eq!(stamina(&s, &u).await, 100000 - n(&job, "Cost") / 200);
+    assert_ne!(call(&s, &u, "dispatch/complete_calculate_dispatch_result", &args).await["Result"], "Success");
+}
+
+#[tokio::test]
+async fn progressive_dispatch_prefixes_resume_retry_and_cannot_rewrite_saved_results() {
+    let (s, u) = fixture(true).await;
+    let job = start(&s, &u, 4).await;
+    let a = account(&u);
+    let slot = n(&job, "SlotIndex");
+    let upload = |outcomes: &[i64]| format!("{}&Progressive=true", report(&job, outcomes));
+    for outcomes in [&[1][..], &[1, 0][..], &[1, 0][..], &[1][..]] {
+        let response = call(&s, &u, "dispatch/complete_calculate_dispatch_result", &upload(outcomes)).await;
+        assert_eq!(response["Result"], "Success", "{response}");
+    }
+    let snapshot = call(&s, &u, "dispatch/get_dispatch_list", "").await;
+    let saved = &snapshot["DispatchBattleInfos"][0];
+    assert_eq!(saved["SimulationResults"].as_array().unwrap().len(), 2);
+    assert_eq!(saved["SimulationResults"][1]["Outcome"], 0);
+    for bad in [upload(&[0, 0, 1]), upload(&[]), upload(&[1, 0, 1, 1, 1]),
+        format!("SlotIndex={slot}&SimulationJobId={}&Progressive=true&Results=[1,0]&TimesMs=[60001,60000]",job["SimulationJobId"].as_str().unwrap())] {
+        assert_ne!(call(&s, &u, "dispatch/complete_calculate_dispatch_result", &bad).await["Result"], "Success");
+    }
+    let resumed = call(&s, &u, "dispatch/complete_calculate_dispatch_result", &upload(&[1, 0, 1, 0])).await;
+    assert_eq!(resumed["Result"], "Success");
+    let start = n(&resumed["DispatchInfo"], "StartTimestamp");
+    assert_eq!(start, n(&job, "StartTimestamp"));
+    let mut saved = get(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot).await.unwrap();
+    saved["StartTimestamp"] = json!(now() - 300);
+    saved["FinishTimestamp"] = json!(now() - 1);
+    put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &saved).await.unwrap();
+    let result = call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(result["DispatchBattleInfo"]["WinCount"], 2);
+    assert_eq!(result["DispatchBattleInfo"]["LoseCount"], 2);
+    assert_eq!(stamina(&s, &u).await, 1000 - n(&job, "Cost") / 2);
+    assert_ne!(call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await["Result"], "Success");
 }

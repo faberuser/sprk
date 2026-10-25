@@ -1,0 +1,132 @@
+﻿using System;
+using System.Collections.Generic;
+namespace UnityEngine {
+    public class GameObject { public T AddComponent<T>() where T:new() { return new T(); } }
+    public class MonoBehaviour { public GameObject gameObject=new GameObject(); public T GetComponent<T>() where T:class {return null;} }
+    public static class Time {public static float realtimeSinceStartup;}
+    public static class Debug {public static void LogWarning(string value) {}}
+}
+public class UILabel { public string text="50"; }
+public class UIButton { public bool isEnabled=true; }
+namespace NVespa.NSingleton {}
+namespace NVespa {
+    public class GlobalAutoBehaviour<T> where T:new() {public static T instance=new T();}
+    public class SingletonAuto<T> where T:new() {public static T instance=new T();}
+    public class SingletonUpdater<T> where T:new() {public static T instance=new T();}
+}
+namespace NVespa.NNGUIExtension {
+    public class LocalizeLink {public string Key="MAIL_LIMITED_MESSAGE";}
+    public class UILocalizeEx {public LocalizeLink LocalizeLink=new LocalizeLink(); public bool enabled=true; public UILabel Label=new UILabel(); public T GetComponent<T>() where T:class {return Label as T;} }
+}
+namespace NShared {
+    public enum BaseResultType {Success,Fail}
+    public class MailReceiveResult {
+        public object[] ItemResults,EquipItemResults,StaminaResults,CurrencyResults;
+        public object GuildPointResult,PetResult;
+    }
+}
+namespace NShared.ReceiveAllMail {
+    public enum ResultType {Success,Fail}
+    public class Request {public int MaxCount;}
+    public class Response {
+        public NShared.BaseResultType BaseResult; public ResultType Result;
+        public int ReceivedMailCount; public NShared.MailReceiveResult[] MailReceiveResults;
+        public string InternalErrorMessage;
+    }
+}
+namespace NVespa.NGlobal {
+    public class Requester {
+        public string SessionKey="test";
+        public Action<NShared.ReceiveAllMail.Response> Pending;
+        public int Calls;
+        public void Request(NShared.ReceiveAllMail.Request request,Action<NShared.ReceiveAllMail.Response> reply) {
+            if(Pending!=null)throw new Exception("Overlapping mail requests");
+            if(request.MaxCount!=50)throw new Exception("Unbounded claim request");
+            Calls++;Pending=reply;
+        }
+    }
+    public class WebServiceManager {public Requester Requester=new Requester();}
+}
+namespace NGame2.NAccount {public class AccountManager {public int Applied;public void ApplyReceiveMail(NShared.MailReceiveResult result) {Applied++;}}}
+namespace NGame2.NUI.NWindow {
+    public class MailListPopup {
+        public bool Open=true; public UIButton ReceiveAllButton=new UIButton();
+        public NVespa.NNGUIExtension.UILocalizeEx Notice=new NVespa.NNGUIExtension.UILocalizeEx();
+        public bool IsOpen() {return Open;}
+        public T[] GetComponentsInChildren<T>(bool include) {return (T[])(object)new[]{Notice};}
+    }
+    public static class MessagePopup {public static int Calls;public static string Last;public static void Open(string title,string text){Calls++;Last=text;}}
+}
+namespace NGame2.NUI.NWindow.NBattle {
+    public class BaseRewardPopup {
+        public static string LastTitle;public static int Calls;
+        public class PopupOpenData {
+            public bool IsSortForMail;public string Title;
+            public PopupOpenData SetTitle(string title){Title=title;return this;}
+            public PopupOpenData AddItemResultInfos(object[] value){return this;}
+            public PopupOpenData AddEquipResultInfos(object[] value){return this;}
+            public PopupOpenData AddStaminaResultInfos(object[] value){return this;}
+            public PopupOpenData AddCurrencyResultInfos3(object[] value){return this;}
+            public PopupOpenData AddGuildPointResult(object value){return this;}
+            public PopupOpenData AddPetInfo(object value){return this;}
+        }
+        public static BaseRewardPopup OpenPopup(PopupOpenData data,bool layer){LastTitle=data.Title;Calls++;return new BaseRewardPopup();}
+    }
+}
+namespace NGame2.NUI.NManager {
+    public class MailManagement:UnityEngine.MonoBehaviour {public NGame2.NUI.NWindow.NBattle.BaseRewardPopup rewardPopup;}
+    public class MailInfoContainer {public int Refreshes;public void OnReceiveAll(){Refreshes++;}}
+    public class GlobalManagement {public bool WindowOpenedUI3DUI(){return false;}}
+}
+public static class MailClaimAllTestRunner {
+    static NVespa.NGlobal.Requester Web => NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester;
+    static NGame2.NAccount.AccountManager Account => NVespa.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+    static void Assert(bool condition,string label){if(!condition)throw new Exception(label);}
+    static NShared.ReceiveAllMail.Response Reply(int count,string reason=null){
+        var result=new NShared.ReceiveAllMail.Response {ReceivedMailCount=count,InternalErrorMessage=reason,MailReceiveResults=new NShared.MailReceiveResult[count]};
+        for(int i=0;i<count;i++)result.MailReceiveResults[i]=new NShared.MailReceiveResult();return result;
+    }
+    static void Reset(){
+        Web.Pending=null;Web.Calls=0;Web.SessionKey="test";Account.Applied=0;
+        UnityEngine.Time.realtimeSinceStartup=0;
+        NGame2.NUI.NWindow.MessagePopup.Calls=0;
+        NGame2.NUI.NWindow.NBattle.BaseRewardPopup.Calls=0;
+    }
+    static void Deliver(NShared.ReceiveAllMail.Response response){var reply=Web.Pending;Assert(reply!=null,"Expected pending request");Web.Pending=null;reply(response);}
+    static void Drain(int mails,int capacity){
+        Reset();var owner=new NGame2.NUI.NManager.MailManagement();var popup=new NGame2.NUI.NWindow.MailListPopup();
+        SprkMailClaimAll.Caption(popup);Assert(!popup.Notice.enabled&&!popup.Notice.Label.text.Contains("50"),"Updated receipt limit caption");
+        SprkMailClaimAll.Start(owner,popup,50);
+        int remaining=mails,space=capacity;
+        for(int i=0;i<100;i++){
+            SprkMailClaimAll.Pump();if(Web.Pending==null)break;
+            int count=Math.Min(50,Math.Min(remaining,space));remaining-=count;space-=count;
+            Deliver(Reply(count,remaining>0&&space==0?"Equipment bag is full. Free space and try claiming the mail again.":null));
+        }
+        Assert(Account.Applied==Math.Min(mails,capacity),"Claims exactly the available capacity");
+        Assert(NGame2.NUI.NWindow.NBattle.BaseRewardPopup.Calls==(Account.Applied>0?1:0),"One combined reward popup");
+        Assert(Web.Calls<=mails/50+1,"No empty or capacity loop");
+        Assert(popup.ReceiveAllButton.isEnabled,"Restores claim button");
+        SprkMailClaimAll.Pump();Assert(Web.Pending==null,"Stopped at empty inbox/capacity");
+    }
+    public static void Run(){
+        Drain(1505,3000);Drain(1500,317);Drain(100,0);Drain(100,100);Drain(0,100);
+        Reset();var owner=new NGame2.NUI.NManager.MailManagement();var popup=new NGame2.NUI.NWindow.MailListPopup();
+        SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Pump();SprkMailClaimAll.Pump();
+        Assert(Web.Calls==1,"Duplicate click and in-flight protection");
+        var duplicate=Web.Pending;Deliver(Reply(50));duplicate(Reply(50));Assert(Account.Applied==50,"Ignore duplicate callback");
+        SprkMailClaimAll.Cancel(popup);SprkMailClaimAll.Pump();Assert(Web.Calls==1,"Closing cancels continuation");
+        Reset();SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Pump();SprkMailClaimAll.Cancel(popup);Deliver(Reply(50));
+        SprkMailClaimAll.Pump();Assert(Account.Applied==50&&Web.Calls==1,"Keeps completed in-flight claim after close");
+        Reset();SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Pump();var late=Web.Pending;
+        Web.SessionKey="other-account";Web.Pending=null;SprkMailClaimAll.Pump();late(Reply(50));Assert(Account.Applied==0,"Never apply old session rewards");
+        Reset();SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Pump();Deliver(Reply(50));SprkMailClaimAll.Pump();
+        Deliver(new NShared.ReceiveAllMail.Response{Result=NShared.ReceiveAllMail.ResultType.Fail});SprkMailClaimAll.Pump();
+        Assert(Account.Applied==50&&Web.Calls==2&&Web.Pending==null,"Stops on server failure, preserves previous rewards");
+        Reset();SprkMailClaimAll.Start(owner,popup,50);SprkMailClaimAll.Pump();late=Web.Pending;
+        UnityEngine.Time.realtimeSinceStartup=61;SprkMailClaimAll.Pump();late(Reply(50));
+        Assert(Account.Applied==0&&NGame2.NUI.NWindow.MessagePopup.Calls==1,"Timeout stops without retrying or applying late response");
+        Web.Pending=null;
+        var fields=SprkMailClaimAll.Encode(new Dictionary<string,object>());Assert((string)fields["ClaimUntilFull"]=="true","Server partial-claim opt-in encoded");
+    }
+}

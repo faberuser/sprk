@@ -1,0 +1,41 @@
+using System;
+using NShared;
+using NGame2.NAccount;
+using NGame2.NUI.NWindow;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+
+public static class SprkHonorBuff {
+    static bool waiting;
+    public static bool TrySelect(ItemData item, int count, Action onComplete) {
+        if(item==null || item.Index<110033 || item.Index>110035)return false;
+        if(waiting)return true;
+        if(count<1 || count>1000) {MessagePopup.Open("Server Buff", "Select between 1 and 1,000 items.");return true;}
+        int percent=item.Index==110033?5:item.Index==110034?3:2;
+        var confirm=IconConfirmPopup.Open("Use "+count+" "+item.Name+"? This adds "+(percent*count)+"% gold gains for all players until the next Honor rewards calculation.","Yes","No",()=>Use(item.Index,count,onComplete));
+        confirm.AddItem(item.Index,count);
+        return true;
+    }
+    static void Use(int index,int count,Action onComplete) {
+        if(waiting)return;
+        var requester=SingletonUpdater<WebServiceManager>.instance.Requester;
+        if(requester==null || String.IsNullOrEmpty(requester.SessionKey))return;
+        string session=requester.SessionKey;
+        waiting=true;
+        bool completed=false;
+        try {
+            requester.Request(new NShared.UseBoosterItem.Request {ItemIndex=index,ItemCount=count},(NShared.UseBoosterItem.Response response)=> {
+                if(completed)return;completed=true;
+                waiting=false;
+                if(SingletonUpdater<WebServiceManager>.instance.Requester!=requester || requester.SessionKey!=session)return;
+                if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.UseBoosterItem.ResultType.Success) {
+                    MessagePopup.Open("Server Buff","Activation was not confirmed. Reopen the inventory to check your item count before retrying.");return;
+                }
+                GlobalAutoBehaviour<AccountManager>.instance.ItemManager.Apply(response.ItemResult);
+                if(onComplete!=null)onComplete();
+                MessagePopup.Open("League of Honor Server Buff",String.IsNullOrEmpty(response.InternalErrorMessage)?"The server buff was activated.":response.InternalErrorMessage);
+            });
+        } catch(Exception) {waiting=false;MessagePopup.Open("Server Buff","Unable to send the request. Reopen the inventory and try again.");}
+    }
+}

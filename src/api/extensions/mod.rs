@@ -126,7 +126,20 @@ pub async fn handle(
                     .map(|v| v.len()).unwrap_or(0);
                 tracing::warn!(account, selected, reason = %code, "Equipment grind rejected");
             }
-            let code = if action == "break_equip" {
+            if action == "upgrade_equip_tier" {
+                tracing::warn!(account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment tier upgrade/restoration rejected");
+            }
+            let code = if action == "upgrade_equip_tier" {
+                // These native result names have localized messages. Falling
+                // back to Fail makes the client misleadingly report a network issue.
+                match code.as_str() {
+                    "EquipItemNotFound" => "EquipNotOwned",
+                    "NotEnoughStar" => "NotEquipMaxStar",
+                    "ItemNotOwned" => "NotEnoughMaterialItem",
+                    "UnconfirmedOption" => "ImpossibleEquipItem",
+                    other => other,
+                }
+            } else if action == "break_equip" {
                 match code.as_str() {
                     "EquipItemNotFound" => "EquipNotOwned",
                     "LockedEquip" => "LockedEquipItemExists",

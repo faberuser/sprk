@@ -5,9 +5,17 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void VerifyFreeCamera(ModuleDefinition module) {
+        var detail=module.GetType("NGame2.NUI.NWindow.HeroDetailView");
+        var randomClick=detail.Methods.Single(m=>m.Name=="OnTouchForRandomAnimation");
+        if(randomClick.Body.Instructions.Count!=1 || randomClick.Body.Instructions[0].OpCode!=OpCodes.Ret)throw new InvalidOperationException("See Motions preview clicks must not select random animations.");
+        var animationButton=detail.Methods.Single(m=>m.Name.EndsWith("Listener.PlayAnimation"));
+        if(!animationButton.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="Play" && m.DeclaringType.Name=="MotionSequence"))throw new InvalidOperationException("Explicit animation selection must remain available.");
         var refresh=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="UpdateDerived");
         if(refresh.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="RefreshLayout")!=1)throw new InvalidOperationException("Missing or duplicated ultrawide layout hook.");
         VerifyArenaResultStack(refresh);
+        var disable=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="OnDisable");
+        if(disable.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="InvalidateLayout")!=1)throw new InvalidOperationException("Missing or duplicated recycled window layout invalidation.");
+        VerifyArenaResultStack(disable);
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("UpdateHeroCamera","InputCamera"),("LateUpdate","Apply"),("Reset","Reset")}) {
             var method=window.Methods.Single(m=>m.Name==pair.Item1);
@@ -27,17 +35,24 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".free-camera-staged":"")));
         VerifyFreeCamera(game.MainModule);
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkFreeCamera.dll"+(staged?".staged":"")));
+        var eligible=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Eligible");
+        if(eligible.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="detailTab"))throw new InvalidOperationException("Free camera must remain enabled on all hero preview tabs.");
         var scope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="SupportsWindow");
         foreach(var name in new[]{"HeroDetailView","HeroCostumeView","HeroModelView"})
             if(!scope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing preview window scope: "+name);
         var apply=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Apply");
+        if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="StabilizeOrbit"))throw new InvalidOperationException("Preview orbit must not follow animated head motion.");
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_ShapeBounds"))throw new InvalidOperationException("Free camera must use the hero's body bounds as its orbit pivot.");
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="FitPreviewAspect"))throw new InvalidOperationException("Missing displayed preview aspect correction.");
         var fit=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="FitPreviewAspect");
         foreach(var name in new[]{"get_drawingDimensions","WorldToScreenPoint","get_uvRect","set_aspect"})
             if(!fit.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Incomplete preview aspect correction: "+name);
         var layout=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayout");
-        if(!layout.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name=="HeroDeck2"))throw new InvalidOperationException("Missing Heroes List layout scope.");
+        if(!layout.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="LayoutRoot"))throw new InvalidOperationException("Missing fullscreen layout refresh.");
+        var layoutScope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="LayoutRoot");
+        foreach(var name in new[]{"HeroDeck2","LobbyTopmostMenu","LobbyRightMenu","LobbyRightGridWindow"})
+            if(!layoutScope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing layout scope: "+name);
+        if(!layoutScope.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="IsScreenLayout"))throw new InvalidOperationException("Missing fullscreen party layout scope.");
         var layoutRoot=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RefreshLayoutRoot");
         foreach(var name in new[]{"ResetAnchors","ForceUpdateAnchors"})
             if(!layoutRoot.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing native layout refresh: "+name);
@@ -61,11 +76,21 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         var module=game.MainModule;
         var bridge=helper.MainModule.GetType("SprkFreeCamera");
+        // The model texture's UIEventTrigger dispatches both desktop click
+        // buttons here. Leave pointer press/release and animation buttons alone.
+        var randomClick=module.GetType("NGame2.NUI.NWindow.HeroDetailView").Methods.Single(m=>m.Name=="OnTouchForRandomAnimation");
+        randomClick.Body=new MethodBody(randomClick);randomClick.Body.GetILProcessor().Emit(OpCodes.Ret);
         var refresh=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="UpdateDerived");
         if(!refresh.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="RefreshLayout")) {
             var il=refresh.Body.GetILProcessor();var first=refresh.Body.Instructions[0];
             il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
             il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="RefreshLayout"))));
+        }
+        var disable=module.GetType("NGame2.NUI.NWindow.BaseWindow").Methods.Single(m=>m.Name=="OnDisable");
+        if(!disable.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkFreeCamera" && m.Name=="InvalidateLayout")) {
+            var il=disable.Body.GetILProcessor();var first=disable.Body.Instructions[0];
+            il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(first,il.Create(OpCodes.Call,module.ImportReference(bridge.Methods.Single(m=>m.Name=="InvalidateLayout"))));
         }
         var window=module.GetType("NGame2.NUI.NWindow.HeroFullSceneViewBase");
         foreach(var pair in new[]{("LateUpdate","Apply"),("Reset","Reset")}) {
@@ -102,7 +127,7 @@ partial class Program {
         game.Write(staged);File.WriteAllBytes(helperPath+".staged",compiled.ToArray());
         VerifyFreeCameraFile(root,true);
         if(stageOnly)return;
-        if(System.Diagnostics.Process.GetProcesses().Any(p=>p.ProcessName=="King's Raid" || p.ProcessName.StartsWith("SprkTest-")))
+        if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,root)))
             throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
         File.Copy(dll,dll+".before-free-camera-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
         File.Move(staged,dll,true);File.Move(helperPath+".staged",helperPath,true);

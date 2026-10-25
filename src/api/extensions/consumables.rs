@@ -150,8 +150,7 @@ pub(crate) async fn execute(
                 if !old.is_null() {
                     return Err(rule("AlreadyHaveCostume"));
                 }
-                let raw: Value = serde_json::from_str(req.text("PositionInfo"))
-                    .map_err(|_| rule("InvalidCostume"))?;
+                let raw = cosmetics::position_json(req.text("PositionInfo"))?;
                 let encoded = json!({accessory.to_string():raw}).to_string();
                 cosmetics::positions(&encoded)?;
                 let info = json!({"HeroIndex":hero_id,"AccessoryCostumeIndex":accessory,"PositionInfo":raw.to_string(),"CreatedTime":state.server_time_str()});
@@ -503,6 +502,18 @@ pub(crate) async fn fill_flask(
         .await?;
         details["FlaskItemIndex"] = json!(0);
         details["FlaskExp"] = json!(0);
+        // Reserve the next flask immediately, just like manual attachment.
+        // Include its debit so the native battle response refreshes the stack.
+        match item::consume(db, account, id as i32, 1).await {
+            Ok(consumed) => {
+                details["FlaskItemIndex"] = json!(id);
+                rewards.items.push(consumed);
+            }
+            // Exhausted, locked or reserved stock ends the chain without
+            // rejecting the completed flask or the battle's other rewards.
+            Err(ServerError::InvalidRequest(code)) if code == "ItemNotOwned" => {},
+            Err(error) => return Err(error),
+        }
         filled = 1;
     } else {
         details["FlaskExp"] = json!(after);

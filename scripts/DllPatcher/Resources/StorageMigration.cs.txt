@@ -1,0 +1,174 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using Microsoft.Win32;
+using UnityEngine;
+using UnityEngine.Networking;
+using NVespa;
+using NVespa.NSingleton;
+using NVespa.NGlobal;
+
+// Retirement instructions and rollout queries: docs/client-storage-migration.md.
+public static class SprkStorageMigration {
+    public const bool LegacyMigrationEnabled=true;
+    public const string MarkerName="sprk-storage-migration-v1.complete";
+    const string ReceiptValue="Sprk.Storage.MigrationV1Receipt";
+    static bool ready;
+    static float retryAt;
+    public static string Receipt;
+    public interface Preferences {
+        string ReadReceipt();
+        IEnumerable<string> LegacyNames();
+        bool Contains(string name);
+        void Copy(string name);
+        void SaveReceipt(string value);
+    }
+    sealed class RegistryPreferences:Preferences,IDisposable {
+        RegistryKey target;
+        readonly string oldKey,receiptKey;
+        public RegistryPreferences(string source=@"Software\masangsoft\King's Raid",string receipt=ReceiptValue){oldKey=source;receiptKey=receipt;target=Registry.CurrentUser.CreateSubKey(@"Software\sprk\King's Raid");}
+        public string ReadReceipt(){return target.GetValue(receiptKey) as string;}
+        public IEnumerable<string> LegacyNames(){using(var old=Registry.CurrentUser.OpenSubKey(oldKey,false)){return old==null?new string[0]:old.GetValueNames();}}
+        public bool Contains(string name){return target.GetValue(name,null,RegistryValueOptions.DoNotExpandEnvironmentNames)!=null;}
+        public void Copy(string name){using(var old=Registry.CurrentUser.OpenSubKey(oldKey,false)){
+            if(old==null)return;var value=old.GetValue(name,null,RegistryValueOptions.DoNotExpandEnvironmentNames);if(value==null)return;
+            var kind=old.GetValueKind(name);string savedString=null;
+            if(kind==RegistryValueKind.Binary) {
+                var data=(byte[])value;
+                if(data.Length==0 || data[data.Length-1]!=0)throw new InvalidDataException("Unsupported native preference type.");
+                savedString=new UTF8Encoding(false,true).GetString(data,0,data.Length-1);
+            } else if(kind!=RegistryValueKind.DWord && kind!=RegistryValueKind.String)throw new InvalidDataException("Unsupported native preference type.");
+            target.SetValue(name,value,kind);
+            // Synchronize Unity's in-memory cache too; the native engine may
+            // have opened PlayerPrefs before managed startup.
+            string key=System.Text.RegularExpressions.Regex.Replace(name,@"_h[0-9]+$","");
+            if(kind==RegistryValueKind.DWord) {
+                int bits=(int)value;
+                if(key=="KingsRaid_SystemOption_sound_BgmVolume" || key=="KingsRaid_SystemOption_sound_GameSoundVolume" || key=="KingsRaid_SystemOption_sound_CharacterVoiceVolume")PlayerPrefs.SetFloat(key,BitConverter.ToSingle(BitConverter.GetBytes(bits),0));
+                else PlayerPrefs.SetInt(key,bits);
+            } else if(kind==RegistryValueKind.Binary) {
+                PlayerPrefs.SetString(key,savedString);
+            } else if(kind==RegistryValueKind.String)PlayerPrefs.SetString(key,(string)value);
+            else throw new InvalidDataException("Unsupported native preference type.");
+        }}
+        public void SaveReceipt(string value){PlayerPrefs.Save();target.SetValue(receiptKey,value,RegistryValueKind.String);target.Flush();}
+        public void Dispose(){target.Dispose();}
+    }
+    public static bool AllowedPreference(string name) {
+        return name.StartsWith("Sprk.Graphics.",StringComparison.Ordinal) || name.StartsWith("Sprk.Window.",StringComparison.Ordinal) || name.StartsWith("KingsRaid_SystemOption_",StringComparison.Ordinal)
+            || name.StartsWith("KingsRaid_GameOption_",StringComparison.Ordinal);
+    }
+    static void RejectLink(string path){if((File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)throw new IOException("Storage migration does not follow links.");}
+    static void RejectAncestors(string path){for(string current=Path.GetFullPath(path);current!=null;current=Path.GetDirectoryName(current)){if(Directory.Exists(current) || File.Exists(current))RejectLink(current);}}
+    static void AtomicWrite(string destination,byte[] bytes) {
+        string temporary=destination+".migration-"+Guid.NewGuid().ToString("N")+".tmp";
+        try {
+            using(var file=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None)){file.Write(bytes,0,bytes.Length);file.Flush(true);}
+            if(!File.Exists(destination))File.Move(temporary,destination);
+        } finally {if(File.Exists(temporary))File.Delete(temporary);}
+    }
+    static int CopyAccounts(string oldRoot,string newRoot) {
+        if(!Directory.Exists(oldRoot))return 0;RejectLink(oldRoot);int copied=0;
+        var files=new List<string>();string legacy=Path.Combine(oldRoot,"sprk-accounts.dat");if(File.Exists(legacy))files.Add(legacy);
+        string servers=Path.Combine(oldRoot,"SprkServers");
+        if(Directory.Exists(servers)) {
+            RejectLink(servers);
+            foreach(var directory in Directory.GetDirectories(servers)) {
+                RejectLink(directory);
+                if(!System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(directory),@"\A[0-9A-Fa-f]{64}\z"))continue;
+                string file=Path.Combine(directory,"sprk-accounts.dat");if(File.Exists(file))files.Add(file);
+            }
+        }
+        foreach(var file in files) {
+            RejectLink(file);string relative=file.Substring(oldRoot.TrimEnd(Path.DirectorySeparatorChar).Length+1);
+            string destination=Path.Combine(newRoot,relative);RejectAncestors(Path.GetDirectoryName(destination));Directory.CreateDirectory(Path.GetDirectoryName(destination));
+            RejectLink(Path.GetDirectoryName(destination));
+            if(File.Exists(destination)){RejectLink(destination);continue;}
+            AtomicWrite(destination,File.ReadAllBytes(file));copied++;
+        }
+        return copied;
+    }
+    public static string ValidateReceipt(string receipt) {
+        if(String.IsNullOrEmpty(receipt))throw new InvalidDataException("Missing migration receipt.");
+        var lines=receipt.Split('\n');Guid id;
+        if(lines.Length!=6 || lines[0]!="schema=1" || !lines[1].StartsWith("installation=",StringComparison.Ordinal)
+            || !Guid.TryParseExact(lines[1].Substring(13),"N",out id))throw new InvalidDataException("Invalid migration receipt; old storage will not be imported again.");
+        for(int i=3;i<6;i++){int value;var parts=lines[i].Split('=');if(parts.Length!=2 || !Int32.TryParse(parts[1],out value) || value<0)throw new InvalidDataException("Invalid migration counters.");}
+        return receipt;
+    }
+    public static string Migrate(string oldRoot,string newRoot,Preferences preferences) {
+        RejectAncestors(newRoot);Directory.CreateDirectory(newRoot);RejectLink(newRoot);
+        string marker=Path.Combine(newRoot,MarkerName);
+        // Check both receipts before ever inspecting the old path or registry.
+        if(File.Exists(marker)){RejectLink(marker);string complete=ValidateReceipt(File.ReadAllText(marker));preferences.SaveReceipt(complete);return complete;}
+        string saved=preferences.ReadReceipt();
+        if(!String.IsNullOrEmpty(saved)){saved=ValidateReceipt(saved);AtomicWrite(marker,Encoding.UTF8.GetBytes(saved));return saved;}
+        using(var gate=new FileStream(Path.Combine(newRoot,"sprk-storage-migration-v1.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None)) {
+            if(File.Exists(marker))return ValidateReceipt(File.ReadAllText(marker));
+            saved=preferences.ReadReceipt();if(!String.IsNullOrEmpty(saved)){saved=ValidateReceipt(saved);AtomicWrite(marker,Encoding.UTF8.GetBytes(saved));return saved;}
+            int files=0,prefs=0;bool source=false;
+            if(LegacyMigrationEnabled) {
+                source=Directory.Exists(oldRoot);files=CopyAccounts(oldRoot,newRoot);
+                foreach(var name in preferences.LegacyNames())if(AllowedPreference(name)){source=true;if(!preferences.Contains(name)){preferences.Copy(name);prefs++;}}
+            }
+            saved="schema=1\ninstallation="+Guid.NewGuid().ToString("N")+"\ncompleted_utc="+DateTime.UtcNow.ToString("o")+"\nfiles="+files+"\npreferences="+prefs+"\nsource="+(source?1:0);
+            // Registry receipt is a tombstone if the new folder is later removed.
+            // Only write either completion receipt after every copy succeeds.
+            preferences.SaveReceipt(saved);AtomicWrite(marker,Encoding.UTF8.GetBytes(saved));return saved;
+        }
+    }
+    static bool probed;
+    static void NativeProbe() {
+        string root=Environment.GetEnvironmentVariable("SPRK_STORAGE_PROBE_DIR");string id=Environment.GetEnvironmentVariable("SPRK_STORAGE_PROBE_ID");Guid guid;
+        if(probed || String.IsNullOrEmpty(root) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) || !Guid.TryParseExact(id,"N",out guid))return;
+        probed=true;
+        using(var preferences=new RegistryPreferences(@"Software\SPRK\StorageProbe\"+id,"Sprk.Storage.ProbeReceipt."+id))Migrate(Path.Combine(root,"old"),Path.Combine(root,"new"),preferences);
+        var probe=new Probe{company=Application.companyName,path=Application.persistentDataPath,value=PlayerPrefs.GetInt("Sprk.Graphics.StorageProbe."+id,-1)};
+        File.WriteAllText(Path.Combine(root,"native-result.json"),JsonUtility.ToJson(probe));Application.Quit();
+    }
+    [Serializable] public class Probe {public string company,path;public int value;}
+    public static void Ensure() {
+        NativeProbe();
+        if(ready || Time.realtimeSinceStartup<retryAt || Application.companyName!="sprk")return;
+        if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) || !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")))return;
+        retryAt=Time.realtimeSinceStartup+10;
+        try {
+            string path=Application.persistentDataPath;
+            string old=Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(path)),"masangsoft","King's Raid");
+            using(var preferences=new RegistryPreferences())Receipt=Migrate(old,path,preferences);
+            ready=true;Debug.Log("SPRK storage schema 1 ready; legacy import disabled for this profile.");
+        } catch(Exception error){Debug.LogWarning("SPRK storage migration pending: "+error.GetType().Name);}
+    }
+    static SprkStorageReporter reporter;
+    public static void StartReporter(){Ensure();if(!ready || reporter!=null)return;var go=new GameObject("SprkStorageReporter");UnityEngine.Object.DontDestroyOnLoad(go);reporter=go.AddComponent<SprkStorageReporter>();}
+}
+
+public sealed class SprkStorageReporter:MonoBehaviour {
+    bool busy;
+    float next;
+    string reported;
+    void Update() {
+        if(busy || Time.realtimeSinceStartup<next)return;
+        var requester=SingletonUpdater<WebServiceManager>.instance.Requester;
+        if(requester==null || String.IsNullOrEmpty(requester.SessionKey) || requester.SessionKey==reported)return;
+        next=Time.realtimeSinceStartup+60;StartCoroutine(Report(requester.Host,requester.SessionKey));
+    }
+    IEnumerator Report(string host,string session) {
+        busy=true;
+        try {
+            var lines=SprkStorageMigration.ValidateReceipt(SprkStorageMigration.Receipt).Split('\n');
+            string text="SessionKey="+UnityWebRequest.EscapeURL(session)+"&Schema=1&Installation="+lines[1].Substring(13)
+                +"&Files="+lines[3].Substring(6)+"&Preferences="+lines[4].Substring(12)+"&Source="+lines[5].Substring(7);
+            using(var web=new UnityWebRequest(host.TrimEnd('/')+"/client/storage_status","POST")) {
+                web.uploadHandler=new UploadHandlerRaw(Encoding.UTF8.GetBytes(text));web.downloadHandler=new DownloadHandlerBuffer();web.timeout=15;
+                web.SetRequestHeader("Content-Type","application/x-www-form-urlencoded");yield return web.SendWebRequest();
+                if(!web.isNetworkError && !web.isHttpError) {
+                    var reply=LitJson.JsonMapper.ToObject(web.downloadHandler.text);
+                    if(reply!=null){if(reply["Result"].valueStr=="Success")reported=session;reply.ReleaseAll();}
+                }
+            }
+        } finally {busy=false;}
+    }
+}

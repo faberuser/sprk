@@ -1477,3 +1477,41 @@ async fn native_perk_forms_preserve_pairs_points_validation_reset_and_login() {
     assert_eq!(logged.heroes.iter().find(|h|h.hero_index==1).unwrap().details["TranscendSkillPage1"],"[12]");
     assert_eq!(logged.heroes.iter().find(|h|h.hero_index==1).unwrap().details["TranscendPoint"],10);
 }
+
+
+#[tokio::test]
+async fn xerah_native_shop_items_recruit_at_base_progression_and_preserve_guards() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    for item in [776, 1007710] {
+        sqlx::query("DELETE FROM heroes WHERE account_id=? AND hero_index=77")
+            .bind(account).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE user_info SET gem=10000,pay_gem=0,mileage=0 WHERE account_id=?")
+            .bind(account).execute(&s.db).await.unwrap();
+        for (fields, expected) in [
+            ("HeroIndex=77&ItemIndex=816&BuyGem=6000".to_string(), "InvalidItemIndex"),
+            (format!("HeroIndex=77&ItemIndex={item}&BuyGem=1"), "InvalidPrice"),
+        ] {
+            let rejected = hero::buy_hero(State(s.clone()), form(&u, &fields)).await.unwrap().0;
+            assert_eq!(rejected["Result"], expected, "{rejected}");
+            assert_eq!(balance(&s, &u, "gem").await, 10000);
+            assert_eq!(balance(&s, &u, "mileage").await, 0);
+        }
+        let request = format!("HeroIndex=77&ItemIndex={item}&BuyGem=6000");
+        let result = hero::buy_hero(State(s.clone()), form(&u, &request)).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        let h = &result["HeroResult"]["HeroInfo"];
+        assert_eq!(h["HeroIndex"], 77);
+        assert_eq!(h["Level"], 1);
+        assert_eq!(h["Star"], 5);
+        assert_eq!(h["Transcended"], 0);
+        assert!(result["HeroResult"]["TeamExpResult"].is_object());
+        assert_eq!(balance(&s, &u, "gem").await, 4000);
+        assert_eq!(balance(&s, &u, "mileage").await, 600);
+        let duplicate = hero::buy_hero(State(s.clone()), form(&u, &request)).await.unwrap().0;
+        assert_eq!(duplicate["Result"], "HeroAlreadyExist");
+        assert_eq!(balance(&s, &u, "gem").await, 4000);
+        assert_eq!(balance(&s, &u, "mileage").await, 600);
+        assert!(login(&s).await.heroes.iter().any(|h| h.hero_index == 77 && h.level == 1 && h.star == 5 && h.transcend == 0));
+    }
+}

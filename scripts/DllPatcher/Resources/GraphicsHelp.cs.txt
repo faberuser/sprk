@@ -1,0 +1,139 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using UnityEngine;
+using NShared;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+
+public sealed partial class SprkGraphicsOptions {
+    sealed class GraphicsHelpInfo {
+        public string title,description;
+        public GraphicsHelpInfo(string title,string description){this.title=title;this.description=description;}
+    }
+    static readonly Dictionary<string,GraphicsHelpInfo> graphicsHelp=new Dictionary<string,GraphicsHelpInfo> {
+        {"Anti-Aliasing",new GraphicsHelpInfo("Anti-Aliasing","Smooths jagged edges in the 3D world and model previews.\nOff: fastest.\nFXAA: fast, but slightly softer.\nSMAA: sharper edges at moderate cost.\nMSAA: smooths geometry edges; high sample counts can be expensive.\nTAA: reduces shimmering over time, but can soften motion or leave trails.")},
+        {"FXAA Quality",new GraphicsHelpInfo("FXAA Quality","Only applies when Anti-Aliasing is FXAA.\nFast uses a cheaper filter. Standard spends more GPU work on edge smoothing. FXAA can soften fine detail; it does not increase render resolution.")},
+        {"SMAA Quality",new GraphicsHelpInfo("SMAA Quality","Only applies when Anti-Aliasing is SMAA.\nHigher quality searches more carefully for edges, improving smoothing at extra GPU cost. Lower quality favors performance.")},
+        {"MSAA Samples",new GraphicsHelpInfo("MSAA Samples","Only applies when Anti-Aliasing is MSAA.\nHigher sample counts smooth geometry edges at extra GPU and video-memory cost. This combines with Render Scale: 200% scale with 8x MSAA is especially demanding. Only supported sample counts are offered.")},
+        {"TAA Sharpness",new GraphicsHelpInfo("TAA Sharpness","Only applies when Anti-Aliasing is TAA.\nHigher settings sharpen the final image, but can add halos or emphasize shimmering. This does not change render resolution or eliminate TAA motion trails.")},
+        {"Render Scale",new GraphicsHelpInfo("Render Scale","Sets World Scale and Preview Scale together. Choose 100%, 125%, 150%, 175% or 200% for a shared setting.\nChoose Custom to enable the two child rows and set them independently. Switching presets preserves your saved Custom values.\nHigher scales cost more GPU work and video memory; 200% renders four times as many pixels as 100%.")},
+        {"World Scale",new GraphicsHelpInfo("World Scale","Controls the main 3D scene, including heroes and monsters in battle, lobby characters and the world map.\n100% uses the game's output resolution; 200% renders four times as many pixels. The UI stays at output resolution.\nChoose Custom under Render Scale to edit this setting independently.")},
+        {"Preview Scale",new GraphicsHelpInfo("Preview Scale","Controls dedicated model views: hero-detail previews, See Motions, Dressing Room and preview cinematics.\nHeroes and monsters rendered directly in battle, lobby characters and the world map use World Scale instead.\nChoose Custom under Render Scale to edit this independently. Adaptive battle reductions do not lower preview resolution.")},
+        {"Particle Density",new GraphicsHelpInfo("Particle Density","Reduces particle density in supported decorative effects.\nFull: original density.\nReduced: 75% emission.\nMinimal: 50% emission.\nThis can help busy scenes. Some effects stay unchanged to preserve important visuals. Works together with Battle Effects.")},
+        {"Battle Effects",new GraphicsHelpInfo("Battle Effects","Shares a budget between supported decorative particles during battle.\nBalanced and Minimal reduce emission when many effects are active. Full keeps the original density.\nWorks together with Particle Density. Some effects remain unchanged; this does not limit heroes or monsters.")},
+        {"Effect Coverage",new GraphicsHelpInfo("Effect Coverage","Limits how much of the screen each supported decorative particle can cover during battle.\nReduced and Minimal make large particles smaller to reduce overlap and GPU work. Full preserves original sizes. Some effects stay unchanged.")},
+        {"Adaptive Battle Scale",new GraphicsHelpInfo("Adaptive Battle Scale","Adjusts battle world resolution during sustained GPU overload. Choose a 30, 60, 120 or 144 FPS target, or Off.\nScale falls in 25-point steps, as low as 75%, then recovers up to your World Scale. UI and previews keep their resolution.\nThis is not an FPS limit or guarantee, and cannot fix CPU-heavy combat. Set the frame limit separately under Max Frame.")},
+        {"Lobby Camera Sensitivity",new GraphicsHelpInfo("Lobby Camera Sensitivity","Changes mouse drag and wheel-zoom speed in the lobby and world map.\n100% is normal speed. Lower values give finer control; higher values move faster. This changes camera controls, not image quality or rendering performance.")},
+        {"Model Camera Sensitivity",new GraphicsHelpInfo("Model Camera Sensitivity","Changes mouse orbit, pan and wheel-zoom speed in hero/model views, including See Motions and Dressing Room.\n100% is normal speed. Lower values give finer control; higher values move faster. This does not change Preview Scale or image quality.")},
+        {"Graphic_FrameControl",new GraphicsHelpInfo("Max Frame","30 / 60 / 144: requested FPS limits. Selecting one switches V-Sync off.\nAuto: V-Sync follows your display's refresh rate.\nAuto+: uses the FPS target configured for the current scene or content.\nV-Sync can override an FPS limit. Actual FPS depends on hardware and scene load. Adaptive Battle Scale changes resolution separately.")},
+        {"Graphic_VSyncControl",new GraphicsHelpInfo("V-Sync","Synchronizes frame presentation with your display to reduce tearing. It can add input delay and make the display refresh rate take precedence over an FPS limit.\nSelecting a fixed Max Frame limit turns V-Sync off; Auto turns it on. This setting is separate from Adaptive Battle Scale.")},
+        {"Graphic_WindowControl",new GraphicsHelpInfo("Screen","Full uses borderless fullscreen at your desktop resolution.\nWindow uses the selected Resolution preset or a resizable Custom window.\nRender Scale controls internal 3D detail separately from the size of the game window.")},
+        {"Graphic_ResolutionControl",new GraphicsHelpInfo("Resolution","Window presets: HD 1280x720, FHD 1920x1080, QHD 2560x1440 and UHD 3840x2160.\nCustom lets you resize the window and remembers its last size. Fullscreen uses your desktop resolution.\nHigher output resolution increases rendering cost; Render Scale multiplies the 3D resolution further.")},
+        {"Spec",new GraphicsHelpInfo("Texture","Controls texture detail. Higher settings retain more detail and use more video memory. Lower settings use smaller texture mip levels and may help when video memory is limited.\nThis is separate from output resolution, Render Scale and Anti-Aliasing.")}
+    };
+    static GraphicsHelpInfo HelpFor(GameOptionBaseComponent row) {
+        if(row==null)return null;
+        string key=row.name.StartsWith("SPRK ",StringComparison.Ordinal)?row.name.Substring(5):row.gameOptionData==null?null:row.gameOptionData.FieldName;
+        GraphicsHelpInfo help;return key!=null && graphicsHelp.TryGetValue(key,out help)?help:null;
+    }
+    public static void ConfigureGraphicsHelp(GameOptionBaseComponent row) {
+        var help=HelpFor(row);if(help==null)return;
+        // Keep native option metadata and shared localization tables untouched.
+        foreach(var root in new[]{row.ParentRoot,row.ChildRoot})if(root!=null && root.ToolTipImage!=null)root.ToolTipImage.SetActive(true);
+        if(row.Collider_Tooltip!=null)foreach(var collider in row.Collider_Tooltip)if(collider!=null)collider.enabled=true;
+    }
+    public static bool ShowGraphicsHelp(GameOptionBaseComponent row) {
+        var help=HelpFor(row);if(help==null)return false;
+        var anchor=row.GetComponent<UIWidget>();if(anchor==null)return true;
+        GameOptionTooltip.Open(anchor,new TooltipTextInfo {
+            Name=new NGame2.NUtil.StringProxy{Value=help.title},
+            Desc=new NGame2.NUtil.StringProxy{Value=help.description}
+        });return true;
+    }
+    public static bool HideGraphicsHelp(GameOptionBaseComponent row) {
+        if(HelpFor(row)==null)return false;
+        var anchor=row.GetComponent<UIWidget>();if(anchor!=null)GameOptionTooltip.Hide(anchor);return true;
+    }
+    System.Collections.IEnumerator GraphicsHelpProbe(List<string> report,string output) {
+        var manager=NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.LoginManagement>.instance;
+        var login=manager.GetInstance<LoginAccountInfo>();SprkLoginSettings.Configure(login);
+        login.GetComponent<SprkLoginSettings>().OpenSettings();yield return new WaitForSecondsRealtime(.5f);
+        var settings=manager.GetInstance<GameOptionWindow>();
+        foreach(var camera in Camera.allCameras)if(camera.name=="BI UI Camera")camera.gameObject.SetActive(false);
+        var rows=settings.GetComponentsInChildren<GameOptionBaseComponent>(true);
+        bool helpOk=true,isolated=true,events=true;int checkedRows=0;
+        var frameRow=rows.Single(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_FrameControl");
+        var vsyncRow=rows.Single(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_VSyncControl");
+        helpOk &= frameRow.transform.parent==vsyncRow.transform.parent && vsyncRow.transform.GetSiblingIndex()==frameRow.transform.GetSiblingIndex()+1;
+        var onShow=typeof(GameOptionBaseComponent).GetMethod("OnShowTooltip",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
+        var onHide=typeof(GameOptionBaseComponent).GetMethod("OnHideTooltip",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
+        var labelFlags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+        var records=new List<string>();
+        foreach(var row in rows) {
+            var help=HelpFor(row);if(help==null)continue;checkedRows++;
+            if(row.name=="SPRK FXAA Quality")ApplyPreset(1);
+            else if(row.name=="SPRK SMAA Quality")ApplyPreset(2);
+            else if(row.name=="SPRK MSAA Samples")ApplyPreset(3);
+            else if(row.name=="SPRK TAA Sharpness")ApplyPreset(4);
+            Setup(settings);ConfigureGraphicsHelp(row);
+            helpOk &= row.ParentRoot.ToolTipImage!=null && row.ParentRoot.ToolTipImage.activeSelf;
+            if(row.gameOptionData!=null && row.gameOptionData.Index!=0) {
+                var original=NShared.GameRoot.Instance.GameOptionDataContainer.GetData(row.gameOptionData.Index);
+                isolated &= ReferenceEquals(original,row.gameOptionData) && original.ToolTipDesc!=help.description;
+            }
+            var scroll=row.GetComponentInParent<UIScrollView>();
+            if(scroll!=null) {
+                var panel=scroll.GetComponent<UIPanel>();var clip=panel.finalClipRegion;var position=panel.transform.InverseTransformPoint(row.transform.position);
+                scroll.MoveRelative(new Vector3(0,clip.y-position.y,0));scroll.RestrictWithinBounds(true);
+            }
+            onShow.Invoke(row,null);yield return null;
+            var owner=row.GetComponent<UIWidget>();
+            var tooltip=Resources.FindObjectsOfTypeAll<GameOptionTooltip>().FirstOrDefault(t=>t.gameObject.activeInHierarchy);
+            events &= owner!=null && GameOptionTooltip.IsVisible(owner) && tooltip!=null;
+            if(tooltip!=null) {
+                var desc=(UILabel)tooltip.GetType().BaseType.GetField("DescLabel",labelFlags).GetValue(tooltip);
+                var title=(UILabel)tooltip.GetType().BaseType.GetField("NameLabel",labelFlags).GetValue(tooltip);
+                helpOk &= desc.text==help.description && title.text==help.title;
+                records.Add(help.title+"\n"+desc.text+"\n");
+                if(help.title=="Max Frame" || help.title=="Adaptive Battle Scale" || help.title=="Render Scale") {
+                    yield return new WaitForEndOfFrame();
+                    var image=ScreenCapture.CaptureScreenshotAsTexture();System.IO.File.WriteAllBytes(System.IO.Path.Combine(output,"help-"+help.title.Replace(" ","-")+".png"),image.EncodeToPNG());Destroy(image);
+                }
+            }
+            onHide.Invoke(row,null);yield return null;events &= !GameOptionTooltip.IsVisible(owner);
+            if(help.title=="Max Frame") {
+                yield return new WaitForEndOfFrame();
+                var image=ScreenCapture.CaptureScreenshotAsTexture();System.IO.File.WriteAllBytes(System.IO.Path.Combine(output,"frame-vsync-order.png"),image.EncodeToPNG());Destroy(image);
+            }
+            if(help.title=="Render Scale") {
+                int savedPreset=RenderScalePreset;
+                var presets=row.GetComponentsInChildren<UIToggle>(true).Where(t=>t.gameObject.activeSelf).ToArray();
+                var world=rows.Single(r=>r.name=="SPRK World Scale");var preview=rows.Single(r=>r.name=="SPRK Preview Scale");
+                bool layout=true;
+                foreach(int choice in new[]{2,5}) {
+                    presets[choice].Set(true);yield return null;
+                    bool custom=choice==5;
+                    foreach(var child in new[]{world,preview}) {
+                        layout &= child.ChildRoot.Root.activeSelf && !child.ParentRoot.Root.activeSelf && child.GetComponent<UIWidget>().isGrayscale==!custom;
+                        foreach(var toggle in child.GetComponentsInChildren<UIToggle>(true).Where(t=>t.gameObject.activeSelf)) {
+                            var collider=toggle.GetComponent<Collider>();layout &= collider!=null && collider.enabled==custom;
+                        }
+                    }
+                    yield return new WaitForEndOfFrame();
+                    var image=ScreenCapture.CaptureScreenshotAsTexture();System.IO.File.WriteAllBytes(System.IO.Path.Combine(output,custom?"scale-hierarchy-custom.png":"scale-hierarchy-preset.png"),image.EncodeToPNG());Destroy(image);
+                }
+                report.Add("renderScaleNativeHierarchy="+layout);
+                SprkTestPrefs.SetInt("Sprk.Graphics.RenderScale",savedPreset);Setup(settings);
+            }
+        }
+        report.Add("graphicsHelpRows="+checkedRows+" correctText="+helpOk+" nativeShowHide="+events+" tableIsolation="+isolated);
+        System.IO.File.WriteAllLines(System.IO.Path.Combine(output,"help-text.txt"),records.ToArray());
+        settings.ReOpen();yield return null;
+        helpOk &= vsyncRow.transform.GetSiblingIndex()==frameRow.transform.GetSiblingIndex()+1;
+        helpOk &= settings.GetComponentsInChildren<GameOptionBaseComponent>(true).Where(r=>HelpFor(r)!=null).All(r=>r.ParentRoot.ToolTipImage!=null && r.ParentRoot.ToolTipImage.activeSelf);
+        report.Add("graphicsHelpAndPooling="+(checkedRows==graphicsHelp.Count && helpOk && isolated && events));
+        settings.Close();
+    }
+}

@@ -267,6 +267,9 @@ pub(super) async fn execute(
     }
     stats(state, &mut info)?;
     put(db, account, "soul", slot, &info).await?;
+    if action == "soul_weapon_liberation" {
+        crate::api::progression::play_record::liberated(db, account).await?;
+    }
     out["ResultSoulWeaponInfo"] = info;
     Ok(out)
 }

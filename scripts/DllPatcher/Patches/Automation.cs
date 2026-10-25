@@ -7,18 +7,20 @@ namespace DllPatcher;
 
 partial class Program
 {
-    static void InstallAutomation(string clientRoot, bool stageOnly = false)
+    static bool InstallAutomation(string clientRoot, bool stageOnly = false)
     {
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
         var dll = Path.Combine(managed, "Assembly-CSharp.dll");
         var helper = Path.Combine(managed, "SprkAutomation.dll");
         using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Automation.cs.txt")!;
         using var reader = new StreamReader(stream);
+        using var migrationStream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.StorageMigration.cs.txt")!;
+        using var migrationReader=new StreamReader(migrationStream);
         var references = Directory.GetFiles(managed, "*.dll")
             .Where(p => Path.GetFileName(p) != "SprkAutomation.dll")
             .Select(p => MetadataReference.CreateFromFile(p));
         var compilation = CSharpCompilation.Create("SprkAutomation",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, references,
+            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(migrationReader.ReadToEnd()) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
         var emitted = compilation.Emit(compiled);
@@ -60,11 +62,12 @@ partial class Program
         File.WriteAllBytes(helper + ".staged", compiled.ToArray());
         if (changed) assembly.Write(dll + ".staged");
         assembly.Dispose();
-        if (stageOnly) { Console.WriteLine("Staged opt-in client automation."); return; }
-        if (System.Diagnostics.Process.GetProcessesByName("King's Raid").Length != 0)
+        if (stageOnly) { Console.WriteLine("Staged opt-in client automation."); return changed; }
+        if (System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))
             throw new InvalidOperationException("Automation staged. Close King's Raid before installing.");
         File.Move(helper + ".staged", helper, true);
         if (changed) File.Move(dll + ".staged", dll, true);
         Console.WriteLine("Installed opt-in client automation. Set SPRK_AUTOMATION_DIR only in the test client process.");
+        return changed;
     }
 }

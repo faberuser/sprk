@@ -321,7 +321,13 @@ pub(super) async fn execute(
             eq.item_index = target;
             eq.star = 0;
             eq.upgrade_star_fail_bonus = 0;
-            out["EquipHeroIndex"] = json!(0);
+            // Restoration keeps the same equipment slot on the server. The
+            // native client removes and reapplies it using this owner field.
+            let parts = (1..=10).map(|part| format!("equip_item_slot_index_{part}")).collect::<Vec<_>>().join(",");
+            let owner: Option<i32> = sqlx::query_scalar(&format!(
+                "SELECT hero_index FROM heroes WHERE account_id=? AND ? IN ({parts}) ORDER BY hero_index LIMIT 1"))
+                .bind(account).bind(eq.slot_index).fetch_optional(&mut *db).await?;
+            out["EquipHeroIndex"] = json!(owner.unwrap_or(0));
             out["NewEquipStorageSlotInfo"] = Value::Null;
             out["EquipPresetInfos"] = json!([]);
             super::super::progression::record(db, account, "UpgradeEquipTier", 0, 0, 1).await?;

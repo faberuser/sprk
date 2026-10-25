@@ -77,9 +77,10 @@ async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_it
         assert_eq!(product["BeginTime"], "");
         assert_eq!(product["EndTime"], "");
         assert_eq!(product["Durational"], 0);
-        assert_eq!(product["PurchasableCount"], 0);
-        assert_eq!(product["ResetType"], "None");
-        assert_eq!(product["DailyReset"], false);
+        let free = n(product, "Price") == 0;
+        assert_eq!(product["PurchasableCount"], if free { 1 } else { 0 });
+        assert_eq!(product["ResetType"], if free { "Daily" } else { "None" });
+        assert_eq!(product["DailyReset"], free);
         for field in ["GoogleId", "AppleId", "OneStoreId", "UDPStoreId"] {
             assert!(product[field].is_null() || product[field] == "");
         }
@@ -105,6 +106,7 @@ async fn unlimited_shop_repeated_purchases_and_cached_selection_use_current_stoc
     let (s, u) = setup().await;
     let a = account(&u);
     assert!(s.tables.live.rules["Products"].as_array().unwrap().iter()
+        .filter(|p| n(p, "Price") > 0)
         .all(|p| n(p, "PurchasableCount") == 0 && n(p, "ResetSeconds") == 0));
     put(&mut s.db.acquire().await.unwrap(), a, "product", 3093009,
         &json!({"ProductIndex":3093009,"Period":0,"PurchasedCount":19})).await.unwrap();
@@ -165,7 +167,7 @@ async fn shop_purchases_preserve_current_mission_unlocks() {
 }
 
 #[tokio::test]
-async fn explicitly_free_shop_offers_grant_packages_without_any_currency() {
+async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     let (s, u) = setup().await;
     let a = account(&u);
     sqlx::query("UPDATE user_info SET gold=0,gem=0,mileage=0 WHERE account_id=?")
@@ -177,12 +179,34 @@ async fn explicitly_free_shop_offers_grant_packages_without_any_currency() {
     for (id, item) in [(3094170, 94170), (3094594, 94594), (3094595, 94595)] {
         let product = free.iter().find(|p| n(p, "Index") == id).unwrap();
         assert_eq!(product["Flag"], "Free");
+        assert_eq!(product["PurchasableCount"], 1);
+        assert_eq!(product["ResetType"], "Daily");
+        assert_eq!(product["DailyReset"], true);
+        assert_eq!(product["ResetSeconds"], 86400);
         for expected in 1..=2 {
+            if expected == 2 {
+                // Reset only this package's ledger to simulate the next UTC day.
+                sqlx::query("UPDATE extension_state SET data=json_set(data,'$.Period',-1) WHERE account_id=? AND kind='product' AND idx=?")
+                    .bind(a).bind(id).execute(&s.db).await.unwrap();
+                let refreshed = shop_snapshot(&s, a).await.unwrap();
+                assert_eq!(refreshed["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
+                    .find(|p| n(p, "ProductIndex") == id).unwrap()["PurchasedCount"], 0);
+            }
             let result = call(&s, &u, "shop/buy_payshop_product", &format!("Index={id}")).await;
             ok(&result);
             assert!(result["DecCurrencyResult"].is_null());
             assert_eq!(result["CurrencyResults"], json!([]));
-            assert_eq!(result["PlayerProductPurchaseInfo"]["PurchasedCount"], expected);
+            assert_eq!(result["PlayerProductPurchaseInfo"]["PurchasedCount"], 1);
+            // Concurrent duplicate requests must both fail without granting extras.
+            let args = format!("Index={id}&Price=0&ItemCount=999");
+            let (duplicate, concurrent) = tokio::join!(
+                call(&s, &u, "shop/buy_payshop_product", &args),
+                call(&s, &u, "shop/buy_payshop_product", &args));
+            assert_ne!(duplicate["Result"], "Success");
+            assert_ne!(concurrent["Result"], "Success");
+            let persisted = shop_snapshot(&s, a).await.unwrap();
+            assert_eq!(persisted["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
+                .find(|p| n(p, "ProductIndex") == id).unwrap()["PurchasedCount"], 1);
             assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
                 .bind(a).bind(item).fetch_one(&s.db).await.unwrap(), expected);
         }
@@ -193,6 +217,54 @@ async fn explicitly_free_shop_offers_grant_packages_without_any_currency() {
     // A client cannot turn an ordinary paid package into a free purchase.
     let paid = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Price=0").await;
     assert_ne!(paid["Result"], "Success");
+}
+
+#[tokio::test]
+async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
+    let (mut s, u) = setup().await;
+    let a = account(&u);
+    daily_limit(&mut s, &[3093009]);
+    let rules = &mut Arc::make_mut(&mut Arc::make_mut(&mut s.tables).live).rules;
+    rules["Products"].as_array_mut().unwrap().iter_mut()
+        .find(|p| n(p, "Index") == 3093009).unwrap()["PurchasableCount"] = json!(5);
+    let before = balance(&s, &u, "gem").await;
+    for quantity in ["0", "-1", "1000", "abc", "9223372036854775807"] {
+        let result = call(&s, &u, "shop/buy_payshop_product", &format!("Index=3093009&Quantity={quantity}")).await;
+        assert_ne!(result["Result"], "Success");
+    }
+    assert_eq!(balance(&s, &u, "gem").await, before);
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3093009).await.unwrap().is_null());
+    let batch = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=3&Price=0&ItemCount=999").await;
+    ok(&batch);
+    assert_eq!(batch["PlayerProductPurchaseInfo"]["PurchasedCount"], 3);
+    assert_eq!(balance(&s, &u, "gem").await, before - 15000);
+    assert_eq!(batch["CurrencyResults"][0]["AddValue"], -15000);
+    let rejected = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=3").await;
+    assert_ne!(rejected["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, before - 15000);
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=2").await);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 5);
+    assert_eq!(balance(&s, &u, "gem").await, before - 25000);
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3094170&Quantity=2").await["Result"], "Success");
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3094170).await.unwrap().is_null());
+    // Affordable units are insufficient for this batch: no partial purchase.
+    sqlx::query("UPDATE user_info SET gem=6000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let other = 3093003;
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", &format!("Index={other}&Quantity=999")).await["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, 6000);
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "product", other).await.unwrap().is_null());
+    // A later invalid grant rolls back the debit and all earlier grants.
+    let rules = &mut Arc::make_mut(&mut Arc::make_mut(&mut s.tables).live).rules;
+    let product = rules["Products"].as_array_mut().unwrap().iter_mut().find(|p| n(p, "Index") == 3093009).unwrap();
+    product["PurchasableCount"] = json!(0);
+    product["ItemInfos"].as_array_mut().unwrap().push(json!({"ItemIndex":-1,"ItemCount":1}));
+    sqlx::query("UPDATE user_info SET gem=100000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Quantity=2").await["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, 100000);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=93009")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 5);
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "product", 3093009).await.unwrap()["PurchasedCount"], 5);
 }
 
 #[tokio::test]

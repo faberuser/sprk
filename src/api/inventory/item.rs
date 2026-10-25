@@ -593,6 +593,14 @@ async fn execute(
     };
     match action {
         "use_booster_item" => {
+            if let Some(percent) = super::honor_buff::definition(state, index) {
+                out["ItemResult"] = consume(db, account, index, count).await?;
+                let activated = super::honor_buff::activate(db, state, percent, count).await?;
+                out["InternalErrorMessage"] = activated["Message"].clone();
+                out["HonorServerBuff"] = activated;
+                out["ItemTimeDurationInfo"] = Value::Null;
+                return Ok(out);
+            }
             let booster = state
                 .tables
                 .inventory
@@ -717,13 +725,17 @@ async fn execute(
                         .map(|v| n(v, "EquipItemExtendCount"))
                         .max()
                         .unwrap_or(0);
-                    if old + amount > max {
+                    // Native ticket confirmation permits a partial final expansion.
+                    // Reject batches containing tickets that would add no slots.
+                    let unit = n(potion, "ActionValue");
+                    if old >= max || count as i64 > (max - old + unit - 1) / unit {
                         return Err(rule("InvalidActionValue"));
                     }
+                    let added = amount.min(max - old);
                     sqlx::query(&format!(
                         "UPDATE inventory_settings SET {column}={column}+? WHERE account_id=?"
                     ))
-                    .bind(amount)
+                    .bind(added)
                     .bind(account)
                     .execute(&mut *db)
                     .await?;
@@ -731,7 +743,7 @@ async fn execute(
                         "NewChestExtend"
                     } else {
                         "NewInventoryExtend"
-                    }] = json!(old + amount);
+                    }] = json!(old + added);
                 }
                 11=>{
                     let id=item_index(req,"HeroIndex")?;
