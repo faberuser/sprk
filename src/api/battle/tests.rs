@@ -3,13 +3,26 @@ use super::*;
 use crate::api::account::user;
 use crate::database;
 pub(super) async fn setup() -> (AppState, Value) {
+    setup_with_tables(crate::tables::test_tables()).await
+}
+async fn setup_active_world_boss() -> (AppState, Value) {
+    let mut tables = crate::tables::test_tables();
+    let rules = &mut std::sync::Arc::make_mut(&mut tables.battle).rules;
+    // Combat/reward tests need an active scoring period even on the weekly
+    // rest day. Keep the epoch safely inside the six-day window, including
+    // the native UTC+9 season offset. Schedule boundaries are tested separately.
+    rules["SeasonEpoch"] = json!(time(now() - 2 * 86400));
+    rules["EntryRechargeOverrides"]["WorldBossGlobalTicket"]["InitialCount"] = json!(2);
+    setup_with_tables(tables).await
+}
+async fn setup_with_tables(tables: crate::tables::GameTables) -> (AppState, Value) {
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .unwrap();
     database::create_tables(&db).await.unwrap();
-    let s = AppState::new(db, crate::tables::test_tables());
+    let s = AppState::new(db, tables);
     let u = json!(
         user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
@@ -426,7 +439,8 @@ async fn world_boss_advertises_native_rotation_with_a_previous_boss() {
     assert_eq!(bosses.len(), 1);
     let id = n(&bosses[0], "Index");
     let cycle = [3, 5, 4];
-    assert_eq!(id, cycle[((seasons::season(&s).0 - 1) % 3) as usize]);
+    // Global World Boss rolls over at UTC+9, ahead of the general season.
+    assert_eq!(id, cycle[((n(&bosses[0], "Season") - 1) % 3) as usize]);
     let def = row(&s, "WorldBoss", &[("Index", id)]).unwrap();
     assert_eq!(def["IsGlobal"], true);
     assert!(s.tables.battle.rows("WorldBoss").iter().any(|previous|
@@ -3384,7 +3398,7 @@ async fn world_boss_daily_score_uses_utc_ledger_and_ignores_old_timezone_snapsho
 
 #[tokio::test]
 async fn world_boss_archived_participation_drops_pay_two_boxes_per_attempt_with_two_entry_override() {
-    let (s,u)=setup().await;
+    let (s,u)=setup_active_world_boss().await;
     let a=account(&u);
     sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
     let info=call(&s,&u,"world_boss/get_world_boss_info","").await;
@@ -3443,7 +3457,7 @@ async fn world_boss_global_rank_uses_archived_forty_tiers_and_72_hour_mail_once(
 
 #[tokio::test]
 async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and_runs() {
-    let (s,u)=setup().await;
+    let (s,u)=setup_active_world_boss().await;
     let second=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=world-boss-second-player"))
         .await.unwrap().0);
     sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
@@ -3454,6 +3468,7 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
     let info=call(&s,&u,"world_boss/get_world_boss_info","").await;
     let mut old=info["WorldBossInfos"][0].clone();
     let id=n(&old,"Index");
+    let season=n(&old,"Season");
     let definition=s.tables.battle.find("WorldBoss",&[("Index",id)]).unwrap();
     assert_eq!(definition["DealBattleDuration"],518400);
     assert_eq!(definition["NormalBattleDuration"],0);
@@ -3461,9 +3476,9 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
     old["MonsterHp0"]=json!(0);
     old["Status"]=json!("Ended");
     old["TotalDamage"]=json!(1_000_000_000_000_i64);
-    put(&mut s.db.acquire().await.unwrap(),0,"world_boss",campaign::key(id,seasons::season(&s).0),&old).await.unwrap();
+    put(&mut s.db.acquire().await.unwrap(),0,"world_boss",campaign::key(id,season),&old).await.unwrap();
     sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',?,?,?,date('now'),1000000000000)")
-        .bind(id).bind(seasons::season(&s).0).bind(account(&u)).execute(&s.db).await.unwrap();
+        .bind(id).bind(season).bind(account(&u)).execute(&s.db).await.unwrap();
     sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'achievement',20,1,'all')")
         .bind(account(&u)).execute(&s.db).await.unwrap();
     let refreshed=call(&s,&u,"world_boss/get_world_boss_info","").await;
@@ -3498,7 +3513,7 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
 
 #[tokio::test]
 async fn world_boss_high_damage_party_settles_and_progresses_once() {
-    let (s,u)=setup().await;
+    let (s,u)=setup_active_world_boss().await;
     let a=account(&u);
     {
         let mut db=s.db.acquire().await.unwrap();
@@ -3543,7 +3558,7 @@ async fn world_boss_high_damage_party_settles_and_progresses_once() {
 
 #[tokio::test]
 async fn world_boss_native_creature_damage_settles_once() {
-    let (s,u)=setup().await;
+    let (s,u)=setup_active_world_boss().await;
     // This damage/settlement fixture must also be runnable on Sunday, when
     // the native calendar grants no global World Boss entries.
     {
