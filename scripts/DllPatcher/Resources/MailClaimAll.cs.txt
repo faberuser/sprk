@@ -1,0 +1,125 @@
+﻿using System;
+using System.Collections.Generic;
+using NShared;
+using NGame2.NAccount;
+using NGame2.NUI.NManager;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NBattle;
+using NVespa;
+using NVespa.NSingleton;
+using NVespa.NGlobal;
+using NVespa.NNGUIExtension;
+using UnityEngine;
+
+public static class SprkMailClaimAll {
+    const int BatchSize = 50;
+    static bool active, waiting, cancelled;
+    static int run;
+    static float requested;
+    static string session;
+    static MailManagement manager;
+    static MailListPopup popup;
+    static readonly List<MailReceiveResult> receipts = new List<MailReceiveResult>();
+    public static Dictionary<string, object> Encode(Dictionary<string, object> fields) {
+        fields["ClaimUntilFull"] = "true";
+        return fields;
+    }
+    static string CurrentSession() {
+        var web = SingletonUpdater<WebServiceManager>.instance;
+        return web.Requester == null ? null : web.Requester.SessionKey;
+    }
+    public static void Caption(MailListPopup window) {
+        foreach (var localize in window.GetComponentsInChildren<UILocalizeEx>(true)) {
+            if (localize.LocalizeLink == null || localize.LocalizeLink.Key != "MAIL_LIMITED_MESSAGE") continue;
+            localize.enabled = false;
+            var label = localize.GetComponent<UILabel>();
+            if (label != null) label.text = active ? "Claiming mail... " + receipts.Count + " claimed" : "Claims continue until inventory is full.";
+        }
+    }
+    public static void Start(MailManagement owner, MailListPopup window, int totalCount) {
+        if (active || window == null || String.IsNullOrEmpty(CurrentSession())) return;
+        manager = owner; popup = window; session = CurrentSession();
+        active = true; waiting = cancelled = false; run++; receipts.Clear();
+        if (owner.GetComponent<SprkMailClaimDriver>() == null) owner.gameObject.AddComponent<SprkMailClaimDriver>();
+        Caption(window);
+        if (window.ReceiveAllButton != null) window.ReceiveAllButton.isEnabled = false;
+    }
+    public static void Cancel(MailListPopup window) {
+        if (active && window == popup) cancelled = true;
+    }
+    public static void Pump() {
+        if (!active) return;
+        if (CurrentSession() != session) { Abandon(); return; }
+        if (popup != null && popup.ReceiveAllButton != null) popup.ReceiveAllButton.isEnabled = false;
+        if (waiting) {
+            if (Time.realtimeSinceStartup - requested >= 60f)
+                Finish("The mail request timed out. Reopen the mailbox; relog if reward counts have not refreshed.");
+            return;
+        }
+        if (cancelled || popup == null || !popup.IsOpen()) { Finish(null); return; }
+        waiting = true; requested = Time.realtimeSinceStartup;
+        int generation = run;
+        try {
+            var request = new NShared.ReceiveAllMail.Request { MaxCount = BatchSize };
+            bool completed = false;
+            SingletonUpdater<WebServiceManager>.instance.Requester.Request(request, (NShared.ReceiveAllMail.Response response) => {
+                if (completed) return;
+                completed = true;
+                if (!active || generation != run) return;
+                if (CurrentSession() != session) { Abandon(); return; }
+                waiting = false;
+                if (response == null || response.BaseResult != BaseResultType.Success || response.Result != NShared.ReceiveAllMail.ResultType.Success) {
+                    Finish("Claiming stopped because the request failed. Remaining mail has been kept."); return;
+                }
+                try {
+                    var received = response.MailReceiveResults ?? new MailReceiveResult[0];
+                    foreach (var receipt in received) {
+                        GlobalAutoBehaviour<AccountManager>.instance.ApplyReceiveMail(receipt);
+                        receipts.Add(receipt);
+                    }
+                    Caption(popup);
+                    if (!String.IsNullOrEmpty(response.InternalErrorMessage)) Finish(response.InternalErrorMessage);
+                    else if (received.Length < BatchSize || cancelled) Finish(null);
+                    // The next request starts on a later frame, with no overlap.
+                } catch (Exception error) {
+                    Debug.LogWarning("SPRK mail claim application: " + error.GetType().Name);
+                    Finish("Mail rewards were received. Please relog to refresh inventory counts before continuing.");
+                }
+            });
+        } catch (Exception error) {
+            Debug.LogWarning("SPRK mail claim request: " + error.GetType().Name);
+            waiting = false;
+            Finish("Claiming stopped because the request could not be sent. Remaining mail has been kept.");
+        }
+    }
+    static void RestoreButton() {
+        if (popup == null) return;
+        if (popup.ReceiveAllButton != null) popup.ReceiveAllButton.isEnabled = true;
+        Caption(popup);
+    }
+    static void Abandon() {
+        active = waiting = false; run++; receipts.Clear(); RestoreButton();
+    }
+    static void Finish(string reason) {
+        active = waiting = false;
+        RestoreButton();
+        SingletonAuto<MailInfoContainer>.instance.OnReceiveAll();
+        bool capacity = !String.IsNullOrEmpty(reason) && reason.IndexOf("Equipment bag is full", StringComparison.Ordinal) >= 0;
+        if (receipts.Count > 0) {
+            string title = "Claimed " + receipts.Count + " mails" + (capacity ? " (inventory full)" : "");
+            var summary = new BaseRewardPopup.PopupOpenData().SetTitle(title);
+            foreach (var receipt in receipts)
+                summary.AddItemResultInfos(receipt.ItemResults).AddEquipResultInfos(receipt.EquipItemResults)
+                    .AddStaminaResultInfos(receipt.StaminaResults).AddGuildPointResult(receipt.GuildPointResult)
+                    .AddCurrencyResultInfos3(receipt.CurrencyResults).AddPetInfo(receipt.PetResult);
+            summary.IsSortForMail = true;
+            manager.rewardPopup = BaseRewardPopup.OpenPopup(summary, GlobalAutoBehaviour<GlobalManagement>.instance.WindowOpenedUI3DUI());
+        }
+        if (!String.IsNullOrEmpty(reason) && (!capacity || receipts.Count == 0)) MessagePopup.Open("Mailbox", reason);
+        receipts.Clear();
+    }
+}
+
+public sealed class SprkMailClaimDriver : MonoBehaviour {
+    void Update() { SprkMailClaimAll.Pump(); }
+}

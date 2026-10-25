@@ -25,6 +25,8 @@
     <EmbeddedResource Include="Resources/MissionClaimAll.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionClaimAll.cs.txt" />
     <EmbeddedResource Include="Resources/ChatChannels.cs.txt" WithCulture="false" LogicalName="DllPatcher.ChatChannels.cs.txt" />
     <EmbeddedResource Include="Resources/ImageRecovery.cs.txt" WithCulture="false" LogicalName="DllPatcher.ImageRecovery.cs.txt" />
+    <EmbeddedResource Include="Resources/MailClaimAll.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailClaimAll.cs.txt" />
+    <EmbeddedResource Include="Resources/MailClaimAllTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailClaimAllTests.cs.txt" />
     <EmbeddedResource Include="Resources/MailUpdates.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdates.cs.txt" />
     <EmbeddedResource Include="Resources/MailUpdatesTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MailUpdatesTests.cs.txt" />
     <EmbeddedResource Include="Resources/StoryAuto.cs.txt" WithCulture="false" LogicalName="DllPatcher.StoryAuto.cs.txt" />

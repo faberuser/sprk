@@ -457,3 +457,20 @@ and other shared consumable popups) at 1,000 per use. Max, plus/minus, typed inp
 and confirmation share the cap, preserving smaller caller limits and full owned
 counts on inventory icons. Typed values normalize immediately. Server consumable
 validation already allows 1,000; the dedicated hero EXP bulk-use path is unchanged.
+
+### Mail Claim All until inventory fills
+
+The existing `--mail-updates-only` installer now includes automatic Claim All.
+One click drains sequential 50-mail batches until empty, blocked by capacity,
+cancelled by closing the mailbox, or interrupted by an error/session change.
+It applies each response once and shows one combined reward summary. The old
+50-mail notice is replaced without changing inventory quantities or mail data.
+`--self-test-mail-updates` runs the shipped loop against controlled request and
+UI stand-ins, including 1,505 messages, partial capacity, duplicate clicks,
+late callbacks, cancellation, timeout and session replacement. The existing
+`--build-release` path installs and verifies these same hooks and tests.
+
+Updated clients encode `ClaimUntilFull=true`; the matching server uses a
+savepoint per mail, commits earlier successful claims, and leaves every
+attachment of the blocked mail untouched. Legacy clients retain their atomic
+batch behavior. Deploy the matching server before distributing this client.

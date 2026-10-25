@@ -331,6 +331,9 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
     let account = req.account(&state)?;
     deliver_globals(&state, account).await?;
     let id = req.number("MailIndex", 0)?;
+    // Updated clients opt in to per-mail commits while they drain the inbox.
+    // Legacy clients retain the existing all-or-nothing batch contract.
+    let until_full = all && matches!(req.text("ClaimUntilFull"), "true" | "True" | "1");
     let max = if all {
         req.number("MaxCount", 50)?.clamp(1, 100)
     } else {
@@ -348,11 +351,32 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
         return Ok(Json(response("Fail")));
     }
     let mut results = vec![];
+    let mut stop_message = String::new();
     for row in rows {
+        if until_full {
+            sqlx::query("SAVEPOINT mail_claim").execute(&mut *tx).await?;
+        }
         match claim(&mut tx, &state, account, &row).await {
-            Ok(result) => results.push(result),
+            Ok(result) => {
+                if until_full {
+                    sqlx::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                }
+                results.push(result);
+            }
             Err(error) => {
                 tracing::warn!(%error, "Mail claim rolled back");
+                if until_full {
+                    // claim() can debit/grant currencies before checking gear.
+                    // Roll back the entire blocked mail, keeping prior receipts.
+                    sqlx::query("ROLLBACK TO SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                    sqlx::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                    stop_message = if matches!(&error, ServerError::InvalidRequest(code) if code == "EquipItemFull") {
+                        "Equipment bag is full. Free space and try claiming the mail again."
+                    } else {
+                        "Claiming stopped because a mail reward could not be received. Remaining mail has been kept."
+                    }.to_string();
+                    break;
+                }
                 if matches!(&error, ServerError::InvalidRequest(code) if code == "EquipItemFull") {
                     return Ok(Json(json!({"BaseResult":"Success","Result":"Fail",
                         "InternalErrorMessage":"Equipment bag is full. Free space and try claiming the mail again."})));
@@ -363,7 +387,7 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
     }
     tx.commit().await?;
     Ok(Json(if all {
-        json!({"BaseResult":"Success","Result":"Success","ReceivedMailCount":results.len(),"MailReceiveResults":results})
+        json!({"BaseResult":"Success","Result":"Success","ReceivedMailCount":results.len(),"MailReceiveResults":results,"InternalErrorMessage":stop_message})
     } else {
         json!({"BaseResult":"Success","Result":"Success","MailReceiveResult":results[0]})
     }))
@@ -404,4 +428,83 @@ pub async fn send_system_mail(
 
     let id = result.last_insert_rowid();
     Ok(id)
+}
+
+#[cfg(test)]
+mod claim_until_full_tests {
+    use super::*;
+    use std::sync::Arc;
+    async fn setup() -> (AppState, Value, i64) {
+        let s = crate::api::community::tests::setup().await;
+        let u = crate::api::community::tests::login(&s, "mail-drain-test").await;
+        let a = u["UserInfo"]["AccountId"].as_i64().unwrap();
+        sqlx::query("DELETE FROM mails WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        (s, u, a)
+    }
+    fn form(u: &Value, fields: &str) -> Bytes {
+        Bytes::from(format!("SessionKey={}&{fields}", u["UserInfo"]["SessionKey"].as_str().unwrap()))
+    }
+    #[tokio::test]
+    async fn mail_claim_until_full_drains_over_1000_mails_once_in_bounded_batches() {
+        let (s, u, a) = setup().await;
+        sqlx::query("WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<1005) INSERT INTO mails(account_id,sender,title,reward_gold) SELECT ?,'System','Batch test',1 FROM n")
+            .bind(a).execute(&s.db).await.unwrap();
+        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let mut total = 0;
+        loop {
+            let r = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
+            assert_eq!(r["Result"], "Success");
+            let count = r["ReceivedMailCount"].as_i64().unwrap();
+            assert!(count <= 50);
+            total += count;
+            if count < 50 { break; }
+        }
+        assert_eq!(total, 1005);
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 1005);
+        let retry = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
+        assert_eq!(retry["ReceivedMailCount"], 0);
+    }
+    #[tokio::test]
+    async fn mail_claim_until_full_commits_fitting_mail_and_rolls_back_whole_blocked_attachment() {
+        let (mut s, u, a) = setup().await;
+        Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory).constants.insert("EquipItemMaxCount".into(), 3);
+        let mut gear = EquipItemInfo::default(); gear.item_index = 1001; gear.star = 2;
+        let big = serde_json::to_string(&vec![gear.clone(), gear.clone()]).unwrap();
+        let small = serde_json::to_string(&vec![gear]).unwrap();
+        let blocked = sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES(?,'System','Does not fit',999,?)")
+            .bind(a).bind(big).execute(&s.db).await.unwrap().last_insert_rowid();
+        for _ in 0..2 {
+            sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES(?,'System','Fits',7,?)")
+                .bind(a).bind(&small).execute(&s.db).await.unwrap();
+        }
+        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let r = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
+        assert_eq!(r["Result"], "Success"); assert_eq!(r["ReceivedMailCount"], 2);
+        assert!(r["InternalErrorMessage"].as_str().unwrap().contains("Equipment bag is full"));
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 14);
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT is_received FROM mails WHERE mail_id=?").bind(blocked).fetch_one(&s.db).await.unwrap(), 0);
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=1001").bind(a).fetch_one(&s.db).await.unwrap(), 2);
+        sqlx::query("UPDATE inventory_settings SET inventory_extend=1 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        let rest = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
+        assert_eq!(rest["ReceivedMailCount"], 1);
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 14 + 999);
+    }
+    #[tokio::test]
+    async fn mail_claim_until_full_keeps_legacy_atomicity_and_stops_on_invalid_rewards() {
+        let (s, u, a) = setup().await;
+        let bad = json!([{"ItemIndex":2147483647,"ItemCount":1}]).to_string();
+        sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_items) VALUES(?,'System','Invalid',999,?)")
+            .bind(a).bind(bad).execute(&s.db).await.unwrap();
+        sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold) VALUES(?,'System','Valid',7)")
+            .bind(a).execute(&s.db).await.unwrap();
+        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let old = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50")).await.unwrap().0;
+        assert_eq!(old["Result"], "Fail");
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before);
+        let new = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
+        assert_eq!(new["ReceivedMailCount"], 1);
+        assert!(!new["InternalErrorMessage"].as_str().unwrap().is_empty());
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 7);
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM mails WHERE account_id=? AND is_received=0").bind(a).fetch_one(&s.db).await.unwrap(), 1);
+    }
 }
