@@ -1,0 +1,44 @@
+using System;
+public static class HonorBuffTestRunner {
+    static void Check(bool ok,string text){if(!ok)throw new Exception(text);}
+    public static void Run(){
+        var requester=NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester;
+        var items=NVespa.NGlobal.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.ItemManager;
+        var item=new NShared.ItemData{Index=110034,Name="League of Honor Server Buff"};
+        Check(!SprkHonorBuff.TrySelect(new NShared.ItemData{Index=110014},1,null),"Ordinary booster intercepted");
+        Check(!SprkHonorBuff.TrySelect(null,1,null),"Null item intercepted");
+        Check(SprkHonorBuff.TrySelect(item,1001,null)&&requester.Count==0,"Count guard");
+        Check(SprkHonorBuff.TrySelect(item,1,null)&&requester.Count==0,"Selection used item before confirmation");
+        Check(NGame2.NUI.NWindow.IconConfirmPopup.Last.Text.Contains("3%"),"Rank-two rate");
+        // Cancel by declining confirmation: no request and no item mutation.
+        Check(items.Count==0,"Cancelled confirmation applied inventory");
+        int completed=0;
+        SprkHonorBuff.TrySelect(item,2,()=>completed++);
+        Check(NGame2.NUI.NWindow.IconConfirmPopup.Last.Text.Contains("6%"),"Stacked rate");
+        NGame2.NUI.NWindow.IconConfirmPopup.Last.Yes();
+        Check(requester.Count==1&&requester.Last.ItemIndex==110034&&requester.Last.ItemCount==2,"Native request fields");
+        SprkHonorBuff.TrySelect(item,1,null);Check(requester.Count==1,"Overlapping activation");
+        var callback=requester.Callback;
+        var response=new NShared.UseBoosterItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UseBoosterItem.ResultType.Success,ItemResult=new object(),InternalErrorMessage="Server bonus active"};
+        callback(response);callback(response);
+        Check(items.Count==1&&completed==1,"Duplicate callback applied reward twice");
+        Check(NGame2.NUI.NWindow.MessagePopup.Last=="Server bonus active","Success acknowledgment");
+        SprkHonorBuff.TrySelect(item,1,null);NGame2.NUI.NWindow.IconConfirmPopup.Last.Yes();
+        requester.Callback(new NShared.UseBoosterItem.Response{Result=NShared.UseBoosterItem.ResultType.Fail});
+        Check(items.Count==1,"Failure applied inventory");
+        SprkHonorBuff.TrySelect(item,1,null);NGame2.NUI.NWindow.IconConfirmPopup.Last.Yes();
+        requester.SessionKey="replaced";requester.Callback(response);Check(items.Count==1,"Old session applied inventory");
+        SprkHonorBuff.TrySelect(new NShared.ItemData{Index=110033,Name="First"},1,null);Check(NGame2.NUI.NWindow.IconConfirmPopup.Last.Text.Contains("5%"),"Rank-one rate");
+        SprkHonorBuff.TrySelect(new NShared.ItemData{Index=110035,Name="Third"},1,null);Check(NGame2.NUI.NWindow.IconConfirmPopup.Last.Text.Contains("2%"),"Rank-three rate");
+    }
+}
+namespace NShared {public class ItemData {public int Index;public string Name;}public enum BaseResultType {Success,Fail}}
+namespace NShared.UseBoosterItem {public class Request {public int ItemIndex,ItemCount;}public enum ResultType {Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;public object ItemResult;public string InternalErrorMessage;}}
+namespace NGame2.NAccount {public class AccountManager {public ItemManager ItemManager=new ItemManager();}public class ItemManager {public int Count;public void Apply(object item){Count++;}}}
+namespace NGame2.NUI.NWindow {
+    public static class MessagePopup {public static string Last;public static void Open(string title,string text){Last=text;}}
+    public class IconConfirmPopup {public static IconConfirmPopup Last;public string Text;public Action Yes;public static IconConfirmPopup Open(string text,string yes,string no,Action action){Last=new IconConfirmPopup{Text=text,Yes=action};return Last;}public void AddItem(int index,int count){}}
+}
+namespace NVespa {public class WebServiceManager {public Requester Requester=new Requester();}public class Requester {public string SessionKey="session";public int Count;public NShared.UseBoosterItem.Request Last;public Action<NShared.UseBoosterItem.Response> Callback;public void Request(NShared.UseBoosterItem.Request r,Action<NShared.UseBoosterItem.Response> callback){Count++;Last=r;Callback=callback;}}}
+namespace NVespa.NGlobal {public static class GlobalAutoBehaviour<T> where T:new(){public static T instance=new T();}}
+namespace NVespa.NSingleton {public static class SingletonUpdater<T> where T:new(){public static T instance=new T();}}

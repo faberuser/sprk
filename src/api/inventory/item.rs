@@ -593,6 +593,14 @@ async fn execute(
     };
     match action {
         "use_booster_item" => {
+            if let Some(percent) = super::honor_buff::definition(state, index) {
+                out["ItemResult"] = consume(db, account, index, count).await?;
+                let activated = super::honor_buff::activate(db, state, percent, count).await?;
+                out["InternalErrorMessage"] = activated["Message"].clone();
+                out["HonorServerBuff"] = activated;
+                out["ItemTimeDurationInfo"] = Value::Null;
+                return Ok(out);
+            }
             let booster = state
                 .tables
                 .inventory

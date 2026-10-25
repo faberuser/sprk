@@ -492,3 +492,23 @@ reports keep their existing contract. Deploy the matching server first.
 engine/network stand-ins: first result from a 200-run job, upload retry, persisted
 resume, slot fairness, timeout and session replacement. `--verify-dispatch` checks
 installed hooks and protocol fields. Both run in `--build-release`.
+
+
+### Honor ranking server buff tokens
+
+`--honor-buff-only` installs a separate activation path for the three Honor
+ranking tokens (110033-110035). These items are marked Booster in ItemTable but
+have no BoosterItemTable definition; native confirmation dereferenced that missing
+row. The helper confirms the server-wide effect and uses the existing native
+UseBoosterItem request, applies its item receipt once, then displays the server's
+activation/expiry acknowledgment. Ordinary boosters retain their native path.
+
+The matching server derives gold rates from HonorTierReward.ServerBuff (5%, 3%,
+2%), consumes only owned quantities, and stores the stacked shared bonus through
+the current Honor season's end. Battle gold calculation reads that bonus for
+every account. No personal timer or fixed seven-day duration is invented.
+Deploy the server before distributing this client patch.
+
+`--self-test-honor-buff` checks the shipping helper against native API stand-ins;
+`--verify-honor-buff` checks the installed hook and ordinary fallback. Both are
+included in `--build-release`, along with the new helper installation.

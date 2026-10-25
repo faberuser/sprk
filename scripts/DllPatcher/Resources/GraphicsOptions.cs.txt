@@ -421,6 +421,10 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
             index++;
         }
         order.InsertRange(index+1,inserted);
+        var frame=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_FrameControl");
+        var vsync=rows.FirstOrDefault(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_VSyncControl");
+        if(frame!=null && vsync!=null && order.Contains(frame.transform) && order.Remove(vsync.transform))
+            order.Insert(order.IndexOf(frame.transform)+1,vsync.transform);
         // Preserve the native visual order, with the inserted graphics rows, across
         // position/name sorting and subsequent native refreshes.
         grid.sorting=UIGrid.Sorting.None;

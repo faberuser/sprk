@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/HonorBuffTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.HonorBuffTests.cs.txt" />
+    <EmbeddedResource Include="Resources/HonorBuff.cs.txt" WithCulture="false" LogicalName="DllPatcher.HonorBuff.cs.txt" />
     <EmbeddedResource Include="Resources/SpecialShop.cs.txt" WithCulture="false" LogicalName="DllPatcher.SpecialShop.cs.txt" />
     <EmbeddedResource Include="Resources/LoginSettings.cs.txt" WithCulture="false" LogicalName="DllPatcher.LoginSettings.cs.txt" />
     <EmbeddedResource Include="Resources/FreeCamera.cs.txt" WithCulture="false" LogicalName="DllPatcher.FreeCamera.cs.txt" />

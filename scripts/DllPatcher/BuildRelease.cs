@@ -25,6 +25,9 @@ partial class Program
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
         VerifyArcdimWorker(clientRoot);
+        InstallHonorBuff(clientRoot, false);
+        VerifyHonorBuffFile(clientRoot);
+        TestHonorBuff();
         InstallDispatch(clientRoot, false);
         VerifyDispatchFile(clientRoot);
         TestDispatch();

@@ -64,6 +64,9 @@ public sealed partial class SprkGraphicsOptions {
         foreach(var camera in Camera.allCameras)if(camera.name=="BI UI Camera")camera.gameObject.SetActive(false);
         var rows=settings.GetComponentsInChildren<GameOptionBaseComponent>(true);
         bool helpOk=true,isolated=true,events=true;int checkedRows=0;
+        var frameRow=rows.Single(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_FrameControl");
+        var vsyncRow=rows.Single(r=>r.gameOptionData!=null && r.gameOptionData.FieldName=="Graphic_VSyncControl");
+        helpOk &= frameRow.transform.parent==vsyncRow.transform.parent && vsyncRow.transform.GetSiblingIndex()==frameRow.transform.GetSiblingIndex()+1;
         var onShow=typeof(GameOptionBaseComponent).GetMethod("OnShowTooltip",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
         var onHide=typeof(GameOptionBaseComponent).GetMethod("OnHideTooltip",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
         var labelFlags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
@@ -100,6 +103,10 @@ public sealed partial class SprkGraphicsOptions {
                 }
             }
             onHide.Invoke(row,null);yield return null;events &= !GameOptionTooltip.IsVisible(owner);
+            if(help.title=="Max Frame") {
+                yield return new WaitForEndOfFrame();
+                var image=ScreenCapture.CaptureScreenshotAsTexture();System.IO.File.WriteAllBytes(System.IO.Path.Combine(output,"frame-vsync-order.png"),image.EncodeToPNG());Destroy(image);
+            }
             if(help.title=="Render Scale") {
                 int savedPreset=RenderScalePreset;
                 var presets=row.GetComponentsInChildren<UIToggle>(true).Where(t=>t.gameObject.activeSelf).ToArray();
@@ -124,6 +131,7 @@ public sealed partial class SprkGraphicsOptions {
         report.Add("graphicsHelpRows="+checkedRows+" correctText="+helpOk+" nativeShowHide="+events+" tableIsolation="+isolated);
         System.IO.File.WriteAllLines(System.IO.Path.Combine(output,"help-text.txt"),records.ToArray());
         settings.ReOpen();yield return null;
+        helpOk &= vsyncRow.transform.GetSiblingIndex()==frameRow.transform.GetSiblingIndex()+1;
         helpOk &= settings.GetComponentsInChildren<GameOptionBaseComponent>(true).Where(r=>HelpFor(r)!=null).All(r=>r.ParentRoot.ToolTipImage!=null && r.ParentRoot.ToolTipImage.activeSelf);
         report.Add("graphicsHelpAndPooling="+(checkedRows==graphicsHelp.Count && helpOk && isolated && events));
         settings.Close();

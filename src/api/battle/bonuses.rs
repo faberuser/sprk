@@ -7,6 +7,7 @@ pub(crate) async fn calculate(
     a: i64,
     battle: i64,
 ) -> Result<(i64, i64)> {
+    let honor_gold = crate::api::inventory::honor_buff::bonus(db, s).await?;
     let guild_bonus = crate::api::community::guild_reward_boost(db, s, a).await?;
     crate::api::inventory::item::normalize_booster_timers(db, s, a).await?;
     let active: Vec<i32> = sqlx::query_scalar(
@@ -53,5 +54,5 @@ pub(crate) async fn calculate(
             }
         }
     }
-    Ok((gold + guild_bonus.0, exp + guild_bonus.1))
+    Ok((gold + guild_bonus.0 + honor_gold, exp + guild_bonus.1))
 }

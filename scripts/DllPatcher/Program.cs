@@ -136,6 +136,9 @@ namespace DllPatcher
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-dispatch")) { TestDispatch(); return; }
             if (args.Contains("--verify-dispatch")) { VerifyDispatchFile(args[0]); return; }
+            if (args.Contains("--self-test-honor-buff")) { TestHonorBuff(); return; }
+            if (args.Contains("--honor-buff-only")) { InstallHonorBuff(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-honor-buff")) { VerifyHonorBuffFile(args[0]); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--automation-only")) { InstallAutomation(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
