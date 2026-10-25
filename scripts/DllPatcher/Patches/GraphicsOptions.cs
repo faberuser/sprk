@@ -15,6 +15,8 @@ partial class Program {
         return argument;
     }
     static void VerifyGraphicsOptions(ModuleDefinition module) {
+        VerifyBattleGraphics(module);
+        VerifyGraphicsHelp(module);
         if(Convert.ToInt32(module.GetType("NShared.EResolutionControl").Fields.Single(f=>f.Name=="Custom").Constant)!=5)throw new InvalidOperationException("Missing persisted custom resolution mode.");
         var applyResolution=module.GetType("NVespa.SystemOptionData").Methods.Single(m=>m.Name=="ApplyResoultionSetting");
         if(!applyResolution.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkGraphicsOptions" && m.Name=="ApplyCustomResolution"))throw new InvalidOperationException("Missing custom window resolution hook.");
@@ -115,6 +117,7 @@ partial class Program {
         }
     }
     static void VerifyGraphicsOptionsFile(string root,bool staged=false) {
+        VerifyFrameTimingSettings(root,staged);
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".graphics-options-staged":"")));
         VerifyGraphicsOptions(game.MainModule);
         using var post=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Unity.Postprocessing.Runtime.dll"));
@@ -137,10 +140,14 @@ partial class Program {
         foreach(var name in new[]{"FindGameWindow","GetWindowLong","SetWindowLong","SetWindowPos","SaveCustomSize"})
             if(!custom.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing custom resize integration: "+name);
         var setup=bridge.Methods.Single(m=>m.Name=="Setup");
-        if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=10)
+        if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="Add" && m.DeclaringType.Name=="SprkGraphicsOptions")!=14)
             throw new InvalidOperationException("Graphics settings must expose AA, adjustments, world/preview scale, particle density and camera sensitivities.");
         foreach(var required in new[]{"Off","FXAA","SMAA","MSAA","TAA","Preset","Scale","FXAAQuality","SMAAQuality","MSAASamples","TAASharpness","LobbyCameraSensitivity","ModelCameraSensitivity","Anti-Aliasing","FXAA Quality","SMAA Quality","MSAA Samples","TAA Sharpness","Render Scale","Preview Scale","PreviewScale","Particle Density","ParticleDensity","Lobby Camera Sensitivity","Model Camera Sensitivity"})
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing graphics preset control: "+required);
+        foreach(var required in new[]{"BattleEffects","EffectCoverage","AdaptiveBattleScale"})
+            if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing battle graphics control: "+required);
+        foreach(var required in new[]{"RenderScale","World Scale","Custom"})
+            if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing render scale hierarchy: "+required);
         var poll=bridge.Methods.Single(m=>m.Name=="PollComparisonKeys");
         if(poll.Body.Instructions.Any(i=>i.OpCode!=OpCodes.Ret && i.OpCode!=OpCodes.Nop))
             throw new InvalidOperationException("Temporary AA comparison hook must be inert.");
@@ -183,7 +190,13 @@ partial class Program {
         using var resource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.GraphicsOptions.cs.txt")!;
         using var reader=new StreamReader(resource);
         var refs=Directory.GetFiles(managed,"*.dll").Where(p=>p!=helperPath).Select(p=>MetadataReference.CreateFromFile(Path.GetFileName(p)=="SprkAutomation.dll"?p+".staged":p));
-        var compilation=CSharpCompilation.Create("SprkGraphicsOptions",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},refs,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
+        using var battleResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.BattleGraphics.cs.txt")!;
+        using var battleReader=new StreamReader(battleResource);
+        using var helpResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.GraphicsHelp.cs.txt")!;
+        using var helpReader=new StreamReader(helpResource);
+        using var scaleResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RenderScaleSettings.cs.txt")!;
+        using var scaleReader=new StreamReader(scaleResource);
+        var compilation=CSharpCompilation.Create("SprkGraphicsOptions",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(battleReader.ReadToEnd()),CSharpSyntaxTree.ParseText(helpReader.ReadToEnd()),CSharpSyntaxTree.ParseText(scaleReader.ReadToEnd())},refs,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
         using var compiled=new MemoryStream();
         var result=compilation.Emit(compiled);
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics.Where(d=>d.Severity==DiagnosticSeverity.Error)));
@@ -264,9 +277,12 @@ partial class Program {
             if(!method.Body.HasExceptionHandlers)VerifyArenaResultStack(method);
         }
         InstallGraphicsPerformanceHooks(module,bridge);
+        InstallBattleGraphics(module,bridge);
+        InstallGraphicsHelp(module,bridge);
         VerifyGraphicsOptions(game.MainModule);
         var staged=dll+".graphics-options-staged";
         game.Write(staged);File.WriteAllBytes(helperPath+".staged",compiled.ToArray());
+        StageFrameTimingSettings(root);
         // Reapplying to the emitted assembly must not duplicate hooks.
         using(var repeated=AssemblyDefinition.ReadAssembly(staged)) {
             VerifyGraphicsOptions(repeated.MainModule);
@@ -280,6 +296,9 @@ partial class Program {
             throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
         File.Copy(dll,dll+".before-graphics-options-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
         File.Move(staged,dll,true);File.Move(Path.Combine(managed,"SprkAutomation.dll.staged"),Path.Combine(managed,"SprkAutomation.dll"),true);File.Move(helperPath+".staged",helperPath,true);
+        var settings=Path.Combine(root,"King's Raid_Data","globalgamemanagers");
+        File.Copy(settings,settings+".before-graphics-options-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
+        File.Move(settings+".graphics-options-staged",settings,true);
         VerifyGraphicsOptionsFile(root);
     }
     static bool UsesClientFiles(System.Diagnostics.Process process,string root) {

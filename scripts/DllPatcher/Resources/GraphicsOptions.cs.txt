@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 
 // Native UI controls and rendering configuration. Preferences use the isolated test adapter.
 [DefaultExecutionOrder(32000)]
-public sealed class SprkGraphicsOptions : MonoBehaviour {
+public sealed partial class SprkGraphicsOptions : MonoBehaviour {
     static SprkGraphicsOptions instance;
     static readonly FieldInfo resourceField=typeof(PostProcessLayer).GetField("m_Resources",BindingFlags.Instance|BindingFlags.NonPublic);
     static readonly MethodInfo releaseTemporalHistory=typeof(TemporalAntialiasing).GetMethod("Release",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
@@ -47,11 +47,12 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     public static string Status { get { return instance==null?"Not initialized":instance.status; } }
     void OnEnable() { Camera.onPreRender+=BeforeUI;SceneManager.activeSceneChanged+=SceneChanged; }
     void OnDisable() { Camera.onPreRender-=BeforeUI;SceneManager.activeSceneChanged-=SceneChanged;RestoreTargets();ReleaseWorld();RestoreFinalBlits();
+        ResetBattleControls();foreach(var budget in particleBudgets)if(budget!=null)budget.Apply(1,0);
         foreach(var pair in layers)if(pair.Key!=null && pair.Value!=null)UpdateTemporalResources(pair.Key,pair.Value,0);
         foreach(var layer in helperLayers)if(layer!=null)layer.enabled=false;
         foreach(var pair in presentationCommands){if(pair.Key!=null)pair.Key.RemoveCommandBuffer(UnityEngine.Rendering.CameraEvent.BeforeForwardOpaque,pair.Value);pair.Value.Release();}presentationCommands.Clear();
     }
-    void SceneChanged(Scene a,Scene b) { ResetHistories();RestoreTargets();ReleaseWorld();RestoreFinalBlits();PruneCaches(); }
+    void SceneChanged(Scene a,Scene b) { ResetBattleControls();ResetHistories();RestoreTargets();ReleaseWorld();RestoreFinalBlits();PruneCaches(); }
     void OnApplicationFocus(bool focused) { if(focused){SprkTestPrefs.ClearGraphicsCache();nextWindowStyleCheck=0;} }
     void UpdateTemporalResources(Camera camera,PostProcessLayer layer,int effective) {
         TemporalResources state;
@@ -140,7 +141,6 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         int requested=SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",4);
         int selected=supported[0];foreach(int sample in supported)if(sample<=requested)selected=sample;return selected;
     }
-    public static int Scale { get { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Scale",100),100,200); } }
     sealed class TargetSize {
         public int width,height;
         public bool world;
@@ -150,12 +150,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     // Retain native dimensions and the texture object: UITexture/material bindings
     // stay valid when settings change, without reopening or moving the camera.
     static readonly Dictionary<RenderTexture,TargetSize> ownedTargets=new Dictionary<RenderTexture,TargetSize>();
-    static readonly int[] previewScales={0,75,100,150,200};
-    static int PreviewScale { get { int saved=SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0);return saved==0?Scale:Mathf.Clamp(saved,75,200); } }
     static readonly List<SprkParticleDensity> particleBudgets=new List<SprkParticleDensity>();
     static readonly FieldInfo distanceEmitter=typeof(NGame2.NNodeTree.NObject.ParticleObject).GetField("_isDistanceEmit",BindingFlags.Instance|BindingFlags.NonPublic);
     static readonly PropertyInfo assetParticleRoot=typeof(NGame2.NUI.NRender3D.HeroPreview).Assembly.GetType("NGameAsset.NEffect.ParticleInstance").GetProperty("InstanceGo",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
-    static int lastParticleDensity=-1;
     public static int SkippedPreviewUpdates { get; private set; }
     public static int SkippedPreviewVisualUpdates { get; private set; }
     public static float ParticleDensity { get { return 1f-.25f*Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.ParticleDensity",0),0,2); } }
@@ -164,7 +161,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         if(root is NGame2.NNodeTree.NObject.ParticleObject && (bool)distanceEmitter.GetValue(root)){ReleaseParticles(root);return;}
         var budget=root.GetComponent<SprkParticleDensity>();
         if(budget==null){budget=root.gameObject.AddComponent<SprkParticleDensity>();particleBudgets.Add(budget);}
-        budget.Capture();budget.Apply(ParticleDensity);
+        budget.Capture();ApplyParticleBudget(budget);
     }
     public static void ReleaseParticles(Component root) {
         if(root==null)return;var budget=root.GetComponent<SprkParticleDensity>();if(budget!=null)budget.Clear();
@@ -178,12 +175,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         var root=assetParticleRoot.GetValue(instance,null) as GameObject;if(root!=null)ReleaseParticles(root.transform);
     }
     void UpdateParticleDensity() {
-        int level=ReadIndex("ParticleDensity");if(level==lastParticleDensity)return;
-        lastParticleDensity=level;
-        for(int i=particleBudgets.Count-1;i>=0;i--) {
-            var budget=particleBudgets[i];if(budget==null){particleBudgets.RemoveAt(i);continue;}
-            budget.Apply(1f-.25f*level);
-        }
+        UpdateBattleEffects();
     }
     public static bool ShouldUpdatePreview(Component root) {
         if(root==null || !root.gameObject.activeInHierarchy){SkippedPreviewUpdates++;return false;}
@@ -202,7 +194,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         creature.ChainUpdate();
     }
     static bool ConfigureTarget(RenderTexture rt,TargetSize size,int samples) {
-        int scale=size.world?Scale:PreviewScale;
+        int scale=size.world?EffectiveWorldScale:PreviewScale;
         if(size.scale==scale && size.samples==samples && rt.width==size.actualWidth && rt.height==size.actualHeight && rt.antiAliasing==size.actualSamples)return false;
         int limit=Mathf.Min(SystemInfo.maxTextureSize,8192);
         float factor=Mathf.Min(scale/100f,Mathf.Min(limit/(float)Mathf.Max(1,size.width),limit/(float)Mathf.Max(1,size.height)));
@@ -255,13 +247,18 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             var samples=SupportedSamples();
             Add(tab,"MSAA Samples","MSAASamples",samples.Length==0?new[]{"Unavailable"}:samples.Select(n=>n+"x").ToArray());
             Add(tab,"TAA Sharpness","TAASharpness",new[]{"Low","Medium","High"});
-            Add(tab,"Render Scale", "Scale",new[]{"100%","125%","150%","175%","200%"});
-            Add(tab,"Preview Scale","PreviewScale",new[]{"Follow World","75%","100%","150%","200%"});
+            Add(tab,"Render Scale","RenderScale",new[]{"100%","125%","150%","175%","200%","Custom"});
+            Add(tab,"World Scale","Scale",scaleChoices);
+            Add(tab,"Preview Scale","PreviewScale",scaleChoices);
             Add(tab,"Particle Density","ParticleDensity",new[]{"Full","Reduced","Minimal"});
+            Add(tab,"Battle Effects","BattleEffects",new[]{"Full","Balanced","Minimal"});
+            Add(tab,"Effect Coverage","EffectCoverage",new[]{"Full","Reduced","Minimal"});
+            Add(tab,"Adaptive Battle Scale","AdaptiveBattleScale",new[]{"Off","30 FPS","60 FPS","120 FPS","144 FPS"});
             Add(tab,"Lobby Camera Sensitivity","LobbyCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
             Add(tab,"Model Camera Sensitivity","ModelCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true))ConfigureFrameRow(row);
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle3Component>(true))CenterTextureChoices(row);
+            foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true))ConfigureGraphicsHelp(row);
             RefreshRows(tab);
         }
     }
@@ -272,6 +269,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             if(row!=null)row.gameObject.SetActive(Method==i+1);
         }
         PlaceBelowScreen(tab);
+        RefreshScaleChildren(tab);
         tab.GameOptionGrid.Grid.hideInactive=true;
         tab.GameOptionGrid.RepositionGrid();
     }
@@ -406,7 +404,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             var row=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(row!=null)inserted.Add(row.transform);
         }
         inserted.Add(scale.transform);
-        foreach(var title in new[]{"Preview Scale","Particle Density"}) {
+        foreach(var title in new[]{"World Scale","Preview Scale","Particle Density","Battle Effects","Effect Coverage","Adaptive Battle Scale"}) {
             var extra=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(extra!=null)inserted.Add(extra.transform);
         }
         foreach(var title in new[]{"Lobby Camera Sensitivity","Model Camera Sensitivity"}) {
@@ -440,20 +438,17 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         row.name=rowName;row.enabled=false;
         row.ParentRoot.Root.SetActive(true);row.ChildRoot.Root.SetActive(false);
         row.ParentRoot.Label_OptionName.text=title;
-        if(row.ParentRoot.ToolTipImage!=null)row.ParentRoot.ToolTipImage.SetActive(false);
+        ConfigureGraphicsHelp(row);
         ConfigureChoices(row,key,choices);
     }
     static void ConfigureChoices(GameOptionToggle4Component row,string key,string[] choices) {
         var toggles=new List<UIToggle>{row.toggleInfo.Toggle1,row.toggleInfo.Toggle2,row.toggleInfo.Toggle3,row.toggleInfo.Toggle4};
-        if(choices.Length==5) {
-            var fifth=toggles[3].transform.parent.Find("Toggle5");
-            if(fifth==null) {
-                var clone=NGUITools.AddChild(toggles[3].transform.parent.gameObject,toggles[3].gameObject);clone.name="Toggle5";fifth=clone.transform;
-            }
-            toggles.Add(fifth.GetComponent<UIToggle>());
-        } else {
-            var fifth=toggles[3].transform.parent.Find("Toggle5");
-            if(fifth!=null){var extra=fifth.GetComponent<UIToggle>();extra.onChange.Clear();extra.Set(false);fifth.gameObject.SetActive(false);}
+        for(int i=4;i<6;i++) {
+            string name="Toggle"+(i+1);var extra=toggles[3].transform.parent.Find(name);
+            if(i<choices.Length) {
+                if(extra==null){var clone=NGUITools.AddChild(toggles[3].transform.parent.gameObject,toggles[3].gameObject);clone.name=name;extra=clone.transform;}
+                toggles.Add(extra.GetComponent<UIToggle>());
+            } else if(extra!=null){var toggle=extra.GetComponent<UIToggle>();toggle.onChange.Clear();toggle.Set(false);extra.gameObject.SetActive(false);}
         }
         // Native prefab has four choices; unused choices must lose both
         // their visuals and callbacks when reducing an existing row to two.
@@ -472,13 +467,15 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             for(int i=0;i<toggles.Count;i++){toggles[i].startsActive=i==selected;toggles[i].Set(i==selected);}
             syncing=false;
         };
+        if(IsScaleChild(key)) {var state=row.GetComponent<SprkScaleRow>();if(state==null)state=row.gameObject.AddComponent<SprkScaleRow>();state.Refresh=refresh;}
         for(int i=0;i<toggles.Count;i++) {
             int choice=i;var toggle=toggles[i];toggle.group=0;toggle.onChange.Clear();
             var label=toggle.GetComponentInChildren<UILabel>(true);label.text=choices[i];
-            label.width=choices.Length==5?130:180;label.overflowMethod=UILabel.Overflow.ShrinkContent;
+            label.width=choices.Length==6?90:choices.Length==5?130:180;label.overflowMethod=UILabel.Overflow.ShrinkContent;
             toggle.transform.localPosition=new Vector3((choices.Length==2?i+1:i)*spacing,0,0);
             EventDelegate.Add(toggle.onChange,delegate {
                 if(syncing)return;
+                if(IsScaleChild(key) && !CustomScaleMode){refresh();return;}
                 if(toggle.value) {
                     if(key=="Preset")ApplyPreset(choice);
                     else if(key=="Frame"){NVespa.SystemOptionData.Graphic_FrameControl=(EFrameControl)frameValues[choice];SprkTestPrefs.Save();}
@@ -487,7 +484,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
                         NVespa.SystemOptionData.Graphic_ResolutionControl=(EResolutionControl)resolutionValues[choice];SprkTestPrefs.Save();
                     }
                     else {
-                        int value=key=="Scale"?100+25*choice:key=="PreviewScale"?previewScales[choice]:IsSensitivityKey(key)?50+25*choice:key=="MSAASamples"?(SupportedSamples().Length==0?1:SupportedSamples()[choice]):choice;
+                        int value=key=="RenderScale"?(choice==5?0:100+25*choice):IsScaleChild(key)?100+25*choice:key=="AdaptiveBattleScale"?adaptivePreferenceValues[choice]:IsSensitivityKey(key)?50+25*choice:key=="MSAASamples"?(SupportedSamples().Length==0?1:SupportedSamples()[choice]):choice;
                         SprkTestPrefs.SetInt("Sprk.Graphics."+key,value);SprkTestPrefs.Save();
                     }
                     if(!IsSensitivityKey(key))instance.ResetHistories();
@@ -546,8 +543,11 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         if(key=="PostAA")return postModes[Method];
         if(IsSensitivityKey(key))return Mathf.Clamp((SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100))-50)/25,0,4);
         if(key=="Scale")return Mathf.Clamp((Scale-100)/25,0,4);
-        if(key=="PreviewScale")return Mathf.Max(0,Array.IndexOf(previewScales,SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0)));
+        if(key=="RenderScale")return RenderScalePreset==0?5:(RenderScalePreset-100)/25;
+        if(key=="PreviewScale")return (PreviewScale-100)/25;
         if(key=="ParticleDensity")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.ParticleDensity",0),0,2);
+        if(key=="AdaptiveBattleScale")return Mathf.Max(0,Array.IndexOf(adaptivePreferenceValues,SprkTestPrefs.GetInt("Sprk.Graphics."+key,0)));
+        if(key=="BattleEffects" || key=="EffectCoverage")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics."+key,0),0,2);
         if(key=="MSAASamples")return Mathf.Max(0,Array.IndexOf(SupportedSamples(),SelectedSamples()));
         if(key=="FXAAQuality")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.FXAAQuality",1),0,1);
         if(key=="SMAAQuality")return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.SMAAQuality",2),0,2);
@@ -664,7 +664,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             Application.Quit();yield break;
         }
         if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_RESTART_TEST")=="1") {
-            bool ok=Method==4 && Scale==100 && ReadIndex("FXAAQuality")==0 && ReadIndex("SMAAQuality")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",0)==8 && ReadIndex("TAASharpness")==2 && ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==3 && SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0)==75 && ReadIndex("ParticleDensity")==1;
+            bool ok=Method==4 && Scale==100 && ReadIndex("FXAAQuality")==0 && ReadIndex("SMAAQuality")==1 && SprkTestPrefs.GetInt("Sprk.Graphics.MSAASamples",0)==8 && ReadIndex("TAASharpness")==2 && ReadIndex("LobbyCameraSensitivity")==1 && ReadIndex("ModelCameraSensitivity")==3 && CustomScaleMode && PreviewScale==125 && ReadIndex("ParticleDensity")==1 && ReadIndex("BattleEffects")==1 && ReadIndex("EffectCoverage")==1 && AdaptiveBattleTarget==144;
             System.IO.File.WriteAllText(System.IO.Path.Combine(root,"restart.txt"),"preferencesSurviveRestart="+ok);
             Application.Quit();yield break;
         }
@@ -700,6 +700,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             Setup(window);
         }
         for(int i=0;i<scaleChoices.Length;i++){scaleChoices[i].Set(true);allChoices &= Scale==100+25*i && scaleChoices.Count(t=>t.value)==1;}
+        yield return StartCoroutine(RenderScaleSettingsProbe(report,window));
         SprkTestPrefs.DeleteKey("Sprk.Graphics.CameraSensitivity");
         foreach(var key in new[]{"LobbyCameraSensitivity","ModelCameraSensitivity"})SprkTestPrefs.DeleteKey("Sprk.Graphics."+key);
         Setup(window);
@@ -718,16 +719,18 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         }
         report.Add("cameraSensitivityChoices="+cameraSettings);
         var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-Aliasing";Setup(window);
-        allChoices &= wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK "))==10;
+        allChoices &= wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK "))==14;
         bool performanceChoices=true;
-        foreach(string title in new[]{"Preview Scale","Particle Density"}) {
+        foreach(string title in new[]{"Preview Scale","Particle Density","Battle Effects","Effect Coverage","Adaptive Battle Scale"}) {
             var performanceRow=rows.Single(r=>r.name=="SPRK "+title);
             var options=performanceRow.GetComponentsInChildren<UIToggle>(true).Where(t=>t.gameObject.activeSelf).ToArray();
             foreach(var option in options)typeof(UIToggle).GetField("mStarted",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(option,true);
-            string key=title=="Preview Scale"?"PreviewScale":"ParticleDensity";
+            string key=title.Replace(" ","");
+            if(key=="AdaptiveBattleScale")performanceChoices &= options.Length==5;
             for(int i=0;i<options.Length;i++){options[i].Set(true);performanceChoices &= ReadIndex(key)==i && options.Count(t=>t.value)==1;}
         }
-        SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",0);SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",0);
+        SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",100);SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",0);
+        foreach(var key in new[]{"BattleEffects","EffectCoverage","AdaptiveBattleScale"})SprkTestPrefs.SetInt("Sprk.Graphics."+key,0);
         report.Add("performanceSettingChoices="+performanceChoices);
         report.Add("settingsAllChoices="+allChoices);
         report.Add("conditionalAARows="+conditional);
@@ -772,7 +775,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
             var visible=layoutGrid.GetChildList();
             var expected=new List<string>{"Screen","Resolution","SPRK Anti-Aliasing"};
             if(method>0)expected.Add("SPRK "+adjustmentNames[method-1]);
-            expected.Add("SPRK Render Scale");expected.Add("SPRK Preview Scale");expected.Add("SPRK Particle Density");expected.Add("SPRK Lobby Camera Sensitivity");expected.Add("SPRK Model Camera Sensitivity");expected.Add("ZZAfter");
+            expected.Add("SPRK Render Scale");expected.Add("SPRK World Scale");expected.Add("SPRK Preview Scale");expected.Add("SPRK Particle Density");expected.Add("SPRK Battle Effects");expected.Add("SPRK Effect Coverage");expected.Add("SPRK Adaptive Battle Scale");expected.Add("SPRK Lobby Camera Sensitivity");expected.Add("SPRK Model Camera Sensitivity");expected.Add("ZZAfter");
             compact &= visible.Select(t=>t.name).SequenceEqual(expected);
             for(int i=1;i<visible.Count;i++)compact &= Mathf.Abs(visible[i].localPosition.y-visible[i-1].localPosition.y+110)<0.1f;
         }
@@ -815,7 +818,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.layer=30;cube.transform.rotation=Quaternion.Euler(23,31,17);
         var material=new Material(Shader.Find("Unlit/Texture"));material.mainTexture=Texture2D.whiteTexture;cube.GetComponent<Renderer>().material=material;
         for(int mode=0;mode<5;mode++)for(int scale=100;scale<=200;scale+=25) {
-            ApplyPreset(mode);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
+            ApplyPreset(mode);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",scale);
             var target=CreateTarget(320,240,24);target.Create();camera.targetTexture=target;
             for(int frame=0;frame<12;frame++){camera.enabled=true;camera.targetTexture=target;camera.Render();yield return new WaitForEndOfFrame();}
             camera.targetTexture=target;camera.Render();
@@ -835,7 +838,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         foreach(bool orthographic in new[]{false,true}) {
             camera.orthographic=orthographic;
             foreach(int scale in new[]{200,125,100})foreach(int preset in new[]{4,3,2,1,0,4}) {
-                ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);
+                ApplyPreset(preset);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",scale);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",scale);
                 for(int frame=0;frame<3;frame++)yield return new WaitForEndOfFrame();
                 int expectedSamples=Samples;
                 var descriptor=liveTarget.descriptor;descriptor.msaaSamples=expectedSamples;
@@ -864,6 +867,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         report.Add("liveAdjustmentApplication="+appliedAdjustments);
         report.Add("livePreviewSwitching="+liveOk);
         yield return StartCoroutine(PerformanceControlsProbe(report));
+        yield return StartCoroutine(BattleControlsProbe(report));
         camera.orthographic=false;camera.targetTexture=null;liveTarget.Release();Destroy(liveTarget);
         ApplyPreset(1);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",150);
         camera.targetTexture=null;
@@ -978,6 +982,7 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         var stableWorld=world;var stableTarget=battleModel.targetTexture;var stablePresenter=presentationCamera;
         for(int tick=0;tick<20;tick++)LateUpdate();
         report.Add("stableRenderTargets="+(world==stableWorld && battleModel.targetTexture==stableTarget && presentationCamera==stablePresenter));
+        yield return StartCoroutine(BattleStackControlsProbe(report,battleModel,battleOverlay));
         // Shared filters and captures must stay native even at maximum settings.
         var nativeTarget=NShader.FilterBase.CreateRenderTarget(137,91,24);nativeTarget.Create();camera.targetTexture=nativeTarget;camera.enabled=true;
         var nativeHost=new GameObject("NativePostProcessProbe");var nativeCameraProbe=nativeHost.AddComponent<Camera>();nativeCameraProbe.targetTexture=nativeTarget;nativeCameraProbe.cullingMask=0;
@@ -990,11 +995,14 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         Destroy(battleHost);
         foreach(var nativeCamera in nativeCameras)if(nativeCamera!=null)nativeCamera.enabled=true;
         Destroy(cube);Destroy(material);Destroy(host);
-        ApplyPreset(4);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
+        yield return StartCoroutine(GraphicsHelpProbe(report,root));
+        ApplyPreset(4);SprkTestPrefs.SetInt("Sprk.Graphics.RenderScale",0);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",100);
         SprkTestPrefs.SetInt("Sprk.Graphics.FXAAQuality",0);SprkTestPrefs.SetInt("Sprk.Graphics.SMAAQuality",1);SprkTestPrefs.SetInt("Sprk.Graphics.MSAASamples",8);SprkTestPrefs.SetInt("Sprk.Graphics.TAASharpness",2);
         SprkTestPrefs.SetInt("Sprk.Graphics.LobbyCameraSensitivity",75);
         SprkTestPrefs.SetInt("Sprk.Graphics.ModelCameraSensitivity",125);
-        SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",75);SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",1);
+        SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",125);SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",1);
+        foreach(var key in new[]{"BattleEffects","EffectCoverage","AdaptiveBattleScale"})SprkTestPrefs.SetInt("Sprk.Graphics."+key,1);
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",4);
         SprkTestPrefs.Save();
         System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"report.txt"),report.ToArray());
         Application.Quit();
@@ -1084,12 +1092,12 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         report.Add("particleDensityAndPooling="+density+" particlesFull="+fullCount+" particlesMinimal="+minimalCount);
         Destroy(densityHost);
 
-        ApplyPreset(0);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",200);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",75);
+        ApplyPreset(0);SprkTestPrefs.SetInt("Sprk.Graphics.Scale",200);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",125);
         var target=CreateTarget(320,240,24);target.Create();var worldTarget=CreateWorldTarget(320,240,24);worldTarget.Create();
-        bool independent=target.width==240 && target.height==180 && worldTarget.width==640 && worldTarget.height==480;
-        foreach(int previewScale in new[]{100,200,75,0}) {
+        bool independent=target.width==400 && target.height==300 && worldTarget.width==640 && worldTarget.height==480;
+        foreach(int previewScale in new[]{100,125,150,175,200}) {
             SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",previewScale);ConfigureTarget(target,ownedTargets[target],1);
-            int effective=previewScale==0?200:previewScale;
+            int effective=previewScale;
             independent &= target.width==320*effective/100 && target.height==240*effective/100 && worldTarget.width==640;
         }
         report.Add("independentPreviewScale="+independent);
@@ -1192,11 +1200,10 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
     }
     void LateUpdate() {
         UpdateCustomWindow();
-        UpdateParticleDensity();
         presentationFrame=-1;
         int mode=ReadIndex("PostAA"),quality=ReadIndex("SMAAQuality"),fxaa=ReadIndex("FXAAQuality"),sharpness=ReadIndex("TAASharpness");
-        int scale=Scale,samples=Samples;
-        bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale");
+        int samples=Samples;
+        bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.RenderScale")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale")||SprkTestPrefs.HasKey("Sprk.Graphics.ParticleDensity")||SprkTestPrefs.HasKey("Sprk.Graphics.BattleEffects")||SprkTestPrefs.HasKey("Sprk.Graphics.EffectCoverage")||SprkTestPrefs.HasKey("Sprk.Graphics.AdaptiveBattleScale");
         if(!configured)return;
         // This Unity player requires global MSAA enabled for multisampled
         // camera rendering, even with an explicit RenderTexture sample count.
@@ -1204,6 +1211,9 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
         int globalSamples=samples==1?0:samples;
         if(QualitySettings.antiAliasing!=globalSamples)QualitySettings.antiAliasing=globalSamples;
         CollectCameras();
+        UpdateBattleControls();
+        UpdateParticleDensity();
+        int scale=EffectiveWorldScale;
         // Native Bottom3DUI contains map labels after the final model camera.
         // Keep that overlay on the display, outside the post-processed target.
         bool fullRect=true;foreach(var camera in onscreen)if(camera.rect!=new Rect(0,0,1,1)){fullRect=false;break;}
@@ -1297,33 +1307,54 @@ public sealed class SprkGraphicsOptions : MonoBehaviour {
 // trails, mesh particles, low-count systems and indicator-like nodes retain
 // their native settings. Effect spawning, callbacks and lifetimes are untouched.
 public sealed class SprkParticleDensity : MonoBehaviour {
-    sealed class Emitter { public ParticleSystem system;public float rate; }
+    struct Emitter { public ParticleSystem system;public ParticleSystemRenderer renderer;public float rate,coverage; }
     readonly List<Emitter> emitters=new List<Emitter>();
+    readonly List<ParticleSystem> systems=new List<ParticleSystem>();
+    static readonly Dictionary<ParticleSystem,SprkParticleDensity> owners=new Dictionary<ParticleSystem,SprkParticleDensity>();
     static readonly string[] protectedNames={"warning","telegraph","indicator","target","range","circle","decal","marker","area","aoe"};
-    static bool Protected(Transform node,Transform root) {
+    static bool Protected(Transform node) {
         for(var current=node;current!=null;current=current.parent) {
             string name=current.name;
             foreach(var word in protectedNames)if(name.IndexOf(word,StringComparison.OrdinalIgnoreCase)>=0)return true;
-            if(current==root)break;
         }
         return false;
     }
     public void Capture() {
         Clear();
-        foreach(var system in GetComponentsInChildren<ParticleSystem>(true)) {
+        systems.Clear();GetComponentsInChildren<ParticleSystem>(true,systems);
+        foreach(var system in systems) {
+            SprkParticleDensity owner;if(owners.TryGetValue(system,out owner) && owner!=null && owner!=this)continue;
             var emission=system.emission;var main=system.main;var renderer=system.GetComponent<ParticleSystemRenderer>();
             if(renderer==null || renderer.renderMode!=ParticleSystemRenderMode.Billboard || !emission.enabled || emission.burstCount!=0 || main.maxParticles<128 ||
-               emission.rateOverTime.mode!=ParticleSystemCurveMode.Constant || emission.rateOverTimeMultiplier<32 || system.trails.enabled || system.collision.enabled || system.trigger.enabled || system.subEmitters.enabled || system.lights.enabled || Protected(system.transform,transform))continue;
-            emitters.Add(new Emitter{system=system,rate=emission.rateOverTimeMultiplier});
+               emission.rateOverTime.mode!=ParticleSystemCurveMode.Constant || emission.rateOverTimeMultiplier<32 || system.trails.enabled || system.collision.enabled || system.trigger.enabled || system.subEmitters.enabled || system.lights.enabled || Protected(system.transform))continue;
+            emitters.Add(new Emitter{system=system,renderer=renderer,rate=emission.rateOverTimeMultiplier,coverage=renderer.maxParticleSize});
+            owners[system]=this;
         }
+        systems.Clear();
     }
-    public void Apply(float density) {
+    public float Demand { get { return DemandForMask(-1); } }
+    public float DemandForMask(int mask) { float uncapped;return DemandForMask(mask,1,out uncapped); }
+    public float DemandForMask(int mask,float density,out float uncapped) {
+        uncapped=0;if(!gameObject.activeInHierarchy)return 0;
+        float total=0;
+        foreach(var entry in emitters)if(entry.system!=null && (mask&(1<<entry.system.gameObject.layer))!=0 && entry.system.gameObject.activeInHierarchy && entry.system.emission.enabled && entry.renderer!=null && entry.renderer.enabled) {
+            var main=entry.system.main;float demand=entry.rate*density*Mathf.Max(.1f,main.startLifetime.constantMax);
+            uncapped+=demand;total+=Mathf.Min(main.maxParticles,demand);
+        }
+        return total;
+    }
+    public void Apply(float density) { Apply(density,0); }
+    public void Apply(float density,int coverage) { Apply(density,coverage,1,-1); }
+    public void Apply(float density,int coverage,float battleFactor,int battleMask) {
         foreach(var entry in emitters)if(entry.system!=null) {
             var emission=entry.system.emission;
-            emission.rateOverTimeMultiplier=entry.rate*(gameObject.activeInHierarchy?density:1);
+            bool battle=(battleMask&(1<<entry.system.gameObject.layer))!=0;
+            emission.rateOverTimeMultiplier=entry.rate*(gameObject.activeInHierarchy?density*(battle?battleFactor:1):1);
+            if(entry.renderer!=null)entry.renderer.maxParticleSize=!battle || coverage==0 || !gameObject.activeInHierarchy?entry.coverage:Mathf.Min(entry.coverage,coverage==1?.15f:.08f);
         }
     }
-    public void Clear() { Apply(1);emitters.Clear(); }
+    public void Clear() { Apply(1);foreach(var entry in emitters)owners.Remove(entry.system);emitters.Clear(); }
     void OnDisable() { Apply(1); }
-    void OnEnable() { Apply(SprkGraphicsOptions.ParticleDensity); }
+    void OnDestroy() { Clear(); }
+    void OnEnable() { SprkGraphicsOptions.ApplyParticleBudget(this); }
 }

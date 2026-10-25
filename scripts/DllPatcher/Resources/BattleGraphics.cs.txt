@@ -1,0 +1,239 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using UnityEngine;
+
+public sealed partial class SprkGraphicsOptions {
+    // Stored values 1/2 must continue to mean 60/120 FPS in existing profiles.
+    static readonly int[] adaptivePreferenceValues={0,3,1,2,4};
+    static readonly int[] adaptiveFrameTargets={0,30,60,120,144};
+    static int AdaptiveBattleTarget { get { return adaptiveFrameTargets[ReadIndex("AdaptiveBattleScale")]; } }
+    bool battleActive;
+    int battleEffectMask;
+    static float battleDensityFactor=1;
+    float nextEffectBudget;
+    int effectSettings=-1;
+    readonly SprkBattleResolution adaptiveBattle=new SprkBattleResolution();
+    readonly FrameTiming[] battleTiming=new FrameTiming[1];
+    float nextBattleTiming,lastValidBattleTiming;
+    ulong lastBattleTimestamp;
+    public static void ApplyParticleBudget(SprkParticleDensity budget) { budget.Apply(ParticleDensity,CurrentEffectCoverage,battleDensityFactor,instance!=null && instance.battleActive?instance.battleEffectMask:0); }
+    public static int CurrentEffectCoverage { get { return instance!=null && instance.battleActive?ReadIndex("EffectCoverage"):0; } }
+    public static int EffectiveWorldScale { get { return instance!=null && instance.battleActive && ReadIndex("AdaptiveBattleScale")!=0?instance.adaptiveBattle.Current:Scale; } }
+    void ResetBattleControls() {
+        battleActive=false;battleEffectMask=0;battleDensityFactor=1;effectSettings=-1;nextEffectBudget=0;
+        adaptiveBattle.Configure(Scale,0);lastBattleTimestamp=0;nextBattleTiming=lastValidBattleTiming=0;
+    }
+    bool HasBattleCameraStack() {
+        if(worldCameras.Count==0 || battleUiMask==0)return false;
+        foreach(var camera in cameras)if(NativeTarget(camera)==null && OnlyLayers(camera,battleUiMask))return true;
+        return false;
+    }
+    void UpdateBattleControls() {
+        bool active=HasBattleCameraStack();
+        if(active!=battleActive){ResetBattleControls();battleActive=active;}
+        int mask=0;if(active)foreach(var camera in worldCameras)mask|=camera.cullingMask;
+        if(mask!=battleEffectMask){battleEffectMask=mask;effectSettings=-1;}
+        int target=battleActive?AdaptiveBattleTarget:0;
+        adaptiveBattle.Configure(Scale,target);
+        if(target==0 || !Application.isFocused || !FrameTimingManager.IsFeatureEnabled()) {
+            adaptiveBattle.Configure(Scale,0);lastBattleTimestamp=0;lastValidBattleTiming=Time.realtimeSinceStartup;return;
+        }
+        FrameTimingManager.CaptureFrameTimings();
+        float now=Time.realtimeSinceStartup;if(now<nextBattleTiming)return;nextBattleTiming=now+.25f;
+        if(FrameTimingManager.GetLatestTimings(1,battleTiming)>0) {
+            var frame=battleTiming[0];
+            if(frame.frameStartTimestamp!=0 && frame.frameStartTimestamp!=lastBattleTimestamp && frame.gpuFrameTime>0 && frame.gpuFrameTime<250) {
+                lastBattleTimestamp=frame.frameStartTimestamp;lastValidBattleTiming=now;
+                double cpu=Math.Max(0,Math.Max(frame.cpuMainThreadFrameTime-frame.cpuMainThreadPresentWaitTime,frame.cpuRenderThreadFrameTime));
+                adaptiveBattle.Submit(frame.gpuFrameTime,cpu);return;
+            }
+        }
+        // Unsupported/stale GPU timing must never guess from a CPU-bound frame.
+        if(now-lastValidBattleTiming>2)adaptiveBattle.Restore();
+    }
+    void UpdateBattleEffects() {
+        int density=ReadIndex("ParticleDensity"),effects=battleActive?ReadIndex("BattleEffects"):0,coverage=CurrentEffectCoverage;
+        int settings=density+effects*4+coverage*16+(battleActive?64:0);
+        float now=Time.realtimeSinceStartup;
+        if(settings==effectSettings && (effects==0 || now<nextEffectBudget))return;
+        effectSettings=settings;nextEffectBudget=now+.25f;
+        float demand=0,uncapped=0;
+        if(effects!=0)foreach(var budget in particleBudgets)if(budget!=null) {
+            float emission;demand+=budget.DemandForMask(battleEffectMask,ParticleDensity,out emission);uncapped+=emission;
+        }
+        float limit=effects==1?4800:2400;
+        battleDensityFactor=effects==0 || demand<=limit?1:limit/uncapped;
+        for(int i=particleBudgets.Count-1;i>=0;i--) {
+            var budget=particleBudgets[i];if(budget==null){particleBudgets.RemoveAt(i);continue;}
+            ApplyParticleBudget(budget);
+        }
+    }
+    // Native circle shadows retain their XZ-follow, local Y=0 and world identity
+    // rotation, including under transformed parents. Read each transform once
+    // and avoid writing values that are already exact matches.
+    public static void UpdateCircleShadow(Transform pivot,Component cache) {
+        if(pivot==null || cache==null)return;
+        var shadow=cache.transform;var position=shadow.position;var source=pivot.position;
+        if(position.x!=source.x || position.z!=source.z){position.x=source.x;position.z=source.z;shadow.position=position;}
+        position=shadow.localPosition;if(position.y!=0){position.y=0;shadow.localPosition=position;}
+        var rotation=shadow.rotation;
+        if(rotation.x!=0 || rotation.y!=0 || rotation.z!=0 || rotation.w!=1)shadow.rotation=Quaternion.identity;
+    }
+    System.Collections.IEnumerator BattleStackControlsProbe(List<string> report,Camera model,Camera hud) {
+        int saved=SprkTestPrefs.GetInt("Sprk.Graphics.AdaptiveBattleScale",0),savedPreview=SprkTestPrefs.GetInt("Sprk.Graphics.PreviewScale",0);
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",1);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",200);
+        bool routing=HasBattleCameraStack() && battleActive;
+        adaptiveBattle.Configure(200,60);
+        for(int i=0;i<6;i++)adaptiveBattle.Submit(30,5);
+        var target=CreateWorldTarget(320,240,24);var preview=CreateTarget(320,240,24);
+        routing &= EffectiveWorldScale==175 && target.width==560 && target.height==420 && preview.width==640 && preview.height==480 && hud.targetTexture==null;
+        ownedTargets.Remove(target);ownedTargets.Remove(preview);Destroy(target);Destroy(preview);
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",0);LateUpdate();
+        routing &= EffectiveWorldScale==200 && model.targetTexture==world && world.width==Screen.width*2 && hud.targetTexture==null;
+        report.Add("battleScaleTargetRouting="+routing);
+        int readings=0,available=0;double gpu=0,cpu=0;ulong stamp=0;
+        for(int i=0;i<24;i++) {
+            FrameTimingManager.CaptureFrameTimings();yield return new WaitForEndOfFrame();
+            uint count=FrameTimingManager.GetLatestTimings(1,battleTiming);available+=(int)count;
+            if(count>0 && battleTiming[0].frameStartTimestamp!=stamp && battleTiming[0].gpuFrameTime>0) {
+                stamp=battleTiming[0].frameStartTimestamp;readings++;gpu+=battleTiming[0].gpuFrameTime;cpu+=battleTiming[0].cpuFrameTime;
+            }
+        }
+        report.Add("nativeBattleFrameTimings="+readings+" available="+available+" timestamp="+battleTiming[0].frameStartTimestamp+" rawGpu="+battleTiming[0].gpuFrameTime+" rawCpu="+battleTiming[0].cpuFrameTime+" gpuSupport="+SystemInfo.supportsGpuRecorder+" gpuFrequency="+FrameTimingManager.GetGpuTimerFrequency()+" cpuFrequency="+FrameTimingManager.GetCpuTimerFrequency()+" gpuMs="+(readings==0?0:gpu/readings)+" cpuMs="+(readings==0?0:cpu/readings));
+        report.Add("nativeBattleGpuTimingsAvailable="+(readings>0));
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",saved);SprkTestPrefs.SetInt("Sprk.Graphics.PreviewScale",savedPreview);LateUpdate();
+    }
+    System.Collections.IEnumerator BattleControlsProbe(List<string> report) {
+        var controller=new SprkBattleResolution();controller.Configure(200,60);
+        bool resolution=controller.Current==200;
+        for(int i=0;i<5;i++)controller.Submit(30,5);
+        resolution &= controller.Current==200;controller.Submit(30,5);resolution &= controller.Current==175;
+        for(int i=0;i<60;i++)controller.Submit(35,5);
+        resolution &= controller.Current==75;
+        for(int i=0;i<12;i++)controller.Submit(8,4);
+        resolution &= controller.Current==100;
+        controller.Configure(200,60);controller.Restore();
+        for(int i=0;i<24;i++)controller.Submit(30,45);
+        resolution &= controller.Current==200;
+        for(int i=0;i<24;i++)controller.Submit(0,1);
+        resolution &= controller.Current==200;
+        controller.Configure(125,120);resolution &= controller.Current==125;
+        for(int i=0;i<24;i++)controller.Submit(18,2);
+        controller.Configure(125,0);resolution &= controller.Current==125;
+        report.Add("adaptiveBattleController="+resolution);
+        int savedTarget=SprkTestPrefs.GetInt("Sprk.Graphics.AdaptiveBattleScale",0);
+        bool targets=true;
+        foreach(int stored in new[]{0,1,2,3,4}) {
+            SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",stored);SprkTestPrefs.ClearGraphicsCache();
+            int targetFps=stored==1?60:stored==2?120:stored==3?30:stored==4?144:0;
+            targets &= AdaptiveBattleTarget==targetFps;
+            controller.Configure(200,AdaptiveBattleTarget);
+            if(targetFps==0){controller.Submit(100,1);targets &= controller.Current==200;continue;}
+            double budget=1000.0/targetFps;
+            for(int i=0;i<6;i++)controller.Submit(budget*.9,1);
+            targets &= controller.Current==200;
+            for(int i=0;i<6;i++)controller.Submit(budget*1.2,1);
+            targets &= controller.Current==175;
+            for(int i=0;i<12;i++)controller.Submit(budget*.5,1);
+            targets &= controller.Current==200;
+        }
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",savedTarget);
+        report.Add("adaptiveBattleTargetsAndCompatibility="+targets);
+        report.Add("nativeFrameTimingEnabled="+FrameTimingManager.IsFeatureEnabled());
+
+        int savedDensity=ReadIndex("ParticleDensity"),savedEffects=ReadIndex("BattleEffects"),savedCoverage=ReadIndex("EffectCoverage"),savedAdaptive=SprkTestPrefs.GetInt("Sprk.Graphics.AdaptiveBattleScale",0);
+        bool wasBattle=battleActive;int savedMask=battleEffectMask;
+        SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",0);SprkTestPrefs.SetInt("Sprk.Graphics.BattleEffects",2);SprkTestPrefs.SetInt("Sprk.Graphics.EffectCoverage",2);
+        var root=new GameObject("CrowdedCosmeticEffectsProbe");
+        var registered=new List<SprkParticleDensity>();var emitters=new List<ParticleSystem>();
+        for(int i=0;i<12;i++) {
+            var host=new GameObject("Cosmetic emitter "+i);host.transform.SetParent(root.transform,false);
+            var emitter=ProbeEmitter(host.transform,"Decorative sparks");ObserveParticles(host.transform);
+            registered.Add(host.GetComponent<SprkParticleDensity>());emitters.Add(emitter);
+        }
+        var warning=ProbeEmitter(root.transform,"Warning telegraph");ObserveParticles(root.transform);
+        var rootBudget=root.GetComponent<SprkParticleDensity>();
+        // The extra aggregate observer must be released before measuring demand;
+        // production hooks register one native effect root, not nested test roots.
+        bool uniqueOwnership=rootBudget.Demand==0;rootBudget.Clear();
+        var previewHost=new GameObject("Preview effects probe");previewHost.layer=LayerMask.NameToLayer("Bottom3D");
+        var previewEmitter=ProbeEmitter(previewHost.transform,"Preview sparks");previewEmitter.gameObject.layer=previewHost.layer;ObserveParticles(previewHost.transform);
+        float originalCoverage=emitters[0].GetComponent<ParticleSystemRenderer>().maxParticleSize;
+        battleActive=true;battleEffectMask=1;effectSettings=-1;UpdateBattleEffects();
+        float total=0;foreach(var budget in registered){float raw;budget.DemandForMask(1,1,out raw);total+=raw;}
+        float expected=80*Mathf.Min(1,2400/total);
+        bool budgets=uniqueOwnership && expected<80 && Mathf.Approximately(emitters[0].emission.rateOverTimeMultiplier,expected) && Mathf.Approximately(warning.emission.rateOverTimeMultiplier,80);
+        budgets &= Mathf.Approximately(previewEmitter.emission.rateOverTimeMultiplier,80);
+        bool coverage=Mathf.Approximately(emitters[0].GetComponent<ParticleSystemRenderer>().maxParticleSize,Mathf.Min(originalCoverage,.08f));
+        for(int i=0;i<8;i++) {registered[0].Clear();registered[0].Capture();ApplyParticleBudget(registered[0]);}
+        budgets &= Mathf.Approximately(emitters[0].emission.rateOverTimeMultiplier,expected);
+        for(int i=4;i<12;i++)registered[i].gameObject.SetActive(false);
+        nextEffectBudget=0;UpdateBattleEffects();budgets &= Mathf.Approximately(emitters[0].emission.rateOverTimeMultiplier,80);
+        for(int i=4;i<12;i++)registered[i].gameObject.SetActive(true);
+        nextEffectBudget=0;UpdateBattleEffects();budgets &= Mathf.Approximately(emitters[0].emission.rateOverTimeMultiplier,expected);
+        battleActive=false;UpdateBattleEffects();
+        budgets &= Mathf.Approximately(emitters[0].emission.rateOverTimeMultiplier,80);
+        coverage &= Mathf.Approximately(emitters[0].GetComponent<ParticleSystemRenderer>().maxParticleSize,originalCoverage);
+        root.SetActive(false);foreach(var budget in registered)budget.Clear();Destroy(root);ReleaseParticles(previewHost.transform);Destroy(previewHost);
+        report.Add("crowdedBattleEffectBudget="+budgets+" fullRate=80 budgetedRate="+expected);
+        report.Add("battleEffectCoverageAndRestore="+coverage);
+
+        var parent=new GameObject("ShadowParentProbe");parent.transform.position=new Vector3(3,5,7);parent.transform.rotation=Quaternion.Euler(20,30,10);parent.transform.localScale=new Vector3(2,3,4);
+        var shadow=new GameObject("ShadowProbe");shadow.transform.SetParent(parent.transform,false);
+        var pivot=new GameObject("ShadowPivotProbe");pivot.transform.position=new Vector3(9,8,6);
+        var reference=new GameObject("NativeShadowReference");reference.transform.SetParent(parent.transform,false);
+        var cacheType=typeof(NGame2.NUI.NRender3D.HeroPreview).Assembly.GetType("NGameAsset.NCreature.RenderCache");
+        var cache=shadow.AddComponent(cacheType);
+        var nativeType=cacheType.Assembly.GetType("NGameAsset.NCreature.CircleShadowInstance");
+        var native=System.Runtime.Serialization.FormatterServices.GetUninitializedObject(nativeType);
+        nativeType.GetField("_pivotTm",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(native,pivot.transform);
+        nativeType.GetField("_renderCache",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(native,cache);
+        var late=nativeType.GetMethod("NVespa.NSingleton.ILateUpdater.ChainLateUpdate",BindingFlags.Instance|BindingFlags.NonPublic);
+        bool shadows=true;
+        for(int i=0;i<6;i++) {
+            pivot.transform.position+=new Vector3(1,.1f,-.5f);
+            var p=reference.transform.position;p.x=pivot.transform.position.x;p.z=pivot.transform.position.z;reference.transform.position=p;
+            p=reference.transform.localPosition;p.y=0;reference.transform.localPosition=p;reference.transform.rotation=Quaternion.identity;
+            late.Invoke(native,null);
+            shadows &= (shadow.transform.position-reference.transform.position).sqrMagnitude<.000001f && Quaternion.Angle(shadow.transform.rotation,reference.transform.rotation)<.01f;
+        }
+        report.Add("nativeShadowPosePreserved="+shadows);
+        parent.transform.position=Vector3.zero;parent.transform.rotation=Quaternion.identity;parent.transform.localScale=Vector3.one;
+        late.Invoke(native,null);shadow.transform.hasChanged=false;late.Invoke(native,null);
+        report.Add("nativeShadowStableWrites="+!shadow.transform.hasChanged);Destroy(parent);Destroy(pivot);
+
+        var containerHost=new GameObject("PoolReuseProbe");var container=containerHost.AddComponent<NGame2.NNodeTree.NObject.Container>();
+        var dead=new GameObject("Destroyed pooled object").AddComponent<NGame2.NNodeTree.NObject.ParticleObject>();
+        var live=new GameObject("Reusable pooled object").AddComponent<NGame2.NNodeTree.NObject.ParticleObject>();live.gameObject.SetActive(false);
+        var queue=new Queue<NGame2.NNodeTree.ObjectBase>();queue.Enqueue(dead);queue.Enqueue(live);
+        var dictionary=(Dictionary<Type,Queue<NGame2.NNodeTree.ObjectBase>>)typeof(NGame2.NNodeTree.NObject.Container).GetField("_unusedDic",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(container);
+        dictionary[typeof(NGame2.NNodeTree.NObject.ParticleObject)]=queue;Destroy(dead.gameObject);yield return null;
+        var dequeue=typeof(NGame2.NNodeTree.NObject.Container).GetMethod("DequeueUnused",BindingFlags.Instance|BindingFlags.NonPublic).MakeGenericMethod(typeof(NGame2.NNodeTree.NObject.ParticleObject));
+        var reused=dequeue.Invoke(container,null);
+        bool pool=ReferenceEquals(reused,live) && live.gameObject.activeSelf && queue.Count==0 && dequeue.Invoke(container,null)==null;
+        report.Add("nativePoolSkipsDestroyedHead="+pool);Destroy(live.gameObject);Destroy(containerHost);
+        SprkTestPrefs.SetInt("Sprk.Graphics.ParticleDensity",savedDensity);SprkTestPrefs.SetInt("Sprk.Graphics.BattleEffects",savedEffects);SprkTestPrefs.SetInt("Sprk.Graphics.EffectCoverage",savedCoverage);SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",savedAdaptive);
+        battleActive=wasBattle;battleEffectMask=savedMask;effectSettings=-1;UpdateBattleEffects();
+    }
+}
+
+// Sampled at 4 Hz. Six overloaded GPU samples lower scale by 25 points;
+// twelve samples with headroom recover by 25. Never reacts to CPU-only stalls.
+public sealed class SprkBattleResolution {
+    int maximum=100,target,over,under;
+    public int Current { get; private set; } =100;
+    public void Configure(int scale,int fps) {
+        if(maximum==scale && target==fps)return;
+        maximum=scale;target=fps;Restore();
+    }
+    public void Restore() { Current=maximum;over=under=0; }
+    public void Submit(double gpu,double cpu) {
+        if(target==0 || double.IsNaN(gpu) || double.IsInfinity(gpu) || gpu<=0 || gpu>=250 || double.IsNaN(cpu) || double.IsInfinity(cpu)){over=under=0;return;}
+        double budget=1000.0/target;
+        over=gpu>budget*1.1 && gpu>=cpu*.9?over+1:0;
+        under=gpu<budget*.7?under+1:0;
+        if(over>=6){Current=Math.Max(75,Current-25);over=under=0;}
+        else if(under>=12){Current=Math.Min(maximum,Current+25);over=under=0;}
+    }
+}

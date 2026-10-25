@@ -2469,9 +2469,9 @@ async fn campaign_rewards_expose_raider_exp_in_native_response_fields() {
 
 #[tokio::test]
 async fn stamina_exp_replaces_hero_exp_and_is_transactional() {
-    let (mut s, u) = setup().await;
+    let (s, u) = setup().await;
     let a=account(&u);
-    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).rules["RaiderExpPerStamina"]=json!(10);
+    assert_eq!(s.tables.battle.rules["RaiderExpPerStamina"], 10);
     let before=balance(&s,"team_exp").await;
     let mut tx=s.db.begin().await.unwrap();
     let spent=dungeons::charge(&mut tx,&s,a,1,3).await.unwrap();
@@ -2543,7 +2543,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         }
         let partial=call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await;
         assert_eq!(partial["Result"],"Success");
-        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*100);
+        assert_eq!(partial["TeamExpResult"]["AddValue"],cost*10);
         assert_eq!(partial["StaminaResult"]["AddValue"],cost);
         assert_ne!(call(&s,&u,"dispatch/cancel_dispatch",&slot_args).await["Result"],"Success");
         assert_eq!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
@@ -2557,7 +2557,7 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         let finish=call(&s,&u,"dispatch/request_complete_dispatch",&slot_args).await;
         assert_eq!(finish["Result"],"Success","{finish}");
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
-        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*100);
+        assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*10);
         if chapter == 905 {
             let raw: String = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND title='Dispatch equipment rewards' ORDER BY mail_id DESC LIMIT 1")
                 .bind(a).fetch_one(&s.db).await.unwrap();
