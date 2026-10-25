@@ -420,3 +420,22 @@ screenshot regression. Unaffordability disables Buy while retaining the price;
 No Sale follows native offer availability. Selector backgrounds use simple
 geometry so ornamental sprite borders cannot expand colliders over adjacent
 controls.
+
+### Gear inventory capacity
+
+`--inventory-expansion-only` applies the focused 1,400-slot gear cap patch;
+`--stage-only` prepares it without installation, and
+`--verify-inventory-expansion` executes the actual native row getter across gear,
+chest and rune cases. `--build-release` installs and verifies it automatically.
+The gear row's 90 extensions become 140, preserving the 280 base slots, 8 slots
+per extension and existing ruby price. Both native ticket checks and ruby
+expansion pricing read this same row. Other inventory types retain their caps.
+The matching server InventorySupport rule uses 140 extensions. Expansion tickets
+add their normal amount, truncate the final use to remaining capacity and reject
+full inventories or redundant batch tickets without consuming them.
+
+The selector count-limit patch also caps SelectItemMessagePopup (stamina potions
+and other shared consumable popups) at 1,000 per use. Max, plus/minus, typed input
+and confirmation share the cap, preserving smaller caller limits and full owned
+counts on inventory icons. Typed values normalize immediately. Server consumable
+validation already allows 1,000; the dedicated hero EXP bulk-use path is unchanged.

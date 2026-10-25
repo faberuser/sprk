@@ -150,8 +150,7 @@ pub(crate) async fn execute(
                 if !old.is_null() {
                     return Err(rule("AlreadyHaveCostume"));
                 }
-                let raw: Value = serde_json::from_str(req.text("PositionInfo"))
-                    .map_err(|_| rule("InvalidCostume"))?;
+                let raw = cosmetics::position_json(req.text("PositionInfo"))?;
                 let encoded = json!({accessory.to_string():raw}).to_string();
                 cosmetics::positions(&encoded)?;
                 let info = json!({"HeroIndex":hero_id,"AccessoryCostumeIndex":accessory,"PositionInfo":raw.to_string(),"CreatedTime":state.server_time_str()});

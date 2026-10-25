@@ -1205,8 +1205,8 @@ public static class RestoredPortal
 
     public static int EquipmentBagMaxExtensions(int original, NShared.InventoryType inventoryType)
     {
-        // 280 base slots + 90 extensions of 8 slots = 1000.
-        return inventoryType == NShared.InventoryType.Inventory ? System.Math.Min(original, 90) : original;
+        // 280 base slots + 140 extensions of 8 slots = 1400.
+        return inventoryType == NShared.InventoryType.Inventory ? System.Math.Min(original, 140) : original;
     }
 
     public static bool ShowMailCapacityError(NShared.Response response)

@@ -1532,3 +1532,56 @@ async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)").bind(a).bind(first).bind(second).fetch_one(&s.db).await.unwrap(),2);
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
 }
+
+#[tokio::test]
+async fn accessory_items_accept_native_encoded_positions_and_survive_relogin() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let position = json!({"PositionX":"0", "PositionY":"0", "PositionZ":"0", "RotationX":"0", "RotationY":"0", "RotationZ":"0", "Scale":"1"});
+    // RequestInternal escapes strings, then WWWForm escapes them again.
+    let raw = position.to_string();
+    let escaped = urlencoding::encode(&raw).into_owned();
+    let wire = urlencoding::encode(&escaped);
+    let mut used = 0;
+    let mut granted = std::collections::HashSet::new();
+    for selector in s.tables.extensions.rows("AccessorySelectItem") {
+        let accessory = n(selector, "AccessoryIndex");
+        let data = row(&s, "AccessoryCostume", &[("Index", accessory)]).unwrap();
+        if selector["TargetHero"].as_array().is_some_and(|v| !v.is_empty() && !v.contains(&json!(1)))
+            || data["UnableHero"].as_array().is_some_and(|v| v.contains(&json!(1)))
+            || !granted.insert(accessory) { continue; }
+        let id = n(selector, "ItemIndex") as i32;
+        give(&s, a, id, 2).await;
+        let args = format!("ItemIndex={id}&AccessoryCostumeIndex={accessory}&HeroIndex=1&PositionInfo={wire}");
+        let result = call(&s, &u, "item/use_accessory_select_item", &args).await;
+        assert_eq!(result["Result"], "Success", "Native accessory {id}: {result}");
+        assert_eq!(result["PlayerAccessoryCostumeInfo"]["HeroIndex"], 1);
+        assert_eq!(result["PlayerAccessoryCostumeInfo"]["AccessoryCostumeIndex"], accessory);
+        let info: Value = serde_json::from_str(result["PlayerAccessoryCostumeInfo"]["PositionInfo"].as_str().unwrap()).unwrap();
+        assert_eq!(info, position);
+        assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
+        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            .bind(a).bind(id).fetch_one(&s.db).await.unwrap(), 1);
+        used += 1;
+    }
+    assert!(used > 100, "Expected the restored accessory catalog, got {used}");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.player_accessory_costume_infos.len(), used);
+}
+
+#[tokio::test]
+async fn accessory_item_invalid_native_positions_do_not_consume_or_grant() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 3100017, 1).await;
+    for position in ["%notjson".to_string(), "{}".to_string(),
+        json!({"PositionX":"0","PositionY":"0","PositionZ":"0","RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"0"}).to_string()] {
+        let escaped = urlencoding::encode(&position).into_owned();
+        let wire = urlencoding::encode(&escaped);
+        let args = format!("ItemIndex=3100017&AccessoryCostumeIndex=3100017&HeroIndex=1&PositionInfo={wire}");
+        assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
+        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=3100017")
+            .bind(a).fetch_one(&s.db).await.unwrap(), 1);
+        assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", cosmetics::accessory_key(1, 3100017).unwrap()).await.unwrap().is_null());
+    }
+}

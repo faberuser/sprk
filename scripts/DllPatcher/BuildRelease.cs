@@ -38,6 +38,8 @@ partial class Program
         InstallPetPresentation(clientRoot, false);
         VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
+        InstallInventoryExpansion(clientRoot, false);
+        VerifyInventoryExpansionFile(clientRoot);
         InstallSpecialShop(clientRoot, false);
         VerifySpecialShopFile(clientRoot);
         InstallShopTags(clientRoot, false);

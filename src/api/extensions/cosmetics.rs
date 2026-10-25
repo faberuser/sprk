@@ -208,23 +208,27 @@ async fn owned_body(db: &mut SqliteConnection, account: i64, id: i64) -> Result<
     .fetch_one(db)
     .await?)
 }
-pub(super) fn positions(raw: &str) -> Result<Vec<(i64, Value)>> {
-    if raw.is_empty() {
-        return Ok(vec![]);
-    }
+pub(super) fn position_json(raw: &str) -> Result<Value> {
     if raw.len() > 16384 {
         return Err(rule("InvalidCostume"));
     }
     // RequestInternal calls WWW.EscapeURL before WWWForm encodes the body.
     // Form parsing removes the outer layer; native position JSON still has one.
     // Parse plain JSON first so already-decoded values are never decoded twice.
-    let value: Value = match serde_json::from_str(raw) {
-        Ok(value) => value,
+    match serde_json::from_str(raw) {
+        Ok(value) => Ok(value),
         Err(_) => {
             let decoded = urlencoding::decode(raw).map_err(|_| rule("InvalidCostume"))?;
-            serde_json::from_str(&decoded).map_err(|_| rule("InvalidCostume"))?
+            serde_json::from_str(&decoded).map_err(|_| rule("InvalidCostume"))
         }
-    };
+    }
+}
+
+pub(super) fn positions(raw: &str) -> Result<Vec<(i64, Value)>> {
+    if raw.is_empty() {
+        return Ok(vec![]);
+    }
+    let value = position_json(raw)?;
     // BaseJsonMarshaler encodes integer-keyed dictionaries as JSON objects.
     let object = value.as_object().ok_or_else(|| rule("InvalidCostume"))?;
     if object.len() > 6 {
