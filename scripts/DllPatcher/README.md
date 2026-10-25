@@ -397,3 +397,26 @@ Before constructing the login settings panel, load the installed full localizati
 My Info removes the dark outer window border baked into Common_Fram_Small2 using a cached, window-specific atlas copy. The gold silhouette, original nine-slice dimensions, portrait frames and shared Common atlas remain intact. This is separate from the older portrait-backdrop cleanup. The pet presentation installer includes the correction in focused and full release builds. An isolated Unity launch with SPRK_MYINFO_FRAME_TEST, SPRK_AUTOMATION_PROFILE and SPRK_AUTOMATION_DIR set exports before/after sprite images and checks outer-border removal, unchanged gold pixels, native geometry, atlas isolation and cached reuse.
 
 Model-preview orbit anchors are captured once the model is loaded and refreshed when the model or camera controller changes. The helper removes the native animated-head displacement with the same zoom-in/out blend used by CameraController, so Run and other body motions do not move the camera. Native framing and zoom controls remain active; resetting free-camera offsets preserves the fixed anchor. The Unity probe drives head/root movement across native zoom blends and free-camera orbit/pan/zoom, checks a stationary camera transform, and verifies model replacement refreshes the anchor.
+
+### Special shop ordering and batch purchases
+
+`--special-shop-only` installs the focused patch; add `--stage-only` to prepare it
+without replacing installed DLLs. `--verify-special-shop` verifies hooks and runs
+stock, affordability, quantity encoding and request isolation checks. The full
+`--build-release` path installs and verifies the same patch.
+
+Unclaimed free offers sort before paid offers; claimed free offers sort last.
+The current category/tag rebuilds after a free purchase and at the daily reset.
+Item detail popups (including package items) include a typed quantity field and minus/plus controls
+centered above the native buy button. Total price follows the selected quantity. Maximum
+quantity is 999, further bounded by affordability, stock and integer limits.
+The request carries `Quantity`; older clients omit it and buy one offer. Deploy
+the matching server batch support before distributing this client update.
+
+The quantity helper reads gold, total rubies (free and paid), mileage and Lua
+from UserManager, matching the native shop. The verifier executes its balance
+accessor against real UserInfo/UserManager instances, including the 549,992-ruby
+screenshot regression. Unaffordability disables Buy while retaining the price;
+No Sale follows native offer availability. Selector backgrounds use simple
+geometry so ornamental sprite borders cannot expand colliders over adjacent
+controls.

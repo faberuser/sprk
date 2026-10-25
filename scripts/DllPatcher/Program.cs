@@ -18,6 +18,8 @@ namespace DllPatcher
             if (args.Contains("--verify-room-shortcut")) { VerifyRoomShortcutFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--pet-presentation-only")) { InstallPetPresentation(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-pet-presentation")) { VerifyPetPresentationFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--special-shop-only")) { InstallSpecialShop(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-special-shop")) { VerifySpecialShopFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--shop-tags-only")) { InstallShopTags(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-shop-tags")) { VerifyShopTagsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--raid-info-scroll-only")) { InstallRaidInfoScroll(args[0],args.Contains("--stage-only")); return; }

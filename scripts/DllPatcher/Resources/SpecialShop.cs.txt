@@ -1,0 +1,211 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NShared;
+using NGame2.NAccount;
+using NGame2.NUI.NComponent2.NPayShop;
+using NGame2.NUI.NWindow.NPayShop;
+using NVespa.NSingleton;
+using UnityEngine;
+using ShopWindow = NGame2.NUI.NWindow.NPayShop.PayShop;
+
+public static class SprkSpecialShop {
+    static int pendingIndex, pendingQuantity = 1;
+    static float nextResetCheck;
+    public static int Rank(bool free, int purchased, int limit) {
+        return !free ? 1 : limit > 0 && purchased >= limit ? 2 : 0;
+    }
+    public static int Maximum(long balance, long price, int purchased, int limit, int grantLimit) {
+        long max = 999;
+        if (price > 0) max = Math.Min(max, Math.Min(balance / price, int.MaxValue / price));
+        if (limit > 0) max = Math.Min(max, (long)limit - purchased);
+        max = Math.Min(max, grantLimit);
+        return (int)Math.Max(0, max);
+    }
+    public static long Balance(UserManager user, CurrencyType currency) {
+        // Core balances live in UserInfo, not PlayerCurrencyManager's event ledger.
+        switch (currency) {
+            case CurrencyType.Gold: return user.Gold;
+            case CurrencyType.Gem: return user.TotalGem;
+            case CurrencyType.Mileage: return user.Mileage;
+            case CurrencyType.LuaPoint: return user.LuaPoint;
+            default: return user.GetUserStat(currency.ToString());
+        }
+    }
+    public static int Purchased(NewPayShopProductInfo info) {
+        var receipt = GlobalAutoBehaviour<AccountManager>.instance.PlayerProductPurchaseManager.Get(info.Index);
+        if (receipt == null) return 0;
+        DateTime reset;
+        if (info.DailyReset && Vespa_String_Extension_Method2.TryParseNetworkTime2(receipt.PurchaseCountResetTime, out reset)
+            && reset <= NGame2.NUI.NWindow.Common.GetUTCNow()) return 0;
+        return receipt.PurchasedCount;
+    }
+    public static void Sort(List<NewPayShopProductInfo> products) {
+        // LINQ's stable ordering preserves the native order within each group.
+        var sorted = products.OrderBy(p => Rank(p.Price == 0 && string.IsNullOrEmpty(p.InAppPurchaseId), Purchased(p), p.PurchasableCount)).ToArray();
+        products.Clear(); products.AddRange(sorted);
+    }
+    static void Rebuild(ShopWindow shop) {
+        var selectedList = typeof(ShopWindow).GetField("_selectedPayShopList", BindingFlags.Instance | BindingFlags.NonPublic);
+        var selectedTag = typeof(ShopWindow).GetField("_selectedTag", BindingFlags.Instance | BindingFlags.NonPublic);
+        var list = selectedList.GetValue(shop) as PayShopBaseList;
+        if (list == null) return;
+        int tag = (int)selectedTag.GetValue(shop);
+        if (tag > 0) list.CreateList(tag); else list.ReCreateList();
+    }
+    public static void AfterPurchase(ShopWindow shop, NewPayShopProductInfo info) {
+        if (info != null && info.Price == 0) Rebuild(shop);
+    }
+    public static void Tick(ShopWindow shop) {
+        if (Time.realtimeSinceStartup < nextResetCheck) return;
+        nextResetCheck = Time.realtimeSinceStartup + 1f;
+        bool changed = false;
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        foreach (var info in account.NewPayShopProductManager.GetValues()) {
+            if (info.Price != 0 || !info.DailyReset) continue;
+            var receipt = account.PlayerProductPurchaseManager.Get(info.Index);
+            if (receipt != null && receipt.PurchasedCount > 0 && Purchased(info) == 0) {
+                receipt.PurchasedCount = 0; changed = true;
+            }
+        }
+        if (changed) Rebuild(shop);
+    }
+    public static void Init(PayShopProductInfoPopup popup, NewPayShopProductInfo info) {
+        pendingIndex = 0; pendingQuantity = 1;
+        var controls = popup.GetComponent<SprkShopQuantity>();
+        if (controls == null) controls = popup.gameObject.AddComponent<SprkShopQuantity>();
+        controls.Open(popup, info);
+    }
+    public static bool BeforeBuy(PayShopBaseInfoPopup popup) {
+        var controls = popup.GetComponent<SprkShopQuantity>();
+        pendingIndex = 0; pendingQuantity = 1;
+        if (controls == null || !controls.Enabled) return true;
+        controls.Refresh();
+        if (controls.MaxCount < 1) return false;
+        pendingIndex = controls.Info.Index; pendingQuantity = controls.Count;
+        return true;
+    }
+    public static int TakeQuantity(long index) {
+        int quantity = index == pendingIndex ? pendingQuantity : 1;
+        pendingIndex = 0; pendingQuantity = 1;
+        return quantity;
+    }
+    public static Dictionary<string, object> Encode(Dictionary<string, object> data, int quantity) {
+        data["Quantity"] = Math.Max(1, quantity).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return data;
+    }
+}
+
+public sealed class SprkShopQuantity : MonoBehaviour {
+    public NewPayShopProductInfo Info;
+    public bool Enabled;
+    public int Count = 1, MaxCount;
+    PayShopProductInfoPopup popup;
+    GameObject row;
+    UIInput input;
+    UIButton minus, plus;
+    UISprite buyBackground;
+    bool refreshing;
+    float nextCheck;
+    UILabel Label(Transform parent, string name, string text, int width, int height) {
+        var label = NGUITools.AddWidget<UILabel>(parent.gameObject);
+        label.name = name;
+        label.bitmapFont = popup.Label_Title.bitmapFont;
+        label.trueTypeFont = popup.Label_Title.trueTypeFont;
+        label.fontSize = 24; label.color = popup.Label_Title.color;
+        label.depth = buyBackground.depth + 3;
+        label.width = width; label.height = height;
+        label.overflowMethod = UILabel.Overflow.ShrinkContent;
+        label.alignment = NGUIText.Alignment.Center;
+        label.text = text;
+        return label;
+    }
+    UISprite Background(string name, float x, int width) {
+        var sprite = NGUITools.AddWidget<UISprite>(row);
+        sprite.name = name;
+        sprite.atlas = buyBackground.atlas; sprite.spriteName = buyBackground.spriteName;
+        sprite.type = UIBasicSprite.Type.Simple; sprite.color = buyBackground.color;
+        sprite.depth = buyBackground.depth + 2;
+        sprite.width = width; sprite.height = 48;
+        sprite.transform.localPosition = new Vector3(x, 0, 0);
+        NGUITools.AddWidgetCollider(sprite.gameObject);
+        return sprite;
+    }
+    UIButton Button(string name, string text, float x, EventDelegate.Callback callback) {
+        var sprite = Background(name, x, 64);
+        var button = sprite.gameObject.AddComponent<UIButton>(); button.tweenTarget = sprite.gameObject;
+        EventDelegate.Add(button.onClick, callback);
+        Label(sprite.transform, name + "Label", text, 60, 46);
+        return button;
+    }
+    void Build() {
+        buyBackground = popup.Button_Buy.GetComponent<UISprite>();
+        if (buyBackground == null) buyBackground = popup.Button_Buy.GetComponentInChildren<UISprite>();
+        if (buyBackground == null) throw new InvalidOperationException("Special shop buy button has no background.");
+        row = new GameObject("SprkQuantitySelector"); row.layer = popup.Button_Buy.gameObject.layer;
+        row.transform.SetParent(popup.Button_Buy.transform.parent, false);
+        // Center above the native buy button, below the content/tag divider.
+        row.transform.localPosition = popup.Button_Buy.transform.localPosition
+            + new Vector3(0, buyBackground.height * .5f + 45, 0);
+        minus = Button("Decrease", "-", -115, delegate { Set(Count - 1); });
+        plus = Button("Increase", "+", 115, delegate { Set(Count + 1); });
+        var background = Background("QuantityInput", 0, 120);
+        var label = Label(background.transform, "Quantity", "1", 110, 44);
+        input = background.gameObject.AddComponent<UIInput>(); input.label = label;
+        input.validation = UIInput.Validation.Integer;
+        input.characterLimit = 3; input.selectAllTextOnFocus = true;
+        EventDelegate.Add(input.onChange, delegate {
+            if (refreshing) return;
+            int value;
+            if (int.TryParse(input.value, out value)) Set(value);
+        });
+        EventDelegate.Add(input.onSubmit, delegate { Set(Count); });
+        var heading = Label(row.transform, "QuantityHeading", "Quantity", 160, 24);
+        heading.color = new Color(.36f, .30f, .23f, 1);
+        heading.transform.localPosition = new Vector3(0, 38, 0);
+    }
+    public void Open(PayShopProductInfoPopup window, NewPayShopProductInfo info) {
+        popup = window; Info = info; Count = 1;
+        Enabled = info != null && info.ProductType == ProductType.Item
+            && string.IsNullOrEmpty(info.InAppPurchaseId) && info.DurationDay == 0
+            && (info.StepProductGroup == null || info.StepProductGroup.Length == 0);
+        if (row == null && Enabled) Build();
+        if (row != null) {
+            row.SetActive(Enabled);
+        }
+        if (Enabled) Refresh();
+    }
+    public void Refresh() {
+        // Atlas/font loading can finish after the popup's Init hook.
+        foreach (var sprite in row.GetComponentsInChildren<UISprite>(true)) {
+            sprite.atlas = buyBackground.atlas; sprite.spriteName = buyBackground.spriteName;
+        }
+        foreach (var label in row.GetComponentsInChildren<UILabel>(true)) {
+            label.bitmapFont = popup.Label_Title.bitmapFont;
+            label.trueTypeFont = popup.Label_Title.trueTypeFont;
+        }
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        long balance = SprkSpecialShop.Balance(account.UserManager, Info.PriceType);
+        int grantLimit = 999;
+        if (Info.Count != null) foreach (int amount in Info.Count)
+            if (amount > 0) grantLimit = Math.Min(grantLimit, int.MaxValue / amount);
+        MaxCount = SprkSpecialShop.Maximum(balance, Info.Price, SprkSpecialShop.Purchased(Info), Info.PurchasableCount, grantLimit);
+        Set(Count);
+    }
+    void Set(int value) {
+        Count = Math.Max(1, Math.Min(value, Math.Max(1, MaxCount)));
+        refreshing = true; input.value = Count.ToString(); refreshing = false;
+        minus.isEnabled = MaxCount > 0 && Count > 1;
+        plus.isEnabled = Count < MaxCount;
+        popup.PriceComponent.Init();
+        bool buyable = NGame2.NUI.NHelper.NPayShop.PayShopHelper.IsBuyable(Info);
+        if (buyable) popup.PriceComponent.SetGamePrice(Info.PriceType, (int)(Info.Price * Count));
+        else popup.PriceComponent.NotBuyableOpen();
+        popup.Button_Buy.isEnabled = buyable && MaxCount > 0;
+    }
+    void Update() {
+        if (!Enabled || row == null || Time.realtimeSinceStartup < nextCheck) return;
+        nextCheck = Time.realtimeSinceStartup + .5f; Refresh();
+    }
+}

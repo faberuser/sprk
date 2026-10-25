@@ -268,19 +268,30 @@ pub(super) async fn execute(
         }
         "buy_payshop_product" => {
             let id = int(r, "Index")?;
+            // Older clients omit Quantity and continue to buy one offer.
+            let quantity = r.number("Quantity", 1)?;
+            if !(1..=999).contains(&quantity) {
+                return Err(rule("InvalidValue"));
+            }
             let base = products(s)
                 .find(|v| n(v, "Index") == id)
                 .ok_or_else(|| rule("ProductNotFound"))?;
+            if quantity > 1 && n(base, "ProductType") != 4 {
+                return Err(rule("InvalidValue"));
+            }
             let d = product(db, s, a, id).await?;
             let mut v = ledger(db, a, base).await?;
             let count = n(&v, "PurchasedCount");
-            if n(base, "PurchasableCount") > 0 && count >= n(base, "PurchasableCount") {
+            let new_count = count.checked_add(quantity).filter(|v| *v <= i32::MAX as i64)
+                .ok_or_else(|| rule("InvalidValue"))?;
+            if n(base, "PurchasableCount") > 0 && new_count > n(base, "PurchasableCount") {
                 return Err(rule("ExceededPurchaseCount"));
             }
             let dec = if n(&d, "Price") == 0 {
                 Value::Null
             } else {
-                charge(db, s, a, n(base, "PriceType"), n(&d, "Price")).await?
+                let cost = n(&d, "Price").checked_mul(quantity).ok_or_else(|| rule("InvalidCost"))?;
+                charge(db, s, a, n(base, "PriceType"), cost).await?
             };
             let mut rewards = Rewards::default();
             for i in d["ItemInfos"].as_array().into_iter().flatten() {
@@ -290,7 +301,9 @@ pub(super) async fn execute(
                     a,
                     ItemGrant {
                         index: n(i, "ItemIndex") as i32,
-                        count: n(i, "ItemCount") as i32,
+                        count: n(i, "ItemCount").checked_mul(quantity)
+                            .filter(|v| *v > 0 && *v <= i32::MAX as i64)
+                            .ok_or_else(|| rule("InvalidValue"))? as i32,
                         star: 0,
                         custom: 0,
                     },
@@ -312,10 +325,11 @@ pub(super) async fn execute(
                 if amount > 0 {
                     rewards
                         .currencies
-                        .push(hero::currency(db, a, key, amount).await?);
+                        .push(hero::currency(db, a, key, amount.checked_mul(quantity)
+                            .ok_or_else(|| rule("InvalidValue"))?).await?);
                 }
             }
-            v["PurchasedCount"] = json!(count + 1);
+            v["PurchasedCount"] = json!(new_count);
             v["PurchasedTime"] = json!(time(now()));
             put(db, a, "product", id, &v).await?;
             let total = get(db, 0, "product_global", id).await?;
@@ -329,7 +343,7 @@ pub(super) async fn execute(
                 0,
                 "product_global",
                 id,
-                &json!({"Period":period(base),"Count":used+1}),
+                &json!({"Period":period(base),"Count":used+quantity}),
             )
             .await?;
             let mut out = item::reward_response(db, s, a, rewards).await?;

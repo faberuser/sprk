@@ -1,6 +1,6 @@
 {
   "Enabled": true,
-  "Description": "Reconstructed non-cash Special Shop. Archived package items/names are recovered; assortment, category assignment, prices, quantities, unlimited purchases and permanent availability are local rules, not original live offers. Package contents use existing restored server/client tables.",
+  "Description": "Reconstructed non-cash Special Shop. Archived package items/names are recovered; assortment, category assignment, prices, quantities, daily free-package limits, unlimited paid purchases and permanent availability are local rules, not original live offers. Package contents use existing restored server/client tables.",
   "Source": {
     "Build": 1558,
     "ItemTableSha256": "53ffe8614bab11d805dd7505ce3b039effc69d052134e32172796105f2c43c97",
@@ -6412,6 +6412,8 @@
       "Category": "Event",
       "ProductName": "Free Gold",
       "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400,
       "ItemCode": "PACKAGE_PAY_GOLD_FREE_10000000",
       "ItemIndex": 94170,
       "ItemCount": 1
@@ -8565,6 +8567,8 @@
       "Category": "Event",
       "ProductName": "World Tree Mission Free Package A",
       "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400,
       "ItemCode": "PACKAGE_PAY_WORLDTREE_COMPLETE_1",
       "ItemIndex": 94594,
       "ItemCount": 1
@@ -8574,6 +8578,8 @@
       "Category": "Event",
       "ProductName": "World Tree Mission Free Package B",
       "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400,
       "ItemCode": "PACKAGE_PAY_WORLDTREE_COMPLETE_2",
       "ItemIndex": 94595,
       "ItemCount": 1
