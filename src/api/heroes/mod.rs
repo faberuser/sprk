@@ -354,14 +354,17 @@ pub(crate) async fn execute(
             .items
             .reward_item(id)
             .ok_or_else(|| rule("InvalidItemIndex"))?;
-        // These heroes have only a level-50/T5 recruitment item in the client.
-        // PayShopManagement selects that item by HeroIndex, not StartHeroLevel.
-        let special_recruit = matches!((index, id), (83, 1008310) | (84, 1008410) | (85, 1008510));
-        let (start_level, start_transcend) = if special_recruit {
-            (50, 5)
-        } else {
-            (n(creature, "StartHeroLevel").max(1), 0)
+        // PayShopManagement selects the first native item by HeroIndex,
+        // regardless of StartHeroLevel. Xerah's first item is level 40;
+        // she and the fallen heroes also have level-50/T5 recruitment items.
+        let native_progression = match (index, id) {
+            (77, 776) => Some((40, 0)),
+            (77, 1007710) | (83, 1008310) | (84, 1008410) | (85, 1008510) => Some((50, 5)),
+            _ => None,
         };
+        let special_recruit = native_progression.is_some();
+        let (start_level, start_transcend) = native_progression
+            .unwrap_or((n(creature, "StartHeroLevel").max(1), 0));
         if meta.kind != "Hero"
             || meta.hero_index != index
             || meta.star as i64 != n(creature, "StartHeroStar")
@@ -401,7 +404,7 @@ pub(crate) async fn execute(
         }
         let mut rewards = Rewards::default();
         if special_recruit {
-            // Shop policy: accept the native T5 item, but recruit at ordinary
+            // Shop policy: accept the native item, but recruit at ordinary
             // starting progression. Other ways of granting that item keep its stats.
             sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level,transcend) SELECT ?,COALESCE(MAX(hero_id),0)+1,?,?,?,0 FROM heroes WHERE account_id=?")
                 .bind(account).bind(index).bind(meta.star)
