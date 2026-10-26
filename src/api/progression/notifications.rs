@@ -132,7 +132,19 @@ fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowled
         ("ReservedClearMissionInfos", "ClearMissionInfos"),
         ("ReservedPlayRecordInfos", "PlayRecordInfos"),
     ];
-    for (_, field) in fields { digest.update(serde_json::to_vec(&updates[field]).unwrap()); }
+    for (_, field) in fields {
+        let mut snapshot = updates[field].clone();
+        if field == "PlayRecordInfos" {
+            // These timestamps describe snapshot generation, not progress changes.
+            // Keep them on the wire without invalidating an acknowledged state.
+            for record in snapshot.as_array_mut().into_iter().flatten() {
+                if let Some(record) = record.as_object_mut() {
+                    record.remove("UpdatedTime");
+                }
+            }
+        }
+        digest.update(serde_json::to_vec(&snapshot).unwrap());
+    }
     let token = hex::encode(digest.finalize());
     if token != acknowledged {
         for (wire, field) in fields {
@@ -148,7 +160,8 @@ mod tests {
     #[test]
     fn acknowledged_snapshots_resend_changes_losses_and_session_changes() {
         let mut updates=json!({"AchievementInfos":[{"AchievementIndex":1,"Achievement":2},{"AchievementIndex":2,"Achievement":3}],
-            "MainQuestInfo":{"Step":1},"ClearMissionInfos":[],"PlayRecordInfos":[]});
+            "MainQuestInfo":{"Step":1},"ClearMissionInfos":[],
+            "PlayRecordInfos":[{"RecordIndex":1,"RecordValue":"2","UpdatedTime":"2026-10-26 12:00:00"}]});
         let mut first=json!({});append_snapshots(&mut first,&updates,"session","");
         let token=first["SprkProgressionToken"].as_str().unwrap();
         let mut repeated=json!({});append_snapshots(&mut repeated,&updates,"session",token);
@@ -157,6 +170,17 @@ mod tests {
         let mut lost=json!({});append_snapshots(&mut lost,&updates,"session","");assert_eq!(lost,first);
         let mut new_session=json!({});append_snapshots(&mut new_session,&updates,"other",token);
         assert_eq!(new_session["AchievementInfos"],first["AchievementInfos"]);
+        updates["PlayRecordInfos"][0]["UpdatedTime"]=json!("2026-10-26 12:00:01");
+        let mut later=json!({});append_snapshots(&mut later,&updates,"session",token);
+        assert!(later.get("AchievementInfos").is_none());
+        assert_eq!(later["SprkProgressionToken"],token);
+        let mut later_lost=json!({});append_snapshots(&mut later_lost,&updates,"session","");
+        assert_eq!(later_lost["ReservedPlayRecordInfos"],updates["PlayRecordInfos"]);
+        updates["PlayRecordInfos"][0]["RecordValue"]=json!("3");
+        let mut progress=json!({});append_snapshots(&mut progress,&updates,"session",token);
+        assert_ne!(progress["SprkProgressionToken"],token);
+        assert_eq!(progress["ReservedPlayRecordInfos"],updates["PlayRecordInfos"]);
+        updates["PlayRecordInfos"][0]["RecordValue"]=json!("2");
         updates["AchievementInfos"][0]["Achievement"]=json!(4);
         let mut changed=json!({});append_snapshots(&mut changed,&updates,"session",token);
         assert_eq!(changed["AchievementInfos"].as_array().unwrap().len(),2);

@@ -77,6 +77,14 @@ async fn every_automatic_entry_currency_publishes_a_future_timer_when_depleted()
         let k=n(def,"StaminaType");
         let result=call(&s,&u,"user/get_stamina",&format!("StaminaType={k}")).await;
         ok(&result);
+        if matches!(k, 11 | 18) {
+            // World Boss attempts are unlimited, with a positive native entry balance.
+            assert_eq!(result["StaminaResult"]["NewValue"],1,"type {k}: {result}");
+            assert_eq!(result["StaminaResult"]["Type"],def["AttributeName"]);
+            assert_eq!(result["StaminaResult"]["NextRechargeRemainTime"],0);
+            assert_eq!(result["StaminaResult"]["FullRechargeRemainTime"],0);
+            continue;
+        }
         assert_eq!(result["StaminaResult"]["NewValue"],0,"type {k}: {result}");
         assert!(n(&result["StaminaResult"],"NextRechargeRemainTime")>0,"type {k}: {result}");
         assert_eq!(result["StaminaResult"]["Type"],if k == 1 { json!("Chicken") } else { def["AttributeName"].clone() });
