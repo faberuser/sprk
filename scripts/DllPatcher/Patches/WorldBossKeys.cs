@@ -51,6 +51,7 @@ partial class Program
             il.Append(il.Create(OpCodes.Ret));
         }
         PatchWorldBossKeyMaximum(module);
+        PatchWorldBossUnlimitedLabel(module);
         VerifyWorldBossKeys(module);
     }
 
@@ -72,7 +73,7 @@ partial class Program
         il.Append(il.Create(OpCodes.Ldarg_1));
         il.Append(il.Create(OpCodes.Ldc_I4, EnumValue(module, "NShared.StaminaType", "WorldBossGlobalTicket")));
         il.Append(il.Create(OpCodes.Bne_Un, fallback));
-        il.Append(il.Create(OpCodes.Ldc_I4_2));
+        il.Append(il.Create(OpCodes.Ldc_I4_1));
         il.Append(il.Create(OpCodes.Ret));
         il.Append(fallback);
         il.Append(il.Create(OpCodes.Ret));
@@ -86,6 +87,42 @@ partial class Program
             update.Body.GetILProcessor().InsertBefore(store, Instruction.Create(OpCodes.Ldarg_1));
             update.Body.GetILProcessor().InsertBefore(store, Instruction.Create(OpCodes.Call, adjust));
         }
+    }
+
+    static void PatchWorldBossUnlimitedLabel(ModuleDefinition module)
+    {
+        var type=module.GetType("NGame2.NUI.NWindow.LobbyTopmostMenu/StaminaInfo");
+        var text=type.Methods.SingleOrDefault(m=>m.Name=="SprkWorldBossEntryText");
+        if(text==null) {
+            text=new MethodDefinition("SprkWorldBossEntryText",MethodAttributes.Private|MethodAttributes.Static,module.TypeSystem.String);
+            text.Parameters.Add(new ParameterDefinition("name",ParameterAttributes.None,module.TypeSystem.String));
+            text.Parameters.Add(new ParameterDefinition("original",ParameterAttributes.None,module.TypeSystem.String));
+            type.Methods.Add(text);
+        }
+        text.Body=new MethodBody(text);var il=text.Body.GetILProcessor();
+        var unlimited=il.Create(OpCodes.Ldstr,"∞");
+        // Reuse the game's Mono reference; importing the patcher's .NET 8
+        // System.String would introduce an incompatible CoreLib dependency.
+        var equal=module.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody)
+            .SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>()
+            .First(m=>m.Name=="op_Equality" && m.DeclaringType.FullName=="System.String" && m.DeclaringType.Scope.Name=="mscorlib");
+        foreach(var name in new[]{"WorldBossTicket","WorldBossGlobalTicket"}) {
+            il.Append(il.Create(OpCodes.Ldarg_0));il.Append(il.Create(OpCodes.Ldstr,name));
+            il.Append(il.Create(OpCodes.Call,equal));il.Append(il.Create(OpCodes.Brtrue,unlimited));
+        }
+        il.Append(il.Create(OpCodes.Ldarg_1));il.Append(il.Create(OpCodes.Ret));
+        il.Append(unlimited);il.Append(il.Create(OpCodes.Ret));
+        var setup=type.Methods.Single(m=>m.Name=="SetupStaminaInfo" && m.Parameters[0].ParameterType.MetadataType==MetadataType.String);
+        if(setup.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.Name==text.Name))return;
+        var label=type.Fields.Single(f=>f.Name=="CountLabel");var ui=module.GetType("UILabel");
+        var ret=setup.Body.Instructions.Single(i=>i.OpCode==OpCodes.Ret);var body=setup.Body.GetILProcessor();
+        ret.OpCode=OpCodes.Ldarg_0;
+        body.Append(body.Create(OpCodes.Ldfld,label));body.Append(body.Create(OpCodes.Ldarg_1));
+        body.Append(body.Create(OpCodes.Ldarg_0));body.Append(body.Create(OpCodes.Ldfld,label));
+        body.Append(body.Create(OpCodes.Callvirt,ui.Methods.Single(m=>m.Name=="get_text")));
+        body.Append(body.Create(OpCodes.Call,text));
+        body.Append(body.Create(OpCodes.Callvirt,ui.Methods.Single(m=>m.Name=="set_text")));
+        body.Append(body.Create(OpCodes.Ret));
     }
 
     static void VerifyWorldBossKeys(ModuleDefinition module)
@@ -107,16 +144,26 @@ partial class Program
         var manager = module.GetType("NGame2.NAccount.UserStaminaManager");
         var adjust = manager.Methods.Single(m => m.Name == "SprkWorldBossKeyMaximum");
         var instructions = adjust.Body.Instructions;
-        var expected = new[] { OpCodes.Ldarg_1, OpCodes.Ldc_I4, OpCodes.Bne_Un, OpCodes.Ldc_I4_2, OpCodes.Ret, OpCodes.Ldarg_0, OpCodes.Ret };
+        var expected = new[] { OpCodes.Ldarg_1, OpCodes.Ldc_I4, OpCodes.Bne_Un, OpCodes.Ldc_I4_1, OpCodes.Ret, OpCodes.Ldarg_0, OpCodes.Ret };
         if (!instructions.Select(i => i.OpCode).SequenceEqual(expected) ||
             !Equals(instructions[1].Operand, ticket) || !ReferenceEquals(instructions[2].Operand, instructions[5]))
-            throw new InvalidOperationException("World Boss maximum must be two, with an unchanged fallback for other resources.");
+            throw new InvalidOperationException("Unlimited World Boss uses a non-consuming native balance of one, preserving other resources.");
         var call = manager.Methods.Single(m => m.Name == "UpdateStaminaValue").Body.Instructions
             .Single(i => i.Operand is MethodReference m && m.Name == adjust.Name);
         if (call.Previous.OpCode != OpCodes.Ldarg_1 || call.Next.OpCode != OpCodes.Stfld ||
             call.Next.Operand is not FieldReference { Name: "MaxValue" })
             throw new InvalidOperationException("World Boss maximum hook must update the native cached maximum.");
-        Console.WriteLine("Verified World Boss key observers and maximum of two, preserving other resource balances and limits.");
+        var info=module.GetType("NGame2.NUI.NWindow.LobbyTopmostMenu/StaminaInfo");
+        var text=info.Methods.Single(m=>m.Name=="SprkWorldBossEntryText");
+        if(text.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Scope.Name=="System.Private.CoreLib"))
+            throw new InvalidOperationException("World Boss labels must use the game's Mono runtime references.");
+        foreach(var literal in new[]{"WorldBossTicket","WorldBossGlobalTicket","∞"})
+            if(!text.Body.Instructions.Any(i=>Equals(i.Operand,literal)))throw new InvalidOperationException("Missing unlimited entry display: "+literal);
+        var setup=info.Methods.Single(m=>m.Name=="SetupStaminaInfo"&&m.Parameters[0].ParameterType.MetadataType==MetadataType.String);
+        if(setup.Body.Instructions.Count(i=>i.Operand is MethodReference m&&m.Name==text.Name)!=1)
+            throw new InvalidOperationException("Missing or duplicated unlimited World Boss counter hook.");
+        VerifyArenaResultStack(setup);
+        Console.WriteLine("Verified unlimited World Boss counter and native entry balance, preserving other resource displays and limits.");
     }
 
     static void VerifyWorldBossKeysFile(string root)

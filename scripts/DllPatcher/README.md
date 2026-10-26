@@ -25,8 +25,15 @@ data specifies Chicken with zero cost. Its public resource getter and entry rule
 are preserved. BaseWindow registers and removes these observers through its normal
 window lifecycle; the top menu reads the live current/maximum balance and uses the
 existing key icon. Other battle types retain their original resource display.
-The WorldBossGlobalTicket cached maximum is set to two, matching the server's
-daily grant on all seven days. Other resources keep their table-defined maximum.
+World Boss attempts are unlimited. The server sends a non-consuming positive
+entry balance, and the existing key counter shows `∞` for both World Boss key
+types. The cached GlobalTicket maximum is one for native entry checks. Other
+resources keep their table-defined maximum and labels. The server keeps only
+each day's highest valid run (season ranking sums those daily bests), grants
+participation rewards on the first valid run per boss/day, and counts all valid
+runs for missions. On the first startup with this policy, today's old cumulative
+scores are archived in `world_boss_legacy_scores` and reset; historical days and
+already-issued rewards are preserved. The migration runs only once.
 
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --world-boss-keys-only
