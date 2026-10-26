@@ -13,7 +13,7 @@ public static class DispatchTestRunner {
     static IEnumerator Invoke(SprkDispatch w,string method,params object[] args) {
         return (IEnumerator)typeof(SprkDispatch).GetMethod(method,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(w,args);
     }
-    static void RunRoutine(IEnumerator routine) {
+    public static void RunRoutine(IEnumerator routine) {
         int count=0;
         while(routine.MoveNext()) {
             if(++count>500)throw new Exception("Unbounded dispatch coroutine");
@@ -24,7 +24,20 @@ public static class DispatchTestRunner {
     static SprkDispatch.Job Job(string id="job",int slot=1) {return new SprkDispatch.Job {SlotIndex=slot,ChapterIndex=1,DungeonIndex=1,Difficulty=1,RepeatCount=200,SimulationVersion=1,State="Simulation",HeroIndices="[1]",SimulationJobId=id};}
     static void Reset() {FakeNetwork.Requests.Clear();FakeNetwork.Replies.Clear();FakeSimulator.Uids.Clear();FakeSimulator.Timeout=false;FakeSimulator.ChangeSession=false;UnityEngine.Time.realtimeSinceStartup=0;NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="session";}
     public static void Run() {
+        Reset();var scheduled=Worker();
+        var pollIfReady=typeof(SprkDispatch).GetMethod("PollIfReady",BindingFlags.Instance|BindingFlags.NonPublic);
+        var finished=JsonJob("finished",1).Replace("\"Simulation\"","\"ReadyToComplete\"");
+        for(int i=0;i<10;i++)FakeNetwork.Replies.Enqueue("{\"Result\":\"Success\",\"DispatchBattleInfos\":["+finished+"]}");
+        var manager=NVespa.NGlobal.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.DispatchBattleInfoManager;
+        manager.SetCount=0;
+        while(UnityEngine.Time.realtimeSinceStartup<120f) {pollIfReady.Invoke(scheduled,null);UnityEngine.Time.realtimeSinceStartup+=1f;}
+        Check(FakeNetwork.Requests.Count<=5,"Finished dispatch kept a three-second background poll");
+        Check(manager.SetCount==1,"Unchanged dispatch snapshot repeated native refresh work");
         Reset();var idle=Worker();
+        Check(SprkDispatch.PollDelay(new SprkDispatch.Job[0])==30f,"No jobs must be idle");
+        var ready=Job();ready.State="ReadyToComplete";
+        Check(SprkDispatch.PollDelay(new[]{ready})==30f,"Uncollected rewards must not keep fast polling active");
+        Check(SprkDispatch.PollDelay(new[]{Job()})==3f,"Running preparation must keep fast polling");
         FakeNetwork.Replies.Enqueue("{\"Result\":\"Success\",\"DispatchBattleInfos\":[]}");
         RunRoutine(Invoke(idle,"Poll"));
         var nextPoll=typeof(SprkDispatch).GetField("nextPoll",BindingFlags.Instance|BindingFlags.NonPublic);
@@ -78,7 +91,7 @@ public static class FakeNetwork {
 public static class FakeSimulator {public static readonly List<string> Uids=new List<string>();public static bool Timeout,ChangeSession;}
 namespace UnityEngine {
     public class Object {public static void DontDestroyOnLoad(object o){}}
-    public class MonoBehaviour:Object {public object StartCoroutine(IEnumerator e){return null;}}
+    public class MonoBehaviour:Object {public object StartCoroutine(IEnumerator e){DispatchTestRunner.RunRoutine(e);return null;}}
     public class GameObject {public GameObject(string name){}public T AddComponent<T>() where T:new(){return new T();}}
     public static class Time {public static float realtimeSinceStartup;public static int frameCount;}
     public static class Debug {public static void Log(object o){}public static void LogWarning(object o){}}
@@ -95,13 +108,18 @@ namespace UnityEngine.Networking {
         public void Dispose(){}
     }
 }
-namespace NGame2.NAccount {public class AccountManager {public bool LoginResponseComplete=true;public UserInfo UserInfo=new UserInfo();}public class UserInfo {public long AccountId=1;}}
+public class UserDispatchBattleInfoManager {public int SetCount;public void Set(NGame2.NUtil.NWrappedInfo.WCL_DispatchBattleInfo[] infos){SetCount++;}}
+namespace NGame2.NAccount {public class AccountManager {public bool LoginResponseComplete=true;public UserInfo UserInfo=new UserInfo();public UserDispatchBattleInfoManager DispatchBattleInfoManager=new UserDispatchBattleInfoManager();}public class UserInfo {public long AccountId=1;}}
+namespace NGame2.NUtil.NWrappedInfo {public class WCL_DispatchBattleInfo {public WCL_DispatchBattleInfo Copy(NShared.DispatchBattleInfo info){return this;}}}
+namespace NShared.GetDispatchList {public enum ResultType {Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;public NShared.DispatchBattleInfo[] DispatchBattleInfos;}}
+public static class JsonMarshaler {public static T Parse<T>(string body) {var doc=JsonDocument.Parse(body);var count=doc.RootElement.GetProperty("DispatchBattleInfos").GetArrayLength();return (T)(object)new NShared.GetDispatchList.Response {BaseResult=NShared.BaseResultType.Success,Result=NShared.GetDispatchList.ResultType.Success,DispatchBattleInfos=new NShared.DispatchBattleInfo[count]};}}
 namespace NGame2.NDispatchBattle {public static class DispatchHelper {public static void SendRQGetDispatchList(object callback){}}}
 namespace NGame2.NBattleSimulator {public static class BattleSimulationFacade {
     public static NShared.BattleSimulationInstance RunBattleSimulation(string uid,int[] ids,int chapter,int dungeon,int difficulty,bool b){FakeSimulator.Uids.Add(uid);if(FakeSimulator.ChangeSession)NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="replaced";return new NShared.BattleSimulationInstance{IsBattleEnd=!FakeSimulator.Timeout};}
     public static void RemoveInstance(NShared.BattleSimulationInstance instance){}
 }}
 namespace NShared {
+    public class DispatchBattleInfo {}
     public enum BaseResultType {Success,Fail}
     public class BattleSimulationInstance {public bool IsBattleEnd,IsBattleStopped;public void Stop(){}public SimulationResult GetBattleSimulationResultInfo(){return new SimulationResult();}}
     public class SimulationResult {public bool IsWin=true;public long RealTime=1000;}

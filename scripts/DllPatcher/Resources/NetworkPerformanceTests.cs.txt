@@ -9,6 +9,20 @@ public static class NetworkPerformanceTestRunner {
     static object Capture(string text,WebServiceRequest request) {var reply=new object();SprkNetworkPerformance.Capture(text,request,reply);return reply;}
     static void Apply(string text,WebServiceRequest request) {SprkNetworkPerformance.ProgressionApplied(Capture(text,request));}
     public static void Run() {
+        var staminaManager=new object();var otherManager=new object();
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Unknown timer must retain native polling");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,0);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Unlimited World Boss timer still polls");
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Zero timer disabled another resource");
+        Check(SprkNetworkPerformance.HasStaminaClock(otherManager,18),"Clock suppression leaked across account managers");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,-1);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Negative timer must preserve prior state");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,30);
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"A future recharge failed to re-enable polling");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,1,0);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Full stamina still polls");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,1,12);
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Spending stamina must re-enable timed regeneration");
         var first=Request();Check(!first.Headers.ContainsKey("X-SPRK-Progression"),"First request acknowledged unseen data");
         var token=new String('a',64);var text="{\"BaseResult\":\"Success\",\"SprkProgressionToken\":\""+token+"\"}";
         Check(!Request().Headers.ContainsKey("X-SPRK-Progression"),"Lost response advanced baseline");

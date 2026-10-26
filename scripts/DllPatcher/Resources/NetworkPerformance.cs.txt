@@ -14,6 +14,22 @@ public static class SprkNetworkPerformance {
     static readonly Regex catalogField = new Regex("\"SprkShopCatalogToken\"\\s*:\\s*\"([0-9a-f]{64})\"");
     sealed class Delivery { public string Context, Progression, Catalog; public bool FullProgression, FullCatalog; }
     static readonly ConditionalWeakTable<object,Delivery> deliveries = new ConditionalWeakTable<object,Delivery>();
+    static readonly ConditionalWeakTable<object,HashSet<int>> noStaminaClock = new ConditionalWeakTable<object,HashSet<int>>();
+
+    // Zero means the server has no scheduled recharge (e.g. unlimited World Boss
+    // attempts). Preserve native timer/UI fields and stop only automatic polling.
+    // Positive results re-enable polling; negative results retain native state.
+    public static void SetStaminaClock(object manager,int type,int next) {
+        if(manager==null || next<0)return;
+        lock(gate) {
+            var disabled=noStaminaClock.GetOrCreateValue(manager);
+            if(next==0)disabled.Add(type);else disabled.Remove(type);
+        }
+    }
+    public static bool HasStaminaClock(object manager,int type) {
+        if(manager==null)return true;
+        lock(gate) {HashSet<int> disabled;return !noStaminaClock.TryGetValue(manager,out disabled) || !disabled.Contains(type);}
+    }
 
     public static void Prepare(WebServiceRequest request, string session) {
         string context;

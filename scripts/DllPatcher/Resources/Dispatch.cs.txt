@@ -5,6 +5,7 @@ using System.Linq;
 using NGame2.NAccount;
 using NGame2.NDispatchBattle;
 using NGame2.NBattleSimulator;
+using NGame2.NUtil.NWrappedInfo;
 using NShared;
 using NVespa;
 using NVespa.NGlobal;
@@ -40,7 +41,7 @@ public sealed class SprkDispatch : MonoBehaviour {
     }
     public static void Started(NShared.StartDispatch.Response response) {
         if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.StartDispatch.ResultType.Success)return;
-        Ensure();instance.nextPoll=0f;instance.wakePending=true;
+        Ensure();instance.nextPoll=0f;instance.wakePending=instance.busy;
     }
     public static string HelpText(string text) {
         if(text==null)return text;
@@ -121,9 +122,9 @@ public sealed class SprkDispatch : MonoBehaviour {
                 }
             }
             reply.ReleaseAll();
-            nextPoll=Time.realtimeSinceStartup+(jobs.Length==0?30f:3f);
+            nextPoll=Time.realtimeSinceStartup+PollDelay(jobs);
             if(body!=publishedSnapshot && (jobs.Length>0 || publishedSnapshot!=null)) {
-                publishedSnapshot=body;DispatchHelper.SendRQGetDispatchList(null);
+                ApplyList(body);publishedSnapshot=body;
             }
             LastStatus="Received "+jobs.Length+" jobs";
             var pending=new HashSet<string>(jobs.Where(NeedsPreparation).Select(j=>j.SimulationJobId));
@@ -138,6 +139,16 @@ public sealed class SprkDispatch : MonoBehaviour {
     public static bool NeedsPreparation(Job job) {
         return job!=null && job.SimulationVersion==1 && (job.State=="Simulation" || job.State=="Battle")
             && job.Saved.Outcomes.Count<job.RepeatCount;
+    }
+    public static float PollDelay(Job[] jobs) {
+        return jobs.Any(j=>j.State!="ReadyToComplete" && j.State!="Complete" && j.State!="Cancel" && j.State!="None")?3f:30f;
+    }
+    static void ApplyList(string body) {
+        var response=JsonMarshaler.Parse<NShared.GetDispatchList.Response>(body);
+        if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.GetDispatchList.ResultType.Success)return;
+        if(Account().DispatchBattleInfoManager!=null && response.DispatchBattleInfos!=null)
+            Account().DispatchBattleInfoManager.Set(response.DispatchBattleInfos.Where(info=>info!=null)
+                .Select(info=>new WCL_DispatchBattleInfo().Copy(info)).ToArray());
     }
     IEnumerator Prepare(Job job) {
         string jobSession=Session();
@@ -185,7 +196,9 @@ public sealed class SprkDispatch : MonoBehaviour {
         var accepted=LitJson.JsonMapper.ToObject(answer);
         if(accepted!=null && accepted["Result"].valueStr=="Success") {
             LastStatus="Prepared "+result.Outcomes.Count+" of "+job.RepeatCount+" battles";
-            DispatchHelper.SendRQGetDispatchList(null);
+            // The next scheduled poll applies its own authoritative response;
+            // do not issue another HTTP list request just to update native UI.
+            publishedSnapshot=null;
         } else {
             // Another client may have saved a different immutable prefix, or
             // the job may have been cancelled. Reload authoritative state.

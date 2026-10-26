@@ -21,6 +21,20 @@ partial class Program {
         var module=assembly.MainModule;
         var requester=module.GetType("NVespa.NWeb.WebServiceRequester");
         var hooks=helper.MainModule.GetType("SprkNetworkPerformance");
+        var stamina=module.GetType("NGame2.NAccount.UserStaminaManager");
+        var applyClock=stamina.Methods.Single(m=>m.Name=="ApplyExpectedRechargeTime");
+        if(!applyClock.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name && m.Name=="SetStaminaClock")) {
+            var first=applyClock.Body.Instructions[0];var il=applyClock.Body.GetILProcessor();
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg_0),Instruction.Create(OpCodes.Ldarg_1),Instruction.Create(OpCodes.Ldarg_2),
+                Instruction.Create(OpCodes.Call,module.ImportReference(hooks.Methods.Single(m=>m.Name=="SetStaminaClock")))})il.InsertBefore(first,i);
+        }
+        var automatic=stamina.Methods.Single(m=>m.Name=="IsUpdateStamina");
+        if(!automatic.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name && m.Name=="HasStaminaClock")) {
+            var first=automatic.Body.Instructions[0];var il=automatic.Body.GetILProcessor();
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg_0),Instruction.Create(OpCodes.Ldarg_1),
+                Instruction.Create(OpCodes.Call,module.ImportReference(hooks.Methods.Single(m=>m.Name=="HasStaminaClock"))),
+                Instruction.Create(OpCodes.Brtrue,first),Instruction.Create(OpCodes.Ldc_I4_0),Instruction.Create(OpCodes.Ret)})il.InsertBefore(first,i);
+        }
         var prepare=requester.Methods.Single(m=>m.Name=="RequestInternal");
         if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name)) {
             // This local holds the fully constructed request before it is queued.
@@ -101,16 +115,20 @@ partial class Program {
         var catalog=lobbyHandler.Body.Instructions.First(i=>i.Operand is MethodReference m && m.Name=="get_PayShopProductInfos");
         if(catalog.Next.OpCode!=OpCodes.Brfalse && catalog.Next.OpCode!=OpCodes.Brfalse_S)
             throw new InvalidOperationException("Native lobby must preserve its catalog when PayShopProductInfos is absent.");
-        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied"})
+        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock"})
             if(!helper.MainModule.GetType("SprkNetworkPerformance").Methods.Any(m=>m.Name==name))throw new InvalidOperationException("Missing network helper: "+name);
         var responseCode=requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded").Body.Instructions;
         var parseIndex=responseCode.ToList().FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="JsonMarshaler" && m.Name=="Parse");
         var observeIndex=responseCode.ToList().FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name=="Capture");
         if(observeIndex<=parseIndex)throw new InvalidOperationException("Snapshot acknowledgement must follow successful native parsing.");
-        foreach(var hook in new[]{"ProgressionApplied","CatalogApplied"})
+        foreach(var hook in new[]{"ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock"})
             if(assembly.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions)
                 .Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name==hook)!=1)
                 throw new InvalidOperationException("Missing or duplicated native application hook: "+hook);
+        var stamina=assembly.MainModule.GetType("NGame2.NAccount.UserStaminaManager");
+        foreach(var (name,hook) in new[]{("ApplyExpectedRechargeTime","SetStaminaClock"),("IsUpdateStamina","HasStaminaClock")})
+            if(!stamina.Methods.Single(m=>m.Name==name).Body.Instructions.Take(4).Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name==hook))
+                throw new InvalidOperationException("Stamina clock hook must precede native processing: "+name);
         Console.WriteLine("Verified request acknowledgements, post-parse response hook and unused legacy lobby fields.");
     }
 

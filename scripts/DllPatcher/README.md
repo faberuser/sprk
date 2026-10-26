@@ -476,9 +476,11 @@ stock, affordability, quantity encoding and request isolation checks. The full
 
 Unclaimed free offers sort before paid offers; claimed free offers sort last.
 The current category/tag rebuilds after a free purchase and at the daily reset.
-Item detail popups (including package items) include a typed quantity field and minus/plus controls
+Item detail popups (including package items) and Gold/Ruby exchange offers include a typed quantity field and Min/minus/plus/Max controls
 centered above the native buy button. Total price follows the selected quantity. Maximum
 quantity is 999, further bounded by affordability, stock and integer limits.
+Min selects one; Max refreshes the available quantity before selecting it. Both
+disable at their respective bounds. Cash, subscription and step offers stay single-purchase.
 The request carries `Quantity`; older clients omit it and buy one offer. Deploy
 the matching server batch support before distributing this client update.
 

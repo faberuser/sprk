@@ -305,7 +305,7 @@ pub(super) async fn execute(
             let base = products(s)
                 .find(|v| n(v, "Index") == id)
                 .ok_or_else(|| rule("ProductNotFound"))?;
-            if quantity > 1 && n(base, "ProductType") != 4 {
+            if quantity > 1 && !matches!(n(base, "ProductType"), 2 | 3 | 4) {
                 return Err(rule("InvalidValue"));
             }
             let d = product(db, s, a, id).await?;

@@ -19,6 +19,15 @@ partial class Program {
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var assembly=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver});
         var module=assembly.MainModule;var worker=helper.MainModule.Types.Single(t=>t.Name=="SprkDispatch");
+        // SprkDispatch owns background state refresh and simulation. Keep native
+        // explicit start/cancel/claim requests and their callbacks, but stop the
+        // overlapping lazy, temporary-time, selected-info and end-time loops.
+        var updater=module.GetType("NGame2.NDispatchBattle.DispatchInfoListUpdater");
+        foreach(var prefix in new[]{"<CoUpdatingDispatchList>","<CoUpdatingDispatchListWithTempTime>","<CoUpdatingDispatchListWithInfo>","<CoCheckingDispatchEndTimeForUpdate>"}) {
+            var move=updater.NestedTypes.Single(t=>t.Name.StartsWith(prefix)).Methods.Single(m=>m.Name=="MoveNext");
+            move.Body=new Mono.Cecil.Cil.MethodBody(move);
+            move.Body.GetILProcessor().Emit(OpCodes.Ldc_I4_0);move.Body.GetILProcessor().Emit(OpCodes.Ret);
+        }
         var rejected=module.ImportReference(worker.Methods.Single(m=>m.Name=="StartRejected"));
         foreach(var method in module.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody && m.Parameters.Count==1 && m.Parameters[0].ParameterType.FullName=="NShared.StartDispatch.Response")) {
             if(!method.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr && (i.Operand as string)?.Contains("Failed to StartDispatch")==true))continue;
@@ -93,6 +102,14 @@ partial class Program {
         foreach(var literal in new[]{"Progressive","SimulationResults","TimeMs","Outcome"})
             if(!code.Any(i=>i.OpCode==OpCodes.Ldstr && Equals(i.Operand,literal)))throw new InvalidOperationException("Missing progressive dispatch field: "+literal);
         if(!helper.MainModule.GetType("SprkDispatch").Methods.Any(m=>m.Name=="NeedsPreparation"))throw new InvalidOperationException("Missing partial dispatch continuation.");
+        var updater=assembly.MainModule.GetType("NGame2.NDispatchBattle.DispatchInfoListUpdater");
+        foreach(var prefix in new[]{"<CoUpdatingDispatchList>","<CoUpdatingDispatchListWithTempTime>","<CoUpdatingDispatchListWithInfo>","<CoCheckingDispatchEndTimeForUpdate>"}) {
+            var codePath=updater.NestedTypes.Single(t=>t.Name.StartsWith(prefix)).Methods.Single(m=>m.Name=="MoveNext").Body.Instructions;
+            if(codePath.Count!=2 || codePath[0].OpCode!=OpCodes.Ldc_I4_0 || codePath[1].OpCode!=OpCodes.Ret)
+                throw new InvalidOperationException("Duplicate native dispatch background poll remains: "+prefix);
+        }
+        if(code.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="DispatchHelper" && m.Name=="SendRQGetDispatchList"))
+            throw new InvalidOperationException("Dispatch simulator must apply its response without a second list request.");
         Console.WriteLine("Verified progressive dispatch fields, continuation, native simulation and unique startup/tick/seed/error hooks.");
     }
     static void TestDispatch() {

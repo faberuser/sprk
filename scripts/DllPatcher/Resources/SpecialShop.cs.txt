@@ -33,6 +33,11 @@ public static class SprkSpecialShop {
             default: return user.GetUserStat(currency.ToString());
         }
     }
+    public static bool CanSelectQuantity(NewPayShopProductInfo info) {
+        return info != null && (info.ProductType == ProductType.Item || info.ProductType == ProductType.Gem || info.ProductType == ProductType.Gold)
+            && string.IsNullOrEmpty(info.InAppPurchaseId) && info.DurationDay == 0
+            && (info.StepProductGroup == null || info.StepProductGroup.Length == 0);
+    }
     public static int Purchased(NewPayShopProductInfo info) {
         var receipt = GlobalAutoBehaviour<AccountManager>.instance.PlayerProductPurchaseManager.Get(info.Index);
         if (receipt == null) return 0;
@@ -104,7 +109,7 @@ public sealed class SprkShopQuantity : MonoBehaviour {
     PayShopProductInfoPopup popup;
     GameObject row;
     UIInput input;
-    UIButton minus, plus;
+    UIButton minimum, minus, plus, maximum;
     UISprite buyBackground;
     bool refreshing;
     float nextCheck;
@@ -133,10 +138,10 @@ public sealed class SprkShopQuantity : MonoBehaviour {
         return sprite;
     }
     UIButton Button(string name, string text, float x, EventDelegate.Callback callback) {
-        var sprite = Background(name, x, 64);
+        var sprite = Background(name, x, 76);
         var button = sprite.gameObject.AddComponent<UIButton>(); button.tweenTarget = sprite.gameObject;
         EventDelegate.Add(button.onClick, callback);
-        Label(sprite.transform, name + "Label", text, 60, 46);
+        Label(sprite.transform, name + "Label", text, 72, 46);
         return button;
     }
     void Build() {
@@ -148,8 +153,10 @@ public sealed class SprkShopQuantity : MonoBehaviour {
         // Center above the native buy button, below the content/tag divider.
         row.transform.localPosition = popup.Button_Buy.transform.localPosition
             + new Vector3(0, buyBackground.height * .5f + 45, 0);
+        minimum = Button("Minimum", "Min", -215, delegate { Set(1); });
         minus = Button("Decrease", "-", -115, delegate { Set(Count - 1); });
         plus = Button("Increase", "+", 115, delegate { Set(Count + 1); });
+        maximum = Button("Maximum", "Max", 215, delegate { Refresh(); Set(MaxCount); });
         var background = Background("QuantityInput", 0, 120);
         var label = Label(background.transform, "Quantity", "1", 110, 44);
         input = background.gameObject.AddComponent<UIInput>(); input.label = label;
@@ -167,9 +174,7 @@ public sealed class SprkShopQuantity : MonoBehaviour {
     }
     public void Open(PayShopProductInfoPopup window, NewPayShopProductInfo info) {
         popup = window; Info = info; Count = 1;
-        Enabled = info != null && info.ProductType == ProductType.Item
-            && string.IsNullOrEmpty(info.InAppPurchaseId) && info.DurationDay == 0
-            && (info.StepProductGroup == null || info.StepProductGroup.Length == 0);
+        Enabled = SprkSpecialShop.CanSelectQuantity(info);
         if (row == null && Enabled) Build();
         if (row != null) {
             row.SetActive(Enabled);
@@ -198,6 +203,8 @@ public sealed class SprkShopQuantity : MonoBehaviour {
         refreshing = true; input.value = Count.ToString(); refreshing = false;
         minus.isEnabled = MaxCount > 0 && Count > 1;
         plus.isEnabled = Count < MaxCount;
+        minimum.isEnabled = minus.isEnabled;
+        maximum.isEnabled = plus.isEnabled;
         popup.PriceComponent.Init();
         bool buyable = NGame2.NUI.NHelper.NPayShop.PayShopHelper.IsBuyable(Info);
         if (buyable) popup.PriceComponent.SetGamePrice(Info.PriceType, (int)(Info.Price * Count));

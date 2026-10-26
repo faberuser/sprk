@@ -124,6 +124,31 @@ partial class Program {
             var gems = balance.Invoke(null, new[] { user, Enum.Parse(enumType, "Gem") })!;
             if ((int)maximum.Invoke(null, new object[] { gems, 5000L, 0, 0, 999 })! != 109)
                 throw new InvalidOperationException("Screenshot regression: 549,992 rubies must allow 109 packages at 5,000 each.");
+            if ((int)maximum.Invoke(null,new object[]{918282532L,10000000L,0,0,999})! != 91 ||
+                (int)maximum.Invoke(null,new object[]{395852L,1000L,0,0,999})! != 395)
+                throw new InvalidOperationException("Ruby/Gold exchange affordability regression.");
+            var eligibility=helper.GetMethod("CanSelectQuantity")!;
+            var infoType=eligibility.GetParameters()[0].ParameterType;
+            var productType=infoType.GetProperty("ProductType")!;
+            foreach(var name in new[]{"Item","Gem","Gold","DailyGem","Booster","Attendance","Package"}) {
+                var product=Activator.CreateInstance(infoType)!;
+                productType.SetValue(product,Enum.Parse(productType.PropertyType,name));
+                bool Eligible()=>(bool)eligibility.Invoke(null,new[]{product})!;
+                bool expected=name is "Item" or "Gem" or "Gold";
+                if(Eligible()!=expected)throw new InvalidOperationException("Shop quantity eligibility regression: "+name);
+                if(!expected)continue;
+                foreach(var store in new[]{"AppleId","GoogleId","OneStoreId","UDPStoreId"})
+                    infoType.GetProperty(store)!.SetValue(product,"cash-offer");
+                if(Eligible())throw new InvalidOperationException("Cash offer must remain single-purchase.");
+                foreach(var store in new[]{"AppleId","GoogleId","OneStoreId","UDPStoreId"})
+                    infoType.GetProperty(store)!.SetValue(product,"");
+                infoType.GetProperty("DurationDay")!.SetValue(product,30);
+                if(Eligible())throw new InvalidOperationException("Subscription must remain single-purchase.");
+                infoType.GetProperty("DurationDay")!.SetValue(product,0);
+                infoType.GetProperty("StepProductGroup")!.SetValue(product,new[]{1,2});
+                if(Eligible())throw new InvalidOperationException("Step offer must remain single-purchase.");
+            }
+            Console.WriteLine("PASS: Item/Gem/Gold selector eligibility, cash/subscription/step exclusions and both exchange affordability cases.");
             Console.WriteLine("PASS: real UserInfo balances for gold, free+paid rubies, mileage and Lua; screenshot affordability regression.");
         } finally { context.Unload(); }
     }
@@ -133,13 +158,13 @@ partial class Program {
         VerifySpecialShop(game.MainModule);
         using var helper = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "SprkSpecialShop.dll" + (staged ? ".staged" : "")));
         var calls = helper.MainModule.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions).Select(i => i.Operand).OfType<MethodReference>().Select(m => m.Name).ToArray();
-        foreach (var name in new[] { "OrderBy", "CreateList", "ReCreateList", "get_PurchaseCountResetTime", "SetGamePrice", "Maximum", "Balance", "get_TotalGem", "get_Gold", "get_Mileage", "get_LuaPoint" }) {
+        foreach (var name in new[] { "OrderBy", "CreateList", "ReCreateList", "get_PurchaseCountResetTime", "SetGamePrice", "Maximum", "Balance", "CanSelectQuantity", "get_TotalGem", "get_Gold", "get_Mileage", "get_LuaPoint" }) {
             if (!calls.Contains(name)) throw new InvalidOperationException("Incomplete special shop helper: " + name);
         }
         var fields = helper.MainModule.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody)
             .SelectMany(m => m.Body.Instructions).Where(i => i.OpCode == OpCodes.Stfld)
             .Select(i => i.Operand).OfType<FieldReference>().Select(f => f.Name).ToArray();
-        foreach (var field in new[] { "label", "validation" })
+        foreach (var field in new[] { "label", "validation", "minimum", "maximum" })
             if (!fields.Contains(field)) throw new InvalidOperationException("Missing quantity input field: " + field);
         TestSpecialShop(File.ReadAllBytes(Path.Combine(managed, "SprkSpecialShop.dll" + (staged ? ".staged" : ""))));
         TestSpecialShopBalances(managed, File.ReadAllBytes(Path.Combine(managed, "SprkSpecialShop.dll" + (staged ? ".staged" : ""))));
