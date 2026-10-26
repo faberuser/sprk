@@ -58,6 +58,8 @@ partial class Program
         VerifySpecialShopFile(clientRoot);
         InstallShopTags(clientRoot, false);
         VerifyShopTagsFile(clientRoot);
+        InstallArtifactSelectors(clientRoot, false);
+        VerifyArtifactSelectorsFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
         VerifyNoTelemetry(clientRoot, null);

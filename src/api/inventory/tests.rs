@@ -2181,6 +2181,35 @@ async fn soul_stone_selectors_use_stackable_response_and_cannot_fake_equipment()
 }
 
 #[tokio::test]
+async fn kings_pass_artifacts_are_selectable_from_normal_and_lua_tickets_only() {
+    let (s,u)=setup().await;
+    let resource:Value=serde_json::from_str(include_str!("../../../scripts/DllPatcher/Resources/ArtifactSelectorPools.json")).unwrap();
+    for ticket in [3030,2013] {
+        let pool=&s.tables.inventory.equipment_selectors[&ticket]["ItemIndices"];
+        let client=resource.as_array().unwrap().iter().find(|row|row["ItemIndex"]==ticket).unwrap();
+        assert_eq!(*pool,client["Choices"],"Client/server selector pools must agree");
+        put(&s,&u,ticket,3).await;
+        let denied=item::use_weapon_unique_select_item(State(s.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex=150999"))).await.unwrap().0;
+        assert_ne!(denied["Result"],"Success");
+        assert_eq!(count(&s,&u,ticket).await,3);
+        for selected in [150900,150901,150902] {
+            assert_eq!(pool.as_array().unwrap().iter().filter(|v|**v==selected).count(),1);
+            let result=item::use_weapon_unique_select_item(State(s.clone()),form(&u,
+                &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex={selected}"))).await.unwrap().0;
+            assert_eq!(result["Result"],"Success","{result}");
+            assert_eq!(result["EquipItemResults"][0]["ItemIndex"],selected);
+            assert_eq!(result["EquipItemResults"][0]["Star"],0);
+        }
+        assert_eq!(count(&s,&u,ticket).await,0);
+    }
+    for (ticket,pool) in &s.tables.inventory.equipment_selectors {
+        if [3030,2013].contains(ticket) {continue;}
+        assert!(!pool["ItemIndices"].as_array().unwrap().iter().any(|v|[150900,150901,150902].iter().any(|id|*v==*id)),"Unrelated ticket changed: {ticket}");
+    }
+}
+
+#[tokio::test]
 async fn restored_selectors_grant_late_hero_weapons_treasures_and_souls() {
     let (s, u) = setup().await;
     // The archived normal UW ticket excludes NPC-only weapons. Universal

@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--artifact-selectors-only")) { InstallArtifactSelectors(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-artifact-selectors")) { VerifyArtifactSelectorsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--world-boss-keys-only")) { InstallWorldBossKeys(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-world-boss-keys")) { VerifyWorldBossKeysFile(args[0]); return; }
             if (args.Contains("--network-performance-only")) { InstallNetworkPerformance(args[0],args.Contains("--stage-only")); return; }

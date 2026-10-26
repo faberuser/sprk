@@ -492,6 +492,18 @@ No Sale follows native offer availability. Selector backgrounds use simple
 geometry so ornamental sprite borders cannot expand colliders over adjacent
 controls.
 
+### King's Pass artifacts in selectors
+
+`--artifact-selectors-only` adds Honorary Trophy (150900), Honorary Medal
+(150901), and Hero's Plaque of Appreciation (150902) to Normal Artifact Ticket
+(3030) and Lua's Artifact Ticket (2013). It requires verified baked native data
+and preserves all other native selector pools. Add `--stage-only` to prepare the
+DLL; `--verify-artifact-selectors` executes the actual client getters, checks both
+complete pools and verifies restricted fallbacks. The full `--build-release`
+path installs and verifies the same override. Server choices live in
+`tables/InventorySupport.json`; the server regression test compares those pools
+with `Resources/ArtifactSelectorPools.json` and redeems all six combinations.
+
 ### Gear inventory capacity
 
 `--inventory-expansion-only` applies the focused 1,400-slot gear cap patch;
