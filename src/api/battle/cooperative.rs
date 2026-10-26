@@ -11,6 +11,9 @@ mod party;
 mod arena;
 #[path = "cooperative_honor.rs"]
 mod honor;
+#[path = "cooperative_dispatch.rs"]
+mod dispatch_worker;
+pub(crate) use dispatch_worker::start as start_dispatch_preparation;
 #[cfg(test)]
 #[path = "raid_party_tests.rs"]
 mod raid_tests;
@@ -19,17 +22,18 @@ pub(super) use party::begin_party;
 
 type Packet=(String,Value);
 type Sender=mpsc::Sender<Packet>;
-struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64}
+struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64,dispatch_version:i64}
 struct Peer {id:String,run:String,sender:Sender}
 pub(crate) struct BattleHub {
     worker:RwLock<Option<Worker>>,
+    dispatch:Mutex<Option<dispatch_worker::Pending>>,
     peers:DashMap<i64,Peer>,
     runs:DashMap<String,Arc<Mutex<Run>>>,
     pub port:u16,
     pub address:String,
 }
 impl Default for BattleHub {
-    fn default()->Self {Self{worker:RwLock::new(None),peers:DashMap::new(),runs:DashMap::new(),
+    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),runs:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
         address:crate::websocket::public_url("battle")}}
 }
@@ -42,7 +46,7 @@ struct Run {
 impl BattleHub {
     pub(crate) async fn readiness(&self) -> axum::http::StatusCode {
         let worker = self.worker.read().await;
-        if worker.as_ref().is_some_and(|w| !w.sender.is_closed() && w.challenge_version >= 1 && w.arena_version >= 1) {
+        if worker.as_ref().is_some_and(|w| !w.sender.is_closed() && w.challenge_version >= 1 && w.arena_version >= 1 && w.dispatch_version >= 1) {
             axum::http::StatusCode::OK
         } else {
             axum::http::StatusCode::SERVICE_UNAVAILABLE
@@ -285,7 +289,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         if key.len()!=supplied.len() || !key.as_bytes().iter().zip(supplied.as_bytes()).fold(0_u8,|v,(a,b)|v|(a^b)).eq(&0) {return Err(rule("Unauthorized"));}
                         let mut active=s.conquest.worker.write().await;
                         if active.is_some() {return Err(rule("AlreadyOnBattleHero"));}
-                        *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion")});worker=true;
+                        *active=Some(Worker{id:connection_id.clone(),sender:tx.clone(),arena_version:number(&body,"ArenaVersion"),challenge_version:number(&body,"ChallengeRaidVersion"),dispatch_version:number(&body,"DispatchVersion")});worker=true;
                         tracing::info!(arena_version=number(&body,"ArenaVersion"), challenge_raid_version=number(&body,"ChallengeRaidVersion"), "Native battle worker authenticated");
                         tx.send(("WorkerLoginRes".into(),json!({"Result":"Success"}))).await.map_err(|_|rule("InvalidValue"))?;
                     } else if name=="BattleLoginReq" {
@@ -557,6 +561,7 @@ pub(crate) async fn room_departed(s:&AppState,a:i64,room:i64)->Result<()> {
 async fn worker_packet(s:&AppState,worker:&str,name:&str,body:Value)->Result<()> {
     if name=="WorkerPing" {return Ok(());}
     let id=body["RunId"].as_str().ok_or_else(||rule("InvalidValue"))?;
+    if id.starts_with("dispatch:") {return dispatch_worker::packet(s,worker,name,&body).await;}
     let Some(handle)=s.conquest.runs.get(id).map(|v|v.value().clone()) else {return Ok(());};let mut run=handle.lock().await;
     if run.worker!=worker {return Err(rule("Unauthorized"));}
     if run.result.is_some() {return Ok(());}
@@ -700,9 +705,10 @@ mod tests {
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
         let (sender, receiver) = mpsc::channel(1);
         *hub.worker.write().await = Some(Worker { id: "health-test".into(), sender,
-            arena_version: 1, challenge_version: 0 });
+            arena_version: 1, challenge_version: 0, dispatch_version:0 });
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
         hub.worker.write().await.as_mut().unwrap().challenge_version = 1;
+        hub.worker.write().await.as_mut().unwrap().dispatch_version = 1;
         assert_eq!(hub.readiness().await, StatusCode::OK);
         drop(receiver);
         assert_eq!(hub.readiness().await, StatusCode::SERVICE_UNAVAILABLE);
@@ -724,7 +730,7 @@ mod tests {
             }
             sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
             let (tx,mut worker)=mpsc::channel(100);
-            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0,challenge_version:0});
+            *s.conquest.worker.write().await=Some(Worker{id:"solo-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});
             let prefix=format!("SessionKey={}&ChapterIndex=9900&DungeonIndex=101&DungeonDifficulty=0&RaidIndex=90001&RaidLevel=101&MultiplayMasterId={a}&MultiplayMemberIds=[{a}]&AccountIds=[{a},{a},{a}]",u["UserInfo"]["SessionKey"].as_str().unwrap());
             for invalid in ["HeroIndices=[1,2,3,4]&AiHeroIndices=[5,6]","HeroIndices=[1,2,3]&AiHeroIndices=[3,4,5]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,99999]","HeroIndices=[1,2,3]&AiHeroIndices=[4,5,6]&GroupHeroIndices=[4]"] {
                 let out=crate::api::battle::execute_request(&s,"campaign/begin_campaign",Bytes::from(format!("{prefix}&{invalid}"))).await.unwrap();
@@ -784,7 +790,7 @@ mod tests {
             let mut db=s.db.acquire().await.unwrap();
             put(&mut db,*a,"party_member",1,&json!({"IsBattleReady":true,"DeckHeros":{(i+1).to_string():{"HeroIndex":i+1}},"SubDeckHeros":{}})).await.unwrap();
         }
-        let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0,challenge_version:0});
+        let (worker,rx)=mpsc::channel(100);*s.conquest.worker.write().await=Some(Worker{id:"test-worker".into(),sender:worker,arena_version:0,challenge_version:0,dispatch_version:0});
         let mut db=s.db.begin().await.unwrap();
         let args=request(json!({"RaidRoomNo":1,"RaidIndex":90001,"RaidLevel":level,"ChapterIndex":9900,"DungeonIndex":level,"DungeonDifficulty":0,
             "MultiplayMasterId":members[0],"MultiplayMemberIds":members,"HeroIndices":if level>100 {vec![1,2,3]}else{vec![1,4]},

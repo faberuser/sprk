@@ -61,7 +61,7 @@ async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState
 
 async fn fake_worker(s: &AppState) -> mpsc::Receiver<Packet> {
     let (tx,rx)=mpsc::channel(100);
-    *s.conquest.worker.write().await=Some(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0});rx
+    *s.conquest.worker.write().await=Some(Worker{id:"raid-worker".into(),sender:tx,arena_version:0,challenge_version:0,dispatch_version:0});rx
 }
 
 async fn arcdim_fixture(raid:i64,level:i64,host_second:bool)->(AppState,Vec<Value>,Vec<String>) {

@@ -160,7 +160,7 @@ pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Vec<Va
     // state. Keep terminal records in storage for duplicate-request protection.
     runs.retain(|run| !matches!(run["State"].as_str(), Some("Complete" | "Cancel")));
     for run in &mut runs {
-        if n(run, "SimulationVersion") == 1 {
+        if n(run, "SimulationVersion") >= 1 {
             let previous = run.clone();
             advance(run, now());
             if *run != previous {
@@ -284,7 +284,8 @@ pub(super) async fn execute(
         let finish = now() + settings(s, "DispatchSecondsPerBattle", 60).max(1) * count;
         request.0.remove("SessionKey");
         let mut info = json!({"SlotIndex":slot,"ChapterIndex":n(d,"ChapterIndex"),"DungeonIndex":n(d,"DungeonIndex"),"Difficulty":diff,"DeckIndex":int(r,"DeckIndex")?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),"BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,"ServerResult":null,"State":"Battle","WinCount":0,"LoseCount":0,"StaminaDiscountRate":0,"FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost,"CostType":n(d,"ReqStaminaType"),"Request":request.0});
-        info["SimulationVersion"] = json!(1);
+        info["SimulationVersion"] = json!(2);
+        info["SimulationSnapshot"] = simulation_snapshot(db, s, a, &info).await?;
         info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
         info["State"] = json!("Simulation");
         if receipt["DeferredEntryCosts"] == true {
@@ -303,13 +304,13 @@ pub(super) async fn execute(
     }
     let cancel = action == "cancel_dispatch";
     advance(&mut info, now());
-    let preparing = n(&info, "SimulationVersion") == 1
+    let preparing = n(&info, "SimulationVersion") >= 1
         && info["SimulationResults"].as_array().map_or(0, Vec::len) < n(&info, "RepeatCount") as usize;
     if !cancel && (preparing || info["State"] == "Simulation" || now() < n(&info, "FinishTimestamp")) {
         return Err(rule("NotCompletedDungeon"));
     }
     let total = n(&info, "RepeatCount");
-    let count = if n(&info, "SimulationVersion") == 1 {
+    let count = if n(&info, "SimulationVersion") >= 1 {
         n(&info, "WinCount") + n(&info, "LoseCount")
     } else if cancel {
         ((now() - n(&info, "StartTimestamp")) / settings(s, "DispatchSecondsPerBattle", 60).max(1))
@@ -317,7 +318,7 @@ pub(super) async fn execute(
     } else {
         total
     };
-    let wins = if n(&info, "SimulationVersion") == 1 {
+    let wins = if n(&info, "SimulationVersion") >= 1 {
         n(&info, "WinCount")
     } else {
         count
@@ -497,4 +498,19 @@ pub(super) async fn sweep(
         out["ItemResults"].as_array_mut().unwrap().push(v);
     }
     Ok(out)
+}
+
+// Freeze the roster and combat buffs before the player disconnects or changes gear.
+pub(super) async fn simulation_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64, info: &Value) -> Result<Value> {
+    let mut account = crate::api::community::conquest::combat_buffs(db, s, a).await?;
+    let user = sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?")
+        .bind(a).fetch_one(&mut *db).await?;
+    account["UserInfo"] = json!({"AccountId":a,"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index")});
+    let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
+    let mut owned = serde_json::Map::new();
+    for hero in heroes { owned.insert(hero.to_string(), special::cached_hero(db,a,hero as i32).await?); }
+    account["HeroInfos"] = json!(owned);
+    account["AiHeroInfos"] = json!({});
+    account["GroupHeroInfos"] = json!({});
+    Ok(json!({"ChapterIndex":info["ChapterIndex"],"DungeonIndex":info["DungeonIndex"],"DungeonDifficulty":info["Difficulty"],"AccountInfos":[account]}))
 }
