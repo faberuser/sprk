@@ -394,9 +394,9 @@ async fn entry_refill_items_use_native_stamina_types_and_keep_their_timers() {
         let result = item::use_potion_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
         assert_eq!(result["Result"],"Success","{name}: {result}");
         assert_eq!(result["StaminaResult"]["Type"],name);
-        assert_eq!(item::n(&result["StaminaResult"],"NewValue"),item::n(&before,"NewValue")+amount);
+        assert_eq!(item::n(&result["StaminaResult"],"NewValue"),if matches!(kind,11|18) {1}else{item::n(&before,"NewValue")+amount});
         assert_eq!(count(&state,&u,id).await,1);
-        if item::n(def,"UpdateType") == 2 {
+        if item::n(def,"UpdateType") == 2 && !matches!(kind,11|18) {
             assert!(item::n(&result["StaminaResult"],"NextRechargeRemainTime")>0,"{name}: {result}");
         }
     }
@@ -2318,19 +2318,73 @@ async fn large_inventory_ticket_adds_400_slots_caps_at_1400_and_preserves_unused
     assert_eq!(remaining().await.unwrap(), 2);
     assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0["Result"], "Success");
     assert_eq!(remaining().await.unwrap(), 2);
-    // A partial final ticket adds only the 80 slots remaining, without spending rubies.
+    // A partial final ticket adds 80 slots and compensates the unused 320 slots.
     sqlx::query("UPDATE inventory_settings SET inventory_extend=130 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
     assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=2")).await.unwrap().0["Result"], "Success");
     assert_eq!(remaining().await.unwrap(), 2);
-    let result = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0;
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={}&ExpectedInventoryExtend=130&ExpectedCompensationGem=10000",uuid::Uuid::new_v4().simple());
+    let result = item::use_potion_item(State(state.clone()), form(&u, &args)).await.unwrap().0;
     assert_eq!(result["Result"], "Success");
     assert_eq!(result["NewInventoryExtend"], 140);
     assert_eq!(remaining().await.unwrap(), 1);
-    assert_eq!(login(&state).await.user_info.gem, 100000);
+    assert_eq!(login(&state).await.user_info.gem, 110000);
     // The actual server delivery check uses the increased 1400-slot capacity.
     let mut db = state.db.acquire().await.unwrap();
     assert!(item::capacity(&mut db, &state, a, 0, 1400).await.is_ok());
     assert!(item::capacity(&mut db, &state, a, 0, 1401).await.is_err());
+}
+
+#[tokio::test]
+async fn large_inventory_ticket_partial_compensation_matches_confirmation_and_retries_once() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    put(&s,&u,2401,3).await;
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=115 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET pay_gem=123 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let token=uuid::Uuid::new_v4().simple();
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={token}&ExpectedInventoryExtend=115&ExpectedCompensationGem=6250");
+    let use_ticket=|args:&str|item::use_potion_item(State(s.clone()),form(&u,args));
+    let result=use_ticket(&args).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["NewInventoryExtend"],140);
+    assert_eq!(result["CurrencyResult"]["AddValue"],6250);
+    assert_eq!(count(&s,&u,2401).await,2);
+    let after=login(&s).await;assert_eq!(after.user_info.gem,106250);assert_eq!(after.user_info.pay_gem,123);
+    // Another balance change must not be overwritten in a retried response.
+    sqlx::query("UPDATE user_info SET gem=gem+1 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let retry=use_ticket(&args).await.unwrap().0;
+    assert_eq!(retry["Result"],"Success");assert_eq!(retry["CurrencyResult"]["NewValue"],106374); // free + paid gem total
+    assert_eq!(retry["CurrencyResult"]["AddValue"],0);
+    assert_eq!(count(&s,&u,2401).await,2);
+    assert_eq!(login(&s).await.user_info.gem,106251);
+    let forged=use_ticket(&args.replace("6250","12500")).await.unwrap().0;
+    assert_ne!(forged["Result"],"Success");
+    assert_eq!(count(&s,&u,2401).await,2);
+    let used:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='UsePotionItem' AND arg=2401").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(used,1,"Retry must not advance item-use missions twice");
+}
+
+#[tokio::test]
+async fn large_inventory_ticket_full_compensation_validates_quote_ownership_and_atomic_currency_cap() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    put(&s,&u,2401,2).await;
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=140 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={}&ExpectedInventoryExtend=140&ExpectedCompensationGem=12500",uuid::Uuid::new_v4().simple());
+    for bad in ["ItemIndex=2401&ItemCount=1".to_owned(),args.replace("12500","99999"),args.replace("Extend=140","Extend=115"),args.replace("ItemCount=1","ItemCount=2")] {
+        assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&bad)).await.unwrap().0["Result"],"Success");
+        assert_eq!(count(&s,&u,2401).await,2);
+    }
+    sqlx::query("UPDATE user_info SET gem=2147483647 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&args)).await.unwrap().0["Result"],"Success");
+    assert_eq!(count(&s,&u,2401).await,2,"Failed currency grant must roll back ticket consumption");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM inventory_ticket_redemptions WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    sqlx::query("UPDATE user_info SET gem=100000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let out=item::use_potion_item(State(s.clone()),form(&u,&args)).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");assert_eq!(out["NewInventoryExtend"],140);assert_eq!(out["CurrencyResult"]["AddValue"],12500);
+    assert_eq!(count(&s,&u,2401).await,1);assert_eq!(login(&s).await.user_info.gem,112500);
+    let new_request=args.replace(&args.split("InventoryTicketToken=").nth(1).unwrap().split('&').next().unwrap(),&uuid::Uuid::new_v4().simple().to_string());
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=2401").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&new_request)).await.unwrap().0["Result"],"Success");
+    assert_eq!(login(&s).await.user_info.gem,112500);
 }
 
 #[tokio::test]

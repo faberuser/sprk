@@ -1,0 +1,83 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using Math=System.Math;
+using NShared;
+using NGame2.NAccount;
+using NGame2.NUI.NWindow;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+
+public static class SprkInventoryTickets {
+    sealed class Quote {
+        public int Old, Added, Unused, Gems, SlotSize;
+        public string Session, Token;
+        public NShared.UsePotionItem.Request Request;
+    }
+    static Quote pending;
+    static bool waiting;
+    static IconConfirmPopup prompt;
+    public static int Compensation(int remaining,int ticket,int price) {
+        if(remaining<0 || ticket<=0 || price<=0)throw new ArgumentOutOfRangeException();
+        return checked(Math.Max(0,ticket-remaining)*price);
+    }
+    public static string ConfirmationText(int addedSlots,int unusedSlots,int gems) {
+        return (addedSlots>0?"This ticket will expand your inventory by "+addedSlots.ToString("N0",CultureInfo.InvariantCulture)+" slots. ":"Your inventory is fully expanded. ")+
+            unusedSlots.ToString("N0",CultureInfo.InvariantCulture)+" unused ticket slots will be converted into "+gems.ToString("N0",CultureInfo.InvariantCulture)+" Rubies.\nUse 1 Large Inventory Expansion Ticket?";
+    }
+    public static bool TryUse(ItemData<PotionItemData> item) {
+        if(item==null || item.Index!=2401)return false;
+        if(waiting || (prompt!=null && prompt.gameObject.activeInHierarchy))return true;
+        prompt=null;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        var requester=SingletonUpdater<WebServiceManager>.instance.Requester;
+        if(account==null || requester==null || String.IsNullOrEmpty(requester.SessionKey))return true;
+        int old=account.UserManager.MiscInfo.InventoryExtend;
+        int max=GameRoot.Instance.InventoryExtendDataContainer.GetExtendMaxCount();
+        var row=GameRoot.Instance.InventoryExtendDataContainer.GetNextDataByExtendCount(max-1);
+        int ticket=item.SubData.ActionValue;
+        if(row==null || old<0 || old>max || ticket<=0 || row.EquipItemExtendSize<=0 || row.EquipItemExtendPrice<=0)return false;
+        int remaining=max-old;
+        int gems=Compensation(remaining,ticket,row.EquipItemExtendPrice);
+        if(gems==0)return false;
+        var quote=new Quote {Old=old,Added=Math.Min(ticket,remaining),Unused=Math.Max(0,ticket-remaining),
+            Gems=gems,SlotSize=row.EquipItemExtendSize,Session=requester.SessionKey,Token=Guid.NewGuid().ToString("N")};
+        prompt=IconConfirmPopup.Open(ConfirmationText(quote.Added*quote.SlotSize,quote.Unused*quote.SlotSize,quote.Gems),"Use","Cancel",
+            ()=>{prompt=null;Use(quote);},()=>{prompt=null;});
+        if(prompt!=null)prompt.AddItem(item.Index,1);
+        return true;
+    }
+    public static Dictionary<string,object> AddParameters(Dictionary<string,object> fields,NShared.UsePotionItem.Request request) {
+        var quote=pending;
+        if(quote==null || !Object.ReferenceEquals(request,quote.Request))return fields;
+        fields["InventoryTicketToken"]=quote.Token;
+        fields["ExpectedInventoryExtend"]=quote.Old.ToString(CultureInfo.InvariantCulture);
+        fields["ExpectedCompensationGem"]=quote.Gems.ToString(CultureInfo.InvariantCulture);
+        return fields;
+    }
+    static void Use(Quote quote) {
+        if(waiting)return;
+        var requester=SingletonUpdater<WebServiceManager>.instance.Requester;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        if(requester==null || requester.SessionKey!=quote.Session || account.UserManager.MiscInfo.InventoryExtend!=quote.Old) {
+            MessagePopup.Open("Inventory Expansion","Your inventory changed. Reopen the ticket and confirm the updated amounts.");return;
+        }
+        waiting=true;bool completed=false;
+        quote.Request=new NShared.UsePotionItem.Request {ItemIndex=2401,ItemCount=1};pending=quote;
+        try {
+            requester.Request(quote.Request,(NShared.UsePotionItem.Response response)=> {
+                if(completed)return;completed=true;waiting=false;pending=null;
+                if(SingletonUpdater<WebServiceManager>.instance.Requester!=requester || requester.SessionKey!=quote.Session)return;
+                if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.UsePotionItem.ResultType.Success) {
+                    MessagePopup.Open("Inventory Expansion","The conversion was not confirmed. Reopen your inventory to check the ticket and Ruby balances before trying again.");return;
+                }
+                account.ItemManager.Apply(response.ItemResult);
+                account.UserManager.SetInventoryExtend(response.NewInventoryExtend);
+                account.UserManager.Apply(response.CurrencyResult);
+                account.PlayerCurrencyManager.Apply(response.CurrencyResult);
+                MessagePopup.Open("Inventory Expansion",String.IsNullOrEmpty(response.InternalErrorMessage)?"Inventory expanded and unused ticket capacity converted to Rubies.":response.InternalErrorMessage);
+            });
+        } catch(Exception) {waiting=false;pending=null;MessagePopup.Open("Inventory Expansion","Unable to confirm the conversion. Reopen your inventory before retrying.");}
+    }
+}

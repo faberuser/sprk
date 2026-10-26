@@ -4,6 +4,7 @@ pub mod equip;
 pub(crate) mod hero_level;
 pub mod item;
 pub(crate) mod honor_buff;
+pub(crate) mod inventory_ticket;
 pub mod shop;
 
 #[cfg(test)]

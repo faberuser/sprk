@@ -520,12 +520,13 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     let mut tx = state.db.begin().await?;
     init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
-        Ok(value) => {
-            if action.starts_with("use_") {
+        Ok(mut value) => {
+            let replay=value.as_object_mut().and_then(|v|v.remove("_TicketReplay"))==Some(json!(true));
+            if !replay && action.starts_with("use_") {
                 crate::api::progression::record(&mut tx,account,"UseItem",req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?).await?;
             }
             let kind=match action {"use_potion_item"=>"UsePotionItem","use_booster_item"=>"UseBoosterItem",_=>""};
-            if !kind.is_empty() {crate::api::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
+            if !replay && !kind.is_empty() {crate::api::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }
@@ -603,6 +604,9 @@ async fn execute(
     } else {
         positive(req, "ItemCount")?
     };
+    if action=="use_potion_item" && index==2401 {
+        if let Some(value)=super::inventory_ticket::redeem(db,state,account,req,count).await? {return Ok(value);}
+    }
     match action {
         "use_booster_item" => {
             if let Some(percent) = super::honor_buff::definition(state, index) {

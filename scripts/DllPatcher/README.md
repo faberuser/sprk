@@ -496,12 +496,27 @@ controls.
 `--stage-only` prepares it without installation, and
 `--verify-inventory-expansion` executes the actual native row getter across gear,
 chest and rune cases. `--build-release` installs and verifies it automatically.
+The gear bag's expansion cost notices also use the popup's actual
+maximum instead of the old localized 1000-slot number. Its translated wording,
+250-Ruby price and other storage types are preserved.
+The popup uses full-width branch offsets so inserting the gear cost text cannot
+overflow the jump to Storage Box expansion. The focused patch also repairs that
+jump in already affected clients. Verification checks serialized branch targets
+and reproduces, rejects and repairs the previous short-branch overflow.
 The gear row's 90 extensions become 140, preserving the 280 base slots, 8 slots
 per extension and existing ruby price. Both native ticket checks and ruby
 expansion pricing read this same row. Other inventory types retain their caps.
-The matching server InventorySupport rule uses 140 extensions. Expansion tickets
-add their normal amount, truncate the final use to remaining capacity and reject
-full inventories or redundant batch tickets without consuming them.
+The matching server InventorySupport rule uses 140 extensions. Large Inventory
+Expansion Ticket 2401 expands what fits and converts its unused capacity into
+Rubies, at the final gear tier's price (250 Rubies per 8 slots). For example,
+1,200 slots becomes 1,400 plus 6,250 Rubies; an already full bag receives 12,500.
+`SprkInventoryTickets.dll` shows a confirmation before a single compensated use,
+serializes the exact quoted inventory/compensation and a unique receipt token
+through the native request, and applies the returned item, capacity and currency
+updates. A changed quote is rejected; cancelling sends no request. The server
+consumes the ticket, grants capacity and Rubies, and stores its receipt in one
+transaction. Retries return current balances without consuming/granting again or
+duplicating item-use mission progress. Other tickets retain their native rules.
 
 The selector count-limit patch also caps SelectItemMessagePopup (stamina potions
 and other shared consumable popups) at 1,000 per use. Max, plus/minus, typed input
