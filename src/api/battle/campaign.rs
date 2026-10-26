@@ -372,7 +372,7 @@ async fn begin_local_inner(
     let mut out = response(s, "campaign/begin_campaign");
     super::entry_costs::prepare(db,s,a,r,&mut entry,&mut out).await?;
     super::loot_booster::prepare(db,s,a,r,&mut entry,&mut out,party_use_stamina != Some(false)).await?;
-    let cost = if party_use_stamina == Some(false) { 0 } else { stamina_cost(d, difficulty(r)?) };
+    let cost = if int(r,"WorldBossIndex")?>0 || party_use_stamina == Some(false) { 0 } else { stamina_cost(d, difficulty(r)?) };
     let stamina=super::entry_costs::charge(db,s,a,&mut entry,n(d,"ReqStaminaType"),cost).await?;
     if !stamina.is_null() {out["StaminaResult"]=stamina;}
     dungeons::enter(db, s, a, r, &mut entry, &mut out).await?;

@@ -24,6 +24,11 @@ impl BattleTable {
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data = Self::load_with_rules(path, "BattleRules.json")?;
+        let missions: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("MissionCompletionSupport.json"))?)?;
+        for name in ["MonthlyHero", "SubStoryUnlock", "MonsterArchive"] {
+            data.tables.insert(name.into(), missions["Tables"][name].as_array()
+                .ok_or("Missing mission completion support table")?.clone());
+        }
         let challenge: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("ChallengeRaidSupport.json"))?)?;
         data.tables.insert("ChallengeAffix".into(), challenge["Tables"]["ChallengeAffix"].as_array()
             .ok_or("Missing recovered Challenge Raid affixes")?.clone());

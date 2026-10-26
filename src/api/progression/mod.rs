@@ -20,8 +20,12 @@ pub(crate) mod schema;
 pub(crate) mod play_record;
 mod state;
 mod quest_scopes;
+mod mission_history;
+pub(crate) use mission_history::worker_defeats;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod mission_history_tests;
 use state::{period, View};
 
 macro_rules! endpoints {($($name:ident),*)=>{$(pub async fn $name(State(state):State<AppState>,body:Bytes)->Result<Json<Value>>{handle(state,body,stringify!($name)).await})*};}
@@ -36,6 +40,7 @@ endpoints!(
     get_newbie_mission_reward,
     progress_client_main_quest,
     complete_sub_quest,
+    complete_monthly_hero,
     reward_clear_chapter,
     receive_completed_reward,
     attendance_info
@@ -343,6 +348,28 @@ async fn execute(
     req: &Request,
     action: &str,
 ) -> Result<Value> {
+    if action == "complete_monthly_hero" {
+        let id = req.number("MonthlyHeroIndex", 0)?;
+        let row = state.tables.battle.find("MonthlyHero", &[("Index", id)]).ok_or_else(|| rule("Fail"))?;
+        let opened = row["OpenDate"].as_str().and_then(|v| chrono::NaiveDateTime::parse_from_str(v,"%Y-%m-%d %H:%M:%S").ok())
+            .is_some_and(|v|v.and_utc() <= chrono::Utc::now());
+        if !opened {return Err(rule("Fail"));}
+        // The native request is the receipt after watching the story. There is
+        // no battle or purchase prerequisite; the calendar date gates access.
+        claim(db,account,"monthly_hero",id,1,"all").await?;
+        let info=json!({"MonthlyHeroIndex":id,"CompletedTime":state.server_time_str()});
+        crate::api::extensions::put(db,account,"monthly_hero",id,&info).await?;
+        let mut rewards=Rewards::default();
+        item::reward(db,state,account,n(row,"RewardIndex") as i32,&mut rewards).await?;
+        let reward=item::reward_response(db,state,account,rewards).await?;
+        let mut out=item::success();
+        for (key,value) in reward.as_object().unwrap() {out[key]=value.clone();}
+        out["Info"]=info;
+        out["TeamExpResultInfos"]=out["ExpResultInfos"].clone();
+        out["StaminaResultInfos"]=json!([]);
+        out["DungeonInfos"]=json!([]);
+        return Ok(out);
+    }
     if action.contains("attendance") || action == "get_logindaily_reward" {
         return attendance::execute(db, state, account, req, action).await;
     }
@@ -379,7 +406,7 @@ async fn execute(
                 // their native menus. Their client System predicates are not
                 // general server conditions; do not reject an earned reward
                 // solely because its exact menu predicate is unknown.
-                let battle_access = value >= target && (
+                let battle_access = value >= target && (view.history_proves_access(row) ||
                     (((matches!(n(row,"Type"),2|5) && matches!(row["Kind"].as_str(),Some("ClearWorldBossDaily"|"ClearWorldBossWeekly"))) ||
                         (n(row,"Type")==1 && row["Kind"]=="JoinWorldBoss")) &&
                         row["OpenCondition"]==json!(["System","MenuOpenCheckManager","WorldBoss"])) ||

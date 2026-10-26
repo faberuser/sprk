@@ -9,6 +9,13 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--artifact-selectors-only")) { InstallArtifactSelectors(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-artifact-selectors")) { VerifyArtifactSelectorsFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--world-boss-keys-only")) { InstallWorldBossKeys(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-world-boss-keys")) { VerifyWorldBossKeysFile(args[0]); return; }
+            if (args.Contains("--network-performance-only")) { InstallNetworkPerformance(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-network-performance")) { VerifyNetworkPerformanceFile(args[0]); return; }
+            if (args.Contains("--self-test-network-performance")) { TestNetworkPerformance(); return; }
             if (args.Contains("--self-test-client-storage")) { TestClientStorage(); return; }
             if (args.Contains("--client-storage-only")) { InstallClientStorage(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-client-storage")) { VerifyClientStorage(args[0]); return; }
@@ -137,6 +144,7 @@ namespace DllPatcher
             if (args.Contains("--accounts-only")) { InstallAccounts(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-mission-worker")) { VerifyMissionWorker(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-dispatch")) { TestDispatch(); return; }
             if (args.Contains("--verify-dispatch")) { VerifyDispatchFile(args[0]); return; }
             if (args.Contains("--self-test-honor-buff")) { TestHonorBuff(); return; }

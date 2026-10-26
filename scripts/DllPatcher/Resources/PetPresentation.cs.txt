@@ -72,7 +72,18 @@ public static class SprkPetPresentation {
         if(button==null)return;
         button.gameObject.SetActive(true);
         var click=button.GetComponent<UIButton>();
-        if(click!=null)EventDelegate.Set(click.onClick,PetTotalBuffPopup.OpenPopup);
+        if(click!=null)EventDelegate.Set(click.onClick,()=>ShowBuffViews(window));
+    }
+    public static void ShowBuffViews(MyInfoWindow window) {
+        if(window==null)return;
+        // These are separate native buff sources. Keep their applied effects,
+        // categories, upgrade controls and refresh paths owned by the game.
+        MessagePopup3Button.Open("Buffs","Choose which buffs to view.",
+            PetTotalBuffPopup.OpenPopup,()=>OpenTeamLevelBuffs(window),
+            "Pet Buffs","Team Level Buffs");
+    }
+    public static void OpenTeamLevelBuffs(MyInfoWindow window) {
+        if(window!=null)window.OnClickTeamLevelBuff();
     }
     static bool probeStarted;
     public static void EnsureProbe() {

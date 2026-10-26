@@ -526,10 +526,14 @@ pub(super) fn option(state: &AppState, candidates: &[i64]) -> Result<(i64, i64)>
     for id in candidates {
         if let Some(r) = state.tables.inventory.options.get(&(*id as i32)) {
             if n(r, "Ratio") > 0 {
-                pool.push((*id, n(r, "Ratio"), n(r, "Steps")));
+                pool.push((*id, n(r, "Ratio"), 0, n(r, "Steps").max(0)));
             }
         }
     }
+    choose_option(&pool)
+}
+
+fn choose_option(pool: &[(i64, i64, i64, i64)]) -> Result<(i64, i64)> {
     let total: i64 = pool.iter().map(|r| r.1).sum();
     if total <= 0 {
         return Err(rule("InvalidOption"));
@@ -542,7 +546,48 @@ pub(super) fn option(state: &AppState, candidates: &[i64]) -> Result<(i64, i64)>
             value < 0
         })
         .unwrap();
-    Ok((chosen.0, rand::thread_rng().gen_range(0..=chosen.2.max(0))))
+    Ok((chosen.0, rand::thread_rng().gen_range(chosen.2..=chosen.3)))
+}
+
+pub(super) fn option_value(data: &Value, star: i32, step: i64) -> Result<i64> {
+    let star = usize::try_from(star).ok().filter(|s| *s <= 5).ok_or_else(|| rule("InvalidOption"))?;
+    let min = data["MinValues"][star].as_i64().ok_or_else(|| rule("InvalidOption"))?;
+    let max = data["MaxValues"][star].as_i64().filter(|max| *max >= min).ok_or_else(|| rule("InvalidOption"))?;
+    let steps = n(data, "Steps");
+    // Match the native GetOptionValue formula, including integer rounding.
+    Ok(if steps <= 0 { min } else { min + (max - min) * step.clamp(0, steps) / steps })
+}
+
+pub(super) fn reforge_step_range(
+    state: &AppState, candidate: i64, current: i64, current_step: i64, star: i32, allow_same: bool,
+) -> Result<Option<(i64, i64)>> {
+    let options = &state.tables.inventory.options;
+    let old = options.get(&(current as i32)).ok_or_else(|| rule("InvalidOption"))?;
+    let new = options.get(&(candidate as i32)).ok_or_else(|| rule("InvalidOption"))?;
+    let steps = n(new, "Steps").max(0);
+    if n(new, "Type") != n(old, "Type") { return Ok(Some((0, steps))); }
+    if !allow_same { return Ok(None); }
+    let previous = option_value(old, star, current_step)?;
+    // Match by stat type, not option ID: different rows may have different ranges.
+    // Equal values are excluded too, even if integer rounding spans several steps.
+    for first in 0..=steps {
+        if option_value(new, star, first)? > previous { return Ok(Some((first, steps))); }
+    }
+    Ok(None)
+}
+
+fn reforge_option(state: &AppState, candidates: &[i64], current: i64, current_step: i64, star: i32, allow_same: bool) -> Result<(i64, i64)> {
+    let mut pool = Vec::new();
+    for &id in candidates {
+        let Some(data) = state.tables.inventory.options.get(&(id as i32)) else { continue; };
+        if n(data, "Ratio") <= 0 { continue; }
+        if let Some((first, last)) = reforge_step_range(state, id, current, current_step, star, allow_same)? {
+            pool.push((id, n(data, "Ratio"), first, last));
+        }
+    }
+    // Preserve option weights, then roll uniformly within the permitted steps.
+    // A fully exhausted pool fails before charging rather than retrying forever.
+    choose_option(&pool)
 }
 async fn renew(
     db: &mut SqliteConnection,
@@ -630,7 +675,13 @@ async fn renew(
                 .is_some_and(|o| !occupied.contains(&n(o, "Type")))
         });
     }
-    let (new, step) = option(state, &candidates.into_iter().collect::<Vec<_>>())?;
+    let candidates = candidates.into_iter().collect::<Vec<_>>();
+    let (new, step) = if skill {
+        option(state, &candidates)?
+    } else {
+        reforge_option(state, &candidates, n(&value, &key), n(&value, &format!("OptionStep{slot}")), eq.star,
+            detail["EnableRenewSameOption"] == true)?
+    };
     pending(
         db,
         account,

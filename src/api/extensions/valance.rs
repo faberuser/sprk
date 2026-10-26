@@ -129,6 +129,7 @@ pub(super) async fn execute(
         out["CurrencyResult"] = hero::currency(db, account, "Gold", -cost).await?;
         out["EquipItemResults"] = json!(results);
         out["EquipItemIdentifiedInfos"] = json!(identified);
+        super::super::progression::record(db,account,"IdentifiedEquip",0,0,results.len() as i64).await?;
         return Ok(out);
     }
     // The extracted tier-upgrade request has no target or material fields.
@@ -358,6 +359,7 @@ async fn craft(
     out["EquipItemResult"] = json!(eq);
     out["ItemResults"] = json!(removed);
     out["IsAdvanced"] = json!(n(meta(state, id)?, "EquipGrade") == 1);
+    super::super::progression::record(db,account,"CraftEquip",0,0,1).await?;
     Ok(out)
 }
 

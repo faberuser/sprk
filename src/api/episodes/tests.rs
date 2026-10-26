@@ -76,6 +76,12 @@ async fn episodes_native_gifts_claim_original_rewards_and_persist_on_login() {
         let p=login.npc_friendly_infos.iter().find(|v|n(v,"HeroIndex")==e.npc).unwrap();
         assert_eq!(p["Step"],8);assert_eq!(p["EndRewardCount"],1);
     }
+    // Actual NPC reward claims must satisfy the permanent Present milestones,
+    // including when their progress is reconstructed on a later login.
+    for quest in s.tables.progression.sub_quests.iter().filter(|q|q["Kind"]=="HeroDungeonPresentLevel") {
+        assert!(login.sub_quest_infos.iter().any(|q|n(q,"SubQuestIndex")==n(quest,"QuestIndex") && n(q,"Progress")==1),
+            "Missing Present milestone {}",n(quest,"QuestIndex"));
+    }
     assert_eq!(login.drop_bonus_events.len(),19);
     assert_eq!(login.drop_bonus_events.iter().filter(|e|e["BonusType"]=="EventDungeon").count(),7);
     assert_eq!(login.drop_bonus_events.iter().filter(|e|e["BonusType"]=="EventShop").count(),6);

@@ -42,11 +42,23 @@ pub(crate) fn data(state: &AppState, index: i32) -> Result<&Value> {
         .ok_or_else(|| rule("ItemDataNotFound"))
 }
 pub(crate) async fn init(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<()> {
+    // Mutation callers use deferred SQLx transactions. Reserve the SQLite writer
+    // before any reads to avoid read-to-write upgrade races (including WAL's
+    // SQLITE_BUSY_SNAPSHOT). WHERE 0 changes no rows or database pages.
+    sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0")
+        .execute(&mut *db).await?;
+    let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
+    // Check persisted state instead of caching initialization before its caller's
+    // transaction commits. This also repairs old accounts and missing slots.
+    let ready: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=?) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=? AND slot_index BETWEEN 1 AND ?) = ?")
+        .bind(account).bind(account).bind(slots).bind(slots)
+        .fetch_one(&mut *db).await?;
+    if ready { return Ok(()); }
     sqlx::query("INSERT OR IGNORE INTO inventory_settings(account_id) VALUES (?)")
         .bind(account)
         .execute(&mut *db)
         .await?;
-    for slot in 1..=state.tables.inventory.constant("CraftSlotCountMin", 2) {
+    for slot in 1..=slots {
         sqlx::query("INSERT OR IGNORE INTO craft_slots(account_id,slot_index) VALUES (?,?)")
             .bind(account)
             .bind(slot)
@@ -80,6 +92,18 @@ pub(crate) async fn money(
     kind: &str,
     amount: i64,
 ) -> Result<Value> {
+    if kind == "Gold" {
+        // Gold is Int64 in the native client. Check bounds before SQL addition:
+        // SQLite otherwise promotes overflowing INTEGER arithmetic to REAL.
+        let held=if amount<0 {crate::api::battle::entry_costs::held(db,account,"Currency",3).await?}else{0};
+        let minimum=if amount<0 {
+            amount.checked_neg().and_then(|cost|cost.checked_add(held)).ok_or_else(||rule("NotEnoughGold"))?
+        }else{0};
+        let maximum=i64::MAX.checked_sub(amount.max(0)).ok_or_else(||rule("NotEnoughGold"))?;
+        let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET gold=gold+? WHERE account_id=? AND typeof(gold)='integer' AND gold BETWEEN ? AND ? RETURNING gold")
+            .bind(amount).bind(account).bind(minimum).bind(maximum).fetch_optional(&mut *db).await?;
+        return Ok(json!(CurrencyResultInfo3::new("Gold",amount,value.ok_or_else(||rule("NotEnoughGold"))?)));
+    }
     if kind == "Gem" && amount < 0 {
         let row = sqlx::query("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
             .bind(account)
@@ -508,12 +532,13 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     let mut tx = state.db.begin().await?;
     init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
-        Ok(value) => {
-            if action.starts_with("use_") {
+        Ok(mut value) => {
+            let replay=value.as_object_mut().and_then(|v|v.remove("_TicketReplay"))==Some(json!(true));
+            if !replay && action.starts_with("use_") {
                 crate::api::progression::record(&mut tx,account,"UseItem",req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?).await?;
             }
             let kind=match action {"use_potion_item"=>"UsePotionItem","use_booster_item"=>"UseBoosterItem",_=>""};
-            if !kind.is_empty() {crate::api::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
+            if !replay && !kind.is_empty() {crate::api::progression::record(&mut tx,account,kind,req.number("ItemIndex",0)?,0,req.number("ItemCount",1)?.max(1)).await?;}
             tx.commit().await?;
             Ok(Json(value))
         }
@@ -591,6 +616,9 @@ async fn execute(
     } else {
         positive(req, "ItemCount")?
     };
+    if action=="use_potion_item" && index==2401 {
+        if let Some(value)=super::inventory_ticket::redeem(db,state,account,req,count).await? {return Ok(value);}
+    }
     match action {
         "use_booster_item" => {
             if let Some(percent) = super::honor_buff::definition(state, index) {

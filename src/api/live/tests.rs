@@ -268,6 +268,27 @@ async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
 }
 
 #[tokio::test]
+async fn special_shop_currency_exchange_batches_charge_and_grant_exact_totals() {
+    let (s, u) = setup().await;
+    let gold = balance(&s, &u, "gold").await;
+    let gems = balance(&s, &u, "gem").await;
+    let rubies = call(&s, &u, "shop/buy_payshop_product", "Index=50001002&Quantity=3").await;
+    ok(&rubies);
+    assert_eq!(rubies["PlayerProductPurchaseInfo"]["PurchasedCount"], 3);
+    assert_eq!(balance(&s, &u, "gold").await, gold - 30000000);
+    assert_eq!(balance(&s, &u, "gem").await, gems + 3000);
+    let coins = call(&s, &u, "shop/buy_payshop_product", "Index=50001001&Quantity=4").await;
+    ok(&coins);
+    assert_eq!(coins["PlayerProductPurchaseInfo"]["PurchasedCount"], 4);
+    assert_eq!(balance(&s, &u, "gold").await, gold - 26000000);
+    assert_eq!(balance(&s, &u, "gem").await, gems - 1000);
+    let rejected = call(&s, &u, "shop/buy_payshop_product", "Index=50001002&Quantity=8").await;
+    assert_ne!(rejected["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gold").await, gold - 26000000);
+    assert_eq!(balance(&s, &u, "gem").await, gems - 1000);
+}
+
+#[tokio::test]
 async fn recovered_shop_purchases_are_atomic_limited_and_restore_after_reset() {
     let (mut s, u) = setup().await;
     daily_limit(&mut s, &[3093009]);
@@ -482,6 +503,8 @@ async fn incubation_checks_time_identity_and_replay() {
     .await;
     ok(&v);
     assert_eq!(v["PetAddResultInfos"].as_array().unwrap().len(), 1);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='UsePetIncubator'")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap(),1);
     assert_ne!(
         call(
             &s,

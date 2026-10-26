@@ -72,6 +72,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END"))
             .execute(db).await?;
     }
+    seasons::migrate_best_daily(db).await?;
     // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
     sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
         .execute(db).await?;
@@ -153,7 +154,9 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
     }
     let mut tx = s.db.begin().await?;
-    item::init(&mut tx, s, a).await?;
+    if !crate::api::system::performance::observation(&format!("/{path}")) {
+        item::init(&mut tx, s, a).await?;
+    }
     let action = path.rsplit('/').next().unwrap_or("");
     let result = match path.split('/').next().unwrap_or("") {
         "match" => seasons::match_season(s, &req),
@@ -383,6 +386,7 @@ async fn reward_index(
     Ok(())
 }
 async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) -> Result<Value> {
+    crate::api::progression::record(db,a,"BattleRewardEquip",0,0,r.equipment.len() as i64).await?;
     let mut out = item::reward_response(db, s, a, r).await?;
     out["EquipItemInfos"] = out["EquipItemResults"].clone();
     out["HeroExpResults"] = json!([]);

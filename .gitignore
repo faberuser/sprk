@@ -21,6 +21,8 @@ target
 #.idea/
 
 *.db
+*.db-shm
+*.db-wal
 *.log
 
 ## A streamlined .gitignore for modern .NET projects

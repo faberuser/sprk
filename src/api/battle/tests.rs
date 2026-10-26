@@ -448,7 +448,7 @@ async fn world_boss_advertises_native_rotation_with_a_previous_boss() {
 }
 
 #[tokio::test]
-async fn world_boss_hp_scores_and_tickets_change_once_per_entered_battle() {
+async fn world_boss_hp_scores_settle_once_without_consuming_tickets() {
     let (s, u) = setup().await;
     sqlx::query("UPDATE heroes SET level=60 WHERE account_id=? AND hero_index=1")
         .bind(account(&u))
@@ -461,7 +461,7 @@ async fn world_boss_hp_scores_and_tickets_change_once_per_entered_battle() {
     let first = call(&s, &u, "campaign/begin_campaign", request).await;
     assert_eq!(first["Result"], "Success", "{first}");
     assert_eq!(first["StaminaResult"]["Type"], "WorldBossTicket");
-    assert_eq!(first["StaminaResult"]["AddValue"], -1);
+    assert_eq!(first["StaminaResult"]["AddValue"], 0);
     let again = call(&s, &u, "campaign/begin_campaign", request).await;
     assert_eq!(first, again);
     let finish =
@@ -484,7 +484,7 @@ async fn world_boss_hp_scores_and_tickets_change_once_per_entered_battle() {
     .await
     .unwrap();
     assert_eq!(score, 1000);
-    assert_eq!(balance(&s, "world_boss_ticket").await, 1);
+    assert_eq!(balance(&s, "world_boss_ticket").await, 2);
 }
 async fn balance(s: &AppState, col: &str) -> i64 {
     sqlx::query_scalar(&format!("SELECT {col} FROM user_info LIMIT 1"))
@@ -3397,7 +3397,7 @@ async fn world_boss_daily_score_uses_utc_ledger_and_ignores_old_timezone_snapsho
 }
 
 #[tokio::test]
-async fn world_boss_archived_participation_drops_pay_two_boxes_per_attempt_with_two_entry_override() {
+async fn world_boss_unlimited_attempts_keep_daily_best_and_reward_first_attempt_only() {
     let (s,u)=setup_active_world_boss().await;
     let a=account(&u);
     sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
@@ -3405,27 +3405,46 @@ async fn world_boss_archived_participation_drops_pay_two_boxes_per_attempt_with_
     let id=n(&info["WorldBossInfos"][0],"Index");
     let def=s.tables.battle.find("WorldBoss",&[("Index",id)]).unwrap();
     let begin=format!("ChapterIndex={}&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex={id}",n(def,"ChapterIndex"));
-    assert_eq!(u["StaminaResults"].as_array().unwrap().iter().find(|r|r["Type"]=="WorldBossGlobalTicket").unwrap()["NewValue"],2);
+    assert_eq!(u["StaminaResults"].as_array().unwrap().iter().find(|r|r["Type"]=="WorldBossGlobalTicket").unwrap()["NewValue"],1);
+    // Exhausted legacy key records must not prevent entering or deduct currency.
+    put(&mut s.db.acquire().await.unwrap(),a,"key",18,&json!({"Day":day(),"Count":0})).await.unwrap();
     let mut expected=0_i64;
-    for damage in [1_i64,10_000_000_000_000] {
+    for (attempt,damage) in [100_i64,50,200,200].into_iter().enumerate() {
         assert_eq!(call(&s,&u,"campaign/begin_campaign",&begin).await["Result"],"Success");
         sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(now()-30).bind(a).execute(&s.db).await.unwrap();
         let args=format!("{begin}&Completed=false&TotalDamage={damage}");
         let result=call(&s,&u,"campaign/end_campaign",&args).await;
         assert_eq!(result["Result"],"Success","{result}");
         let items=result["ItemResults"].as_array().unwrap();
-        assert_eq!(items.iter().map(|r|n(r,"AddCount")).sum::<i64>(),2);
+        assert_eq!(items.iter().map(|r|n(r,"AddCount")).sum::<i64>(),if attempt==0 {2}else{0});
         assert!(items.iter().all(|r|(91362..=91365).contains(&n(r,"ItemIndex"))));
-        expected+=damage;
+        expected=expected.max(damage);
+        assert_eq!(result["WorldBossRankInfo"]["Score"],expected);
+        assert_eq!(result["WorldBossInfo"]["TotalDamage"],expected);
         let daily=call(&s,&u,"world_boss/get_world_boss_daily_score_info",&format!("WorldBossIndex={id}")).await;
         assert_eq!(daily["WorldBossDailyScore"]["Score"],expected);
         assert_eq!(daily["WorldBossDailyScore"]["IsGetDailyParticipantReward"],1);
         assert_ne!(call(&s,&u,"campaign/end_campaign",&args).await["Result"],"Success");
     }
-    assert_ne!(call(&s,&u,"campaign/begin_campaign",&begin).await["Result"],"Success");
+    assert_eq!(call(&s,&u,"campaign/begin_campaign",&begin).await["Result"],"Success");
     let boxes:i64=sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index BETWEEN 91362 AND 91365")
         .bind(a).fetch_one(&s.db).await.unwrap();
-    assert_eq!(boxes,4);
+    assert_eq!(boxes,2);
+    let progress:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='CompleteWorldBoss'").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(progress,4,"Lower and tied runs still complete missions; retries must not count twice");
+    // Moving yesterday's settled ledger/claim out of today's UTC period restores
+    // exactly one reward and a fresh daily best without discarding season totals.
+    let yesterday=(chrono::Utc::now().date_naive()-chrono::Duration::days(1)).to_string();
+    sqlx::query("UPDATE battle_scores SET day=? WHERE family='world_boss' AND account=?").bind(&yesterday).bind(a).execute(&s.db).await.unwrap();
+    let season=n(&info["WorldBossInfos"][0],"Season");
+    sqlx::query("UPDATE battle_reward_claims SET period=? WHERE account=? AND kind='world_boss_participation'").bind(format!("{season}:{yesterday}")).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(now()-30).bind(a).execute(&s.db).await.unwrap();
+    let next=call(&s,&u,"campaign/end_campaign",&format!("{begin}&Completed=false&TotalDamage=150")).await;
+    assert_eq!(next["Result"],"Success","{next}");
+    assert_eq!(next["WorldBossRankInfo"]["Score"],350,"Season sums daily bests");
+    assert_eq!(next["ItemResults"].as_array().unwrap().iter().map(|v|n(v,"AddCount")).sum::<i64>(),2);
+    let daily=call(&s,&u,"world_boss/get_world_boss_daily_score_info",&format!("WorldBossIndex={id}")).await;
+    assert_eq!(daily["WorldBossDailyScore"]["Score"],150);
     let group=s.tables.item_groups.get("WORLDBOSS_ENTER_GROUP").unwrap();
     assert_eq!(group.sub_data_list.iter().map(|r|r.rate).collect::<Vec<_>>(),vec![47,33,12,8]);
 }
@@ -3485,7 +3504,7 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
     assert_eq!(refreshed["WorldBossInfos"][0]["Status"],"ActiveDeal");
     assert_eq!(refreshed["WorldBossInfos"][0]["TotalDamage"],1_000_000_000_000_i64);
     let begin=format!("ChapterIndex={}&DungeonIndex={}&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex={id}",n(definition,"ChapterIndex"),n(definition,"DungeonIndex"));
-    let mut total=1_000_000_000_000_i64;
+    let mut best=std::collections::BTreeMap::from([(account(&u),1_000_000_000_000_i64)]);
     for (player,damage) in [(&u,6_000_000_000_000_i64),(&second,5_000_000_000_000),(&u,7_000_000_000_000)] {
         let entered=call(&s,player,"campaign/begin_campaign",&begin).await;
         assert_eq!(entered["Result"],"Success","{entered}");
@@ -3494,7 +3513,8 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
         let args=format!("{begin}&Completed=false&TotalDamage={damage}");
         let result=call(&s,player,"campaign/end_campaign",&args).await;
         assert_eq!(result["Result"],"Success","{result}");
-        total+=damage;
+        best.entry(account(player)).and_modify(|v|*v=(*v).max(damage)).or_insert(damage);
+        let total:i64=best.values().sum();
         assert_eq!(result["WorldBossInfo"]["TotalDamage"],total);
         assert_eq!(result["WorldBossInfo"]["Status"],"ActiveDeal");
         assert_eq!(result["WorldBossKilledByMe"],false);
@@ -3502,7 +3522,7 @@ async fn world_boss_global_reopens_old_hp_death_and_accepts_multiple_players_and
         assert!(n(&hp,"Hp")>0,"Native polling must not terminate another player's run");
         assert_ne!(call(&s,player,"campaign/end_campaign",&args).await["Result"],"Success");
     }
-    for (player,expected) in [(&u,14_000_000_000_000_i64),(&second,5_000_000_000_000)] {
+    for (player,expected) in [(&u,7_000_000_000_000_i64),(&second,5_000_000_000_000)] {
         let score=call(&s,player,"world_boss/get_world_boss_rank_info",&format!("WorldBossIndex={id}")).await;
         assert_eq!(score["RankInfo"]["Score"],expected);
     }

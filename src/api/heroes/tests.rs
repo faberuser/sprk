@@ -43,6 +43,42 @@ async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
 }
 
 #[tokio::test]
+async fn inn_excludes_maya_repairs_saved_visitors_and_rejects_recruitment() {
+    let (s,u)=setup().await;
+    assert_eq!(s.tables.hero_shop.heroes[&14]["CodeName"],"Hero.Maya");
+    assert!(!crate::models::hero_inn::get_available_inn_hero_indices().contains(&14));
+    let first=inn_refresh(&s,&u).await.friendly_info.unwrap();
+    assert!(!first.selected_hero_indice.unwrap().split(',').any(|id|id=="14"));
+    // A previously saved Maya visit must be removed even before its daily reset.
+    sqlx::query("UPDATE hero_friendly_info SET hero_index=14,selected_hero_index=14,friendly_point=1000,selected_hero_indices='14',last_greeting_time='2000-01-01 00:00:01' WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let refreshed=inn_refresh(&s,&u).await.friendly_info.unwrap();
+    assert_eq!((refreshed.hero_index,refreshed.selected_hero_index,refreshed.friendly_point),(0,0,0));
+    assert!(refreshed.last_greeting_time.is_none());
+    let visitors=refreshed.selected_hero_indice.unwrap();
+    assert_eq!(visitors.split(',').count(),6);
+    assert!(!visitors.split(',').any(|id|id=="14"));
+    let selected=hero::inn::change_recruit_hero(State(s.clone()),axum::extract::Form(hero::inn::ChangeRecruitHeroRequest {
+        session_id:None,session_key:Some(u.user_info.session_key.clone()),hero_index:Some(14),
+    })).await.unwrap().0;
+    assert_eq!(selected.result,"CannotRecruit");
+    // A stale client cannot complete a previously eligible Maya recruitment.
+    sqlx::query("UPDATE hero_friendly_info SET hero_index=14,friendly_point=1000 WHERE account_id=?")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    let recruited=hero::inn::recruit_hero(State(s.clone()),axum::extract::Form(hero::inn::RecruitHeroRequest {
+        session_id:None,session_key:Some(u.user_info.session_key.clone()),hero_index:Some(14),
+    })).await.unwrap().0;
+    assert_eq!(recruited["Result"],"HeroIndexMismatch");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=14")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(),0);
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,90014,14,80,5)")
+        .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    inn_refresh(&s,&u).await;
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT level FROM heroes WHERE account_id=? AND hero_index=14")
+        .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(),80);
+}
+
+#[tokio::test]
 async fn inn_refresh_repairs_owned_recruit_and_invalid_visitors() {
     let (s, u) = setup().await;
     inn_refresh(&s, &u).await;
@@ -75,6 +111,30 @@ async fn setup() -> (AppState, user::LoginResponse) {
     let u = login(&state).await;
     sqlx::query("UPDATE user_info SET gold=100000000,gem=100000").execute(&state.db).await.unwrap();
     (state, u)
+}
+
+#[tokio::test]
+async fn bulk_hero_snapshot_preserves_details_defaults_and_account_isolation() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut db=s.db.acquire().await.unwrap();
+    hero::save_details(&mut db,a,1,&serde_json::json!({"Level":77,"TranscendSkillPage1":"[1,2]","ApplySkillPage":2})).await.unwrap();
+    for id in 10001..10100 {
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) VALUES(?,?,?)")
+            .bind(a).bind(id).bind(id).execute(&mut *db).await.unwrap();
+    }
+    let started=std::time::Instant::now();
+    let snapshots=hero::snapshot(&mut db,a).await.unwrap();
+    let bulk=started.elapsed();let started=std::time::Instant::now();
+    assert_eq!(snapshots.len(),100);
+    for h in &snapshots {
+        let expected:crate::models::hero::HeroInfo=serde_json::from_value(hero::info(&mut db,a,h.hero_index).await.unwrap()).unwrap();
+        assert_eq!(serde_json::to_value(h).unwrap(),serde_json::to_value(expected).unwrap());
+    }
+    println!("100-hero fixture: one joined query {:.2}ms; 200 reference detail/hero queries plus equality checks {:.2}ms",bulk.as_secs_f64()*1000.0,started.elapsed().as_secs_f64()*1000.0);
+    assert!(hero::snapshot(&mut db,a+1000).await.unwrap().is_empty());
+    sqlx::query("UPDATE hero_details SET data='invalid' WHERE account_id=? AND hero_index=1").bind(a).execute(&mut *db).await.unwrap();
+    assert!(hero::snapshot(&mut db,a).await.is_err());
 }
 async fn login(s: &AppState) -> user::LoginResponse {
     user::test_login(
@@ -228,6 +288,7 @@ async fn competing_purchases_charge_and_recruit_once() {
             sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(&path)
                 .create_if_missing(true)
+                .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
                 .busy_timeout(std::time::Duration::from_secs(10)),
         )
         .await

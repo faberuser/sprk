@@ -1,0 +1,91 @@
+using System;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
+using NVespa.NWeb;
+
+// Optional capabilities: older servers ignore these headers and keep working.
+public static class SprkNetworkPerformance {
+    static readonly object gate = new object();
+    static string scope, token, catalogToken;
+    static readonly Regex tokenField = new Regex("\"SprkProgressionToken\"\\s*:\\s*\"([0-9a-f]{64})\"");
+    static readonly Regex catalogField = new Regex("\"SprkShopCatalogToken\"\\s*:\\s*\"([0-9a-f]{64})\"");
+    sealed class Delivery { public string Context, Progression, Catalog; public bool FullProgression, FullCatalog; }
+    static readonly ConditionalWeakTable<object,Delivery> deliveries = new ConditionalWeakTable<object,Delivery>();
+    static readonly ConditionalWeakTable<object,HashSet<int>> noStaminaClock = new ConditionalWeakTable<object,HashSet<int>>();
+
+    // Zero means the server has no scheduled recharge (e.g. unlimited World Boss
+    // attempts). Preserve native timer/UI fields and stop only automatic polling.
+    // Positive results re-enable polling; negative results retain native state.
+    public static void SetStaminaClock(object manager,int type,int next) {
+        if(manager==null || next<0)return;
+        lock(gate) {
+            var disabled=noStaminaClock.GetOrCreateValue(manager);
+            if(next==0)disabled.Add(type);else disabled.Remove(type);
+        }
+    }
+    public static bool HasStaminaClock(object manager,int type) {
+        if(manager==null)return true;
+        lock(gate) {HashSet<int> disabled;return !noStaminaClock.TryGetValue(manager,out disabled) || !disabled.Contains(type);}
+    }
+
+    public static void Prepare(WebServiceRequest request, string session) {
+        string context;
+        using (var hash = SHA256.Create())
+            context = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(request.Host + "\n" + session))).Replace("-", "");
+        // Headers normally reference the requester's shared dictionary. Copy it
+        // so queued/retried requests keep their own acknowledgement and scope.
+        var headers = request.Headers == null ? new Dictionary<string,string>()
+            : new Dictionary<string,string>(request.Headers);
+        headers.Remove("X-SPRK-Progression");
+        headers.Remove("X-SPRK-Compact-Lobby");
+        headers.Remove("X-SPRK-Shop-Catalog");
+        headers["X-SPRK-Context"] = context;
+        lock (gate) {
+            if (scope != context) { scope = context; token = catalogToken = null; }
+            if (!String.IsNullOrEmpty(token)) headers["X-SPRK-Progression"] = token;
+            if (!String.IsNullOrEmpty(catalogToken)) headers["X-SPRK-Shop-Catalog"] = catalogToken;
+        }
+        string service = request.ServiceName.Trim('/');
+        if (service == "enter/lobby" || service == "lobby/enter_lobby")
+            headers["X-SPRK-Compact-Lobby"] = "1";
+        request.Headers = headers;
+    }
+
+    // Capture on the response worker, acknowledge only after the corresponding
+    // native managers apply that exact response. Weak keys avoid retaining replies.
+    public static void Capture(string text, WebServiceRequest request, object response) {
+        if (text == null || request == null || request.Headers == null || response == null) return;
+        string context;
+        if (!request.Headers.TryGetValue("X-SPRK-Context", out context)) return;
+        var match = tokenField.Match(text);
+        var catalog = catalogField.Match(text);
+        lock (gate) {
+            deliveries.Remove(response);
+            deliveries.Add(response, new Delivery {Context=context,
+                Progression=match.Success?match.Groups[1].Value:null, Catalog=catalog.Success?catalog.Groups[1].Value:null,
+                FullCatalog=text.Contains("\"PayShopProductInfos\""),
+                FullProgression=text.Contains("\"AchievementInfos\"") || text.Contains("\"ReservedMainQuestInfo\"")
+                    || text.Contains("\"ReservedClearMissionInfos\"") || text.Contains("\"ReservedPlayRecordInfos\"")});
+        }
+    }
+    public static void ProgressionApplied(object response) {
+        if(response==null)return;
+        lock(gate) {
+            Delivery delivery;
+            if(!deliveries.TryGetValue(response,out delivery) || delivery.Context!=scope)return;
+            if(delivery.Progression!=null)token=delivery.Progression;
+            else if(delivery.FullProgression)token=null;
+            if(delivery.FullCatalog && delivery.Catalog==null)catalogToken=null;
+        }
+    }
+    public static void CatalogApplied(object response) {
+        if(response==null)return;
+        lock(gate) {
+            Delivery delivery;
+            if(deliveries.TryGetValue(response,out delivery) && delivery.Context==scope)catalogToken=delivery.Catalog;
+        }
+    }
+}

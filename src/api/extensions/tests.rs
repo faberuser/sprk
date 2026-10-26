@@ -48,6 +48,8 @@ async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -
 async fn public_awakening_stones_obey_equipment_type() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
+    let large_gold=7_782_963_002_i64;
+    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(large_gold).bind(a).execute(&s.db).await.unwrap();
     let eq = give(&s, a, 1001, 1).await.equipment.remove(0);
     give(&s, a, 5301, 1).await;
     let r = call(
@@ -61,6 +63,10 @@ async fn public_awakening_stones_obey_equipment_type() {
     )
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
+    let price=-n(&r["CurrencyResult"],"AddValue");
+    assert!(price>0,"Awakening must charge its gold price: {r}");
+    assert_eq!(r["CurrencyResult"]["NewValue"],large_gold-price);
+    assert_eq!(gold(&s).await,large_gold-price);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
 }
 #[tokio::test]
@@ -155,6 +161,8 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         call(&s, &u, "valance_identified", &args).await["Result"],
         "Success"
     );
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='IdentifiedEquip'")
+        .bind(a).fetch_one(&s.db).await.unwrap(),1);
     let enchant = s
         .tables
         .extensions
@@ -264,6 +272,60 @@ async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
         call(&s, &u, "level_up_class_buff", &args).await["Result"],
         "Success"
     );
+}
+
+#[tokio::test]
+async fn team_buffs_unlock_on_login_and_lobby_without_resetting_paid_upgrades() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    assert!(u.team_level_buff_infos.is_empty(), "Level one has no buffs");
+    sqlx::query("UPDATE user_info SET team_level=10 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let upgraded = json!({"OpenBuffLevel":2,"BuffReinforce":1,"UpdatedTime":"2026-01-01T00:00:00Z"});
+    put(&mut *s.db.acquire().await.unwrap(),a,"team_buff",2,&upgraded).await.unwrap();
+    let before: (i64,i64) = sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let login = user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let expected: BTreeSet<i64> = s.tables.inventory.team_levels.iter()
+        .filter(|r| n(r,"Level")<=10 && (n(r,"TeamLevelBuffOptionIndex")>0 || n(r,"TeamLevelBuffBonusOptionIndex")>0))
+        .map(|r| n(r,"Level")).collect();
+    assert_eq!(login.team_level_buff_infos.iter().map(|v|n(v,"OpenBuffLevel")).collect::<BTreeSet<_>>(),expected);
+    for info in &login.team_level_buff_infos {
+        if n(info,"OpenBuffLevel")==2 { assert_eq!(info,&upgraded); }
+        else { assert_eq!(info["BuffReinforce"],0); }
+    }
+    let lobby = first_lobby(&s,a).await.unwrap();
+    assert_eq!(lobby["TeamLevelBuffInfos"],json!(login.team_level_buff_infos));
+    assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    assert!(buffs::unlock_team_buffs(&mut *s.db.acquire().await.unwrap(),&s,a).await.unwrap().is_empty());
+    // New accounts can bootstrap the same free records through first-lobby too.
+    sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='team_buff'").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(first_lobby(&s,a).await.unwrap()["TeamLevelBuffInfos"].as_array().unwrap().len(),expected.len());
+}
+
+#[tokio::test]
+async fn team_buff_unlocks_follow_level_up_in_native_response_once() {
+    use axum::{Router,routing::post,middleware,body::{Body,to_bytes},http::Request as HttpRequest};
+    use tower::ServiceExt;
+    let (s,u)=setup().await;
+    let app=Router::new().route("/test/team-exp",post(|State(state):State<AppState>,body:Bytes| async move {
+        let req=Request::parse(&body)?;
+        let a=req.account(&state)?;
+        let mut tx=state.db.begin().await?;
+        let mut rewards=Rewards::default();
+        crate::api::tutorial::team_exp(&mut tx,&state,a,req.number("Amount",0)?,&mut rewards).await?;
+        tx.commit().await?;
+        Ok::<_,ServerError>(Json(json!({"BaseResult":"Success","Result":"Success","TeamExpResultInfos":rewards.team_exp})))
+    })).layer(middleware::from_fn_with_state(s.clone(),crate::api::inventory::hero_level::notify)).with_state(s.clone());
+    let exp=s.tables.tutorials.support.team_levels.iter().find(|r|r.level==1).unwrap().local_exp;
+    let send=|amount:i64|app.clone().oneshot(HttpRequest::post("/test/team-exp").body(Body::from(format!("SessionKey={}&Amount={amount}",u.user_info.session_key))).unwrap());
+    let response=send(exp).await.unwrap();
+    let out:Value=serde_json::from_slice(&to_bytes(response.into_body(),1024*1024).await.unwrap()).unwrap();
+    assert_eq!(out["TeamExpResultInfos"][0]["NewLevel"],2);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"][0]["OpenBuffLevel"],2);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"][0]["BuffReinforce"],0);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"].as_array().unwrap().len(),1);
+    let response=send(0).await.unwrap();
+    let out:Value=serde_json::from_slice(&to_bytes(response.into_body(),1024*1024).await.unwrap()).unwrap();
+    assert!(out.get("ReserveTeamLevelBuffInfos").is_none(),"Unchanged buffs must not be re-notified");
 }
 #[tokio::test]
 async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() {
@@ -779,6 +841,59 @@ async fn npc_limited_final_reward_still_stops_at_its_configured_cap() {
     assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"npc",111).await.unwrap(),saved);
 }
 #[tokio::test]
+async fn reforge_same_stat_requires_a_strictly_larger_value() {
+    let (mut s,u)=setup().await;
+    // UT Max HP at 12%: exactly 13% and 14% remain valid for the same option.
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,2,5,true).unwrap(),Some((3,4)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,3,5,true).unwrap(),Some((4,4)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,4,5,true).unwrap(),None);
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,2,5,false).unwrap(),None);
+    // Another HP row has a different range: comparing step numbers is unsafe.
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,2,5,true).unwrap(),Some((7,10)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,209,9,5,true).unwrap(),Some((4,4)));
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,4,5,true).unwrap(),None);
+    let different=&s.tables.inventory.options[&9003];
+    assert_eq!(equipment::reforge_step_range(&s,9003,9002,4,5,true).unwrap(),Some((0,n(different,"Steps"))));
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,101001,1).await.equipment.remove(0);
+    eq.star=5;eq.option_index_1=9002;eq.option_step_1=2;eq.option_index_2=9001;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9002]);
+    let args=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
+    let rolled=call(&s,&u,"renew_equip_option",&args).await;
+    assert_eq!(rolled["Result"],"Success","{rolled}");
+    assert_eq!(rolled["NewOptionIndex"],9002);
+    assert!([3,4].contains(&n(&rolled,"NewOptionStep")));
+    let accepted=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=true&ConfirmOptionIndex=9002")).await;
+    assert_eq!(accepted["Result"],"Success","{accepted}");
+    assert_eq!(accepted["ResultEquipItem"]["OptionStep1"],rolled["NewOptionStep"]);
+    eq=equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap();
+    eq.option_step_1=4;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    let gems:i64=sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    // No valid outcome: preserve balances, counters and pending state.
+    let rejected=call(&s,&u,"renew_equip_option",&args).await;
+    assert_ne!(rejected["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),gems);
+    assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap()),json!(eq));
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap(),0);
+    // At capped HP, a different stat is the only eligible result.
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9002,9003]);
+    let rolled=call(&s,&u,"renew_equip_option",&args).await;
+    assert_eq!(rolled["Result"],"Success","{rolled}");
+    assert_eq!(rolled["NewOptionIndex"],9003);
+    let kept=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=false&ConfirmOptionIndex=9002")).await;
+    assert_eq!(kept["Result"],"Success","{kept}");
+    assert_eq!(kept["ResultEquipItem"]["OptionIndex1"],9002);
+    assert_eq!(kept["ResultEquipItem"]["OptionStep1"],4);
+    // Rounded values may stay equal across steps; only the first actual gain qualifies.
+    let options=&mut std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).options;
+    options.get_mut(&209).unwrap()["MinValues"]=json!(vec![100;6]);
+    options.get_mut(&209).unwrap()["MaxValues"]=json!(vec![101;6]);
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,0,5,true).unwrap(),Some((10,10)));
+}
+
+#[tokio::test]
 async fn technomagic_reforge_charges_materials_for_both_options_without_currency() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -945,6 +1060,8 @@ async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["EquipItemResult"]["Identified"], 0);
     assert_eq!(gold(&s).await, 99000000);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+        .bind(a).fetch_one(&s.db).await.unwrap(),1);
 }
 #[tokio::test]
 async fn tickets_change_names_and_awakenings_without_replay() {

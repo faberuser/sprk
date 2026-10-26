@@ -1,0 +1,26 @@
+{
+  "OriginalSpec": {
+    "input_sha256": "1ff114021cc67aab80da7e6aa14c7e3095fcbae15978bea99ccb29051efa9eaf",
+    "archive_sha256": "6b8cd5539cbcb9df22c19282aaa981680ef2691b3a3facdae6ff4068e762fcbe",
+    "output_sha256": "f20fa6b1116c2c2ec1d82873dc51ca61c1d3ebf25fce0e54a8f8e01c395d0cfb",
+    "restored_renderers": 3,
+    "restored_textures": 4,
+    "preserved_objects": 433
+  },
+  "MidSpec": {
+    "input_sha256": "a9d852e132e1f9de599a0766c6afb6bcc80163caf15784bf0fc816fc4113a159",
+    "archive_sha256": "a244ceaac54b483144b5232b9cd8e63695c713c600d3d8310471d32264b7e618",
+    "output_sha256": "856a6c45a4102a9a3fcd63c7b1fbd6d479e1b9bed16f367e4fe1c61dc1a484fa",
+    "restored_renderers": 3,
+    "restored_textures": 4,
+    "preserved_objects": 433
+  },
+  "LowSpec": {
+    "input_sha256": "3dab350f89f9bddced3fcacf13c99dcf707c97e21f7af37dfbb934143b9e56ed",
+    "archive_sha256": "a244ceaac54b483144b5232b9cd8e63695c713c600d3d8310471d32264b7e618",
+    "output_sha256": "5cc94d8f18f51f61b47888f32f464f224472f6dac8ab08d3550d59fbc3a54c2c",
+    "restored_renderers": 3,
+    "restored_textures": 4,
+    "preserved_objects": 433
+  }
+}

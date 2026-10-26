@@ -1,4 +1,4 @@
-use sqlx::{sqlite::SqlitePool, Pool, Sqlite};
+use sqlx::{sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions}, Pool, Sqlite};
 use std::path::Path;
 
 pub type DbPool = Pool<Sqlite>;
@@ -12,7 +12,10 @@ pub async fn init_database() -> anyhow::Result<DbPool> {
         std::fs::File::create(db_path)?;
     }
     
-    let pool = SqlitePool::connect(&format!("sqlite:{}", db_path)).await?;
+    let pool = SqlitePoolOptions::new().max_connections(5)
+        .connect_with(SqliteConnectOptions::new().filename(db_path)
+            .journal_mode(SqliteJournalMode::Wal)
+            .busy_timeout(std::time::Duration::from_secs(5))).await?;
     
     // Run migrations
     create_tables(&pool).await?;
@@ -412,6 +415,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
 
     for statement in [
         "CREATE TABLE IF NOT EXISTS inventory_settings(account_id INTEGER PRIMARY KEY, inventory_extend INTEGER NOT NULL DEFAULT 0, chest_extend INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS inventory_ticket_redemptions(account_id INTEGER NOT NULL,token TEXT NOT NULL,request TEXT NOT NULL,response TEXT NOT NULL,PRIMARY KEY(account_id,token))",
         "CREATE TABLE IF NOT EXISTS craft_slots(account_id INTEGER NOT NULL, slot_index INTEGER NOT NULL, craft_index INTEGER NOT NULL DEFAULT 0, item_index INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, complete_time INTEGER NOT NULL DEFAULT 0, paid_gold INTEGER NOT NULL DEFAULT 0, materials TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(account_id,slot_index))",
         "CREATE TABLE IF NOT EXISTS item_boosters(account_id INTEGER NOT NULL, item_index INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL, PRIMARY KEY(account_id,item_index))",
     ] { sqlx::query(statement).execute(pool).await?; }
@@ -439,5 +443,10 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     crate::api::community::migrate(pool).await?;
     crate::api::system::storage::migrate(pool).await?;
     crate::api::progression::play_record::migrate(pool).await?;
+    for query in [
+        "CREATE INDEX IF NOT EXISTS heroes_account_index ON heroes(account_id,hero_index)",
+        "CREATE INDEX IF NOT EXISTS equip_account_inventory ON equip_items(account_id,inventory_type,slot_index)",
+        "CREATE INDEX IF NOT EXISTS friends_incoming ON friends(friend_account_id,status)",
+    ] { sqlx::query(query).execute(pool).await?; }
     Ok(())
 }

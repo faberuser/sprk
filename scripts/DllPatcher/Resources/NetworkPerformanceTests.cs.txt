@@ -1,0 +1,57 @@
+using System;
+using System.Collections.Generic;
+using NVespa.NWeb;
+public static class NetworkPerformanceTestRunner {
+    static void Check(bool ok,string label){if(!ok)throw new Exception(label);}
+    static WebServiceRequest Request(string session="one",string host="https://game/",string service="hero/bookmark_hero") {
+        var request=new WebServiceRequest{Host=host,ServiceName=service};SprkNetworkPerformance.Prepare(request,session);return request;
+    }
+    static object Capture(string text,WebServiceRequest request) {var reply=new object();SprkNetworkPerformance.Capture(text,request,reply);return reply;}
+    static void Apply(string text,WebServiceRequest request) {SprkNetworkPerformance.ProgressionApplied(Capture(text,request));}
+    public static void Run() {
+        var staminaManager=new object();var otherManager=new object();
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Unknown timer must retain native polling");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,0);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Unlimited World Boss timer still polls");
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Zero timer disabled another resource");
+        Check(SprkNetworkPerformance.HasStaminaClock(otherManager,18),"Clock suppression leaked across account managers");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,-1);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"Negative timer must preserve prior state");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,18,30);
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,18),"A future recharge failed to re-enable polling");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,1,0);
+        Check(!SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Full stamina still polls");
+        SprkNetworkPerformance.SetStaminaClock(staminaManager,1,12);
+        Check(SprkNetworkPerformance.HasStaminaClock(staminaManager,1),"Spending stamina must re-enable timed regeneration");
+        var first=Request();Check(!first.Headers.ContainsKey("X-SPRK-Progression"),"First request acknowledged unseen data");
+        var token=new String('a',64);var text="{\"BaseResult\":\"Success\",\"SprkProgressionToken\":\""+token+"\"}";
+        Check(!Request().Headers.ContainsKey("X-SPRK-Progression"),"Lost response advanced baseline");
+        var pending=Capture(text,first);
+        Check(!Request().Headers.ContainsKey("X-SPRK-Progression"),"Parsed but unapplied response advanced baseline");
+        SprkNetworkPerformance.ProgressionApplied(pending);
+        var queued=Request();Check(queued.Headers["X-SPRK-Progression"]==token,"Received snapshot not acknowledged");
+        var catalog=new String('b',64);
+        var shopReply=Capture("{\"SprkShopCatalogToken\":\""+catalog+"\",\"PayShopProductInfos\":[]}",queued);
+        SprkNetworkPerformance.ProgressionApplied(shopReply);
+        Check(!Request().Headers.ContainsKey("X-SPRK-Shop-Catalog"),"Timed-out lobby acknowledged an unapplied catalog");
+        SprkNetworkPerformance.CatalogApplied(shopReply);
+        Check(Request(service:"lobby/enter_lobby").Headers["X-SPRK-Shop-Catalog"]==catalog,"Shop catalog not acknowledged");
+        Check(!first.Headers.ContainsKey("X-SPRK-Progression"),"Shared queued headers mutated");
+        Check(Request(service:"lobby/enter_lobby").Headers["X-SPRK-Compact-Lobby"]=="1","Compact lobby capability missing");
+        var switched=Request("two");Check(!switched.Headers.ContainsKey("X-SPRK-Progression"),"Session leaked baseline");
+        Check(!switched.Headers.ContainsKey("X-SPRK-Shop-Catalog"),"Session leaked catalog");
+        SprkNetworkPerformance.ProgressionApplied(pending);Check(!Request("two").Headers.ContainsKey("X-SPRK-Progression"),"Late old-session response changed baseline");
+        SprkNetworkPerformance.CatalogApplied(shopReply);Check(!Request("two").Headers.ContainsKey("X-SPRK-Shop-Catalog"),"Late old-session catalog changed baseline");
+        Apply(text,switched);Check(Request("two").Headers.ContainsKey("X-SPRK-Progression"),"New-session acknowledgement missing");
+        Check(!Request("two","https://other/").Headers.ContainsKey("X-SPRK-Progression"),"Host leaked baseline");
+        var current=Request("two","https://other/");Apply(text,current);
+        Apply("{\"AchievementInfos\":[]}",current);
+        Check(!Request("two","https://other/").Headers.ContainsKey("X-SPRK-Progression"),"Explicit full refresh failed to reset baseline");
+        Apply("{\"Result\":\"Success\"}",current);
+        Check(!Request("two","https://other/").Headers.ContainsKey("X-SPRK-Progression"),"Old server fabricated acknowledgement");
+        shopReply=Capture("{\"SprkShopCatalogToken\":\""+catalog+"\"}",current);SprkNetworkPerformance.CatalogApplied(shopReply);
+        Apply("{\"PayShopProductInfos\":[]}",current);
+        Check(!Request("two","https://other/").Headers.ContainsKey("X-SPRK-Shop-Catalog"),"Explicit catalog refresh retained stale acknowledgement");
+    }
+}
+namespace NVespa.NWeb {public class WebServiceRequest {public string Host,ServiceName;public Dictionary<string,string> Headers;}}

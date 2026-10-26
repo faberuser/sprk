@@ -372,7 +372,7 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
     )
     .await;
     assert_eq!(end["Result"], "Success", "{end}");
-    assert_eq!(balance(&s, a, "world_boss_ticket").await, 1);
+    assert_eq!(balance(&s, a, "world_boss_ticket").await, 2,"World Boss entry no longer consumes tickets");
 }
 
 #[tokio::test]

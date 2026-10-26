@@ -24,6 +24,7 @@ partial class Program
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
+        VerifyMissionWorker(clientRoot);
         VerifyArcdimWorker(clientRoot);
         InstallHonorBuff(clientRoot, false);
         VerifyHonorBuffFile(clientRoot);
@@ -31,6 +32,9 @@ partial class Program
         InstallDispatch(clientRoot, false);
         VerifyDispatchFile(clientRoot);
         TestDispatch();
+        InstallNetworkPerformance(clientRoot, false);
+        VerifyNetworkPerformanceFile(clientRoot);
+        TestNetworkPerformance();
         InstallAutomation(clientRoot);
         InstallFreeCamera(clientRoot, false);
         VerifyFreeCameraFile(clientRoot);
@@ -46,12 +50,16 @@ partial class Program
         InstallPetPresentation(clientRoot, false);
         VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
+        InstallWorldBossKeys(clientRoot, false);
+        VerifyWorldBossKeysFile(clientRoot);
         InstallInventoryExpansion(clientRoot, false);
         VerifyInventoryExpansionFile(clientRoot);
         InstallSpecialShop(clientRoot, false);
         VerifySpecialShopFile(clientRoot);
         InstallShopTags(clientRoot, false);
         VerifyShopTagsFile(clientRoot);
+        InstallArtifactSelectors(clientRoot, false);
+        VerifyArtifactSelectorsFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
         VerifyNoTelemetry(clientRoot, null);

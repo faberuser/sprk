@@ -1,6 +1,37 @@
 use super::*;
 use std::collections::BTreeMap;
 
+/// Missing records mean locked to the native client. Unlock the base effect at
+/// its table-defined team level without spending currency or replacing upgrades.
+pub(crate) async fn unlock_team_buffs(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+) -> Result<Vec<Value>> {
+    let level: i64 = sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?")
+        .bind(account).fetch_one(&mut *db).await?;
+    let existing: BTreeSet<i64> = sqlx::query_scalar("SELECT idx FROM extension_state WHERE account_id=? AND kind='team_buff'")
+        .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
+    let mut added = Vec::new();
+    for row in &state.tables.inventory.team_levels {
+        let open_level = n(row, "Level");
+        if open_level <= 0 || open_level > level || existing.contains(&open_level)
+            || (n(row, "TeamLevelBuffOptionIndex") == 0 && n(row, "TeamLevelBuffBonusOptionIndex") == 0) {
+            continue;
+        }
+        let info = json!({"OpenBuffLevel":open_level,"BuffReinforce":0,"UpdatedTime":state.server_time_str()});
+        let result = sqlx::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES(?,'team_buff',?,?) ON CONFLICT(account_id,kind,idx) DO NOTHING")
+            .bind(account).bind(open_level).bind(info.to_string()).execute(&mut *db).await?;
+        if result.rows_affected() == 1 { added.push(info); }
+    }
+    Ok(added)
+}
+
+pub(crate) async fn team_snapshot(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<Vec<Value>> {
+    unlock_team_buffs(db, state, account).await?;
+    list(db, account, "team_buff").await
+}
+
 pub(crate) async fn class_snapshot(
     db: &mut SqliteConnection,
     state: &AppState,

@@ -120,8 +120,11 @@ pub struct EnterLobbyResponse {
     pub reserved_play_record_infos: Vec<serde_json::Value>,
     pub base_result: String,
     pub result: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_info: Option<UserInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub heroes: Vec<HeroInfo>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ItemInfo>,
     pub dungeon_infos: Vec<ChapterDungeonInfo>,
     pub server_time: String,
@@ -139,11 +142,42 @@ pub struct EnterLobbyResponse {
     pub friendly_info: Option<PlayerHeroFriendlyInfo>,
 }
 
-/// Handle enter lobby request
+/// Legacy lobby wrapper for direct handler tests; HTTP uses enter_lobby_http.
+#[cfg(test)]
 pub async fn enter_lobby(
     State(state): State<AppState>,
     Form(req): Form<EnterLobbyRequest>,
 ) -> Result<Json<EnterLobbyResponse>> {
+    enter_lobby_inner(state, req, false).await
+}
+
+/// The native lobby response does not define UserInfo/Heroes/Items. The patched
+/// client opts out of those legacy snapshots; initial login remains complete.
+pub async fn enter_lobby_http(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Form(req): Form<EnterLobbyRequest>,
+) -> Result<Json<EnterLobbyResponse>> {
+    let compact=headers.get("x-sprk-compact-lobby").is_some_and(|v|v=="1");
+    let session=req.session_key.as_deref().or(req.session_id.as_deref()).unwrap_or("").to_owned();
+    let mut response=enter_lobby_inner(state, req, compact).await?;
+    if compact {
+        conditional_catalog(&mut response.0.battle, &session,
+            headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
+    }
+    Ok(response)
+}
+
+fn conditional_catalog(fields: &mut serde_json::Value, session: &str, acknowledged: &str) {
+    use sha2::{Digest, Sha256};
+    let mut digest=Sha256::new();digest.update(session.as_bytes());
+    digest.update(serde_json::to_vec(&fields["PayShopProductInfos"]).unwrap());
+    let token=hex::encode(digest.finalize());
+    if token==acknowledged {fields.as_object_mut().unwrap().remove("PayShopProductInfos");}
+    fields["SprkShopCatalogToken"]=serde_json::json!(token);
+}
+
+async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: bool) -> Result<Json<EnterLobbyResponse>> {
     // Client sends SessionKey, not SessionId
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
@@ -156,62 +190,67 @@ pub async fn enter_lobby(
     let withdrawal = crate::api::battle::abandon_local_run_on_lobby(&state, account_id, &session_id).await?;
     crate::api::tutorial::restore_clause_reward(&state, account_id).await?;
 
-    // Fetch account info
-    let account_row = sqlx::query("SELECT nick FROM accounts WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_optional(&state.db)
-        .await?
-        .ok_or_else(|| ServerError::NotFound("Account not found".to_string()))?;
+    let (mut user_info, heroes, items) = if compact {
+        (None, Vec::new(), Vec::new())
+    } else {
+        // Legacy API consumers can still request the full account snapshot.
+        let account_row = sqlx::query("SELECT nick FROM accounts WHERE account_id = ?")
+            .bind(account_id)
+            .fetch_optional(&state.db)
+            .await?
+            .ok_or_else(|| ServerError::NotFound("Account not found".to_string()))?;
     
-    let nick: String = account_row.get("nick");
+        let nick: String = account_row.get("nick");
 
-    // Fetch user info
-    let user_info_row = sqlx::query("SELECT * FROM user_info WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_optional(&state.db)
-        .await?;
+        // Fetch user info
+        let user_info_row = sqlx::query("SELECT * FROM user_info WHERE account_id = ?")
+            .bind(account_id)
+            .fetch_optional(&state.db)
+            .await?;
 
-    let mut user_info = user_info_row.map(|row| UserInfo {
-        session_key: session_id.clone(),
-        account_id,
-        nick,
-        gold: row.get("gold"),
-        gem: row.get("gem"),
-        pay_gem: row.get("pay_gem"),
-        pvp_coin: row.get("pvp_coin"),
-        stamina: row.get("stamina"),
-        stamina_recharge_time: None, // Handled separately if needed
-        team_level: row.get("team_level"),
-        team_exp: row.get("team_exp"),
-        sword: row.get("sword"),
-        sword_recharge_time: None, // Handled separately if needed
-        sword2: row.get("sword2"),
-        avatar_hero_index: row.get("avatar_hero_index"),
-        royal_point: row.get("royal_point"),
-        raid_point: row.get("raid_point"),
-        mileage: row.get("mileage"),
-        friendship_point: row.get("friendship_point"),
-        guild_raid_ticket: row.get("guild_raid_ticket"),
-        world_boss_ticket: row.get("world_boss_ticket"),
-        ..Default::default()
-    });
+        let user_info = user_info_row.map(|row| UserInfo {
+            session_key: session_id.clone(),
+            account_id,
+            nick,
+            gold: row.get("gold"),
+            gem: row.get("gem"),
+            pay_gem: row.get("pay_gem"),
+            pvp_coin: row.get("pvp_coin"),
+            stamina: row.get("stamina"),
+            stamina_recharge_time: None, // Handled separately if needed
+            team_level: row.get("team_level"),
+            team_exp: row.get("team_exp"),
+            sword: row.get("sword"),
+            sword_recharge_time: None, // Handled separately if needed
+            sword2: row.get("sword2"),
+            avatar_hero_index: row.get("avatar_hero_index"),
+            royal_point: row.get("royal_point"),
+            raid_point: row.get("raid_point"),
+            mileage: row.get("mileage"),
+            friendship_point: row.get("friendship_point"),
+            guild_raid_ticket: row.get("guild_raid_ticket"),
+            world_boss_ticket: row.get("world_boss_ticket"),
+            ..Default::default()
+        });
 
-    // Fetch heroes
-    let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
+        // Fetch heroes
+        let heroes = crate::api::heroes::snapshot(&mut *state.db.acquire().await?, account_id).await?;
 
-    // Fetch items
-    let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ? AND count > 0")
-        .bind(account_id)
-        .fetch_all(&state.db)
-        .await?;
+        // Fetch items
+        let item_rows = sqlx::query("SELECT * FROM items WHERE account_id = ? AND count > 0")
+            .bind(account_id)
+            .fetch_all(&state.db)
+            .await?;
 
-    let items: Vec<ItemInfo> = item_rows.iter().map(|row| ItemInfo {
-        item_index: row.get("item_index"),
-        count: row.get("count"),
-        locked: row.get::<i32,_>("locked") as u8,
-        created_time: row.get("created_time"),
-        uid: row.get::<i32,_>("item_index").to_string(),
-    }).collect();
+        let items: Vec<ItemInfo> = item_rows.iter().map(|row| ItemInfo {
+            item_index: row.get("item_index"),
+            count: row.get("count"),
+            locked: row.get::<i32,_>("locked") as u8,
+            created_time: row.get("created_time"),
+            uid: row.get::<i32,_>("item_index").to_string(),
+        }).collect();
+        (user_info, heroes, items)
+    };
 
     // Count unread mail
     let mail_count: i32 = sqlx::query_scalar(
@@ -376,5 +415,53 @@ mod reset_tests {
         assert_eq!(reset_countdowns(at("2024-02-28T00:00:00Z")).2, 172800);
         assert_eq!(reset_countdowns(at("2026-10-05T00:00:00Z")).1, 604800);
         assert_eq!(reset_countdowns(at("2026-10-04T23:59:59Z")).1, 1);
+    }
+
+    #[tokio::test]
+    async fn compact_lobby_keeps_native_state_and_skips_legacy_inventory() {
+        let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        crate::database::create_tables(&db).await.unwrap();
+        let state=AppState::new(db,crate::tables::test_tables());
+        let login=crate::api::account::user::test_login(State(state.clone()),axum::body::Bytes::from_static(b"LoginId=compact-lobby")).await.unwrap().0;
+        let req=||EnterLobbyRequest{session_id:None,session_key:Some(login.user_info.session_key.clone())};
+        let legacy=serde_json::to_value(enter_lobby_inner(state.clone(),req(),false).await.unwrap().0).unwrap();
+        let compact=serde_json::to_value(enter_lobby_inner(state.clone(),req(),true).await.unwrap().0).unwrap();
+        for key in ["Heroes","Items","UserInfo"] {assert!(compact.get(key).is_none(),"{key}");}
+        assert!(!legacy["Heroes"].as_array().unwrap().is_empty());
+        for key in ["DungeonInfos","LoginDailyCount","AttendanceDatas","AchievementInfos","OpendMissionCategories","PayShopProductInfos"] {
+            assert_eq!(compact[key],legacy[key],"Native field changed: {key}");
+        }
+        println!("Lobby fixture bytes: legacy={}, compact={}",serde_json::to_vec(&legacy).unwrap().len(),serde_json::to_vec(&compact).unwrap().len());
+        let mut sizes=compact.as_object().unwrap().iter().map(|(k,v)|(serde_json::to_vec(v).unwrap().len(),k)).collect::<Vec<_>>();
+        sizes.sort_by(|a,b|b.0.cmp(&a.0));
+        println!("Largest lobby fields: {:?}",&sizes[..sizes.len().min(8)]);
+        let mut headers=axum::http::HeaderMap::new();headers.insert("x-sprk-compact-lobby","1".parse().unwrap());
+        let first=serde_json::to_value(enter_lobby_http(State(state.clone()),headers.clone(),Form(req())).await.unwrap().0).unwrap();
+        headers.insert("x-sprk-shop-catalog",first["SprkShopCatalogToken"].as_str().unwrap().parse().unwrap());
+        let repeated=serde_json::to_value(enter_lobby_http(State(state),headers,Form(req())).await.unwrap().0).unwrap();
+        assert!(repeated.get("PayShopProductInfos").is_none());
+        assert_eq!(first["SprkShopCatalogToken"],repeated["SprkShopCatalogToken"]);
+        assert_eq!(first["PlayerProductPurchaseInfos"],repeated["PlayerProductPurchaseInfos"]);
+        println!("Acknowledged lobby fixture bytes: {}",serde_json::to_vec(&repeated).unwrap().len());
+        use std::io::Write;
+        for (name,value) in [("first",first),("acknowledged",repeated)] {
+            let mut encoder=flate2::write::GzEncoder::new(Vec::new(),flate2::Compression::default());
+            encoder.write_all(&serde_json::to_vec(&value).unwrap()).unwrap();
+            println!("Gzip {name} lobby fixture bytes: {}",encoder.finish().unwrap().len());
+        }
+    }
+
+    #[test]
+    fn catalog_acknowledgements_resend_changed_empty_lost_and_new_session_snapshots() {
+        let catalog=serde_json::json!({"PayShopProductInfos":[{"Index":1,"Price":5}]});
+        let mut first=catalog.clone();conditional_catalog(&mut first,"one","");
+        let token=first["SprkShopCatalogToken"].as_str().unwrap();
+        let mut repeated=catalog.clone();conditional_catalog(&mut repeated,"one",token);
+        assert!(repeated.get("PayShopProductInfos").is_none());
+        for (mut value,session,ack) in [(catalog.clone(),"two",token),(catalog.clone(),"one",""),
+            (serde_json::json!({"PayShopProductInfos":[]}),"one",token),
+            (serde_json::json!({"PayShopProductInfos":[{"Index":1,"Price":6}]}),"one",token)] {
+            conditional_catalog(&mut value,session,ack);assert!(value["PayShopProductInfos"].is_array());
+        }
     }
 }

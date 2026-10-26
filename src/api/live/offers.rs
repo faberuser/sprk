@@ -117,10 +117,15 @@ async fn price(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<(i64, Val
     ))
 }
 async fn product(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
-    let mut d = products(s)
+    let configured = products(s)
         .find(|v| n(v, "Index") == id)
-        .ok_or_else(|| rule("ProductNotFound"))?
-        .clone();
+        .ok_or_else(|| rule("ProductNotFound"))?;
+    configured_product(db, s, a, configured).await
+}
+
+async fn configured_product(db: &mut SqliteConnection, s: &AppState, a: i64, configured: &Value) -> Result<Value> {
+    let id = n(configured, "Index");
+    let mut d = configured.clone();
     if let Some(category) = d["SelectionCategory"].as_str() {
         let (v, _) = selection(db, s, a, category, false).await?;
         d = v["PayShopProductInfos"]
@@ -133,13 +138,18 @@ async fn product(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Re
         let (p, _) = price(db, a, &d).await?;
         d["Price"] = json!(p);
     }
-    wire_product(s, d)
+    wire_product_with(s, d, Some(configured))
 }
 
-fn wire_product(s: &AppState, mut product: Value) -> Result<Value> {
+fn wire_product(s: &AppState, product: Value) -> Result<Value> {
+    let configured = products(s).find(|p| n(p, "Index") == n(&product, "Index"));
+    wire_product_with(s, product, configured)
+}
+
+fn wire_product_with(s: &AppState, mut product: Value, configured: Option<&Value>) -> Result<Value> {
     // Selection assortments persist their rolled items, but their cached stock
     // settings must follow the current rules after an administrator changes them.
-    if let Some(configured) = products(s).find(|p| n(p, "Index") == n(&product, "Index")) {
+    if let Some(configured) = configured {
         for field in ["PurchasableCount", "ResetSeconds", "DailyReset", "ResetType", "WeeklyReset", "MonthlyResetDate"] {
             product[field] = configured[field].clone();
         }
@@ -175,10 +185,29 @@ pub(super) async fn lobby_snapshot(db: &mut SqliteConnection, s: &AppState, a: i
         // Selection-shop offers are delivered by their native popup request.
         // Their cached rows still need the same enum-name conversion there.
         if data["SelectionCategory"].is_null() {
-            out.push(product(db, s, a, n(data, "Index")).await?);
+            out.push(configured_product(db, s, a, data).await?);
         }
     }
     Ok(json!({"PayShopProductInfos":out,"PlayerProductPurchaseInfos":purchases(db,s,a).await?}))
+}
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+    #[tokio::test]
+    async fn lobby_catalog_bulk_construction_preserves_every_native_product() {
+        let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        crate::database::create_tables(&db).await.unwrap();
+        let s=AppState::new(db,crate::tables::test_tables());
+        let login=crate::api::account::user::test_login(axum::extract::State(s.clone()),axum::body::Bytes::from_static(b"LoginId=catalog-bulk")).await.unwrap().0;
+        let a=login.user_info.account_id;let mut db=s.db.acquire().await.unwrap();
+        let bulk=lobby_snapshot(&mut db,&s,a).await.unwrap();
+        let mut reference=Vec::new();
+        for configured in products(&s).filter(|p|p["SelectionCategory"].is_null()) {
+            reference.push(product(&mut db,&s,a,n(configured,"Index")).await.unwrap());
+        }
+        assert_eq!(bulk["PayShopProductInfos"],json!(reference));
+    }
 }
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -276,7 +305,7 @@ pub(super) async fn execute(
             let base = products(s)
                 .find(|v| n(v, "Index") == id)
                 .ok_or_else(|| rule("ProductNotFound"))?;
-            if quantity > 1 && n(base, "ProductType") != 4 {
+            if quantity > 1 && !matches!(n(base, "ProductType"), 2 | 3 | 4) {
                 return Err(rule("InvalidValue"));
             }
             let d = product(db, s, a, id).await?;

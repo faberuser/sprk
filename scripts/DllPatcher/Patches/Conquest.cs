@@ -4,6 +4,37 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void TestMissionWorker() {
+        string Resource(string name) {using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!;using var reader=new StreamReader(input);return reader.ReadToEnd();}
+        var syntax=CSharpSyntaxTree.ParseText(Resource("Conquest.cs.txt")).GetRoot();
+        var method=syntax.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="CaptureDefeats");
+        var fixture=Resource("MissionWorkerTests.cs.txt").Replace("/* CAPTURE */",method.ToFullString());
+        var compilation=CSharpCompilation.Create("MissionWorkerTests-"+Guid.NewGuid().ToString("N"),
+            new[]{CSharpSyntaxTree.ParseText(fixture)},
+            ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p=>MetadataReference.CreateFromFile(p)),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var output=new MemoryStream();var result=compilation.Emit(output);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
+        System.Reflection.Assembly.Load(output.ToArray()).GetType("MissionWorkerFixture")!.GetMethod("Test")!.Invoke(null,null);
+        Console.WriteLine("PASS: actual worker capture excludes live/friendly/arena actors and counts each enemy once per wave.");
+    }
+    static void VerifyMissionWorker(string clientRoot, bool staged=false) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"+(staged?".staged":"")));
+        var worker=helper.MainModule.GetType("SprkConquest");
+        var run=worker.NestedTypes.Single(t=>t.Name=="Run");
+        var capture=run.Methods.Single(m=>m.Name=="CaptureDefeats");
+        var ops=capture.Body.Instructions;
+        foreach(var name in new[]{"get_TeamId","get_Hp","get_MaxHp","get_Key","Add"})
+            if(!ops.Any(i=>i.Operand is MethodReference m && m.Name==name))
+                throw new InvalidOperationException("Worker defeat capture missing enemy/death/deduplication check: "+name);
+        foreach(var method in new[]{run.Methods.Single(m=>m.Name=="OnProcessBattleLog"),worker.Methods.Single(m=>m.Name=="Finish")})
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==capture.Name))
+                throw new InvalidOperationException("Worker must capture defeats at wave and battle completion.");
+        if(!worker.Methods.Single(m=>m.Name=="Finish").Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr && (string?)i.Operand=="DefeatedCreatures"))
+            throw new InvalidOperationException("Worker mission defeat result missing.");
+        Console.WriteLine("Verified worker enemy defeats, wave capture, duplicate suppression and mission result.");
+    }
     static void VerifyConquestSessionCache(string clientRoot,bool staged) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".conquest-staged":"")));
@@ -100,6 +131,7 @@ partial class Program {
         Console.WriteLine("Verified continuous worker clock synchronizes native battle playback.");
     }
     static void InstallConquest(string clientRoot,bool stageOnly) {
+        TestMissionWorker();
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");
         using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Conquest.cs.txt")!;
@@ -167,9 +199,13 @@ partial class Program {
             il.InsertAfter(ret,call);il.InsertAfter(call,Instruction.Create(OpCodes.Ret));
         }
         var staged=dll+".conquest-staged";File.WriteAllBytes(Path.Combine(managed,"SprkConquest.dll.staged"),compiled.ToArray());assembly.Write(staged);
+        VerifyMissionWorker(clientRoot,true);
         if(!stageOnly) {
+            if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))
+                throw new InvalidOperationException("Conquest patch staged. Close game clients and shared-asset workers before installation.");
             File.Copy(dll,dll+".before-conquest-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));assembly.Dispose();
             File.Move(staged,dll,true);File.Move(Path.Combine(managed,"SprkConquest.dll.staged"),Path.Combine(managed,"SprkConquest.dll"),true);
+            VerifyMissionWorker(clientRoot);
         }
         Console.WriteLine(stageOnly?"Staged Conquest native combat worker and multiplayer hooks":"Installed Conquest native combat worker and multiplayer hooks");
     }

@@ -54,6 +54,12 @@ pub(super) async fn charge_reserved(
     if cost < 0 {
         return Err(rule("InvalidCost"));
     }
+    // World Boss attempts are unlimited. Keep a positive native balance for
+    // entry checks, without consuming or replenishing the old daily key ledger.
+    if matches!(kind, 11 | 18) {
+        return Ok(json!({"Type":KEYS[kind as usize],"AddValue":0,"NewValue":1,
+            "NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}));
+    }
     if cost>0 && kind>0 && !matches!(kind,3|4|7) {
         let held=super::entry_costs::held(db,a,"Stamina",kind).await?;
         if held>0 {

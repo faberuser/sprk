@@ -9,6 +9,43 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
+async fn point_currencies_accept_balances_above_old_caps_up_to_i32_max() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut db = s.db.acquire().await.unwrap();
+    sqlx::query("UPDATE user_info SET pvp_coin=0, raid_point=0 WHERE account_id=?")
+        .bind(a).execute(&mut *db).await.unwrap();
+    for (kind, old_cap) in [
+        ("PvpCoin", 700_000), ("GloryPoint", 300_000), ("RankingPoint", 20_000),
+        ("OrdealArenaPoint", 70_000), ("RaidPoint", 300_000_000),
+        ("WorldBossPoint", 700_000), ("GuildPoint", 4_000_000), ("GuildArenaPoint", 100_000),
+    ] {
+        let first = crate::api::heroes::currency(&mut db, a, kind, old_cap + 1).await.unwrap();
+        assert_eq!(first["NewValue"], old_cap + 1, "{kind}");
+        let capped = crate::api::heroes::currency(&mut db, a, kind, i32::MAX as i64 - old_cap - 1).await.unwrap();
+        assert_eq!(capped["NewValue"], i32::MAX, "{kind}");
+        assert!(crate::api::heroes::currency(&mut db, a, kind, 1).await.is_err(), "{kind}");
+        let spent = crate::api::heroes::currency(&mut db, a, kind, -1).await.unwrap();
+        assert_eq!(spent["NewValue"], i32::MAX - 1, "{kind}");
+    }
+}
+
+#[tokio::test]
+async fn initialized_inventory_reads_without_row_changes_and_repairs_rolled_back_slots() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut db=s.db.acquire().await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&mut *db).await.unwrap();
+    item::init(&mut db,&s,a).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&mut *db).await.unwrap(),before);
+    sqlx::query("DELETE FROM craft_slots WHERE account_id=? AND slot_index=1").bind(a).execute(&mut *db).await.unwrap();
+    use sqlx::Connection;
+    let mut tx=db.begin().await.unwrap();item::init(&mut tx,&s,a).await.unwrap();tx.rollback().await.unwrap();
+    assert!(!sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=? AND slot_index=1)").bind(a).fetch_one(&mut *db).await.unwrap());
+    item::init(&mut db,&s,a).await.unwrap();
+    assert!(sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=? AND slot_index=1)").bind(a).fetch_one(&mut *db).await.unwrap());
+}
+
+#[tokio::test]
 async fn unequip_all_preserves_native_repeated_slots_and_clears_every_gear_position() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -115,6 +152,46 @@ async fn login(state: &AppState) -> user::LoginResponse {
     .unwrap()
     .0
 }
+
+#[tokio::test]
+async fn gold_64_bit_payments_and_grants_preserve_large_balances_and_integer_storage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for initial in [2_147_483_648_i64,7_782_963_002,10_000_000_000] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(initial).bind(a).execute(&s.db).await.unwrap();
+        let mut c=s.db.acquire().await.unwrap();
+        let paid=item::money(&mut c,a,"Gold",-100_000).await.unwrap();
+        assert_eq!(paid["NewValue"],initial-100_000);assert_eq!(paid["AddValue"],-100_000);
+        let earned=item::money(&mut c,a,"Gold",200_000).await.unwrap();
+        assert_eq!(earned["NewValue"],initial+100_000);
+        assert_eq!(sqlx::query_scalar::<_,String>("SELECT typeof(gold) FROM user_info WHERE account_id=?").bind(a).fetch_one(&mut *c).await.unwrap(),"integer");
+        drop(c);assert_eq!(login(&s).await.user_info.gold,initial+100_000);
+    }
+}
+
+#[tokio::test]
+async fn gold_64_bit_bounds_reject_overflow_and_insufficient_funds_without_mutation() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut c=s.db.acquire().await.unwrap();
+    for (balance,amount) in [(i64::MAX,1),(i64::MAX-10,11),(0,-1),(100,-101),(i64::MAX,i64::MIN)] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(balance).bind(a).execute(&mut *c).await.unwrap();
+        assert!(item::money(&mut c,a,"Gold",amount).await.is_err());
+        let saved:(i64,String)=sqlx::query_as("SELECT gold,typeof(gold) FROM user_info WHERE account_id=?").bind(a).fetch_one(&mut *c).await.unwrap();
+        assert_eq!(saved,(balance,"integer".into()));
+    }
+    assert_eq!(item::money(&mut c,a,"Gold",-1).await.unwrap()["NewValue"],i64::MAX-1);
+    assert_eq!(item::money(&mut c,a,"Gold",1).await.unwrap()["NewValue"],i64::MAX);
+}
+
+#[tokio::test]
+async fn gold_64_bit_spending_preserves_reserved_entry_costs() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut c=s.db.acquire().await.unwrap();let balance=7_782_963_002_i64;
+    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(balance).bind(a).execute(&mut *c).await.unwrap();
+    sqlx::query("INSERT INTO battle_entry_holds VALUES(?,'gold-test','Currency',3,?,?)").bind(a).bind(balance-100).bind(chrono::Utc::now().timestamp()+1000).execute(&mut *c).await.unwrap();
+    assert!(item::money(&mut c,a,"Gold",-101).await.is_err());
+    assert_eq!(item::money(&mut c,a,"Gold",-100).await.unwrap()["NewValue"],balance-100);
+    assert!(item::money(&mut c,a,"Gold",-1).await.is_err());
+}
 fn form(u: &user::LoginResponse, fields: &str) -> Bytes {
     Bytes::from(format!("SessionKey={}&{fields}", u.user_info.session_key))
 }
@@ -158,6 +235,65 @@ async fn hero_level_equipment_repairs_login_without_changing_ordinary_gear_or_ot
     sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(other.user_info.account_id).execute(&s.db).await.unwrap();
     assert!(super::hero_level::synchronize(&mut *s.db.acquire().await.unwrap(),&s,other.user_info.account_id).await.unwrap().is_empty());
     assert_eq!(login(&s).await.equip_items.iter().find(|e|e.slot_index as i64==slots[0]).unwrap().level,90);
+}
+
+#[tokio::test]
+async fn hero_level_equipment_synchronizes_spare_uw_and_ut_copies_to_their_own_heroes() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE heroes SET level=90 WHERE account_id=? AND hero_index=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) SELECT ?,90031,31,80,5 WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=31)")
+        .bind(a).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=80 WHERE account_id=? AND hero_index=31")
+        .bind(a).execute(&s.db).await.unwrap();
+    let mut copies=Vec::new();
+    // Kasel UW/UT and Arch's reported UT: stale high and low copies, in both bags.
+    for item in [1001,101001,101031] {
+        for (level,bag) in [(1,0),(100,1)] {
+            let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,level,star,locked,inventory_type,option_index_1,option_step_1) VALUES(?,?,?,3,1,?,14,3)")
+                .bind(a).bind(item).bind(level).bind(bag).execute(&s.db).await.unwrap().last_insert_rowid();
+            copies.push((slot,item,bag));
+        }
+    }
+    // One UW and UT equipped; all other copies remain unequipped.
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_7=? WHERE account_id=? AND hero_index=1")
+        .bind(copies[0].0).bind(copies[2].0).bind(a).execute(&s.db).await.unwrap();
+    let snapshot=login(&s).await;
+    for &(slot,item,bag) in &copies {
+        let gear=snapshot.equip_items.iter().find(|e|e.slot_index as i64==slot).unwrap();
+        assert_eq!(gear.level,if item==101031 {80}else{90});
+        let metadata:(i32,i32,i32,i32,i32)=sqlx::query_as("SELECT star,locked,inventory_type,option_index_1,option_step_1 FROM equip_items WHERE slot_index=?")
+            .bind(slot).fetch_one(&s.db).await.unwrap();
+        assert_eq!(metadata,(3,1,bag,14,3));
+    }
+    // Live notifications and full snapshots must agree after either hero changes.
+    sqlx::query("UPDATE heroes SET level=CASE hero_index WHEN 1 THEN 40 WHEN 31 THEN 70 ELSE level END WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    for &(slot,item,_) in &copies {
+        let expected=if item==101031 {70}else{40};
+        let update=out["ReservedUpdatedEquipItemInfos"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(update["Level"],expected);
+        let gear=out["EquipItems"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(gear["Level"],expected);
+    }
+    // Use a valid low starting level so every EXP potion can advance the hero.
+    sqlx::query("UPDATE heroes SET level=1,exp=0 WHERE account_id=? AND hero_index=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    let (id,_)=potion(&s,3);
+    put(&s,&u,id,3).await;
+    let out=hero_level_request(&s,&u,"/item/use_potion_item",&format!("HeroIndex=1&ItemIndex={id}&ItemCount=3")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    let level=out["HeroExpResult"]["NewLevel"].as_i64().unwrap();
+    assert!(level>1);
+    for &(slot,item,_) in &copies {
+        if item==101031 {continue;}
+        let update=out["ReservedUpdatedEquipItemInfos"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(update["Level"],level);
+    }
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    assert!(out.get("ReservedUpdatedEquipItemInfos").is_none(),"Unchanged copies must not cause repeated notifications");
 }
 
 #[tokio::test]
@@ -379,9 +515,9 @@ async fn entry_refill_items_use_native_stamina_types_and_keep_their_timers() {
         let result = item::use_potion_item(State(state.clone()),form(&u,&format!("ItemIndex={id}&ItemCount=1"))).await.unwrap().0;
         assert_eq!(result["Result"],"Success","{name}: {result}");
         assert_eq!(result["StaminaResult"]["Type"],name);
-        assert_eq!(item::n(&result["StaminaResult"],"NewValue"),item::n(&before,"NewValue")+amount);
+        assert_eq!(item::n(&result["StaminaResult"],"NewValue"),if matches!(kind,11|18) {1}else{item::n(&before,"NewValue")+amount});
         assert_eq!(count(&state,&u,id).await,1);
-        if item::n(def,"UpdateType") == 2 {
+        if item::n(def,"UpdateType") == 2 && !matches!(kind,11|18) {
             assert!(item::n(&result["StaminaResult"],"NextRechargeRemainTime")>0,"{name}: {result}");
         }
     }
@@ -2045,6 +2181,35 @@ async fn soul_stone_selectors_use_stackable_response_and_cannot_fake_equipment()
 }
 
 #[tokio::test]
+async fn kings_pass_artifacts_are_selectable_from_normal_and_lua_tickets_only() {
+    let (s,u)=setup().await;
+    let resource:Value=serde_json::from_str(include_str!("../../../scripts/DllPatcher/Resources/ArtifactSelectorPools.json")).unwrap();
+    for ticket in [3030,2013] {
+        let pool=&s.tables.inventory.equipment_selectors[&ticket]["ItemIndices"];
+        let client=resource.as_array().unwrap().iter().find(|row|row["ItemIndex"]==ticket).unwrap();
+        assert_eq!(*pool,client["Choices"],"Client/server selector pools must agree");
+        put(&s,&u,ticket,3).await;
+        let denied=item::use_weapon_unique_select_item(State(s.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex=150999"))).await.unwrap().0;
+        assert_ne!(denied["Result"],"Success");
+        assert_eq!(count(&s,&u,ticket).await,3);
+        for selected in [150900,150901,150902] {
+            assert_eq!(pool.as_array().unwrap().iter().filter(|v|**v==selected).count(),1);
+            let result=item::use_weapon_unique_select_item(State(s.clone()),form(&u,
+                &format!("ItemIndex={ticket}&ItemCount=1&WeaponUniqueItemIndex={selected}"))).await.unwrap().0;
+            assert_eq!(result["Result"],"Success","{result}");
+            assert_eq!(result["EquipItemResults"][0]["ItemIndex"],selected);
+            assert_eq!(result["EquipItemResults"][0]["Star"],0);
+        }
+        assert_eq!(count(&s,&u,ticket).await,0);
+    }
+    for (ticket,pool) in &s.tables.inventory.equipment_selectors {
+        if [3030,2013].contains(ticket) {continue;}
+        assert!(!pool["ItemIndices"].as_array().unwrap().iter().any(|v|[150900,150901,150902].iter().any(|id|*v==*id)),"Unrelated ticket changed: {ticket}");
+    }
+}
+
+#[tokio::test]
 async fn restored_selectors_grant_late_hero_weapons_treasures_and_souls() {
     let (s, u) = setup().await;
     // The archived normal UW ticket excludes NPC-only weapons. Universal
@@ -2303,19 +2468,73 @@ async fn large_inventory_ticket_adds_400_slots_caps_at_1400_and_preserves_unused
     assert_eq!(remaining().await.unwrap(), 2);
     assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0["Result"], "Success");
     assert_eq!(remaining().await.unwrap(), 2);
-    // A partial final ticket adds only the 80 slots remaining, without spending rubies.
+    // A partial final ticket adds 80 slots and compensates the unused 320 slots.
     sqlx::query("UPDATE inventory_settings SET inventory_extend=130 WHERE account_id=?").bind(a).execute(&state.db).await.unwrap();
     assert_ne!(item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=2")).await.unwrap().0["Result"], "Success");
     assert_eq!(remaining().await.unwrap(), 2);
-    let result = item::use_potion_item(State(state.clone()), form(&u, "ItemIndex=2401&ItemCount=1")).await.unwrap().0;
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={}&ExpectedInventoryExtend=130&ExpectedCompensationGem=10000",uuid::Uuid::new_v4().simple());
+    let result = item::use_potion_item(State(state.clone()), form(&u, &args)).await.unwrap().0;
     assert_eq!(result["Result"], "Success");
     assert_eq!(result["NewInventoryExtend"], 140);
     assert_eq!(remaining().await.unwrap(), 1);
-    assert_eq!(login(&state).await.user_info.gem, 100000);
+    assert_eq!(login(&state).await.user_info.gem, 110000);
     // The actual server delivery check uses the increased 1400-slot capacity.
     let mut db = state.db.acquire().await.unwrap();
     assert!(item::capacity(&mut db, &state, a, 0, 1400).await.is_ok());
     assert!(item::capacity(&mut db, &state, a, 0, 1401).await.is_err());
+}
+
+#[tokio::test]
+async fn large_inventory_ticket_partial_compensation_matches_confirmation_and_retries_once() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    put(&s,&u,2401,3).await;
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=115 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET pay_gem=123 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let token=uuid::Uuid::new_v4().simple();
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={token}&ExpectedInventoryExtend=115&ExpectedCompensationGem=6250");
+    let use_ticket=|args:&str|item::use_potion_item(State(s.clone()),form(&u,args));
+    let result=use_ticket(&args).await.unwrap().0;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_eq!(result["NewInventoryExtend"],140);
+    assert_eq!(result["CurrencyResult"]["AddValue"],6250);
+    assert_eq!(count(&s,&u,2401).await,2);
+    let after=login(&s).await;assert_eq!(after.user_info.gem,106250);assert_eq!(after.user_info.pay_gem,123);
+    // Another balance change must not be overwritten in a retried response.
+    sqlx::query("UPDATE user_info SET gem=gem+1 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let retry=use_ticket(&args).await.unwrap().0;
+    assert_eq!(retry["Result"],"Success");assert_eq!(retry["CurrencyResult"]["NewValue"],106374); // free + paid gem total
+    assert_eq!(retry["CurrencyResult"]["AddValue"],0);
+    assert_eq!(count(&s,&u,2401).await,2);
+    assert_eq!(login(&s).await.user_info.gem,106251);
+    let forged=use_ticket(&args.replace("6250","12500")).await.unwrap().0;
+    assert_ne!(forged["Result"],"Success");
+    assert_eq!(count(&s,&u,2401).await,2);
+    let used:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='UsePotionItem' AND arg=2401").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(used,1,"Retry must not advance item-use missions twice");
+}
+
+#[tokio::test]
+async fn large_inventory_ticket_full_compensation_validates_quote_ownership_and_atomic_currency_cap() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    put(&s,&u,2401,2).await;
+    sqlx::query("UPDATE inventory_settings SET inventory_extend=140 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let args=format!("ItemIndex=2401&ItemCount=1&InventoryTicketToken={}&ExpectedInventoryExtend=140&ExpectedCompensationGem=12500",uuid::Uuid::new_v4().simple());
+    for bad in ["ItemIndex=2401&ItemCount=1".to_owned(),args.replace("12500","99999"),args.replace("Extend=140","Extend=115"),args.replace("ItemCount=1","ItemCount=2")] {
+        assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&bad)).await.unwrap().0["Result"],"Success");
+        assert_eq!(count(&s,&u,2401).await,2);
+    }
+    sqlx::query("UPDATE user_info SET gem=2147483647 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&args)).await.unwrap().0["Result"],"Success");
+    assert_eq!(count(&s,&u,2401).await,2,"Failed currency grant must roll back ticket consumption");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM inventory_ticket_redemptions WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    sqlx::query("UPDATE user_info SET gem=100000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let out=item::use_potion_item(State(s.clone()),form(&u,&args)).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");assert_eq!(out["NewInventoryExtend"],140);assert_eq!(out["CurrencyResult"]["AddValue"],12500);
+    assert_eq!(count(&s,&u,2401).await,1);assert_eq!(login(&s).await.user_info.gem,112500);
+    let new_request=args.replace(&args.split("InventoryTicketToken=").nth(1).unwrap().split('&').next().unwrap(),&uuid::Uuid::new_v4().simple().to_string());
+    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=2401").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&new_request)).await.unwrap().0["Result"],"Success");
+    assert_eq!(login(&s).await.user_info.gem,112500);
 }
 
 #[tokio::test]

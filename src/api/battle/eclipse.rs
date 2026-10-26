@@ -450,6 +450,7 @@ async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64, run: &mut Value
     run["IsPlayEclipse"] = json!(false);
     run["TeamActive"] = json!(false);
     run["RewardedTime"] = json!(time(now()));
+    crate::api::progression::record(db,a,"EndEclipse",0,0,1).await?;
     let mut out = rewards(db, s, a, reward).await?;
     out["EclipseDungeonInfo"] = dungeon_info(run);
     put(db, a, "eclipse", 0, run).await?;
