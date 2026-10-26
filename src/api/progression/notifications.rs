@@ -26,10 +26,9 @@ pub(crate) fn subquest_updates(state: &AppState, session_key: &str, infos: &Valu
 
 pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: Next) -> Response {
     let path = request.uri().path();
-    // Inbox reads do not advance gameplay progress. Leave their bodies and
-    // responses untouched; attachment claims still refresh mission progress.
-    if matches!(path, "/mail/check_new_mail" | "/mail/get_mail_list"
-        | "/mail/get_mail_list_by_page" | "/mail/get_global_mail_list" | "/mail/list") {
+    // Confirmed reads and cosmetic edits do not advance gameplay progress.
+    // Reward claims and unknown mutations still refresh missions.
+    if crate::api::system::performance::observation(path) || crate::api::system::performance::cosmetic(path) {
         return next.run(request).await;
     }
     let family = path.split('/').nth(1).unwrap_or("");
@@ -55,6 +54,8 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     ) {
         return next.run(request).await;
     }
+    let acknowledged = request.headers().get("x-sprk-progression")
+        .and_then(|v|v.to_str().ok()).unwrap_or("").to_owned();
     let (parts, body) = request.into_parts();
     let Ok(bytes) = to_bytes(body, 2 * 1024 * 1024).await else {
         return Response::builder().status(413).body(Body::empty()).unwrap();
@@ -100,14 +101,7 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     .await;
     match updates {
         Ok(updates) => {
-            for (wire, field) in [
-                ("AchievementInfos", "AchievementInfos"),
-                ("ReservedMainQuestInfo", "MainQuestInfo"),
-                ("ReservedClearMissionInfos", "ClearMissionInfos"),
-                ("ReservedPlayRecordInfos", "PlayRecordInfos"),
-            ] {
-                value[wire] = updates[field].clone();
-            }
+            append_snapshots(&mut value, &updates, &session_key, &acknowledged);
             value["ReservedSubQuestInfos"] = json!(subquest_updates(&state, &session_key, &updates["SubQuestInfos"]));
             match serde_json::to_vec(&value) {
                 Ok(bytes) => {
@@ -121,5 +115,50 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             tracing::warn!(%e,"Could not append progression notification");
             Response::from_parts(parts, Body::from(bytes))
         }
+    }
+}
+
+/// A client acknowledges only a snapshot it has received. Lost responses and
+/// new sessions therefore cause a full resend. Achievements replace native state,
+/// so never send a partial AchievementInfos array.
+fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowledged: &str) {
+    use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    digest.update(session.as_bytes());
+    let fields = [
+        ("AchievementInfos", "AchievementInfos"),
+        ("ReservedMainQuestInfo", "MainQuestInfo"),
+        ("ReservedClearMissionInfos", "ClearMissionInfos"),
+        ("ReservedPlayRecordInfos", "PlayRecordInfos"),
+    ];
+    for (_, field) in fields { digest.update(serde_json::to_vec(&updates[field]).unwrap()); }
+    let token = hex::encode(digest.finalize());
+    if token != acknowledged {
+        for (wire, field) in fields {
+            value[wire] = updates[field].clone();
+        }
+    }
+    value["SprkProgressionToken"] = json!(token);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn acknowledged_snapshots_resend_changes_losses_and_session_changes() {
+        let mut updates=json!({"AchievementInfos":[{"AchievementIndex":1,"Achievement":2},{"AchievementIndex":2,"Achievement":3}],
+            "MainQuestInfo":{"Step":1},"ClearMissionInfos":[],"PlayRecordInfos":[]});
+        let mut first=json!({});append_snapshots(&mut first,&updates,"session","");
+        let token=first["SprkProgressionToken"].as_str().unwrap();
+        let mut repeated=json!({});append_snapshots(&mut repeated,&updates,"session",token);
+        assert!(repeated.get("AchievementInfos").is_none());
+        assert!(serde_json::to_vec(&repeated).unwrap().len()<serde_json::to_vec(&first).unwrap().len());
+        let mut lost=json!({});append_snapshots(&mut lost,&updates,"session","");assert_eq!(lost,first);
+        let mut new_session=json!({});append_snapshots(&mut new_session,&updates,"other",token);
+        assert_eq!(new_session["AchievementInfos"],first["AchievementInfos"]);
+        updates["AchievementInfos"][0]["Achievement"]=json!(4);
+        let mut changed=json!({});append_snapshots(&mut changed,&updates,"session",token);
+        assert_eq!(changed["AchievementInfos"].as_array().unwrap().len(),2);
+        assert_ne!(changed["SprkProgressionToken"],token);
     }
 }

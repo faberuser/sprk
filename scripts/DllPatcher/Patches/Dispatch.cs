@@ -21,8 +21,13 @@ partial class Program {
         var module=assembly.MainModule;var worker=helper.MainModule.Types.Single(t=>t.Name=="SprkDispatch");
         var rejected=module.ImportReference(worker.Methods.Single(m=>m.Name=="StartRejected"));
         foreach(var method in module.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody && m.Parameters.Count==1 && m.Parameters[0].ParameterType.FullName=="NShared.StartDispatch.Response")) {
-            if(!method.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr && (i.Operand as string)?.Contains("Failed to StartDispatch")==true)
-                || method.Body.Instructions.Any(i=>i.Operand is MethodReference call && call.Name=="StartRejected"))continue;
+            if(!method.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr && (i.Operand as string)?.Contains("Failed to StartDispatch")==true))continue;
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference call && call.DeclaringType.Name=="SprkDispatch" && call.Name=="Started")) {
+                var first=method.Body.Instructions[0];var startIl=method.Body.GetILProcessor();
+                startIl.InsertBefore(first,Instruction.Create(OpCodes.Ldarg,method.Parameters[0]));
+                startIl.InsertBefore(first,Instruction.Create(OpCodes.Call,module.ImportReference(worker.Methods.Single(m=>m.Name=="Started"))));
+            }
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference call && call.Name=="StartRejected"))continue;
             var failure=method.Body.Instructions.Single(i=>i.OpCode==OpCodes.Ldstr && (i.Operand as string)?.Contains("Failed to StartDispatch")==true);
             var log=method.Body.Instructions.SkipWhile(i=>i!=failure).First(i=>i.Operand is MethodReference call && call.Name=="Invoke");
             var il=method.Body.GetILProcessor();var response=Instruction.Create(OpCodes.Ldarg,method.Parameters[0]);
@@ -82,7 +87,7 @@ partial class Program {
         var calls=assembly.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody)
             .SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>()
             .Where(m=>m.DeclaringType.Name=="SprkDispatch").ToArray();
-        foreach(var name in new[]{"Ensure","Tick","Seed","StartRejected"})
+        foreach(var name in new[]{"Ensure","Tick","Seed","StartRejected","Started"})
             if(calls.Count(m=>m.Name==name)!=1)throw new InvalidOperationException("Missing or duplicate dispatch hook: "+name);
         var code=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).ToArray();
         foreach(var literal in new[]{"Progressive","SimulationResults","TimeMs","Outcome"})

@@ -42,11 +42,23 @@ pub(crate) fn data(state: &AppState, index: i32) -> Result<&Value> {
         .ok_or_else(|| rule("ItemDataNotFound"))
 }
 pub(crate) async fn init(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<()> {
+    // Mutation callers use deferred SQLx transactions. Reserve the SQLite writer
+    // before any reads to avoid read-to-write upgrade races (including WAL's
+    // SQLITE_BUSY_SNAPSHOT). WHERE 0 changes no rows or database pages.
+    sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0")
+        .execute(&mut *db).await?;
+    let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
+    // Check persisted state instead of caching initialization before its caller's
+    // transaction commits. This also repairs old accounts and missing slots.
+    let ready: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=?) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=? AND slot_index BETWEEN 1 AND ?) = ?")
+        .bind(account).bind(account).bind(slots).bind(slots)
+        .fetch_one(&mut *db).await?;
+    if ready { return Ok(()); }
     sqlx::query("INSERT OR IGNORE INTO inventory_settings(account_id) VALUES (?)")
         .bind(account)
         .execute(&mut *db)
         .await?;
-    for slot in 1..=state.tables.inventory.constant("CraftSlotCountMin", 2) {
+    for slot in 1..=slots {
         sqlx::query("INSERT OR IGNORE INTO craft_slots(account_id,slot_index) VALUES (?,?)")
             .bind(account)
             .bind(slot)

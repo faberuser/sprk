@@ -31,6 +31,9 @@ partial class Program
         InstallDispatch(clientRoot, false);
         VerifyDispatchFile(clientRoot);
         TestDispatch();
+        InstallNetworkPerformance(clientRoot, false);
+        VerifyNetworkPerformanceFile(clientRoot);
+        TestNetworkPerformance();
         InstallAutomation(clientRoot);
         InstallFreeCamera(clientRoot, false);
         VerifyFreeCameraFile(clientRoot);

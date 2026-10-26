@@ -18,6 +18,8 @@ public sealed class SprkDispatch : MonoBehaviour {
     static SprkDispatch instance;
     bool busy;
     float nextPoll;
+    bool wakePending;
+    string publishedSnapshot;
     bool loggedReady;
     public string LastStatus, LastError;
     BattleSimulationInstance active;
@@ -35,6 +37,10 @@ public sealed class SprkDispatch : MonoBehaviour {
         var go=new GameObject("SprkDispatch");
         DontDestroyOnLoad(go);instance=go.AddComponent<SprkDispatch>();
         Debug.Log("SPRK dispatch simulator initialized");
+    }
+    public static void Started(NShared.StartDispatch.Response response) {
+        if(response==null || response.BaseResult!=BaseResultType.Success || response.Result!=NShared.StartDispatch.ResultType.Success)return;
+        Ensure();instance.nextPoll=0f;instance.wakePending=true;
     }
     public static string HelpText(string text) {
         if(text==null)return text;
@@ -70,7 +76,9 @@ public sealed class SprkDispatch : MonoBehaviour {
     }
     void PollIfReady() {
 
-        if(busy || Time.realtimeSinceStartup<nextPoll || !Ready())return;
+        if(busy || !Ready())return;
+        if(owner!=Account().UserInfo.AccountId || ownerSession!=Session())nextPoll=0f;
+        if(Time.realtimeSinceStartup<nextPoll)return;
         if(!loggedReady) {loggedReady=true;Debug.Log("SPRK dispatch simulator ready");}
         nextPoll=Time.realtimeSinceStartup+3f;StartCoroutine(Poll());
     }
@@ -91,11 +99,12 @@ public sealed class SprkDispatch : MonoBehaviour {
         busy=true;
         try {
             long accountId=Account().UserInfo.AccountId;
-            if(owner!=accountId || ownerSession!=Session()) {prepared.Clear();owner=accountId;ownerSession=Session();}
+            if(owner!=accountId || ownerSession!=Session()) {prepared.Clear();publishedSnapshot=null;owner=accountId;ownerSession=Session();}
             string pollSession=Session();
             string body=null;
             yield return Post("dispatch/get_dispatch_list",new Dictionary<string,string>(),v=>body=v);
             if(!Ready() || Account().UserInfo.AccountId!=owner || Session()!=pollSession)yield break;
+            nextPoll=Time.realtimeSinceStartup+15f;
             if(body==null) {Debug.LogWarning("SPRK dispatch list request failed");yield break;}
             var reply=LitJson.JsonMapper.ToObject(body);
             if(reply==null || reply["Result"].valueStr!="Success" || !reply["DispatchBattleInfos"].IsArray())yield break;
@@ -112,7 +121,10 @@ public sealed class SprkDispatch : MonoBehaviour {
                 }
             }
             reply.ReleaseAll();
-            if(jobs.Any(j=>j.State=="Battle" || j.State=="ReadyToComplete"))DispatchHelper.SendRQGetDispatchList(null);
+            nextPoll=Time.realtimeSinceStartup+(jobs.Length==0?30f:3f);
+            if(body!=publishedSnapshot && (jobs.Length>0 || publishedSnapshot!=null)) {
+                publishedSnapshot=body;DispatchHelper.SendRQGetDispatchList(null);
+            }
             LastStatus="Received "+jobs.Length+" jobs";
             var pending=new HashSet<string>(jobs.Where(NeedsPreparation).Select(j=>j.SimulationJobId));
             foreach(var key in prepared.Keys.ToArray())if(!pending.Contains(key))prepared.Remove(key);
@@ -121,7 +133,7 @@ public sealed class SprkDispatch : MonoBehaviour {
                 if(!NeedsPreparation(job))continue;
                 yield return Prepare(job);
             }
-        } finally {busy=false;}
+        } finally {busy=false;if(wakePending){wakePending=false;nextPoll=0f;}}
     }
     public static bool NeedsPreparation(Job job) {
         return job!=null && job.SimulationVersion==1 && (job.State=="Simulation" || job.State=="Battle")

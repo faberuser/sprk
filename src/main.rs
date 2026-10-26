@@ -17,6 +17,7 @@ use axum::{
 use std::net::SocketAddr;
 use std::path::Path;
 use tower_http::{
+    compression::{CompressionLayer, predicate::{DefaultPredicate, Predicate, SizeAbove}},
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
@@ -51,14 +52,7 @@ async fn main() -> anyhow::Result<()> {
     } else {
         None
     };
-    let app = service_router(game_routes, update_routes)
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
-        .layer(TraceLayer::new_for_http());
+    let app = http_router(service_router(game_routes, update_routes));
 
     let port: u16 = std::env::var("PORT")
         .ok()
@@ -72,6 +66,22 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     Ok(())
 }
+
+fn http_router(router: Router) -> Router {
+    router
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
+        .layer(middleware::from_fn(api::system::performance::measure))
+        .layer(CompressionLayer::new().compress_when(DefaultPredicate::new().and(SizeAbove::new(1024))))
+        .layer(TraceLayer::new_for_http())
+}
+
+#[cfg(test)]
+mod performance_tests;
 
 // Game state and middleware are confined to this router. Update downloads never
 // initialize a database, chat/battle listeners, or a native worker.
@@ -188,8 +198,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/first/lobby", post(api::account::lobby::first_lobby))
         .route("/user/first_lobby", post(api::account::lobby::first_lobby))
         // Enter lobby
-        .route("/enter/lobby", post(api::account::lobby::enter_lobby))
-        .route("/lobby/enter_lobby", post(api::account::lobby::enter_lobby))
+        .route("/enter/lobby", post(api::account::lobby::enter_lobby_http))
+        .route("/lobby/enter_lobby", post(api::account::lobby::enter_lobby_http))
         // Hero management
         .route("/hero/buy", post(api::heroes::buy_hero))
         .route("/hero/bookmark", post(api::heroes::bookmark_hero))

@@ -76,6 +76,30 @@ async fn setup() -> (AppState, user::LoginResponse) {
     sqlx::query("UPDATE user_info SET gold=100000000,gem=100000").execute(&state.db).await.unwrap();
     (state, u)
 }
+
+#[tokio::test]
+async fn bulk_hero_snapshot_preserves_details_defaults_and_account_isolation() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let mut db=s.db.acquire().await.unwrap();
+    hero::save_details(&mut db,a,1,&serde_json::json!({"Level":77,"TranscendSkillPage1":"[1,2]","ApplySkillPage":2})).await.unwrap();
+    for id in 10001..10100 {
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) VALUES(?,?,?)")
+            .bind(a).bind(id).bind(id).execute(&mut *db).await.unwrap();
+    }
+    let started=std::time::Instant::now();
+    let snapshots=hero::snapshot(&mut db,a).await.unwrap();
+    let bulk=started.elapsed();let started=std::time::Instant::now();
+    assert_eq!(snapshots.len(),100);
+    for h in &snapshots {
+        let expected:crate::models::hero::HeroInfo=serde_json::from_value(hero::info(&mut db,a,h.hero_index).await.unwrap()).unwrap();
+        assert_eq!(serde_json::to_value(h).unwrap(),serde_json::to_value(expected).unwrap());
+    }
+    println!("100-hero fixture: one joined query {:.2}ms; 200 reference detail/hero queries plus equality checks {:.2}ms",bulk.as_secs_f64()*1000.0,started.elapsed().as_secs_f64()*1000.0);
+    assert!(hero::snapshot(&mut db,a+1000).await.unwrap().is_empty());
+    sqlx::query("UPDATE hero_details SET data='invalid' WHERE account_id=? AND hero_index=1").bind(a).execute(&mut *db).await.unwrap();
+    assert!(hero::snapshot(&mut db,a).await.is_err());
+}
 async fn login(s: &AppState) -> user::LoginResponse {
     user::test_login(
         State(s.clone()),
@@ -228,6 +252,7 @@ async fn competing_purchases_charge_and_recruit_once() {
             sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(&path)
                 .create_if_missing(true)
+                .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
                 .busy_timeout(std::time::Duration::from_secs(10)),
         )
         .await

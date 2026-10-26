@@ -9,6 +9,21 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
+async fn initialized_inventory_reads_without_row_changes_and_repairs_rolled_back_slots() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut db=s.db.acquire().await.unwrap();
+    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&mut *db).await.unwrap();
+    item::init(&mut db,&s,a).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&mut *db).await.unwrap(),before);
+    sqlx::query("DELETE FROM craft_slots WHERE account_id=? AND slot_index=1").bind(a).execute(&mut *db).await.unwrap();
+    use sqlx::Connection;
+    let mut tx=db.begin().await.unwrap();item::init(&mut tx,&s,a).await.unwrap();tx.rollback().await.unwrap();
+    assert!(!sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=? AND slot_index=1)").bind(a).fetch_one(&mut *db).await.unwrap());
+    item::init(&mut db,&s,a).await.unwrap();
+    assert!(sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=? AND slot_index=1)").bind(a).fetch_one(&mut *db).await.unwrap());
+}
+
+#[tokio::test]
 async fn unequip_all_preserves_native_repeated_slots_and_clears_every_gear_position() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

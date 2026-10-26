@@ -161,8 +161,11 @@ pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Vec<Va
     runs.retain(|run| !matches!(run["State"].as_str(), Some("Complete" | "Cancel")));
     for run in &mut runs {
         if n(run, "SimulationVersion") == 1 {
+            let previous = run.clone();
             advance(run, now());
-            put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;
+            if *run != previous {
+                put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;
+            }
         } else if run["State"] == "Battle" && n(run, "FinishTimestamp") <= now() {
             run["State"] = json!("ReadyToComplete");
             put(db, a, "dispatch", n(run, "SlotIndex"), run).await?;

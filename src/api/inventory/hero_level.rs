@@ -94,7 +94,9 @@ pub(crate) async fn notify(
     request: Request,
     next: Next,
 ) -> Response {
-    if request.method() != axum::http::Method::POST {
+    if request.method() != axum::http::Method::POST
+        || crate::api::system::performance::observation(request.uri().path())
+        || crate::api::system::performance::cosmetic(request.uri().path()) {
         return next.run(request).await;
     }
     let (parts, body) = request.into_parts();

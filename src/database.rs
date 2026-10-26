@@ -1,4 +1,4 @@
-use sqlx::{sqlite::SqlitePool, Pool, Sqlite};
+use sqlx::{sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions}, Pool, Sqlite};
 use std::path::Path;
 
 pub type DbPool = Pool<Sqlite>;
@@ -12,7 +12,10 @@ pub async fn init_database() -> anyhow::Result<DbPool> {
         std::fs::File::create(db_path)?;
     }
     
-    let pool = SqlitePool::connect(&format!("sqlite:{}", db_path)).await?;
+    let pool = SqlitePoolOptions::new().max_connections(5)
+        .connect_with(SqliteConnectOptions::new().filename(db_path)
+            .journal_mode(SqliteJournalMode::Wal)
+            .busy_timeout(std::time::Duration::from_secs(5))).await?;
     
     // Run migrations
     create_tables(&pool).await?;
@@ -439,5 +442,10 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     crate::api::community::migrate(pool).await?;
     crate::api::system::storage::migrate(pool).await?;
     crate::api::progression::play_record::migrate(pool).await?;
+    for query in [
+        "CREATE INDEX IF NOT EXISTS heroes_account_index ON heroes(account_id,hero_index)",
+        "CREATE INDEX IF NOT EXISTS equip_account_inventory ON equip_items(account_id,inventory_type,slot_index)",
+        "CREATE INDEX IF NOT EXISTS friends_incoming ON friends(friend_account_id,status)",
+    ] { sqlx::query(query).execute(pool).await?; }
     Ok(())
 }

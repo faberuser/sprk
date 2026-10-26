@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--network-performance-only")) { InstallNetworkPerformance(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-network-performance")) { VerifyNetworkPerformanceFile(args[0]); return; }
+            if (args.Contains("--self-test-network-performance")) { TestNetworkPerformance(); return; }
             if (args.Contains("--self-test-client-storage")) { TestClientStorage(); return; }
             if (args.Contains("--client-storage-only")) { InstallClientStorage(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-client-storage")) { VerifyClientStorage(args[0]); return; }

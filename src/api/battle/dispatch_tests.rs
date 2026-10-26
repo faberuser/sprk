@@ -32,6 +32,27 @@ async fn fixture(deferred: bool) -> (AppState, Value) {
     drop(db);
     (s, u)
 }
+
+#[tokio::test]
+async fn dispatch_polling_writes_only_when_progress_changes() {
+    let (s,u)=fixture(true).await;let a=account(&u);
+    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+    assert!(call(&s,&u,"dispatch/get_dispatch_list","").await["DispatchBattleInfos"].as_array().unwrap().is_empty());
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before);
+    let job=start(&s,&u,2).await;let slot=n(&job,"SlotIndex");
+    let mut saved=job.clone();saved["SimulationResults"]=json!([{"Outcome":1,"TimeMs":60000}]);
+    saved["State"]=json!("Battle");saved["StartTimestamp"]=json!(now()+60);saved["FinishTimestamp"]=json!(now()+120);
+    put(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot,&saved).await.unwrap();
+    call(&s,&u,"dispatch/get_dispatch_list","").await; // normalize derived state once
+    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+    for _ in 0..3 {call(&s,&u,"dispatch/get_dispatch_list","").await;}
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before);
+    let mut saved=get(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot).await.unwrap();
+    saved["StartTimestamp"]=json!(now()-300);saved["FinishTimestamp"]=json!(now()-1);
+    put(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot,&saved).await.unwrap();
+    let response=call(&s,&u,"dispatch/get_dispatch_list","").await;
+    assert_eq!(response["DispatchBattleInfos"][0]["WinCount"],1);
+}
 #[tokio::test]
 async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only_wins() {
     let (s,u)=fixture(true).await;

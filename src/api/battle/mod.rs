@@ -153,7 +153,9 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
     }
     let mut tx = s.db.begin().await?;
-    item::init(&mut tx, s, a).await?;
+    if !crate::api::system::performance::observation(&format!("/{path}")) {
+        item::init(&mut tx, s, a).await?;
+    }
     let action = path.rsplit('/').next().unwrap_or("");
     let result = match path.split('/').next().unwrap_or("") {
         "match" => seasons::match_season(s, &req),

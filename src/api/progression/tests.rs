@@ -3,6 +3,33 @@ use crate::api::account::user;
 use crate::database;
 use std::sync::Arc;
 
+#[tokio::test]
+async fn notification_middleware_skips_reads_and_cosmetics_and_negotiates_unchanged_state() {
+    use tower::ServiceExt;
+    let (s,u)=setup().await;
+    let mut app=axum::Router::new();
+    for path in ["/friend/list","/hero/bookmark_hero","/hero/future_mutation"] {
+        app=app.route(path,axum::routing::post(||async{axum::Json(json!({"BaseResult":"Success","Result":"Success"}))}));
+    }
+    let app=app.layer(axum::middleware::from_fn_with_state(s.clone(),notifications::notify)).with_state(s.clone());
+    async fn send(app:axum::Router,u:&user::LoginResponse,path:&str,token:&str)->Value {
+        let response=app.oneshot(axum::http::Request::post(path).header("x-sprk-progression",token)
+            .body(axum::body::Body::from(form(u,""))).unwrap()).await.unwrap();
+        serde_json::from_slice(&axum::body::to_bytes(response.into_body(),usize::MAX).await.unwrap()).unwrap()
+    }
+    for path in ["/friend/list","/hero/bookmark_hero"] {
+        let reply=send(app.clone(),&u,path,"").await;
+        assert!(reply.get("AchievementInfos").is_none());assert!(reply.get("SprkProgressionToken").is_none());
+    }
+    let first=send(app.clone(),&u,"/hero/future_mutation","").await;
+    assert!(first["AchievementInfos"].is_array());
+    let token=first["SprkProgressionToken"].as_str().unwrap();
+    let next=send(app.clone(),&u,"/hero/future_mutation",token).await;
+    assert!(next.get("AchievementInfos").is_none());assert_eq!(next["SprkProgressionToken"],token);
+    let resent=send(app,&u,"/hero/future_mutation","").await;
+    assert_eq!(resent["AchievementInfos"],first["AchievementInfos"]);
+}
+
 fn play_value(infos: &[Value], id: i64) -> &str {
     infos.iter().find(|r|r["RecordIndex"]==id).unwrap()["RecordValue"].as_str().unwrap()
 }
@@ -1048,6 +1075,7 @@ async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
             sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(&path)
                 .create_if_missing(true)
+                .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
                 .busy_timeout(std::time::Duration::from_secs(20)),
         )
         .await

@@ -7,7 +7,8 @@ using System.Text.Json;
 public static class DispatchTestRunner {
     static void Check(bool ok,string label) {if(!ok)throw new Exception(label);}
     static SprkDispatch Worker() {
-        var worker=new SprkDispatch();typeof(SprkDispatch).GetField("owner",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(worker,1L);return worker;
+        var worker=new SprkDispatch();typeof(SprkDispatch).GetField("owner",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(worker,1L);
+        typeof(SprkDispatch).GetField("instance",BindingFlags.Static|BindingFlags.NonPublic).SetValue(null,worker);return worker;
     }
     static IEnumerator Invoke(SprkDispatch w,string method,params object[] args) {
         return (IEnumerator)typeof(SprkDispatch).GetMethod(method,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(w,args);
@@ -23,6 +24,16 @@ public static class DispatchTestRunner {
     static SprkDispatch.Job Job(string id="job",int slot=1) {return new SprkDispatch.Job {SlotIndex=slot,ChapterIndex=1,DungeonIndex=1,Difficulty=1,RepeatCount=200,SimulationVersion=1,State="Simulation",HeroIndices="[1]",SimulationJobId=id};}
     static void Reset() {FakeNetwork.Requests.Clear();FakeNetwork.Replies.Clear();FakeSimulator.Uids.Clear();FakeSimulator.Timeout=false;FakeSimulator.ChangeSession=false;UnityEngine.Time.realtimeSinceStartup=0;NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="session";}
     public static void Run() {
+        Reset();var idle=Worker();
+        FakeNetwork.Replies.Enqueue("{\"Result\":\"Success\",\"DispatchBattleInfos\":[]}");
+        RunRoutine(Invoke(idle,"Poll"));
+        var nextPoll=typeof(SprkDispatch).GetField("nextPoll",BindingFlags.Instance|BindingFlags.NonPublic);
+        Check((float)nextPoll.GetValue(idle)-UnityEngine.Time.realtimeSinceStartup>=25f,"Idle dispatch did not back off");
+        SprkDispatch.Started(new NShared.StartDispatch.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.StartDispatch.ResultType.Success});
+        Check((float)nextPoll.GetValue(idle)==0f,"Starting dispatch did not wake idle polling");
+        nextPoll.SetValue(idle,123f);
+        SprkDispatch.Started(new NShared.StartDispatch.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.StartDispatch.ResultType.Fail});
+        Check((float)nextPoll.GetValue(idle)==123f,"Rejected start woke polling");
         Reset();var worker=Worker();var job=Job();
         RunRoutine(Invoke(worker,"Prepare",job));
         Check(FakeSimulator.Uids.Count==1,"First result waited for all 200 simulations");

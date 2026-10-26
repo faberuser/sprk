@@ -86,7 +86,11 @@ pub(crate) async fn info(db: &mut SqliteConnection, account: i64, index: i32) ->
         .fetch_optional(&mut *db)
         .await?
         .ok_or_else(|| rule("NoHero"))?;
-    let mut out = json!(HeroInfo::new(row.get("hero_id"), index, row.get("star")));
+    hero_from_row(&row, details(&mut *db, account, index).await?)
+}
+
+fn hero_from_row(row: &sqlx::sqlite::SqliteRow, details: Value) -> Result<Value> {
+    let mut out = json!(HeroInfo::new(row.get("hero_id"), row.get("hero_index"), row.get("star")));
     for (wire, col) in [
         ("Level", "level"),
         ("Exp", "exp"),
@@ -106,8 +110,7 @@ pub(crate) async fn info(db: &mut SqliteConnection, account: i64, index: i32) ->
         out[format!("EquipItemSlotIndex{i}")] =
             json!(row.get::<i64, _>(format!("equip_item_slot_index_{i}").as_str()));
     }
-    for (k, v) in details(&mut *db, account, index)
-        .await?
+    for (k, v) in details
         .as_object()
         .into_iter()
         .flatten()
@@ -123,15 +126,18 @@ pub(crate) async fn info(db: &mut SqliteConnection, account: i64, index: i32) ->
     Ok(out)
 }
 pub(crate) async fn snapshot(db: &mut SqliteConnection, account: i64) -> Result<Vec<HeroInfo>> {
-    let indices: Vec<i32> =
-        sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY hero_id")
+    let rows =
+        sqlx::query("SELECT h.*, d.data AS detail_data FROM heroes h LEFT JOIN hero_details d ON d.account_id=h.account_id AND d.hero_index=h.hero_index WHERE h.account_id=? ORDER BY h.hero_id")
             .bind(account)
             .fetch_all(&mut *db)
             .await?;
     let mut result = vec![];
-    for index in indices {
+    for row in rows {
+        let details: Option<String> = row.get("detail_data");
+        let details = details.map(|s| serde_json::from_str(&s)).transpose()
+            .map_err(|e| ServerError::Internal(e.to_string()))?.unwrap_or(json!({}));
         result.push(
-            serde_json::from_value(info(&mut *db, account, index).await?)
+            serde_json::from_value(hero_from_row(&row, details)?)
                 .map_err(|e| ServerError::Internal(e.to_string()))?,
         );
     }
