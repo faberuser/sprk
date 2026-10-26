@@ -238,6 +238,65 @@ async fn hero_level_equipment_repairs_login_without_changing_ordinary_gear_or_ot
 }
 
 #[tokio::test]
+async fn hero_level_equipment_synchronizes_spare_uw_and_ut_copies_to_their_own_heroes() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    sqlx::query("UPDATE heroes SET level=90 WHERE account_id=? AND hero_index=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) SELECT ?,90031,31,80,5 WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=31)")
+        .bind(a).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=80 WHERE account_id=? AND hero_index=31")
+        .bind(a).execute(&s.db).await.unwrap();
+    let mut copies=Vec::new();
+    // Kasel UW/UT and Arch's reported UT: stale high and low copies, in both bags.
+    for item in [1001,101001,101031] {
+        for (level,bag) in [(1,0),(100,1)] {
+            let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,level,star,locked,inventory_type,option_index_1,option_step_1) VALUES(?,?,?,3,1,?,14,3)")
+                .bind(a).bind(item).bind(level).bind(bag).execute(&s.db).await.unwrap().last_insert_rowid();
+            copies.push((slot,item,bag));
+        }
+    }
+    // One UW and UT equipped; all other copies remain unequipped.
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_7=? WHERE account_id=? AND hero_index=1")
+        .bind(copies[0].0).bind(copies[2].0).bind(a).execute(&s.db).await.unwrap();
+    let snapshot=login(&s).await;
+    for &(slot,item,bag) in &copies {
+        let gear=snapshot.equip_items.iter().find(|e|e.slot_index as i64==slot).unwrap();
+        assert_eq!(gear.level,if item==101031 {80}else{90});
+        let metadata:(i32,i32,i32,i32,i32)=sqlx::query_as("SELECT star,locked,inventory_type,option_index_1,option_step_1 FROM equip_items WHERE slot_index=?")
+            .bind(slot).fetch_one(&s.db).await.unwrap();
+        assert_eq!(metadata,(3,1,bag,14,3));
+    }
+    // Live notifications and full snapshots must agree after either hero changes.
+    sqlx::query("UPDATE heroes SET level=CASE hero_index WHEN 1 THEN 40 WHEN 31 THEN 70 ELSE level END WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    for &(slot,item,_) in &copies {
+        let expected=if item==101031 {70}else{40};
+        let update=out["ReservedUpdatedEquipItemInfos"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(update["Level"],expected);
+        let gear=out["EquipItems"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(gear["Level"],expected);
+    }
+    // Use a valid low starting level so every EXP potion can advance the hero.
+    sqlx::query("UPDATE heroes SET level=1,exp=0 WHERE account_id=? AND hero_index=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    let (id,_)=potion(&s,3);
+    put(&s,&u,id,3).await;
+    let out=hero_level_request(&s,&u,"/item/use_potion_item",&format!("HeroIndex=1&ItemIndex={id}&ItemCount=3")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    let level=out["HeroExpResult"]["NewLevel"].as_i64().unwrap();
+    assert!(level>1);
+    for &(slot,item,_) in &copies {
+        if item==101031 {continue;}
+        let update=out["ReservedUpdatedEquipItemInfos"].as_array().unwrap().iter().find(|e|e["SlotIndex"]==slot).unwrap();
+        assert_eq!(update["Level"],level);
+    }
+    let out=hero_level_request(&s,&u,"/item/get_inventory","").await;
+    assert!(out.get("ReservedUpdatedEquipItemInfos").is_none(),"Unchanged copies must not cause repeated notifications");
+}
+
+#[tokio::test]
 async fn hero_level_equipment_updates_on_equip_transfer_and_potions_without_relogin() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;

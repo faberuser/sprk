@@ -1,4 +1,5 @@
-//! Unique equipment grows with its equipped hero, rather than forge EXP.
+//! Hero-specific unique equipment grows with its hero, including spare copies.
+//! Shared unique equipment grows with its equipped hero, rather than forge EXP.
 //! Also deliver automatic Team Level buff unlocks through the native response.
 //! The client consumes ReservedUpdatedEquipItemInfos and ReserveTeamLevelBuffInfos.
 use super::item::n;
@@ -11,27 +12,38 @@ use axum::{
 };
 use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection};
+use std::collections::HashMap;
 
 pub(crate) async fn synchronize(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Vec<Value>> {
+    let heroes = sqlx::query("SELECT * FROM heroes WHERE account_id=?")
+        .bind(account).fetch_all(&mut *db).await?;
+    let mut hero_levels = HashMap::<i64, i32>::new();
+    let mut equipped_levels = HashMap::<i32, i32>::new();
+    for hero in heroes {
+        let level: i32 = hero.get("level");
+        hero_levels.entry(hero.get("hero_index"))
+            .and_modify(|old| *old = (*old).max(level)).or_insert(level);
+        for part in 1..=10 {
+            let slot: i32 = hero.get(format!("equip_item_slot_index_{part}").as_str());
+            if slot > 0 {
+                equipped_levels.entry(slot)
+                    .and_modify(|old| *old = (*old).max(level)).or_insert(level);
+            }
+        }
+    }
     let rows = sqlx::query(
-        "SELECT e.slot_index,e.item_index,e.level,MAX(h.level) AS hero_level
-         FROM equip_items e JOIN heroes h ON h.account_id=e.account_id AND e.slot_index IN
-         (h.equip_item_slot_index_1,h.equip_item_slot_index_2,h.equip_item_slot_index_3,
-          h.equip_item_slot_index_4,h.equip_item_slot_index_5,h.equip_item_slot_index_6,
-          h.equip_item_slot_index_7,h.equip_item_slot_index_8,h.equip_item_slot_index_9,h.equip_item_slot_index_10)
-         WHERE e.account_id=? GROUP BY e.slot_index HAVING e.level<>MAX(h.level)"
+        "SELECT slot_index,item_index,level FROM equip_items WHERE account_id=? ORDER BY slot_index"
     ).bind(account).fetch_all(&mut *db).await?;
+    let equipment: HashMap<_, _> = state.tables.extensions.rows("EquipItem").iter()
+        .map(|data| (n(data, "ItemIndex"), data)).collect();
     let mut updates = Vec::new();
     for row in rows {
         let item: i32 = row.get("item_index");
-        let Some(data) = state
-            .tables
-            .extensions
-            .find("EquipItem", &[("ItemIndex", item as i64)])
+        let Some(data) = equipment.get(&(item as i64))
         else {
             continue;
         };
@@ -47,8 +59,16 @@ pub(crate) async fn synchronize(
             continue;
         }
         let slot: i32 = row.get("slot_index");
-        let level: i32 = row.get("hero_level");
-        if level < 1 {
+        // UWs and UTs bound to exactly one hero must agree across all copies,
+        // including inventory/storage copies that have never been equipped.
+        // Class weapons and other shared gear have no single owning hero.
+        let level = match data["CreatureIndex"].as_array() {
+            Some(owners) if owners.len() == 1 => owners[0].as_i64()
+                .and_then(|owner| hero_levels.get(&owner)).copied(),
+            _ => equipped_levels.get(&slot).copied(),
+        };
+        let Some(level) = level else { continue; };
+        if level < 1 || level == row.get::<i32, _>("level") {
             continue;
         }
         sqlx::query("UPDATE equip_items SET level=? WHERE account_id=? AND slot_index=?")
@@ -59,8 +79,8 @@ pub(crate) async fn synchronize(
             .await?;
         updates.push(json!({"SlotIndex":slot,"ItemIndex":item,"Level":level}));
     }
-    // Unequipping retains the last attained level. Equipping to a different hero
-    // recalculates it, including a lower-level recipient of a class weapon.
+    // Unequipped shared gear retains its last level. Transferring it recalculates
+    // that level, including when its new recipient has a lower hero level.
     Ok(updates)
 }
 
