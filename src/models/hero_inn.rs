@@ -138,6 +138,8 @@ pub struct ItemResultInfo {
 
 /// Default available hero indices for the Hero Inn
 /// These are heroes that can appear in the inn for recruitment
+pub const INN_RECRUITMENT_EXCLUDED_HEROES: &[i32] = &[14]; // Maya
+
 pub fn get_available_inn_hero_indices() -> Vec<i32> {
     // Common heroes available in the inn (excluding starter heroes 1-4)
     // This includes various 2-star and 3-star heroes
@@ -151,7 +153,7 @@ pub fn get_available_inn_hero_indices() -> Vec<i32> {
         11,  // Selene - Archer
         12,  // Rephy - Priest
         13,  // Baudouin - Priest
-        14,  // Leo - Priest
+        14,  // Maya (excluded from the recruitment pool below)
         15,  // Maria - Wizard
         16,  // Lorraine - Wizard
         17,  // Pavel - Wizard
@@ -179,7 +181,7 @@ pub fn get_available_inn_hero_indices() -> Vec<i32> {
         39,  // Sonia - Knight
         40,  // Demia - Knight
         // Add more hero indices as needed
-    ]
+    ].into_iter().filter(|id| !INN_RECRUITMENT_EXCLUDED_HEROES.contains(id)).collect()
 }
 
 /// Max friendship points needed to recruit a hero

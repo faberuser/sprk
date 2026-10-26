@@ -14,7 +14,7 @@ use crate::{
         hero_inn::{
             PlayerHeroFriendlyInfo,
             FriendlyActionType, CurrencyResultInfo3, FriendshipPointResultInfo,
-            get_available_inn_hero_indices, MAX_FRIENDSHIP_POINTS,
+            get_available_inn_hero_indices, INN_RECRUITMENT_EXCLUDED_HEROES, MAX_FRIENDSHIP_POINTS,
             GREETING_POINTS, CONVERSATION_POINTS, GIFT_POINTS,
             RouletteInfo, RouletteRewardInfo, StaminaResultInfo,
             get_default_roulette_rewards,
@@ -173,8 +173,10 @@ pub async fn request_new_friendly_hero(
     let invalid_visitors = visitors.is_empty()
         || visitors.iter().any(|id| !available_heroes.contains(id));
     let recruited = friendly_info.hero_index != 0 && owned_heroes.contains(&friendly_info.hero_index);
-    if expired || invalid_visitors || recruited {
-        if recruited {
+    let excluded_recruit = INN_RECRUITMENT_EXCLUDED_HEROES.contains(&friendly_info.hero_index)
+        || INN_RECRUITMENT_EXCLUDED_HEROES.contains(&friendly_info.selected_hero_index);
+    if expired || invalid_visitors || recruited || excluded_recruit {
+        if recruited || excluded_recruit {
             friendly_info.hero_index = 0;
             friendly_info.selected_hero_index = 0;
             friendly_info.friendly_point = 0;
@@ -764,6 +766,14 @@ pub async fn change_recruit_hero(
         }));
     }
 
+    if INN_RECRUITMENT_EXCLUDED_HEROES.contains(&hero_index) {
+        return Ok(Json(ChangeRecruitHeroResponse {
+            base_result: "Success".to_string(),
+            result: ChangeRecruitHeroResult::CannotRecruit.as_str().to_string(),
+            friendly_info: None,
+        }));
+    }
+
     // Check if player already owns this hero
     let owned = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ? AND hero_index = ?")
         .bind(account_id)
@@ -842,6 +852,7 @@ pub async fn recruit_hero(
     let account=state.get_session(&key).ok_or(ServerError::SessionExpired)?.account_id;
     let index=req.hero_index.unwrap_or(0);
     let fail=|code:&str|Json(json!({"BaseResult":"Success","Result":code}));
+    if INN_RECRUITMENT_EXCLUDED_HEROES.contains(&index) {return Ok(fail("HeroIndexMismatch"));}
     let Some(c)=state.tables.hero_shop.heroes.get(&index) else {return Ok(fail("HeroIndexMismatch"))};
     let mut tx=state.db.begin().await?;
     crate::api::inventory::item::init(&mut tx,&state,account).await?;
