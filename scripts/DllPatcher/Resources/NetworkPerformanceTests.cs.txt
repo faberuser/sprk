@@ -52,6 +52,32 @@ public static class NetworkPerformanceTestRunner {
         shopReply=Capture("{\"SprkShopCatalogToken\":\""+catalog+"\"}",current);SprkNetworkPerformance.CatalogApplied(shopReply);
         Apply("{\"PayShopProductInfos\":[]}",current);
         Check(!Request("two","https://other/").Headers.ContainsKey("X-SPRK-Shop-Catalog"),"Explicit catalog refresh retained stale acknowledgement");
+        var sectionRequest=Request("sections");
+        Check(sectionRequest.Headers["X-SPRK-Sections"]=="1","Section capability missing");
+        var sectionText="{\"AchievementInfos\":[],\"SprkAchievementToken\":\""+token+"\",\"SprkPlayRecordToken\":\""+catalog+"\"}";
+        var sectionReply=Capture(sectionText,sectionRequest);
+        Check(!Request("sections").Headers.ContainsKey("X-SPRK-Achievements"),"Unapplied section acknowledged");
+        SprkNetworkPerformance.ProgressionApplied(sectionReply);
+        Check(Request("sections").Headers["X-SPRK-Achievements"]==token,"Achievement section acknowledgement missing");
+        Check(Request("sections").Headers["X-SPRK-Play-Records"]==catalog,"Play record acknowledgement missing");
+        Apply("{\"AchievementInfos\":[]}",Request("sections"));
+        Check(!Request("sections").Headers.ContainsKey("X-SPRK-Achievements"),"Explicit full section did not reset its token");
+        Check(Request("sections").Headers["X-SPRK-Play-Records"]==catalog,"Unrelated section token cleared");
+        Request("new-section-session");SprkNetworkPerformance.ProgressionApplied(sectionReply);
+        Check(!Request("new-section-session").Headers.ContainsKey("X-SPRK-Play-Records"),"Late section crossed sessions");
+        Request("new-section-session","https://new/");
+        Check(!Request("new-section-session","https://new/").Headers.ContainsKey("X-SPRK-Play-Records"),"Section crossed hosts");
+        var manager=new NGame2.NUI.NManager.ShopManagement();
+        NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ShopManagement>.instance=manager;
+        SprkNetworkPerformance.ShopListApplied(new[]{new NShared.ShopListItemInfo{ShopIndex=1,ListNo=4,Purchased=2,Sold=1},new NShared.ShopListItemInfo{ShopIndex=2,ListNo=5,Purchased=3}});
+        Check(manager.Items[1][0].Purchased==2 && manager.Items[1][0].Sold==1,"Restock counters not reused");
+        Check(manager.Items[2][0].ListNo==5,"Restock crossed shops");
+        SprkNetworkPerformance.ShopListApplied(null);
     }
 }
 namespace NVespa.NWeb {public class WebServiceRequest {public string Host,ServiceName;public Dictionary<string,string> Headers;}}
+namespace NShared {public class ShopListItemInfo {public int ShopIndex,ListNo,Purchased;public byte Sold;}public class ShopItemInfo {public int ShopIndex,ListNo,Purchased;public byte Sold;}}
+namespace NGame2.NUI.NManager {public class ShopManagement {public Dictionary<int,NShared.ShopItemInfo[]> Items=new Dictionary<int,NShared.ShopItemInfo[]>();public void SetShopItemInfos(int shop,NShared.ShopItemInfo[] items){Items[shop]=items;}}}
+namespace NVespa.NSingleton {public class SceneAutoBehaviour<T> {public static T instance;public static bool isValidInstance {get{return instance!=null;}}}}
+namespace UnityEngine {public class Debug {public static void Log(object value){}}public class Application {public static string persistentDataPath {get{return System.IO.Path.GetTempPath();}}}}
+namespace UnityEngine.Networking {public class UnityWebRequest {public bool isDone;public string error,url;public ulong downloadedBytes;public string GetResponseHeader(string name){return null;}}}

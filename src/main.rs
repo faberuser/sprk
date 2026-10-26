@@ -107,6 +107,7 @@ async fn game_router() -> anyhow::Result<Router> {
     // Create application state
     let state = AppState::new(db, tables);
     api::community::mail::start_notifications(state.clone());
+    api::battle::cooperative::start_dispatch_preparation(state.clone());
     api::system::cheat::start_admin(state.clone()).await?;
     api::battle::cooperative::recover_orphaned(&state).await?;
     let chat_bind = std::env::var("CHAT_BIND").unwrap_or_else(|_| "127.0.0.1".into());

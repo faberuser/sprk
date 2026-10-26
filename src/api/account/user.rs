@@ -222,6 +222,7 @@ pub struct LoginResponse {
     pub pay_shop_item_event_infos: Vec<serde_json::Value>,
     pub send_recv_friendship_point_infos: Vec<serde_json::Value>,
     pub sent_friendship_point_infos: Vec<serde_json::Value>,
+    #[serde(rename = "NPCFriendlyInfos")]
     pub npc_friendly_infos: Vec<serde_json::Value>,
     pub chat_ban_infos: Vec<serde_json::Value>,
     pub team_level_buff_infos: Vec<serde_json::Value>,

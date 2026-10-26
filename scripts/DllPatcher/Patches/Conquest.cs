@@ -33,6 +33,9 @@ partial class Program {
                 throw new InvalidOperationException("Worker must capture defeats at wave and battle completion.");
         if(!worker.Methods.Single(m=>m.Name=="Finish").Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr && (string?)i.Operand=="DefeatedCreatures"))
             throw new InvalidOperationException("Worker mission defeat result missing.");
+        if (!run.Fields.Any(f=>f.Name=="dispatch") ||
+            !run.Methods.Single(m=>m.Name=="OnProcessBattleLog").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="CreatureSetAiBattleLog"))
+            throw new InvalidOperationException("Offline dispatch worker must enable native hero AI.");
         Console.WriteLine("Verified worker enemy defeats, wave capture, duplicate suppression and mission result.");
     }
     static void VerifyConquestSessionCache(string clientRoot,bool staged) {

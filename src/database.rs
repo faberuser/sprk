@@ -3,6 +3,21 @@ use std::path::Path;
 
 pub type DbPool = Pool<Sqlite>;
 
+#[cfg(test)]
+pub(crate) async fn remove_test_database(path: &Path) {
+    // SQLite's worker threads/Windows scanners can retain a handle briefly after
+    // Pool::close completes. Retry only sharing violations; keep other failures.
+    for attempt in 0..20 {
+        match std::fs::remove_file(path) {
+            Ok(()) => return,
+            Err(error) if cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)) && attempt < 19 => {
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            }
+            Err(error) => panic!("Could not remove test database {}: {error}", path.display()),
+        }
+    }
+}
+
 /// Initialize the SQLite database with the required tables
 pub async fn init_database() -> anyhow::Result<DbPool> {
     let db_path = "sprk.db";
@@ -448,5 +463,6 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         "CREATE INDEX IF NOT EXISTS equip_account_inventory ON equip_items(account_id,inventory_type,slot_index)",
         "CREATE INDEX IF NOT EXISTS friends_incoming ON friends(friend_account_id,status)",
     ] { sqlx::query(query).execute(pool).await?; }
+    crate::api::system::revisions::migrate(pool).await?;
     Ok(())
 }

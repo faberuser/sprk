@@ -9,6 +9,8 @@ pub struct SessionInfo {
     pub account_id: i64,
     /// Last quest records delivered to this client; reserved quest fields are events.
     pub(crate) delivered_sub_quests: Arc<std::sync::Mutex<std::collections::BTreeMap<i64, serde_json::Value>>>,
+    pub(crate) progression_cache: Arc<tokio::sync::Mutex<Option<crate::api::progression::cache::Snapshot>>>,
+    pub(crate) equipment_revision: Arc<std::sync::Mutex<Option<(i64, usize)>>>,
     #[allow(dead_code)]
     pub session_key: String,
     #[allow(dead_code)]
@@ -26,6 +28,7 @@ pub struct AppState {
     pub chat: Arc<crate::api::community::chat::ChatHub>,
     pub conquest: Arc<crate::api::battle::cooperative::BattleHub>,
     pub sessions: Arc<DashMap<String, SessionInfo>>,
+    pub(crate) hero_equipment_lookup: Arc<std::sync::Mutex<crate::api::inventory::hero_level::Lookup>>,
     #[allow(dead_code)]
     pub server_start_time: chrono::DateTime<chrono::Utc>,
     pub tables: Arc<GameTables>,
@@ -41,6 +44,7 @@ impl AppState {
             chat: Arc::new(crate::api::community::chat::ChatHub::default()),
             conquest: Arc::new(crate::api::battle::cooperative::BattleHub::default()),
             sessions: Arc::new(DashMap::new()),
+            hero_equipment_lookup: Arc::new(std::sync::Mutex::new(Default::default())),
             server_start_time: chrono::Utc::now(),
             tables: Arc::new(tables),
         }
@@ -57,6 +61,8 @@ impl AppState {
         let session = SessionInfo {
             account_id,
             delivered_sub_quests: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
+            progression_cache: Arc::new(tokio::sync::Mutex::new(None)),
+            equipment_revision: Arc::new(std::sync::Mutex::new(None)),
             session_key: session_key.clone(),
             aes_key,
             login_time: now,

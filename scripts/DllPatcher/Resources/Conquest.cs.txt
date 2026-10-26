@@ -100,6 +100,7 @@ public sealed class SprkConquest : MonoBehaviour {
         public Dictionary<int,long> heroes=new Dictionary<int,long>();
         public HashSet<long> players=new HashSet<long>();
         public bool arena;
+        public bool dispatch;
         public HashSet<long> withdrawn=new HashSet<long>();
         public List<object> logs=new List<object>();
         public Dictionary<string,int> defeated=new Dictionary<string,int>();
@@ -128,6 +129,9 @@ public sealed class SprkConquest : MonoBehaviour {
                 }
                 initial.CreateInfos=new BattleCreatureCreateInfo[0];
                 log.BaseBattleLog.Data=JsonMarshaler.EncodeJsonString(initial);
+            }
+            if(log.Type==BattleLogType.WaveReady && dispatch) {
+                foreach(long player in players)updater.BattleInstance.BattleLogContainer.AddLog(new CreatureSetAiBattleLog{PlayerId=player,SetAi=true});
             }
             if(log.Type==BattleLogType.WaveReady && !arena) {
                 var data=MiniJSON.Json.Deserialize(log.Data) as IDictionary;
@@ -180,7 +184,7 @@ public sealed class SprkConquest : MonoBehaviour {
                 int port; if(!Int32.TryParse(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_PORT"),out port))port=9002;
                 socket.Connect(Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_HOST") ?? "127.0.0.1",port);
                 writer=new StreamWriter(socket.GetStream(),new UTF8Encoding(false)){AutoFlush=true,NewLine="\r\n"};connected=true;
-                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")},{"ArenaVersion",1},{"ChallengeRaidVersion",1}});
+                Send("WorkerLogin",new Dictionary<string,object>{{"Key",Environment.GetEnvironmentVariable("SPRK_CONQUEST_WORKER_KEY")},{"ArenaVersion",1},{"ChallengeRaidVersion",1},{"DispatchVersion",1}});
                 using(var reader=new StreamReader(socket.GetStream())) {
                     string line;while((line=reader.ReadLine())!=null) {
                         if(line.Length>8*1024*1024)throw new IOException("Oversized worker message");
@@ -247,7 +251,7 @@ public sealed class SprkConquest : MonoBehaviour {
         var builder=new BattleInstanceBuilder();builder.SetCampaignDungeon(info.ChapterIndex,info.DungeonIndex,info.DungeonDifficulty,false);builder.EnableSnapshot(false);
         var affixes=data.Contains("AffixIndices")?data["AffixIndices"] as IList:null;
         if(affixes!=null)builder.SetExtraData(new BattleInstanceExtraData{AffixIndices=affixes.Cast<object>().Select(Convert.ToInt32).ToArray()});
-        var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"]),arena=data.Contains("ArenaMatch") && Convert.ToBoolean(data["ArenaMatch"])};
+        var enter=new List<IBattleLogRuntime>();var run=new Run{owner=this,id=id,hp=Convert.ToInt64(data["BossHp"]),boss=Convert.ToInt32(data["BossIndex"]),arena=data.Contains("ArenaMatch") && Convert.ToBoolean(data["ArenaMatch"]),dispatch=data.Contains("Dispatch") && Convert.ToBoolean(data["Dispatch"])};
         var dungeon=GameRoot.Instance.CampaignDungeonDataContainer.GetData(info.ChapterIndex,info.DungeonIndex);
         bool alternating=dungeon!=null && (dungeon.BattleType==BattleType.ArcdimRaid || dungeon.BattleType==BattleType.ArcdimHardRaid);
         var waveTeams=new[]{new List<BattleCreatureCreateInfo>(),new List<BattleCreatureCreateInfo>()};

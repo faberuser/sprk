@@ -157,7 +157,7 @@ pub async fn enter_lobby_http(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Form(req): Form<EnterLobbyRequest>,
-) -> Result<Json<EnterLobbyResponse>> {
+) -> Result<Json<serde_json::Value>> {
     let compact=headers.get("x-sprk-compact-lobby").is_some_and(|v|v=="1");
     let session=req.session_key.as_deref().or(req.session_id.as_deref()).unwrap_or("").to_owned();
     let mut response=enter_lobby_inner(state, req, compact).await?;
@@ -165,7 +165,9 @@ pub async fn enter_lobby_http(
         conditional_catalog(&mut response.0.battle, &session,
             headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
     }
-    Ok(response)
+    let mut value=serde_json::to_value(response.0).map_err(|e|ServerError::Internal(e.to_string()))?;
+    crate::api::progression::notifications::conditional_sections(&mut value, &session, &headers);
+    Ok(Json(value))
 }
 
 fn conditional_catalog(fields: &mut serde_json::Value, session: &str, acknowledged: &str) {
@@ -329,7 +331,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
             last_roulette_time: row.get("last_roulette_time"),
         });
 
-    let progression = crate::api::progression::login(&state, session.account_id).await?;
+    let progression = crate::api::progression::cache::get(&state, &session_id, session.account_id).await?;
     let mut battle = crate::api::battle::login(&state, account_id).await?;
     // EnterLobby does not reinitialize PlayerCurrencyInfos. Publish withdrawal
     // refunds through the common handler too, so native boss entry sees the
@@ -438,7 +440,7 @@ mod reset_tests {
         let mut headers=axum::http::HeaderMap::new();headers.insert("x-sprk-compact-lobby","1".parse().unwrap());
         let first=serde_json::to_value(enter_lobby_http(State(state.clone()),headers.clone(),Form(req())).await.unwrap().0).unwrap();
         headers.insert("x-sprk-shop-catalog",first["SprkShopCatalogToken"].as_str().unwrap().parse().unwrap());
-        let repeated=serde_json::to_value(enter_lobby_http(State(state),headers,Form(req())).await.unwrap().0).unwrap();
+        let repeated=serde_json::to_value(enter_lobby_http(State(state.clone()),headers.clone(),Form(req())).await.unwrap().0).unwrap();
         assert!(repeated.get("PayShopProductInfos").is_none());
         assert_eq!(first["SprkShopCatalogToken"],repeated["SprkShopCatalogToken"]);
         assert_eq!(first["PlayerProductPurchaseInfos"],repeated["PlayerProductPurchaseInfos"]);
@@ -448,6 +450,22 @@ mod reset_tests {
             let mut encoder=flate2::write::GzEncoder::new(Vec::new(),flate2::Compression::default());
             encoder.write_all(&serde_json::to_vec(&value).unwrap()).unwrap();
             println!("Gzip {name} lobby fixture bytes: {}",encoder.finish().unwrap().len());
+        }
+        headers.insert("x-sprk-sections","1".parse().unwrap());
+        let full=enter_lobby_http(State(state.clone()),headers.clone(),Form(req())).await.unwrap().0;
+        for (token,header) in [("SprkAchievementToken","x-sprk-achievements"),("SprkPlayRecordToken","x-sprk-play-records")] {
+            headers.insert(header,full[token].as_str().unwrap().parse().unwrap());
+        }
+        let reduced=enter_lobby_http(State(state),headers,Form(req())).await.unwrap().0;
+        assert!(reduced.get("AchievementInfos").is_none());
+        assert!(reduced.get("ReservedPlayRecordInfos").is_none());
+        assert_eq!(reduced["AttendanceDatas"],full["AttendanceDatas"]);
+        assert_eq!(reduced["DungeonInfos"],full["DungeonInfos"]);
+        for (name,value) in [("sections-first",full),("sections-acknowledged",reduced)] {
+            let bytes=serde_json::to_vec(&value).unwrap();
+            let mut encoder=flate2::write::GzEncoder::new(Vec::new(),flate2::Compression::default());
+            encoder.write_all(&bytes).unwrap();
+            println!("Lobby {name}: JSON={} gzip={}",bytes.len(),encoder.finish().unwrap().len());
         }
     }
 

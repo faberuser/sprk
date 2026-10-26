@@ -16,6 +16,14 @@ pub(crate) fn observation(path: &str) -> bool {
             | "/friend/search_friend"
             | "/match/get_season_info"
             | "/global_arena/get_season_info"
+            // Stock initialization/expiry cannot change missions, hero levels
+            // or equipment ownership. Paid request_shop_list is not exempt.
+            | "/shop/get_shop_list"
+            | "/shop/get_all_shop_item_purchase_count"
+            | "/shop/list"
+            | "/chat/info"
+            | "/chat/recent"
+            | "/query/session"
     )
 }
 

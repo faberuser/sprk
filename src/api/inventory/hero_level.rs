@@ -14,6 +14,36 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection};
 use std::collections::HashMap;
 
+#[derive(Default)]
+pub(crate) struct Lookup {
+    table: Option<std::sync::Arc<crate::tables::ExtensionTable>>,
+    // None denotes shared gear; Some(hero) denotes a single owning hero.
+    items: std::sync::Arc<HashMap<i64, Option<i64>>>,
+}
+
+fn lookup(state: &AppState) -> std::sync::Arc<HashMap<i64, Option<i64>>> {
+    let mut cached = state.hero_equipment_lookup.lock().unwrap_or_else(|e| e.into_inner());
+    if !cached.table.as_ref().is_some_and(|t| std::sync::Arc::ptr_eq(t, &state.tables.extensions)) {
+        let mut details = HashMap::new();
+        for row in state.tables.extensions.rows("EquipItemDetail") {
+            details.entry(n(row, "DetailIndex")).or_insert(row["MaxLevelByHero"] == true);
+        }
+        let mut items = HashMap::new();
+        for data in state.tables.extensions.rows("EquipItem") {
+            let index = n(data, "ItemIndex");
+            items.remove(&index); // preserve the previous last-row-wins lookup
+            if details.get(&n(data, "DetailIndex")) != Some(&true) { continue; }
+            if data["CreatureIndex"].as_array().is_some_and(|a| a.len() == 1 && a[0].as_i64().is_none()) { continue; }
+            let owner = data["CreatureIndex"].as_array().filter(|a| a.len() == 1)
+                .and_then(|a| a[0].as_i64());
+            items.insert(index, owner);
+        }
+        cached.table = Some(state.tables.extensions.clone());
+        cached.items = std::sync::Arc::new(items);
+    }
+    cached.items.clone()
+}
+
 pub(crate) async fn synchronize(
     db: &mut SqliteConnection,
     state: &AppState,
@@ -38,33 +68,20 @@ pub(crate) async fn synchronize(
     let rows = sqlx::query(
         "SELECT slot_index,item_index,level FROM equip_items WHERE account_id=? ORDER BY slot_index"
     ).bind(account).fetch_all(&mut *db).await?;
-    let equipment: HashMap<_, _> = state.tables.extensions.rows("EquipItem").iter()
-        .map(|data| (n(data, "ItemIndex"), data)).collect();
+    let equipment = lookup(state);
     let mut updates = Vec::new();
     for row in rows {
         let item: i32 = row.get("item_index");
-        let Some(data) = equipment.get(&(item as i64))
+        let Some(owner) = equipment.get(&(item as i64))
         else {
             continue;
         };
-        let Some(detail) = state.tables.extensions.find(
-            "EquipItemDetail",
-            &[("DetailIndex", n(data, "DetailIndex"))],
-        ) else {
-            continue;
-        };
-        // Table-driven: includes hero/class unique weapons and both treasure types,
-        // while ordinary equipment keeps its separately earned enhancement level.
-        if detail["MaxLevelByHero"] != true {
-            continue;
-        }
         let slot: i32 = row.get("slot_index");
         // UWs and UTs bound to exactly one hero must agree across all copies,
         // including inventory/storage copies that have never been equipped.
         // Class weapons and other shared gear have no single owning hero.
-        let level = match data["CreatureIndex"].as_array() {
-            Some(owners) if owners.len() == 1 => owners[0].as_i64()
-                .and_then(|owner| hero_levels.get(&owner)).copied(),
+        let level = match owner {
+            Some(owner) => hero_levels.get(owner).copied(),
             _ => equipped_levels.get(&slot).copied(),
         };
         let Some(level) = level else { continue; };
@@ -125,17 +142,30 @@ pub(crate) async fn notify(
     let Ok(bytes) = to_bytes(body, 2 * 1024 * 1024).await else {
         return Response::builder().status(413).body(Body::empty()).unwrap();
     };
-    let account = crate::api::system::request::Request::parse(&bytes)
+    let identity = crate::api::system::request::Request::parse(&bytes)
         .ok()
-        .and_then(|r| r.account(&state).ok());
+        .and_then(|r| Some((r.account(&state).ok()?, r.0.get("SessionKey").or(r.0.get("SessionId"))?.clone())))
+        .map(|(account, key)| (account, state.get_session(&key)));
     let response = next
         .run(Request::from_parts(parts, Body::from(bytes)))
         .await;
-    let Some(account) = account else {
+    let Some((account, session)) = identity else {
         return response;
     };
     if !response.status().is_success() {
         return response;
+    }
+    let tables = std::sync::Arc::as_ptr(&state.tables) as usize;
+    let current = session.as_ref().and_then(|s| *s.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()));
+    if let Some((cached, cached_tables)) = current.filter(|(_, t)| *t == tables) {
+        let revision = async {
+            let mut db = state.db.acquire().await?;
+            crate::api::system::revisions::get(&mut db, "equipment", account).await
+        }.await;
+        if revision.ok() == Some(cached) && cached_tables == tables {
+            // No scan, write transaction, or JSON parse/copy on unchanged state.
+            return response;
+        }
     }
     let (mut parts, body) = response.into_parts();
     let Ok(bytes) = to_bytes(body, 16 * 1024 * 1024).await else {
@@ -149,9 +179,21 @@ pub(crate) async fn notify(
     }
     let result = async {
         let mut tx = state.db.begin().await?;
+        // Acquire the writer before reading a revision that may need repair.
+        sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0").execute(&mut *tx).await?;
+        let revision = crate::api::system::revisions::get(&mut tx, "equipment", account).await?;
+        let current = session.as_ref().and_then(|s| *s.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()));
+        if current == Some((revision, tables)) {
+            tx.commit().await?;
+            return Ok((Vec::new(), Vec::new()));
+        }
         let updates = synchronize(&mut tx, &state, account).await?;
         let team_buffs = crate::api::extensions::buffs::unlock_team_buffs(&mut tx, &state, account).await?;
+        let revision = crate::api::system::revisions::get(&mut tx, "equipment", account).await?;
         tx.commit().await?;
+        if let Some(session) = &session {
+            *session.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()) = Some((revision, tables));
+        }
         Ok::<_, crate::error::ServerError>((updates, team_buffs))
     }
     .await;

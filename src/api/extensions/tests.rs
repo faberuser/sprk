@@ -790,6 +790,45 @@ async fn npc_gifts_and_claims_validate_step_and_charge_once() {
 }
 
 #[tokio::test]
+async fn npc_juno_reward_progress_survives_native_login_json() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 143098, 2000).await;
+    let gift = call(&s, &u, "npc/give_gift_item",
+        "HeroIndex=94&ItemIndices=143098&ItemCount=1000").await;
+    assert_eq!(gift["Result"], "Success", "{gift}");
+    let recruit = call(&s, &u, "npc/recv_reward_friendly_point", "HeroIndex=94&Step=1").await;
+    assert_eq!(recruit["Result"], "Success", "{recruit}");
+    assert_eq!(recruit["FriendlyInfo"]["Step"], 2);
+    assert!(recruit["HeroInfos"].as_array().unwrap().iter().any(|h| h["HeroIndex"] == 94));
+
+    // Match the case-sensitive field read by JM_NShared_Login_Response, rather
+    // than checking only the Rust struct and overlooking the wire contract.
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+        .await.unwrap().0;
+    let wire = serde_json::to_value(&login).unwrap();
+    let infos = wire["NPCFriendlyInfos"].as_array().expect("native NPCFriendlyInfos login field");
+    assert_eq!(infos.iter().find(|info| info["HeroIndex"] == 94).unwrap(), &recruit["FriendlyInfo"]);
+    assert!(wire.get("NpcFriendlyInfos").is_none());
+    assert_ne!(call(&s, &login, "npc/recv_reward_friendly_point", "HeroIndex=94&Step=1").await["Result"], "Success");
+    assert_ne!(call(&s, &login, "npc/recv_reward_friendly_point", "HeroIndex=94&Step=2").await["Result"], "Success");
+
+    let gift = call(&s, &login, "npc/give_gift_item",
+        "HeroIndex=94&ItemIndices=143098&ItemCount=1000").await;
+    assert_eq!(gift["Result"], "Success", "{gift}");
+    let weapon = call(&s, &login, "npc/recv_reward_friendly_point", "HeroIndex=94&Step=2").await;
+    assert_eq!(weapon["Result"], "Success", "{weapon}");
+    assert!(weapon["EquipItemResults"].as_array().unwrap().iter().any(|e| e["ItemIndex"] == 1094));
+    assert_eq!(weapon["FriendlyInfo"]["Step"], 2);
+    assert_eq!(weapon["FriendlyInfo"]["EndRewardCount"], 1);
+    let again = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test"))
+        .await.unwrap().0;
+    let wire = serde_json::to_value(again).unwrap();
+    assert_eq!(wire["NPCFriendlyInfos"].as_array().unwrap().iter()
+        .find(|info| info["HeroIndex"] == 94).unwrap(), &weapon["FriendlyInfo"]);
+}
+
+#[tokio::test]
 async fn npc_valance_final_reward_repeats_without_invalid_step_or_free_retry() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;

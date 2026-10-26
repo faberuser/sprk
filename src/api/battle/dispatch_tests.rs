@@ -127,6 +127,9 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         .await;
         assert_eq!(started["Result"], "Success", "{started}");
         let job = &started["DispatchBattleInfo"];
+        // Legacy upload/settlement coverage; server-owned jobs reject this endpoint.
+        let mut legacy=job.clone();legacy["SimulationVersion"]=json!(1);
+        put(&mut s.db.acquire().await.unwrap(),a,"dispatch",n(job,"SlotIndex"),&legacy).await.unwrap();
         assert_eq!(job["Request"]["RaidIndex"], index.to_string());
         assert_eq!(job["Request"]["RaidLevel"], "1");
         assert_eq!(job["Cost"], 1000);
@@ -199,7 +202,11 @@ async fn stamina(s: &AppState, u: &Value) -> i64 {
 async fn start(s: &AppState, u: &Value, count: i64) -> Value {
     let v=call(s,u,"dispatch/start_dispatch",&format!("ChapterIndex=1&DungeonIndex=1&Difficulty=1&HeroIndices=[1]&RepeatCount={count}&DeckIndex=1")).await;
     assert_eq!(v["Result"], "Success", "{v}");
-    v["DispatchBattleInfo"].clone()
+    // These protocol tests deliberately exercise legacy client-owned preparation.
+    let mut job=v["DispatchBattleInfo"].clone();
+    job["SimulationVersion"]=json!(1);
+    put(&mut s.db.acquire().await.unwrap(),account(u),"dispatch",n(&job,"SlotIndex"),&job).await.unwrap();
+    job
 }
 fn report(job: &Value, outcomes: &[i64]) -> String {
     format!(

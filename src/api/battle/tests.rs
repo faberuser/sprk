@@ -45,7 +45,7 @@ pub(super) async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Val
     .unwrap()
 }
 pub(super) async fn prepared_dispatch(s: &AppState, u: &Value, slot: i64, outcomes: &[i64]) {
-    let job = get(
+    let mut job = get(
         &mut s.db.acquire().await.unwrap(),
         account(u),
         "dispatch",
@@ -53,6 +53,8 @@ pub(super) async fn prepared_dispatch(s: &AppState, u: &Value, slot: i64, outcom
     )
     .await
     .unwrap();
+    job["SimulationVersion"]=json!(1);
+    put(&mut s.db.acquire().await.unwrap(),account(u),"dispatch",slot,&job).await.unwrap();
     let args = format!(
         "SlotIndex={slot}&SimulationJobId={}&Results={}&TimesMs={}",
         job["SimulationJobId"].as_str().unwrap(),

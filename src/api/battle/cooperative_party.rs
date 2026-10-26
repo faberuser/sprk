@@ -434,6 +434,7 @@ mod tests {
         *s.conquest.worker.write().await = Some(Worker {
             arena_version: 0,
             challenge_version: 1,
+            dispatch_version: 0,
             id: "party-worker".into(),
             sender: tx,
         });

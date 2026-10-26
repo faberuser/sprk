@@ -2,6 +2,7 @@
 //! affix points and reward tiers come from the archived client tables.
 use super::*;
 #[cfg(test)]
+#[path = "challenge_tests.rs"]
 mod tests;
 
 fn definition(s: &AppState, season: i64) -> Result<&Value> {

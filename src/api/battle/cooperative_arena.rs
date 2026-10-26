@@ -147,7 +147,7 @@ mod tests {
         let s=setup().await;
         let users=vec![login(&s,"arena-live-a").await,login(&s,"arena-live-b").await,login(&s,"arena-live-c").await];
         let (tx,rx)=mpsc::channel(100);
-        *s.conquest.worker.write().await=Some(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0});
+        *s.conquest.worker.write().await=Some(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
         (s,users,rx)
     }
     async fn register(s:&AppState,u:&Value) {

@@ -10,9 +10,46 @@ using NVespa.NWeb;
 public static class SprkNetworkPerformance {
     static readonly object gate = new object();
     static string scope, token, catalogToken;
+    static readonly string[] sectionNames={"Achievement","MainQuest","ClearMission","PlayRecord"};
+    static readonly string[] sectionFields={"AchievementInfos","ReservedMainQuestInfo","ReservedClearMissionInfos","ReservedPlayRecordInfos"};
+    static readonly string[] sectionHeaders={"X-SPRK-Achievements","X-SPRK-Main-Quest","X-SPRK-Clear-Missions","X-SPRK-Play-Records"};
+    static readonly string[] sectionTokens=new string[4];
+    static readonly Regex[] sectionPatterns=Array.ConvertAll(sectionNames,n=>new Regex("\"Sprk"+n+"Token\"\\s*:\\s*\"([0-9a-f]{64})\""));
     static readonly Regex tokenField = new Regex("\"SprkProgressionToken\"\\s*:\\s*\"([0-9a-f]{64})\"");
     static readonly Regex catalogField = new Regex("\"SprkShopCatalogToken\"\\s*:\\s*\"([0-9a-f]{64})\"");
-    sealed class Delivery { public string Context, Progression, Catalog; public bool FullProgression, FullCatalog; }
+    sealed class Delivery { public string Context, Progression, Catalog; public bool FullProgression, FullCatalog; public string[] Sections; public bool[] FullSections; public WebServiceRequest Request; }
+    sealed class Timing { public long Queued, Sent, Processing, Parsed; }
+    static readonly ConditionalWeakTable<WebServiceRequest,Timing> timings=new ConditionalWeakTable<WebServiceRequest,Timing>();
+    static readonly bool trace=Environment.GetEnvironmentVariable("SPRK_NETWORK_TRACE")=="1";
+    static long Now { get { return System.Diagnostics.Stopwatch.GetTimestamp(); } }
+    static double Ms(long ticks) {return ticks*1000.0/System.Diagnostics.Stopwatch.Frequency;}
+    static void TraceLog(string message) {
+        UnityEngine.Debug.Log(message);
+        try {
+            string path=Environment.GetEnvironmentVariable("SPRK_NETWORK_TRACE_FILE");
+            if(String.IsNullOrEmpty(path))path=System.IO.Path.Combine(UnityEngine.Application.persistentDataPath,"sprk-network.log");
+            // The game's release logger can suppress Debug.Log. Keep the opt-in
+            // trace available without enabling unrelated verbose game logging.
+            lock(gate)System.IO.File.AppendAllText(path,message+Environment.NewLine);
+        } catch { /* Diagnostics must never interrupt a gameplay callback. */ }
+    }
+
+    public static void Started(WebServiceRequest request) {
+        if(!trace || request==null)return;
+        lock(gate) {Timing timing;if(timings.TryGetValue(request,out timing))timing.Sent=Now;}
+    }
+    public static void BeginResponse(WebServiceRequest request) {
+        if(!trace || request==null)return;
+        lock(gate) {Timing timing;if(timings.TryGetValue(request,out timing))timing.Processing=Now;}
+    }
+    public static void TransportComplete(UnityEngine.Networking.UnityWebRequest request) {
+        if(!trace || request==null || !request.isDone || !String.IsNullOrEmpty(request.error))return;
+        Uri uri;string path=Uri.TryCreate(request.url,UriKind.Absolute,out uri)?uri.AbsolutePath:"unknown";
+        // Paths only: never log request bodies, hosts, query strings or sessions.
+        TraceLog("SPRK network transport path="+path+" downloadedBytes="+request.downloadedBytes
+            +" encoding="+(request.GetResponseHeader("Content-Encoding")??"identity")
+            +" serverTiming="+(request.GetResponseHeader("Server-Timing")??"unknown"));
+    }
     static readonly ConditionalWeakTable<object,Delivery> deliveries = new ConditionalWeakTable<object,Delivery>();
     static readonly ConditionalWeakTable<object,HashSet<int>> noStaminaClock = new ConditionalWeakTable<object,HashSet<int>>();
 
@@ -42,16 +79,20 @@ public static class SprkNetworkPerformance {
         headers.Remove("X-SPRK-Progression");
         headers.Remove("X-SPRK-Compact-Lobby");
         headers.Remove("X-SPRK-Shop-Catalog");
+        foreach(var header in sectionHeaders)headers.Remove(header);
+        headers["X-SPRK-Sections"]="1";
         headers["X-SPRK-Context"] = context;
         lock (gate) {
-            if (scope != context) { scope = context; token = catalogToken = null; }
+            if (scope != context) { scope = context; token = catalogToken = null; Array.Clear(sectionTokens,0,sectionTokens.Length); }
             if (!String.IsNullOrEmpty(token)) headers["X-SPRK-Progression"] = token;
             if (!String.IsNullOrEmpty(catalogToken)) headers["X-SPRK-Shop-Catalog"] = catalogToken;
+            for(int i=0;i<sectionTokens.Length;i++)if(sectionTokens[i]!=null)headers[sectionHeaders[i]]=sectionTokens[i];
         }
         string service = request.ServiceName.Trim('/');
         if (service == "enter/lobby" || service == "lobby/enter_lobby")
             headers["X-SPRK-Compact-Lobby"] = "1";
         request.Headers = headers;
+        if(trace) {lock(gate){timings.Remove(request);timings.Add(request,new Timing{Queued=Now});}}
     }
 
     // Capture on the response worker, acknowledge only after the corresponding
@@ -62,13 +103,21 @@ public static class SprkNetworkPerformance {
         if (!request.Headers.TryGetValue("X-SPRK-Context", out context)) return;
         var match = tokenField.Match(text);
         var catalog = catalogField.Match(text);
+        var sections=new string[4];var fullSections=new bool[4];
+        for(int i=0;i<sections.Length;i++) {
+            var section=sectionPatterns[i].Match(text);sections[i]=section.Success?section.Groups[1].Value:null;
+            fullSections[i]=text.Contains("\""+sectionFields[i]+"\"");
+        }
         lock (gate) {
             deliveries.Remove(response);
             deliveries.Add(response, new Delivery {Context=context,
+                Request=request,
+                Sections=sections,FullSections=fullSections,
                 Progression=match.Success?match.Groups[1].Value:null, Catalog=catalog.Success?catalog.Groups[1].Value:null,
                 FullCatalog=text.Contains("\"PayShopProductInfos\""),
                 FullProgression=text.Contains("\"AchievementInfos\"") || text.Contains("\"ReservedMainQuestInfo\"")
                     || text.Contains("\"ReservedClearMissionInfos\"") || text.Contains("\"ReservedPlayRecordInfos\"")});
+            Timing timing;if(trace && timings.TryGetValue(request,out timing))timing.Parsed=Now;
         }
     }
     public static void ProgressionApplied(object response) {
@@ -76,9 +125,20 @@ public static class SprkNetworkPerformance {
         lock(gate) {
             Delivery delivery;
             if(!deliveries.TryGetValue(response,out delivery) || delivery.Context!=scope)return;
+            Timing timing;
+            if(trace && timings.TryGetValue(delivery.Request,out timing)) {
+                TraceLog(String.Format(System.Globalization.CultureInfo.InvariantCulture,
+                    "SPRK network apply path={0} queueMs={1:F2} transportAndWorkerMs={2:F2} parseMs={3:F2} dispatchAndApplyMs={4:F2}",
+                    delivery.Request.ServiceName.Trim('/'),Ms(timing.Sent-timing.Queued),Ms(timing.Processing-timing.Sent),Ms(timing.Parsed-timing.Processing),Ms(Now-timing.Parsed)));
+                timings.Remove(delivery.Request);
+            }
             if(delivery.Progression!=null)token=delivery.Progression;
             else if(delivery.FullProgression)token=null;
             if(delivery.FullCatalog && delivery.Catalog==null)catalogToken=null;
+            for(int i=0;i<sectionTokens.Length;i++) {
+                if(delivery.Sections[i]!=null)sectionTokens[i]=delivery.Sections[i];
+                else if(delivery.FullSections[i])sectionTokens[i]=null;
+            }
         }
     }
     public static void CatalogApplied(object response) {
@@ -87,5 +147,21 @@ public static class SprkNetworkPerformance {
             Delivery delivery;
             if(deliveries.TryGetValue(response,out delivery) && delivery.Context==scope)catalogToken=delivery.Catalog;
         }
+    }
+
+    // A restock response already contains the authoritative purchase counters.
+    // Feed that same result into the native count cache before the shop opens,
+    // avoiding its second GetAllShopItemPurchaseCount request.
+    public static void ShopListApplied(NShared.ShopListItemInfo[] items) {
+        if(items==null || !NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ShopManagement>.isValidInstance)return;
+        var grouped=new Dictionary<int,List<NShared.ShopItemInfo>>();
+        foreach(var item in items) {
+            if(item==null)continue;
+            List<NShared.ShopItemInfo> list;
+            if(!grouped.TryGetValue(item.ShopIndex,out list))grouped[item.ShopIndex]=list=new List<NShared.ShopItemInfo>();
+            list.Add(new NShared.ShopItemInfo {ShopIndex=item.ShopIndex,ListNo=item.ListNo,Sold=item.Sold,Purchased=item.Purchased});
+        }
+        var manager=NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ShopManagement>.instance;
+        foreach(var pair in grouped)manager.SetShopItemInfos(pair.Key,pair.Value.ToArray());
     }
 }

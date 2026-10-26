@@ -365,15 +365,29 @@ async fn execute(
         sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,?,?,?,?,?) ON CONFLICT(account_id,shop_index,item_index,period) DO UPDATE SET purchased=excluded.purchased,purchased_time=excluded.purchased_time").bind(account).bind(id).bind(index).bind(period).bind(old+count).bind(now).execute(&mut *db).await?;
         out["ShopItem"] = json!({"ShopIndex":id,"ListNo":index,"Sold":if max>0&&old+count>=max {1}else{0},"Purchased":old+count,"PurchasedTime":now});
     } else {
+        // One indexed read for the catalog, rather than a query per product.
+        // Keep period in the key: daily, weekly and lifetime products may share
+        // the same shop, and expired periods must read as zero.
+        let purchases: std::collections::HashMap<(i64, String), i64> =
+            sqlx::query_as::<_, (i64, String, i64)>("SELECT item_index,period,purchased FROM shop_purchase_ledger WHERE account_id=? AND shop_index=?")
+                .bind(account).bind(id).fetch_all(&mut *db).await?
+                .into_iter().map(|(index, period, count)| ((index, period), count)).collect();
         let mut result = vec![];
         for row in rows {
             let period = period(&row, now, revision, rotating);
-            let count = purchased(db, account, id, n(&row, "Index"), &period).await?;
+            let count = purchases.get(&(n(&row, "Index"), period)).copied().unwrap_or(0);
             let max = n(&row, "PurchasableCount");
-            result.push(json!({"ShopIndex":id,"ListNo":n(&row,"Index"),"ItemCode":row["ItemCode"],"Count":row["Count"],"Star":row["Star"],"Sold":if max>0&&count>=max {1}else{0},"PurchasableCount":max,"Purchased":count,"PurchasedTime":0}));
+            let sold=if max>0&&count>=max {1}else{0};
+            result.push(if action=="get_all_shop_item_purchase_count" {
+                // Native ShopItemInfo needs counters only. Catalog metadata is
+                // already local or comes from GetShopList's ShopListItemInfo.
+                json!({"ShopIndex":id,"ListNo":n(&row,"Index"),"Sold":sold,"Purchased":count,"PurchasedTime":0})
+            } else {
+                json!({"ShopIndex":id,"ListNo":n(&row,"Index"),"ItemCode":row["ItemCode"],"Count":row["Count"],"Star":row["Star"],"Sold":sold,"PurchasableCount":max,"Purchased":count,"PurchasedTime":0})
+            });
         }
         out["ShopItems"] = json!(result);
-        out["RestockTimeInfo"] = restock;
+        if action!="get_all_shop_item_purchase_count" {out["RestockTimeInfo"] = restock;}
     }
     Ok(out)
 }

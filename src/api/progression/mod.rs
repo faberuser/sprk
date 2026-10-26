@@ -73,6 +73,8 @@ pub(crate) async fn record(
     sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,date('now'),?,?,?,?) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+excluded.value").bind(account).bind(kind).bind(arg).bind(arg2).bind(value).execute(db).await?;
     Ok(())
 }
+pub(crate) mod cache;
+
 pub(crate) async fn login(state: &AppState, account: i64) -> Result<Value> {
     let mut tx = state.db.begin().await?;
     item::init(&mut tx, state, account).await?;

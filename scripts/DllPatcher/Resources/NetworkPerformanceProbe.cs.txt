@@ -1,0 +1,68 @@
+using System;
+using System.Collections;
+using System.IO;
+using NShared;
+using NVespa;
+using NVespa.NWeb;
+using UnityEngine;
+
+// Installed only into the GUID-scoped validation copy, never a release client.
+public sealed class SprkNetworkProbe : MonoBehaviour {
+    static bool started;
+    public static void Ensure() {
+        if(started || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"))
+            || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")))return;
+        started=true;var host=new GameObject("SprkNetworkProbe");DontDestroyOnLoad(host);
+        host.AddComponent<SprkNetworkProbe>().StartCoroutine(RunGuarded());
+    }
+    static IEnumerator RunGuarded() {
+        var test=Run();
+        while(true) {
+            object next;
+            try {if(!test.MoveNext())break;next=test.Current;}
+            catch(Exception error) {File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"),"result.txt"),error.ToString());Application.Quit(1);yield break;}
+            yield return next;
+        }
+        File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"),"result.txt"),"PASS: Unity gzip, native parse, section acknowledgements and manager preservation");
+        Application.Quit();
+    }
+    static void Check(bool value,string message){if(!value)throw new Exception(message);}
+    static IEnumerator Run() {
+        yield return new WaitForSecondsRealtime(1);
+        var request=new WebServiceRequest{Host=Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE_ORIGIN"),ServiceName="snapshot",Form=new WWWForm()};
+        SprkNetworkPerformance.Prepare(request,"probe-session");request.CreateRequest();
+        float deadline=Time.realtimeSinceStartup+20;
+        while(!request.Www.isDone && Time.realtimeSinceStartup<deadline)yield return null;
+        Check(request.Www.isDone && String.IsNullOrEmpty(request.Www.error),"Native HTTP failed");
+        var text=request.Www.text;
+        SprkNetworkPerformance.BeginResponse(request);
+        var response=JsonMarshaler.Parse<NShared.EnterLobby.Response>(text);
+        Check(response!=null && response.AchievementInfos.Length==2000,"Native decompression/JSON parser failed");
+        Check(response.ReservedPlayRecordInfos.Length==1,"Play record parse failed");
+        Check(response.ReservedMainQuestInfo.Step==1 && response.ReservedClearMissionInfos.Length==1,"Quest/mission parse failed");
+        SprkNetworkPerformance.Capture(text,request,response);
+        var before=new WebServiceRequest{Host=request.Host,ServiceName="probe"};SprkNetworkPerformance.Prepare(before,"probe-session");
+        Check(!before.Headers.ContainsKey("X-SPRK-Achievements"),"Acknowledged before native application");
+        var achievements=new NGame2.NAccount.UserAchievementManager();
+        var records=new NGame2.NAccount.UserPlayRecordManager();
+        var quests=new NGame2.NAccount.UserQuestManager();
+        var missions=new NGame2.NAccount.UserClearMissionManager();
+        // Initial login initializes the complete achievement manager with Set;
+        // Apply additionally creates notification UI that requires a live login.
+        achievements.Set(response.AchievementInfos);records.Apply(response.ReservedPlayRecordInfos);
+        quests.Apply(response.ReservedMainQuestInfo);missions.Apply(response.ReservedClearMissionInfos);
+        SprkNetworkPerformance.ProgressionApplied(response);
+        var after=new WebServiceRequest{Host=request.Host,ServiceName="probe"};SprkNetworkPerformance.Prepare(after,"probe-session");
+        Check(after.Headers["X-SPRK-Achievements"]==new String('a',64),"Applied section not acknowledged");
+        Check(after.Headers["X-SPRK-Main-Quest"]==new String('b',64) && after.Headers["X-SPRK-Clear-Missions"]==new String('c',64),"Quest/mission acknowledgements missing");
+        var compact=JsonMarshaler.Parse<NShared.EnterLobby.Response>("{\"BaseResult\":\"Success\",\"Result\":\"Success\"}");
+        Check(compact.AchievementInfos==null && compact.ReservedPlayRecordInfos==null,"Missing fields do not default to null");
+        // These are the same calls used by LoginManager.OnBaseResponse. Null
+        // arrays must leave all managers intact, including their native records.
+        if(compact.AchievementInfos!=null)achievements.Apply(compact.AchievementInfos);
+        records.Apply(compact.ReservedPlayRecordInfos);quests.Apply(compact.ReservedMainQuestInfo);missions.Apply(compact.ReservedClearMissionInfos);
+        Check(achievements.Get(1)!=null && records.Get(1).RecordValue=="7","Compact response cleared native state");
+        Check(quests.MainQuestInfo.Step==1 && missions.Get(1).LastStep==2,"Compact response cleared quest/mission state");
+        request.Dispose();
+    }
+}

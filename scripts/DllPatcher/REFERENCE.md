@@ -613,3 +613,16 @@ Receipts prevent later official-client data from being imported again.
 validation is `python scripts/client/verify_client_storage.py` after staging.
 See [client storage migration and retirement](../../docs/client-storage-migration.md)
 for adoption reports, limits of offline-player coverage, and exact cleanup steps.
+
+### Network snapshots, shop request reuse and timing
+
+`--network-performance-only` installs the independent progression-section
+acknowledgements, compact lobby negotiation, shop restock counter reuse and
+opt-in network timing hooks. `--verify-network-performance` checks unique hooks,
+both restock callbacks and native field assumptions. `--self-test-network-performance`
+covers unapplied/lost replies, explicit refreshes, independent sections and
+host/session isolation. The existing `BuildRelease.cs` path installs, verifies
+and tests this helper. Run `python scripts/client/verify_network_performance.py`
+for an isolated Unity gzip/native-state proof. See
+[network responsiveness](../../docs/network-performance.md) for cache invalidation,
+trace fields, measurement commands and compatibility behavior.
