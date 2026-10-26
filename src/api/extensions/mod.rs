@@ -412,7 +412,7 @@ pub(crate) async fn first_lobby(state: &AppState, account: i64) -> Result<Value>
         }
     }
     let pets = list(&mut tx, account, "pet").await?;
-    let team = list(&mut tx, account, "team_buff").await?;
+    let team = buffs::team_snapshot(&mut tx, state, account).await?;
     tx.commit().await?;
     Ok(
         json!({"EquipPresetInfos":presets,"EquipItemIdentifiedInfos":identified,"TechnoMagicEquipItems":techno,"PetInfos":pets,"TeamLevelBuffInfos":team}),

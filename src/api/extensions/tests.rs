@@ -267,6 +267,60 @@ async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
         "Success"
     );
 }
+
+#[tokio::test]
+async fn team_buffs_unlock_on_login_and_lobby_without_resetting_paid_upgrades() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    assert!(u.team_level_buff_infos.is_empty(), "Level one has no buffs");
+    sqlx::query("UPDATE user_info SET team_level=10 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let upgraded = json!({"OpenBuffLevel":2,"BuffReinforce":1,"UpdatedTime":"2026-01-01T00:00:00Z"});
+    put(&mut *s.db.acquire().await.unwrap(),a,"team_buff",2,&upgraded).await.unwrap();
+    let before: (i64,i64) = sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let login = user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let expected: BTreeSet<i64> = s.tables.inventory.team_levels.iter()
+        .filter(|r| n(r,"Level")<=10 && (n(r,"TeamLevelBuffOptionIndex")>0 || n(r,"TeamLevelBuffBonusOptionIndex")>0))
+        .map(|r| n(r,"Level")).collect();
+    assert_eq!(login.team_level_buff_infos.iter().map(|v|n(v,"OpenBuffLevel")).collect::<BTreeSet<_>>(),expected);
+    for info in &login.team_level_buff_infos {
+        if n(info,"OpenBuffLevel")==2 { assert_eq!(info,&upgraded); }
+        else { assert_eq!(info["BuffReinforce"],0); }
+    }
+    let lobby = first_lobby(&s,a).await.unwrap();
+    assert_eq!(lobby["TeamLevelBuffInfos"],json!(login.team_level_buff_infos));
+    assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    assert!(buffs::unlock_team_buffs(&mut *s.db.acquire().await.unwrap(),&s,a).await.unwrap().is_empty());
+    // New accounts can bootstrap the same free records through first-lobby too.
+    sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='team_buff'").bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(first_lobby(&s,a).await.unwrap()["TeamLevelBuffInfos"].as_array().unwrap().len(),expected.len());
+}
+
+#[tokio::test]
+async fn team_buff_unlocks_follow_level_up_in_native_response_once() {
+    use axum::{Router,routing::post,middleware,body::{Body,to_bytes},http::Request as HttpRequest};
+    use tower::ServiceExt;
+    let (s,u)=setup().await;
+    let app=Router::new().route("/test/team-exp",post(|State(state):State<AppState>,body:Bytes| async move {
+        let req=Request::parse(&body)?;
+        let a=req.account(&state)?;
+        let mut tx=state.db.begin().await?;
+        let mut rewards=Rewards::default();
+        crate::api::tutorial::team_exp(&mut tx,&state,a,req.number("Amount",0)?,&mut rewards).await?;
+        tx.commit().await?;
+        Ok::<_,ServerError>(Json(json!({"BaseResult":"Success","Result":"Success","TeamExpResultInfos":rewards.team_exp})))
+    })).layer(middleware::from_fn_with_state(s.clone(),crate::api::inventory::hero_level::notify)).with_state(s.clone());
+    let exp=s.tables.tutorials.support.team_levels.iter().find(|r|r.level==1).unwrap().local_exp;
+    let send=|amount:i64|app.clone().oneshot(HttpRequest::post("/test/team-exp").body(Body::from(format!("SessionKey={}&Amount={amount}",u.user_info.session_key))).unwrap());
+    let response=send(exp).await.unwrap();
+    let out:Value=serde_json::from_slice(&to_bytes(response.into_body(),1024*1024).await.unwrap()).unwrap();
+    assert_eq!(out["TeamExpResultInfos"][0]["NewLevel"],2);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"][0]["OpenBuffLevel"],2);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"][0]["BuffReinforce"],0);
+    assert_eq!(out["ReserveTeamLevelBuffInfos"].as_array().unwrap().len(),1);
+    let response=send(0).await.unwrap();
+    let out:Value=serde_json::from_slice(&to_bytes(response.into_body(),1024*1024).await.unwrap()).unwrap();
+    assert!(out.get("ReserveTeamLevelBuffInfos").is_none(),"Unchanged buffs must not be re-notified");
+}
 #[tokio::test]
 async fn punishment_rune_crafting_equipping_preservation_and_break_are_atomic() {
     // The game sends repeated WWWForm fields; API clients also use JSON arrays.

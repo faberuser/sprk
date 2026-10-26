@@ -386,6 +386,22 @@ Method-specific adjustment rows appear directly below Anti-aliasing: FXAA qualit
 
 The My Info presentation hook hides only WidgetAvatar/Sprite_TextureDeco, the legacy Bg_Deco backdrop behind the hero and pet portraits. Individual portrait textures, gold card frames and selection buttons are preserved.
 
+My Info's Buffs control offers **Pet Buffs** and **Team Level Buffs** through the
+native three-button message window (two choices plus Close). Pet Buffs keeps the
+original pet summary. Team Level Buffs calls MyInfoWindow.OnClickTeamLevelBuff,
+the same navigation found in the September 2022 client, opening the original
+upgrade window and its Total Applied Buffs summary. Common, Content and Convenience
+Stats remain driven by their native managers; empty groups are not fabricated.
+Closing the chooser opens neither view. `--pet-presentation-only` installs this
+change; `--verify-pet-presentation` validates both routes and their native category
+getters. The same installer/verifier runs in `--build-release`.
+The installer also restores the three stripped Team Level summary behaviours in
+`resources.assets`. Their serialized fields match the corresponding pet popup,
+group and stat components. The embedded UnityPy repair remaps references into the
+existing Team Level hierarchy, preserves its object IDs and events, and verifies
+every unrelated asset object's bytes. Both focused and full builds verify these
+bindings; UnityPy from the client requirements is required.
+
 Lobby Camera Sensitivity and Model Camera Sensitivity in Game Options each offer 50% / 75% / 100% / 125% / 150%, default 100%. The Model Camera Sensitivity multiplier applies immediately to free-camera orbit/pan drags and mouse-wheel zoom in supported model preview windows; resetting the camera preserves sensitivity.
 
 Free-camera orbit uses the hero RenderFacade body bounds center, with a native target fallback while the model loads. Native framing offsets rotate and scale with the camera, preserving the right-side Dressing Room composition and initial/reset view. The projection regression checks centered and off-center framing across yaw, pitch and zoom using a real native CinemaCamera.

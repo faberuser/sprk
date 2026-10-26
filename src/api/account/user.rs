@@ -592,7 +592,7 @@ pub async fn login(
     let hair_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"hair").await?;
     let player_accessory_costume_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"accessory").await?;
     let class_buffs={let mut tx=state.db.begin().await?;let v=crate::api::extensions::buffs::class_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;v};
-    let team_level_buff_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"team_buff").await?;
+    let team_level_buff_infos={let mut tx=state.db.begin().await?;let infos=crate::api::extensions::buffs::team_snapshot(&mut tx,&state,account_id).await?;tx.commit().await?;infos};
     let equip_storage_slot_infos=crate::api::extensions::storage_login(&state,account_id).await?;
     let pet_infos=crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"pet").await?;
     let hero_rune_page_infos = heroes.iter().flat_map(|h| h.details.get("HeroRunePageInfos").and_then(serde_json::Value::as_array).into_iter().flatten().cloned()).collect();

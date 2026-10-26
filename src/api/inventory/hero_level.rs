@@ -1,5 +1,6 @@
 //! Unique equipment grows with its equipped hero, rather than forge EXP.
-//! The native client consumes Level and ReservedUpdatedEquipItemInfos directly.
+//! Also deliver automatic Team Level buff unlocks through the native response.
+//! The client consumes ReservedUpdatedEquipItemInfos and ReserveTeamLevelBuffInfos.
 use super::item::n;
 use crate::{error::Result, state::AppState};
 use axum::{
@@ -89,6 +90,7 @@ fn update_snapshots(value: &mut Value, updates: &[Value]) {
 
 /// Cover equipment, presets, potions, battle EXP and recruitment items through
 /// one native response path, so new hero-level sources cannot leave stale gear.
+/// Team EXP from any successful mutation also unlocks its newly eligible buffs.
 pub(crate) async fn notify(
     State(state): State<AppState>,
     request: Request,
@@ -128,12 +130,13 @@ pub(crate) async fn notify(
     let result = async {
         let mut tx = state.db.begin().await?;
         let updates = synchronize(&mut tx, &state, account).await?;
+        let team_buffs = crate::api::extensions::buffs::unlock_team_buffs(&mut tx, &state, account).await?;
         tx.commit().await?;
-        Ok::<_, crate::error::ServerError>(updates)
+        Ok::<_, crate::error::ServerError>((updates, team_buffs))
     }
     .await;
     match result {
-        Ok(updates) if !updates.is_empty() => {
+        Ok((updates, team_buffs)) if !updates.is_empty() || !team_buffs.is_empty() => {
             // Full equipment snapshots (e.g. applying presets) must agree with
             // reserved updates regardless of the client's callback ordering.
             update_snapshots(&mut value, &updates);
@@ -148,11 +151,21 @@ pub(crate) async fn notify(
             let array = reserved.as_array_mut().unwrap();
             array.retain(|old| !updates.iter().any(|u| u["SlotIndex"] == old["SlotIndex"]));
             array.extend(updates);
+            if !team_buffs.is_empty() {
+                let reserved = value.as_object_mut().unwrap().entry("ReserveTeamLevelBuffInfos")
+                    .or_insert_with(|| json!([]));
+                if !reserved.is_array() { *reserved = json!([]); }
+                let array = reserved.as_array_mut().unwrap();
+                // Keep an endpoint's newer enhancement value if supplied.
+                for info in team_buffs {
+                    if !array.iter().any(|old| old["OpenBuffLevel"] == info["OpenBuffLevel"]) { array.push(info); }
+                }
+            }
             parts.headers.remove(axum::http::header::CONTENT_LENGTH);
             Response::from_parts(parts, Body::from(serde_json::to_vec(&value).unwrap()))
         }
         Err(error) => {
-            tracing::warn!(%error,"Could not synchronize hero-level equipment");
+            tracing::warn!(%error,"Could not synchronize hero-level equipment and Team Level buffs");
             Response::from_parts(parts, Body::from(bytes))
         }
         _ => Response::from_parts(parts, Body::from(bytes)),
