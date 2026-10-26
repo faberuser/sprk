@@ -27,6 +27,10 @@ partial class Program
         if (!emitted.Success) throw new InvalidOperationException(string.Join("\n", emitted.Diagnostics));
         compiled.Position = 0;
         using var helperAssembly = AssemblyDefinition.ReadAssembly(compiled);
+        var legendProbe=helperAssembly.MainModule.GetType("SprkAutomation").Methods.Single(m=>m.Name=="ProbeJaneLegend");
+        foreach(var literal in new[]{"Maria","Jane","Missing Maria material texture: "})
+            if(!legendProbe.Body.Instructions.Any(i=>Equals(i.Operand,literal)))
+                throw new InvalidOperationException("Missing native Legend costume validation: "+literal);
         var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(managed);
         using var assembly = AssemblyDefinition.ReadAssembly(dll, new ReaderParameters { AssemblyResolver = resolver });

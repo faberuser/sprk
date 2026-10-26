@@ -279,7 +279,7 @@ public sealed class SprkAutomation : MonoBehaviour
                     throw new InvalidOperationException("Expected a scroll view and an amount between -10 and 10");
                 scroll.Scroll(amount);
             }
-            else if(cmd.action=="jane-legend-probe" || cmd.action=="ui-navigation-probe") { }
+            else if(cmd.action=="jane-legend-probe" || cmd.action=="maria-legend-probe" || cmd.action=="ui-navigation-probe") { }
             else if(cmd.action=="preview-perk") {
                 // Read-only UI preview, including already learned perks. The
                 // confirmation callback intentionally cannot change the save.
@@ -316,7 +316,7 @@ public sealed class SprkAutomation : MonoBehaviour
                         {"state",window.WindowState.ToString()},{"opening",window.ReservedOpenTask},
                         {"backType",window.BackButtonType.ToString()},{"backRegister",window.BackRegister}});
             }
-            if(cmd.action=="jane-legend-probe") ProbeJaneLegend(cmd,reply);
+            if(cmd.action=="jane-legend-probe" || cmd.action=="maria-legend-probe") ProbeJaneLegend(cmd,reply);
             if(cmd.action=="settings-probe")reply.materials.Add(new Dictionary<string,object>{
                 {"kind","settings"},{"fps",(int)NVespa.SystemOptionData.Graphic_FrameControl},
                 {"targetFps",Application.targetFrameRate},{"vSync",QualitySettings.vSyncCount},
@@ -841,17 +841,22 @@ public sealed class SprkAutomation : MonoBehaviour
     AssetBundle janeProbeShaders;
     void ProbeJaneLegend(Command cmd,Reply reply) {
         if(cmd.text!="OriginalSpec" && cmd.text!="MidSpec" && cmd.text!="LowSpec")throw new InvalidOperationException("Expected a texture quality directory");
+        string hero=cmd.action=="maria-legend-probe"?"Maria":"Jane";
         string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");
         var loaded=AssetBundle.GetAllLoadedAssetBundles().ToArray();
         var shaders=janeProbeShaders!=null?janeProbeShaders:loaded.FirstOrDefault(b=>b.name.ToLowerInvariant().Contains("shader"));
         if(shaders==null)shaders=AssetBundle.LoadFromFile(Path.Combine(bundles,"Unity_2020/Shader.unity3d"));
         if(shaders==null)throw new InvalidOperationException("Shader bundle unavailable");
         janeProbeShaders=shaders;
-        var bundle=AssetBundle.LoadFromFile(Path.Combine(bundles,cmd.text+"/Creature_Hero_Jane_Cos21.unity3d"));
+        // A staged bundle root lets opt-in probes validate replacements before
+        // closing a player's client or changing installed assets.
+        string probeBundles=Environment.GetEnvironmentVariable("SPRK_LEGEND_PROBE_BUNDLES");
+        if(String.IsNullOrEmpty(probeBundles))probeBundles=bundles;
+        var bundle=AssetBundle.LoadFromFile(Path.Combine(probeBundles,cmd.text+"/Creature_Hero_"+hero+"_Cos21.unity3d"));
         if(bundle==null)throw new InvalidOperationException("Costume bundle unavailable");
         GameObject model=null,cameraObject=null;RenderTexture target=null;Texture2D picture=null;
         try {
-            var name=bundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_jane_cos21legend_body"));
+            var name=bundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_"+hero.ToLowerInvariant()+"_cos21legend_body"));
             model=UnityEngine.Object.Instantiate(bundle.LoadAsset<GameObject>(name));
             foreach(var node in model.GetComponentsInChildren<Transform>(true))node.gameObject.layer=30;
             var renderers=model.GetComponentsInChildren<SkinnedMeshRenderer>(true);
@@ -861,6 +866,7 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(renderer.sharedMaterials.Length!=renderer.sharedMesh.subMeshCount)throw new InvalidOperationException("Missing materials: "+renderer.name);
                 foreach(var material in renderer.sharedMaterials) {
                     if(material==null || material.shader==null || !material.shader.isSupported)throw new InvalidOperationException("Unsupported material: "+renderer.name);
+                    if(hero=="Maria" && material.mainTexture==null)throw new InvalidOperationException("Missing Maria material texture: "+renderer.name);
                     reply.materials.Add(new Dictionary<string,object>{{"renderer",renderer.name},{"material",material.name},{"shader",material.shader.name},{"supported",material.shader.isSupported}});
                 }
             }
