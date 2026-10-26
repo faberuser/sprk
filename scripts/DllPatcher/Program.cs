@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--world-boss-keys-only")) { InstallWorldBossKeys(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-world-boss-keys")) { VerifyWorldBossKeysFile(args[0]); return; }
             if (args.Contains("--network-performance-only")) { InstallNetworkPerformance(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-network-performance")) { VerifyNetworkPerformanceFile(args[0]); return; }
             if (args.Contains("--self-test-network-performance")) { TestNetworkPerformance(); return; }

@@ -8,6 +8,26 @@ patching; fixes to an existing patch need no additional registration in CI.
 `--build-release` is for a fresh disposable build workspace, not an installed
 client. Focused installation commands below remain available for local changes.
 
+## World Boss entry keys
+
+`--world-boss-keys-only` restores the native WorldBossGlobalTicket counter on
+WorldBossGlobalRanking and the World Boss BattlePartySetting top bar. The latter
+uses an explicit ICustomStaminaObserver getter because retained World Boss dungeon
+data specifies Chicken with zero cost. Its public resource getter and entry rules
+are preserved. BaseWindow registers and removes these observers through its normal
+window lifecycle; the top menu reads the live current/maximum balance and uses the
+existing key icon. Other battle types retain their original resource display.
+The WorldBossGlobalTicket cached maximum is set to two, matching the server's
+daily grant on all seven days. Other resources keep their table-defined maximum.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --world-boss-keys-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-world-boss-keys
+```
+
+The installer and verifier also run through `--build-release`. After installing,
+generate and verify a signed update as described in `docs/client-updates.md`.
+
 ## Telemetry cleanup
 
 Install the asset dependency once with

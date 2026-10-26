@@ -178,8 +178,12 @@ mod tests {
         assert_eq!(next["Period"],"2026-10-21");
         let (_,again)=at(&next,"2026-10-22T00:00:00Z",0);
         assert_eq!(again["NewValue"],2);
-        let (_,closed)=at(&next,"2026-10-25T00:00:00Z",0);
-        assert_eq!(closed["NewValue"],0,"No regular Sunday admission grant");
+        let (sunday,balance)=at(&next,"2026-10-25T00:00:00Z",1);
+        assert_eq!(balance["NewValue"],1,"Sunday grants two entries, then consumes one");
+        assert_eq!(balance["NextRechargeRemainTime"],86400);
+        assert_eq!(at(&sunday,"2026-10-25T23:59:59Z",1).1["NewValue"],0);
+        assert_eq!(at(&sunday,"2026-10-26T00:00:00Z",0).1["NewValue"],2);
+        assert_eq!(at(&Value::Null,"2026-10-25T12:00:00Z",0).1["NewValue"],2,"New accounts also get Sunday entries");
         let mut overflow=next;
         overflow["Count"]=json!(10);
         let (_,preserved)=at(&overflow,"2026-10-22T00:00:00Z",0);
