@@ -841,6 +841,59 @@ async fn npc_limited_final_reward_still_stops_at_its_configured_cap() {
     assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"npc",111).await.unwrap(),saved);
 }
 #[tokio::test]
+async fn reforge_same_stat_requires_a_strictly_larger_value() {
+    let (mut s,u)=setup().await;
+    // UT Max HP at 12%: exactly 13% and 14% remain valid for the same option.
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,2,5,true).unwrap(),Some((3,4)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,3,5,true).unwrap(),Some((4,4)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,4,5,true).unwrap(),None);
+    assert_eq!(equipment::reforge_step_range(&s,9002,9002,2,5,false).unwrap(),None);
+    // Another HP row has a different range: comparing step numbers is unsafe.
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,2,5,true).unwrap(),Some((7,10)));
+    assert_eq!(equipment::reforge_step_range(&s,9002,209,9,5,true).unwrap(),Some((4,4)));
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,4,5,true).unwrap(),None);
+    let different=&s.tables.inventory.options[&9003];
+    assert_eq!(equipment::reforge_step_range(&s,9003,9002,4,5,true).unwrap(),Some((0,n(different,"Steps"))));
+    let a=u.user_info.account_id;
+    let mut eq=give(&s,a,101001,1).await.equipment.remove(0);
+    eq.star=5;eq.option_index_1=9002;eq.option_step_1=2;eq.option_index_2=9001;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9002]);
+    let args=format!("EquipItemSlotIndex={}&OptionSlotIndex=1",eq.slot_index);
+    let rolled=call(&s,&u,"renew_equip_option",&args).await;
+    assert_eq!(rolled["Result"],"Success","{rolled}");
+    assert_eq!(rolled["NewOptionIndex"],9002);
+    assert!([3,4].contains(&n(&rolled,"NewOptionStep")));
+    let accepted=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=true&ConfirmOptionIndex=9002")).await;
+    assert_eq!(accepted["Result"],"Success","{accepted}");
+    assert_eq!(accepted["ResultEquipItem"]["OptionStep1"],rolled["NewOptionStep"]);
+    eq=equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap();
+    eq.option_step_1=4;
+    save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+    let gems:i64=sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    // No valid outcome: preserve balances, counters and pending state.
+    let rejected=call(&s,&u,"renew_equip_option",&args).await;
+    assert_ne!(rejected["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),gems);
+    assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap()),json!(eq));
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap(),0);
+    // At capped HP, a different stat is the only eligible result.
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9002,9003]);
+    let rolled=call(&s,&u,"renew_equip_option",&args).await;
+    assert_eq!(rolled["Result"],"Success","{rolled}");
+    assert_eq!(rolled["NewOptionIndex"],9003);
+    let kept=call(&s,&u,"renew_confirm_equip_option",&format!("{args}&IsNew=false&ConfirmOptionIndex=9002")).await;
+    assert_eq!(kept["Result"],"Success","{kept}");
+    assert_eq!(kept["ResultEquipItem"]["OptionIndex1"],9002);
+    assert_eq!(kept["ResultEquipItem"]["OptionStep1"],4);
+    // Rounded values may stay equal across steps; only the first actual gain qualifies.
+    let options=&mut std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).options;
+    options.get_mut(&209).unwrap()["MinValues"]=json!(vec![100;6]);
+    options.get_mut(&209).unwrap()["MaxValues"]=json!(vec![101;6]);
+    assert_eq!(equipment::reforge_step_range(&s,209,9002,0,5,true).unwrap(),Some((10,10)));
+}
+
+#[tokio::test]
 async fn technomagic_reforge_charges_materials_for_both_options_without_currency() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
