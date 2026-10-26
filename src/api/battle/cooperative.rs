@@ -632,6 +632,7 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
         let mut report=own;report.push(json!({"Index":boss,"TeamId":1,"Hp":if number(&entry,"ConquestLevel")==3 {end_hp}else{hp-portion},"GivedDamage":portion}));
         let request=request(json!({"CreatureInfoString":json!(report).to_string(),"Completed":body["Win"],"PureBattleTime":number(body,"TimeMs")/1000}));
         let mut out=response(s,"campaign/end_campaign");conquest::finish(&mut db,s,*a,&request,&entry,&mut out).await?;
+        crate::api::progression::worker_defeats(&mut db,s,*a,body).await?;
         out["CampaignResults"]=json!([]);entry["ConquestEndResponse"]=out;
         sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0").bind(entry.to_string()).bind(a).execute(&mut *db).await?;
     }

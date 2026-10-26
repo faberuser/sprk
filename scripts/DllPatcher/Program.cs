@@ -142,6 +142,7 @@ namespace DllPatcher
             if (args.Contains("--accounts-only")) { InstallAccounts(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-mission-worker")) { VerifyMissionWorker(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-dispatch")) { TestDispatch(); return; }
             if (args.Contains("--verify-dispatch")) { VerifyDispatchFile(args[0]); return; }
             if (args.Contains("--self-test-honor-buff")) { TestHonorBuff(); return; }

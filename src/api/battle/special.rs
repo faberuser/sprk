@@ -388,6 +388,10 @@ async fn ordeal(
             }
             let won = boolean(r, "Completed", false)?;
             if won {
+                if battle {crate::api::progression::record(db,a,"WinOrdealArena",0,0,1).await?;}
+                if n(node,"NodeType")==3 {
+                    crate::api::progression::record(db,a,"ClearOrdealArenaTier",n(&info,"SelectedTier"),0,1).await?;
+                }
                 info["ClearNodeIndices"]
                     .as_array_mut()
                     .unwrap()

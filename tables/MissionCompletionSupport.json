@@ -1,0 +1,2232 @@
+{
+  "Provenance": {
+    "Source": "Retained client tables; string pool resolved from native MonthlyHeroTable.jit",
+    "MonthlyHeroJitSha256": "d6417eb5638d4434909c702d59fa23dcfe84d3a05c52bb03a1b8c89ee1f1b5f8",
+    "MonthlyHeroDecodedSha256": "c1b0fc12093bd4ac38d746a33b34eb587db81bda302cd53696c8f583ba8d9cbf",
+    "SubStoryDecodedSha256": "5714045f76f883b63326143d16a5c3636811cfbfc02b3e98d4b0ee8e6a472fff",
+    "CreatureDecodedSha256": "1a1e779820c23f5d881d7ca4688b897f56e1cbcef1862b24ad0f6280c703ae12"
+  },
+  "Tables": {
+    "MonthlyHero": [
+      {
+        "Index": 1,
+        "OpenDate": "2019-01-01 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 2,
+        "OpenDate": "2019-01-08 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 3,
+        "OpenDate": "2019-01-12 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 4,
+        "OpenDate": "2019-01-15 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 5,
+        "OpenDate": "2019-01-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 6,
+        "OpenDate": "2019-02-22 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 7,
+        "OpenDate": "2019-02-23 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 8,
+        "OpenDate": "2019-03-10 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 9,
+        "OpenDate": "2019-03-11 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 10,
+        "OpenDate": "2019-03-12 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 11,
+        "OpenDate": "2019-03-22 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 12,
+        "OpenDate": "2019-03-23 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 13,
+        "OpenDate": "2019-03-28 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 14,
+        "OpenDate": "2019-04-01 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 15,
+        "OpenDate": "2019-04-07 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 16,
+        "OpenDate": "2019-04-09 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 17,
+        "OpenDate": "2019-04-15 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 18,
+        "OpenDate": "2019-04-16 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 19,
+        "OpenDate": "2019-04-17 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 20,
+        "OpenDate": "2019-05-11 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 21,
+        "OpenDate": "2019-05-12 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 22,
+        "OpenDate": "2019-05-21 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 23,
+        "OpenDate": "2019-05-25 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 24,
+        "OpenDate": "2019-05-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 25,
+        "OpenDate": "2019-05-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 26,
+        "OpenDate": "2019-05-31 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 27,
+        "OpenDate": "2019-06-02 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 28,
+        "OpenDate": "2019-06-06 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 29,
+        "OpenDate": "2019-06-07 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 30,
+        "OpenDate": "2019-06-13 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 31,
+        "OpenDate": "2019-06-22 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 32,
+        "OpenDate": "2019-06-23 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 33,
+        "OpenDate": "2019-06-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 34,
+        "OpenDate": "2019-07-06 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 35,
+        "OpenDate": "2019-07-06 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 36,
+        "OpenDate": "2019-07-07 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 37,
+        "OpenDate": "2019-07-08 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 38,
+        "OpenDate": "2019-07-09 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 39,
+        "OpenDate": "2019-07-11 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 40,
+        "OpenDate": "2019-07-19 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 41,
+        "OpenDate": "2019-07-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 42,
+        "OpenDate": "2019-08-01 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 43,
+        "OpenDate": "2019-08-05 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 44,
+        "OpenDate": "2019-08-08 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 45,
+        "OpenDate": "2019-08-13 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 46,
+        "OpenDate": "2019-08-19 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 47,
+        "OpenDate": "2019-08-23 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 48,
+        "OpenDate": "2019-08-27 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 49,
+        "OpenDate": "2019-08-30 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 50,
+        "OpenDate": "2019-09-03 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 51,
+        "OpenDate": "2019-09-12 00:00:01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 52,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Baudouin01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 53,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Lilia01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 54,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Arch01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 55,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Scarlet01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 56,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Aselica01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 57,
+        "OpenDate": "CutScene/Calendar/E_C19_Sep_Gau01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 58,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Oddy01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 59,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Mirianne01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 60,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Laudia01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 61,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Kasel01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 62,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Rephy01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 63,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Clause01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 64,
+        "OpenDate": "CutScene/Calendar/E_C19_Oct_Neraxis01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 65,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_Aisha01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 66,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_Juno01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 67,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_May01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 68,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_Requina01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 69,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_Nia01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 70,
+        "OpenDate": "CutScene/Calendar/E_C19_Nov_Reina01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 71,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Pavel01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 72,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Chase01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 73,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Rodina01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 74,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Naila01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 75,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Mitra01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 76,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Viska01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 77,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Esker01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 78,
+        "OpenDate": "CutScene/Calendar/E_C19_Dec_Bernheim01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 79,
+        "OpenDate": "CutScene/Calendar/E_C20_Feb_Kain01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 80,
+        "OpenDate": "CutScene/Calendar/E_C20_Feb_Hanus01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 81,
+        "OpenDate": "CutScene/Calendar/E_C20_Feb_Dakaris01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 82,
+        "OpenDate": "CutScene/Calendar/E_C20_Apr_Rehartna01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 83,
+        "OpenDate": "CutScene/Calendar/E_C20_Apr_Kirze01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 84,
+        "OpenDate": "CutScene/Calendar/E_C20_May_Kibera01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 85,
+        "OpenDate": "CutScene/Calendar/E_C20_Aug_Pancirone01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 86,
+        "OpenDate": "CutScene/Calendar/E_C20_Nov_Taily01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 87,
+        "OpenDate": "CutScene/Calendar/E_C21_Jan_Hilda01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 88,
+        "OpenDate": "CutScene/Calendar/E_C21_Feb_Evan01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 89,
+        "OpenDate": "CutScene/Calendar/E_C21_Apr_Xerah01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 90,
+        "OpenDate": "CutScene/Calendar/E_C21_Jun_Talisha01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 91,
+        "OpenDate": "CutScene/Calendar/E_C21_Sep_Isolet01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 92,
+        "OpenDate": "CutScene/Calendar/E_C21_Sep_Riheet01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 93,
+        "OpenDate": "CutScene/Calendar/E_C21_Sep_Ripine01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 94,
+        "OpenDate": "CutScene/Calendar/E_C21_Oct_Shakmeh01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 95,
+        "OpenDate": "CutScene/Calendar/E_C21_Nov_Gremory01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 96,
+        "OpenDate": "CutScene/Calendar/E_C21_Nov_Lucikiel01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 97,
+        "OpenDate": "CutScene/Calendar/E_C21_Nov_Estelle01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 98,
+        "OpenDate": "CutScene/Calendar/E_C22_Feb_Isaiah01",
+        "RewardIndex": 200001
+      },
+      {
+        "Index": 99,
+        "OpenDate": "CutScene/Calendar/E_C22_Mar_Valance01",
+        "RewardIndex": 200001
+      }
+    ],
+    "SubStoryUnlock": [
+      {
+        "ChapterIndex": 100052,
+        "DungeonIndex": 14,
+        "CreatureIndex": 52,
+        "UnlockCostumeIndex": 5209
+      },
+      {
+        "ChapterIndex": 100040,
+        "DungeonIndex": 8,
+        "CreatureIndex": 40,
+        "UnlockCostumeIndex": 4010
+      },
+      {
+        "ChapterIndex": 100017,
+        "DungeonIndex": 9,
+        "CreatureIndex": 17,
+        "UnlockCostumeIndex": 1710
+      },
+      {
+        "ChapterIndex": 100016,
+        "DungeonIndex": 9,
+        "CreatureIndex": 16,
+        "UnlockCostumeIndex": 1609
+      },
+      {
+        "ChapterIndex": 100049,
+        "DungeonIndex": 14,
+        "CreatureIndex": 49,
+        "UnlockCostumeIndex": 4911
+      },
+      {
+        "ChapterIndex": 100004,
+        "DungeonIndex": 16,
+        "CreatureIndex": 4,
+        "UnlockCostumeIndex": 414
+      },
+      {
+        "ChapterIndex": 100044,
+        "DungeonIndex": 7,
+        "CreatureIndex": 44,
+        "UnlockCostumeIndex": 4410
+      },
+      {
+        "ChapterIndex": 100043,
+        "DungeonIndex": 4,
+        "CreatureIndex": 43,
+        "UnlockCostumeIndex": 4310
+      }
+    ],
+    "MonsterArchive": [
+      {
+        "Index": 21001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 17202,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21021,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 23001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 23002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 23003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 25001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 25002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 25003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40252,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40253,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40254,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40255,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40256,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40257,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40258,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 40259,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 21201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 6001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 6002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 6003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 2203,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 27001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 8001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 8002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 8003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4201,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 2301,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 29001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 29002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 29011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 29012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90021,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90022,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90023,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90024,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90025,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90026,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90027,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 71001,
+        "ArchiveType": 9
+      },
+      {
+        "Index": 71002,
+        "ArchiveType": 9
+      },
+      {
+        "Index": 71003,
+        "ArchiveType": 9
+      },
+      {
+        "Index": 6201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4301,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 31001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 29101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 29102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31013,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90123,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90124,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12014,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4401,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 4402,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 4403,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 4404,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 4411,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 33001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4412,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 4413,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 33003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 4414,
+        "ArchiveType": 1
+      },
+      {
+        "Index": 33004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 31103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33013,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33014,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33015,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33016,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33017,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33018,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33019,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33020,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33021,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33022,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33023,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33024,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33025,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33026,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90224,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 12104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 10201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 8301,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 10211,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35013,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33112,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33113,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33114,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 90326,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 16001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 16002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 16003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 16004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 37008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 37009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33212,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33213,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 33214,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 16101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 6601,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6602,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6603,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6604,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6605,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6606,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6607,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 6608,
+        "ArchiveType": 2
+      },
+      {
+        "Index": 60001,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60002,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60003,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60004,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60005,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60006,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60007,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60008,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 60009,
+        "ArchiveType": 13
+      },
+      {
+        "Index": 20001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 20002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 20003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 18101,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 18102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1009,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 22001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 22002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 22003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 22004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3021,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3022,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3023,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 8801,
+        "ArchiveType": 8
+      },
+      {
+        "Index": 8803,
+        "ArchiveType": 8
+      },
+      {
+        "Index": 5001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 24102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 22201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 999999,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 7001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7012,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7013,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7014,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 1301,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 28001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 28002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 9006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 7105,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 5201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3301,
+        "ArchiveType": 5
+      },
+      {
+        "Index": 70011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30011,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 30014,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11007,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72001,
+        "ArchiveType": 11
+      },
+      {
+        "Index": 72002,
+        "ArchiveType": 11
+      },
+      {
+        "Index": 7202,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70100,
+        "ArchiveType": 10
+      },
+      {
+        "Index": 7206,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3401,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3403,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3404,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 72020,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3405,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3406,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3407,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3408,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3409,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3410,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3411,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3413,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3414,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72030,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3415,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32005,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3416,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32006,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3417,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 30101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3418,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32008,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3419,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32009,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3420,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 30104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32010,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3421,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3423,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3424,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 72040,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3425,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3426,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32016,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3427,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32017,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3428,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32018,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3429,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 32019,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3431,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3433,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3434,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 72050,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3435,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3436,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3438,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3439,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3441,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3443,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3444,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 72060,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 3445,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3446,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3448,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3449,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 3450,
+        "ArchiveType": 3
+      },
+      {
+        "Index": 72070,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72080,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 13001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72090,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11101,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72100,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70200,
+        "ArchiveType": 10
+      },
+      {
+        "Index": 72110,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35900,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 72120,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 34001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 34002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35910,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 32102,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32103,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32104,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72130,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32106,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32107,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35920,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 32111,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32112,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32113,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32114,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 72140,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35930,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 72150,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 35940,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 35950,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 35960,
+        "ArchiveType": 12
+      },
+      {
+        "Index": 15001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 15002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 15003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 15004,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11203,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 70300,
+        "ArchiveType": 10
+      },
+      {
+        "Index": 5501,
+        "ArchiveType": 4
+      },
+      {
+        "Index": 5502,
+        "ArchiveType": 4
+      },
+      {
+        "Index": 5503,
+        "ArchiveType": 4
+      },
+      {
+        "Index": 32201,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32202,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32203,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32204,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32207,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32215,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32218,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32219,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 17001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 17002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 17003,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 11301,
+        "ArchiveType": 8
+      },
+      {
+        "Index": 70400,
+        "ArchiveType": 10
+      },
+      {
+        "Index": 36100,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 32321,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 19001,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 19002,
+        "ArchiveType": 7
+      },
+      {
+        "Index": 19003,
+        "ArchiveType": 7
+      }
+    ]
+  }
+}

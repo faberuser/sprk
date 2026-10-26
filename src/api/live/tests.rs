@@ -482,6 +482,8 @@ async fn incubation_checks_time_identity_and_replay() {
     .await;
     ok(&v);
     assert_eq!(v["PetAddResultInfos"].as_array().unwrap().len(), 1);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='UsePetIncubator'")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap(),1);
     assert_ne!(
         call(
             &s,

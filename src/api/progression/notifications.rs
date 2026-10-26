@@ -35,6 +35,7 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     if !matches!(
         family,
         "hero"
+            | "monthly_hero"
             | "hero_storage_slot"
             | "item"
             | "equip"

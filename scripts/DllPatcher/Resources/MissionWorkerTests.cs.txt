@@ -1,0 +1,31 @@
+using System;
+using System.Collections.Generic;
+public class Info {public int Index,TeamId;public long Hp,MaxHp;public string Key;}
+public class Updater {public int WaveIndex=1;public List<Info> BattleInstance=new List<Info>();}
+public static class BattleInstanceIntegrityChecker {
+    public static List<Info> GetCreatureInfoList(List<Info> infos,int team){return infos;}
+}
+public class MissionWorkerFixture {
+    bool arena;
+    Updater updater=new Updater();
+    Dictionary<string,int> defeated=new Dictionary<string,int>();
+    HashSet<string> defeatedKeys=new HashSet<string>();
+    /* CAPTURE */
+    public static void Test() {
+        var f=new MissionWorkerFixture();
+        f.updater.BattleInstance.AddRange(new[]{
+            new Info{Index=1001,TeamId=1,Hp=0,MaxHp=100,Key="1001_1_1"},
+            new Info{Index=1001,TeamId=1,Hp=0,MaxHp=100,Key="1001_2_1"},
+            new Info{Index=4401,TeamId=1,Hp=1,MaxHp=100,Key="live"},
+            new Info{Index=1,TeamId=0,Hp=0,MaxHp=100,Key="friendly"},
+            new Info{Index=2,TeamId=1,Hp=0,MaxHp=0,Key="empty"}});
+        f.CaptureDefeats();f.CaptureDefeats();
+        if(f.defeated.Count!=1 || f.defeated["1001"]!=2)throw new Exception("Enemy deduplication/filter failed");
+        f.updater.WaveIndex=2;
+        f.updater.BattleInstance.RemoveAt(1);
+        f.CaptureDefeats();
+        if(f.defeated["1001"]!=3)throw new Exception("Replacement wave must count new enemies");
+        f.arena=true;f.updater.WaveIndex=3;f.CaptureDefeats();
+        if(f.defeated["1001"]!=3)throw new Exception("Arena must not grant monster credit");
+    }
+}

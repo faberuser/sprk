@@ -8,6 +8,14 @@ patching; fixes to an existing patch need no additional registration in CI.
 `--build-release` is for a fresh disposable build workspace, not an installed
 client. Focused installation commands below remain available for local changes.
 
+## Mission completion worker
+
+The Conquest worker also reports confirmed monster defeats for mission progress.
+`--conquest-only` installs that helper; `--verify-mission-worker` checks capture at
+wave/final boundaries and duplicate suppression. The focused installer and full
+release build run the capture fixture tests. See `docs/mission-completion.md` for
+the server-side predicates and historical-progress limits.
+
 ## World Boss entry keys
 
 `--world-boss-keys-only` restores the native WorldBossGlobalTicket counter on

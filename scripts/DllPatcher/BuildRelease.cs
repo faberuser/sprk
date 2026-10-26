@@ -24,6 +24,7 @@ partial class Program
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
+        VerifyMissionWorker(clientRoot);
         VerifyArcdimWorker(clientRoot);
         InstallHonorBuff(clientRoot, false);
         VerifyHonorBuffFile(clientRoot);

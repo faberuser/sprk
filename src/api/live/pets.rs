@@ -378,6 +378,7 @@ pub(super) async fn execute(
                             n(e, "ReqTime") * (100 - n(d, "TimePer")).clamp(1, 100) / 100;
                         v["SetItemIndex"] = json!(egg);
                         v["CompletedTime"] = json!(time(now() + duration));
+                        crate::api::progression::record(db,a,"UsePetIncubator",0,0,1).await?;
                     } else {
                         let egg = n(&v, "SetItemIndex");
                         if egg == 0 || (int(r, "ItemIndex")? > 0 && int(r, "ItemIndex")? != egg) {

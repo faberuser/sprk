@@ -369,6 +369,7 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
             fields["AliveHeroIndices"] = json!(alive);
         }
         let mut out = campaign::end_authoritative(&mut db, s, *account, &request(fields)).await?;
+        crate::api::progression::worker_defeats(&mut db,s,*account,body).await?;
         // Native EndCampaign gates the reward screen on this participant list,
         // even when all drops were awarded individually and the shared pool is empty.
         out["MultiplayMemberIds"] = json!(run.members);
@@ -458,9 +459,14 @@ mod tests {
         let run=run.lock().await;
         assert_eq!(run.payload["AffixIndices"],json!([6]));
         sqlx::query("UPDATE battle_runs SET started=started-60,entry=json_set(entry,'$.CoopCharged',json('true'),'$.PartyResourceChoicePending',json('false'))").execute(&s.db).await.unwrap();
-        let body=json!({"Win":true,"TimeMs":60000,"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
+        let body=json!({"Win":true,"TimeMs":60000,"DefeatedCreatures":{"1001":3,"4401":1},"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
         settle_party(&s,&run,&body).await.unwrap();
         settle_party(&s,&run,&body).await.unwrap();
+        for account in &members {
+            let kills:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
+                .bind(account).fetch_one(&s.db).await.unwrap();
+            assert_eq!(kills,4,"duplicate worker results must not duplicate kill credit");
+        }
         let rank=call(&s,&users[0],"raid/get_multi_play_challenge_raid_ranker_list","RaidIndex=70001").await;
         assert_eq!(rank["Result"],"Success");
         assert_eq!(rank["RankerInfos"].as_array().unwrap().len(),1);
@@ -1180,6 +1186,14 @@ mod tests {
         assert!(number(&results[0].0,"MaxWaveIndex")>=leave_wave);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        if !dragon && leave_wave==0 {
+            for user in &users {
+                let kills:i64=sqlx::query_scalar("SELECT COALESCE(SUM(value),0) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
+                    .bind(account(user)).fetch_one(&s.db).await.unwrap();
+                assert!(kills>0,"The real worker must report confirmed monster defeats");
+                println!("Native worker mission defeat credit: {kills}");
+            }
+        }
         server.abort();
     }
 }

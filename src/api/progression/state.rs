@@ -66,9 +66,11 @@ pub(super) fn period(row: &Value) -> String {
     "all".into()
 }
 pub(super) struct View {
+    pub history: super::mission_history::History,
     battle_lookup: OnceLock<BattleLookup>,
     pub heroes: Vec<Value>,
     pub soul_weapons: Vec<Value>,
+    pub npc_friendly: Vec<Value>,
     pub dungeons: Vec<(i64, i64, i64, i64)>,
     pub metrics: Vec<(String, String, i64, i64, i64)>,
     pub claims: Vec<(String, i64, i64, String, String)>,
@@ -91,8 +93,10 @@ impl View {
             .map(|h| serde_json::to_value(h).unwrap())
             .collect();
         Ok(Self {
+            history: super::mission_history::History::load(db, account).await?,
             battle_lookup: OnceLock::new(),
             heroes,
+            npc_friendly: crate::api::extensions::list(db, account, "npc").await?,
             guild_damage: sqlx::query_as::<_, (String, i64)>("SELECT kind,SUM(score) FROM guild_battle_scores WHERE account=? GROUP BY kind")
                 .bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
             conquest_kills: sqlx::query_scalar("SELECT COUNT(*) FROM community_claims WHERE account=? AND kind='guild_conquest_kill'")
@@ -195,6 +199,7 @@ impl View {
         }
     }
     pub fn quest(&self, state: &AppState, row: &Value) -> i64 {
+        if let Some(value) = self.history_quest(state, row) { return value; }
         // The archived public table omits server-only action filters. A null
         // StateValue must never turn a specialized mission into an any-action
         // counter. Resolve known goals explicitly; unknown scopes stay pending.
@@ -216,6 +221,20 @@ impl View {
         let count_hero =
             |key: &str, min: i64| self.heroes.iter().filter(|h| n(h, key) >= min).count() as i64;
         match row["Kind"].as_str().unwrap_or("") {
+            "HeroDungeonPresentLevel" => {
+                // StateValue is [claimed Present reward level, NPC index].
+                // Step points to the next reward, while a claimed final reward
+                // stays on its last step and increments EndRewardCount instead.
+                let (level, npc) = (arg(0), arg(1));
+                let rewards = state.tables.extensions.rows("NPCFriendlyPoint");
+                let final_level = rewards.iter().filter(|r| n(r, "HeroIndex") == npc)
+                    .map(|r| n(r, "Step")).max();
+                (level > 0 && rewards.iter()
+                    .any(|r| n(r, "HeroIndex") == npc && n(r, "Step") == level)
+                    && self.npc_friendly.iter().any(|info| n(info, "HeroIndex") == npc
+                        && (n(info, "Step") > level ||
+                            (Some(level) == final_level && n(info, "Step") == level && n(info, "EndRewardCount") > 0)))) as i64
+            }
             "DungeonCleared" => {
                 self.dungeons
                     .iter()
@@ -450,8 +469,12 @@ impl View {
             "RotateRulletDaily" | "RotateRulletWeekly" => {
                 self.metric("RotateRulletDaily", &p, None, None)
             }
-            // Definitions for unimplemented battle/event/archive services remain incomplete.
-            _ => 0,
+            _ => {
+                if let Some((value, required)) = self.history_achievement(state, row, &p) {
+                    target = required;
+                    value
+                } else { 0 }
+            },
         };
         (value.max(0), target)
     }

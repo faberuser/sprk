@@ -156,6 +156,49 @@ async fn setup() -> (AppState, user::LoginResponse) {
     let u = relogin(&s).await;
     (s, u)
 }
+
+#[tokio::test]
+async fn present_level_missions_recover_claimed_rewards_and_reject_unclaimed_progress() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let other = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=present-other"))
+        .await.unwrap().0.user_info.account_id;
+    let quest = s.tables.progression.sub_quests.iter()
+        .find(|q| n(q, "QuestIndex") == 1002320).unwrap();
+    assert_eq!(quest["StateValue"], json!(["6", "835"]));
+    let mut db = s.db.acquire().await.unwrap();
+    // Neither a different account's reward nor a different NPC's reward counts.
+    for (account, npc) in [(other, 835), (a, 827)] {
+        crate::api::extensions::put(&mut db, account, "npc", npc,
+            &json!({"HeroIndex":npc,"Step":8,"FriendlyPoint":100000,"EndRewardCount":1})).await.unwrap();
+    }
+    assert_eq!(View::load(&mut db, a).await.unwrap().quest(&s, quest), 0);
+    // Enough gifts for level six still require the actual reward claim.
+    crate::api::extensions::put(&mut db, a, "npc", 835,
+        &json!({"HeroIndex":835,"Step":6,"FriendlyPoint":100000,"EndRewardCount":0})).await.unwrap();
+    assert_eq!(View::load(&mut db, a).await.unwrap().quest(&s, quest), 0);
+    // Existing saves after that claim point at the next reward.
+    crate::api::extensions::put(&mut db, a, "npc", 835,
+        &json!({"HeroIndex":835,"Step":7,"FriendlyPoint":100000,"EndRewardCount":0})).await.unwrap();
+    assert_eq!(View::load(&mut db, a).await.unwrap().quest(&s, quest), 1);
+    // The final reward never advances Step; its claim counter proves completion.
+    let final_quest = json!({"Kind":"HeroDungeonPresentLevel","StateValue":["8","835"]});
+    for (count, expected) in [(0, 0), (1, 1)] {
+        crate::api::extensions::put(&mut db, a, "npc", 835,
+            &json!({"HeroIndex":835,"Step":8,"FriendlyPoint":0,"EndRewardCount":count})).await.unwrap();
+        assert_eq!(View::load(&mut db, a).await.unwrap().quest(&s, &final_quest), expected);
+    }
+    drop(db);
+    let login = relogin(&s).await;
+    assert!(login.sub_quest_infos.iter().any(|q| n(q,"SubQuestIndex")==1002320 && n(q,"Progress")==1 && n(q,"LastStep")==0));
+    let reward = call(&s, &login, "complete_sub_quest", "SubQuestIndices=[1002320]").await;
+    assert_eq!(reward["Result"], "Success", "{reward}");
+    let after = currency(&s, &login).await;
+    // A second claim cannot grant the reward again.
+    assert_ne!(call(&s, &login, "complete_sub_quest", "SubQuestIndices=[1002320]").await["Result"], "Success");
+    assert_eq!(currency(&s, &login).await, after);
+    assert!(relogin(&s).await.sub_quest_infos.iter().any(|q| n(q,"SubQuestIndex")==1002320 && n(q,"LastStep")==1));
+}
 async fn relogin(s: &AppState) -> user::LoginResponse {
     user::test_login(
         State(s.clone()),

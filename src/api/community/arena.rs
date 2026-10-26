@@ -641,6 +641,7 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     out["MatchResult"] = json!({"MatchUid":id,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[currency]});
     out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}] = current;
     data["End"] = out.clone();
+    data["CompletedAt"] = json!(now());
     sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
         .bind(data.to_string())
         .bind(id)

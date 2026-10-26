@@ -674,6 +674,7 @@ pub(super) async fn end(
         .bind(a)
         .execute(&mut *db)
         .await?;
+    crate::api::progression::record(db,a,"KillMonster",0,0,kills).await?;
     let mut out = rewards(db, s, a, grant).await?;
     super::treasure::record_time(db, s, a, r, saved.get("started"), 48, &mut out).await?;
     out["OpenPunishmentRaidInfos"] = json!([p]);

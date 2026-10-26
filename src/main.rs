@@ -343,6 +343,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/achievement/check_achievements", post(api::progression::check_achievements))
         .route("/achievement/reward_achievement", post(api::progression::reward_achievement))
         .route("/quest/complete_sub_quest", post(api::progression::complete_sub_quest))
+        .route("/monthly_hero/complete_monthly_hero", post(api::progression::complete_monthly_hero))
         .route("/quest/progress_client_main_quest", post(api::progression::progress_client_main_quest))
         .route("/clear_mission/get_clear_mission_reward", post(api::progression::get_clear_mission_reward))
         .route("/newbie_mission/get_newbie_mission_reward", post(api::progression::get_newbie_mission_reward))

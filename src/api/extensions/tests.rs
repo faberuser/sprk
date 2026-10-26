@@ -155,6 +155,8 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         call(&s, &u, "valance_identified", &args).await["Result"],
         "Success"
     );
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='IdentifiedEquip'")
+        .bind(a).fetch_one(&s.db).await.unwrap(),1);
     let enchant = s
         .tables
         .extensions
@@ -945,6 +947,8 @@ async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["EquipItemResult"]["Identified"], 0);
     assert_eq!(gold(&s).await, 99000000);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+        .bind(a).fetch_one(&s.db).await.unwrap(),1);
 }
 #[tokio::test]
 async fn tickets_change_names_and_awakenings_without_replay() {

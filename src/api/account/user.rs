@@ -745,7 +745,7 @@ pub async fn login(
         class_buff_point_infos: class_buffs["ClassBuffPointInfos"].as_array().cloned().unwrap_or_default(),
         class_buff_infos: class_buffs["ClassBuffInfos"].as_array().cloned().unwrap_or_default(),
         dispatch_battle_infos: battle["DispatchBattleInfos"].as_array().cloned().unwrap_or_default(),
-        monthly_hero_infos: vec![],
+        monthly_hero_infos: crate::api::extensions::list(&mut *state.db.acquire().await?,account_id,"monthly_hero").await?,
         sub_quest_infos: progression["SubQuestInfos"].as_array().cloned().unwrap_or_default(),
         eclipse_dungeon_infos: vec![],
         clear_mission_infos: progression["ClearMissionInfos"].as_array().cloned().unwrap_or_default(),

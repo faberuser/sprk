@@ -564,6 +564,7 @@ pub(super) async fn execute(
             for v in &values {
                 sqlx::query("INSERT INTO guild_arena_decks(guild_id,account,season,deck,data) VALUES(?,?,?,?,?)").bind(g).bind(a).bind(index).bind(n(v,"DeckIndex")).bind(v.to_string()).execute(&mut *db).await?;
             }
+            if !values.is_empty() {crate::api::progression::record(db,a,"SetGuildArenaDeck",0,0,1).await?;}
             out["DeckInfos"] = json!((1..=5).map(|slot| values.iter()
                 .find(|v| n(v, "DeckIndex") == slot).cloned().unwrap_or_else(||
                     json!({"AccountId":a,"DeckIndex":slot,"CachedHeroInfos":[],"HeroIndices":[],"SkillSlotIndices":[],"IsShow":1})))
@@ -589,6 +590,7 @@ pub(super) async fn execute(
                     return Err(rule("InvalidValue"));
                 }
                 v["SkillSlotIndices"] = json!(slots);
+                crate::api::progression::record(db,a,"SetGuildArenaDeckSkill",0,0,1).await?;
                 sqlx::query(
                     "UPDATE guild_arena_decks SET data=? WHERE account=? AND season=? AND deck=?",
                 )

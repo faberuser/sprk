@@ -385,6 +385,7 @@ async fn reward_index(
     Ok(())
 }
 async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) -> Result<Value> {
+    crate::api::progression::record(db,a,"BattleRewardEquip",0,0,r.equipment.len() as i64).await?;
     let mut out = item::reward_response(db, s, a, r).await?;
     out["EquipItemInfos"] = out["EquipItemResults"].clone();
     out["HeroExpResults"] = json!([]);

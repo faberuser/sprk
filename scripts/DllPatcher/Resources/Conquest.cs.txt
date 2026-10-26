@@ -102,6 +102,18 @@ public sealed class SprkConquest : MonoBehaviour {
         public bool arena;
         public HashSet<long> withdrawn=new HashSet<long>();
         public List<object> logs=new List<object>();
+        public Dictionary<string,int> defeated=new Dictionary<string,int>();
+        readonly HashSet<string> defeatedKeys=new HashSet<string>();
+        public void CaptureDefeats() {
+            if(arena)return;
+            foreach(var info in BattleInstanceIntegrityChecker.GetCreatureInfoList(updater.BattleInstance,-1)) {
+                if(info.TeamId!=1 || info.Hp>0 || info.MaxHp<=0)continue;
+                string key=updater.WaveIndex+":"+info.Key;
+                if(!defeatedKeys.Add(key))continue;
+                string index=info.Index.ToString();int count;
+                defeated[index]=(defeated.TryGetValue(index,out count)?count:0)+1;
+            }
+        }
         long lastClockMs=-1;
         public void OnProcessBattleLog(long time,BattleLog log) {
             if(log.Type==BattleLogType.InitialDungeonBattleLog && updater.BattleInstance.CheckEachWaveEachTeam) {
@@ -130,6 +142,7 @@ public sealed class SprkConquest : MonoBehaviour {
             }
             logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
             if(log.Type==BattleLogType.WaveReady || log.Type==BattleLogType.WaveEnd) {
+                if(log.Type==BattleLogType.WaveEnd)CaptureDefeats();
                 var wave=new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}};
                 if(log.Type==BattleLogType.WaveEnd)wave["Winner"]=JM_NShared_WaveEndBattleLog.Parse(log.Data).winner.ToString();
                 Flush();owner.Send("WorkerPacket",new Dictionary<string,object>{{"RunId",id},{"Name",log.Type==BattleLogType.WaveReady?"WaveReadyNot":"WaveEndNot"},
@@ -285,6 +298,7 @@ public sealed class SprkConquest : MonoBehaviour {
         if(command!=null)run.updater.BattleInstance.BattleLogContainer.AddLog(command);
     }
     void Finish(Run run) {
+        run.CaptureDefeats();
         run.ended=true;var battle=run.updater.BattleInstance;
         var infos=BattleInstanceIntegrityChecker.GetCreatureInfoList(battle,-1);
         var creatures=new List<object>();
@@ -301,7 +315,7 @@ public sealed class SprkConquest : MonoBehaviour {
         foreach(long account in run.players)contributions[account.ToString()]=battle.Snapshot.StatisticsManager.GetTotalDamageOfAccount(account);
         Send("WorkerResult",new Dictionary<string,object>{{"RunId",run.id},{"Win",run.updater.GetWinner()==TeamType.Left},
             {"Winner",run.updater.GetWinner().ToString()},
-            {"Creatures",creatures},{"AccountDamage",contributions},{"TimeMs",battle.MainTimer.GetCurrentTimeMs()},{"MaxWaveIndex",run.updater.MaxWaveIndex}});
+            {"Creatures",creatures},{"DefeatedCreatures",run.defeated},{"AccountDamage",contributions},{"TimeMs",battle.MainTimer.GetCurrentTimeMs()},{"MaxWaveIndex",run.updater.MaxWaveIndex}});
         runs.Remove(run.id);
     }
     void OnApplicationQuit() {if(socket!=null)socket.Close();}

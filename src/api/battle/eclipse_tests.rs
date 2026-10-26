@@ -122,6 +122,8 @@ async fn eclipse_native_entry_result_rewards_and_retry_are_persistent() {
     .await
     .unwrap();
     assert_eq!(claims, 1);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='EndEclipse'")
+        .bind(account(&u)).fetch_one(&s.db).await.unwrap(),1);
     let restored = call(&s, &u, "eclipse/get_eclipse_info", "").await;
     assert_eq!(restored["EclipseInfo"]["IsPlayEclipse"], false);
     assert_eq!(restored["EclipseInfo"]["MaxWaveIndex"], 2);
