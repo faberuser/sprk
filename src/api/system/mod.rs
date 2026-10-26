@@ -7,5 +7,6 @@ pub mod ping;
 pub mod query;
 pub(crate) mod request;
 pub(crate) mod performance;
+pub(crate) mod revisions;
 
 pub mod storage;

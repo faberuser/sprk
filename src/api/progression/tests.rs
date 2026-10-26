@@ -1137,7 +1137,7 @@ async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
     database::create_tables(&pool).await.unwrap();
     assert_eq!(relogin(&s).await.attendance_infos[0]["LastRewardedDay"], 1);
     pool.close().await;
-    std::fs::remove_file(path).unwrap();
+    database::remove_test_database(&path).await;
 }
 
 #[tokio::test]

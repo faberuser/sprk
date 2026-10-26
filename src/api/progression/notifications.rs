@@ -57,6 +57,7 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     }
     let acknowledged = request.headers().get("x-sprk-progression")
         .and_then(|v|v.to_str().ok()).unwrap_or("").to_owned();
+    let headers = request.headers().clone();
     let (parts, body) = request.into_parts();
     let Ok(bytes) = to_bytes(body, 2 * 1024 * 1024).await else {
         return Response::builder().status(413).body(Body::empty()).unwrap();
@@ -87,22 +88,24 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
     if value["BaseResult"] != "Success"
         || value["Result"] != "Success"
         || value.get("Message").is_some()
+        // Explicit endpoint snapshots can be required by their own callback
+        // (e.g. achievement/list replaces its manager). Only suppress common
+        // middleware fields and the verified lobby base-response fields.
         || value.get("AchievementInfos").is_some()
     {
         return Response::from_parts(parts, Body::from(bytes));
     }
-    let updates = async {
-        let mut tx = state.db.begin().await?;
-        item::init(&mut tx, &state, account).await?;
-        touch_day(&mut tx, account).await?;
-        let updates = snapshot(&mut tx, &state, account).await?;
-        tx.commit().await?;
-        Ok::<_, ServerError>(updates)
-    }
-    .await;
+    let updates = super::cache::get(&state, &session_key, account).await;
     match updates {
         Ok(updates) => {
-            append_snapshots(&mut value, &updates, &session_key, &acknowledged);
+            // Section clients must not use the combined token: a lobby refresh
+            // can replace just one section independently of that combined state.
+            if headers.get("x-sprk-sections").is_some_and(|v| v == "1") {
+                for (wire, field) in SNAPSHOT_FIELDS { value[wire] = updates[field].clone(); }
+                conditional_sections(&mut value, &session_key, &headers);
+            } else {
+                append_snapshots(&mut value, &updates, &session_key, &acknowledged);
+            }
             value["ReservedSubQuestInfos"] = json!(subquest_updates(&state, &session_key, &updates["SubQuestInfos"]));
             match serde_json::to_vec(&value) {
                 Ok(bytes) => {
@@ -122,32 +125,58 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
 /// A client acknowledges only a snapshot it has received. Lost responses and
 /// new sessions therefore cause a full resend. Achievements replace native state,
 /// so never send a partial AchievementInfos array.
+const SNAPSHOT_FIELDS: [(&str, &str); 4] = [
+    ("AchievementInfos", "AchievementInfos"),
+    ("ReservedMainQuestInfo", "MainQuestInfo"),
+    ("ReservedClearMissionInfos", "ClearMissionInfos"),
+    ("ReservedPlayRecordInfos", "PlayRecordInfos"),
+];
+
+fn normalized(mut value: Value, play_records: bool) -> Value {
+    if play_records {
+        for record in value.as_array_mut().into_iter().flatten() {
+            if let Some(record) = record.as_object_mut() { record.remove("UpdatedTime"); }
+        }
+    }
+    value
+}
+
+/// Omission preserves native state; explicit empty lists retain native semantics.
+/// Tokens are acknowledged after OnBaseResponse has applied the exact reply.
+pub(crate) fn conditional_sections(value: &mut Value, session: &str, headers: &axum::http::HeaderMap) {
+    use sha2::{Digest, Sha256};
+    if !headers.get("x-sprk-sections").is_some_and(|v| v == "1") { return; }
+    for (wire, name, header) in [
+        ("AchievementInfos", "SprkAchievementToken", "x-sprk-achievements"),
+        ("ReservedMainQuestInfo", "SprkMainQuestToken", "x-sprk-main-quest"),
+        ("ReservedClearMissionInfos", "SprkClearMissionToken", "x-sprk-clear-missions"),
+        ("ReservedPlayRecordInfos", "SprkPlayRecordToken", "x-sprk-play-records"),
+    ] {
+        let Some(snapshot) = value.get(wire) else { continue; };
+        let mut digest = Sha256::new();
+        digest.update(session.as_bytes());
+        digest.update(wire.as_bytes());
+        digest.update(serde_json::to_vec(&normalized(snapshot.clone(), wire == "ReservedPlayRecordInfos")).unwrap());
+        let token = hex::encode(digest.finalize());
+        if headers.get(header).and_then(|h| h.to_str().ok()) == Some(&token) {
+            value.as_object_mut().unwrap().remove(wire);
+        } else {
+            value[name] = json!(token);
+        }
+    }
+}
+
 fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowledged: &str) {
     use sha2::{Digest, Sha256};
     let mut digest = Sha256::new();
     digest.update(session.as_bytes());
-    let fields = [
-        ("AchievementInfos", "AchievementInfos"),
-        ("ReservedMainQuestInfo", "MainQuestInfo"),
-        ("ReservedClearMissionInfos", "ClearMissionInfos"),
-        ("ReservedPlayRecordInfos", "PlayRecordInfos"),
-    ];
-    for (_, field) in fields {
-        let mut snapshot = updates[field].clone();
-        if field == "PlayRecordInfos" {
-            // These timestamps describe snapshot generation, not progress changes.
-            // Keep them on the wire without invalidating an acknowledged state.
-            for record in snapshot.as_array_mut().into_iter().flatten() {
-                if let Some(record) = record.as_object_mut() {
-                    record.remove("UpdatedTime");
-                }
-            }
-        }
+    for (_, field) in SNAPSHOT_FIELDS {
+        let snapshot = normalized(updates[field].clone(), field == "PlayRecordInfos");
         digest.update(serde_json::to_vec(&snapshot).unwrap());
     }
     let token = hex::encode(digest.finalize());
     if token != acknowledged {
-        for (wire, field) in fields {
+        for (wire, field) in SNAPSHOT_FIELDS {
             value[wire] = updates[field].clone();
         }
     }
@@ -157,6 +186,29 @@ fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowled
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn section_acknowledgements_isolate_changes_and_recover_missing_empty_and_foreign_state() {
+        let original = json!({"AchievementInfos":[{"Index":1}],"ReservedMainQuestInfo":{"Step":1},"ReservedClearMissionInfos":[],"ReservedPlayRecordInfos":[{"RecordIndex":1,"RecordValue":"1","UpdatedTime":"first"}]});
+        let mut headers=axum::http::HeaderMap::new();headers.insert("x-sprk-sections","1".parse().unwrap());
+        let mut first=original.clone();conditional_sections(&mut first,"session",&headers);
+        for (token,header) in [("SprkAchievementToken","x-sprk-achievements"),("SprkMainQuestToken","x-sprk-main-quest"),("SprkClearMissionToken","x-sprk-clear-missions"),("SprkPlayRecordToken","x-sprk-play-records")] {
+            headers.insert(header,first[token].as_str().unwrap().parse().unwrap());
+        }
+        let mut repeated=original.clone();repeated["ReservedPlayRecordInfos"][0]["UpdatedTime"]=json!("later");
+        conditional_sections(&mut repeated,"session",&headers);
+        for (wire,_) in SNAPSHOT_FIELDS {assert!(repeated.get(wire).is_none(),"{wire}");}
+        let mut changed=original.clone();changed["ReservedMainQuestInfo"]["Step"]=json!(2);
+        conditional_sections(&mut changed,"session",&headers);
+        assert_eq!(changed["ReservedMainQuestInfo"]["Step"],2);assert!(changed.get("AchievementInfos").is_none());
+        let mut empty=original.clone();empty["AchievementInfos"]=json!([]);conditional_sections(&mut empty,"session",&headers);
+        assert_eq!(empty["AchievementInfos"],json!([]));
+        let mut foreign=original.clone();conditional_sections(&mut foreign,"other-session",&headers);
+        assert!(foreign["AchievementInfos"].is_array());
+        headers.remove("x-sprk-achievements");let mut lost=original.clone();conditional_sections(&mut lost,"session",&headers);
+        assert_eq!(lost["AchievementInfos"],original["AchievementInfos"]);
+        let mut legacy=original.clone();conditional_sections(&mut legacy,"session",&axum::http::HeaderMap::new());assert_eq!(legacy,original);
+        println!("Section fixture bytes: full={}, acknowledged={}",serde_json::to_vec(&first).unwrap().len(),serde_json::to_vec(&repeated).unwrap().len());
+    }
     #[test]
     fn acknowledged_snapshots_resend_changes_losses_and_session_changes() {
         let mut updates=json!({"AchievementInfos":[{"AchievementIndex":1,"Achievement":2},{"AchievementIndex":2,"Achievement":3}],

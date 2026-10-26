@@ -13,6 +13,7 @@
     <EmbeddedResource Include="Resources/MissionWorkerTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionWorkerTests.cs.txt" />
     <EmbeddedResource Include="Resources/NetworkPerformance.cs.txt" WithCulture="false" LogicalName="DllPatcher.NetworkPerformance.cs.txt" />
     <EmbeddedResource Include="Resources/NetworkPerformanceTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.NetworkPerformanceTests.cs.txt" />
+    <EmbeddedResource Include="Resources/NetworkPerformanceProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.NetworkPerformanceProbe.cs.txt" />
     <EmbeddedResource Include="../client/isolate_client_storage.py" LogicalName="DllPatcher.isolate_client_storage.py" />
     <EmbeddedResource Include="../client/restore_team_buff_prefabs.py" LogicalName="DllPatcher.restore_team_buff_prefabs.py" />
     <EmbeddedResource Include="Resources/StorageMigrationTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.StorageMigrationTests.cs.txt" />

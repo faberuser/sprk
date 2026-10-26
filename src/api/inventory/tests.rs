@@ -120,6 +120,13 @@ async fn archived_arena_shops_restore_catalog_prices_and_purchase_receipts() {
         sqlx::query("UPDATE shop_stock SET stock='[]' WHERE account_id=? AND shop_index=?").bind(a).bind(id).execute(&s.db).await.unwrap();
         let out=shop::get_shop_list(State(s.clone()),form(&u,&format!("ShopIndex={id}"))).await.unwrap().0;
         assert!(out["ShopItems"].as_array().unwrap().iter().all(|r|r["Purchased"]==1),"{out}");
+        let counters=shop::get_all_shop_item_purchase_count(State(s.clone()),form(&u,&format!("ShopIndex={id}"))).await.unwrap().0;
+        let counts=counters["ShopItems"].as_array().unwrap();
+        assert_eq!(counts.len(),out["ShopItems"].as_array().unwrap().len());
+        assert!(counts.iter().all(|r|r["Purchased"]==1 && r.as_object().unwrap().len()==5));
+        assert!(counters.get("RestockTimeInfo").is_none());
+        assert!(serde_json::to_vec(&counters).unwrap().len()<serde_json::to_vec(&out).unwrap().len());
+        println!("Shop {id} bytes: catalog={}, counters={}",serde_json::to_vec(&out).unwrap().len(),serde_json::to_vec(&counters).unwrap().len());
     }
     let out=shop::buy_shop_item(State(s.clone()),form(&u,"ShopIndex=35&ShopItemIndex=7&ShopItemPurchaseCount=1")).await.unwrap().0;
     assert_ne!(out["Result"],"Success");

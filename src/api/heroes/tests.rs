@@ -324,7 +324,7 @@ async fn competing_purchases_charge_and_recruit_once() {
         1
     );
     pool.close().await;
-    std::fs::remove_file(path).unwrap();
+    database::remove_test_database(&path).await;
 }
 fn costume(s: &AppState) -> Value {
     s.tables

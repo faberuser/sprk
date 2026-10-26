@@ -16,7 +16,7 @@ def percentile(values, fraction):
     return sorted(values)[max(0, math.ceil(len(values) * fraction) - 1)]
 
 
-def measure(origin, path, count, warmup, body, compact):
+def measure(origin, path, count, warmup, body, compact, sections=False):
     address = urlsplit(origin)
     if address.scheme not in ("http", "https") or not address.hostname or address.username or address.password:
         raise ValueError("Use an http(s) origin without credentials")
@@ -27,6 +27,8 @@ def measure(origin, path, count, warmup, body, compact):
     headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept-Encoding": "gzip"}
     if compact:
         headers["X-SPRK-Compact-Lobby"] = "1"
+    if sections:
+        headers["X-SPRK-Sections"] = "1"
     samples = []
     try:
         for index in range(warmup + count):
@@ -41,7 +43,9 @@ def measure(origin, path, count, warmup, body, compact):
             value = json.loads(gzip.decompress(data) if response.getheader("Content-Encoding") == "gzip" else data)
             if value.get("BaseResult") not in (1, "Success") or value.get("Result", "Success") != "Success":
                 raise ValueError("Endpoint returned an API error; check the form/session")
-            for field, header in [("SprkShopCatalogToken", "X-SPRK-Shop-Catalog"), ("SprkProgressionToken", "X-SPRK-Progression")]:
+            for field, header in [("SprkShopCatalogToken", "X-SPRK-Shop-Catalog"), ("SprkProgressionToken", "X-SPRK-Progression"),
+                                  ("SprkAchievementToken", "X-SPRK-Achievements"), ("SprkMainQuestToken", "X-SPRK-Main-Quest"),
+                                  ("SprkClearMissionToken", "X-SPRK-Clear-Missions"), ("SprkPlayRecordToken", "X-SPRK-Play-Records")]:
                 if field in value:
                     headers[header] = value[field]
             timing = re.search(r"(?:^|,)\s*app;dur=([0-9.]+)", response.getheader("Server-Timing", ""))
@@ -68,12 +72,13 @@ def main():
     parser.add_argument("--warmup", type=int, default=3)
     parser.add_argument("--form-file", type=Path, help="Optional URL-encoded form; contents are never printed")
     parser.add_argument("--compact-lobby", action="store_true")
+    parser.add_argument("--sections", action="store_true", help="Negotiate independent progression section acknowledgements")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.count < 1 or args.warmup < 0 or not args.path.startswith("/") or urlsplit(args.path).query or urlsplit(args.path).fragment:
         parser.error("Use count >= 1, warmup >= 0 and an absolute endpoint path")
     body = args.form_file.read_bytes() if args.form_file else b""
-    results = [measure(origin, args.path, args.count, args.warmup, body, args.compact_lobby) for origin in args.origin]
+    results = [measure(origin, args.path, args.count, args.warmup, body, args.compact_lobby, args.sections) for origin in args.origin]
     payload = json.dumps(results, indent=2)
     if args.output:
         args.output.write_text(payload + "\n", encoding="utf-8")

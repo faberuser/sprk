@@ -5,6 +5,27 @@ using Mono.Cecil.Cil;
 
 namespace DllPatcher;
 partial class Program {
+    static void InstallNetworkRuntimeProbe(string clientRoot) {
+        var root=Path.GetFullPath(clientRoot);
+        var allowed=Path.GetFullPath("target/network-performance")+Path.DirectorySeparatorChar;
+        if(!root.StartsWith(allowed,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Network runtime probes require an isolated copy under target/network-performance.");
+        var managed=Path.Combine(root,"King's Raid_Data","Managed");
+        using var stream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.NetworkPerformanceProbe.cs.txt")!;
+        using var reader=new StreamReader(stream);
+        var compilation=CSharpCompilation.Create("SprkNetworkProbe",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},
+            Directory.GetFiles(managed,"*.dll").Select(p=>MetadataReference.CreateFromFile(p)),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var output=new MemoryStream();var result=compilation.Emit(output);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
+        File.WriteAllBytes(Path.Combine(managed,"SprkNetworkProbe.dll"),output.ToArray());
+        output.Position=0;using var helper=AssemblyDefinition.ReadAssembly(output);
+        using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
+        var dll=Path.Combine(managed,"Assembly-CSharp.dll");using var assembly=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver});
+        var awake=assembly.MainModule.GetType("UICamera").Methods.Single(m=>m.Name=="Awake");
+        awake.Body.GetILProcessor().InsertBefore(awake.Body.Instructions[0],Instruction.Create(OpCodes.Call,
+            assembly.MainModule.ImportReference(helper.MainModule.GetType("SprkNetworkProbe").Methods.Single(m=>m.Name=="Ensure"))));
+        assembly.Write(dll+".probe");assembly.Dispose();File.Move(dll+".probe",dll,true);
+    }
     static void InstallNetworkPerformance(string clientRoot, bool stageOnly) {
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
         var dll = Path.Combine(managed, "Assembly-CSharp.dll");
@@ -21,6 +42,28 @@ partial class Program {
         var module=assembly.MainModule;
         var requester=module.GetType("NVespa.NWeb.WebServiceRequester");
         var hooks=helper.MainModule.GetType("SprkNetworkPerformance");
+        MethodReference Hook(string name)=>module.ImportReference(hooks.Methods.Single(m=>m.Name==name));
+        void Prefix(MethodDefinition method,string hook,params Instruction[] args) {
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.DeclaringType.Name==hooks.Name&&m.Name==hook))return;
+            var first=method.Body.Instructions[0];var il=method.Body.GetILProcessor();
+            foreach(var arg in args)il.InsertBefore(first,arg);
+            il.InsertBefore(first,Instruction.Create(OpCodes.Call,Hook(hook)));
+        }
+        Prefix(module.GetType("NVespa.NWeb.WebServiceRequest").Methods.Single(m=>m.Name=="CreateRequest"),"Started",Instruction.Create(OpCodes.Ldarg_0));
+        Prefix(requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded"),"BeginResponse",Instruction.Create(OpCodes.Ldarg_2));
+        Prefix(module.GetType("NVespa.WwwText").Methods.Single(m=>m.Name=="OnComplete"),"TransportComplete",Instruction.Create(OpCodes.Ldarg_1));
+        // Both free and paid restocks already carry purchase counters. Apply
+        // them to the separate native purchase-count cache before opening UI.
+        var facade=module.GetType("NGame2.NUI.NWindow.NShop.ShopFacade");
+        foreach(var method in facade.NestedTypes.SelectMany(t=>t.Methods).Where(m=>m.HasBody)) {
+            var get=method.Body.Instructions.FirstOrDefault(i=>i.Operand is MethodReference m&&m.Name=="get_ShopItems"
+                && (m.DeclaringType.FullName=="NShared.GetShopList.Response" || m.DeclaringType.FullName=="NShared.RequestShopList.Response"));
+            if(get==null || method.Body.Instructions.Any(i=>i.Operand is MethodReference m&&m.DeclaringType.Name==hooks.Name&&m.Name=="ShopListApplied"))continue;
+            var set=method.Body.Instructions.SkipWhile(i=>i!=get).First(i=>i.Operand is MethodReference m&&m.Name=="Set");
+            var shopResponse=method.Parameters.Single(p=>p.ParameterType.FullName==((MethodReference)get.Operand).DeclaringType.FullName);
+            var next=set.Next;var il=method.Body.GetILProcessor();
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg,shopResponse),Instruction.Create(OpCodes.Callvirt,(MethodReference)get.Operand),Instruction.Create(OpCodes.Call,Hook("ShopListApplied"))})il.InsertBefore(next,i);
+        }
         var stamina=module.GetType("NGame2.NAccount.UserStaminaManager");
         var applyClock=stamina.Methods.Single(m=>m.Name=="ApplyExpectedRechargeTime");
         if(!applyClock.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name && m.Name=="SetStaminaClock")) {
@@ -115,7 +158,7 @@ partial class Program {
         var catalog=lobbyHandler.Body.Instructions.First(i=>i.Operand is MethodReference m && m.Name=="get_PayShopProductInfos");
         if(catalog.Next.OpCode!=OpCodes.Brfalse && catalog.Next.OpCode!=OpCodes.Brfalse_S)
             throw new InvalidOperationException("Native lobby must preserve its catalog when PayShopProductInfos is absent.");
-        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock"})
+        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock","Started","BeginResponse","TransportComplete","ShopListApplied"})
             if(!helper.MainModule.GetType("SprkNetworkPerformance").Methods.Any(m=>m.Name==name))throw new InvalidOperationException("Missing network helper: "+name);
         var responseCode=requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded").Body.Instructions;
         var parseIndex=responseCode.ToList().FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="JsonMarshaler" && m.Name=="Parse");
@@ -125,6 +168,11 @@ partial class Program {
             if(assembly.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions)
                 .Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name==hook)!=1)
                 throw new InvalidOperationException("Missing or duplicated native application hook: "+hook);
+        var allCalls=assembly.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions)
+            .Select(i=>i.Operand).OfType<MethodReference>().Where(m=>m.DeclaringType.Name=="SprkNetworkPerformance").ToArray();
+        foreach(var hook in new[]{"Started","BeginResponse","TransportComplete"})
+            if(allCalls.Count(m=>m.Name==hook)!=1)throw new InvalidOperationException("Missing or duplicate network timing hook: "+hook);
+        if(allCalls.Count(m=>m.Name=="ShopListApplied")!=2)throw new InvalidOperationException("Both shop restock callbacks must reuse purchase counters.");
         var stamina=assembly.MainModule.GetType("NGame2.NAccount.UserStaminaManager");
         foreach(var (name,hook) in new[]{("ApplyExpectedRechargeTime","SetStaminaClock"),("IsUpdateStamina","HasStaminaClock")})
             if(!stamina.Methods.Single(m=>m.Name==name).Body.Instructions.Take(4).Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name==hook))
