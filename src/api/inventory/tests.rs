@@ -9,6 +9,28 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
+async fn point_currencies_accept_balances_above_old_caps_up_to_i32_max() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut db = s.db.acquire().await.unwrap();
+    sqlx::query("UPDATE user_info SET pvp_coin=0, raid_point=0 WHERE account_id=?")
+        .bind(a).execute(&mut *db).await.unwrap();
+    for (kind, old_cap) in [
+        ("PvpCoin", 700_000), ("GloryPoint", 300_000), ("RankingPoint", 20_000),
+        ("OrdealArenaPoint", 70_000), ("RaidPoint", 300_000_000),
+        ("WorldBossPoint", 700_000), ("GuildPoint", 4_000_000), ("GuildArenaPoint", 100_000),
+    ] {
+        let first = crate::api::heroes::currency(&mut db, a, kind, old_cap + 1).await.unwrap();
+        assert_eq!(first["NewValue"], old_cap + 1, "{kind}");
+        let capped = crate::api::heroes::currency(&mut db, a, kind, i32::MAX as i64 - old_cap - 1).await.unwrap();
+        assert_eq!(capped["NewValue"], i32::MAX, "{kind}");
+        assert!(crate::api::heroes::currency(&mut db, a, kind, 1).await.is_err(), "{kind}");
+        let spent = crate::api::heroes::currency(&mut db, a, kind, -1).await.unwrap();
+        assert_eq!(spent["NewValue"], i32::MAX - 1, "{kind}");
+    }
+}
+
+#[tokio::test]
 async fn initialized_inventory_reads_without_row_changes_and_repairs_rolled_back_slots() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
     let mut db=s.db.acquire().await.unwrap();
@@ -129,6 +151,46 @@ async fn login(state: &AppState) -> user::LoginResponse {
     .await
     .unwrap()
     .0
+}
+
+#[tokio::test]
+async fn gold_64_bit_payments_and_grants_preserve_large_balances_and_integer_storage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for initial in [2_147_483_648_i64,7_782_963_002,10_000_000_000] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(initial).bind(a).execute(&s.db).await.unwrap();
+        let mut c=s.db.acquire().await.unwrap();
+        let paid=item::money(&mut c,a,"Gold",-100_000).await.unwrap();
+        assert_eq!(paid["NewValue"],initial-100_000);assert_eq!(paid["AddValue"],-100_000);
+        let earned=item::money(&mut c,a,"Gold",200_000).await.unwrap();
+        assert_eq!(earned["NewValue"],initial+100_000);
+        assert_eq!(sqlx::query_scalar::<_,String>("SELECT typeof(gold) FROM user_info WHERE account_id=?").bind(a).fetch_one(&mut *c).await.unwrap(),"integer");
+        drop(c);assert_eq!(login(&s).await.user_info.gold,initial+100_000);
+    }
+}
+
+#[tokio::test]
+async fn gold_64_bit_bounds_reject_overflow_and_insufficient_funds_without_mutation() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut c=s.db.acquire().await.unwrap();
+    for (balance,amount) in [(i64::MAX,1),(i64::MAX-10,11),(0,-1),(100,-101),(i64::MAX,i64::MIN)] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(balance).bind(a).execute(&mut *c).await.unwrap();
+        assert!(item::money(&mut c,a,"Gold",amount).await.is_err());
+        let saved:(i64,String)=sqlx::query_as("SELECT gold,typeof(gold) FROM user_info WHERE account_id=?").bind(a).fetch_one(&mut *c).await.unwrap();
+        assert_eq!(saved,(balance,"integer".into()));
+    }
+    assert_eq!(item::money(&mut c,a,"Gold",-1).await.unwrap()["NewValue"],i64::MAX-1);
+    assert_eq!(item::money(&mut c,a,"Gold",1).await.unwrap()["NewValue"],i64::MAX);
+}
+
+#[tokio::test]
+async fn gold_64_bit_spending_preserves_reserved_entry_costs() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let mut c=s.db.acquire().await.unwrap();let balance=7_782_963_002_i64;
+    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(balance).bind(a).execute(&mut *c).await.unwrap();
+    sqlx::query("INSERT INTO battle_entry_holds VALUES(?,'gold-test','Currency',3,?,?)").bind(a).bind(balance-100).bind(chrono::Utc::now().timestamp()+1000).execute(&mut *c).await.unwrap();
+    assert!(item::money(&mut c,a,"Gold",-101).await.is_err());
+    assert_eq!(item::money(&mut c,a,"Gold",-100).await.unwrap()["NewValue"],balance-100);
+    assert!(item::money(&mut c,a,"Gold",-1).await.is_err());
 }
 fn form(u: &user::LoginResponse, fields: &str) -> Bytes {
     Bytes::from(format!("SessionKey={}&{fields}", u.user_info.session_key))

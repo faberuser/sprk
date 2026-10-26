@@ -92,6 +92,18 @@ pub(crate) async fn money(
     kind: &str,
     amount: i64,
 ) -> Result<Value> {
+    if kind == "Gold" {
+        // Gold is Int64 in the native client. Check bounds before SQL addition:
+        // SQLite otherwise promotes overflowing INTEGER arithmetic to REAL.
+        let held=if amount<0 {crate::api::battle::entry_costs::held(db,account,"Currency",3).await?}else{0};
+        let minimum=if amount<0 {
+            amount.checked_neg().and_then(|cost|cost.checked_add(held)).ok_or_else(||rule("NotEnoughGold"))?
+        }else{0};
+        let maximum=i64::MAX.checked_sub(amount.max(0)).ok_or_else(||rule("NotEnoughGold"))?;
+        let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET gold=gold+? WHERE account_id=? AND typeof(gold)='integer' AND gold BETWEEN ? AND ? RETURNING gold")
+            .bind(amount).bind(account).bind(minimum).bind(maximum).fetch_optional(&mut *db).await?;
+        return Ok(json!(CurrencyResultInfo3::new("Gold",amount,value.ok_or_else(||rule("NotEnoughGold"))?)));
+    }
     if kind == "Gem" && amount < 0 {
         let row = sqlx::query("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
             .bind(account)

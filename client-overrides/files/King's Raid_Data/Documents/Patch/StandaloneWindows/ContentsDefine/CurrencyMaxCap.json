@@ -1,0 +1,12 @@
+{
+    "MaxCap": {
+        "PvpCoin": "2147483647",
+        "GloryPoint": "2147483647",
+        "RankingPoint": "2147483647",
+        "OrdealArenaPoint": "2147483647",
+        "RaidPoint": "2147483647",
+        "WorldBossPoint": "2147483647",
+        "GuildPoint": "2147483647",
+        "GuildArenaPoint": "2147483647"
+    }
+}

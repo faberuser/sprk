@@ -48,6 +48,8 @@ async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -
 async fn public_awakening_stones_obey_equipment_type() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
+    let large_gold=7_782_963_002_i64;
+    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(large_gold).bind(a).execute(&s.db).await.unwrap();
     let eq = give(&s, a, 1001, 1).await.equipment.remove(0);
     give(&s, a, 5301, 1).await;
     let r = call(
@@ -61,6 +63,10 @@ async fn public_awakening_stones_obey_equipment_type() {
     )
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
+    let price=-n(&r["CurrencyResult"],"AddValue");
+    assert!(price>0,"Awakening must charge its gold price: {r}");
+    assert_eq!(r["CurrencyResult"]["NewValue"],large_gold-price);
+    assert_eq!(gold(&s).await,large_gold-price);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
 }
 #[tokio::test]
