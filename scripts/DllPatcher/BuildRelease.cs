@@ -93,6 +93,9 @@ partial class Program
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
+        InstallLobbyAvatarStability(clientRoot, false);
+        VerifyLobbyAvatarStabilityFile(clientRoot);
+        TestLobbyAvatarStability(clientRoot);
         InstallSoulUpgradePlayback(clientRoot, false);
         VerifySoulUpgradePlaybackFile(clientRoot);
         TestSoulUpgradePlayback(clientRoot);

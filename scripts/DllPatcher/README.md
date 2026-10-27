@@ -166,3 +166,35 @@ close/reopen, hiding the window, valid completion/disposal and patch idempotence
 Verification also checks both real-time waits, preserved durations and native
 cleanup. The intermittent player crash was not reproduced; these checks establish
 the timing/lifecycle fixes, not proof that every silent exit has the same cause.
+
+## Lobby avatar account switching
+
+`--lobby-avatar-stability-only` (optionally `--stage-only`) installs the lobby
+accessory refresh safeguards. `--verify-lobby-avatar-stability` verifies installed
+or staged files and runs account/session isolation tests. The full release build
+installs and verifies this patch before Currency64 migration.
+
+The original accessory observer released/rebuilt the entire lobby hero for each
+notification. It now queues one update on that MapLayout, bound to the exact
+UserManager instance captured when its player avatar was created. Old account
+work is rejected, including A-B-A switches. Disabling the map cancels queued work
+while allowing reactivation for the same account; a new avatar creation rebinds
+the owner. Requests wait for a valid completed creature load, with a bounded
+10-second readiness window, then use the native ChangeCustomizeStock path for
+changed parts. The existing hero render facade is never replaced by this path.
+
+Lobby hero snapshots use the current manager's hero and owned accessories, reject
+a portrait snapshot carrying another account ID, and clone accessory transforms
+so previews cannot share mutable positions with the live hero. Portrait body
+costumes retain their independent native behavior. Story-forced avatars and
+unrelated hero notifications retain their existing exclusions.
+
+Closed CreatureLoad completion callbacks must return before accessing released
+OpenData. Existing guards are retained; the patch adds the same guard if missing
+from an older input. The account patcher preserves the newer snapshot hook when
+its focused mode is run afterward.
+
+Checks cover readiness deferral, event coalescing, stale owner rejection, A-B-A
+switches, cancellation/reactivation, native hook scope, render-body retention,
+closed-load guard and patch idempotence. These validate the identified refresh
+risk; the player's intermittent visual symptom still needs an in-game retest.

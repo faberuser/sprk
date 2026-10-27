@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--soul-upgrade-playback-only")) { InstallSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-upgrade-playback")) { VerifySoulUpgradePlaybackFile(args[0],args.Contains("--stage-only")); TestSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--costume-tickets-only")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),false); return; }

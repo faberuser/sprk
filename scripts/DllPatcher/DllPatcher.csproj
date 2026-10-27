@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/LobbyAvatarStability.cs.txt" WithCulture="false" LogicalName="DllPatcher.LobbyAvatarStability.cs.txt" />
     <EmbeddedResource Include="Resources/SoulUpgradePlayback.cs.txt" WithCulture="false" LogicalName="DllPatcher.SoulUpgradePlayback.cs.txt" />
     <EmbeddedResource Include="../../tables/CostumeTicketRules.json" LogicalName="DllPatcher.CostumeTicketRules.json" />
     <EmbeddedResource Include="Resources/MotionCostumes.cs.txt" WithCulture="false" LogicalName="DllPatcher.MotionCostumes.cs.txt" />
