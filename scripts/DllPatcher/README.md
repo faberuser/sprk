@@ -34,6 +34,22 @@ Restart the client after installation.
 Find feature-specific flags and checks in the [patch reference](REFERENCE.md).
 Argument routing lives in [Program.cs](Program.cs).
 
+## Illustration zoom
+
+The hero/costume illustration viewer supports mouse-wheel zoom from 50% to
+400%. Drag to move the artwork, and double-click or middle-click to reset.
+Switching illustrations restores the default view. Hide UI and the native
+touch controls remain available; wheel input ignores other popups and buttons.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --illustration-zoom-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-illustration-zoom --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-illustration-zoom --stage-only
+```
+
+After closing the game and shared-asset workers, omit `--stage-only` to install.
+The full release build installs and verifies this patch automatically.
+
 ## Full builds and releases
 
 For routine development, edit the tracked patcher source. CI runs

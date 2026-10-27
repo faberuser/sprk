@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/IllustrationZoom.cs.txt" WithCulture="false" LogicalName="DllPatcher.IllustrationZoom.cs.txt" />
     <EmbeddedResource Include="Resources/MissionHistory.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistory.cs.txt" />
     <EmbeddedResource Include="Resources/MissionHistoryState.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistoryState.cs.txt" />
     <EmbeddedResource Include="Resources/MissionHistoryTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistoryTests.cs.txt" />

@@ -97,6 +97,9 @@ namespace DllPatcher
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
             if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--illustration-zoom-only")) { InstallIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-illustration-zoom")) { VerifyIllustrationZoomFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-illustration-zoom")) { TestIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-coop-limits")) { InstallRaidCoopLimits(args[0], false, true); return; }
             if (args.Contains("--arena-responsive-only")) { InstallArenaResponsiveness(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-responsive")) { VerifyArenaResponsivenessFile(args[0]); return; }

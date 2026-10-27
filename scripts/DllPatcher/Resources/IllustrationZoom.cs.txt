@@ -1,0 +1,49 @@
+using System;
+using UnityEngine;
+using NGame2.NUI.NWindow;
+
+public static class SprkIllustrationZoomMath {
+    public static float NextScale(float current, float wheel) {
+        if (float.IsNaN(current) || float.IsInfinity(current) || current <= 0) current = 1;
+        if (float.IsNaN(wheel) || float.IsInfinity(wheel)) wheel = 0;
+        wheel = Math.Max(-20, Math.Min(20, wheel));
+        return (float)Math.Max(0.5, Math.Min(4, current * Math.Pow(1.15, wheel * 10)));
+    }
+    public static float ClampOffset(float offset, float scale, float imageSize, float viewportSize) {
+        // Use the native illustration viewer's translation limits.
+        float limit = Math.Abs(scale * imageSize - viewportSize) * 0.5f;
+        return Math.Max(-limit, Math.Min(limit, offset));
+    }
+}
+
+public static class SprkIllustrationZoom {
+    public static void Update(HeroIllustBook window) {
+        if (window == null || !window.IsOpen() || !window.gameObject.activeInHierarchy || !Application.isFocused
+            || window.IllustRoot == null || window.RootPanel == null || window.HeroIllustTexture == null
+            || window.HeroIllustTexture.mainTexture == null) return;
+        float wheel = Input.GetAxis("Mouse ScrollWheel");
+        bool reset = Input.GetMouseButtonDown(2);
+        if (wheel == 0 && !reset) return;
+        // Do not zoom through another popup or while pointing at a control.
+        var hovered = UICamera.hoveredObject;
+        if (hovered != null && (!hovered.transform.IsChildOf(window.transform)
+            || hovered.GetComponentInParent<UIButton>() != null)) return;
+        if (reset) { window.OnDoubleClick(); return; }
+        var root = window.IllustRoot;
+        var scale = root.localScale;
+        float zoom = SprkIllustrationZoomMath.NextScale(scale.x, wheel);
+        if (Math.Abs(zoom - scale.x) < 0.00001f) return;
+        // A wheel gesture takes over from an in-flight native reset animation.
+        if (window.TweenScale != null) window.TweenScale.enabled = false;
+        if (window.TweenPosition != null) window.TweenPosition.enabled = false;
+        var position = root.localPosition;
+        float ratio = scale.x > 0 ? zoom / scale.x : 1;
+        position.x *= ratio; position.y *= ratio;
+        scale.x = scale.y = zoom;
+        root.localScale = scale;
+        var viewport = window.RootPanel.localSize;
+        position.x = SprkIllustrationZoomMath.ClampOffset(position.x, zoom, window.HeroIllustTexture.width, viewport.x);
+        position.y = SprkIllustrationZoomMath.ClampOffset(position.y, zoom, window.HeroIllustTexture.height, viewport.y);
+        root.localPosition = position;
+    }
+}

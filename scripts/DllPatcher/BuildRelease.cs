@@ -50,6 +50,9 @@ partial class Program
         InstallPetPresentation(clientRoot, false);
         VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
+        InstallIllustrationZoom(clientRoot, false);
+        VerifyIllustrationZoomFile(clientRoot);
+        TestIllustrationZoom(clientRoot);
         InstallWorldBossKeys(clientRoot, false);
         VerifyWorldBossKeysFile(clientRoot);
         InstallInventoryExpansion(clientRoot, false);
