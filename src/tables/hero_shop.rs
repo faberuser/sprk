@@ -43,6 +43,7 @@ impl HeroShopTable {
             row["Condition"] = Value::String(String::new());
             data.shop_items.push(row);
         }
+        super::costume_tickets::hero_shop(&mut data, path)?;
         data.apply_archived_cosmetic_flags();
         Ok(data)
     }

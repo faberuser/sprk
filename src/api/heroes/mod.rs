@@ -1295,6 +1295,10 @@ async fn collection_item(
             {
                 return Err(rule("AlreadyHaveCostume"));
             }
+            if matches!(id, 600035 | 600100) {
+                let hero_index=n(&table.costumes[&selected],"HeroIndex") as i32;
+                info(db,account,hero_index).await?;
+            }
             sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES (?,?)")
                 .bind(account)
                 .bind(selected)

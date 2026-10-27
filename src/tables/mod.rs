@@ -29,6 +29,7 @@ mod progression;
 mod extensions;
 mod battle;
 mod special_shop;
+mod costume_tickets;
 pub use battle::BattleTable;
 pub use extensions::ExtensionTable;
 pub use progression::ProgressionTable;

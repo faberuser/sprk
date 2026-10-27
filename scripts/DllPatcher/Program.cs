@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--costume-tickets-only")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),false); return; }
+            if (args.Contains("--verify-costume-tickets")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),true); return; }
             if (args.Contains("--motion-costumes-only")) { InstallMotionCostumes(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-motion-costumes")) { VerifyMotionCostumesFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-currency64")) { VerifyCurrency64File(args[0]); TestCurrency64(args[0]); return; }

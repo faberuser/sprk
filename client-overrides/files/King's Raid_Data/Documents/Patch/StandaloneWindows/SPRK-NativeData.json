@@ -7,7 +7,7 @@
       "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "91a85a8ae536d99ec213f41822b5a1b71820a3de6865a2dfc78ac32c94f63f47",
+      "sha256": "f84efa7ada579bfe07fa267fa5ccffb3e794bf04fb6e64d5a1b0566f755c2997",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
     "TableJit/AccessoryCostumeTable.jit": {
@@ -23,7 +23,7 @@
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
     "TableJit/CostumeTable.jit": {
-      "sha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22",
+      "sha256": "8430ea8410fbb296b8a567dc0804134f3a29f68f50a1d3e5c537a580152b5387",
       "originalSha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22"
     },
     "TableJit/CraftItemTable.jit": {
@@ -93,6 +93,14 @@
     "TableJit/WeaponUniqueSelectItemTable.jit": {
       "sha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28",
       "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
+    },
+    "TableJit/ItemTable.jit": {
+      "sha256": "247cf88713b5a430b7a0a62ad213f5446ec776dadd0d8bc0e5343b456a858fe6",
+      "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
+    },
+    "TableJit/CostumeSelectItemTable.jit": {
+      "sha256": "e40e6368bc97809ef20fd0613f8aa56da2252b669dab97cdd09e07d51415cbec",
+      "originalSha256": "0784558f671f6d74fab4d715d6d0fb966e70dcf25c056a3291a929241137fff2"
     }
   },
   "staticRuntimeDataOverrides": false,

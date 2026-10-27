@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "family": "ClearMissions",
+      "kind": "BuyShopItem",
+      "goal": "",
+      "definitions": 5
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "ClearDungeon",
+      "goal": "",
+      "definitions": 31
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "CraftItem",
+      "goal": "",
+      "definitions": 1
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "GiveMultipleGiftItem",
+      "goal": "",
+      "definitions": 5
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "IncCurrency",
+      "goal": "",
+      "definitions": 1
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "SoulRestore",
+      "goal": "",
+      "definitions": 1
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "UniqueTreasureCount",
+      "goal": "",
+      "definitions": 3
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "UniqueWeaponAwakeCount",
+      "goal": "",
+      "definitions": 2
+    },
+    {
+      "family": "ClearMissions",
+      "kind": "UniqueWeaponCount",
+      "goal": "",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "AddItem",
+      "goal": "MILESTONE_MISSION_GOAL_102",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "BuyShopItem",
+      "goal": "MAIN_MISSION_GOAL_53_2",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "BuyShopItem",
+      "goal": "MAIN_MISSION_GOAL_61",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "BuyShopItem",
+      "goal": "MILESTONE_MISSION_GOAL_104",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "BuyShopItem",
+      "goal": "MILESTONE_MISSION_GOAL_112",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "BuyShopItem",
+      "goal": "SUPERPASS_MISSION_GOAL_FREY_06",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_42",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_51",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_58",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_62",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_63",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MAIN_MISSION_GOAL_64",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_106",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_107",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_108",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_109",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_11",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_116_1",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_122",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_123",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_124",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_12_1",
+      "definitions": 4
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_13_1",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_14",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_15",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_17",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_18",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_20",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_21",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_23",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_24",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_27",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_28",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_29",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_3",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_30",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_31_1",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_4",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_5",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_6",
+      "definitions": 6
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_7_1",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_8_1",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_91",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_92",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_93",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_95",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MILESTONE_MISSION_GOAL_9_1",
+      "definitions": 5
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MISSION_GOAL_1002890",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "MISSION_GOAL_1002920",
+      "definitions": 3
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_001",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_002",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_003",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_CLAUSE_02",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_FREY_01",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ClearDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_KASEL_01",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "ConsumeStamina",
+      "goal": "MILESTONE_MISSION_GOAL_74",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "ESTELLE_SPECIAL_MISSION_GOAL_5002080",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "MAIN_MISSION_GOAL_37",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "MAIN_MISSION_GOAL_38",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "MILESTONE_MISSION_GOAL_56",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "MILESTONE_MISSION_GOAL_61",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "MILESTONE_MISSION_GOAL_71",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "CraftItem",
+      "goal": "SUPERPASS_MISSION_GOAL_RANDOM_TUSI",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "Enchant",
+      "goal": "MILESTONE_MISSION_GOAL_16",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "Enchant",
+      "goal": "MILESTONE_MISSION_GOAL_19",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "Enchant",
+      "goal": "MILESTONE_MISSION_GOAL_22",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "Enchant",
+      "goal": "MILESTONE_MISSION_GOAL_25",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "ESTELLE_SPECIAL_MISSION_GOAL_5002090",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "MAIN_MISSION_GOAL_49",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "MAIN_MISSION_GOAL_52",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "MAIN_MISSION_GOAL_67",
+      "definitions": 2
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_CLAUSE_12",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_CLAUSE_14",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_FREY_12",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_FREY_14",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "EnterDungeon",
+      "goal": "SUPERPASS_MISSION_GOAL_KASEL_14",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "GiveFriendlyPoint",
+      "goal": "ESTELLE_SPECIAL_MISSION_GOAL_5002020",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "MissionClear",
+      "goal": "MAIN_MISSION_GOAL_20033",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "MissionClear",
+      "goal": "MILESTONE_MISSION_GOAL_111_1",
+      "definitions": 179
+    },
+    {
+      "family": "SubQuests",
+      "kind": "WearEquip",
+      "goal": "MILESTONE_MISSION_GOAL_58",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "WearEquip",
+      "goal": "MILESTONE_MISSION_GOAL_62",
+      "definitions": 1
+    },
+    {
+      "family": "SubQuests",
+      "kind": "WearEquip",
+      "goal": "MILESTONE_MISSION_GOAL_80",
+      "definitions": 2
+    }
+  ]
+}

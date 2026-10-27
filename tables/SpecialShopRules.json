@@ -10761,6 +10761,19 @@
       "ItemCode": "PACKAGE_PAY_THE_FINAL_TECHNOMAGIC_UPGRADE_02",
       "ItemIndex": 94218,
       "ItemCount": 1
+    },
+    {
+      "Index": 3600100,
+      "Category": "Event",
+      "ProductName": "Light Costume Ticket",
+      "ItemCode": "SPRK_COSTUME_SELECT_LIGHT_102",
+      "ItemIndex": 600100,
+      "ItemCount": 1,
+      "PriceType": "Gem",
+      "Price": 5000,
+      "PurchasableCount": 0,
+      "ResetSeconds": 0,
+      "IconPath": "Icon/Item/COSTUME_SELECT_ITEM_97_LIGHT_BALANCE_210427"
     }
   ],
   "SkippedPackages": [

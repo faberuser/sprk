@@ -10,6 +10,7 @@
 !tables/**
 !config/
 !config/client-update-public.pem
+!config/mission-rule-gaps.json
 !scripts/
 !scripts/docker/
 !scripts/docker/*.sh

@@ -93,6 +93,8 @@ partial class Program
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
+        InstallCostumeTickets(clientRoot, false, false);
+        InstallCostumeTickets(clientRoot, false, true);
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
         InstallCurrency64(clientRoot, false);

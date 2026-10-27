@@ -1155,3 +1155,18 @@ async fn native_summon_gauges_count_purchases_grant_milestones_and_preserve_over
     let v=call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex=25&ItemIndex={ticket}")).await;ok(&v);
     assert_eq!(v["PetGachaCountInfo"]["GachaCount"],3);
 }
+
+#[tokio::test]
+async fn all_roster_costume_light_ticket_shop_charges_5000_and_delivers_one_ticket() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let product=s.tables.live.rules["Products"].as_array().unwrap().iter().find(|p|p["Index"]==3600100).unwrap();
+    assert_eq!(product["Price"],5000);assert_eq!(product["PurchasableCount"],0);
+    assert_eq!(product["IconPath"],"Icon/Item/COSTUME_SELECT_ITEM_97_LIGHT_BALANCE_210427");
+    sqlx::query("UPDATE user_info SET gem=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let out=call(&s,&u,"shop/buy_payshop_product","Index=3600100&Quantity=2&Price=0").await;
+    ok(&out);assert_eq!(balance(&s,&u,"gem").await,0);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
+    assert_ne!(call(&s,&u,"shop/buy_payshop_product","Index=3600100").await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=600100").bind(a).fetch_one(&s.db).await.unwrap(),2);
+}

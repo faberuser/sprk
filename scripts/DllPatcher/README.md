@@ -134,3 +134,9 @@ The full `--build-release` path installs and verifies this patch. Verification
 checks matching-hero enumeration, all three preview state refreshes, absence of
 ownership/visibility filters, native shared ownership handling, unchanged costume
 ownership method bodies, patch idempotence and the replacement method stack.
+
+## All-roster costume tickets
+
+See [costume tickets](../../docs/costume-tickets.md) for the expanded Darkness
+pool, the new 102-hero Light ticket, shared asset evidence, native table/localization
+baking, focused staging/verification and signed release requirements.
