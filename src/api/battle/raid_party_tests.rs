@@ -14,7 +14,11 @@ async fn fixture(raid: i64, level: i64) -> (AppState, Vec<Value>, Vec<String>) {
 }
 
 async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState, Vec<Value>, Vec<String>) {
-    let (s,host)=setup().await;
+    let (mut s,host)=setup().await;
+    if (70001..=70015).contains(&raid) {
+        std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+            .rules["ChallengeRaidRotation"]=json!([raid]);
+    }
     let mut users=vec![host];
     for name in ["field-guest-a","field-guest-b"].into_iter().take(players-1) {
         users.push(json!(user::test_login(State(s.clone()),Bytes::from(format!("LoginId={name}"))).await.unwrap().0));
@@ -22,8 +26,8 @@ async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState
     let def=row(&s,"Raid",&[("Index",raid),("Level",level)]).unwrap().clone();
     let total=n(&def,"DeckCount");
     let counts=match (players,total) {
-        (2,6)=>vec![3,3],(2,7)=>vec![4,3],
-        (3,5)=>vec![2,2,1],(3,6)=>vec![2,2,2],(3,7)=>vec![3,2,2],
+        (2,6)=>vec![3,3],(2,7)=>vec![4,3],(2,8)=>vec![4,4],
+        (3,5)=>vec![2,2,1],(3,6)=>vec![2,2,2],(3,7)=>vec![3,2,2],(3,8)=>vec![3,3,2],
         _=>panic!("Unexpected raid size")
     };
     let members:Vec<_>=users.iter().map(account).collect();
@@ -290,6 +294,46 @@ async fn native_arcdim_coop_transitions_to_zeta_and_settles_both_players() {
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
         println!("Native Arcdim {raid}: Delta cleared, Zeta team created with correct ownership, both players settled");
         server.abort();
+    }
+}
+
+#[tokio::test]
+async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() {
+    for (raid,level) in [(70001,1),(70001,4),(70015,1),(70015,4)] {
+        let (s,users,args)=fixture_for_players(raid,level,2).await;
+        let _worker=fake_worker(&s).await;
+        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        for (user,args) in users.iter().zip(&args) {
+            let begun=call(&s,user,"campaign/begin_campaign",args).await;
+            assert_eq!(begun["Result"],"Success","raid {raid}/{level}: {begun}");
+        }
+        let run=s.conquest.runs.iter().next().unwrap().value().clone();let run=run.lock().await;
+        let accounts=run.payload["Simulation"]["AccountInfos"].as_array().unwrap();
+        assert_eq!(accounts.len(),2);
+        for player in accounts {assert_eq!(player["HeroInfos"].as_object().unwrap().len(),4);}
+    }
+    for over_player in [true,false] {
+        let (s,users,args)=fixture_for_players(70001,1,if over_player {2}else{3}).await;
+        let _worker=fake_worker(&s).await;
+        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+        let a=account(users.last().unwrap());
+        let count=if over_player {5}else{3};
+        let deck:serde_json::Map<_,_>=(20..20+count).map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
+        for hero in 20..20+count {
+            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+                .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
+        }
+        put(&mut s.db.acquire().await.unwrap(),a,"party_member",1,&json!({"DeckHeros":deck,"SubDeckHeros":{},"IsBattleReady":true})).await.unwrap();
+        let host=if over_player {
+            // One host hero plus five guest heroes is below the shared cap,
+            // so rejection specifically exercises the per-player limit.
+            args[0].replace("HeroIndices=[1,2,3,4]","HeroIndices=[1]")
+                .replace(&format!("AccountIds={}",json!(vec![account(&users[0]);4])),
+                    &format!("AccountIds=[{}]",account(&users[0])))
+        } else {args[0].clone()}; // Three + three + three exceeds the shared cap.
+        assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&host).await["Result"],"NotMatchHeroIndices");
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
     }
 }
 

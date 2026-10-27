@@ -442,37 +442,42 @@ mod tests {
     }
     #[tokio::test]
     async fn challenge_party_uses_room_affixes_and_native_team_ranking() {
-        let (mut s,users,_)=fixture().await;
-        std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
-            .rules["ChallengeRaidRotation"]=json!([70001]);
-        let _worker=attach_worker(&s).await;
-        let members:Vec<_>=users.iter().map(account).collect();
-        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.DungeonDifficulty',0,'$.AffixIndices',json('[6]'))")
-            .execute(&s.db).await.unwrap();
-        let args=format!("ChapterIndex=951&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70001&RaidLevel=1&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices=[1]&AccountIds=[{}]&AffixIndices=[999999]",members[0],json!(members),members[0]);
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=0;
-        assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"BattleServerNotFound");
-        s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
-        assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
-        assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,true)).await["Result"],"Success");
-        let run=s.conquest.runs.iter().next().unwrap().value().clone();
-        let run=run.lock().await;
-        assert_eq!(run.payload["AffixIndices"],json!([6]));
-        sqlx::query("UPDATE battle_runs SET started=started-60,entry=json_set(entry,'$.CoopCharged',json('true'),'$.PartyResourceChoicePending',json('false'))").execute(&s.db).await.unwrap();
-        let body=json!({"Win":true,"TimeMs":60000,"DefeatedCreatures":{"1001":3,"4401":1},"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
-        settle_party(&s,&run,&body).await.unwrap();
-        settle_party(&s,&run,&body).await.unwrap();
-        for account in &members {
-            let kills:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
-                .bind(account).fetch_one(&s.db).await.unwrap();
-            assert_eq!(kills,4,"duplicate worker results must not duplicate kill credit");
+        for guest_uses_stamina in [true,false] {
+            let (mut s,users,_)=fixture().await;
+            std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+                .rules["ChallengeRaidRotation"]=json!([70001]);
+            let _worker=attach_worker(&s).await;
+            let members:Vec<_>=users.iter().map(account).collect();
+            sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE battle_rooms SET family='raid',data=json_set(data,'$.RaidIndex',70001,'$.RaidLevel',1,'$.ChapterIndex',951,'$.DungeonIndex',1,'$.DungeonDifficulty',0,'$.AffixIndices',json('[6]'))")
+                .execute(&s.db).await.unwrap();
+            let args=format!("ChapterIndex=951&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70001&RaidLevel=1&RaidRoomNo=1&MultiplayMasterId={}&MultiplayMemberIds={}&HeroIndices=[1]&AccountIds=[{}]&AffixIndices=[999999]",members[0],json!(members),members[0]);
+            s.conquest.worker.write().await.as_mut().unwrap().challenge_version=0;
+            assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"BattleServerNotFound");
+            s.conquest.worker.write().await.as_mut().unwrap().challenge_version=1;
+            assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args).await["Result"],"Success");
+            assert_eq!(call(&s,&users[1],"campaign/begin_campaign",&guest_args(&users,&args,guest_uses_stamina)).await["Result"],"Success");
+            let run=s.conquest.runs.iter().next().unwrap().value().clone();
+            let run=run.lock().await;
+            assert_eq!(run.payload["AffixIndices"],json!([6]));
+            sqlx::query("UPDATE battle_runs SET started=started-60,entry=json_set(entry,'$.CoopCharged',json('true'),'$.PartyResourceChoicePending',json('false'))").execute(&s.db).await.unwrap();
+            let body=json!({"Win":true,"TimeMs":60000,"DefeatedCreatures":{"1001":3,"4401":1},"Creatures":[{"Index":1,"AccountId":members[0],"TeamId":0,"Hp":10},{"Index":2,"AccountId":members[1],"TeamId":0,"Hp":10}]});
+            settle_party(&s,&run,&body).await.unwrap();
+            settle_party(&s,&run,&body).await.unwrap();
+            for account in &members {
+                let kills:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='DefeatMonster'")
+                    .bind(account).fetch_one(&s.db).await.unwrap();
+                assert_eq!(kills,4,"duplicate worker results must not duplicate kill credit");
+                let points:i64=sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ChallengeRaidPoint'),0)")
+                    .bind(account).fetch_one(&s.db).await.unwrap();
+                assert_eq!(points,3300,"raid members receive points once; UseStamina=false cannot bypass the raid's paid-entry rule");
+            }
+            let rank=call(&s,&users[0],"raid/get_multi_play_challenge_raid_ranker_list","RaidIndex=70001").await;
+            assert_eq!(rank["Result"],"Success");
+            assert_eq!(rank["RankerInfos"].as_array().unwrap().len(),1);
+            assert_eq!(rank["RankerInfos"][0]["Score"],3300);
+            assert_eq!(rank["RankerInfos"][0]["RankerInfos"].as_array().unwrap().len(),2);
         }
-        let rank=call(&s,&users[0],"raid/get_multi_play_challenge_raid_ranker_list","RaidIndex=70001").await;
-        assert_eq!(rank["Result"],"Success");
-        assert_eq!(rank["RankerInfos"].as_array().unwrap().len(),1);
-        assert_eq!(rank["RankerInfos"][0]["Score"],3300);
-        assert_eq!(rank["RankerInfos"][0]["RankerInfos"].as_array().unwrap().len(),2);
     }
     fn guest_args(users: &[Value], args: &str, use_stamina: bool) -> String {
         format!("{}&UseStamina={use_stamina}",args.replace("HeroIndices=[1]", "HeroIndices=[2]").replace(

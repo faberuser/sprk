@@ -10,7 +10,7 @@ namespace DllPatcher;
 partial class Program
 {
     // Keep complete native caches and all unrelated table changes intact.
-    static void InstallRaidCoopLimits(string clientRoot, bool stageOnly)
+    static void InstallRaidCoopLimits(string clientRoot, bool stageOnly, bool verifyOnly = false)
     {
         clientRoot = Path.GetFullPath(clientRoot);
         var managed = Path.Combine(clientRoot, "King's Raid_Data", "Managed");
@@ -47,12 +47,16 @@ partial class Program
         var container = Read(original);
         var rows = ((IEnumerable)Call(container, "GetAllData")).Cast<object>().ToList();
         var limits = new Dictionary<int, int> { [32] = 3, [33] = 3, [34] = 4, [201] = 4, [202] = 4, [203] = 4 };
+        for (int index = 70001; index <= 70015; index += 2) limits.Add(index, 4);
         int changed = 0;
         foreach (var (index, cap) in limits) {
             var selected = rows.Where(r => Number(r, "Index") == index).ToArray();
-            if (selected.Length != (index < 100 ? 2 : 9)) throw new InvalidOperationException("Unexpected stages: " + index);
+            bool challenge = index >= 70001;
+            if (selected.Length != (challenge ? 4 : index < 100 ? 2 : 9)) throw new InvalidOperationException("Unexpected stages: " + index);
             foreach (var row in selected) {
-                if (Number(row, "Type") != (index < 100 ? 12 : 14) || Number(row, "DeckCount") != (index is 32 or 33 ? 6 : 7))
+                if (Number(row, "Type") != (challenge ? 7 : index < 100 ? 12 : 14)
+                    || Number(row, "DeckCount") != (challenge ? 8 : index is 32 or 33 ? 6 : 7)
+                    || (challenge && Number(row, "PlayerCount") != 3))
                     throw new InvalidOperationException("Unexpected raid type or party size: " + index);
                 if (Number(row, "DeckCountPerPlayer") != cap) changed++;
                 row.GetType().GetProperty("DeckCountPerPlayer")!.SetValue(row, cap);
@@ -80,6 +84,12 @@ partial class Program
             }
         }
         Verify(baked);
+        if (verifyOnly) {
+            if (changed != 0) throw new InvalidOperationException("Installed co-op hero limits need updating.");
+            if (!NativeStaticData.ValidateInstalled(managed)) throw new InvalidOperationException("Missing native data metadata.");
+            Console.WriteLine($"Verified all {rows.Count} native raid rows and co-op hero limits, including 32 party Challenge Raid stages (4 per player, 8 total).");
+            return;
+        }
         var staged = Path.GetFullPath("target/raid-coop-limits/staged");
         Directory.CreateDirectory(Path.Combine(staged, "TableJit"));
         File.WriteAllBytes(Path.Combine(staged, relative), baked);

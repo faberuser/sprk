@@ -92,6 +92,8 @@ partial class Program
         // signatures and every compiled consumer are migrated together.
         InstallCurrency64(clientRoot, false);
         VerifyCurrency64File(clientRoot);
+        InstallRaidCoopLimits(clientRoot, false);
+        InstallRaidCoopLimits(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }
