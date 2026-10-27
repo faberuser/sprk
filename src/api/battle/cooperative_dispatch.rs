@@ -158,6 +158,10 @@ pub(super) async fn packet(s: &AppState, worker: &str, name: &str, body: &Value)
         if !body["Win"].is_boolean() || !(0..=3600000).contains(&number(body, "TimeMs")) {
             return Err(rule("InvalidValue"));
         }
+        #[cfg(test)]
+        if let Ok(path) = std::env::var("DISPATCH_NATIVE_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(body).unwrap()).unwrap();
+        }
         if let Some(reply) = p.reply.take() {
             let _ = reply.send(body.clone());
         }
@@ -209,7 +213,18 @@ mod tests {
                 let _ = self.0.wait();
             }
         }
-        let (mut s, u, job) = job().await;
+        let (mut s, u, mut job) = job().await;
+        // Reproduce a reported combat snapshot without importing accounts or
+        // modifying the supplied database. Keep exports in ignored local paths.
+        if let Ok(path) = std::env::var("DISPATCH_NATIVE_JOB") {
+            job = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+            job["SlotIndex"] = json!(1);
+            job["RepeatCount"] = json!(1);
+            job["SimulationResults"] = json!([]);
+            job["State"] = json!("Simulation");
+            job["SimulationVersion"] = json!(2);
+            put(&mut s.db.acquire().await.unwrap(), account(&u), "dispatch", 1, &job).await.unwrap();
+        }
         let key = uuid::Uuid::new_v4().to_string();
         s.battle_service_key = Arc::new(Some(key.clone()));
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -265,7 +280,7 @@ mod tests {
         .await
         .expect("Dispatch worker did not authenticate");
         tokio::time::timeout(
-            std::time::Duration::from_secs(180),
+            std::time::Duration::from_secs(900),
             prepare(&s, account(&u), n(&job, "SlotIndex")),
         )
         .await
@@ -284,6 +299,9 @@ mod tests {
             1,
             "{saved}"
         );
+        if let Ok(path) = std::env::var("DISPATCH_NATIVE_OUTPUT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&saved["SimulationResults"]).unwrap()).unwrap();
+        }
         server.abort();
         http_server.abort();
     }
