@@ -140,3 +140,29 @@ ownership method bodies, patch idempotence and the replacement method stack.
 See [costume tickets](../../docs/costume-tickets.md) for the expanded Darkness
 pool, the new 102-hero Light ticket, shared asset evidence, native table/localization
 baking, focused staging/verification and signed release requirements.
+
+## Soul Weapon advancement playback
+
+`--soul-upgrade-playback-only` (optionally `--stage-only`) installs scoped A1/A2
+result playback safeguards. `--verify-soul-upgrade-playback` verifies the installed
+or staged hook and runs the lifecycle tests. The full release build installs and
+verifies this patch before currency migration.
+
+The native 4.5-second result reveal and one-second input delay use real-time
+waits. Only Common/Cinema SoulWeapon_RankUP_1 and SoulWeapon_RankUP_2 select
+GlobalTimer.UnscaledLocal; other cinematics retain their incoming timer. The result
+window Animator temporarily uses unscaled time at normal speed, restoring its
+previous mode/speed on close or disable. Global time scale is never changed.
+
+Before a reused result window starts, its previous NodeTreeUIPlayer load/play
+queue is closed through native cleanup. A session generation guards coroutine
+callbacks after close, disable or reopening; touch blockers are removed without
+creating a new global window during teardown. Native result data, the initial
+close guard, completion callback and cinematic release stay intact. Two log
+entries record opening timing and release duration for subsequent investigations.
+
+Tests cover exact A1/A2 scope, unrelated cinematic fallback, stale callbacks after
+close/reopen, hiding the window, valid completion/disposal and patch idempotence.
+Verification also checks both real-time waits, preserved durations and native
+cleanup. The intermittent player crash was not reproduced; these checks establish
+the timing/lifecycle fixes, not proof that every silent exit has the same cause.

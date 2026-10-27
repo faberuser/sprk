@@ -93,6 +93,9 @@ partial class Program
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
+        InstallSoulUpgradePlayback(clientRoot, false);
+        VerifySoulUpgradePlaybackFile(clientRoot);
+        TestSoulUpgradePlayback(clientRoot);
         InstallCostumeTickets(clientRoot, false, false);
         InstallCostumeTickets(clientRoot, false, true);
         // Run last: helpers compile against the baseline API, then currency
