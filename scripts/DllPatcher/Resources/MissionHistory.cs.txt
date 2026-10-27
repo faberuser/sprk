@@ -1,0 +1,79 @@
+using System;
+using System.Collections;
+using System.Linq;
+using NGame2.NAccount;
+using NGame2.NUI.NManager.Mission;
+using NShared;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+using UnityEngine.Networking;
+
+public sealed class SprkMissionHistory : MonoBehaviour {
+    static SprkMissionHistory instance;
+    static readonly SprkMissionHistoryState state=new SprkMissionHistoryState();
+    static int initialized=-1;
+    static bool busy;
+    static float nextAttempt;
+    static string Key(int main,int sub) {return main+":"+sub;}
+    static bool Ready() {
+        var a=GlobalAutoBehaviour<AccountManager>.instance;
+        var web=SingletonUpdater<WebServiceManager>.instance;
+        if(a==null || !a.LoginResponseComplete || a.UserInfo==null || web.Requester==null || String.IsNullOrEmpty(web.Requester.SessionKey))return false;
+        string scope=web.Requester.Host.TrimEnd('/')+"|"+a.UserInfo.AccountId+"|"+web.Requester.SessionKey;
+        if(state.SetScope(scope)) {busy=false;nextAttempt=0f;}
+        return true;
+    }
+    public static bool Read(bool original,int main,int sub) {
+        if(!Ready())return original;
+        if(original)Mark(main,sub);
+        return original || state.Contains(Key(main,sub));
+    }
+    public static void Mark(int main,int sub) {
+        if(!Ready())return;
+        string key=Key(main,sub);bool added=!state.Contains(key);
+        state.Mark(key);
+        if(added)nextAttempt=System.Math.Min(nextAttempt,Time.realtimeSinceStartup+0.5f);
+    }
+    public static void Tick() {
+        if(!Ready()) {state.SetScope("");busy=false;initialized=-1;return;}
+        if(instance==null) {var go=new GameObject("SprkMissionHistory");DontDestroyOnLoad(go);instance=go.AddComponent<SprkMissionHistory>();}
+        if(initialized!=state.Epoch) {
+            initialized=state.Epoch;
+            // Import acknowledgements from the device that originally cleared
+            // these markers. Newly unlocked categories retain their N marker.
+            var history=SingletonAuto<PlayerPrefsOpenHistoryData>.instance;
+            foreach(var category in GameRoot.Instance.MissionCategoryDataContainer.GetAllData())
+                if(MissionManagement.IsOpenSubCategory(category) && history.IsOpened_NewMark(category.MainCategoryIndex,category.SubCategoryIndex))
+                    Mark(category.MainCategoryIndex,category.SubCategoryIndex);
+        }
+        if(!busy && Time.realtimeSinceStartup>=nextAttempt) {busy=true;instance.StartCoroutine(instance.Sync());}
+    }
+    IEnumerator Sync() {
+        int epoch=state.Epoch;var sent=state.Batch();bool success=false;
+        var requester=SingletonUpdater<WebServiceManager>.instance.Requester;
+        string host=requester.Host.TrimEnd('/'),session=requester.SessionKey;
+        try {
+            string body="SessionKey="+UnityWebRequest.EscapeURL(session)+"&SeenCategories="+UnityWebRequest.EscapeURL(MiniJSON.Json.Serialize(sent));
+            using(var request=new UnityWebRequest(host+"/mission/sync_seen_categories","POST")) {
+                request.uploadHandler=new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(body));
+                request.downloadHandler=new DownloadHandlerBuffer();request.timeout=20;
+                request.SetRequestHeader("Content-Type","application/x-www-form-urlencoded");
+                yield return request.SendWebRequest();
+                if(!Ready() || state.Epoch!=epoch || request.isNetworkError || request.isHttpError)yield break;
+                var reply=MiniJSON.Json.Deserialize(request.downloadHandler.text) as IDictionary;
+                if(reply==null || Convert.ToString(reply["Result"])!="Success")yield break;
+                var values=reply["SeenMissionCategories"] as IList;if(values==null)yield break;
+                int revision=state.Revision;
+                success=state.Merge(epoch,values.Cast<object>().Select(Convert.ToString),sent);
+                if(success && revision!=state.Revision) {
+                    var manager=UnityEngine.Object.FindObjectOfType<MissionManagement>();
+                    if(manager!=null)manager.RefreshQuestList();
+                }
+            }
+        } finally {
+            if(state.Epoch==epoch) {busy=false;nextAttempt=Time.realtimeSinceStartup+(success?(state.PendingCount>0?0.5f:60f):10f);}
+        }
+    }
+}

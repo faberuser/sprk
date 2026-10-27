@@ -36,6 +36,10 @@ partial class Program {
         if (!run.Fields.Any(f=>f.Name=="dispatch") ||
             !run.Methods.Single(m=>m.Name=="OnProcessBattleLog").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="CreatureSetAiBattleLog"))
             throw new InvalidOperationException("Offline dispatch worker must enable native hero AI.");
+        var prepare=worker.Methods.Single(m=>m.Name=="Prepare").Body.Instructions;
+        foreach(var getter in new[]{"get_IsAi","get_IsSmartAi"})
+            if(!prepare.Any(i=>i.Operand is MethodReference m && m.Name==getter))
+                throw new InvalidOperationException("Dispatch creation must validate native simulation AI: "+getter);
         Console.WriteLine("Verified worker enemy defeats, wave capture, duplicate suppression and mission result.");
     }
     static void VerifyConquestSessionCache(string clientRoot,bool staged) {

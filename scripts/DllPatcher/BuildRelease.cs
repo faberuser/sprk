@@ -62,6 +62,9 @@ partial class Program
         VerifyArtifactSelectorsFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
+        InstallMissionHistory(clientRoot, false);
+        VerifyMissionHistoryFile(clientRoot);
+        TestMissionHistory();
         VerifyNoTelemetry(clientRoot, null);
         VerifyFriendRecommendationsFile(clientRoot, false);
         VerifyFriendPresenceFile(clientRoot);

@@ -268,10 +268,15 @@ public sealed class SprkConquest : MonoBehaviour {
                 // Group 1 is reserved for replacement teams and is not spawned
                 // by this dungeon's single-team battle definition.
                 bool aiSupport=second && info.ChapterIndex==9900 && info.DungeonIndex>=101 && info.DungeonIndex<=103;
-                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,aiSupport,
+                // Native BattleSimulationInstance creates every dispatch hero with
+                // IsAi and IsSmartAi enabled. Enabling persistent AI afterwards
+                // starts the ordinary tactic and does not restore smart AI.
+                var creature=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(h,matched!=null && h.HeroIndex==matched.LeaderHeroIndex,aiSupport || run.dispatch,
                     new BattleCreatureCreateInfo.BuffSkillInfo{GuildSkillDataBases=account.GuildSkills,AccountBuffDataBases=account.AccountBuffs,ClassBuffDataBasess=account.ClassBuffDataBases},
                     new BattleCreatureCreateInfo.BuffStatInfo{ExtraStatDatas=account.ExtraStatDatas,PetStatDataBases=account.PetStatDataBases},
                     !alternating && second && !aiSupport?1:0);
+                if(run.dispatch && (!creature.IsAi || !creature.IsSmartAi))
+                    throw new InvalidOperationException("Dispatch heroes must use native simulation AI");
                 if(alternating)waveTeams[second?1:0].Add(creature);
                 if(alternating && second)reserved.Add(creature);else creatures.Add(creature);
             }
