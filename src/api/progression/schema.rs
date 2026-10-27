@@ -2,6 +2,7 @@ use crate::database::DbPool;
 
 pub(crate) async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
     for sql in [
+        "CREATE TABLE IF NOT EXISTS mission_category_seen(account_id INTEGER NOT NULL,main_category INTEGER NOT NULL,sub_category INTEGER NOT NULL,PRIMARY KEY(account_id,main_category,sub_category))",
         "CREATE TABLE IF NOT EXISTS progression_claims(account_id INTEGER NOT NULL,family TEXT NOT NULL,idx INTEGER NOT NULL,step INTEGER NOT NULL DEFAULT 1,period TEXT NOT NULL DEFAULT 'all',claimed_time TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(account_id,family,idx,step,period))",
         "CREATE TABLE IF NOT EXISTS progression_metrics(account_id INTEGER NOT NULL,day TEXT NOT NULL,kind TEXT NOT NULL,arg INTEGER NOT NULL DEFAULT 0,arg2 INTEGER NOT NULL DEFAULT 0,value INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account_id,day,kind,arg,arg2))",
         "CREATE TABLE IF NOT EXISTS progression_login(account_id INTEGER PRIMARY KEY,days INTEGER NOT NULL DEFAULT 0,last_day TEXT NOT NULL DEFAULT '')",

@@ -145,7 +145,7 @@ async fn play_records_campaign_response_updates_native_cache_and_rejects_duplica
     let invalid=crate::api::battle::campaign_handlers::end_campaign(State(s.clone()),form(&login,&format!("{entry}&Completed=true"))).await.unwrap().0;
     assert_ne!(invalid["Result"],"Success");
 }
-async fn setup() -> (AppState, user::LoginResponse) {
+pub(super) async fn setup() -> (AppState, user::LoginResponse) {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")

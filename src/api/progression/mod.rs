@@ -21,6 +21,7 @@ pub(crate) mod play_record;
 mod state;
 mod quest_scopes;
 mod mission_history;
+pub(crate) mod mission_history_sync;
 pub(crate) use mission_history::worker_defeats;
 #[cfg(test)]
 mod tests;

@@ -32,7 +32,8 @@ pub(crate) fn observation(path: &str) -> bool {
 pub(crate) fn cosmetic(path: &str) -> bool {
     matches!(
         path,
-        "/hero/bookmark"
+        "/mission/sync_seen_categories"
+            | "/hero/bookmark"
             | "/hero/bookmark_hero"
             | "/hero/set_hide_hero_unique_weapon"
             | "/hero/set_costume"

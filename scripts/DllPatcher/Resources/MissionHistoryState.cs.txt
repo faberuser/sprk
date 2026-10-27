@@ -1,0 +1,27 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+// Account, host and login session form the scope. A late response cannot apply
+// to a different account, and acknowledgements never remove newer local marks.
+public sealed class SprkMissionHistoryState {
+    string scope="";
+    public int Epoch { get; private set; }
+    public int Revision { get; private set; }
+    readonly HashSet<string> seen=new HashSet<string>();
+    readonly HashSet<string> pending=new HashSet<string>();
+    public int PendingCount { get {return pending.Count;} }
+    public bool SetScope(string value) {
+        if(scope==value)return false;
+        scope=value;Epoch++;Revision=0;seen.Clear();pending.Clear();return true;
+    }
+    public bool Contains(string key) {return seen.Contains(key);}
+    public void Mark(string key) {if(seen.Add(key)){pending.Add(key);Revision++;}}
+    public string[] Batch() {return pending.ToArray();}
+    public bool Merge(int epoch,IEnumerable<string> remote,IEnumerable<string> sent) {
+        if(epoch!=Epoch)return false;
+        foreach(var key in remote)if(seen.Add(key))Revision++;
+        foreach(var key in sent)pending.Remove(key);
+        return true;
+    }
+}

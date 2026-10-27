@@ -1,0 +1,23 @@
+using System;
+using System.Linq;
+public static class MissionHistoryTests {
+    static void Check(bool condition,string message) {if(!condition)throw new Exception(message);}
+    public static void Run() {
+        var first=new SprkMissionHistoryState();first.SetScope("host|1|session1");first.Mark("1:1");
+        var batch=first.Batch();int epoch=first.Epoch;
+        first.Mark("2:1");first.Merge(epoch,new[]{"1:1"},batch);
+        Check(first.Batch().SequenceEqual(new[]{"2:1"}),"A reply lost a mark made during its request");
+        var second=new SprkMissionHistoryState();second.SetScope("host|1|session2");
+        second.Merge(second.Epoch,new[]{"1:1","2:1"},new string[0]);
+        Check(second.Contains("1:1") && second.Contains("2:1"),"Second device did not inherit seen categories");
+        Check(!second.Contains("3:1"),"Unseen category lost its New marker");
+        first.Mark("3:1");Check(first.Batch().Contains("3:1"),"Failed/lost response lost a pending mark");
+        first.SetScope("host|2|session3");
+        Check(!first.Merge(epoch,new[]{"1:1"},batch) && !first.Contains("1:1"),"Late response crossed accounts");
+        Check(first.PendingCount==0,"Pending marks crossed accounts");
+        first.Mark("4:1");first.SetScope("different-host|2|session3");
+        Check(!first.Contains("4:1"),"Marks crossed servers");
+        first.SetScope("host|1|new-session");first.Mark("1:1");first.Mark("1:1");
+        Check(first.PendingCount==1,"Legacy local mark import must be idempotent");
+    }
+}
