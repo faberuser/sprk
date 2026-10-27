@@ -1662,6 +1662,77 @@ async fn guild_damage_progression_uses_saved_personal_raid_damage_and_64_bit_thr
 }
 
 
+#[tokio::test]
+async fn trial_milestones_recover_saved_variant_clears_and_rewards_once() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    // Existing accounts saved the selected dungeon, not TowerFloor's zero
+    // primary ID. Exercise all five variants across the full 25-floor clear.
+    for floor in 1..=25 {
+        let row=s.tables.battle.find("TowerFloor",&[("TowerIndex",11),("Floor",floor)]).unwrap();
+        let dungeon=row["DungeonIndices"][((floor-1)%5) as usize].as_i64().unwrap();
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,2001,?,1,3,1)")
+            .bind(a).bind(dungeon).execute(&s.db).await.unwrap();
+        if floor==24 {
+            let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+            let last=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==1000590).unwrap();
+            assert_eq!(view.quest(&s,last),0,"floor 24 must not unlock the floor-25 milestone");
+        }
+    }
+    let login=relogin(&s).await;
+    let snapshot=call(&s,&login,"get_achievements","").await;
+    let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+    assert_eq!(view.tower_floor(&s,11,2001,0),None);
+    assert_eq!(view.tower_floor(&s,21,2001,121),None);
+    let normal=s.tables.progression.achievements.iter().find(|r|r["Index"]==511 && r["Step"]==1).unwrap();
+    assert_eq!(view.achievement(&s,normal).0,25,"normal tower achievements share the same floor mapping");
+    for id in [1000550,1000560,1000570,1000580,1000590] {
+        let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+        let quest=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==id).unwrap();
+        assert_eq!(view.quest(&s,quest),1,"floor milestone {id} must recognize saved variants");
+        let claim=format!("SubQuestIndices=[{id}]");
+        let result=call(&s,&login,"complete_sub_quest",&claim).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert_eq!(result["RewardResults"].as_array().unwrap().len(),1);
+        let balances=currency(&s,&login).await;
+        assert_ne!(call(&s,&login,"complete_sub_quest",&claim).await["Result"],"Success");
+        assert_eq!(currency(&s,&login).await,balances);
+    }
+    assert_eq!(snapshot["Result"],"Success");
+    let login=relogin(&s).await;
+    for id in [1000550,1000560,1000570,1000580,1000590] {
+        assert!(login.sub_quest_infos.iter().any(|v|v["SubQuestIndex"]==id && v["LastStep"]==1));
+    }
+}
+
+#[tokio::test]
+async fn trial_weekly_reward_accepts_proven_access_and_respects_week_and_replays() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let row=s.tables.progression.achievements.iter().find(|r|r["Index"]==1708).unwrap();
+    for dungeon in [1,6,11,16,21] {
+        record(&mut s.db.acquire().await.unwrap(),a,"ClearDungeon",2001,dungeon,1).await.unwrap();
+    }
+    sqlx::query("UPDATE progression_metrics SET day='2000-01-01' WHERE account_id=? AND kind='ClearDungeon'")
+        .bind(a).execute(&s.db).await.unwrap();
+    let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+    assert_eq!(view.achievement(&s,row),(0,5));
+    let claim="AchievementIndices=[1708]&Steps=[0]";
+    assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
+    sqlx::query("UPDATE progression_metrics SET day=date('now') WHERE account_id=? AND kind='ClearDungeon'")
+        .bind(a).execute(&s.db).await.unwrap();
+    let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+    assert_eq!(view.achievement(&s,row),(5,5));
+    assert!(!view.history_proves_access(&json!({"Kind":"ClearOrdealTowerWeekly","OpenCondition":["UnknownPaidService"]})));
+    let item=s.tables.get_item_index("INFINITYSTONE_2").unwrap() as i64;
+    let before=count(&s,&u,item).await;
+    let reward=call(&s,&u,"reward_achievement",claim).await;
+    assert_eq!(reward["Result"],"Success","{reward}");
+    assert_eq!(count(&s,&u,item).await,before+100);
+    assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
+    assert_eq!(count(&s,&u,item).await,before+100);
+    let login=relogin(&s).await;
+    assert!(login.achievement_infos.iter().any(|v|v["AchievementIndex"]==1708 && v["LastStep"]==1));
+}
+
 /// Diagnostic harness: uses an explicit isolated database copy, never the live DB.
 #[tokio::test]
 #[ignore]

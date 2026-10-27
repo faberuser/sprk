@@ -164,7 +164,8 @@ pub(super) async fn execute(
             eq.star += 1;
             eq.upgrade_star_fail_bonus = 0;
             out["Success"] = json!(true);
-            super::super::progression::record(db, account, "AwakenGear", 0, 0, 1).await?;
+            super::super::progression::record(db, account, "AwakenGearAttempt", eq.item_index as i64, 0, 1).await?;
+            super::super::progression::record(db, account, "AwakenGear", eq.item_index as i64, eq.star as i64, 1).await?;
         }
         "valance_enchant" => {
             let item_id = req.number("ConsumeItemIndex", 0)?;
@@ -237,7 +238,7 @@ pub(super) async fn execute(
             out["CurrencyResult"] = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;
             out["ItemResultInfo"] = item::consume(db, account, item_id as i32, 1).await?;
             out["NewValanceEnchantOptionInfo"] = pending;
-            super::super::progression::record(db, account, "Enchant", 0, 0, 1).await?;
+            super::super::progression::record(db, account, "Enchant", eq.item_index as i64, item_id, 1).await?;
         }
         "confirm_valance_enchant" => {
             let pending:String=sqlx::query_scalar("SELECT data FROM equipment_pending WHERE account_id=? AND slot_index=? AND kind='valance_enchant'")

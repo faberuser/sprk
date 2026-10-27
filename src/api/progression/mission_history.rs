@@ -127,6 +127,7 @@ impl View {
         match row["Kind"].as_str().unwrap_or("") {
             "ClearTechnoMagicKingdomRaid" => c == ["System", "CanGoDungeon", "10", "10"],
             "ClearTower" => c == ["System", "CanGoDungeon", "2", "27"],
+            "ClearOrdealTowerWeekly" => c == ["Table", "NPCTable", "HallofHero", "EntryMenuCondition3"],
             "WorldBossMaxRank" => c == ["System", "MenuOpenCheckManager", "WorldBoss"],
             "JoinMatchBanPickWeekly" => c == ["System", "MatchManagement", "CheckBanPickCondition"],
             "EnterDungeon" if row["ReqValue"] == "GodkingTrial" => {
@@ -458,7 +459,7 @@ impl View {
                     self.metrics
                         .iter()
                         .filter(|m| m.1 == "ClearDungeon" && m.4 > 0)
-                        .filter_map(|m| self.primary_tower_floor(s, req, m.2, m.3))
+                        .filter_map(|m| self.tower_floor(s, req, m.2, m.3))
                         .max()
                         .unwrap_or(0),
                     n(row, "ReqSub1Value").max(1),

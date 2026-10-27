@@ -26,6 +26,8 @@ pub(crate) use mission_history::worker_defeats;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod mission_rule_tests;
+#[cfg(test)]
 mod mission_history_tests;
 use state::{period, View};
 
