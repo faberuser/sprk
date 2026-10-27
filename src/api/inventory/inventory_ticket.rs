@@ -45,7 +45,7 @@ pub(crate) async fn redeem(db:&mut SqliteConnection,state:&AppState,account:i64,
     let mut out=item::success();
     out["ItemResult"]=item::consume(db,account,2401,1).await?;
     let wallet:(i64,i64)=sqlx::query_as("SELECT gem,pay_gem FROM user_info WHERE account_id=?").bind(account).fetch_one(&mut *db).await?;
-    if wallet.0.checked_add(wallet.1).and_then(|v|v.checked_add(gems)).is_none_or(|v|v>i32::MAX as i64) {return Err(rule("NotEnoughGem"));}
+    if wallet.0.checked_add(wallet.1).and_then(|v|v.checked_add(gems)).is_none() {return Err(rule("NotEnoughGem"));}
     out["CurrencyResult"]=item::money(db,account,"Gem",gems).await?;
     out["NewInventoryExtend"]=json!(old+added);
     sqlx::query("UPDATE inventory_settings SET inventory_extend=? WHERE account_id=?").bind(old+added).bind(account).execute(&mut *db).await?;

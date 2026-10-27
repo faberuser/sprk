@@ -18,7 +18,7 @@ public static class SprkSpecialShop {
     }
     public static int Maximum(long balance, long price, int purchased, int limit, int grantLimit) {
         long max = 999;
-        if (price > 0) max = Math.Min(max, Math.Min(balance / price, int.MaxValue / price));
+        if (price > 0) max = Math.Min(max, balance / price);
         if (limit > 0) max = Math.Min(max, (long)limit - purchased);
         max = Math.Min(max, grantLimit);
         return (int)Math.Max(0, max);

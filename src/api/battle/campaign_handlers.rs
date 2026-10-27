@@ -284,7 +284,7 @@ impl CurrencyResultInfo3 {
     }
 
     /// Create a Gem currency result with NewSysGem and NewPayGem fields
-    /// Client reads gems via: SetGem((int)info.GetFieldValue("NewSysGem"))
+    /// Currency64 keeps both native ruby partitions and their total as Int64.
     pub fn gem(add_value: i64, new_sys_gem: i64, new_pay_gem: i64) -> Self {
         CurrencyResultInfo3 {
             currency_type: "Gem".to_string(),

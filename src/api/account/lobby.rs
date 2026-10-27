@@ -343,7 +343,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     battle["GuildInfo"]=community["MyGuildInfo"].clone();
     battle["BattleInfo"]=community["BattleInfo"].clone();
     if let Some(keys)=battle["BattleKeyResults"].as_array_mut(){keys.push(community["SwordResult"].clone());keys.push(community["GuildRaidTicket"].clone());}
-    if let Some(user)=&mut user_info{user.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;}
+    if let Some(user)=&mut user_info{user.guild_point=community["GuildPoint"].as_i64().unwrap_or(0);}
     for info in battle["DungeonInfos"].as_array().into_iter().flatten() {
         let info: ChapterDungeonInfo = serde_json::from_value(info.clone()).map_err(|e|ServerError::Internal(e.to_string()))?;
         if let Some(old)=dungeon_infos.iter_mut().find(|d|d.chapter_index==info.chapter_index&&d.dungeon_index==info.dungeon_index){*old=info;}else{dungeon_infos.push(info);}

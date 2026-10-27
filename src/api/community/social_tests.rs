@@ -885,7 +885,7 @@ async fn malformed_and_locked_mail_cannot_consume_or_partially_grant() {
         .await
         .unwrap();
     assert_eq!(row.get::<i64, _>("gold"), a.user_info.gold);
-    assert_eq!(row.get::<i32, _>("gem"), a.user_info.gem);
+    assert_eq!(row.get::<i64, _>("gem"), a.user_info.gem);
     sqlx::query(
         "UPDATE mails SET reward_items=NULL,opens_at='2999-01-01 00:00:00' WHERE mail_id=?",
     )

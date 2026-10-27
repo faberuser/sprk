@@ -1,12 +1,12 @@
 {
     "MaxCap": {
-        "PvpCoin": "2147483647",
-        "GloryPoint": "2147483647",
-        "RankingPoint": "2147483647",
-        "OrdealArenaPoint": "2147483647",
-        "RaidPoint": "2147483647",
-        "WorldBossPoint": "2147483647",
-        "GuildPoint": "2147483647",
-        "GuildArenaPoint": "2147483647"
+        "PvpCoin": "9223372036854775807",
+        "GloryPoint": "9223372036854775807",
+        "RankingPoint": "9223372036854775807",
+        "OrdealArenaPoint": "9223372036854775807",
+        "RaidPoint": "9223372036854775807",
+        "WorldBossPoint": "9223372036854775807",
+        "GuildPoint": "9223372036854775807",
+        "GuildArenaPoint": "9223372036854775807"
     }
 }

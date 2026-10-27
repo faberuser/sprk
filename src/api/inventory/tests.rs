@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
-async fn point_currencies_accept_balances_above_old_caps_up_to_i32_max() {
+async fn point_currencies_accept_balances_above_old_caps_up_to_i64_max() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
     let mut db = s.db.acquire().await.unwrap();
@@ -22,12 +22,45 @@ async fn point_currencies_accept_balances_above_old_caps_up_to_i32_max() {
     ] {
         let first = crate::api::heroes::currency(&mut db, a, kind, old_cap + 1).await.unwrap();
         assert_eq!(first["NewValue"], old_cap + 1, "{kind}");
-        let capped = crate::api::heroes::currency(&mut db, a, kind, i32::MAX as i64 - old_cap - 1).await.unwrap();
-        assert_eq!(capped["NewValue"], i32::MAX, "{kind}");
+        let capped = crate::api::heroes::currency(&mut db, a, kind, i64::MAX - old_cap - 1).await.unwrap();
+        assert_eq!(capped["NewValue"], i64::MAX, "{kind}");
         assert!(crate::api::heroes::currency(&mut db, a, kind, 1).await.is_err(), "{kind}");
         let spent = crate::api::heroes::currency(&mut db, a, kind, -1).await.unwrap();
-        assert_eq!(spent["NewValue"], i32::MAX - 1, "{kind}");
+        assert_eq!(spent["NewValue"], i64::MAX - 1, "{kind}");
     }
+}
+
+#[tokio::test]
+async fn currency64_rubies_preserve_exact_totals_login_and_paid_spending() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let large=9_007_199_254_740_993i64; // Deliberately above JavaScript's exact integer range.
+    sqlx::query("UPDATE user_info SET gem=?,pay_gem=3000000000,stamina=4000000000 WHERE account_id=?")
+        .bind(large).bind(a).execute(&s.db).await.unwrap();
+    {
+        let mut tx=s.db.begin().await.unwrap();
+        let out=item::money(&mut tx,a,"Gem",5_000_000_000).await.unwrap();
+        assert_eq!(out["NewValue"],large+8_000_000_000);
+        let out=item::money(&mut tx,a,"Gem",-(large+6_000_000_000)).await.unwrap();
+        assert_eq!(out["Value1"],0);assert_eq!(out["Value2"],2_000_000_000);
+        assert!(item::money(&mut tx,a,"Gem",i64::MIN).await.is_err());
+        tx.commit().await.unwrap();
+    }
+    let user=login(&s).await;
+    assert_eq!(user.user_info.gem,0);assert_eq!(user.user_info.pay_gem,2_000_000_000);
+    assert_eq!(user.user_info.stamina,4_000_000_000);
+    sqlx::query("UPDATE user_info SET gem=?,pay_gem=2 WHERE account_id=?")
+        .bind(i64::MAX-2).bind(a).execute(&s.db).await.unwrap();
+    let mut tx=s.db.begin().await.unwrap();
+    assert!(item::money(&mut tx,a,"Gem",1).await.is_err());
+    assert!(item::money(&mut tx,a,"PayGem",1).await.is_err());
+    assert_eq!(item::money(&mut tx,a,"Gem",0).await.unwrap()["NewValue"],i64::MAX);
+    // Even direct SQL must never turn overflowing currency storage into REAL.
+    assert!(sqlx::query("UPDATE user_info SET gold=9223372036854775807+1 WHERE account_id=?").bind(a).execute(&mut *tx).await.is_err());
+    assert!(sqlx::query("UPDATE user_info SET gem=9223372036854775807 WHERE account_id=?").bind(a).execute(&mut *tx).await.is_err());
+    assert_eq!(item::money(&mut tx,a,"Gem",0).await.unwrap()["NewValue"],i64::MAX);
+    tx.rollback().await.unwrap();
+    let json=serde_json::to_value(login(&s).await).unwrap();
+    assert_eq!(json["UserInfo"]["Gem"],i64::MAX-2);
 }
 
 #[tokio::test]
@@ -600,7 +633,7 @@ async fn tower_cubes_allow_overflow_and_failed_uses_preserve_items_and_entries()
     assert_eq!(count(&state, &u, id).await, 1);
     let mut db = state.db.acquire().await.unwrap();
     let mut stored = crate::api::battle::get(&mut db, account, "key", 9).await.unwrap();
-    stored["Count"] = json!(i32::MAX);
+    stored["Count"] = json!(i64::MAX);
     crate::api::battle::put(&mut db, account, "key", 9, &stored).await.unwrap();
     drop(db);
     let response = item::use_potion_item(State(state.clone()),
@@ -892,7 +925,7 @@ async fn packages_grant_gold_and_mileage_from_drop_lists() {
 async fn package_currency_overflow_rolls_back_all_rewards_and_consumption() {
     let (state, u) = setup().await;
     put(&state, &u, 93008, 1).await;
-    sqlx::query("UPDATE user_info SET gem=2147483547 WHERE account_id=?")
+    sqlx::query("UPDATE user_info SET gem=9223372036854775707 WHERE account_id=?")
         .bind(u.user_info.account_id).execute(&state.db).await.unwrap();
     let opened = item::use_package_item(State(state.clone()),
         form(&u, "ItemIndex=93008&ItemCount=1")).await.unwrap().0;
@@ -900,7 +933,7 @@ async fn package_currency_overflow_rolls_back_all_rewards_and_consumption() {
     assert_eq!(count(&state, &u, 93008).await, 1);
     let gem: i64 = sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?")
         .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
-    assert_eq!(gem, 2147483547);
+    assert_eq!(gem, 9223372036854775707);
     let lua: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='LuaPoint'),0)")
         .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
     assert_eq!(lua, 0);
@@ -2530,7 +2563,7 @@ async fn large_inventory_ticket_full_compensation_validates_quote_ownership_and_
         assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&bad)).await.unwrap().0["Result"],"Success");
         assert_eq!(count(&s,&u,2401).await,2);
     }
-    sqlx::query("UPDATE user_info SET gem=2147483647 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET gem=9223372036854775807 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
     assert_ne!(item::use_potion_item(State(s.clone()),form(&u,&args)).await.unwrap().0["Result"],"Success");
     assert_eq!(count(&s,&u,2401).await,2,"Failed currency grant must roll back ticket consumption");
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM inventory_ticket_redemptions WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);

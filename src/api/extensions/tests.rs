@@ -515,7 +515,7 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let again = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
     assert_eq!(again["Result"], "Success", "{again}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32);
+    assert_eq!(login.user_info.gem, 100000 - price);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3100013));
     // Previously reward-only accessories are now purchasable at their table price.
     let body_pos = pos.to_string().replace("3100013", "3110025");
@@ -525,7 +525,7 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
         &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=4000&BuyGold=0")).await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32 - 4000);
+    assert_eq!(login.user_info.gem, 100000 - price - 4000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
     let selected = hero::change_avatar_hero(State(s.clone()),
         Bytes::from(format!("SessionKey={}&HeroIndex=1&AvatarHeroIndex=11", u.user_info.session_key)))

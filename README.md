@@ -83,6 +83,75 @@ The server will:
 2. Initialize all required tables
 3. Start listening on `http://0.0.0.0:8080`
 
+### Running with Docker Compose
+
+Use Docker Engine with the Compose plugin on Linux, or Docker Desktop with Linux
+containers on Windows. The image runs on `linux/amd64` and includes the server,
+tables, and battle worker; a local Rust installation is not required.
+
+Run the following from the repository root in a Linux shell (WSL on Windows):
+
+```bash
+cp .env.example .env
+
+# The updates container runs as UID/GID 10001 and needs a writable host directory.
+sudo mkdir -p /srv/sprk/client-updates
+sudo chown 10001:10001 /srv/sprk/client-updates
+```
+
+Edit `.env` before starting:
+
+- `SPRK_IMAGE`: shared image for both services; defaults to `ghcr.io/faberuser/sprk:latest`.
+- `SPRK_GAME_HOST`: hostname/IP and HTTP port reachable by players, such as
+  `192.168.1.10:8080`. Set `SPRK_GAME_HTTPS=true` when using an HTTPS reverse proxy.
+- `SPRK_UPDATES_HOST_DIR`: existing host directory created above. If you change
+  it, create that directory and grant UID/GID `10001` write access there.
+- `SPRK_GM_KEY`: replace the example value with a random key of at least 32
+  characters, or leave it empty to disable GM access. Keep `SPRK_GM_BIND_IP`
+  at `127.0.0.1` for local administration.
+
+```bash
+docker compose config --quiet
+docker compose up -d
+docker compose ps
+docker compose logs -f game updates
+```
+
+Compose pulls the published image and starts two services:
+
+| Service | Default host address | Persistent storage |
+| --- | --- | --- |
+| `game` | `http://localhost:8080` | SQLite database and service state in the `game-data` volume at `/data` |
+| `updates` | `http://localhost:8081` | Signed client releases in the host directory mounted at `/client-updates` |
+
+The update service downloads and verifies the image-pinned client release before
+listening; its initial startup can take several minutes. Check readiness with:
+
+```bash
+curl --fail http://localhost:8080/health
+curl --fail http://localhost:8080/health/battle
+curl --fail http://localhost:8081/health
+```
+
+Use `SPRK_GAME_PORT` and `SPRK_UPDATE_PORT` in `.env` to change the published
+ports. Player chat and battle use `/ws/chat` and `/ws/battle` on the game HTTP
+port. The GM listener uses host port `8082` on loopback by default.
+
+```bash
+# Pull and apply the latest configured image.
+docker compose pull
+docker compose up -d
+
+# Stop and remove containers while keeping persistent data.
+docker compose down
+```
+
+Do not add `--volumes` to `docker compose down` unless you intend to delete the
+game database volume. For Portainer, reverse proxy setup, and local image builds,
+see [client updates and Docker hosting](docs/client-updates.md#portainer--docker)
+and [the CI release workflow](docs/github-client-updates.md). Local image builds
+also require preparing `build-input/worker` before running `docker build`.
+
 ### Patching the Client
 
 Use the unified patcher to patch both `Assembly-CSharp.dll` and `resources.assets` in one command — just point it at your game client root folder:

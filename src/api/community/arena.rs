@@ -54,7 +54,7 @@ pub(crate) async fn tickets(
             &v, def, overrides, current, chrono::Utc::now(), (-amount).max(0))?;
         if amount > 0 {
             let value = n(&saved,"Count").checked_add(amount)
-                .filter(|v| *v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?;
+                .ok_or_else(||rule("MaxStamina"))?;
             saved["Count"] = json!(value);
             let added = n(&result,"AddValue") + amount;
             let refreshed = crate::api::account::recharge::at(&saved,def,overrides,value,chrono::Utc::now(),0)?;
@@ -91,7 +91,7 @@ pub(crate) async fn tickets(
     };
     let value = current
         .checked_add(amount)
-        .filter(|v| *v >= 0 && *v <= i32::MAX as i64)
+        .filter(|v| *v >= 0)
         .ok_or_else(|| {
             rule(if kind == "Sword" {
                 "NotEnoughSword"

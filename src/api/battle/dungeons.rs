@@ -352,7 +352,7 @@ mod shakmeh_charge_tests {
 }
 pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
     let rate = settings(s, "RaiderExpPerStamina", 100);
-    let amount = cost.checked_mul(rate).filter(|v| *v >= 0 && *v <= i32::MAX as i64)
+    let amount = cost.checked_mul(rate).filter(|v| *v >= 0)
         .ok_or_else(|| rule("InvalidCost"))?;
     let mut rewards = Rewards::default();
     tutorial::team_exp(db, s, a, amount, &mut rewards).await?;

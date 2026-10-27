@@ -88,6 +88,10 @@ partial class Program
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
+        // Run last: helpers compile against the baseline API, then currency
+        // signatures and every compiled consumer are migrated together.
+        InstallCurrency64(clientRoot, false);
+        VerifyCurrency64File(clientRoot);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }

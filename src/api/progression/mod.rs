@@ -323,8 +323,8 @@ async fn achievement_reward(
                 } else {
                     amount
                 };
-                let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET stamina=stamina+? WHERE account_id=? AND stamina+?<=2147483647 RETURNING stamina").bind(count).bind(account).bind(count).fetch_optional(&mut *db).await?;
-                stamina.push(json!({"Type":"Chicken","AddValue":count,"NewValue":value.ok_or_else(||rule("InvalidRewardData"))?,"StaminaRechargeTime":null,"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}));
+                let value = crate::currency::user(db, account, "stamina", count, 0).await?;
+                stamina.push(json!({"Type":"Chicken","AddValue":count,"NewValue":value,"StaminaRechargeTime":null,"NextRechargeRemainTime":0,"FullRechargeRemainTime":0,"RechargeCount":0,"IsHide":false}));
             }
             "Gold" | "Gem" | "PvpCoin" | "FriendshipPoint" | "RaidPoint" | "WorldBossPoint" => rewards
                 .currencies

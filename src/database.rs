@@ -464,5 +464,6 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         "CREATE INDEX IF NOT EXISTS friends_incoming ON friends(friend_account_id,status)",
     ] { sqlx::query(query).execute(pool).await?; }
     crate::api::system::revisions::migrate(pool).await?;
+    crate::currency::migrate(pool).await?;
     Ok(())
 }

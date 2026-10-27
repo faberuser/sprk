@@ -55,8 +55,8 @@ pub struct LoginRequest {
 pub struct StaminaResultInfo {
     #[serde(rename = "Type")]
     pub stamina_type: String,  // Enum string like "Chicken", "Sword", etc.
-    pub add_value: i32,
-    pub new_value: i32,
+    pub add_value: i64,
+    pub new_value: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stamina_recharge_time: Option<String>,
     pub next_recharge_remain_time: i32,
@@ -600,9 +600,9 @@ pub async fn login(
     crate::api::battle::party_messages::new_login(&state,account_id).await?;
     let battle = crate::api::battle::login(&state,account_id).await?;
     let community = crate::api::community::login(&state,account_id).await?;
-    user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0) as i32;
-    user_info.sword=community["SwordResult"]["NewValue"].as_i64().unwrap_or(0) as i32;
-    user_info.guild_raid_ticket=community["GuildRaidTicket"]["NewValue"].as_i64().unwrap_or(user_info.guild_raid_ticket as i64) as i32;
+    user_info.guild_point=community["GuildPoint"].as_i64().unwrap_or(0);
+    user_info.sword=community["SwordResult"]["NewValue"].as_i64().unwrap_or(0);
+    user_info.guild_raid_ticket=community["GuildRaidTicket"]["NewValue"].as_i64().unwrap_or(user_info.guild_raid_ticket as i64);
     if let Some(sword)=stamina_results.iter_mut().find(|v|v.stamina_type=="Sword"){sword.new_value=user_info.sword;}
     if let Some(misc)=community["MiscInfo"].as_object(){for(k,v)in misc{extension_misc.insert(k.clone(),v.clone());}}
     extension_misc.insert("ShakemehPassiveInfos".into(),battle["ShakemehPassiveInfos"].clone());

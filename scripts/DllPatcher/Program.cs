@@ -9,6 +9,11 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--verify-currency64")) { VerifyCurrency64File(args[0]); TestCurrency64(args[0]); return; }
+            if (args.Contains("--currency64-only")) {
+                var report=Array.IndexOf(args,"--currency64-report");
+                InstallCurrency64(args[0],args.Contains("--stage-only"),report<0?null:args[report+1]); return;
+            }
             if (args.Contains("--mission-history-only")) { InstallMissionHistory(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-mission-history")) { VerifyMissionHistoryFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-mission-history")) { TestMissionHistory(); return; }
