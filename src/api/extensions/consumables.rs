@@ -326,90 +326,114 @@ async fn ability(
     req: &Request,
     id: i32,
 ) -> Result<Value> {
-    let ticket = row(
-        state,
-        "SoulWeaponAbilityTicket",
-        &[("ItemIndex", id as i64)],
-    )?;
+    let ticket = state.tables.extensions.find("SoulWeaponAbilityTicket", &[("ItemIndex", id as i64)])
+        .ok_or_else(|| rule("SoulWeaponAbilityTicketDataNotFound"))?;
+    let kind = n(ticket, "ItemType");
+    if !(1..=3).contains(&kind) {
+        return Err(rule("InvalidTicketType"));
+    }
     let slot = req.number("TargetEquipItemSlotIndex", 0)?;
     let eq = equip(db, account, slot).await?;
+    let data = meta(state, eq.item_index)?;
+    if data["IsOpenSoulWeapon"] != true {
+        return Err(rule("IsNotUniqueWeapon"));
+    }
+    if eq.locked > 0 {
+        return Err(rule("LockedEquipItemExists"));
+    }
     if ticket["FixedEquipItemIndex"]
         .as_array()
         .is_some_and(|v| !v.is_empty() && !v.contains(&json!(eq.item_index)))
     {
-        return Err(rule("InvalidEquipItem"));
+        return Err(rule("NotAvailableEquipItemindex"));
     }
     let mut info = get(db, account, "soul", slot).await?;
-    if info.is_null() || info["PendingRenew"] == true {
-        return Err(rule("SoulWeaponNotFound"));
+    let unlocking = info.is_null();
+    if unlocking {
+        if kind == 2 {
+            return Err(rule("SoulWeaponInfoNotFound"));
+        }
+        // Grade/jumping tickets also liberate a plain Unique Weapon. The
+        // native picker excludes a second Soul Weapon of the same hero.
+        if list(db, account, "soul").await?.iter().any(|v| n(v, "ItemIndex") == eq.item_index as i64) {
+            return Err(rule("IsAlreadyLiberation"));
+        }
+        info = soul::initial_info(state, slot, eq.item_index);
+    } else if info["PendingRenew"] == true {
+        return Err(rule("InvalidTicket"));
     }
-    let kind = n(ticket, "ItemType");
     let grade = n(ticket, "SoulWeaponGrade");
     let level = n(ticket, "EtherReinforceLevel");
-    if (kind == 1 && grade <= n(&info, "Grade"))
-        || (kind == 2 && level <= n(&info, "ReinforceLevel"))
-        || (kind == 3 && (grade < n(&info, "Grade") || level < n(&info, "ReinforceLevel")))
-    {
-        return Err(rule("InvalidEquipItem"));
+    let upgrade_grade = (kind == 1 || kind == 3) && grade > n(&info, "Grade");
+    let upgrade_ether = (kind == 2 || kind == 3) && level > n(&info, "ReinforceLevel");
+    if !upgrade_grade && !upgrade_ether {
+        return Err(rule(match kind {
+            1 => "AlreadySameOrGreaterGrade",
+            2 => "AlreadySameOrGreaterReinforceLevel",
+            _ => "AlreadySameOrGreater",
+        }));
     }
-    let tag = meta(state, eq.item_index)?["TagType"][0]
-        .as_i64()
-        .unwrap_or(0);
-    let refund = row(
-        state,
-        "SoulWeaponAbilityReward",
-        &[
-            ("Type", kind),
-            ("TagType", tag),
-            ("Grade", n(&info, "Grade")),
-            ("ReinforceLevel", n(&info, "ReinforceLevel")),
-        ],
-    )?;
     let mut rewards = Rewards::default();
-    for (i, code) in refund["ItemCodeList"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .enumerate()
-    {
-        let item_id = state
-            .tables
-            .hero_shop
-            .items
-            .iter()
-            .find(|(_, v)| v["Code"] == *code)
-            .map(|(id, _)| *id)
-            .ok_or_else(|| rule("ItemDataNotFound"))?;
-        item::give(
-            db,
-            state,
-            account,
-            ItemGrant {
-                index: item_id,
-                count: refund["ItemCountList"][i].as_i64().unwrap_or(0) as i32,
-                star: 0,
-                custom: 0,
-            },
-            &mut rewards,
-        )
-        .await?;
+    if !unlocking {
+        // Match the native reward preview: refund only dimensions being raised.
+        let refund_kind = if upgrade_grade && upgrade_ether { 3 } else if upgrade_grade { 1 } else { 2 };
+        // The client treats a missing reward row (e.g. Ether level zero) as
+        // no refund, rather than rejecting an otherwise valid ticket.
+        if let Some(refund) = state.tables.extensions.find(
+            "SoulWeaponAbilityReward",
+            &[
+                ("Type", refund_kind),
+                ("TagType", data["TagType"][0].as_i64().unwrap_or(0)),
+                ("Grade", if upgrade_grade { n(&info, "Grade") } else { 0 }),
+                ("ReinforceLevel", if upgrade_ether { n(&info, "ReinforceLevel") } else { 0 }),
+            ],
+        ) {
+            for (i, code) in refund["ItemCodeList"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .enumerate()
+            {
+                let item_id = state
+                    .tables
+                    .hero_shop
+                    .items
+                    .iter()
+                    .find(|(_, v)| v["Code"] == *code)
+                    .map(|(id, _)| *id)
+                    .ok_or_else(|| rule("ItemDataNotFound"))?;
+                item::give(
+                    db,
+                    state,
+                    account,
+                    ItemGrant {
+                        index: item_id,
+                        count: refund["ItemCountList"][i].as_i64().unwrap_or(0) as i32,
+                        star: 0,
+                        custom: 0,
+                    },
+                    &mut rewards,
+                )
+                .await?;
+            }
+        }
     }
-    if kind == 1 || kind == 3 {
+    if upgrade_grade {
         row(state, "SoulWeaponUpgrade", &[("Grade", grade)])?;
         info["Grade"] = json!(grade);
     }
-    if kind == 2 || kind == 3 {
+    if upgrade_ether {
         row(state, "SoulWeaponReinforce", &[("ReinforceLevel", level)])?;
         info["ReinforceLevel"] = json!(level);
         info["Exp"] = json!(0);
         info["ReinforceRatio"] = json!(0);
     }
-    if !(1..=3).contains(&kind) {
-        return Err(rule("ItemTypeMismatch"));
-    }
     soul::stats(state, &mut info)?;
     let consumed = item::consume(db, account, id, 1).await?;
     put(db, account, "soul", slot, &info).await?;
+    if unlocking {
+        crate::api::progression::play_record::liberated(db, account).await?;
+    }
     Ok(
         json!({"BaseResult":"Success","Result":"Success","ItemResult":consumed,"ItemRefundsResults":rewards.items,"TargetSoulWeaponInfo":info}),
     )

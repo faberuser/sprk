@@ -104,25 +104,7 @@ pub(crate) async fn currency(
     if amount == 0 {
         return Ok(());
     }
-    let column = match kind {
-        "Gold" => "gold",
-        "Gem" => "gem",
-        "RaidPoint" => "raid_point",
-        "EventDungeonPoint" => "event_dungeon_point",
-        _ => {
-            return Err(ServerError::Internal(format!(
-                "Unsupported tutorial currency {kind}"
-            )))
-        }
-    };
-    let row = sqlx::query(&format!("UPDATE user_info SET {column} = {column} + ? WHERE account_id = ? RETURNING {column}, pay_gem"))
-        .bind(amount).bind(account_id).fetch_one(&mut *db).await?;
-    let value = row.get::<i64, _>(column);
-    let info = if kind == "Gem" {
-        CurrencyResultInfo3::gem(amount, value, row.get("pay_gem"))
-    } else {
-        CurrencyResultInfo3::new(kind, amount, value)
-    };
+    let info = crate::api::heroes::currency(db, account_id, kind, amount).await?;
     rewards.currencies.push(json!(info));
     Ok(())
 }

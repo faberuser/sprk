@@ -386,7 +386,7 @@ pub(crate) async fn guild_ticket(
         &info,def,overrides,current,chrono::Utc::now(),(-amount).max(0))?;
     if amount>0 {
         saved["Count"] = json!(n(&saved,"Count").checked_add(amount)
-            .filter(|v|*v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?);
+            .ok_or_else(||rule("MaxStamina"))?);
         let added=n(&result,"AddValue")+amount;
         let refreshed=crate::api::account::recharge::at(&saved,def,overrides,current,chrono::Utc::now(),0)?;
         saved=refreshed.0; result=refreshed.1; result["AddValue"]=json!(added);

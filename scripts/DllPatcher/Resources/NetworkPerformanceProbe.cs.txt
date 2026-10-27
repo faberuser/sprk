@@ -23,12 +23,27 @@ public sealed class SprkNetworkProbe : MonoBehaviour {
             catch(Exception error) {File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"),"result.txt"),error.ToString());Application.Quit(1);yield break;}
             yield return next;
         }
-        File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"),"result.txt"),"PASS: Unity gzip, native parse, section acknowledgements and manager preservation");
+        File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE"),"result.txt"),"PASS: Unity mission currency results, gzip, native parse, section acknowledgements and manager preservation");
         Application.Quit();
     }
     static void Check(bool value,string message){if(!value)throw new Exception(message);}
     static IEnumerator Run() {
         yield return new WaitForSecondsRealtime(1);
+        // Regression: widening ICurrencyResultInfo without migrating every
+        // implementation made even an empty mission friendship array throw a
+        // TypeLoadException on Unity's response thread, leaving its spinner open.
+        var emptyMission=JsonMarshaler.Parse<NShared.RewardAchievement.Response>("{\"BaseResult\":\"Success\",\"Result\":\"Success\",\"FriendshipPointResults\":[]}");
+        Check(emptyMission.FriendshipPointResults!=null && emptyMission.FriendshipPointResults.Length==0,"Empty mission currency results failed to load");
+        const string point="{\"AddValue\":3000000000,\"NewValue\":9007199254740993,\"AddDailyAccValue\":3000000000,\"NewDailyAccValue\":9007199254740993}";
+        var mission=JsonMarshaler.Parse<NShared.RewardAchievement.Response>("{\"BaseResult\":\"Success\",\"Result\":\"Success\",\"FriendshipPointResults\":["+point+"]}");
+        Check(mission.FriendshipPointResults.Length==1,"Mission friendship result missing");
+        ICurrencyResultInfo friendship=mission.FriendshipPointResults[0];
+        Check(friendship.AddValue==3000000000L && friendship.NewValue==9007199254740993L,"Mission friendship values narrowed");
+        Check(mission.FriendshipPointResults[0].NewDailyAccValue==9007199254740993L,"Mission daily friendship value narrowed");
+        ICurrencyResultInfo guild=JsonMarshaler.Parse<GuildPointResultInfo>(point);
+        ICurrencyResultInfo lua=JsonMarshaler.Parse<LuaPointResultInfo>(point);
+        Check(guild.AddValue==3000000000L && guild.NewValue==9007199254740993L,"Guild currency interface failed");
+        Check(lua.AddValue==3000000000L && lua.NewValue==9007199254740993L,"Lua currency interface failed");
         var request=new WebServiceRequest{Host=Environment.GetEnvironmentVariable("SPRK_NETWORK_PROBE_ORIGIN"),ServiceName="snapshot",Form=new WWWForm()};
         SprkNetworkPerformance.Prepare(request,"probe-session");request.CreateRequest();
         float deadline=Time.realtimeSinceStartup+20;

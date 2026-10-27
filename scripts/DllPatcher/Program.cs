@@ -9,6 +9,19 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--soul-upgrade-playback-only")) { InstallSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-soul-upgrade-playback")) { VerifySoulUpgradePlaybackFile(args[0],args.Contains("--stage-only")); TestSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--costume-tickets-only")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),false); return; }
+            if (args.Contains("--verify-costume-tickets")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),true); return; }
+            if (args.Contains("--motion-costumes-only")) { InstallMotionCostumes(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-motion-costumes")) { VerifyMotionCostumesFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-currency64")) { VerifyCurrency64File(args[0]); TestCurrency64(args[0]); return; }
+            if (args.Contains("--currency64-only")) {
+                var report=Array.IndexOf(args,"--currency64-report");
+                InstallCurrency64(args[0],args.Contains("--stage-only"),report<0?null:args[report+1]); return;
+            }
             if (args.Contains("--mission-history-only")) { InstallMissionHistory(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-mission-history")) { VerifyMissionHistoryFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-mission-history")) { TestMissionHistory(); return; }
@@ -92,6 +105,10 @@ namespace DllPatcher
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
             if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--illustration-zoom-only")) { InstallIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-illustration-zoom")) { VerifyIllustrationZoomFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-illustration-zoom")) { TestIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-raid-coop-limits")) { InstallRaidCoopLimits(args[0], false, true); return; }
             if (args.Contains("--arena-responsive-only")) { InstallArenaResponsiveness(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-responsive")) { VerifyArenaResponsivenessFile(args[0]); return; }
             if (args.Contains("--arena-rematch-only")) { InstallArenaRematchRemoval(args[0], args.Contains("--stage-only")); return; }

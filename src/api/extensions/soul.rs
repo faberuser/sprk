@@ -49,7 +49,7 @@ pub(super) async fn execute(
             n(price, "MaterialItemCount") as i32
         )
         .await?]);
-        info = json!({"EquipItemSlotIndex":slot,"ItemIndex":eq.item_index,"Grade":0,"ReinforceLevel":0,"ReinforceRatio":0,"Exp":0,"OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":0,"OptionBonusRatio2":0,"RenewOptionCount":0,"CreatedTime":state.server_time_str()});
+        info = initial_info(state, slot, eq.item_index);
     } else {
         if info.is_null() {
             return Err(rule("SoulWeaponNotFound"));
@@ -273,6 +273,10 @@ pub(super) async fn execute(
     out["ResultSoulWeaponInfo"] = info;
     Ok(out)
 }
+pub(super) fn initial_info(state: &AppState, slot: i64, item: i32) -> Value {
+    json!({"EquipItemSlotIndex":slot,"ItemIndex":item,"Grade":0,"ReinforceLevel":0,"ReinforceRatio":0,"Exp":0,"OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":0,"OptionBonusRatio2":0,"RenewOptionCount":0,"CreatedTime":state.server_time_str()})
+}
+
 pub(super) fn stats(state: &AppState, info: &mut Value) -> Result<()> {
     let data = meta(state, n(info, "ItemIndex") as i32)?;
     let option = row(

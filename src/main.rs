@@ -1,5 +1,6 @@
 mod api;
 mod crypto;
+mod currency;
 mod database;
 mod error;
 mod models;

@@ -1,0 +1,71 @@
+using System;
+using System.Collections;
+using UnityEngine;
+using NVespa;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NSoulWeapon;
+using NGame2.NUI.NRender3D;
+
+public sealed class SprkSoulUpgradeSession {
+    public int Generation { get; private set; }
+    public bool Active { get; private set; }
+    public void Begin() { Generation++; Active=true; }
+    public void End() { Generation++; Active=false; }
+    public IEnumerator Guard(IEnumerator source,int token,Func<bool> visible) {
+        try {
+            while (Active && Generation==token && visible()) {
+                if (!source.MoveNext()) yield break;
+                yield return source.Current;
+            }
+        } finally { var d=source as IDisposable; if(d!=null)d.Dispose(); }
+    }
+    public static bool IsUpgrade(string pack,string tree) {
+        return pack=="Common/Cinema" && (tree=="SoulWeapon_RankUP_1" || tree=="SoulWeapon_RankUP_2");
+    }
+}
+
+public sealed class SprkSoulUpgradeState : MonoBehaviour {
+    public readonly SprkSoulUpgradeSession Session=new SprkSoulUpgradeSession();
+    public SoulWeaponUpgradeResultWindow Window;
+    public Animator Animation;
+    public AnimatorUpdateMode SavedMode;
+    public float SavedSpeed;
+    public float Started;
+    public void Finish() {
+        if(!Session.Active)return;
+        Session.End();
+        if(Animation!=null) { Animation.updateMode=SavedMode;Animation.speed=SavedSpeed; }
+        if(Window!=null && GlobalTopmostWindow.IsValidInstance) GlobalTopmostWindow.instance.RemoveTouchDisabler(Window);
+        Debug.Log("SPRK Soul Weapon advancement: result released; elapsed="+(Time.realtimeSinceStartup-Started)+" scale="+Time.timeScale);
+        Animation=null;
+    }
+    void OnDisable() { Finish(); }
+    void OnDestroy() { Finish(); }
+}
+
+public static class SprkSoulUpgradePlayback {
+    public static void Begin(SoulWeaponUpgradeResultWindow window) {
+        var state=window.GetComponent<SprkSoulUpgradeState>();
+        if(state==null)state=window.gameObject.AddComponent<SprkSoulUpgradeState>();
+        state.Finish();state.Window=window;state.Session.Begin();state.Started=Time.realtimeSinceStartup;
+        // Cancel any previous load/play queue before a recycled result window starts again.
+        if(window.BgNodeTreeUIPlayer!=null)window.BgNodeTreeUIPlayer.Close();
+        state.Animation=window.Animator;
+        if(state.Animation!=null) {
+            state.SavedMode=state.Animation.updateMode;state.SavedSpeed=state.Animation.speed;
+            state.Animation.updateMode=AnimatorUpdateMode.UnscaledTime;state.Animation.speed=1f;
+        }
+        Debug.Log("SPRK Soul Weapon advancement: result opened; scale="+Time.timeScale+" unscaledDelta="+Time.unscaledDeltaTime);
+    }
+    public static IEnumerator Guard(IEnumerator original,SoulWeaponUpgradeResultWindow window) {
+        var state=window.GetComponent<SprkSoulUpgradeState>();
+        return state.Session.Guard(original,state.Session.Generation,()=>window!=null && window.IsOpen() && window.gameObject.activeInHierarchy);
+    }
+    public static void End(SoulWeaponUpgradeResultWindow window) {
+        var state=window.GetComponent<SprkSoulUpgradeState>();if(state!=null)state.Finish();
+    }
+    public static ILocalTimer Timer(ILocalTimer original,RenderTargetCinema cinema) {
+        if(cinema!=null && SprkSoulUpgradeSession.IsUpgrade(cinema.Stock.NodeTreePackCode,cinema.Stock.NodeTreeName))return GlobalTimer.UnscaledLocal;
+        return original;
+    }
+}

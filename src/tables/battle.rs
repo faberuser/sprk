@@ -45,6 +45,17 @@ impl BattleTable {
             let rows = world["Tables"][name].as_array().ok_or_else(|| format!("Missing recovered World Boss table: {name}"))?;
             data.tables.insert(name.into(), rows.clone());
         }
+        // SPRK party policy: two players can fill the eight-hero Challenge
+        // Raid roster. Match the client's RaidCoopLimits native-table bake.
+        for raid in data.tables.get_mut("Raid").into_iter().flatten() {
+            let index = raid["Index"].as_i64().unwrap_or(0);
+            if (70001..=70016).contains(&index) && raid["Type"] == 7 {
+                if raid["DeckCount"] != 8 || raid["PlayerCount"] != 3 {
+                    return Err("Unexpected party Challenge Raid roster limits".into());
+                }
+                raid["DeckCountPerPlayer"] = serde_json::json!(4);
+            }
+        }
         Ok(data)
     }
     pub fn load_with_rules(path: &Path, rules: &str) -> Result<Self, Box<dyn std::error::Error>> {

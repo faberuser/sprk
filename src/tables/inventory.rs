@@ -37,7 +37,9 @@ impl InventoryTable {
     }
 
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
+        let mut table=serde_json::from_reader(std::fs::File::open(path)?)?;
+        super::costume_tickets::inventory(&mut table, path)?;
+        Ok(table)
     }
     pub fn constant(&self, name: &str, fallback: i64) -> i64 {
         self.constants.get(name).copied().unwrap_or(fallback)

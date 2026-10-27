@@ -1,0 +1,29 @@
+using System.Collections.Generic;
+using NGame2;
+using NGame2.NUI.NComponent2.NCostume;
+using NGame2.NUI.NWindow;
+using NGame2.NUtil.NCostume;
+using NShared;
+using NVespa.NNGUIExtension;
+
+public static class SprkMotionCostumes {
+    public static void Setup(HeroInfo hero, CostumeData selected, UIBaseGrid grid,
+        List<HeroCostumeComponent> components, HeroCostumeComponent.Listener listener) {
+        if (hero == null) return;
+        foreach (var costume in GameRoot.Instance.CostumeDataContainer.GetAllData()) {
+            if (costume == null || costume.HeroIndex != hero.HeroIndex) continue;
+            var component = grid.AddGridItem<HeroCostumeComponent>(HeroCostumeComponent.PrefabAuto);
+            component.Open(costume, listener, true);
+            components.Add(component);
+        }
+        grid.RepositionGrid();
+    }
+    public static void Refresh(HeroDetailView window, HeroInfo hero, List<HeroCostumeComponent> components) {
+        if (hero == null) return;
+        foreach (var component in components) {
+            // This is a local model preview, so no sale/ownership state blocks selection.
+            component.SetState(CostumeState.None);
+            component.SetSelected(component.CostumeData != null && component.CostumeData.CostumeIndex == hero.CostumeIndex);
+        }
+    }
+}

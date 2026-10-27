@@ -515,7 +515,7 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let again = call(&s, &u, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
     assert_eq!(again["Result"], "Success", "{again}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32);
+    assert_eq!(login.user_info.gem, 100000 - price);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3100013));
     // Previously reward-only accessories are now purchasable at their table price.
     let body_pos = pos.to_string().replace("3100013", "3110025");
@@ -525,7 +525,7 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
         &format!("HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&AccessoryCostumePositionInfo={wire}&BuyGem=4000&BuyGold=0")).await;
     assert_eq!(bought["Result"], "Success", "{bought}");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.user_info.gem, 100000 - price as i32 - 4000);
+    assert_eq!(login.user_info.gem, 100000 - price - 4000);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["HeroIndex"] == 1 && v["AccessoryCostumeIndex"] == 3110025));
     let selected = hero::change_avatar_hero(State(s.clone()),
         Bytes::from(format!("SessionKey={}&HeroIndex=1&AvatarHeroIndex=11", u.user_info.session_key)))
@@ -1367,6 +1367,122 @@ async fn awakening_validates_materials_and_charges_once() {
     assert_ne!(r["Result"], "Success");
     assert_eq!(gold(&s).await, 99950000);
 }
+#[tokio::test]
+async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 5350, 2).await;
+    let args = format!("ItemIndex=5350&TargetEquipItemSlotIndex={slot}");
+    let r = call(&s, &u, "item/soul_weapon_ability_ticket", &args).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["ItemResult"]["AddCount"], -1);
+    assert_eq!(r["ItemResult"]["NewCount"], 1);
+    assert_eq!(r["ItemRefundsResults"], json!([]), "No investment to refund on a plain UW");
+    let soul = &r["TargetSoulWeaponInfo"];
+    assert_eq!(soul["Grade"], 1);
+    assert_eq!(soul["ReinforceLevel"], 0);
+    assert_eq!(soul["OptionStat1"], 8000);
+    assert_eq!(soul["OptionStat2"], 250000);
+    assert_eq!(gold(&s).await, 100000000);
+    let retry = call(&s, &u, "item/soul_weapon_ability_ticket", &args).await;
+    assert_eq!(retry["Result"], "AlreadySameOrGreaterGrade");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.soul_weapon_infos, vec![soul.clone()]);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=5350")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 1);
+}
+
+#[tokio::test]
+async fn soul_weapon_advancement_ticket_preserves_ether_and_refunds_existing_investment() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 111001, 1).await;
+    assert_eq!(call(&s, &u, "soul_weapon_liberation", &format!("EquipItemSlotIndex={slot}")).await["Result"], "Success");
+    let mut original = get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap();
+    original["ReinforceLevel"] = json!(5);
+    original["Exp"] = json!(123);
+    original["ReinforceRatio"] = json!(456);
+    put(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64, &original).await.unwrap();
+    give(&s, a, 5350, 1).await;
+    let args = format!("ItemIndex=5350&TargetEquipItemSlotIndex={slot}");
+    let r = call(&s, &u, "item/soul_weapon_ability_ticket", &args).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    for field in ["ReinforceLevel", "Exp", "ReinforceRatio", "OptionRatio1", "OptionRatio2"] {
+        assert_eq!(r["TargetSoulWeaponInfo"][field], original[field], "{field}");
+    }
+    let refunds = r["ItemRefundsResults"].as_array().unwrap();
+    assert_eq!(refunds.len(), 1);
+    assert_eq!(refunds[0]["AddCount"], 700);
+    let refund_id = refunds[0]["ItemIndex"].as_i64().unwrap();
+    let before: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "item/soul_weapon_ability_ticket", &args).await["Result"], "Success");
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap(), before);
+    // A valid higher upgrade can calculate refunds, then fail ticket consumption.
+    // Neither the refund nor the upgraded soul may survive that transaction.
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5364&TargetEquipItemSlotIndex={slot}")).await["Result"], "ItemNotOwned");
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap(), before);
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap(), r["TargetSoulWeaponInfo"]);
+}
+
+#[tokio::test]
+async fn soul_weapon_advancement_ticket_rejections_leave_inventory_and_souls_unchanged() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 5350, 1).await;
+    let args = format!("ItemIndex=5350&TargetEquipItemSlotIndex={slot}");
+    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(slot).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket", &args).await["Result"], "LockedEquipItemExists");
+    sqlx::query("UPDATE equip_items SET locked=0 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(slot).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5352&TargetEquipItemSlotIndex={slot}")).await["Result"], "SoulWeaponInfoNotFound");
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5355&TargetEquipItemSlotIndex={slot}")).await["Result"], "NotAvailableEquipItemindex");
+    // With no ticket to consume, creation and any preceding refunds must roll back.
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5364&TargetEquipItemSlotIndex={slot}")).await["Result"], "ItemNotOwned");
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap().is_null());
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket", &args).await["Result"], "Success");
+    let duplicate = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5350&TargetEquipItemSlotIndex={duplicate}")).await["Result"], "IsAlreadyLiberation");
+    assert!(get(&mut s.db.acquire().await.unwrap(), a, "soul", duplicate as i64).await.unwrap().is_null());
+}
+
+#[tokio::test]
+async fn soul_weapon_jumping_ticket_preserves_higher_grade_and_ether_ticket_preserves_grade() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
+    give(&s, a, 5364, 1).await;
+    let r = call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5364&TargetEquipItemSlotIndex={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    give(&s, a, 5357, 1).await;
+    let r = call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5357&TargetEquipItemSlotIndex={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["TargetSoulWeaponInfo"]["Grade"], 2);
+    assert_eq!(r["TargetSoulWeaponInfo"]["ReinforceLevel"], 15);
+    give(&s, a, 5356, 1).await;
+    let r = call(&s, &u, "item/soul_weapon_ability_ticket",
+        &format!("ItemIndex=5356&TargetEquipItemSlotIndex={slot}")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    assert_eq!(r["TargetSoulWeaponInfo"]["Grade"], 2);
+    assert_eq!(r["TargetSoulWeaponInfo"]["ReinforceLevel"], 20);
+    assert_eq!(r["TargetSoulWeaponInfo"]["Exp"], 0);
+    assert_eq!(r["TargetSoulWeaponInfo"]["ReinforceRatio"], 0);
+    assert!(!r["ItemRefundsResults"].as_array().unwrap().is_empty());
+}
+
 #[tokio::test]
 async fn sanctum_missions_follow_soul_ownership_and_successful_ether_enhancement() {
     let (s, u) = setup().await;

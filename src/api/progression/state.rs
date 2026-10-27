@@ -8,8 +8,7 @@ use std::sync::OnceLock;
 #[derive(Default)]
 struct BattleLookup {
     types: BTreeMap<(i64, i64), i64>,
-    primary_floors: BTreeMap<(i64, i64, i64), i64>,
-    floors: BTreeSet<(i64, i64, i64)>,
+    tower_floors: BTreeMap<(i64, i64, i64), i64>,
 }
 impl BattleLookup {
     fn new(table: &crate::tables::BattleTable) -> Self {
@@ -22,10 +21,13 @@ impl BattleLookup {
         }
         for row in table.rows("TowerFloor") {
             let (tower, chapter, dungeon, floor) = (n(row,"TowerIndex"), n(row,"ChapterIndex"), n(row,"DungeonIndex"), n(row,"Floor"));
-            out.primary_floors.entry((tower,chapter,dungeon)).and_modify(|f| *f=(*f).max(floor)).or_insert(floor);
-            out.floors.insert((tower,chapter,dungeon));
-            for dungeon in row["DungeonIndices"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
-                out.floors.insert((tower,chapter,dungeon));
+            // Trial floors select one of DungeonIndices; their primary
+            // DungeonIndex is zero and is not a playable stage.
+            for dungeon in std::iter::once(dungeon).chain(
+                row["DungeonIndices"].as_array().into_iter().flatten().filter_map(Value::as_i64)
+            ).filter(|d| *d > 0) {
+                out.tower_floors.entry((tower,chapter,dungeon))
+                    .and_modify(|f| *f=(*f).max(floor)).or_insert(floor);
             }
         }
         out
@@ -68,7 +70,10 @@ pub(super) fn period(row: &Value) -> String {
 pub(super) struct View {
     pub history: super::mission_history::History,
     battle_lookup: OnceLock<BattleLookup>,
+    equipment_lookup: OnceLock<BTreeMap<i64,(i64,i64,i64)>>,
     pub heroes: Vec<Value>,
+    pub equipment: Vec<Value>,
+    pub equipped_slots: BTreeSet<i64>,
     pub soul_weapons: Vec<Value>,
     pub npc_friendly: Vec<Value>,
     pub dungeons: Vec<(i64, i64, i64, i64)>,
@@ -87,7 +92,7 @@ pub(super) struct View {
 }
 impl View {
     pub async fn load(db: &mut SqliteConnection, account: i64) -> Result<Self> {
-        let heroes = hero::snapshot(db, account)
+        let heroes: Vec<Value> = hero::snapshot(db, account)
             .await?
             .into_iter()
             .map(|h| serde_json::to_value(h).unwrap())
@@ -95,7 +100,14 @@ impl View {
         Ok(Self {
             history: super::mission_history::History::load(db, account).await?,
             battle_lookup: OnceLock::new(),
+            equipment_lookup: OnceLock::new(),
+            equipped_slots: heroes.iter().flat_map(|h|(1..=10).map(move |part|n(h,&format!("EquipItemSlotIndex{part}"))))
+                .filter(|slot|*slot>0).collect(),
             heroes,
+            equipment: sqlx::query_scalar::<_,String>("SELECT json_object('SlotIndex',slot_index,'ItemIndex',item_index,'Star',star,'InventoryType',inventory_type) FROM equip_items WHERE account_id=?")
+                .bind(account).fetch_all(&mut *db).await?.into_iter()
+                .map(|data|serde_json::from_str(&data)).collect::<std::result::Result<_,_>>()
+                .map_err(|e|ServerError::Internal(format!("Invalid mission equipment: {e}")))?,
             npc_friendly: crate::api::extensions::list(db, account, "npc").await?,
             guild_damage: sqlx::query_as::<_, (String, i64)>("SELECT kind,SUM(score) FROM guild_battle_scores WHERE account=? GROUP BY kind")
                 .bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
@@ -123,11 +135,23 @@ impl View {
     pub(super) fn battle_type(&self, state: &AppState, chapter: i64, dungeon: i64) -> Option<i64> {
         self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).types.get(&(chapter,dungeon)).copied()
     }
-    pub(super) fn primary_tower_floor(&self, state: &AppState, tower: i64, chapter: i64, dungeon: i64) -> Option<i64> {
-        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).primary_floors.get(&(tower,chapter,dungeon)).copied()
+    pub(super) fn equipment_metadata(&self, state: &AppState, item: i64) -> Option<(i64,i64,i64)> {
+        // A snapshot evaluates many equipment missions. Index immutable data
+        // once rather than scanning the full table for every inventory item.
+        self.equipment_lookup.get_or_init(|| {
+            let mut lookup=BTreeMap::new();
+            for r in state.tables.extensions.rows("EquipItem") {
+                lookup.entry(n(r,"ItemIndex")).or_insert((n(r,"PartType"),n(r,"DetailIndex"),n(r,"EquipType")));
+            }
+            lookup
+        })
+            .get(&item).copied()
+    }
+    pub(super) fn tower_floor(&self, state: &AppState, tower: i64, chapter: i64, dungeon: i64) -> Option<i64> {
+        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).tower_floors.get(&(tower,chapter,dungeon)).copied()
     }
     fn is_tower_floor(&self, state: &AppState, tower: i64, chapter: i64, dungeon: i64) -> bool {
-        self.battle_lookup.get_or_init(|| BattleLookup::new(&state.tables.battle)).floors.contains(&(tower,chapter,dungeon))
+        self.tower_floor(state,tower,chapter,dungeon).is_some()
     }
     pub fn last(&self, family: &str, id: i64, p: &str) -> i64 {
         self.claims
@@ -199,7 +223,12 @@ impl View {
         }
     }
     pub fn quest(&self, state: &AppState, row: &Value) -> i64 {
-        if let Some(value) = self.history_quest(state, row) { return value; }
+        self.quest_value(state,row).unwrap_or(0)
+    }
+    // Keep unsupported rules distinct from supported rules with zero progress.
+    // Claim/UI behavior stays fail-closed; the audit can now identify missing rules.
+    pub(super) fn quest_value(&self, state: &AppState, row: &Value) -> Option<i64> {
+        if let Some(value) = self.history_quest(state, row) { return Some(value); }
         // The archived public table omits server-only action filters. A null
         // StateValue must never turn a specialized mission into an any-action
         // counter. Resolve known goals explicitly; unknown scopes stay pending.
@@ -220,7 +249,7 @@ impl View {
         let arg = |i: usize| a.get(i).copied().unwrap_or(0);
         let count_hero =
             |key: &str, min: i64| self.heroes.iter().filter(|h| n(h, key) >= min).count() as i64;
-        match row["Kind"].as_str().unwrap_or("") {
+        Some(match row["Kind"].as_str().unwrap_or("") {
             "HeroDungeonPresentLevel" => {
                 // StateValue is [claimed Present reward level, NPC index].
                 // Step points to the next reward, while a claimed final reward
@@ -266,7 +295,15 @@ impl View {
             "SoulWeaponCount" => self.soul_weapons.iter()
                 .filter(|s| n(s, "ReinforceLevel") >= arg(0) && n(s, "Grade") >= arg(1))
                 .count() as i64,
-            "LoginDaily" => self.login_days,
+            "LoginDaily" => {
+                // These special missions encode Day N in Variable3 while
+                // ReqProgress is always one: it is a predicate, not a counter.
+                if row["Goal"] == "SPECIAL_MISSION_GOAL_DESC_5001020" {
+                    let day=row["Variable3"].as_array()?.first()?.as_str()?.parse::<i64>().ok()?;
+                    if day<=0 {return None;}
+                    (self.login_days>=day) as i64
+                } else {return None;}
+            }
             "JoinGuild" => self.guild as i64,
             "ClearGuildSuppress" => self.conquest_kills,
             "FriendRegistration" => self.friends,
@@ -287,7 +324,7 @@ impl View {
                     .iter()
                     .find(|c| n(c, "RewardQuestIndex") == n(row, "QuestIndex"))
                 else {
-                    return 0;
+                    return None;
                 };
                 let members: Vec<&Value> = state
                     .tables
@@ -362,8 +399,8 @@ impl View {
                 a.get(1).copied(),
             ),
             "AwakenGear"|"UpgradeEquipOption"|"UpgradeEquipTier"|"RenewEquipOption"|"Enchant"|"EquipRune"|"ArtifactRestore"|"SoulRestore"|"SoulWeaponRenewOption"|"GiveFriendlyPoint"|"GiveMultipleGiftItem" => self.metric(row["Kind"].as_str().unwrap(),"all",a.first().copied(),a.get(1).copied()),
-            _ => 0,
-        }
+            _ => return None,
+        })
     }
     pub fn achievement(&self, state: &AppState, row: &Value) -> (i64, i64) {
         let req = row["ReqValue"]
@@ -533,6 +570,7 @@ mod lookup_tests {
             json!({"TowerIndex":21,"ChapterIndex":20001,"DungeonIndex":2,"DungeonIndices":[3,4],"Floor":5}),
             json!({"TowerIndex":21,"ChapterIndex":20001,"DungeonIndex":2,"Floor":7}),
             json!({"TowerIndex":11,"ChapterIndex":20001,"DungeonIndex":4,"Floor":8}),
+            json!({"TowerIndex":11,"ChapterIndex":20001,"DungeonIndex":0,"DungeonIndices":[5],"Floor":25}),
         ]);
         let lookup = BattleLookup::new(&table);
         for chapter in [20001,20002] {
@@ -540,14 +578,14 @@ mod lookup_tests {
                 let linear = table.find("CampaignDungeon", &[("ChapterIndex",chapter),("DungeonIndex",dungeon)]).map(|r|n(r,"BattleType"));
                 assert_eq!(lookup.types.get(&(chapter,dungeon)).copied(), linear);
                 for tower in [11,21,99] {
-                    let primary = table.rows("TowerFloor").iter()
-                        .filter(|r|n(r,"TowerIndex")==tower && n(r,"ChapterIndex")==chapter && n(r,"DungeonIndex")==dungeon)
-                        .map(|r|n(r,"Floor")).max();
-                    assert_eq!(lookup.primary_floors.get(&(tower,chapter,dungeon)).copied(),primary);
-                    let any = table.rows("TowerFloor").iter().any(|r|
-                        n(r,"TowerIndex")==tower && n(r,"ChapterIndex")==chapter &&
-                        (n(r,"DungeonIndex")==dungeon || r["DungeonIndices"].as_array().is_some_and(|ids|ids.contains(&json!(dungeon)))));
-                    assert_eq!(lookup.floors.contains(&(tower,chapter,dungeon)),any);
+                    let expected = match (chapter,tower,dungeon) {
+                        (20001,21,2) => Some(7),
+                        (20001,21,3|4) => Some(5),
+                        (20001,11,4) => Some(8),
+                        (20001,11,5) => Some(25),
+                        _ => None,
+                    };
+                    assert_eq!(lookup.tower_floors.get(&(tower,chapter,dungeon)).copied(),expected);
                 }
             }
         }

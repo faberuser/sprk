@@ -12,31 +12,31 @@
   ],
   "files": {
     "LocalizationJit/LocalizationAll_ChineseSimplified.jit": {
-      "sha256": "b712eeb5a651f7f1fe427bf51626535a2e7dd730220eb8c4d314f30741746886",
+      "sha256": "e97901f4e0cf82c7e1447037fadf16ce994f472bf1cc13e4018fb690124091d1",
       "originalSha256": "d259ef6d142fb3a61741f954f30815a8860e7df102001b243192734ac451c662"
     },
     "LocalizationJit/LocalizationAll_ChineseTraditional.jit": {
-      "sha256": "caecfeeaf7e34a5985c617f494cc7858a4fd67a0c76a68003c5fd71a3976a917",
+      "sha256": "2f2944e3d57e70010522ce079c94b521ea20210cfba8e4e8fd0cc8054fe81218",
       "originalSha256": "4c60d885fb88713bebf24b8342db4b8fa86d61db05a49ebd0c6b74b3ad0e1c80"
     },
     "LocalizationJit/LocalizationAll_French.jit": {
-      "sha256": "b3ac84aef60387ee61abc1081417118a9235926dbe6547c6424c471e5db45b01",
+      "sha256": "af5dd969ee2ccb1b5ae32fd988d811bbeff3217d45d8ca59406d0a316fde6c46",
       "originalSha256": "6ff52dd56c49e164289821390cfbc2eff3cda4d652c5b28e09ac73275a2c6fc6"
     },
     "LocalizationJit/LocalizationAll_German.jit": {
-      "sha256": "a8cc1ed700c694e7ed7b8184e5e245dbddd78e087401ad02e4058c152ca300f9",
+      "sha256": "75538d96cd9c9c0bf59a51eed4a0b8dec2dc940765bd2dbf11e498bdeff87b7d",
       "originalSha256": "b747402e843864147e7bdcce5b27230ddf59610e6d5740e6a927b56b650d8cec"
     },
     "LocalizationJit/LocalizationAll_Japanese.jit": {
-      "sha256": "7e25dc2acd72474e6da68bf424988f21b094cb2c7a93cac14e6ffc5708c0e2b7",
+      "sha256": "17ef0ab42647388f967e1e0dffa0ef879312ea2e96cdee9150b6902d2a33d65b",
       "originalSha256": "10892275d2af2a89b3bb09801e2eb884b82c9a0461a8b6aea46977ccb332c887"
     },
     "LocalizationJit/LocalizationAll_Korean.jit": {
-      "sha256": "eaf89548a0772ce29cd8bce2d2aadfee28ef6aec8af4340b17aeea3b0080450f",
+      "sha256": "29b0b38c2e5bcf02900f41c23757e7a8be437c0297a006fde374dfeab0c79fdb",
       "originalSha256": "d69d559f961f056c1d2000027bc6f43892d43d8ca2c678417ce123e6a74bd515"
     },
     "LocalizationJit/LocalizationAll_Russian.jit": {
-      "sha256": "85fd0870032a2e7f6ba8d674065b9a7148671d2dc43318bdf1fdd4f3a4045299",
+      "sha256": "154d1ff8a88cf5f924024e6acc2b51d474a6a449eb944dbc1365a2620fa2ef21",
       "originalSha256": "ed31e3c00d64be92bf4d8d0c9521767a67e0cb5b4062f424b5c9bf05517269de"
     }
   },

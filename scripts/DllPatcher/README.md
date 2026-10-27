@@ -34,6 +34,22 @@ Restart the client after installation.
 Find feature-specific flags and checks in the [patch reference](REFERENCE.md).
 Argument routing lives in [Program.cs](Program.cs).
 
+## Illustration zoom
+
+The hero/costume illustration viewer supports mouse-wheel zoom from 50% to
+400%. Drag to move the artwork, and double-click or middle-click to reset.
+Switching illustrations restores the default view. Hide UI and the native
+touch controls remain available; wheel input ignores other popups and buttons.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --illustration-zoom-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-illustration-zoom --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-illustration-zoom --stage-only
+```
+
+After closing the game and shared-asset workers, omit `--stage-only` to install.
+The full release build installs and verifies this patch automatically.
+
 ## Full builds and releases
 
 For routine development, edit the tracked patcher source. CI runs
@@ -98,3 +114,87 @@ the SDK automatically. Preserve stable embedded resource names such as
 
 For storage adoption and cleanup, see
 [client storage migration](../../docs/client-storage-migration.md).
+
+## See Motions costume previews
+
+`HeroDetailView` builds its Costume tab from every costume row for the current
+hero, including unowned, default/awakening, event, legendary and bonus variants.
+Preview rows use neutral state and highlight the currently previewed costume;
+shared ownership, purchase, equipment and Dressing Room state checks remain intact.
+This only changes the local model preview and does not grant costumes.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-motion-costumes --stage-only
+# After closing the game and shared-asset worker:
+dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only
+```
+
+The full `--build-release` path installs and verifies this patch. Verification
+checks matching-hero enumeration, all three preview state refreshes, absence of
+ownership/visibility filters, native shared ownership handling, unchanged costume
+ownership method bodies, patch idempotence and the replacement method stack.
+
+## All-roster costume tickets
+
+See [costume tickets](../../docs/costume-tickets.md) for the expanded Darkness
+pool, the new 102-hero Light ticket, shared asset evidence, native table/localization
+baking, focused staging/verification and signed release requirements.
+
+## Soul Weapon advancement playback
+
+`--soul-upgrade-playback-only` (optionally `--stage-only`) installs scoped A1/A2
+result playback safeguards. `--verify-soul-upgrade-playback` verifies the installed
+or staged hook and runs the lifecycle tests. The full release build installs and
+verifies this patch before currency migration.
+
+The native 4.5-second result reveal and one-second input delay use real-time
+waits. Only Common/Cinema SoulWeapon_RankUP_1 and SoulWeapon_RankUP_2 select
+GlobalTimer.UnscaledLocal; other cinematics retain their incoming timer. The result
+window Animator temporarily uses unscaled time at normal speed, restoring its
+previous mode/speed on close or disable. Global time scale is never changed.
+
+Before a reused result window starts, its previous NodeTreeUIPlayer load/play
+queue is closed through native cleanup. A session generation guards coroutine
+callbacks after close, disable or reopening; touch blockers are removed without
+creating a new global window during teardown. Native result data, the initial
+close guard, completion callback and cinematic release stay intact. Two log
+entries record opening timing and release duration for subsequent investigations.
+
+Tests cover exact A1/A2 scope, unrelated cinematic fallback, stale callbacks after
+close/reopen, hiding the window, valid completion/disposal and patch idempotence.
+Verification also checks both real-time waits, preserved durations and native
+cleanup. The intermittent player crash was not reproduced; these checks establish
+the timing/lifecycle fixes, not proof that every silent exit has the same cause.
+
+## Lobby avatar account switching
+
+`--lobby-avatar-stability-only` (optionally `--stage-only`) installs the lobby
+accessory refresh safeguards. `--verify-lobby-avatar-stability` verifies installed
+or staged files and runs account/session isolation tests. The full release build
+installs and verifies this patch before Currency64 migration.
+
+The original accessory observer released/rebuilt the entire lobby hero for each
+notification. It now queues one update on that MapLayout, bound to the exact
+UserManager instance captured when its player avatar was created. Old account
+work is rejected, including A-B-A switches. Disabling the map cancels queued work
+while allowing reactivation for the same account; a new avatar creation rebinds
+the owner. Requests wait for a valid completed creature load, with a bounded
+10-second readiness window, then use the native ChangeCustomizeStock path for
+changed parts. The existing hero render facade is never replaced by this path.
+
+Lobby hero snapshots use the current manager's hero and owned accessories, reject
+a portrait snapshot carrying another account ID, and clone accessory transforms
+so previews cannot share mutable positions with the live hero. Portrait body
+costumes retain their independent native behavior. Story-forced avatars and
+unrelated hero notifications retain their existing exclusions.
+
+Closed CreatureLoad completion callbacks must return before accessing released
+OpenData. Existing guards are retained; the patch adds the same guard if missing
+from an older input. The account patcher preserves the newer snapshot hook when
+its focused mode is run afterward.
+
+Checks cover readiness deferral, event coalescing, stale owner rejection, A-B-A
+switches, cancellation/reactivation, native hook scope, render-body retention,
+closed-load guard and patch idempotence. These validate the identified refresh
+risk; the player's intermittent visual symptom still needs an in-game retest.

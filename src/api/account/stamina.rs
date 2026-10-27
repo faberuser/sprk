@@ -152,7 +152,7 @@ async fn add_inner(
     if amount <= 0 { return Err(rule("InvalidCost")); }
     let before = snapshot(db,s,a,k).await?;
     let new = n(&before,"NewValue").checked_add(amount)
-        .filter(|v|*v<=i32::MAX as i64).ok_or_else(||rule("MaxStamina"))?;
+        .ok_or_else(||rule("MaxStamina"))?;
     if let Some(def)=s.tables.services.find("Stamina", &[("StaminaType",k)]) {
         if !allow_overflow && def["AllowOverflow"] == false && def["MaxCountValue"].as_str()
             .and_then(|v|v.parse::<i64>().ok()).is_some_and(|cap|new>cap) {
@@ -304,7 +304,7 @@ pub async fn use_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<
     let r = Request::parse(&body)?;
     let a = r.account(&s)?;
     let amount = r.number("Amount", 0)?;
-    if !(1..=i32::MAX as i64).contains(&amount) {
+    if amount <= 0 {
         return Err(rule("InvalidCost"));
     }
     let mut tx = s.db.begin().await?;

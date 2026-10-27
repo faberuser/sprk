@@ -12,9 +12,11 @@ partial class Program
         var builder = map.Methods.Single(m => m.Name == "CreateAvatarHeroRenderFacadeBuilder");
         var clone = builder.Body.Instructions.Single(i => i.Operand is MethodReference call &&
             (call.DeclaringType.Name == "Customizing_Extension_Method" && call.Name == "CreatePlayerAvatarHeroInfo" ||
-             call.DeclaringType.Name == "SprkAccounts" && call.Name == "CreateLobbyAvatarHeroInfo"));
+             call.DeclaringType.Name == "SprkAccounts" && call.Name == "CreateLobbyAvatarHeroInfo" ||
+             call.DeclaringType.Name == "SprkLobbyAvatar" && call.Name == "Create"));
         clone.OpCode = OpCodes.Call;
-        clone.Operand = Bridge("CreateLobbyAvatarHeroInfo");
+        if (((MethodReference)clone.Operand).DeclaringType.Name != "SprkLobbyAvatar")
+            clone.Operand = Bridge("CreateLobbyAvatarHeroInfo");
 
         var observer = map.Methods.Single(m => m.Parameters.Count == 1 &&
             m.Parameters[0].ParameterType.FullName == "NGame2.NAccount.UserHeroManager/ChangeHeroInfo");

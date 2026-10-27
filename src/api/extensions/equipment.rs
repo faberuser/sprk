@@ -188,8 +188,9 @@ pub(super) async fn execute(
             out["RemovedEquipItemSlotIndices"] = json!(materials);
             out["RemovedItemResultInfos"] = json!(consumed);
             out["ItemResults"] = json!([]);
+            super::super::progression::record(db, account, "AwakenGearAttempt", eq.item_index as i64, 0, 1).await?;
             if success {
-                super::super::progression::record(db, account, "AwakenGear", 0, 0, 1).await?;
+                super::super::progression::record(db, account, "AwakenGear", eq.item_index as i64, eq.star as i64, 1).await?;
             }
         }
         "upgrade_equip" => {
@@ -330,7 +331,7 @@ pub(super) async fn execute(
             out["EquipHeroIndex"] = json!(owner.unwrap_or(0));
             out["NewEquipStorageSlotInfo"] = Value::Null;
             out["EquipPresetInfos"] = json!([]);
-            super::super::progression::record(db, account, "UpgradeEquipTier", 0, 0, 1).await?;
+            super::super::progression::record(db, account, "UpgradeEquipTier", eq.item_index as i64, 0, 1).await?;
         }
         "upgrade_equip_option" | "max_upgrade_equip_option" => {
             let price = row(
@@ -387,7 +388,7 @@ pub(super) async fn execute(
             out["CurrencyResult"] =
                 hero::currency(db, account, "Gold", -n(price, "ReqGold") * steps).await?;
             eq = serde_json::from_value(v).map_err(|_| rule("InvalidOption"))?;
-            super::super::progression::record(db, account, "UpgradeEquipOption", 0, 0, steps)
+            super::super::progression::record(db, account, "UpgradeEquipOption", eq.item_index as i64, 0, steps)
                 .await?;
         }
         "renew_equip_option" | "renew_equip_skill" => {
@@ -769,7 +770,7 @@ async fn renew(
     } else {
         "NewOptionStep"
     }] = json!(step);
-    super::super::progression::record(db, account, "RenewEquipOption", 0, 0, 1).await?;
+    super::super::progression::record(db, account, "RenewEquipOption", eq.item_index as i64, 0, 1).await?;
     Ok(out)
 }
 async fn confirm(
@@ -904,7 +905,7 @@ async fn enchant(
     let currency = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;
     eq.renew_enchant_option_slot_index = slot as u8;
     save_equip(db, account, &eq).await?;
-    super::super::progression::record(db, account, "Enchant", 0, 0, 1).await?;
+    super::super::progression::record(db, account, "Enchant", eq.item_index as i64, id, 1).await?;
     Ok(
         json!({"BaseResult":"Success","Result":"Success","ResultEquipItem":eq,"CurrencyResult":currency,"ItemResult":consumed,"EquipHeroIndex":0,"NewEnchantOptionIndex":new,"NewEnchantOptionStep":step}),
     )

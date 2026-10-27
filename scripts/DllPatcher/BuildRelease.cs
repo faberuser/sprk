@@ -50,6 +50,11 @@ partial class Program
         InstallPetPresentation(clientRoot, false);
         VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
+        InstallMotionCostumes(clientRoot, false);
+        VerifyMotionCostumesFile(clientRoot);
+        InstallIllustrationZoom(clientRoot, false);
+        VerifyIllustrationZoomFile(clientRoot);
+        TestIllustrationZoom(clientRoot);
         InstallWorldBossKeys(clientRoot, false);
         VerifyWorldBossKeysFile(clientRoot);
         InstallInventoryExpansion(clientRoot, false);
@@ -88,6 +93,20 @@ partial class Program
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();
+        InstallLobbyAvatarStability(clientRoot, false);
+        VerifyLobbyAvatarStabilityFile(clientRoot);
+        TestLobbyAvatarStability(clientRoot);
+        InstallSoulUpgradePlayback(clientRoot, false);
+        VerifySoulUpgradePlaybackFile(clientRoot);
+        TestSoulUpgradePlayback(clientRoot);
+        InstallCostumeTickets(clientRoot, false, false);
+        InstallCostumeTickets(clientRoot, false, true);
+        // Run last: helpers compile against the baseline API, then currency
+        // signatures and every compiled consumer are migrated together.
+        InstallCurrency64(clientRoot, false);
+        VerifyCurrency64File(clientRoot);
+        InstallRaidCoopLimits(clientRoot, false);
+        InstallRaidCoopLimits(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }

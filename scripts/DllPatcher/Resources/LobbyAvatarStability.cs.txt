@@ -1,0 +1,100 @@
+using System;
+using UnityEngine;
+using NShared;
+using NGameAsset;
+using NGame2;
+using NGame2.N3D;
+using NGame2.NAccount;
+using NGame2.NUI;
+using NGame2.NUI.NWorldMap;
+using Avatar = NGame2.NUI.NWorldMap.NMapLayout.Avatar;
+using NVespa.NSingleton;
+
+public sealed class SprkLobbyAccessoryLease {
+    object owner;
+    public bool Pending { get; private set; }
+    public void Bind(object value) { owner=value;Pending=false; }
+    public void Cancel() { Pending=false; }
+    public bool Matches(object value) { return value!=null && System.Object.ReferenceEquals(owner,value); }
+    public bool Queue(object value) { if(!Matches(value))return false;Pending=true;return true; }
+    public bool Take(object value,bool ready) { if(!Matches(value)||!Pending||!ready)return false;Pending=false;return true; }
+}
+public sealed class SprkLobbyAccessoryState : MonoBehaviour {
+    public readonly SprkLobbyAccessoryLease Lease=new SprkLobbyAccessoryLease();
+    public Avatar Target;
+    public float Deadline;
+    public float NextTry;
+    void OnDisable() { Lease.Cancel();Target=null; }
+    void Update() {
+        if(!Lease.Pending)return;
+        var owner=SprkLobbyAvatar.CurrentOwner();
+        if(!Lease.Matches(owner)) { Lease.Bind(null);Target=null;return; }
+        if(Time.realtimeSinceStartup<NextTry)return;
+        NextTry=Time.realtimeSinceStartup+0.1f;
+        if(SprkLobbyAvatar.Apply(Target)) { Lease.Take(owner,true);Target=null; }
+        else if(Time.realtimeSinceStartup>=Deadline) {
+            Lease.Take(owner,true);Target=null;
+            Debug.LogWarning("SPRK lobby accessories: avatar not ready; kept current hero.");
+        }
+    }
+}
+public static class SprkLobbyAvatar {
+    public static object CurrentOwner() {
+        return GlobalAutoBehaviour<AccountManager>.isValidInstance?GlobalAutoBehaviour<AccountManager>.instance.UserManager:null;
+    }
+    public static void Bind(MapLayout layout) {
+        var state=layout.GetComponent<SprkLobbyAccessoryState>();
+        if(state==null)state=layout.gameObject.AddComponent<SprkLobbyAccessoryState>();
+        state.Lease.Bind(CurrentOwner());state.Target=null;
+    }
+    public static CachedHeroInfo Create(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
+        if(hero==null)return null;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        var current=account.HeroManager.Get(hero.HeroIndex);
+        if(current==null)return null;
+        if(avatar!=null && avatar.AccountId!=0 && avatar.AccountId!=account.UserManager.UserInfo.AccountId)avatar=null;
+        var copy=current.CreatePlayerAvatarHeroInfo(avatar);
+        foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
+            int index=current.GetAccessoryIndex(part);
+            if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(current.HeroIndex,index))==null)index=0;
+            var position=current.GetAccessoryPositionInfo(part);
+            copy.SetAccessoryCostume(part,index,position==null?PositionInfo.Create():position.Clone());
+        }
+        return copy;
+    }
+    public static void Refresh(MapLayout layout,Avatar avatar,int avatarIndex) {
+        if(layout==null || avatar==null || !layout.gameObject.activeInHierarchy)return;
+        var state=layout.GetComponent<SprkLobbyAccessoryState>();
+        if(state==null || !state.Lease.Queue(CurrentOwner()))return;
+        state.Target=avatar;state.Deadline=Time.realtimeSinceStartup+10f;state.NextTry=0;
+    }
+    public static bool Apply(Avatar avatar) {
+        if(avatar==null || CurrentOwner()==null)return false;
+        var facade=avatar.RenderFacade;
+        if(facade==null || facade.AssetCreatureAsync==null || !facade.AssetCreatureAsync.IsDone || !facade.AssetCreatureAsync.IsValid)return false;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        int heroIndex=new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex;
+        var hero=account.HeroManager.Get(heroIndex);
+        var data=GameRoot.Instance.CreatureDataContainer.GetData(heroIndex);
+        if(hero==null || data==null || facade.AssetCreatureAsync.Stock.Code!=data.CodeName)return false;
+        var load=facade.AssetCreatureAsync;
+        foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
+            int index=hero.GetAccessoryIndex(part);
+            var stock=CustomizeStock.CreateEmptyPart(part);
+            if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(heroIndex,index))!=null) {
+                var accessory=GameRoot.Instance.AccessoryCostumeDataContainer.GetData(index);
+                var position=hero.GetAccessoryPositionInfo(part);
+                if(accessory==null || !RenderFacadeBuilder.TryAssignCustomizeStock(ref stock,heroIndex,accessory,position==null?PositionInfo.Create():position.Clone()))continue;
+            }
+            bool found=false;
+            var values=load.Stock.CustomizeStockValues();
+            if(values!=null)foreach(var old in values)if(old.Part==part) {
+                found=true;
+                if(!old.IsEqualItem(stock) || !old.IsEqualTransform(stock))load.ChangeCustomizeStock(stock);
+                break;
+            }
+            if(!found && !stock.IsEmptyPart())load.ChangeCustomizeStock(stock);
+        }
+        return true;
+    }
+}

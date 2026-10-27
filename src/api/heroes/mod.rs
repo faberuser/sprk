@@ -163,15 +163,17 @@ pub(crate) async fn currency(
     kind: &str,
     amount: i64,
 ) -> Result<Value> {
-    if matches!(kind, "Gold" | "Gem") {
+    if matches!(kind, "Gold" | "Gem" | "PayGem") {
         return item::money(db, account, kind, amount).await;
     }
     if matches!(kind, "WorldBossPoint" | "ShakmehMiddleBossPoint" | "GuildPoint" | "GuildArenaPoint" | "EventDungeonPoint2" | "GloryPoint" | "EventGiftPoint" | "LuaPoint" | "GuildActivityPoint" | "GuildSuppressPoint" | "GuildWood" | "GuildStone" | "GuildMetal" | "RankingPoint" | "EventDungeonPoint3" | "EclipsePoint" | "ShopEventPoint" | "LimitedShopEventPoint" | "OrdealArenaPoint" | "TreasureHousePoint" | "EventOrvelPoint" | "ChallengeRaidPoint" | "CraftEventPoint" | "GrowWorldTreePoint") {
         sqlx::query("INSERT OR IGNORE INTO battle_currencies(account,kind,value) VALUES(?,?,0)")
             .bind(account).bind(kind).execute(&mut *db).await?;
         let held=if kind=="ShakmehMiddleBossPoint" && amount<0 {crate::api::battle::entry_costs::held(db,account,"ShakmehGauge",0).await?} else {0};
-        let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND value+? BETWEEN ? AND 2147483647 RETURNING value")
-            .bind(amount).bind(account).bind(kind).bind(amount).bind(held).fetch_optional(db).await?;
+        let minimum = if amount < 0 { amount.checked_neg().and_then(|v|v.checked_add(held)).ok_or_else(||rule("NotEnoughCurrency"))? } else {0};
+        let maximum = i64::MAX - amount.max(0);
+        let value: Option<i64> = sqlx::query_scalar("UPDATE battle_currencies SET value=value+? WHERE account=? AND kind=? AND typeof(value)='integer' AND value BETWEEN ? AND ? RETURNING value")
+            .bind(amount).bind(account).bind(kind).bind(minimum).bind(maximum).fetch_optional(db).await?;
         let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
         return Ok(json!({"CurrencyType":kind,"AddValue":amount,"NewValue":value,"AddDailyAccValue":0,"NewDailyAccValue":0}));
     }
@@ -185,8 +187,7 @@ pub(crate) async fn currency(
         _ => return Err(rule("InvalidCost")),
     };
     let held=if kind=="Mileage" && amount<0 {crate::api::battle::entry_costs::held(db,account,"Currency",7).await?} else {0};
-    let value:Option<i64>=sqlx::query_scalar(&format!("UPDATE user_info SET {col}={col}+? WHERE account_id=? AND {col}+? BETWEEN ? AND 2147483647 RETURNING {col}")).bind(amount).bind(account).bind(amount).bind(held).fetch_optional(&mut *db).await?;
-    let value = value.ok_or_else(|| rule(&format!("NotEnough{kind}")))?;
+    let value = crate::currency::user(db, account, col, amount, held).await?;
     let daily: i64 = if kind == "FriendshipPoint" {
         sqlx::query_scalar(
             "SELECT points FROM friend_daily WHERE account_id=? AND day=strftime('%Y-%m-%d','now')",
@@ -1293,6 +1294,10 @@ async fn collection_item(
                 .any(|v| n(v, "CostumeIndex") == selected as i64)
             {
                 return Err(rule("AlreadyHaveCostume"));
+            }
+            if matches!(id, 600035 | 600100) {
+                let hero_index=n(&table.costumes[&selected],"HeroIndex") as i32;
+                info(db,account,hero_index).await?;
             }
             sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES (?,?)")
                 .bind(account)

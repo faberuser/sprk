@@ -117,6 +117,14 @@ pub(super) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, end:
     }
     let score = if won { n(entry,"ChallengePoints") } else { 0 };
     if won {
+        // Ranking records and the exchange shop use separate balances. Credit
+        // the server-validated clear/pledge score for each paid clear, even if
+        // it does not improve the season best. Campaign settlement and its
+        // saved party response make duplicate reports idempotent.
+        if score > 0 && campaign::party_loot_enabled(entry) {
+            let currency = hero::currency(db,a,"ChallengeRaidPoint",score).await?;
+            dungeons::append_rewards(out,&json!({"CurrencyResults":[currency]}));
+        }
         sqlx::query("INSERT INTO challenge_results VALUES(?,?,?,?,?,?,?) ON CONFLICT(season,challenge,account) DO UPDATE SET score=MAX(score,excluded.score),battle_time=CASE WHEN excluded.score>score OR (excluded.score=score AND excluded.battle_time<battle_time) THEN excluded.battle_time ELSE battle_time END,current_score=excluded.current_score,current_time=excluded.current_time")
             .bind(season).bind(id).bind(a).bind(score).bind(battle_time).bind(score).bind(battle_time).execute(&mut *db).await?;
         if let Some(team) = entry["ChallengeTeam"].as_array() {

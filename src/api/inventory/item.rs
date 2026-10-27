@@ -93,63 +93,34 @@ pub(crate) async fn money(
     amount: i64,
 ) -> Result<Value> {
     if kind == "Gold" {
-        // Gold is Int64 in the native client. Check bounds before SQL addition:
-        // SQLite otherwise promotes overflowing INTEGER arithmetic to REAL.
-        let held=if amount<0 {crate::api::battle::entry_costs::held(db,account,"Currency",3).await?}else{0};
-        let minimum=if amount<0 {
-            amount.checked_neg().and_then(|cost|cost.checked_add(held)).ok_or_else(||rule("NotEnoughGold"))?
-        }else{0};
-        let maximum=i64::MAX.checked_sub(amount.max(0)).ok_or_else(||rule("NotEnoughGold"))?;
-        let value:Option<i64>=sqlx::query_scalar("UPDATE user_info SET gold=gold+? WHERE account_id=? AND typeof(gold)='integer' AND gold BETWEEN ? AND ? RETURNING gold")
-            .bind(amount).bind(account).bind(minimum).bind(maximum).fetch_optional(&mut *db).await?;
-        return Ok(json!(CurrencyResultInfo3::new("Gold",amount,value.ok_or_else(||rule("NotEnoughGold"))?)));
+        let held = if amount < 0 { crate::api::battle::entry_costs::held(db, account, "Currency", 3).await? } else { 0 };
+        let value = crate::currency::user(db, account, "gold", amount, held).await?;
+        return Ok(json!(CurrencyResultInfo3::new(kind, amount, value)));
     }
-    if kind == "Gem" && amount < 0 {
-        let row = sqlx::query("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
-            .bind(account)
-            .fetch_one(&mut *db)
-            .await?;
-        let free: i64 = row.get("gem");
-        let paid: i64 = row.get("pay_gem");
-        let held=crate::api::battle::entry_costs::held(db,account,"Currency",4).await?;
-        if free + paid-held < -amount {
-            return Err(rule("NotEnoughGem"));
-        }
-        let used_free = free.min(-amount);
-        let new_free = free - used_free;
-        let new_paid = paid + amount + used_free;
-        sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=?")
-            .bind(new_free)
-            .bind(new_paid)
-            .bind(account)
-            .execute(&mut *db)
-            .await?;
-        return Ok(json!(CurrencyResultInfo3::gem(amount, new_free, new_paid)));
-    }
-    let column = match kind {
-        "Gold" => "gold",
-        "Gem" => "gem",
-        _ => return Err(rule("Fail")),
-    };
-    if amount<0 {
-        let held=crate::api::battle::entry_costs::held(db,account,"Currency",if kind=="Gold" {3}else{4}).await?;
-        if held>0 {
-            let current:i64=sqlx::query_scalar(&format!("SELECT {column} FROM user_info WHERE account_id=?")).bind(account).fetch_one(&mut *db).await?;
-            if current+amount<held {return Err(rule(&format!("NotEnough{kind}")));}
-        }
-    }
-    let row=sqlx::query(&format!("UPDATE user_info SET {column}={column}+? WHERE account_id=? AND {column}+?>=0 AND {column}+?<=2147483647 RETURNING {column},pay_gem"))
-        .bind(amount).bind(account).bind(amount).bind(amount).fetch_optional(&mut *db).await?.ok_or_else(||rule(if kind=="Gold" {"NotEnoughGold"} else {"NotEnoughGem"}))?;
-    Ok(if kind == "Gem" {
-        json!(CurrencyResultInfo3::gem(
-            amount,
-            row.get(column),
-            row.get("pay_gem")
-        ))
+    if !matches!(kind, "Gem" | "PayGem") { return Err(rule("Fail")); }
+    let row = sqlx::query("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
+        .bind(account).fetch_one(&mut *db).await?;
+    let free: i64 = row.try_get("gem")?;
+    let paid: i64 = row.try_get("pay_gem")?;
+    let total = free.checked_add(paid).filter(|_| free >= 0 && paid >= 0).ok_or_else(|| rule("InvalidCurrency"))?;
+    let new_total = crate::currency::balance(total, amount).map_err(|_| rule("NotEnoughGem"))?;
+    let (new_free, new_paid) = if kind == "PayGem" {
+        (free, crate::currency::balance(paid, amount)?)
+    } else if amount < 0 {
+        let held = crate::api::battle::entry_costs::held(db, account, "Currency", 4).await?;
+        if new_total < held { return Err(rule("NotEnoughGem")); }
+        let cost = amount.checked_neg().ok_or_else(|| rule("NotEnoughGem"))?;
+        let used_free = free.min(cost);
+        (free - used_free, paid - (cost - used_free))
     } else {
-        json!(CurrencyResultInfo3::new(kind, amount, row.get(column)))
-    })
+        (crate::currency::balance(free, amount)?, paid)
+    };
+    let updated=sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=? AND gem=? AND pay_gem=?")
+        .bind(new_free).bind(new_paid).bind(account).bind(free).bind(paid).execute(db).await?;
+    if updated.rows_affected()!=1 {return Err(rule("NotEnoughGem"));}
+    Ok(json!(CurrencyResultInfo3::gem(amount, new_free, new_paid)))
 }
+
 pub(crate) async fn capacity(
     db: &mut SqliteConnection,
     state: &AppState,
@@ -1266,7 +1237,7 @@ async fn expand(
     // Recover the unique quantity from the same successive table tiers the
     // client's GetTotalPrice uses. Never accept partial prices or skip a tier.
     let price = req.number("ReqGem", 0)?;
-    if !(1..=i32::MAX as i64).contains(&price) {
+    if price <= 0 {
         return Err(rule("ReqGemError"));
     }
     let mut remaining = price;

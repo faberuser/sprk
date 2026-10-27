@@ -118,6 +118,9 @@ pub async fn handle(
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            if action == "soul_weapon_ability_ticket" {
+                tracing::warn!(account, ticket = req.text("ItemIndex"), slot = req.text("TargetEquipItemSlotIndex"), reason = %code, "Soul Weapon ticket rejected");
+            }
             if uri.path().starts_with("/equip_storage_slot/") {
                 tracing::warn!(action, account, reason = %code, "Gear Custom request rejected");
             }

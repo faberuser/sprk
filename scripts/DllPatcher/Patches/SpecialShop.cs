@@ -76,7 +76,7 @@ partial class Program {
         int Max(long balance, long price, int purchased, int limit, int grant) => (int)type.GetMethod("Maximum")!.Invoke(null, new object[] { balance, price, purchased, limit, grant })!;
         if (Max(10000, 100, 0, 0, 999) != 100 || Max(0, 0, 0, 1, 999) != 1 || Max(0, 0, 1, 1, 999) != 0
             || Max(99, 100, 0, 0, 999) != 0 || Max(long.MaxValue, 1, 0, 0, 999) != 999
-            || Max(long.MaxValue, int.MaxValue, 0, 0, 999) != 1 || Max(10000, 1, 2, 5, 999) != 3 || Max(10000, 1, 0, 0, 2) != 2)
+            || Max(long.MaxValue, int.MaxValue, 0, 0, 999) != 999 || Max(10000, 1, 2, 5, 999) != 3 || Max(10000, 1, 0, 0, 2) != 2)
             throw new InvalidOperationException("Batch shop maximum regression.");
         var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
         type.GetField("pendingIndex", flags)!.SetValue(null, 7);

@@ -61,6 +61,7 @@ pub(super) fn append(live: &mut BattleTable, directory: &Path) -> Result<(), Box
             product["Gold"] = json!(gold);
             product["IconPath"] = row["IconPath"].clone();
         }
+        if let Some(icon)=row["IconPath"].as_str() { product["IconPath"]=json!(icon); }
         products.push(product);
     }
     live.rules["Products"].as_array_mut().ok_or("LiveRules.Products must be an array")?.extend(products);

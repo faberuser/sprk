@@ -1576,3 +1576,48 @@ async fn xerah_native_shop_items_recruit_at_base_progression_and_preserve_guards
         assert!(login(&s).await.heroes.iter().any(|h| h.hero_index == 77 && h.level == 1 && h.star == 5 && h.transcend == 0));
     }
 }
+
+#[tokio::test]
+async fn all_roster_costume_tickets_cover_102_heroes_and_preserve_failed_claims() {
+    use std::collections::BTreeSet;
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let expected:BTreeSet<i64>=(1..=102).filter(|i|*i!=14).chain([111]).collect();
+    for ticket in [600035,600100] {
+        let row=s.tables.hero_shop.costume_selectors.iter().find(|r|r["ItemIndex"]==ticket).unwrap();
+        let choices=row["CostumeIndices"].as_array().unwrap();
+        assert_eq!(choices.len(),102);
+        let actual:BTreeSet<_>=choices.iter().map(|v|s.tables.hero_shop.costumes[&(v.as_i64().unwrap() as i32)]["HeroIndex"].as_i64().unwrap()).collect();
+        assert_eq!(actual,expected);
+    }
+    // A valid but unowned hero, an outside costume and the all-owned shortcut
+    // must never consume a ticket or grant a costume.
+    sqlx::query("DELETE FROM heroes WHERE account_id=? AND hero_index=111").bind(a).execute(&s.db).await.unwrap();
+    put(&s,&u,600100,103).await;
+    for query in ["CostumeIndex=11106","CostumeIndex=105","GetOtherReward=true"] {
+        let out=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex=600100&{query}"))).await.unwrap().0;
+        assert_ne!(out["Result"],"Success","{out}");
+        assert_eq!(count(&s,&u,600100).await,103);
+    }
+    for hero_index in &expected {
+        sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,star,level,transcend) SELECT ?,COALESCE(MAX(hero_id),0)+1,?,5,1,0 FROM heroes WHERE account_id=? HAVING NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(a).bind(hero_index).bind(a).bind(a).bind(hero_index).execute(&s.db).await.unwrap();
+    }
+    for ticket in [600035,600100] {
+        sqlx::query("DELETE FROM costumes WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        put(&s,&u,ticket,103).await;
+        let row=s.tables.hero_shop.costume_selectors.iter().find(|r|r["ItemIndex"]==ticket).unwrap();
+        for choice in row["CostumeIndices"].as_array().unwrap() {
+            let out=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={ticket}&CostumeIndex={choice}"))).await.unwrap().0;
+            assert_eq!(out["Result"],"Success","{ticket} {choice}: {out}");
+        }
+        assert_eq!(count(&s,&u,ticket).await,1);
+        let first=row["CostumeIndices"][0].as_i64().unwrap();
+        let duplicate=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={ticket}&CostumeIndex={first}"))).await.unwrap().0;
+        assert_ne!(duplicate["Result"],"Success");assert_eq!(count(&s,&u,ticket).await,1);
+        let before=balance(&s,&u,"gem").await;
+        let out=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={ticket}&GetOtherReward=true"))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","{out}");assert_eq!(count(&s,&u,ticket).await,0);
+        assert_eq!(balance(&s,&u,"gem").await,before+2100);
+    }
+}

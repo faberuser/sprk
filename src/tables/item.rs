@@ -19,7 +19,9 @@ impl ItemTable {
     /// Load from ItemCodeToIndex.json which is a direct string→i32 map
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let metadata_path = path.as_ref().with_file_name("ItemRewardMetadata.json");
-        let reward_items = serde_json::from_reader(BufReader::new(File::open(metadata_path)?))?;
+        let mut reward_items: HashMap<i32, super::tutorial::TutorialItem> = serde_json::from_reader(BufReader::new(File::open(metadata_path)?))?;
+        let rules=super::costume_tickets::rules(path.as_ref())?;
+        reward_items.insert(rules["LightTicketItemIndex"].as_i64().unwrap() as i32,serde_json::from_value(serde_json::json!({"Kind":"Item"}))?);
         let file = File::open(path)?;
         let reader = BufReader::new(file);
         let code_to_index: HashMap<String, i32> = serde_json::from_reader(reader)?;

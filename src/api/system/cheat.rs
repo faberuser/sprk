@@ -120,8 +120,8 @@ pub struct GmAddCurrencyRequest {
     pub session_id: Option<String>,
     pub account_id: Option<i64>,
     pub gold: Option<i64>,
-    pub gem: Option<i32>,
-    pub stamina: Option<i32>,
+    pub gem: Option<i64>,
+    pub stamina: Option<i64>,
 }
 
 /// GM add currency response
@@ -130,8 +130,8 @@ pub struct GmAddCurrencyRequest {
 pub struct GmAddCurrencyResponse {
     pub base_result: i32,
     pub new_gold: i64,
-    pub new_gem: i32,
-    pub new_stamina: i32,
+    pub new_gem: i64,
+    pub new_stamina: i64,
 }
 
 /// Handle GM add currency request
@@ -147,28 +147,17 @@ pub async fn gm_add_currency(
     let gem = req.gem.unwrap_or(0);
     let stamina = req.stamina.unwrap_or(0);
 
-    // Add currencies
-    sqlx::query(
-        "UPDATE user_info SET gold = gold + ?, gem = gem + ?, stamina = stamina + ? WHERE account_id = ?"
-    )
-    .bind(gold)
-    .bind(gem)
-    .bind(stamina)
-    .bind(account_id)
-    .execute(&state.db)
-    .await?;
-
-    // Get new values
-    let user = sqlx::query("SELECT gold, gem, stamina FROM user_info WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_one(&state.db)
-        .await?;
+    let mut tx = state.db.begin().await?;
+    let new_gold = crate::api::inventory::item::money(&mut tx, account_id, "Gold", gold).await?;
+    let new_gem = crate::api::inventory::item::money(&mut tx, account_id, "Gem", gem).await?;
+    let new_stamina = crate::currency::user(&mut tx, account_id, "stamina", stamina, 0).await?;
+    tx.commit().await?;
 
     Ok(Json(GmAddCurrencyResponse {
         base_result: BaseResultType::Success as i32,
-        new_gold: user.get("gold"),
-        new_gem: user.get("gem"),
-        new_stamina: user.get("stamina"),
+        new_gold: new_gold["NewValue"].as_i64().unwrap(),
+        new_gem: new_gem["Value1"].as_i64().unwrap(),
+        new_stamina,
     }))
 }
 
