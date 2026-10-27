@@ -278,10 +278,12 @@ public sealed class SprkAccounts : MonoBehaviour {
         AddSwitchAccount(view);
         AddChangePassword(view);
         AddDeleteAccount(view);
+        ArrangeAccountButtons(view);
         var info=view.EtcInfo;
         var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
         if(config!=null && info.Label_GameVersionNum!=null)info.Label_GameVersionNum.text=DisplayVersion(config.Version);
         Hide(info.Button_CustomerCenter);
+        Hide(info.Button_MemberLeave); // Replaced by the password-confirmed Delete Account action.
         Hide(info.Button_LocalizedLaw1);Hide(info.Button_LocalizedLaw2);Hide(info.Button_LocalizedLaw3);
         // The PC prefab has these controls separately from the mobile law fields.
         var others=view.transform.Find("Panel/Root/EtcOption");
@@ -306,6 +308,41 @@ public sealed class SprkAccounts : MonoBehaviour {
             }
         }
         SprkLoginSettings.CleanSettings(view);
+    }
+    static void ArrangeAccountButtons(GameOptionWindow view) {
+        var info=view.EtcInfo;
+        if(info.Button_Logout==null || info.Button_Coupon==null)return;
+        var parent=info.Button_Logout.parent;
+        var language=parent.Find("Button_ChangeLanguage");
+        var change=parent.Find("Button_ChangePassword");
+        var delete=parent.Find("Button_DeleteAccount");
+        var account=parent.Find("Button_SwitchAccount");
+        var widget=info.Button_Coupon.GetComponent<UIWidget>();
+        float step=(widget!=null?widget.width:350)+24;
+        var row=info.Button_Logout.localPosition;
+        // Anchor every refresh to Logout so reopening cannot swap the controls back.
+        if(language!=null)language.localPosition=row-new Vector3(step*3,0,0);
+        info.Button_Coupon.localPosition=row-new Vector3(step*2,0,0);
+        if(account!=null)account.localPosition=row-new Vector3(step,0,0);
+        if(change!=null)change.localPosition=row+new Vector3(-step,100,0);
+        if(delete==null)return;
+        delete.localPosition=row+new Vector3(0,100,0);
+        // Use the native red cancel artwork, including its gold border. Tinting
+        // the blue source red would darken the background instead of replacing it.
+        const string red="Common_Button7_Cancel";
+        UIAtlas redAtlas=null;
+        foreach(var atlas in Resources.FindObjectsOfTypeAll<UIAtlas>())if(atlas.GetSprite(red)!=null){redAtlas=atlas;break;}
+        if(redAtlas==null) {
+            var load=new NGameAsset.NBundleManager.BundleLoadFromFile();load.Open("NguiAtlas_UI_Prefab_Common.unity3d");
+            load.Interface<NGameAsset.IBundleLoad>().StartLoad();
+            if(load.AssetBundle!=null)redAtlas=load.AssetBundle.mainAsset as UIAtlas;
+        }
+        foreach(var assigner in delete.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>(true))
+            if(assigner.SpriteName!=null && assigner.SpriteName.StartsWith("Common_Button")){assigner.AtlasName="Common";assigner.SpriteName=red;}
+        foreach(var sprite in delete.GetComponentsInChildren<UISprite>(true))
+            if(sprite.spriteName!=null && sprite.spriteName.StartsWith("Common_Button") && redAtlas!=null){sprite.atlas=redAtlas;sprite.spriteName=red;}
+        var button=delete.GetComponent<UIButton>();
+        if(button!=null){button.normalSprite=red;button.hoverSprite=red;button.pressedSprite=red;button.disabledSprite="Common_Button7_Disable";}
     }
     static void AddChangePassword(GameOptionWindow view) {
         var source=view.EtcInfo.Button_Coupon;

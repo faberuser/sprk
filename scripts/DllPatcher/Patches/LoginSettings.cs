@@ -4,6 +4,11 @@ namespace DllPatcher;
 partial class Program {
     static void VerifyLoginSettings(ModuleDefinition game,ModuleDefinition helper) {
         var accounts=helper.GetType("SprkAccounts");
+        var clean=accounts.Methods.Single(m=>m.Name=="CleanSettings");
+        if(clean.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="ArrangeAccountButtons")!=1)throw new InvalidOperationException("Missing Others account button layout");
+        var layout=accounts.Methods.Single(m=>m.Name=="ArrangeAccountButtons");
+        foreach(var name in new[]{"Button_ChangeLanguage","Button_ChangePassword","Button_DeleteAccount","Button_SwitchAccount","Common_Button7_Cancel"})
+            if(!layout.Body.Instructions.Any(i=>Equals(i.Operand,name)))throw new InvalidOperationException("Missing Others control/artwork: "+name);
         foreach(var pair in new[]{("CleanLoginInfo","Configure"),("CleanSettings","CleanSettings")})
             if(!accounts.Methods.Single(m=>m.Name==pair.Item1).Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name==pair.Item2))throw new InvalidOperationException("Missing login settings integration: "+pair.Item1);
         var bridge=helper.GetType("SprkLoginSettings");
