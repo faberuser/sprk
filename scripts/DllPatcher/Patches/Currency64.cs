@@ -23,6 +23,12 @@ partial class Program
         names.Remove("TeamExp");names.Remove("None");return names;
     }
 
+    static IEnumerable<TypeDefinition> Currency64ResultTypes(ModuleDefinition module) => module.GetTypes()
+        .Where(t=>t.Interfaces.Any(i=>i.InterfaceType.FullName=="NShared.ICurrencyResultInfo"));
+
+    static bool Currency64ResultAmount(string name) => name.Split('.').Last() is
+        "AddValue" or "NewValue" or "AddDailyAccValue" or "NewDailyAccValue" or "DayValue";
+
     static void VerifyCurrency64File(string root)
     {
         using var a=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"));
@@ -38,6 +44,10 @@ partial class Program
         foreach(var tn in new[]{"NShared.CurrencyResultInfo2","NShared.CurrencyResultInfo3","NShared.StaminaResultInfo"})
             foreach(var p in module.GetType(tn).Properties.Where(p=>p.Name is "AddValue" or "NewValue"))
                 if(p.PropertyType.MetadataType!=MetadataType.Int64)throw new InvalidOperationException("Currency64 result mismatch: "+tn+"."+p.Name);
+        foreach(var t in Currency64ResultTypes(module))
+            foreach(var p in t.Properties.Where(p=>Currency64ResultAmount(p.Name)))
+                if(p.PropertyType.MetadataType!=MetadataType.Int64 || p.GetMethod?.ReturnType.MetadataType!=MetadataType.Int64)
+                    throw new InvalidOperationException("Currency64 interface result mismatch: "+t.FullName+"."+p.Name);
         Console.WriteLine("Currency64 storage and result signatures verified.");
     }
 
@@ -51,6 +61,7 @@ partial class Program
         };
         try {
             var a=context.LoadFromStream(new MemoryStream(File.ReadAllBytes(Path.Combine(managed,"Assembly-CSharp.dll"))));
+            TestCurrency64ResultParsers(a,Path.Combine(managed,"Assembly-CSharp.dll"));
             var info=a.GetType("NShared.UserInfo")!;var jm=a.GetType("JM_NShared_UserInfo")!;
             var parse=jm.GetMethod("Parse",new[]{typeof(string)})!;
             var userType=a.GetType("NGame2.NAccount.UserManager")!;
@@ -76,6 +87,45 @@ partial class Program
             if(File.Exists(helperPath))TestSpecialShopBalances(managed,File.ReadAllBytes(helperPath));
             Console.WriteLine("PASS: native JSON, generated setters, ruby totals, stamina and shop getters at 2^31, above 2^53 and Int64.MaxValue.");
         } finally {context.Unload();}
+    }
+
+    static void TestCurrency64ResultParsers(System.Reflection.Assembly assembly,string path)
+    {
+        using var metadata=AssemblyDefinition.ReadAssembly(path);
+        var resultNames=Currency64ResultTypes(metadata.MainModule).Select(t=>t.FullName).ToHashSet();
+        var contract=assembly.GetType("NShared.ICurrencyResultInfo",true)!;
+        const long large=9_007_199_254_740_993L;
+        const string payload="{\"AddValue\":9007199254740993,\"NewValue\":9007199254740993,\"AddDailyAccValue\":9007199254740993,\"NewDailyAccValue\":9007199254740993,\"DayValue\":9007199254740993,\"NewSysGem\":9007199254740993,\"NewPayGem\":0}";
+        foreach(var name in resultNames) {
+            var type=assembly.GetType(name,true)!;
+            // Loading the interface map catches missing implicit implementations,
+            // even when a result is only referenced by an empty response array.
+            type.GetInterfaceMap(contract);
+            var parser=assembly.GetType("JM_"+name.Replace('.','_'),true)!;
+            var value=parser.GetMethod("Parse",new[]{typeof(string)})!.Invoke(null,new object[]{payload})!;
+            foreach(var property in type.GetProperties(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic)
+                .Where(p=>Currency64ResultAmount(p.Name))) {
+                if(property.PropertyType!=typeof(long)||(long)property.GetValue(value)! !=large)
+                    throw new InvalidOperationException("Currency64 result parser narrowed "+name+"."+property.Name);
+            }
+        }
+        resultNames.UnionWith(new[]{"NShared.CurrencyResultInfo3","NShared.StaminaResultInfo"});
+        var responses=metadata.MainModule.GetTypes().Where(t=>t.Name=="Response"&&t.Properties.Any(p=>
+            resultNames.Contains(p.PropertyType.FullName) || p.PropertyType is ArrayType array&&resultNames.Contains(array.ElementType.FullName)))
+            .Where(t=>metadata.MainModule.GetType("JM_"+t.FullName.Replace('.','_'))!=null).ToArray();
+        if(!responses.Any(t=>t.FullName=="NShared.RewardAchievement.Response"))throw new InvalidOperationException("Missing mission response regression fixture");
+        foreach(var response in responses) {
+            var parser=assembly.GetType("JM_"+response.FullName.Replace('.','_'),true)!;
+            var parse=parser.GetMethod("Parse",new[]{typeof(string)})!;
+            parse.Invoke(null,new object[]{"{\"BaseResult\":\"Success\",\"Result\":\"Success\",\"FriendshipPointResults\":[]}"});
+            if(response.FullName=="NShared.RewardAchievement.Response") {
+                var value=parse.Invoke(null,new object[]{"{\"BaseResult\":\"Success\",\"Result\":\"Success\",\"FriendshipPointResults\":["+payload+"]}"})!;
+                var entries=(Array)value.GetType().GetProperty("FriendshipPointResults")!.GetValue(value)!;
+                if(entries.Length!=1 || (long)entries.GetValue(0)!.GetType().GetProperty("NewValue")!.GetValue(entries.GetValue(0))! !=large)
+                    throw new InvalidOperationException("Currency64 achievement reward parsing failed");
+            }
+        }
+        Console.WriteLine($"PASS: {resultNames.Count-2} currency interface implementations and {responses.Length} complete reward/response parsers, including empty and populated mission friendship results.");
     }
 
     // Widen the compiled currency dependency graph, rather than changing every
@@ -218,6 +268,10 @@ partial class Program
                 ["NShared.NMessage.NProtocol.StaminaInfoChanged"]=new[]{"StaminaCount"},
                 ["NGame2.NAccount.StaminaInfo"]=new[]{"CurValue"},
             }) {var t=Main.GetType(type);if(t!=null)foreach(var name in props)Property(t,name);}
+            // An interface signature change must update every implementation,
+            // including legacy results not reached by ordinary balance getters.
+            foreach(var t in Currency64ResultTypes(Main))
+                foreach(var p in t.Properties.Where(p=>Currency64ResultAmount(p.Name)).ToArray())Property(t,p.Name);
             var um=Main.GetType("NGame2.NAccount.UserManager");
             foreach(var m in um.Methods.Where(m=>m.Name=="GetStamina")) {
                 Promote(m);
