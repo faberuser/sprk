@@ -506,6 +506,7 @@ partial class Program
                 }
             }
             foreach(var m in touched) CheckWidths(m,Analyze(m,false));
+            PatchContinuousBattleSerialization(Main);
             Console.WriteLine($"Currency64 widened {wide.Count} definitions; repaired {touched.Count} methods.");
         }
 

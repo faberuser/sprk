@@ -172,6 +172,8 @@ namespace DllPatcher
             if (args.Contains("--honor-buff-only")) { InstallHonorBuff(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-honor-buff")) { VerifyHonorBuffFile(args[0]); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--continuous-battle-only")) { InstallContinuousBattleSerialization(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-continuous-battle")) { VerifyContinuousBattleSerializationFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--automation-only")) { InstallAutomation(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-survivors")) { TestCampaignSurvivors(); return; }
             if (args.Contains("--self-test-selectors")) { TestSelectorPools(); return; }

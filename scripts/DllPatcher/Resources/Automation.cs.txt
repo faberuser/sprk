@@ -161,6 +161,10 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="tower-continuous-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");
+                busy=true;StartCoroutine(ProbeTowerContinuous(cmd));return;
+            }
             if(cmd.action=="native-stop-cycle") {
                 if(SceneManager.GetActiveScene().name!="Login" || cmd.target<0 || cmd.target>10)
                     throw new InvalidOperationException("Native overlay lifecycle probe requires Login and a 0..10 frame delay");
@@ -816,6 +820,31 @@ public sealed class SprkAutomation : MonoBehaviour
             catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
         }
         busy=false;Write(failure);
+    }
+    IEnumerator ProbeTowerContinuous(Command cmd) {
+        var type=typeof(NGame2.NUI.NWindow.NBattle.AutoNextBattle);
+        var open=type.GetMethods().Single(m=>m.Name=="OpenGlobal" && m.GetParameters().Length==3);
+        var count=type.GetField("ItemBoosterCount");
+        var delay=type.GetField("AutoCampaignDelay",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+        foreach(long value in new long[]{0,2147483650L,9007199254740993L}) {
+            Reply failure=null;
+            try {
+                File.WriteAllText(Path.Combine(root,"tower-opening.txt"),"Loading native AutoNextBattle prefab; booster count="+value);
+                open.Invoke(null,new object[]{NShared.BattleType.OrdealTower,NShared.DungeonDifficultyType.Easy,Convert.ChangeType(value,open.GetParameters()[2].ParameterType)});
+            } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null){busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(2);
+            try {
+                var window=NGame2.NUI.NWindow.NBattle.AutoNextBattle.instance;
+                if(!window.IsOpen() || Convert.ToInt64(count.GetValue(window))!=value || (float)delay.GetValue(window)!=2.5f || window.StopButton==null || window.Label_Stop==null)
+                    throw new Exception("Native Continuous Battle popup lost its serialized defaults or runtime count");
+                window.OnClickStopWithoutMessage();
+            }catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null){busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(1);
+        }
+        var reply=Snapshot(cmd.id);reply.materials.Add("PASS: native Ordeals Continuous Battle popup opens/stops/reopens, default delay and UI references survive, and 64-bit counts above 2^31 and 2^53 remain exact.");
+        busy=false;Write(reply);
     }
     static NShared.StatType[] CombatStatTypes() {
         return new NShared.StatType[]{NShared.StatType.MaxHp,NShared.StatType.PhysicalAttack,NShared.StatType.MagicalAttack,

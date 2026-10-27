@@ -14,6 +14,16 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+Tower continuous-battle startup uses `--continuous-battle-only` (and
+`--verify-continuous-battle`). Its native popup keeps a 32-bit serialized prefab
+slot while the runtime booster count remains 64-bit. The currency migration and
+full release build apply and verify this compatibility repair. Stage it and
+automation, then run `python scripts/client/verify_tower_continuous.py` to check
+the real native popup in an isolated Unity process. `--unpatched` is a negative
+control that deliberately reproduces the original fatal prefab load; it must run
+before installing the repair. These checks cover popup startup, stop/reopen,
+serialized defaults and large counts, and do not simulate tower clears.
+
 Use a focused mode when updating an already patched client. For example:
 
 ```powershell
