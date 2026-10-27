@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--motion-costumes-only")) { InstallMotionCostumes(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-motion-costumes")) { VerifyMotionCostumesFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-currency64")) { VerifyCurrency64File(args[0]); TestCurrency64(args[0]); return; }
             if (args.Contains("--currency64-only")) {
                 var report=Array.IndexOf(args,"--currency64-report");

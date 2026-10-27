@@ -114,3 +114,23 @@ the SDK automatically. Preserve stable embedded resource names such as
 
 For storage adoption and cleanup, see
 [client storage migration](../../docs/client-storage-migration.md).
+
+## See Motions costume previews
+
+`HeroDetailView` builds its Costume tab from every costume row for the current
+hero, including unowned, default/awakening, event, legendary and bonus variants.
+Preview rows use neutral state and highlight the currently previewed costume;
+shared ownership, purchase, equipment and Dressing Room state checks remain intact.
+This only changes the local model preview and does not grant costumes.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-motion-costumes --stage-only
+# After closing the game and shared-asset worker:
+dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only
+```
+
+The full `--build-release` path installs and verifies this patch. Verification
+checks matching-hero enumeration, all three preview state refreshes, absence of
+ownership/visibility filters, native shared ownership handling, unchanged costume
+ownership method bodies, patch idempotence and the replacement method stack.

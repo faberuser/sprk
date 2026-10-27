@@ -50,6 +50,8 @@ partial class Program
         InstallPetPresentation(clientRoot, false);
         VerifyPetPresentationFile(clientRoot);
         InstallRaidInfoScroll(clientRoot, false);
+        InstallMotionCostumes(clientRoot, false);
+        VerifyMotionCostumesFile(clientRoot);
         InstallIllustrationZoom(clientRoot, false);
         VerifyIllustrationZoomFile(clientRoot);
         TestIllustrationZoom(clientRoot);
