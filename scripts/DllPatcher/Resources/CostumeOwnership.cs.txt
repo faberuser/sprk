@@ -8,7 +8,7 @@ using NVespa.NSingleton;
 public class HeroCostumeViewWidget {
     private bool IsShowCostume(CostumeData costumeData, HeroInfo heroInfo) {
         if (costumeData == null) return false;
-        if (__SPRK_LIGHT_COSTUMES__)
+        if (__SPRK_TICKET_COSTUMES__)
             return GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null;
         if (!costumeData.IsCoupleCostume()) return true;
         bool owned = GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null;
@@ -62,7 +62,7 @@ public class HeroCostume : BaseCostume {
                 {
                     if (checkHeroOwn && cachedHeroInfo == null) return CostumeState.NeedHero;
                     return GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null
-                        ? CostumeState.Owned : (__SPRK_LIGHT_COSTUMES__ ? CostumeState.CannotBuy : CostumeState.Buyable);
+                        ? CostumeState.Owned : (__SPRK_TICKET_COSTUMES__ ? CostumeState.CannotBuy : CostumeState.Buyable);
                 }
 				if (costumeData.CostumeType != EHeroCostumeType.Legend)
 				{

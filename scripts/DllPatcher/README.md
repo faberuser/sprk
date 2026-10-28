@@ -14,6 +14,13 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--accounts-only` places Use Coupon above Language in Others and assigns the
+Delete Account button's actual background target to the native red Common atlas
+artwork for normal, hover and pressed states. Run
+`python scripts/client/verify_login_settings.py` after installation to check the
+native settings prefab, repeated refreshes, button states and screenshots in an
+isolated client.
+
 `--technomagic-refresh-only` applies TM tier-upgrade account state before UI
 notification, then rebuilds the open awakening window's hero/inventory icons and
 clears the old 5-star target. `--verify-technomagic-refresh` verifies the response
@@ -34,8 +41,8 @@ localized shop group alongside the existing ticket data. The server consumes
 the same sale overrides at startup; its League of Honor item shop is retained.
 This mode also restores Dressing Room browsing after native getter resets and
 replaces the obsolete local Light/LoH visibility filter. LoH costumes appear in
-the Dressing Room for purchase; unowned Light costumes remain ticket-only and
-owned Light costumes remain visible for equipment. The Light label is simply
+the Dressing Room for purchase; unowned Light and Darkness costumes remain
+ticket-only, and owned ones remain visible for equipment. The Light label is simply
 `Light Costume`. The full release build runs this mode and its verifier, including
 execution of the patched visibility and ownership methods against the roster.
 The same rules enable Ashen costumes for Dark Lord Kasel (8408), Fallen Frey

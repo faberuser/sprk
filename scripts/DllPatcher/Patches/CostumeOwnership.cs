@@ -7,6 +7,8 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static IEnumerable<int> TicketOnlyCostumeIds(System.Text.Json.Nodes.JsonNode rules) =>
+        new[]{"LightCostumeIndices","DarkCostumeIndices"}.SelectMany(key=>rules[key]!.AsArray().Select(id=>id!.GetValue<int>())).Distinct();
     static void RestoreCostumeOwnership(ModuleDefinition module)
     {
         // Compile against the client's Mono libraries, not the patcher's .NET runtime.
@@ -15,11 +17,11 @@ partial class Program
         using var reader = new StreamReader(sourceStream);
         using var rulesStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.CostumeTicketRules.json")!;
         var rules = System.Text.Json.Nodes.JsonNode.Parse(rulesStream)!;
-        var lightCondition = string.Join(" || ", rules["LightCostumeIndices"]!.AsArray().Select(id => "costumeData.CostumeIndex == " + id));
+        var ticketCondition = string.Join(" || ", TicketOnlyCostumeIds(rules).Select(id => "costumeData.CostumeIndex == " + id));
         var references = Directory.GetFiles(Path.GetDirectoryName(module.FileName)!, "*.dll")
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("CostumeOwnershipRestore",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd().Replace("__SPRK_LIGHT_COSTUMES__", lightCondition)) }, references,
+            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd().Replace("__SPRK_TICKET_COSTUMES__", ticketCondition)) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
                 optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();

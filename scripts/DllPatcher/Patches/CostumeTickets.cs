@@ -256,10 +256,10 @@ partial class Program {
         var state=module.GetType("NGame2.NUtil.NCostume.HeroCostume").Methods.Single(m=>m.Name=="GetCostumeState" && m.Parameters.Count==3);
         foreach(var method in new[]{show,state}) {
             VerifyArenaResultStack(method);
-            // The Light roster must be checked before the ordinary sale/visibility path.
-            foreach(var id in rules["LightCostumeIndices"]!.AsArray().Select(n=>n!.GetValue<int>()))
+            // Ticket-only rosters must be checked before ordinary sale/visibility.
+            foreach(var id in TicketOnlyCostumeIds(rules))
                 if(!method.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldc_I4 && Equals(i.Operand,id)))
-                    throw new InvalidOperationException("Missing Light ticket-only policy: "+id);
+                    throw new InvalidOperationException("Missing Light/Darkness ticket-only policy: "+id);
             if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_CostumeManager"))
                 throw new InvalidOperationException("Real costume ownership lookup missing");
             if(method.Body.Instructions.Any(i=>Equals(i.Operand,"SPRK_LIGHT_TICKET_AND_HONOR_DRESSING_FILTER")))
@@ -267,7 +267,7 @@ partial class Program {
         }
         if(!show.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="IsCoupleCostume"))
             throw new InvalidOperationException("Couple costume visibility rules missing");
-        Console.WriteLine("Verified restored costume browsing, native couple rules and ticket-only Light ownership checks.");
+        Console.WriteLine("Verified restored costume browsing, native couple rules and ticket-only Light/Darkness ownership checks.");
     }
 
     // Execute the actual patched methods in an in-memory copy. Only Unity singleton
@@ -301,17 +301,17 @@ partial class Program {
         var show=widgetType.GetMethod("IsShowCostume",CTFlags)!;
         var state=assembly.GetType("NGame2.NUtil.NCostume.HeroCostume")!.GetMethods()
             .Single(m=>m.Name=="GetCostumeState" && m.GetParameters().Length==3);
-        var light=rules["LightCostumeIndices"]!.AsArray().Select(n=>n!.GetValue<int>()).ToHashSet();
+        var tickets=TicketOnlyCostumeIds(rules).ToHashSet();
         int visible=0;
         foreach(var row in rows) {
             var data=JsonSerializer.Deserialize(CTSnapshot(row),assembly.GetType("NShared.CostumeData")!)!;
             var id=(int)CTMember(data,"CostumeIndex");
             if((bool)CTCall(data,"IsCoupleCostume"))continue;
             bool actual=(bool)show.Invoke(widget,new[]{data,null})!;
-            if(actual==light.Contains(id))throw new InvalidOperationException("Dressing room visibility regression: "+id);
+            if(actual==tickets.Contains(id))throw new InvalidOperationException("Dressing room visibility regression: "+id);
             if(actual)visible++;
             if((bool)CTMember(data,"IsDefault"))continue;
-            string expected=light.Contains(id)?"CannotBuy":"Buyable";
+            string expected=tickets.Contains(id)?"CannotBuy":"Buyable";
             if(state.Invoke(null,new object?[]{null,data,false})!.ToString()!=expected)
                 throw new InvalidOperationException("Dressing room purchase regression: "+id);
             if(state.Invoke(null,new object?[]{null,data,true})!.ToString()!="NeedHero")
@@ -322,7 +322,7 @@ partial class Program {
                 throw new InvalidOperationException("Owned costume cannot be shown/equipped: "+id);
             CTCall(manager,"RemoveAll");
         }
-        Console.WriteLine($"PASS: {visible} ordinary/LoH costume rows visible; Light ticket-only visibility, real ownership states and hero gates executed.");
+        Console.WriteLine($"PASS: {visible} ordinary/LoH costume rows visible; Light/Darkness ticket-only visibility, real ownership states and hero gates executed.");
     }
 }
 
