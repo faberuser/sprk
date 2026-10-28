@@ -7,7 +7,7 @@
       "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "f84efa7ada579bfe07fa267fa5ccffb3e794bf04fb6e64d5a1b0566f755c2997",
+      "sha256": "a37487b863b92160947d7b7bf1e47944421e625812aa0db10f3cac42678b0dee",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
     "TableJit/AccessoryCostumeTable.jit": {
@@ -23,7 +23,7 @@
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
     "TableJit/CostumeTable.jit": {
-      "sha256": "8430ea8410fbb296b8a567dc0804134f3a29f68f50a1d3e5c537a580152b5387",
+      "sha256": "938dd58cf3add8b0820f2706954cf09ff5558243c9cc76e2ffc638209621668a",
       "originalSha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22"
     },
     "TableJit/CraftItemTable.jit": {
@@ -101,6 +101,10 @@
     "TableJit/CostumeSelectItemTable.jit": {
       "sha256": "e40e6368bc97809ef20fd0613f8aa56da2252b669dab97cdd09e07d51415cbec",
       "originalSha256": "0784558f671f6d74fab4d715d6d0fb966e70dcf25c056a3291a929241137fff2"
+    },
+    "TableJit/CostumeGroupTable.jit": {
+      "sha256": "7f488601a2f5ad7e41b367dd23377c73ef6b91a1b878dfac78d6f0e96b21a01d",
+      "originalSha256": "8e467a59191f91079522d9e5efde58e13e5d40d1929a03a9664e51420591570d"
     }
   },
   "staticRuntimeDataOverrides": false,

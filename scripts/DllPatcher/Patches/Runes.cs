@@ -66,6 +66,31 @@ partial class Program
         return true;
     }
 
+    static bool PatchInventoryRuneCategory(ModuleDefinition module)
+    {
+        var type = module.GetType("NGame2.NUI.NWindow.NInventory.InvenList");
+        var method = type.Methods.Single(m => m.Name == "SelectCategory");
+        var code = method.Body.Instructions;
+        var category = type.NestedTypes.Single(t => t.Name == "Category");
+        var subcategories = code.First(i => i.Operand is FieldReference f && f.DeclaringType.FullName == category.FullName && f.Name == "SubCategorys");
+        var start = code.IndexOf(subcategories) - 8;
+        if (start < 0) throw new InvalidOperationException("Unexpected inventory category layout.");
+        var guard = code.Skip(start).Take(7).ToArray();
+        if (guard.All(i => i.OpCode == OpCodes.Nop)) return false;
+        int rune = (int)type.NestedTypes.Single(t => t.Name == "EToggle").Fields.Single(f => f.Name == "Rune").Constant;
+        if (guard[0].OpCode != OpCodes.Ldloc_2 || guard[1].Operand is not FieldReference { Name: "Type" } ||
+            RuneCategoryValue(guard[2]) != rune || guard[3].OpCode.FlowControl != FlowControl.Cond_Branch ||
+            guard[4].OpCode != OpCodes.Ldloc_3 || RuneCategoryValue(guard[5]) != 1 ||
+            guard[6].OpCode.FlowControl != FlowControl.Cond_Branch || guard[3].Operand != code[start + 7])
+            throw new InvalidOperationException("Expected one native inventory Blasphemy category suppression guard.");
+        // The rest of the native category and item handling already supports
+        // PunishmentRune storage, equipment selection, lock and grind actions.
+        foreach (var i in guard) { i.OpCode = OpCodes.Nop; i.Operand = null; }
+        VerifyArenaResultStack(method);
+        Console.WriteLine("Restored the inventory Blasphemy Rune subcategory.");
+        return true;
+    }
+
     static string RuneCategoryFile(string clientRoot, bool staged) => Path.GetFullPath(Path.Combine(
         clientRoot, "King's Raid_Data", "Managed", "Assembly-CSharp.dll" + (staged ? ".runes-staged" : "")));
 
@@ -109,6 +134,19 @@ partial class Program
         using var assembly = AssemblyDefinition.ReadAssembly(RuneCategoryFile(clientRoot, staged));
         if (PatchRuneCategories(assembly.MainModule)) throw new Exception("Lucern rune category is missing.");
         if (PatchCachedRuneOptions(assembly.MainModule)) throw new Exception("Cached rune inheritance is missing.");
+        if (PatchInventoryRuneCategory(assembly.MainModule)) throw new Exception("Inventory Blasphemy Rune category is missing.");
+        var inventory = assembly.MainModule.GetType("NGame2.NUI.NWindow.NInventory.InvenList");
+        var refresh = inventory.Methods.Single(m => m.Name == "Refresh");
+        var selector = inventory.Methods.Single(m => m.Name == "Selector");
+        var grind = inventory.Methods.Single(m => m.Name == "OnClickConfirmRuneBreak");
+        int storage = (int)assembly.MainModule.GetType("NShared.InventoryType").Fields.Single(f => f.Name == "PunishmentRune").Constant;
+        if (!refresh.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "InitEquipList" &&
+            i.Previous.OpCode.Code is Code.Ldc_I4_0 && i.Previous.Previous.OpCode.FlowControl == FlowControl.Branch &&
+            RuneCategoryValue(i.Previous.Previous.Previous) == storage) ||
+            !selector.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "get_IsEquipped") ||
+            !grind.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "OnClickBreakRune"))
+            throw new InvalidOperationException("Native Punishment Rune storage, equipped-rune filtering, or grind routing is missing.");
+        foreach (var method in new[] {refresh, selector, grind}) VerifyArenaResultStack(method);
         Console.WriteLine("PASS: native Normal/Lucern categories and cached rune inheritance are present; patches are idempotent.");
     }
 
@@ -122,15 +160,22 @@ partial class Program
         {
             PatchRuneCategories(assembly.MainModule);
             PatchCachedRuneOptions(assembly.MainModule);
+            PatchInventoryRuneCategory(assembly.MainModule);
             if (PatchRuneCategories(assembly.MainModule)) throw new Exception("Rune category patch is not idempotent.");
             if (PatchCachedRuneOptions(assembly.MainModule)) throw new Exception("Rune inheritance patch is not idempotent.");
+            if (PatchInventoryRuneCategory(assembly.MainModule)) throw new Exception("Inventory rune category patch is not idempotent.");
             assembly.Write(staged);
         }
         VerifyRuneCategories(clientRoot, true);
         if (!stageOnly)
         {
-            File.Copy(dll, dll + ".before-runes-" + DateTime.Now.ToString("yyyyMMdd-HHmmssfff"));
+            if (System.Diagnostics.Process.GetProcesses().Any(p => p.ProcessName == "King's Raid" || p.ProcessName.StartsWith("SprkTest-")))
+                throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
+            var backup = Path.Combine("target", "rune-category-backups", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
+            Directory.CreateDirectory(backup);
+            File.Copy(dll, Path.Combine(backup, "Assembly-CSharp.dll"));
             File.Move(staged, dll, true);
+            VerifyRuneCategories(clientRoot, false);
         }
         Console.WriteLine(stageOnly ? $"Staged: {staged}" : "Installed rune categories. Restart the game to apply them.");
     }

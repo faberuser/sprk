@@ -161,6 +161,18 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="inventory-rune-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Inventory rune probe requires isolated Login");
+                ProbeInventoryRunes();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native inventory prefab exposes Normal Rune and Rune of Blasphemy subcategories, and both select correctly.");Write(reply);return;
+            }
+            if(cmd.action=="awakening-material-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
+                ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
+            }
+            if(cmd.action=="tower-continuous-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");
+                busy=true;StartCoroutine(ProbeTowerContinuous(cmd));return;
+            }
             if(cmd.action=="native-stop-cycle") {
                 if(SceneManager.GetActiveScene().name!="Login" || cmd.target<0 || cmd.target>10)
                     throw new InvalidOperationException("Native overlay lifecycle probe requires Login and a 0..10 frame delay");
@@ -816,6 +828,79 @@ public sealed class SprkAutomation : MonoBehaviour
             catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
         }
         busy=false;Write(failure);
+    }
+    void ProbeInventoryRunes() {
+        var prefab=VespaResource.Load<GameObject>(NGame2.NUI.NWindow.NInventory.InvenList.PrefabPath);
+        if(prefab==null)throw new Exception("Native inventory prefab missing");
+        var go=UnityEngine.Object.Instantiate(prefab);
+        var view=go.GetComponent<NGame2.NUI.NWindow.NInventory.InvenList>();
+        var rune=Array.Find(view.Categories,c=>c.Type==NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune);
+        if(rune==null || rune.SubCategorys.Length<2 || rune.SubCategorys[0].Toggle==null || rune.SubCategorys[1].Toggle==null ||
+           !rune.SubCategorys[0].ItemTypes.Contains(NShared.ItemType.Rune) || !rune.SubCategorys[1].ItemTypes.Contains(NShared.ItemType.PunishmentRune))
+            throw new Exception("Native rune subcategories or item filters missing");
+        rune.SubCategorys[0].Toggle.gameObject.SetActive(false);rune.SubCategorys[1].Toggle.gameObject.SetActive(false);
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        var select=view.GetType().GetMethod("SelectCategory",flags);
+        select.Invoke(view,new object[]{NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune,0});
+        if(!rune.SubCategorys[0].Toggle.gameObject.activeSelf || !rune.SubCategorys[1].Toggle.gameObject.activeSelf)throw new Exception("Rune category button remains hidden");
+        select.Invoke(view,new object[]{NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune,1});
+        if((int)view.GetType().GetField("_subCategoryIndex",flags).GetValue(view)!=1)throw new Exception("Blasphemy rune selection failed");
+        go.SetActive(false);
+    }
+    void ProbeAwakeningMaterials() {
+        var host=new GameObject("AwakeningMaterialFixture");host.SetActive(false);
+        var view=host.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>();
+        var gridRoot=new GameObject("AwakeningMaterialGridFixture");
+        var scroll=gridRoot.AddComponent<NVespa.NNGUIExtension.UIScrollGrid>();
+        var rows=new GameObject("Grid");rows.transform.SetParent(gridRoot.transform,false);
+        var grid=rows.AddComponent<UIGrid>();grid.arrangement=UIGrid.Arrangement.Horizontal;grid.maxPerLine=3;grid.cellWidth=100;grid.cellHeight=100;
+        scroll.Grid=grid;view.AwakeInvenItemListGrid=scroll;
+        var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Instance;
+        var visibility=view.GetType().GetMethod("SprkSetMaterialVisibility",flags);
+        var compact=view.GetType().GetMethod("SprkCompactMaterialGrid",flags);
+        if(visibility==null || compact==null)throw new Exception("Awakening material patch missing");
+        var icons=new List<NGame2.NUI.NComponent2.ItemIconComponent>();
+        for(int i=0;i<6;i++) {
+            var go=new GameObject("Material"+i);go.transform.SetParent(rows.transform,false);
+            var icon=go.AddComponent<NGame2.NUI.NComponent2.ItemIconComponent>();icon.RootWidget=go.AddComponent<UIWidget>();icons.Add(icon);
+        }
+        for(int pass=0;pass<4;pass++) {
+            for(int i=0;i<icons.Count;i++)visibility.Invoke(null,new object[]{icons[i],pass==0?(i!=0 && i!=2 && i!=5):pass==1});
+            compact.Invoke(view,null);
+            int expected=pass==0?3:pass==1?0:6;
+            var active=grid.GetChildList();
+            if(!grid.hideInactive || active.Count!=expected)throw new Exception("Hidden awakening materials still occupy grid cells: "+pass);
+            for(int i=0;i<active.Count;i++) {
+                if(Mathf.Abs(active[i].localPosition.x-(i%3)*100)>0.1f || Mathf.Abs(active[i].localPosition.y+(i/3)*100)>0.1f)throw new Exception("Awakening material grid has gaps");
+                if(active[i].GetComponent<NGame2.NUI.NComponent2.ItemIconComponent>().RootWidget.isGrayscale)throw new Exception("Visible awakening material is gray");
+            }
+        }
+        gridRoot.SetActive(false);
+    }
+    IEnumerator ProbeTowerContinuous(Command cmd) {
+        var type=typeof(NGame2.NUI.NWindow.NBattle.AutoNextBattle);
+        var open=type.GetMethods().Single(m=>m.Name=="OpenGlobal" && m.GetParameters().Length==3);
+        var count=type.GetField("ItemBoosterCount");
+        var delay=type.GetField("AutoCampaignDelay",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+        foreach(long value in new long[]{0,2147483650L,9007199254740993L}) {
+            Reply failure=null;
+            try {
+                File.WriteAllText(Path.Combine(root,"tower-opening.txt"),"Loading native AutoNextBattle prefab; booster count="+value);
+                open.Invoke(null,new object[]{NShared.BattleType.OrdealTower,NShared.DungeonDifficultyType.Easy,Convert.ChangeType(value,open.GetParameters()[2].ParameterType)});
+            } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null){busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(2);
+            try {
+                var window=NGame2.NUI.NWindow.NBattle.AutoNextBattle.instance;
+                if(!window.IsOpen() || Convert.ToInt64(count.GetValue(window))!=value || (float)delay.GetValue(window)!=2.5f || window.StopButton==null || window.Label_Stop==null)
+                    throw new Exception("Native Continuous Battle popup lost its serialized defaults or runtime count");
+                window.OnClickStopWithoutMessage();
+            }catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null){busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(1);
+        }
+        var reply=Snapshot(cmd.id);reply.materials.Add("PASS: native Ordeals Continuous Battle popup opens/stops/reopens, default delay and UI references survive, and 64-bit counts above 2^31 and 2^53 remain exact.");
+        busy=false;Write(reply);
     }
     static NShared.StatType[] CombatStatTypes() {
         return new NShared.StatType[]{NShared.StatType.MaxHp,NShared.StatType.PhysicalAttack,NShared.StatType.MagicalAttack,

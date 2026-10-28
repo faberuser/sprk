@@ -14,6 +14,34 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--runes-only` restores both the hero rune selector and the separate Rune of
+Blasphemy inventory subcategory, retaining the native equipment and grind paths.
+Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
+to validate the original inventory prefab and both category selections in Unity.
+
+The shared `tables/CostumeTicketRules.json` also opens all 80 archived League of
+Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits.
+`--costume-tickets-only` installs their native Costume/CostumeGroup rows and
+localized shop group alongside the existing ticket data. The server consumes
+the same sale overrides at startup; its League of Honor item shop is retained.
+
+`--awakening-materials-only` hides gray inventory equipment and awakening stones
+inside gear awakening, then compacts that material grid. It retains the native
+eligibility and selected-item checks and restores items on later refreshes.
+`--verify-awakening-materials` checks the scoped hooks and IL stack. Stage this
+patch and automation before running `python scripts/client/verify_awakening_materials.py`
+for isolated native icon/grid visibility, restoration and spacing checks.
+
+Tower continuous-battle startup uses `--continuous-battle-only` (and
+`--verify-continuous-battle`). Its native popup keeps a 32-bit serialized prefab
+slot while the runtime booster count remains 64-bit. The currency migration and
+full release build apply and verify this compatibility repair. Stage it and
+automation, then run `python scripts/client/verify_tower_continuous.py` to check
+the real native popup in an isolated Unity process. `--unpatched` is a negative
+control that deliberately reproduces the original fatal prefab load; it must run
+before installing the repair. These checks cover popup startup, stop/reopen,
+serialized defaults and large counts, and do not simulate tower clears.
+
 Use a focused mode when updating an already patched client. For example:
 
 ```powershell

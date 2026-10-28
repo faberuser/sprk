@@ -30,7 +30,7 @@ pub(crate) async fn options(
 pub(crate) async fn attached(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<bool> {
     Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM hero_details h,json_each(h.data,'$.HeroRunePageInfos') r WHERE h.account_id=? AND json_extract(r.value,'$.EquipItemSlotIndex')=?)").bind(account).bind(slot).fetch_one(db).await?)
 }
-pub(crate) async fn available(
+async fn stored(
     db: &mut SqliteConnection,
     account: i64,
     slot: i64,
@@ -43,9 +43,30 @@ pub(crate) async fn available(
     .fetch_optional(&mut *db)
     .await?
     .ok_or_else(|| rule("EquipItemNotFound"))?;
-    let eq = EquipItemInfo::from_row(&r);
+    Ok(EquipItemInfo::from_row(&r))
+}
+pub(crate) async fn available(
+    db: &mut SqliteConnection,
+    account: i64,
+    slot: i64,
+) -> Result<EquipItemInfo> {
+    let eq = stored(db, account, slot).await?;
     if eq.locked != 0 || attached(db, account, slot).await? {
         return Err(rule("LockedEquip"));
+    }
+    Ok(eq)
+}
+// Equipping moves a rune; unlike crafting and dismantling it does not consume
+// the equipment. A lock must not prevent the move, but a rune already assigned
+// to any hero/page must not be assigned a second time.
+pub(super) async fn for_equipping(
+    db: &mut SqliteConnection,
+    account: i64,
+    slot: i64,
+) -> Result<EquipItemInfo> {
+    let eq = stored(db, account, slot).await?;
+    if attached(db, account, slot).await? {
+        return Err(rule("AlreadyEquippedRune"));
     }
     Ok(eq)
 }

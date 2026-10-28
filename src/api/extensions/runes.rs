@@ -45,6 +45,18 @@ pub(super) async fn execute(
             let old = n(current, "ItemIndex");
             let old_equip = n(current, "EquipItemSlotIndex");
             let preserve = matches!(req.text("IsPreserve"), "True" | "true" | "1");
+            if action == "equip_rune" && old_equip > 0 && req.number("EquipItemSlotIndex", 0)? == old_equip {
+                return Err(rule("AlreadyEquippedRune"));
+            }
+            if old_equip > 0 && !preserve {
+                let locked: Option<i32> = sqlx::query_scalar("SELECT locked FROM equip_items WHERE account_id=? AND slot_index=?")
+                    .bind(account).bind(old_equip).fetch_optional(&mut *db).await?;
+                // The native UI disables deletion for locked Punishment runes.
+                // Enforce that rule on the server as well.
+                if locked.is_some_and(|value| value != 0) {
+                    return Err(rule(if action == "equip_rune" { "FailRemoveEquipItem" } else { "NotFreeKeepRune" }));
+                }
+            }
             let mut rewards = Rewards::default();
             if old > 0 {
                 if preserve {
@@ -91,7 +103,7 @@ pub(super) async fn execute(
                 new_id = req.number("ItemIndex", 0)?;
                 new_equip = req.number("EquipItemSlotIndex", 0)?;
                 let data = if new_equip > 0 {
-                    let eq = punishment::available(db, account, new_equip).await?;
+                    let eq = punishment::for_equipping(db, account, new_equip).await?;
                     if eq.item_index as i64 != new_id {
                         return Err(rule("InvalidRune"));
                     }
@@ -102,7 +114,7 @@ pub(super) async fn execute(
                     data
                 } else {
                     let data = row(state, "RuneItem", &[("ItemIndex", new_id)])?;
-                    let consumed = item::consume(db, account, new_id as i32, 1).await?;
+                    let consumed = move_inventory_rune_to_page(db, account, new_id as i32).await?;
                     out["ItemResults"] = json!([consumed]);
                     data
                 };
@@ -133,6 +145,15 @@ pub(super) async fn execute(
     out["HeroInfo"] = hero::info(db, account, hero_index).await?;
     out["HeroRunePageInfos"] = details["HeroRunePageInfos"].clone();
     Ok(out)
+}
+// A rune remains owned when it moves onto a page. Preserve the stack's lock
+// and battle reservations while allowing this non-destructive transfer.
+async fn move_inventory_rune_to_page(db: &mut SqliteConnection, account: i64, index: i32) -> Result<Value> {
+    let reserved = crate::api::battle::entry_costs::held(db, account, "Item", index as i64).await?;
+    let row = sqlx::query("UPDATE items SET count=count-1 WHERE account_id=? AND item_index=? AND count>=? RETURNING count,locked")
+        .bind(account).bind(index).bind(1 + reserved).fetch_optional(&mut *db).await?
+        .ok_or_else(|| rule("RuneItemNotOwned"))?;
+    Ok(json!({"ItemIndex":index,"AddCount":-1,"NewCount":row.get::<i32,_>("count"),"Locked":row.get::<i32,_>("locked"),"AddBoosterCount":0,"AddNPCBoosterCount":0,"AddBonusAssignedItemPercent":0,"IsFirstClearReward":false}))
 }
 fn new_page(hero: i32, page: i64, state: &AppState) -> Vec<Value> {
     (1..=state.tables.hero_shop.constant("MaxRuneSlotNum",5)).map(|slot|json!({"HeroIndex":hero,"RunePage":page,"SlotNum":slot,"EquipItemSlotIndex":0,"ItemIndex":0})).collect()

@@ -84,6 +84,13 @@ partial class Program {
             if(costumes.TryGetValue(key,out var existing) && CTSnapshot(existing)!=CTSnapshot(row))throw new InvalidOperationException("Light costume index collision: "+key);
             costumes[key]=row;
         }
+        var honor=rules["HonorShop"]!;
+        var honorIds=honor["CostumeIndices"]!.AsArray().Select(v=>v!.GetValue<int>()).ToHashSet();
+        if(honorIds.Count!=80 || !costumes.Values.Where(c=>((string)CTMember(c,"BodyPrefix")).Contains("GloryLeague")).Select(c=>(int)CTKey(c)).ToHashSet().SetEquals(honorIds))throw new InvalidOperationException("Honor costume roster does not match native variants");
+        foreach(var id in honorIds) {
+            var row=costumes[id.ToString()];
+            if(Convert.ToInt64(CTMember(row,"ReqBuyGem"))!=honor["RubyPrice"]!.GetValue<int>() || !(bool)CTMember(row,"IsBuy") || (string)CTMember(row,"Group")!=honor["GroupName"]!.GetValue<string>())throw new InvalidOperationException("Honor costume sale mismatch: "+id);
+        }
         var roster=rules["HeroIndices"]!.AsArray().Select(x=>x!.GetValue<int>()).Order().ToArray();
         foreach(var key in new[]{"DarkCostumeIndices","LightCostumeIndices"}) {
             var ids=rules[key]!.AsArray().Select(x=>x!.GetValue<int>()).ToArray();
@@ -113,6 +120,16 @@ partial class Program {
             if(name=="Item")foreach(var row in rows.Values.Where(r=>CTKey(r).ToString()==rules["LightTicketItemIndex"]!.ToString()))if(CTSnapshot(CTCall(reread,"GetDataByCode",CTMember(row,"Code")))!=expected[CTKey(row).ToString()!])throw new InvalidOperationException("Native item code lookup mismatch");
             Save(relative,baked);
         }
+        var groups=ReadRows("CostumeGroup",out var groupContainer,out var groupBytes);
+        foreach(var json in rules["NewCostumeGroups"]!.AsArray()) {
+            var row=JsonSerializer.Deserialize(json!.ToJsonString(),assembly.GetType("NShared.CostumeGroupData")!)!;var key=CTKey(row).ToString()!;
+            if(groups.TryGetValue(key,out var existing) && CTSnapshot(existing)!=CTSnapshot(row))throw new InvalidOperationException("Honor costume group index collision");
+            groups[key]=row;
+        }
+        WriteRows("CostumeGroup",groupContainer,groupBytes,groups);
+        var groupCheck=Activator.CreateInstance(groupContainer.GetType())!;
+        CTCall(CTMember(groupCheck,"Packer"),"Deserialize",outputs["TableJit/CostumeGroupTable.jit"]);
+        if((string)CTMember(CTCall(groupCheck,"GetDataByGroupName",honor["GroupName"]!.GetValue<string>()),"GroupName")!=honor["GroupName"]!.GetValue<string>())throw new InvalidOperationException("Honor shop group lookup missing");
         // Resolve the exact native model and UI entries used by every choice.
         var bundlePath=Path.Combine(patch,"Assetbundle","BundlePack.bin");
         if(File.Exists(bundlePath) && CTHash(File.ReadAllBytes(bundlePath))!=rules["AssetEvidence"]!["BundlePackSha256"]!.GetValue<string>())
@@ -173,6 +190,7 @@ partial class Program {
         }
         foreach(var pair in metadata)outputs[pair.Key]=JsonSerializer.SerializeToUtf8Bytes(pair.Value,new JsonSerializerOptions{WriteIndented=true});
         Console.WriteLine("Verified 102 Darkness choices, 102 Light choices, 73 new Light rows, complete native table lookups and preserved localization entries.");
+        Console.WriteLine("Verified 80 League of Honor costume variants in the costume shop at 10,000 Rubies, with native group lookup and localized label.");
         if(verifyOnly)return;
         Directory.CreateDirectory(staged);
         foreach(var pair in outputs){var dest=Path.Combine(staged,pair.Key);Directory.CreateDirectory(Path.GetDirectoryName(dest)!);File.WriteAllBytes(dest,pair.Value);}
