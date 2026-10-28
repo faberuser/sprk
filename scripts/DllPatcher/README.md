@@ -24,6 +24,17 @@ Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits
 `--costume-tickets-only` installs their native Costume/CostumeGroup rows and
 localized shop group alongside the existing ticket data. The server consumes
 the same sale overrides at startup; its League of Honor item shop is retained.
+This mode also restores Dressing Room browsing after native getter resets and
+replaces the obsolete local Light/LoH visibility filter. LoH costumes appear in
+the Dressing Room for purchase; unowned Light costumes remain ticket-only and
+owned Light costumes remain visible for equipment. The Light label is simply
+`Light Costume`. The full release build runs this mode and its verifier, including
+execution of the patched visibility and ownership methods against the roster.
+The same rules enable Ashen costumes for Dark Lord Kasel (8408), Fallen Frey
+(8508), and Rebel Clause (8307) in the shop and Dressing Room at 3,000 Rubies.
+Their dedicated tickets (600066, 600067, 600068 respectively) remain valid.
+Table baking reads original backing fields so patched UI getters cannot change
+unrelated costume data.
 
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
 inside gear awakening, then compacts that material grid. It retains the native

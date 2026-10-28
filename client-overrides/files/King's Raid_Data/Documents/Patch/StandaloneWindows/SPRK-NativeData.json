@@ -7,7 +7,7 @@
       "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "a37487b863b92160947d7b7bf1e47944421e625812aa0db10f3cac42678b0dee",
+      "sha256": "e284a26eb3ed6cca81b1db0d6309adcd3077683b851fb2f42e96c69d9da958be",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
     "TableJit/AccessoryCostumeTable.jit": {
@@ -23,7 +23,7 @@
       "originalSha256": "6e75d37fab725eab0a901739b518090c095fa93e9178d87f5b66a66a4a62f90b"
     },
     "TableJit/CostumeTable.jit": {
-      "sha256": "938dd58cf3add8b0820f2706954cf09ff5558243c9cc76e2ffc638209621668a",
+      "sha256": "1e9cd4a5c9c8040ea54b0987bbd76c5c7cc40cfc4aeb318a43299a5287da8b42",
       "originalSha256": "a7180625258d920e309d47dea8a2ed76335db47bbb1d43fdeee3ee58f677dd22"
     },
     "TableJit/CraftItemTable.jit": {

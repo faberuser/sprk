@@ -4,7 +4,7 @@
   "sourcePayloadSha256": "d529f0bbecad99e17d08139600f381d06fc79f727ffa4150209b658b3a366e0b",
   "files": {
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "a37487b863b92160947d7b7bf1e47944421e625812aa0db10f3cac42678b0dee",
+      "sha256": "e284a26eb3ed6cca81b1db0d6309adcd3077683b851fb2f42e96c69d9da958be",
       "originalSha256": "cb79850afb990b5aa9de9539e717f20fe0d4010b07dd14bfbd4659794515fd60"
     },
     "TableJit/BattleDefineTable.jit": {

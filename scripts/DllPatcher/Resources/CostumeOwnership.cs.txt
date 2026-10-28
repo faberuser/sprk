@@ -1,6 +1,31 @@
 // Client ownership methods restored after legacy preview overrides, with the
 // local direct-sale policy for non-default outfits. Ownership is never fabricated.
 
+namespace NGame2.NUI.NWindow.NCustomizing {
+using NGame2.NAccount;
+using NShared;
+using NVespa.NSingleton;
+public class HeroCostumeViewWidget {
+    private bool IsShowCostume(CostumeData costumeData, HeroInfo heroInfo) {
+        if (costumeData == null) return false;
+        if (__SPRK_LIGHT_COSTUMES__)
+            return GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null;
+        if (!costumeData.IsCoupleCostume()) return true;
+        bool owned = GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null;
+        int equipped = heroInfo.CostumeIndex;
+        bool available = owned;
+        if (!available) {
+            var basics = GameRoot.Instance.CostumeDataContainer.GetCostumeDataListByHeroStar(heroInfo.HeroIndex, (int)heroInfo.Star, true);
+            for (int i = 0; i < basics.Count; i++)
+                if (basics[i].CostumeIndex == costumeData.CostumeIndex) available = true;
+        }
+        if (costumeData.IsBonusCostume()) return available && equipped == costumeData.CostumeIndex;
+        foreach (int bonus in costumeData.BonusCostumeIndices)
+            if (equipped == bonus) return false;
+        return true;
+    }
+}}
+
 namespace NGame2.NUtil.NCostume {
 using System;
 using System.Collections.Generic;
@@ -37,7 +62,7 @@ public class HeroCostume : BaseCostume {
                 {
                     if (checkHeroOwn && cachedHeroInfo == null) return CostumeState.NeedHero;
                     return GlobalAutoBehaviour<AccountManager>.instance.CostumeManager.Get(costumeData.CostumeIndex) != null
-                        ? CostumeState.Owned : CostumeState.Buyable;
+                        ? CostumeState.Owned : (__SPRK_LIGHT_COSTUMES__ ? CostumeState.CannotBuy : CostumeState.Buyable);
                 }
 				if (costumeData.CostumeType != EHeroCostumeType.Legend)
 				{

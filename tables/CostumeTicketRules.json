@@ -3632,7 +3632,7 @@
   "Localization": {
     "ITEM_NAME_600100": "Light Costume Ticket",
     "SPRK_LIGHT_TICKET_DESC": "Select 1 Light Costume from the 102-hero roster. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
-    "SPRK_COSTUME_LIGHT_NAME": "Light Costume ({0})",
+    "SPRK_COSTUME_LIGHT_NAME": "Light Costume",
     "SPRK_COSTUME_LIGHT_OBTAIN": "Obtain from Light Costume Ticket.",
     "ITEM_DESC_600035": "Select 1 Darkness Costume from the 102-hero roster, including Rebel Clause, Dark Lord Kasel, Fallen Frey and Valance. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
     "ITEM_DESC_600100": "Select 1 Light Costume from the 102-hero roster. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
@@ -4449,6 +4449,39 @@
       "IsBuy": true,
       "IsOpen": true,
       "IsShow": true
+    },
+    {
+      "CostumeIndex": 8408,
+      "Group": "Ash1",
+      "ReqBuyGem": 3000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true,
+      "PreviewableWhenOwned": false
+    },
+    {
+      "CostumeIndex": 8508,
+      "Group": "Ash1",
+      "ReqBuyGem": 3000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true,
+      "PreviewableWhenOwned": false
+    },
+    {
+      "CostumeIndex": 8307,
+      "Group": "Ash1",
+      "ReqBuyGem": 3000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true,
+      "PreviewableWhenOwned": false
     }
   ],
   "AssetEvidence": {

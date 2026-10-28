@@ -1662,3 +1662,33 @@ async fn honor_costumes_sell_for_legend_rubies_without_replacing_honor_shop() {
         assert!(s.tables.hero_shop.shop_items.iter().any(|r|r["ShopIndex"]==15 && r["Index"]==row["Index"] && r["ItemIndex"]==row["ItemIndex"] && r["BuyCostTypeForItem"]==row["BuyCostTypeForItem"]));
     }
 }
+
+#[tokio::test]
+async fn ashen_costumes_sell_for_3000_rubies_and_retain_dedicated_tickets() {
+    let (s,u)=setup().await;
+    let account=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=10000,pay_gem=0 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    for (hero_index,costume,ticket) in [(84,8408,600066),(85,8508,600067),(83,8307,600068)] {
+        let row=&s.tables.hero_shop.costumes[&costume];
+        assert_eq!(row["Group"],"Ash1");assert_eq!(row["Buyable"],true);
+        assert_eq!(row["ReqBuyGem"],3000);assert_eq!(row["ReqBuyGold"],0);assert_eq!(row["ReqBuyMileage"],0);
+        let selector=s.tables.hero_shop.costume_selectors.iter().find(|r|r["ItemIndex"]==ticket).unwrap();
+        assert_eq!(selector["CostumeIndices"],serde_json::json!([costume]));
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,COALESCE((SELECT MAX(hero_id)+1 FROM heroes WHERE account_id=?),1),? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(account).bind(account).bind(hero_index).bind(account).bind(hero_index).execute(&s.db).await.unwrap();
+        let before=balance(&s,&u,"gem").await;
+        let request=|price|format!("HeroIndex={hero_index}&CostumeIndex={costume}&BuyGem={price}&BuyGold=0&BuyMileage=0");
+        let rejected=hero::buy_costume(State(s.clone()),form(&u,&request(2999))).await.unwrap().0;
+        assert_ne!(rejected["Result"],"Success");assert_eq!(balance(&s,&u,"gem").await,before);
+        let result=hero::buy_costume(State(s.clone()),form(&u,&request(3000))).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","{result}");assert_eq!(balance(&s,&u,"gem").await,before-3000);
+        let duplicate=hero::buy_costume(State(s.clone()),form(&u,&request(3000))).await.unwrap().0;
+        assert_eq!(duplicate["Result"],"AlreadyHaveCostume");assert_eq!(balance(&s,&u,"gem").await,before-3000);
+        // Exercise the original ticket as well as direct purchase.
+        sqlx::query("DELETE FROM costumes WHERE account_id=? AND costume_index=?").bind(account).bind(costume).execute(&s.db).await.unwrap();
+        put(&s,&u,ticket,1).await;
+        let claim=hero::use_costume_select_item(State(s.clone()),form(&u,&format!("ItemIndex={ticket}&CostumeIndex={costume}"))).await.unwrap().0;
+        assert_eq!(claim["Result"],"Success","{claim}");assert_eq!(count(&s,&u,ticket).await,0);
+        assert_eq!(balance(&s,&u,"gem").await,before-3000);
+    }
+}
