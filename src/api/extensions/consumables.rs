@@ -478,7 +478,7 @@ async fn flask(
         }
         let id = item::item_index(req, "ItemIndex")?;
         let data = row(state, "FlaskItem", &[("ItemIndex", id as i64)])?;
-        if n(data, "SourceType") != 1 || n(data, "RewardType") != 1 {
+        if !matches!((n(data,"Type"),n(data,"SourceType"),n(data,"RewardType")), (0,1,1) | (1,2,2)) {
             return Err(rule("InvalidItemType"));
         }
         out["ItemResult"] = item::consume(db, account, id, 1).await?;
@@ -497,17 +497,39 @@ pub(crate) async fn fill_flask(
     hero_id: i32,
     exp: i64,
 ) -> Result<Option<(Value, Vec<Value>)>> {
+    fill_flask_from_source(db,state,account,hero_id,exp,1).await
+}
+
+pub(crate) async fn fill_stamina_flask(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    hero_id: i32,
+    stamina: i64,
+) -> Result<Option<(Value, Vec<Value>)>> {
+    fill_flask_from_source(db,state,account,hero_id,stamina,2).await
+}
+
+async fn fill_flask_from_source(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    hero_id: i32,
+    amount: i64,
+    source: i64,
+) -> Result<Option<(Value, Vec<Value>)>> {
     let mut details = hero::details(db, account, hero_id).await?;
     let id = n(&details, "FlaskItemIndex");
-    if id == 0 || exp <= 0 {
+    if id == 0 || amount <= 0 {
         return Ok(None);
     }
     let r = row(state, "FlaskItem", &[("ItemIndex", id)])?;
-    if n(r, "SourceType") != 1 || n(r, "FlaskExp") <= 0 {
+    if n(r, "SourceType") != source || n(r, "FlaskExp") <= 0 ||
+        !matches!((n(r,"Type"),source,n(r,"RewardType")), (0,1,1) | (1,2,2)) {
         return Ok(None);
     }
     let before = n(&details, "FlaskExp");
-    let after = (before + exp).min(n(r, "FlaskExp"));
+    let after = (before + amount).min(n(r, "FlaskExp"));
     let mut rewards = Rewards::default();
     let mut filled = 0;
     if after >= n(r, "FlaskExp") {

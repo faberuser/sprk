@@ -1964,6 +1964,45 @@ async fn exp_flasks_reattach_same_type_until_stock_runs_out_and_persist() {
 }
 
 #[tokio::test]
+async fn cursed_ruby_flasks_equip_fill_from_stamina_cancel_and_reattach() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for id in [40101,40103,40105,40111,40113,40115] {
+        let row=s.tables.extensions.find("FlaskItem",&[("ItemIndex",id)]).unwrap();
+        let full=n(row,"PotionItemIndex") as i32;let capacity=n(row,"FlaskExp");
+        give(&s,a,id as i32,2).await;
+        let args=format!("HeroIndex=1&ItemIndex={id}");
+        let equipped=call(&s,&u,"item/use_flask_item",&args).await;
+        assert_eq!(equipped["Result"],"Success","{equipped}");assert_eq!(equipped["FlaskResult"]["ItemIndex"],id);
+        assert_eq!(equipped["ItemResult"]["NewCount"],1);
+        assert_ne!(call(&s,&u,"item/use_flask_item",&args).await["Result"],"Success");
+        let mut tx=s.db.begin().await.unwrap();
+        assert!(consumables::fill_flask(&mut tx,&s,a,1,capacity).await.unwrap().is_none());
+        let (progress,items)=consumables::fill_stamina_flask(&mut tx,&s,a,1,1).await.unwrap().unwrap();
+        assert_eq!(progress["Info"]["NewExp"],1);assert!(items.is_empty());tx.commit().await.unwrap();
+        let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let hero=login.heroes.iter().find(|h|h.hero_index==1).unwrap();
+        assert_eq!(hero.details["FlaskItemIndex"],id);assert_eq!(hero.details["FlaskExp"],1);
+        let cancelled=call(&s,&u,"item/cancel_flask_item","HeroIndex=1").await;
+        assert_eq!(cancelled["Result"],"Success");assert_eq!(cancelled["ItemResult"]["NewCount"],2);
+        assert_ne!(call(&s,&u,"item/cancel_flask_item","HeroIndex=1").await["Result"],"Success");
+        assert_eq!(call(&s,&u,"item/use_flask_item",&args).await["Result"],"Success");
+        for remaining in [1,0] {
+            let mut tx=s.db.begin().await.unwrap();
+            let (result,items)=consumables::fill_stamina_flask(&mut tx,&s,a,1,capacity).await.unwrap().unwrap();
+            assert_eq!(result["FilledFlaskIndex"],full);assert_eq!(result["FilledFlaskCount"],1);
+            assert_eq!(result["Info"]["ItemIndex"],if remaining==1 {id} else {0});
+            assert!(items.iter().any(|r|r["ItemIndex"]==full && r["AddCount"]==1));
+            tx.commit().await.unwrap();
+        }
+        let mut tx=s.db.begin().await.unwrap();
+        assert!(consumables::fill_stamina_flask(&mut tx,&s,a,1,capacity).await.unwrap().is_none());tx.commit().await.unwrap();
+    }
+    give(&s,a,40201,1).await;
+    assert_ne!(call(&s,&u,"item/use_flask_item","HeroIndex=1&ItemIndex=40201").await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=40201").bind(a).fetch_one(&s.db).await.unwrap(),1);
+}
+
+#[tokio::test]
 async fn exp_flask_replacement_preserves_partial_progress_and_can_be_cancelled_once() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

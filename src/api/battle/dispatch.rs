@@ -343,6 +343,7 @@ pub(super) async fn execute(
     let deferred = info["EntryCostHold"]["DeferredEntryCosts"] == true;
     if deferred {
         let mut receipt = info["EntryCostHold"].clone();
+        receipt["Heroes"]=json!(heroes);
         if let Some(costs) = receipt["VictoryEntryCosts"].as_array_mut() {
             for cost in costs {
                 cost["Amount"] = json!(n(cost, "Amount") / total * wins);
@@ -395,7 +396,9 @@ pub(super) async fn execute(
     out["EquipItemResults"] = json!([]);
     out["EquipItemInfos"] = json!([]);
     if !deferred && n(&info, "CostType") == 1 && wins > 0 {
-        out["ExpResult"] = dungeons::stamina_exp(db, s, a, n(&info, "Cost") / total * wins).await?;
+        let spent=n(&info, "Cost") / total * wins;
+        out["ExpResult"] = dungeons::stamina_exp(db, s, a, spent).await?;
+        entry_costs::fill_stamina_flasks(db,s,a,&mut json!({"Heroes":heroes}),spent,&mut out).await?;
     }
     out["TeamExpResult"] = out["ExpResult"].clone();
     info["State"] = json!(if cancel { "Cancel" } else { "Complete" });

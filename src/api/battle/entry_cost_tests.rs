@@ -11,6 +11,42 @@ async fn enable(s: &AppState, a: i64) {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn cursed_flasks_fill_once_from_paid_victories_and_never_refunded_losses() {
+    let (s,u)=setup().await;let a=account(&u);
+    crate::api::heroes::save_details(&mut s.db.acquire().await.unwrap(),a,1,&json!({"FlaskItemIndex":40111,"FlaskExp":0})).await.unwrap();
+    let progress=||async {n(&crate::api::heroes::details(&mut s.db.acquire().await.unwrap(),a,1).await.unwrap(),"FlaskExp")};
+    for deferred in [false,true] {
+        if deferred {enable(&s,a).await;}
+        sqlx::query("UPDATE user_info SET stamina=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        let args="ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
+        let before=progress().await;
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",args).await["Result"],"Success");
+        assert_eq!(progress().await,before);
+        let loss=call(&s,&u,"campaign/end_campaign",&format!("{args}&Completed=false&Star=0")).await;
+        assert_eq!(loss["Result"],"Success");assert_eq!(progress().await,before);
+        let begin=call(&s,&u,"campaign/begin_campaign",args).await;
+        assert_eq!(begin["Result"],"Success");
+        let cost=campaign::stamina_cost(campaign::dungeon(&s,&Request::parse(args.as_bytes()).unwrap()).unwrap(),1);
+        assert!(cost>0);
+        let end=call(&s,&u,"campaign/end_campaign",&format!("{args}&Completed=true&Star=3&AliveHeroIndices=[1]")).await;
+        assert_eq!(end["Result"],"Success","{end}");
+        assert_eq!(progress().await,before+cost);
+        assert!(end["FlaskResults"].as_array().unwrap().iter().any(|r|r["Info"]["HeroIndex"]==1 && r["Info"]["AddExp"]==cost));
+        let _=call(&s,&u,"campaign/end_campaign",&format!("{args}&Completed=true&Star=3&AliveHeroIndices=[1]")).await;
+        assert_eq!(progress().await,before+cost);
+    }
+    let before=progress().await;
+    let mut entry=json!({"Heroes":[1,1,999999],"FlaskStaminaSpent":0});let mut out=json!({});
+    let mut tx=s.db.begin().await.unwrap();
+    entry_costs::settle(&mut tx,&s,a,&mut entry,true,&mut out).await.unwrap();
+    tx.commit().await.unwrap();assert_eq!(progress().await,before);
+    let mut tx=s.db.begin().await.unwrap();let mut entry=json!({"Heroes":[1,1,999999]});
+    entry_costs::fill_stamina_flasks(&mut tx,&s,a,&mut entry,1,&mut out).await.unwrap();
+    entry_costs::fill_stamina_flasks(&mut tx,&s,a,&mut entry,1,&mut out).await.unwrap();
+    tx.commit().await.unwrap();assert_eq!(progress().await,before+1);
+}
 async fn balance(s: &AppState, a: i64, column: &str) -> i64 {
     sqlx::query_scalar(&format!(
         "SELECT {column} FROM user_info WHERE account_id=?"
@@ -745,6 +781,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
     let (s, u) = setup().await;
     let a = account(&u);
     enable(&s, a).await;
+    crate::api::heroes::save_details(&mut s.db.acquire().await.unwrap(),a,1,&json!({"FlaskItemIndex":40101,"FlaskExp":0})).await.unwrap();
     put(
         &mut s.db.acquire().await.unwrap(),
         a,
@@ -765,6 +802,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
     let canceled = call(&s, &u, "dispatch/cancel_dispatch", &slot_args).await;
     assert_eq!(canceled["Result"], "Success", "{canceled}");
     assert_eq!(balance(&s, a, "stamina").await, before);
+    assert_eq!(n(&crate::api::heroes::details(&mut s.db.acquire().await.unwrap(),a,1).await.unwrap(),"FlaskExp"),0);
     assert_eq!(
         entry_costs::held(&mut s.db.acquire().await.unwrap(), a, "Stamina", 1)
             .await
@@ -784,11 +822,14 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
     assert_eq!(canceled["Result"], "Success", "{canceled}");
     assert_eq!(canceled["DispatchBattleInfo"]["WinCount"], 1);
     assert_eq!(balance(&s, a, "stamina").await, before - cost);
+    assert_eq!(n(&crate::api::heroes::details(&mut s.db.acquire().await.unwrap(),a,1).await.unwrap(),"FlaskExp"),cost);
+    assert!(canceled["FlaskResults"].as_array().unwrap().iter().any(|r|r["Info"]["AddExp"]==cost));
     assert_ne!(
         call(&s, &u, "dispatch/cancel_dispatch", &slot_args).await["Result"],
         "Success"
     );
     assert_eq!(balance(&s, a, "stamina").await, before - cost);
+    assert_eq!(n(&crate::api::heroes::details(&mut s.db.acquire().await.unwrap(),a,1).await.unwrap(),"FlaskExp"),cost);
 }
 
 #[tokio::test]

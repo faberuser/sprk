@@ -223,7 +223,11 @@ pub(super) async fn charge(
         note(entry, "Stamina", kind, amount);
         Ok(result)
     } else {
-        dungeons::charge(db, s, a, kind, amount).await
+        let result=dungeons::charge(db, s, a, kind, amount).await?;
+        if kind==1 && amount>0 {
+            entry["FlaskStaminaSpent"]=json!(n(entry,"FlaskStaminaSpent")+amount);
+        }
+        Ok(result)
     }
 }
 
@@ -329,6 +333,10 @@ pub(crate) async fn settle(
         return Ok(());
     }
     let Some(costs) = entry["VictoryEntryCosts"].as_array().cloned() else {
+        if won {
+            let spent=n(entry,"FlaskStaminaSpent");
+            fill_stamina_flasks(db,s,a,entry,spent,out).await?;
+        }
         // Accounts without deferred PvE costs pay this gauge on entry. Quitting
         // does not send EndCampaign, so lobby/login abandonment must restore the
         // first story attempt too. Farming remains locked until that fight wins.
@@ -444,6 +452,7 @@ pub(crate) async fn settle(
     }
     if exp_cost > 0 {
         out["ExpResult2"] = dungeons::stamina_exp(db, s, a, exp_cost).await?;
+        fill_stamina_flasks(db,s,a,entry,exp_cost,out).await?;
     }
     if let Some(state) = entry["EntryCostGate"]["State"].as_str() {
         if state != "godking" {
@@ -455,6 +464,30 @@ pub(crate) async fn settle(
         }
     }
     entry["EntryCostsSettled"] = json!(true);
+    Ok(())
+}
+
+pub(super) async fn fill_stamina_flasks(
+    db:&mut SqliteConnection,s:&AppState,a:i64,entry:&mut Value,spent:i64,out:&mut Value,
+) -> Result<()> {
+    if spent<=0 || entry["FlaskStaminaSettled"]==true || !entry["PresetStoryParty"].is_null() {
+        return Ok(());
+    }
+    let heroes:Vec<Value>=if let Some(ids)=entry["Heroes"].as_array() {ids.clone()}
+        else {read_json(entry["HeroIndices"].as_str().unwrap_or("[]"))?};
+    let mut seen=BTreeSet::new();
+    for id in heroes.iter().filter_map(Value::as_i64) {
+        if id<=0 || id>i32::MAX as i64 || !seen.insert(id) ||
+            entry["LoanedHeroIndices"].as_array().is_some_and(|ids|ids.contains(&json!(id))) {continue;}
+        let owned:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(a).bind(id).fetch_one(&mut *db).await?;
+        if !owned {continue;}
+        if let Some((flask,items))=crate::api::extensions::consumables::fill_stamina_flask(db,s,a,id as i32,spent).await? {
+            let mut results=out["FlaskResults"].as_array().cloned().unwrap_or_default();results.push(flask);out["FlaskResults"]=json!(results);
+            let mut results=out["FlaskItemResults"].as_array().cloned().unwrap_or_default();results.extend(items);out["FlaskItemResults"]=json!(results);
+        }
+    }
+    entry["FlaskStaminaSettled"]=json!(true);
     Ok(())
 }
 
