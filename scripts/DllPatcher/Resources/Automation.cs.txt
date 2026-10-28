@@ -161,6 +161,12 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="essence-craft-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("essence-craft-"))
+                    throw new InvalidOperationException("Essence crafting fixture requires isolated Login and essence-craft profile");
+                var results=ProbeEssenceCraft();reply=Snapshot(cmd.id);reply.materials.AddRange(results);Write(reply);return;
+            }
             if(cmd.action=="inventory-rune-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Inventory rune probe requires isolated Login");
                 ProbeInventoryRunes();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native inventory prefab exposes Normal Rune and Rune of Blasphemy subcategories, and both select correctly.");Write(reply);return;
@@ -828,6 +834,57 @@ public sealed class SprkAutomation : MonoBehaviour
             catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
         }
         busy=false;Write(failure);
+    }
+    List<object> ProbeEssenceCraft() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        var managersProperty=account.GetType().GetProperty("AccountManagers",flags);
+        var managers=managersProperty.GetValue(account,null);
+        var userField=managers.GetType().GetField("UserManager");var itemsField=managers.GetType().GetField("ItemManager");
+        object oldUser=userField.GetValue(managers), oldItems=itemsField.GetValue(managers);
+        var results=new List<object>();
+        try {
+            var user=new NShared.UserInfo { Gold=700000000 };
+            userField.SetValue(managers,new NGame2.NAccount.UserManager(account,user,new NShared.PlayerMiscInfo(),new NShared.PlayerGuildPointInfo()));
+            var items=new NGame2.NAccount.UserItemManager();itemsField.SetValue(managers,items);
+            // Exercise the user's native 975-ticket / 30-required case for every essence.
+            foreach(int index in new[]{20101,20102,20103,20104,20105,20107,20106}) {
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975}});
+                var selected=NShared.GameRoot.Instance.ItemDataContainer.GetData(index);
+                NGame2.NUI.NWindow.CraftItemSelectMessagePopup.Open((a,b,c)=>{throw new Exception("Read-only fixture must not craft");},selected,30);
+                var popup=UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.CraftItemSelectMessagePopup>().Single(p=>p.IsOpen());
+                if(popup.GetNumber()!=30 || !popup.MaterialUi.Button_Craft.isEnabled)
+                    throw new Exception("Essence "+index+": native quantity="+popup.GetNumber()+", enabled="+popup.MaterialUi.Button_Craft.isEnabled);
+                var slots=(System.Collections.IEnumerable)popup.GetType().GetField("_materialItemComponentList",flags).GetValue(popup);
+                var material=slots.Cast<NGame2.NUI.NComponent2.CraftItemMaterialComponent>().Single(c=>c.GetCurrentItemIndex()==index-100);
+                if(!material.Label_Count.text.Contains("975/300"))throw new Exception("Native essence material balance incorrect: "+material.Label_Count.text);
+                var icon=NGame2.NUI.NComponent2.HeroAwakeItemComponent.PrefabAuto.Factory.Create(popup.transform);
+                var open=Type.GetType("SprkHeroMaterialTickets, SprkHeroMaterialTickets",true).GetMethod("Open");
+                open.Invoke(null,new object[]{icon,selected,30,0,false,NShared.HeroAwakeType.Transcend,null});
+                if(!icon.Sprite_New.gameObject.activeSelf)throw new Exception("Ticket-only essence plus icon missing: "+index);
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=9}});icon.RefreshItemCount(30,0);
+                if(icon.Sprite_New.gameObject.activeSelf)throw new Exception("Plus visible with insufficient fragment tickets");
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=5},new NShared.ItemInfo{ItemIndex=index-100,Count=5}});icon.RefreshItemCount(30,0);
+                if(!icon.Sprite_New.gameObject.activeSelf)throw new Exception("Mixed fragments/tickets plus icon missing");
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975,Locked=1}});icon.RefreshItemCount(30,0);
+                if(icon.Sprite_New.gameObject.activeSelf)throw new Exception("Locked tickets incorrectly enable plus icon");
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=index-100,Count=10}});icon.RefreshItemCount(30,0);
+                if(!icon.Sprite_New.gameObject.activeSelf)throw new Exception("Loose fragment plus icon regressed");
+                icon.RefreshItemCount(30,30);if(icon.Sprite_New.gameObject.activeSelf)throw new Exception("Plus visible after essence requirement met");
+                NVespa.NPrefab2.FactoryBase.SafeReleaseComponent(ref icon);
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975}});
+                results.Add("PASS: native essence "+index+" quantity=30, fragments=975/300, Craft enabled; plus icon ticket/mixed/locked/insufficient/owned checks passed");
+                popup.OnClickMax();if(popup.GetNumber()!=97)throw new Exception("Native Max does not count tickets");
+                popup.Close();
+            }
+            items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=25}});
+            NGame2.NUI.NWindow.CraftItemSelectMessagePopup.Open((a,b,c)=>{},NShared.GameRoot.Instance.ItemDataContainer.GetData(20106),30);
+            var limited=UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.CraftItemSelectMessagePopup>().Single(p=>p.IsOpen());
+            if(limited.GetNumber()!=2)throw new Exception("Native prefill did not cap to affordable material quantity");
+            results.Add("PASS: native shortage clamp: 25 tickets => quantity 2");limited.Close();
+        } finally { userField.SetValue(managers,oldUser);itemsField.SetValue(managers,oldItems); }
+        return results;
     }
     void ProbeInventoryRunes() {
         var prefab=VespaResource.Load<GameObject>(NGame2.NUI.NWindow.NInventory.InvenList.PrefabPath);

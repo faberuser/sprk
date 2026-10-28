@@ -51,6 +51,46 @@ Their dedicated tickets (600066, 600067, 600068 respectively) remain valid.
 Table baking reads original backing fields so patched UI getters cannot change
 unrelated costume data.
 
+`--hero-material-tickets-only` lets players tap fragment/essence material icons
+on the hero awakening page and the required-material row in Hall of Heroes /
+Room of Ordeals to use owned selection tickets. Matching tickets are found from
+their reward pools; multiple eligible tickets open a ticket chooser.
+The native use popup offers only the tapped material and retains its quantity
+limit and explicit confirmation. The quantity starts at the missing material count,
+capped by owned tickets and the 1,000-ticket limit; it starts at zero when enough
+materials are already owned. Players can edit the quantity before confirming.
+The single material is preselected through the native icon click handler, so
+players can confirm immediately without clicking its icon first.
+Ordinary inventory ticket popups keep their native defaults.
+Essence crafting counts loose fragments plus owned, unlocked tickets whose
+reward pools contain the required fragment. The available count, Max quantity,
+and Craft button all use that combined balance.
+The essence material's native “+” crafting indicator also counts those tickets,
+including mixtures of loose fragments and tickets, and refreshes as balances
+change. It stays hidden when the essence requirement is met or fewer than one
+craft's ingredients are available. When opened from a material
+shortcut, the quantity starts at the required essence amount, capped by the
+native material/gold limits. Craft redeems only the fragment shortage through
+the native ticket endpoint (up to 1,000 per request), applies confirmed balances,
+then invokes normal crafting. Failed redemption prevents crafting; any fragments
+already redeemed remain in inventory. Other recipes keep their native behavior.
+Recipe matching ignores the native JIT's empty ingredient slots. After staging
+the hero-ticket and automation patches, run
+`python scripts/client/verify_essence_crafting.py` for an isolated Unity check
+of all seven actual essence recipes, visible combined balances, required
+quantities, Max, Craft availability, and material shortage clamping. It uses
+temporary in-memory balances at Login and never redeems tickets or crafts.
+Material counts stay visible. Native inventory observers
+refresh counts and awakening availability after use. With no matching ticket,
+essences retain the native crafting action; fragments show an unavailable-ticket
+notice because they cannot be crafted. Transcendence stones, limit break,
+and other screens retain their native behavior.
+`--verify-hero-material-tickets` checks the scoped hooks, signatures and observer;
+installation also runs isolated service/UI probes against the exact helper source
+for successful/failed use, duplicate requests/responses, stale sessions, depleted
+tickets, multiple ticket choices, and fallback behavior. These probes do not use
+player inventory. Both installation and verification run in `--build-release`.
+
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
 inside gear awakening, then compacts that material grid. It retains the native
 eligibility and selected-item checks and restores items on later refreshes.

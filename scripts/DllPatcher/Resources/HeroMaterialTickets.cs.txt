@@ -1,0 +1,137 @@
+using System;
+using System.Collections.Generic;
+using Math = System.Math;
+using NGame2.NAccount;
+using NGame2.NUI;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NBattle;
+using NShared;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+
+public static class SprkHeroMaterialTickets {
+    public static int InitialCount(int required, int owned, int tickets) {
+        return (int)Math.Min(Math.Max(0L, (long)required - owned), Math.Min(1000L, Math.Max(0, tickets)));
+    }
+    public static void Prefill(SelectionItemUsePopup popup, SelectionItemUsePopup.IListener listener, List<ItemIconComponent> choices) {
+        var use = listener as UseTicket;
+        if (use == null || popup.InputSelectedCount == null) return;
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        var owned = account.ItemManager.Get(use.material);
+        var tickets = account.ItemManager.Get(use.ticket);
+        popup.InputSelectedCount.value = InitialCount(use.required, owned == null ? 0 : owned.Count,
+            tickets == null ? 0 : tickets.Count).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        popup.OnChangeInputSelectCount();
+        if (choices != null && choices.Count == 1 && choices[0] != null && choices[0].ItemIndex == use.material)
+            ((ItemIconComponent.Listener)popup).OnClick(choices[0]);
+    }
+    public static bool Matches(int target, int[] rewards) {
+        if (target <= 0 || rewards == null) return false;
+        return Array.IndexOf(rewards, target) >= 0;
+    }
+    public static bool IsMaterial(ItemData item, HeroAwakeType kind) {
+        if (item == null || (kind != HeroAwakeType.Awaken && kind != HeroAwakeType.Transcend)) return false;
+        foreach (var row in GameRoot.Instance.CreatureAwakeChallengeItemDataContainer.GetAllData())
+            for (int slot = 1; slot <= 3; slot++)
+                if (item.Code == (kind == HeroAwakeType.Awaken ? row.GetItemCode(slot) : row.GetTranscendItemCode(slot))) return true;
+        return false;
+    }
+    public static List<Tuple<ItemData,int>> Tickets(int target) {
+        var result = new List<Tuple<ItemData,int>>();
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        if (account == null) return result;
+        foreach (var ticket in GameRoot.Instance.ItemDataContainer.GetAllData()) {
+            if (ticket == null || ticket.Type != ItemType.PackageSelectItem) continue;
+            var owned = account.ItemManager.Get(ticket.Index);
+            if (owned == null || owned.Count <= 0 || owned.Locked != 0) continue;
+            var row = GameRoot.Instance.SelectItemDataContainer.GetData(ticket.Code);
+            if (row != null && row.SelectType != SelectItemPopupType.RuneSelectItem && Matches(target, row.ItemIndices))
+                result.Add(new Tuple<ItemData,int>(ticket, owned.Count));
+        }
+        return result;
+    }
+    // Replaces only HeroStatPanel's material Open calls. Other screens retain their native listeners.
+    public static void Open(HeroAwakeItemComponent component, ItemData material, int required, int owned,
+        bool canStart, HeroAwakeType kind, Action<ItemIconComponent> fallback) {
+        component.Open(material, required, owned, canStart, kind, fallback);
+        if (!IsMaterial(material, kind)) return;
+        component.ShowCountLabel(true);
+        int indicator = SprkEssenceCraftTickets.Indicator(material.Code, required, owned);
+        if (indicator >= 0) UIHelper.EnableGameObject(component.Sprite_New, indicator == 1);
+        component.SetListener(TicketClick(material, required, fallback));
+    }
+    public static void OpenHall(AwakeChallengeItemComponent component, ItemData material, long required,
+        int owned, Action<ItemIconComponent> fallback) {
+        component.Open(material, required, owned, fallback);
+        if (!IsMaterial(material, HeroAwakeType.Awaken) && !IsMaterial(material, HeroAwakeType.Transcend)) return;
+        component.SetListener(TicketClick(material, (int)Math.Min(int.MaxValue, Math.Max(0L, required)), fallback));
+    }
+    static Action<ItemIconComponent> TicketClick(ItemData material, int required, Action<ItemIconComponent> fallback) {
+        return icon => {
+            var tickets = Tickets(material.Index);
+            if (tickets.Count == 0) {
+                if (IsMaterial(material, HeroAwakeType.Awaken))
+                    MessagePopup.Open("Fragment Tickets", "You have no matching fragment tickets. Fragments cannot be crafted.");
+                else if (fallback != null) fallback(icon);
+                return;
+            }
+            if (tickets.Count == 1) { Show(tickets[0].Item1, material, required); return; }
+            SelectItemMessagePopup.Open2("Material Tickets", "Choose a ticket for " + material.Name + ".", tickets,
+                (popup, index, count) => {
+                    var ticket = GameRoot.Instance.ItemDataContainer.GetData(index);
+                    if (ticket != null) Show(ticket, material, required);
+                });
+        };
+    }
+    static void Show(ItemData ticket, ItemData material, int required) {
+        var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        var owned = account.ItemManager.Get(ticket.Index);
+        var row = GameRoot.Instance.SelectItemDataContainer.GetData(ticket.Code);
+        if (requester == null || owned == null || owned.Count <= 0 || row == null || !Matches(material.Index, row.ItemIndices)) return;
+        var target = account.ItemManager.Get(material.Index);
+        SelectionItemUsePopup.Open(new SelectionPopupItemInfo(ticket, owned.Count),
+            new List<SelectionPopupItemInfo> { new SelectionPopupItemInfo(material, target == null ? 0 : target.Count) },
+            new UseTicket(ticket.Index, material.Index, required, requester.SessionKey));
+    }
+    sealed class UseTicket : SelectionItemUsePopup.IListener {
+        public readonly int ticket, material, required;
+        readonly string session;
+        bool waiting;
+        public UseTicket(int ticket, int material, int required, string session) { this.ticket = ticket; this.material = material; this.required = required; this.session = session; }
+        public void OnClickOk(SelectionItemUsePopup popup, int usingItemIndex, int selecteditemIndex, int itemCount) {
+            if (waiting || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > 1000) return;
+            var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+            var account = GlobalAutoBehaviour<AccountManager>.instance;
+            if (requester == null || requester.SessionKey != session) { popup.Close(); return; }
+            var owned = account.ItemManager.Get(ticket);
+            if (owned == null || owned.Count < itemCount) { popup.Close(); return; }
+            waiting = true;
+            bool completed = false;
+            UIHelper.EnableButton(popup.ButtonOk, false);
+            requester.Request(new NShared.UsePackageSelectItem.Request { ItemIndex = ticket, SelectItemIndex = material, ItemCount = itemCount },
+                (NShared.UsePackageSelectItem.Response response) => {
+                    if (completed) return;
+                    completed = true;
+                    waiting = false;
+                    if (SingletonUpdater<WebServiceManager>.instance.Requester != requester || requester.SessionKey != session) return;
+                    if (popup != null) UIHelper.EnableButton(popup.ButtonOk, true);
+                    if (response == null) { if (popup != null) popup.Close(); return; }
+                    if (response.BaseResult != BaseResultType.Success || response.Result != NShared.UsePackageSelectItem.ResultType.Success) {
+                        MessagePopup.OpenError(response.Result); return;
+                    }
+                    // Native observers refresh the hero's material counts and awaken button.
+                    account.ItemManager.Apply(response.ItemResult);
+                    account.ItemManager.Apply(response.RewardItemResult);
+                    if (popup != null) popup.Close();
+                    var reward = new BaseRewardPopup.PopupOpenData();
+                    reward.SetItemResultInfos(new ItemResultInfo[] { response.RewardItemResult });
+                    BaseRewardPopup.OpenPopup(reward, false);
+                });
+        }
+    }
+}
+
+

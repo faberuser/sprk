@@ -1,0 +1,137 @@
+public static class SprkEssenceCraftTickets {
+    static Crafting pending;
+    public static NShared.CraftItemData.MaterialItemInfo SingleMaterial(System.Collections.Generic.List<NShared.CraftItemData.MaterialItemInfo> slots) {
+        NShared.CraftItemData.MaterialItemInfo result = null;
+        foreach (var slot in slots) {
+            if (slot == null || (System.String.IsNullOrWhiteSpace(slot.ItemCode) && slot.ItemCount == 0)) continue;
+            if (System.String.IsNullOrWhiteSpace(slot.ItemCode) || slot.ItemCount <= 0 || result != null) return null;
+            result = slot;
+        }
+        return result;
+    }
+    static bool Recipe(NGame2.NUI.NWindow.CraftItemSelectMessagePopup popup, out NShared.ItemData essence,
+        out NShared.ItemData fragment, out int price) {
+        return RecipeData(popup.CraftUi.SelectedData, out essence, out fragment, out price);
+    }
+    static bool RecipeData(NShared.CraftItemData row, out NShared.ItemData essence,
+        out NShared.ItemData fragment, out int price) {
+        essence = null; fragment = null; price = 0;
+        if (row == null || !row.IsOpen || !row.Countable || row.ReqTime != 0 || row.ResultItemCount <= 0) return false;
+        var items = NShared.GameRoot.Instance.ItemDataContainer;
+        essence = items.GetDataByCode(row.ItemCode);
+        if (!SprkHeroMaterialTickets.IsMaterial(essence, NShared.HeroAwakeType.Transcend)) return false;
+        var material = SingleMaterial(row.GetMaterialItemList());
+        if (material == null) return false;
+        fragment = items.GetDataByCode(material.ItemCode);
+        price = material.ItemCount;
+        return SprkHeroMaterialTickets.IsMaterial(fragment, NShared.HeroAwakeType.Awaken);
+    }
+    // -1 preserves native behavior for non-essence material icons.
+    public static int Indicator(string code, long required, int owned) {
+        var items = NShared.GameRoot.Instance.ItemDataContainer;
+        if (!SprkHeroMaterialTickets.IsMaterial(items.GetDataByCode(code), NShared.HeroAwakeType.Transcend)) return -1;
+        if (owned >= required) return 0;
+        var recipes = NShared.GameRoot.Instance.CraftItemDataContainer.GetCategoryData(code);
+        if (recipes == null) return 0;
+        var manager = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.ItemManager;
+        foreach (var recipe in recipes) {
+            NShared.ItemData essence, fragment; int price;
+            if (!RecipeData(recipe, out essence, out fragment, out price)) continue;
+            long available = manager.GetItemCount(fragment.Code);
+            foreach (var ticket in SprkHeroMaterialTickets.Tickets(fragment.Index)) available += ticket.Item2;
+            if (available >= price) return 1;
+        }
+        return 0;
+    }
+    public static int Available(NGame2.NAccount.UserItemManager manager, string code, NGame2.NUI.NWindow.CraftItemSelectMessagePopup popup) {
+        int loose = manager.GetItemCount(code);
+        NShared.ItemData essence, fragment; int price;
+        if (!Recipe(popup, out essence, out fragment, out price) || fragment.Code != code) return loose;
+        long total = loose;
+        foreach (var ticket in SprkHeroMaterialTickets.Tickets(fragment.Index)) total += ticket.Item2;
+        return (int)System.Math.Min(int.MaxValue, total);
+    }
+    public static int Quantity(int required, int perCraft) {
+        if (required <= 0 || perCraft <= 0) return 1;
+        return (int)System.Math.Min(int.MaxValue, ((long)required + perCraft - 1) / perCraft);
+    }
+    public static void Prefill(NGame2.NUI.NWindow.CraftItemSelectMessagePopup popup, int required) {
+        NShared.ItemData essence, fragment; int price;
+        if (required <= 0 || !Recipe(popup, out essence, out fragment, out price)) return;
+        popup.MaterialUi.NumberInput.value = Quantity(required, popup.CraftUi.SelectedData.ResultItemCount).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        popup.OnNumberChanged();
+    }
+    public static bool TryCraft(NGame2.NUI.NWindow.CraftItemSelectMessagePopup popup, System.Action<int,int,int> onCraft) {
+        if (pending != null) return true;
+        NShared.ItemData essence, fragment; int price;
+        if (onCraft == null || !Recipe(popup, out essence, out fragment, out price)) return false;
+        var account = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        int count = popup.GetNumber();
+        long required = (long)count * price;
+        if (count <= 0 || required > int.MaxValue) return true;
+        int loose = account.ItemManager.GetItemCount(fragment.Code);
+        if (loose >= required) return false;
+        if (Available(account.ItemManager, fragment.Code, popup) < required) {
+            NGame2.NUI.NWindow.MessagePopup.Open("Craft Essence", "Not enough fragments or fragment tickets for this quantity."); return true;
+        }
+        var requester = NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester;
+        if (requester == null) return true;
+        pending = new Crafting { Popup=popup, Recipe=popup.CraftUi.SelectedData, Essence=essence, Fragment=fragment,
+            Count=count, Required=(int)required, OnCraft=onCraft, Session=requester.SessionKey, Requester=requester, Account=account };
+        NGame2.NUI.UIHelper.EnableButton(popup.MaterialUi.Button_Craft, false);
+        Next(pending);
+        return true;
+    }
+    sealed class Crafting {
+        public NGame2.NUI.NWindow.CraftItemSelectMessagePopup Popup;
+        public NShared.CraftItemData Recipe;
+        public NShared.ItemData Essence, Fragment;
+        public int Count, Required;
+        public System.Action<int,int,int> OnCraft;
+        public string Session;
+        public object Requester;
+        public NGame2.NAccount.AccountManager Account;
+    }
+    static void Stop(Crafting work, string message) {
+        if (!System.Object.ReferenceEquals(pending, work)) return;
+        pending = null;
+        if (work.Popup != null && work.Popup.IsOpen() && work.Popup.CraftUi.SelectedData == work.Recipe) {
+            NGame2.NUI.UIHelper.EnableButton(work.Popup.MaterialUi.Button_Craft, true);
+            work.Popup.OnNumberChanged();
+        }
+        if (message != null) NGame2.NUI.NWindow.MessagePopup.Open("Craft Essence", message);
+    }
+    static void Next(Crafting work) {
+        var requester = NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester;
+        if (!System.Object.ReferenceEquals(pending, work)) return;
+        if (requester != work.Requester || requester == null || requester.SessionKey != work.Session) { Stop(work, null); return; }
+        if (work.Popup == null || !work.Popup.IsOpen() || work.Popup.CraftUi.SelectedData != work.Recipe || work.Popup.GetNumber() != work.Count) {
+            Stop(work, "Crafting was cancelled or changed. Any fragments already redeemed remain in your inventory."); return;
+        }
+        int missing = System.Math.Max(0, work.Required - work.Account.ItemManager.GetItemCount(work.Fragment.Code));
+        if (missing == 0) {
+            pending = null;
+            work.OnCraft(work.Recipe.CraftIndex, work.Essence.Index, work.Count);
+            work.Popup.Reset();work.Popup.Close();return;
+        }
+        var tickets = SprkHeroMaterialTickets.Tickets(work.Fragment.Index);
+        if (tickets.Count == 0) { Stop(work, "Not enough fragment tickets remain. Any fragments already redeemed remain in your inventory."); return; }
+        int count = System.Math.Min(missing, System.Math.Min(1000, tickets[0].Item2));
+        bool completed = false;
+        try {
+            requester.Request(new NShared.UsePackageSelectItem.Request { ItemIndex=tickets[0].Item1.Index, ItemCount=count, SelectItemIndex=work.Fragment.Index },
+                (NShared.UsePackageSelectItem.Response response) => {
+                    if (completed) return;completed = true;
+                    if (requester != NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester || requester.SessionKey != work.Session) { Stop(work, null); return; }
+                    if (response == null || response.BaseResult != NShared.BaseResultType.Success || response.Result != NShared.UsePackageSelectItem.ResultType.Success) {
+                        Stop(work, "Ticket redemption was not confirmed. Check your inventory before retrying; any fragments already redeemed remain there."); return;
+                    }
+                    work.Account.ItemManager.Apply(response.ItemResult);
+                    work.Account.ItemManager.Apply(response.RewardItemResult);
+                    Next(work);
+                });
+        } catch (System.Exception) {
+            Stop(work, "Ticket redemption could not be confirmed. Check your inventory before retrying.");
+        }
+    }
+}

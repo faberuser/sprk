@@ -103,6 +103,8 @@ partial class Program
         InstallCostumeTickets(clientRoot, false, true);
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
+        InstallHeroMaterialTickets(clientRoot, false);
+        VerifyHeroMaterialTicketsFile(clientRoot);
         InstallCurrency64(clientRoot, false);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
