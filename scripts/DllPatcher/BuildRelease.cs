@@ -106,6 +106,8 @@ partial class Program
         InstallCurrency64(clientRoot, false);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
+        InstallTechnomagicRefresh(clientRoot, false);
+        InstallTechnomagicRefresh(clientRoot, false, true);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallRaidCoopLimits(clientRoot, false);

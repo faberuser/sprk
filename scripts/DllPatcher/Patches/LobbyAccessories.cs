@@ -20,7 +20,8 @@ partial class Program
 
         var observer = map.Methods.Single(m => m.Parameters.Count == 1 &&
             m.Parameters[0].ParameterType.FullName == "NGame2.NAccount.UserHeroManager/ChangeHeroInfo");
-        if (!observer.Body.Instructions.Any(i => i.Operand is MethodReference call && call.Name == "ShouldRefreshLobbyAccessories"))
+        if (!observer.Body.Instructions.Any(i => i.Operand is MethodReference call &&
+            (call.Name == "ShouldRefreshLobbyAccessories" || call.DeclaringType.Name == "SprkLobbyAvatar" && call.Name == "Notify")))
         {
             var original = observer.Body.Instructions[0];
             var mediator = map.Fields.Single(f => f.Name == "_mediator");

@@ -1,6 +1,11 @@
 use super::*;
 use crate::models::item::ItemGrant;
 
+async fn world_boss_total(db:&mut SqliteConnection,id:i64,season:i64)->Result<i64> {
+    Ok(sqlx::query_scalar("SELECT COALESCE(SUM(best),0) FROM (SELECT MAX(score) best FROM battle_scores WHERE family='world_boss' AND boss=? AND season=? GROUP BY account)")
+        .bind(id).bind(season).fetch_one(db).await?)
+}
+
 pub(super) async fn migrate_best_daily(db: &SqlitePool) -> Result<()> {
     let mut tx=db.begin().await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS world_boss_legacy_scores(boss INTEGER NOT NULL,season INTEGER NOT NULL,account INTEGER NOT NULL,day TEXT NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,PRIMARY KEY(boss,season,account,day))").execute(&mut *tx).await?;
@@ -188,10 +193,9 @@ async fn boss(db: &mut SqliteConnection, s: &AppState, family: &str, id: i64) ->
     if family == "world_boss" && def["IsGlobal"] == true {
         let previous = v.clone();
         refresh_global_boss(&mut v, def, start, end, now());
-        v["TotalDamage"]=json!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family='world_boss' AND boss=? AND season=?")
-            .bind(id).bind(season).fetch_one(&mut *db).await?);
+        v["TotalDamage"]=json!(world_boss_total(db,id,season).await?);
         // This also repairs bosses incorrectly ended by the former HP pool,
-        // without changing scores, total damage, claim ledgers or rewards.
+        // without changing stored run records, claim ledgers or rewards.
         if v != previous { put(db, 0, family, key, &v).await?; }
     }
     Ok(v)
@@ -321,6 +325,44 @@ mod daily_best_tests {
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT score FROM battle_scores WHERE family='event_world_boss'").fetch_one(&mut *c).await.unwrap(),150);
     }
     #[tokio::test]
+    async fn world_boss_weekly_best_preserves_winning_run_and_separates_players_bosses_and_seasons() {
+        let db=database().await;
+        sqlx::query("INSERT INTO accounts(account_id,login_id,nick) VALUES(8,'weekly-second','Second')").execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_info(account_id) VALUES(7),(8)").execute(&db).await.unwrap();
+        let mut c=db.acquire().await.unwrap();
+        for (account,date,damage,seconds) in [(7,"2030-01-01",200,40),(7,"2030-01-02",50,5),(8,"2030-01-01",180,30)] {
+            score(&mut c,"world_boss",3,1,account,damage,seconds,date).await.unwrap();
+        }
+        let ranks=rankers(&mut c,"world_boss",3,1).await.unwrap();
+        assert_eq!(ranks[0]["AccountId"],7);
+        assert_eq!(ranks[0]["Score"],200,"A weaker new day must not increase the weekly score");
+        assert_eq!(ranks[0]["BattleTime"],40);
+        assert_eq!(world_boss_total(&mut c,3,1).await.unwrap(),380);
+        for (boss,season,account,date,damage,seconds) in [
+            (3,1,7,"2030-01-02",250,20),
+            (3,1,7,"2030-01-03",250,1),
+            (3,1,8,"2030-01-02",240,10),
+            (4,1,7,"2030-01-01",9999,50),
+            (3,2,7,"2030-01-01",95,15),
+        ] {score(&mut c,"world_boss",boss,season,account,damage,seconds,date).await.unwrap();}
+        let ranks=rankers(&mut c,"world_boss",3,1).await.unwrap();
+        assert_eq!(ranks.len(),2);
+        assert_eq!(ranks[0]["Score"],250);
+        assert_eq!(ranks[0]["CurrentScore"],250);
+        assert_eq!(ranks[0]["BattleTime"],20,"A tied later day must not replace the winning run's time");
+        assert_eq!(ranks[1]["Score"],240);
+        assert_eq!(world_boss_total(&mut c,3,1).await.unwrap(),490);
+        assert_eq!(rankers(&mut c,"world_boss",3,2).await.unwrap()[0]["Score"],95);
+        assert_eq!(rankers(&mut c,"world_boss",4,1).await.unwrap()[0]["Score"],9999);
+        for (date,damage) in [("2030-01-01",100),("2030-01-02",50)] {
+            score(&mut c,"event_world_boss",3,1,7,damage,10,date).await.unwrap();
+            score(&mut c,"challenge",3,1,7,damage,10,date).await.unwrap();
+        }
+        for family in ["event_world_boss","challenge"] {
+            assert_eq!(rankers(&mut c,family,3,1).await.unwrap()[0]["Score"],150,"Other ranking modes retain their cumulative policy");
+        }
+    }
+    #[tokio::test]
     async fn world_boss_best_daily_migration_archives_only_today_preserves_rewards_and_runs_once() {
         let db=database().await;
         sqlx::query("DELETE FROM battle_state WHERE kind='world_boss_best_daily_policy'").execute(&db).await.unwrap();
@@ -419,9 +461,11 @@ pub(super) async fn finish(
         // retain their per-battle HP and accept every validated scoring attempt.
         let credited = if family == "world_boss" { damage } else { dealt };
         if !global { v["MonsterHp0"] = json!(n(&v, "MonsterHp0") - dealt); }
-        v["TotalDamage"] = json!(n(&v, "TotalDamage")
-            .checked_add(credited)
-            .ok_or_else(|| rule("WorldBossHpError"))?);
+        if !global {
+            v["TotalDamage"] = json!(n(&v, "TotalDamage")
+                .checked_add(credited)
+                .ok_or_else(|| rule("WorldBossHpError"))?);
+        }
         let killed = !global && n(&v, "MonsterHp0") == 0;
         if killed {
             v["Status"] = json!("Ended");
@@ -432,8 +476,7 @@ pub(super) async fn finish(
         // Existing UTC+9 snapshot records are no longer consulted.
         score(db, family, id, current_season, a, credited, elapsed,&day()).await?;
         if global {
-            v["TotalDamage"]=json!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family='world_boss' AND boss=? AND season=?")
-                .bind(id).bind(current_season).fetch_one(&mut *db).await?);
+            v["TotalDamage"]=json!(world_boss_total(db,id,current_season).await?);
             put(db,0,family,campaign::key(id,current_season),&v).await?;
         }
         if family == "world_boss" {
@@ -475,7 +518,14 @@ async fn rankers(
     id: i64,
     season: i64,
 ) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT b.account,SUM(b.score) score,SUM(b.battle_time) battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=? AND b.boss=? AND b.season=? GROUP BY b.account HAVING SUM(b.score)>0 ORDER BY score DESC,b.account").bind(family).bind(id).bind(season).fetch_all(db).await?;
+    // Daily bests remain available for participation/daily views. Weekly rank
+    // uses one winning run, including that run's time, rather than their sum.
+    let query=if family=="world_boss" {
+        "WITH best AS (SELECT account,score,battle_time,ROW_NUMBER() OVER (PARTITION BY account ORDER BY score DESC,day ASC) place FROM battle_scores WHERE family=? AND boss=? AND season=?) SELECT b.account,b.score,b.battle_time,a.nick,u.avatar_hero_index FROM best b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.place=1 AND b.score>0 ORDER BY b.score DESC,b.account"
+    } else {
+        "SELECT b.account,SUM(b.score) score,SUM(b.battle_time) battle_time,a.nick,u.avatar_hero_index FROM battle_scores b JOIN accounts a ON a.account_id=b.account JOIN user_info u ON u.account_id=b.account WHERE b.family=? AND b.boss=? AND b.season=? GROUP BY b.account HAVING SUM(b.score)>0 ORDER BY score DESC,b.account"
+    };
+    let rows=sqlx::query(query).bind(family).bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)|json!({"Rank":i+1,"AccountId":r.get::<i64,_>("account"),"Nick":r.get::<String,_>("nick"),"Score":r.get::<i64,_>("score"),"CurrentScore":r.get::<i64,_>("score"),"BattleTime":r.get::<i64,_>("battle_time"),"CurrentBattleTime":r.get::<i64,_>("battle_time"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"CountryCode":"","ServerGroup":"Local"})).collect())
 }
 pub(super) async fn execute(
@@ -535,7 +585,8 @@ pub(super) async fn execute(
         return Ok(out);
     }
     if action.contains("daily_score") || action.contains("score_info") {
-        let score:i64=sqlx::query_scalar("SELECT COALESCE(SUM(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)").bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
+        let aggregate=if family=="world_boss" {"MAX"} else {"SUM"};
+        let score:i64=sqlx::query_scalar(&format!("SELECT COALESCE({aggregate}(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)")).bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
         let participated=score>0 || (family=="world_boss" && sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind='world_boss_participation' AND idx=? AND period=?)")
             .bind(a).bind(id).bind(format!("{season}:{}",day())).fetch_one(&mut *db).await?);
         out[if action.contains("daily") {

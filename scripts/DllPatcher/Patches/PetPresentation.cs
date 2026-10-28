@@ -21,6 +21,11 @@ partial class Program {
         if(process.ExitCode!=0)throw new InvalidOperationException("Native Team Level buff prefab verification failed.");
     }
     static void VerifyPetPresentation(ModuleDefinition module) {
+        var contents=module.GetType("NShared.PortalRenewalDataContainer").Methods.Single(m=>m.Name=="GetData");
+        var routes=contents.Body.Instructions.Where(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation" && m.Name=="Contents").ToArray();
+        if(routes.Length!=1 || routes[0].Previous.OpCode!=OpCodes.Ldarg_1 || routes[0].Next.OpCode!=OpCodes.Ret)
+            throw new InvalidOperationException("Missing or duplicated native Pet Portal destination repair.");
+        VerifyArenaResultStack(contents);
         foreach(var pair in new[]{("NShared.PortalRenewalData","get_SubComponentShape","Shape"),("NGame2.NUI.NWindow.MyInfoWindow","SetupMyInfo","Setup")}) {
             var method=module.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             var calls=method.Body.Instructions.Where(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation" && m.Name==pair.Item3).ToArray();
@@ -34,6 +39,9 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".pet-presentation-staged":"")));
         VerifyPetPresentation(game.MainModule);
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkPetPresentation.dll"+(staged?".staged":"")));
+        var routes=helper.MainModule.GetType("SprkPetPresentation").Methods.Single(m=>m.Name=="Contents");
+        if(routes.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="PetDestination")!=4)
+            throw new InvalidOperationException("Pet Portal must provide its menu, artwork and both button destinations.");
         var setup=helper.MainModule.GetType("SprkPetPresentation").Methods.Single(m=>m.Name=="Setup");
         foreach(var required in new[]{"SetActive","Set"})
             if(!setup.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==required))
@@ -89,6 +97,14 @@ partial class Program {
         using var helper=AssemblyDefinition.ReadAssembly(compiled);
         using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
+        var contents=game.MainModule.GetType("NShared.PortalRenewalDataContainer").Methods.Single(m=>m.Name=="GetData");
+        if(!contents.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation" && m.Name=="Contents")) {
+            var ret=contents.Body.Instructions.Single(i=>i.OpCode==OpCodes.Ret);
+            ret.OpCode=OpCodes.Ldarg_1;ret.Operand=null;
+            var il=contents.Body.GetILProcessor();
+            il.Append(il.Create(OpCodes.Call,game.MainModule.ImportReference(helper.MainModule.GetType("SprkPetPresentation").Methods.Single(m=>m.Name=="Contents"))));
+            il.Append(il.Create(OpCodes.Ret));
+        }
         foreach(var pair in new[]{("NShared.PortalRenewalData","get_SubComponentShape","Shape"),("NGame2.NUI.NWindow.MyInfoWindow","SetupMyInfo","Setup")}) {
             var method=game.MainModule.GetType(pair.Item1).Methods.Single(m=>m.Name==pair.Item2);
             if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkPetPresentation"))continue;

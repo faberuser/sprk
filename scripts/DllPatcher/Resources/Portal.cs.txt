@@ -1383,6 +1383,16 @@ public static class RestoredPortal
                 });
             }
         }
+        // The native Pet panel binds its two buttons by subcategory, not to
+        // the generic Pet artwork row. Repair partial tables as well as empty ones.
+        if (category == PortalRenewalCategory.Pet)
+        {
+            Menu(rows, category, "Pets");
+            PetDestination(rows, PortalRenewalSubCategory.Pet, "Pet House", ClientActivityType.OpenPetHouse);
+            PetDestination(rows, PortalRenewalSubCategory.PetIncubator, "See Hatching", ClientActivityType.OpenPetIncubator);
+            PetDestination(rows, PortalRenewalSubCategory.PetHouse, "Visit Lil' Raider House", ClientActivityType.OpenPetHouse);
+            return rows;
+        }
         // Do not replace native content panels when another client table already provides them.
         foreach (var row in rows) if (row.SubCategory != PortalRenewalSubCategory.MENUBUTTON) return rows;
         foreach (var menu in Categories(rows))
@@ -1422,9 +1432,6 @@ public static class RestoredPortal
                 Add(rows, category, PortalRenewalSubCategory.GuildHeadquarter, "Guild Headquarters", ClientActivityType.MoveToNode, "995", "1", "true", "true");
                 Add(rows, category, PortalRenewalSubCategory.GuildTrainingCenter, "Guild Training Center", ClientActivityType.UsingActionContainer, "OpenGuildTrainingCenter");
                 Add(rows, category, PortalRenewalSubCategory.RankingBoard, "Guild Rankings", ClientActivityType.UsingActionContainer, "OpenGuildRankingBoard"); break;
-            case PortalRenewalCategory.Pet:
-                Add(rows, category, PortalRenewalSubCategory.Pet, "Pet House", ClientActivityType.OpenPetHouse);
-                break; // Native portal renders only the Pet row; incubator is available inside Pet House.
             case PortalRenewalCategory.TechnoRaid:
                 Add(rows, category, PortalRenewalSubCategory.TechnomagicRaid, "Technomagic Raid", ClientActivityType.OpenRaid, "TechnoMagic");
                 Add(rows, category, PortalRenewalSubCategory.TechnoEnchantRaid, "Technomagic Enchantment Raid", ClientActivityType.OpenRaid, "TechnoEnchant"); break;
@@ -1436,6 +1443,20 @@ public static class RestoredPortal
                 Add(rows, category, PortalRenewalSubCategory.PunishmentRuneCraft, "Rune Crafting", ClientActivityType.UsingActionContainer, "OpenPunishmentRuneCraft"); break;
         }
         return rows;
+    }
+
+    static void PetDestination(List<PortalRenewalData> rows, PortalRenewalSubCategory sub,
+        string title, ClientActivityType activity)
+    {
+        foreach (var row in rows)
+            if (row.Category == PortalRenewalCategory.Pet && row.SubCategory == sub) return;
+        rows.Add(new PortalRenewalData {
+            Category = PortalRenewalCategory.Pet, SubCategory = sub,
+            TitleLocalKey = title, MenuButtonLocalkey = title,
+            MainImagePath = "Portal_PetHouse_Image", ContentsShowIndex = rows.Count,
+            SubComponentShape = PortalRenewalCompType.Window,
+            MoveTaskType = activity, MoveTaskValue = new string[0]
+        });
     }
 
     static string[] GodkingCondition(PortalRenewalCategory category)

@@ -7,16 +7,21 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static IEnumerable<int> TicketOnlyCostumeIds(System.Text.Json.Nodes.JsonNode rules) =>
+        new[]{"LightCostumeIndices","DarkCostumeIndices"}.SelectMany(key=>rules[key]!.AsArray().Select(id=>id!.GetValue<int>())).Distinct();
     static void RestoreCostumeOwnership(ModuleDefinition module)
     {
         // Compile against the client's Mono libraries, not the patcher's .NET runtime.
         // Only method bodies are copied; no helper assembly is installed in the game.
         using var sourceStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.CostumeOwnership.cs.txt")!;
         using var reader = new StreamReader(sourceStream);
+        using var rulesStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.CostumeTicketRules.json")!;
+        var rules = System.Text.Json.Nodes.JsonNode.Parse(rulesStream)!;
+        var ticketCondition = string.Join(" || ", TicketOnlyCostumeIds(rules).Select(id => "costumeData.CostumeIndex == " + id));
         var references = Directory.GetFiles(Path.GetDirectoryName(module.FileName)!, "*.dll")
             .Select(path => MetadataReference.CreateFromFile(path));
         var compilation = CSharpCompilation.Create("CostumeOwnershipRestore",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, references,
+            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd().Replace("__SPRK_TICKET_COSTUMES__", ticketCondition)) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
                 optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
@@ -27,10 +32,10 @@ partial class Program
         compiled.Position = 0;
         using var original = AssemblyDefinition.ReadAssembly(compiled);
         int restored = 0;
-        foreach (var sourceType in original.MainModule.Types.Where(t => t.Namespace == "NGame2.NUtil.NCostume"))
+        foreach (var sourceType in original.MainModule.Types.Where(t => t.Namespace == "NGame2.NUtil.NCostume" || t.Name == "HeroCostumeViewWidget"))
         {
             var targetType = module.Types.Single(t => t.FullName == sourceType.FullName);
-            foreach (var source in sourceType.Methods.Where(m => m.Name == "GetCostumeState"))
+            foreach (var source in sourceType.Methods.Where(m => m.Name is "GetCostumeState" or "IsShowCostume"))
             {
                 var target = targetType.Methods.Single(m => m.FullName == source.FullName);
                 var body = new MethodBody(target) { InitLocals = source.Body.InitLocals, MaxStackSize = source.Body.MaxStackSize };
@@ -61,11 +66,12 @@ partial class Program
                 }
                 if (source.Body.HasExceptionHandlers)
                     throw new InvalidOperationException("Unexpected exception handler in costume ownership source");
+                VerifyArenaResultStack(target);
                 restored++;
             }
         }
-        if (restored != 10)
-            throw new InvalidOperationException($"Expected 10 native costume state methods, restored {restored}");
+        if (restored != 11)
+            throw new InvalidOperationException($"Expected 11 costume state/visibility methods, restored {restored}");
         if (module.AssemblyReferences.Any(r => r.Name == "CostumeOwnershipRestore"))
             throw new InvalidOperationException("Costume restoration leaked a helper assembly reference");
         Console.WriteLine($"Restored {restored} native costume ownership/equipment/purchase checks");

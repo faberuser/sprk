@@ -190,8 +190,9 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour {
         var account=accountParent.Find("Button_SwitchAccount");
         var logout=settings.EtcInfo.Button_Logout;
         if(language==null || change==null || delete==null || account==null)throw new Exception("Others controls missing");
-        if(!(language.localPosition.x<coupon.localPosition.x && coupon.localPosition.x<account.localPosition.x && account.localPosition.x<logout.localPosition.x))throw new Exception("Others row order");
-        if(change.localPosition.x!=account.localPosition.x || delete.localPosition.x!=logout.localPosition.x || change.localPosition.y<=account.localPosition.y || delete.localPosition.y!=change.localPosition.y)throw new Exception("Others upper row alignment");
+        if(!(language.localPosition.x<account.localPosition.x && account.localPosition.x<logout.localPosition.x) ||
+           coupon.localPosition.x!=language.localPosition.x || coupon.localPosition.y<=language.localPosition.y)throw new Exception("Coupon must be above Language");
+        if(change.localPosition.x!=account.localPosition.x || delete.localPosition.x!=logout.localPosition.x || change.localPosition.y<=account.localPosition.y || delete.localPosition.y!=change.localPosition.y || coupon.localPosition.y!=change.localPosition.y)throw new Exception("Others upper row alignment");
         var deleteButton=delete.GetComponent<UIButton>();
         foreach(var state in new[]{UIButtonColor.State.Normal,UIButtonColor.State.Hover,UIButtonColor.State.Pressed}) {
             deleteButton.SetState(state,true);
@@ -203,7 +204,7 @@ public sealed class SprkLoginSettingsProbe : MonoBehaviour {
         yield return new WaitForEndOfFrame();
         image=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);image.Apply();
         System.IO.File.WriteAllBytes(System.IO.Path.Combine(path,"others.png"),image.EncodeToPNG());Destroy(image);
-        System.IO.File.WriteAllText(System.IO.Path.Combine(path,"others-result.txt"),"PASS: native Others prefab row order, upper alignment, eight refreshes, single callbacks and red Normal/Hover/Pressed backgrounds.");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(path,"others-result.txt"),"PASS: native Others prefab Coupon above Language, upper alignment, eight refreshes, single callbacks and red Normal/Hover/Pressed backgrounds.");
         System.IO.File.WriteAllText(System.IO.Path.Combine(path,"result.txt"),"PASS: native login buttons cleaned, one Settings callback, native settings opened before login with "+rows.Length+" rows; translated labels, GameOption and PayShop artwork, all tabs, login texture changes, refresh, close/reopen, pool cleanup and download-state preservation; visible panel screenshot exported.");
         Application.Quit();
     }

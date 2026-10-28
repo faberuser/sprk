@@ -9,6 +9,9 @@ partial class Program {
         var layout=accounts.Methods.Single(m=>m.Name=="ArrangeAccountButtons");
         foreach(var name in new[]{"Button_ChangeLanguage","Button_ChangePassword","Button_DeleteAccount","Button_SwitchAccount","Common_Button7_Cancel"})
             if(!layout.Body.Instructions.Any(i=>Equals(i.Operand,name)))throw new InvalidOperationException("Missing Others control/artwork: "+name);
+        if(!layout.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="tweenTarget"))throw new InvalidOperationException("Delete background target missing");
+        foreach(var name in new[]{"set_atlas","SetState","set_defaultColor"})
+            if(!layout.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Delete background target/atlas/state setup missing: "+name);
         foreach(var pair in new[]{("CleanLoginInfo","Configure"),("CleanSettings","CleanSettings")})
             if(!accounts.Methods.Single(m=>m.Name==pair.Item1).Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name==pair.Item2))throw new InvalidOperationException("Missing login settings integration: "+pair.Item1);
         var bridge=helper.GetType("SprkLoginSettings");

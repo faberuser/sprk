@@ -14,6 +14,21 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--accounts-only` places Use Coupon above Language in Others and assigns the
+Delete Account button's actual background target to the native red Common atlas
+artwork for normal, hover and pressed states. Run
+`python scripts/client/verify_login_settings.py` after installation to check the
+native settings prefab, repeated refreshes, button states and screenshots in an
+isolated client.
+
+`--technomagic-refresh-only` applies TM tier-upgrade account state before UI
+notification, then rebuilds the open awakening window's hero/inventory icons and
+clears the old 5-star target. `--verify-technomagic-refresh` verifies the response
+order, native error paths, and scoped refresh. Installation also executes the
+native response callback with isolated service traces and checks idempotence.
+The full release build installs and verifies this patch. The server prices TM
+star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
+
 `--runes-only` restores both the hero rune selector and the separate Rune of
 Blasphemy inventory subcategory, retaining the native equipment and grind paths.
 Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
@@ -24,6 +39,17 @@ Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits
 `--costume-tickets-only` installs their native Costume/CostumeGroup rows and
 localized shop group alongside the existing ticket data. The server consumes
 the same sale overrides at startup; its League of Honor item shop is retained.
+This mode also restores Dressing Room browsing after native getter resets and
+replaces the obsolete local Light/LoH visibility filter. LoH costumes appear in
+the Dressing Room for purchase; unowned Light and Darkness costumes remain
+ticket-only, and owned ones remain visible for equipment. The Light label is simply
+`Light Costume`. The full release build runs this mode and its verifier, including
+execution of the patched visibility and ownership methods against the roster.
+The same rules enable Ashen costumes for Dark Lord Kasel (8408), Fallen Frey
+(8508), and Rebel Clause (8307) in the shop and Dressing Room at 3,000 Rubies.
+Their dedicated tickets (600066, 600067, 600068 respectively) remain valid.
+Table baking reads original backing fields so patched UI getters cannot change
+unrelated costume data.
 
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
 inside gear awakening, then compacts that material grid. It retains the native
@@ -210,6 +236,16 @@ while allowing reactivation for the same account; a new avatar creation rebinds
 the owner. Requests wait for a valid completed creature load, with a bounded
 10-second readiness window, then use the native ChangeCustomizeStock path for
 changed parts. The existing hero render facade is never replaced by this path.
+Reconciliation is also queued after initial creation and avatar replacement,
+including basic-weapon outfits. While the lobby is active, it detects a new load
+or live creature after a model reload and reconciles again. Missing ownership
+data during login defers the operation instead of clearing equipped parts.
+Comparisons use the live creature's OpenData stock, since the load's original
+request stock is not updated by ChangeCustomizeStock. Missing live accessory
+instances are repaired even when their original requested stock already matches.
+Tests execute reconciliation against native stock structures and simulated
+creature interfaces for basic and costume weapons, missing instances, changed
+accessories, unequips, stable no-ops, readiness and A-B-A account switching.
 
 Lobby hero snapshots use the current manager's hero and owned accessories, reject
 a portrait snapshot carrying another account ID, and clone accessory transforms

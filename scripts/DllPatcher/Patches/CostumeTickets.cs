@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using MethodBody = Mono.Cecil.Cil.MethodBody;
 namespace DllPatcher;
 partial class Program {
     const BindingFlags CTFlags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
@@ -44,8 +45,28 @@ partial class Program {
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"),new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         CTIcon(game.MainModule,rules,verifyOnly);
+        if (!verifyOnly) {
+            RestoreCostumeOwnership(game.MainModule);
+            // Native table restoration resets these getters during the full build.
+            // Restore browsing without rewriting every archived costume row.
+            PatchBooleanGetter(game.MainModule,"NShared.CostumeData","get_IsOpen",true);
+            PatchBooleanGetter(game.MainModule,"NShared.CostumeData","get_IsShow",true);
+            PatchBooleanGetter(game.MainModule,"NShared.CostumeData","get_PreviewableWhenOwned",false);
+        }
+        VerifyDressingRoomCostumes(game.MainModule,rules);
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var p=Path.Combine(managed,new AssemblyName(e.Name).Name+".dll");return File.Exists(p)?Assembly.LoadFrom(p):null;};
-        var assembly=Assembly.Load(File.ReadAllBytes(Path.Combine(managed,"Assembly-CSharp.dll")));
+        // Read and bake actual table fields even when the installed client has
+        // visibility getters patched. UI policy must not rewrite unrelated rows.
+        using var tableAssembly=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"),new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
+        var costumeType=tableAssembly.MainModule.GetType("NShared.CostumeData");
+        foreach(var property in costumeType.Properties.Where(p=>p.SetMethod!=null && p.GetMethod!=null)) {
+            var field=costumeType.Fields.SingleOrDefault(f=>f.Name=="<"+property.Name+">k__BackingField");
+            if(field==null)continue;
+            var getter=property.GetMethod;getter.Body=new MethodBody(getter);
+            var il=getter.Body.GetILProcessor();il.Emit(OpCodes.Ldarg_0);il.Emit(OpCodes.Ldfld,field);il.Emit(OpCodes.Ret);
+        }
+        using var tableBytes=new MemoryStream();tableAssembly.Write(tableBytes);
+        var assembly=Assembly.Load(tableBytes.ToArray());
         var outputs=new Dictionary<string,byte[]>();
         var originals=new Dictionary<string,byte[]>();
         foreach(var name in new[]{"SPRK-NativeData.json","SPRK-NativeLocalization.json","SPRK-NativeCombat.json"})originals[name]=File.ReadAllBytes(Path.Combine(patch,name));
@@ -91,6 +112,14 @@ partial class Program {
             var row=costumes[id.ToString()];
             if(Convert.ToInt64(CTMember(row,"ReqBuyGem"))!=honor["RubyPrice"]!.GetValue<int>() || !(bool)CTMember(row,"IsBuy") || (string)CTMember(row,"Group")!=honor["GroupName"]!.GetValue<string>())throw new InvalidOperationException("Honor costume sale mismatch: "+id);
         }
+        foreach(var id in new[]{8408,8508,8307}) {
+            var row=costumes[id.ToString()];
+            if((string)CTMember(row,"BodyPrefix")!="Cos21Ash" || (string)CTMember(row,"Group")!="Ash1" ||
+               Convert.ToInt64(CTMember(row,"ReqBuyGem"))!=3000 || Convert.ToInt64(CTMember(row,"ReqBuyGold"))!=0 ||
+               Convert.ToInt64(CTMember(row,"ReqBuyMileage"))!=0 || !(bool)CTMember(row,"IsBuy") ||
+               !(bool)CTMember(row,"IsOpen") || !(bool)CTMember(row,"IsShow") || (bool)CTMember(row,"PreviewableWhenOwned"))
+                throw new InvalidOperationException("Ashen costume sale mismatch: "+id);
+        }
         var roster=rules["HeroIndices"]!.AsArray().Select(x=>x!.GetValue<int>()).Order().ToArray();
         foreach(var key in new[]{"DarkCostumeIndices","LightCostumeIndices"}) {
             var ids=rules[key]!.AsArray().Select(x=>x!.GetValue<int>()).ToArray();
@@ -130,6 +159,7 @@ partial class Program {
         var groupCheck=Activator.CreateInstance(groupContainer.GetType())!;
         CTCall(CTMember(groupCheck,"Packer"),"Deserialize",outputs["TableJit/CostumeGroupTable.jit"]);
         if((string)CTMember(CTCall(groupCheck,"GetDataByGroupName",honor["GroupName"]!.GetValue<string>()),"GroupName")!=honor["GroupName"]!.GetValue<string>())throw new InvalidOperationException("Honor shop group lookup missing");
+        if((string)CTMember(CTCall(groupCheck,"GetDataByGroupName","Ash1"),"GroupName")!="Ash1")throw new InvalidOperationException("Ashen shop group lookup missing");
         // Resolve the exact native model and UI entries used by every choice.
         var bundlePath=Path.Combine(patch,"Assetbundle","BundlePack.bin");
         if(File.Exists(bundlePath) && CTHash(File.ReadAllBytes(bundlePath))!=rules["AssetEvidence"]!["BundlePackSha256"]!.GetValue<string>())
@@ -161,6 +191,9 @@ partial class Program {
         var selectorKey=rules["LightTicketCode"]!.GetValue<string>();
         if(selectors.TryGetValue(selectorKey,out var currentSelector)&&CTSnapshot(currentSelector)!=CTSnapshot(selectorRow))throw new InvalidOperationException("New ticket selector collision");
         selectors[selectorKey]=selectorRow;WriteRows("CostumeSelectItem",selectorContainer,selectorBytes,selectors);
+        foreach(var (code,id) in new[]{("COSTUME_SELECT_ITEM_144_ASHEN_KASEL_211221",8408),("COSTUME_SELECT_ITEM_145_ASHEN_PRAY_211221",8508),("COSTUME_SELECT_ITEM_146_ASHEN_CLAUSE_211221",8307)})
+            if(!((IEnumerable)CTMember(selectors[code],"CostumeIndices")).Cast<int>().SequenceEqual(new[]{id}))
+                throw new InvalidOperationException("Dedicated Ashen ticket changed: "+code);
         // Local additions use English fallback text in every shipped language.
         var build=assembly.GetType("NClientData.NLocalization.BuildTools_for_Localize")!;
         var hash=assembly.GetType("NShared.NJit.JitOption")!.GetMethod("StringToHashCode")!;
@@ -191,10 +224,12 @@ partial class Program {
         foreach(var pair in metadata)outputs[pair.Key]=JsonSerializer.SerializeToUtf8Bytes(pair.Value,new JsonSerializerOptions{WriteIndented=true});
         Console.WriteLine("Verified 102 Darkness choices, 102 Light choices, 73 new Light rows, complete native table lookups and preserved localization entries.");
         Console.WriteLine("Verified 80 League of Honor costume variants in the costume shop at 10,000 Rubies, with native group lookup and localized label.");
+        Console.WriteLine("Verified three Ashen costumes in shop/dressing room at 3,000 Rubies and preserved dedicated tickets.");
         if(verifyOnly)return;
         Directory.CreateDirectory(staged);
         foreach(var pair in outputs){var dest=Path.Combine(staged,pair.Key);Directory.CreateDirectory(Path.GetDirectoryName(dest)!);File.WriteAllBytes(dest,pair.Value);}
         game.Write(Path.Combine(staged,"Assembly-CSharp.dll"));
+        TestDressingRoomCostumes(game, rules, costumes.Values);
         if(stageOnly){Console.WriteLine("Staged costume tickets: "+staged);return;}
         if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))throw new InvalidOperationException("Patch staged. Close game clients and shared-asset workers before installation.");
         foreach(var pair in originals)if(!File.ReadAllBytes(Path.Combine(patch,pair.Key)).SequenceEqual(pair.Value))throw new InvalidOperationException("Client changed during ticket staging");
@@ -208,6 +243,86 @@ partial class Program {
         if(!NativeCombatTables.ValidateInstalled(managed))throw new InvalidOperationException("Native combat metadata missing");
         if(!NativeStaticData.ValidateInstalled(managed))throw new InvalidOperationException("Native data metadata missing");
         Console.WriteLine("Installed all-roster costume tickets and verified native metadata. Restart the client.");
+    }
+
+    static void VerifyDressingRoomCostumes(ModuleDefinition module, JsonNode rules) {
+        var costume=module.GetType("NShared.CostumeData");
+        foreach(var (name,value) in new[]{("IsOpen",true),("IsShow",true),("PreviewableWhenOwned",false)}) {
+            var code=costume.Methods.Single(m=>m.Name=="get_"+name).Body.Instructions;
+            if(code.Count!=2 || code[0].OpCode!=(value?OpCodes.Ldc_I4_1:OpCodes.Ldc_I4_0) || code[1].OpCode!=OpCodes.Ret)
+                throw new InvalidOperationException("Costume browsing getter not restored: "+name);
+        }
+        var show=module.GetType("NGame2.NUI.NWindow.NCustomizing.HeroCostumeViewWidget").Methods.Single(m=>m.Name=="IsShowCostume");
+        var state=module.GetType("NGame2.NUtil.NCostume.HeroCostume").Methods.Single(m=>m.Name=="GetCostumeState" && m.Parameters.Count==3);
+        foreach(var method in new[]{show,state}) {
+            VerifyArenaResultStack(method);
+            // Ticket-only rosters must be checked before ordinary sale/visibility.
+            foreach(var id in TicketOnlyCostumeIds(rules))
+                if(!method.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldc_I4 && Equals(i.Operand,id)))
+                    throw new InvalidOperationException("Missing Light/Darkness ticket-only policy: "+id);
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_CostumeManager"))
+                throw new InvalidOperationException("Real costume ownership lookup missing");
+            if(method.Body.Instructions.Any(i=>Equals(i.Operand,"SPRK_LIGHT_TICKET_AND_HONOR_DRESSING_FILTER")))
+                throw new InvalidOperationException("Legacy local costume filter remains");
+        }
+        if(!show.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="IsCoupleCostume"))
+            throw new InvalidOperationException("Couple costume visibility rules missing");
+        Console.WriteLine("Verified restored costume browsing, native couple rules and ticket-only Light/Darkness ownership checks.");
+    }
+
+    // Execute the actual patched methods in an in-memory copy. Only Unity singleton
+    // creation is disabled; ownership uses the client's real costume manager.
+    static void TestDressingRoomCostumes(AssemblyDefinition game, JsonNode rules, IEnumerable<object> rows) {
+        using var bytes=new MemoryStream(); game.Write(bytes); bytes.Position=0;
+        using var fixture=AssemblyDefinition.ReadAssembly(bytes,new ReaderParameters{AssemblyResolver=game.MainModule.AssemblyResolver});
+        var module=fixture.MainModule;
+        var create=module.GetType("NVespa.NSingleton.GlobalAutoStatic`1").Methods.Single(m=>m.Name=="CreateInstance");
+        create.Body=new MethodBody(create); create.Body.GetILProcessor().Emit(OpCodes.Ret);
+        var account=module.GetType("NGame2.NAccount.AccountManager");
+        foreach(var name in new[]{"CostumeManager","HeroManager"}) {
+            var getter=account.Methods.Single(m=>m.Name=="get_"+name);
+            var field=new FieldDefinition("SPRKFixture"+name,Mono.Cecil.FieldAttributes.Public|Mono.Cecil.FieldAttributes.Static,getter.ReturnType);
+            account.Fields.Add(field);getter.Body=new MethodBody(getter);
+            var il=getter.Body.GetILProcessor();il.Emit(OpCodes.Ldsfld,field);il.Emit(OpCodes.Ret);
+        }
+        using var output=new MemoryStream();fixture.Write(output);
+        var assembly=Assembly.Load(output.ToArray());
+        var accountType=assembly.GetType(account.FullName)!;
+        var singleton=assembly.GetType("NVespa.NSingleton.GlobalAutoStatic`1")!.MakeGenericType(accountType);
+        singleton.GetField("_instance",BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)!
+            .SetValue(null,System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(accountType));
+        foreach(var name in new[]{"CostumeManager","HeroManager"}) {
+            var field=accountType.GetField("SPRKFixture"+name)!;
+            field.SetValue(null,Activator.CreateInstance(field.FieldType));
+        }
+        var manager=accountType.GetField("SPRKFixtureCostumeManager")!.GetValue(null)!;
+        var widgetType=assembly.GetType("NGame2.NUI.NWindow.NCustomizing.HeroCostumeViewWidget")!;
+        var widget=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(widgetType);
+        var show=widgetType.GetMethod("IsShowCostume",CTFlags)!;
+        var state=assembly.GetType("NGame2.NUtil.NCostume.HeroCostume")!.GetMethods()
+            .Single(m=>m.Name=="GetCostumeState" && m.GetParameters().Length==3);
+        var tickets=TicketOnlyCostumeIds(rules).ToHashSet();
+        int visible=0;
+        foreach(var row in rows) {
+            var data=JsonSerializer.Deserialize(CTSnapshot(row),assembly.GetType("NShared.CostumeData")!)!;
+            var id=(int)CTMember(data,"CostumeIndex");
+            if((bool)CTCall(data,"IsCoupleCostume"))continue;
+            bool actual=(bool)show.Invoke(widget,new[]{data,null})!;
+            if(actual==tickets.Contains(id))throw new InvalidOperationException("Dressing room visibility regression: "+id);
+            if(actual)visible++;
+            if((bool)CTMember(data,"IsDefault"))continue;
+            string expected=tickets.Contains(id)?"CannotBuy":"Buyable";
+            if(state.Invoke(null,new object?[]{null,data,false})!.ToString()!=expected)
+                throw new InvalidOperationException("Dressing room purchase regression: "+id);
+            if(state.Invoke(null,new object?[]{null,data,true})!.ToString()!="NeedHero")
+                throw new InvalidOperationException("Hero ownership gate missing: "+id);
+            var owned=Activator.CreateInstance(assembly.GetType("NShared.CostumeInfo")!)!;
+            owned.GetType().GetProperty("CostumeIndex")!.SetValue(owned,id); CTCall(manager,"Add",owned);
+            if(!(bool)show.Invoke(widget,new[]{data,null})! || state.Invoke(null,new object?[]{null,data,false})!.ToString()!="Owned")
+                throw new InvalidOperationException("Owned costume cannot be shown/equipped: "+id);
+            CTCall(manager,"RemoveAll");
+        }
+        Console.WriteLine($"PASS: {visible} ordinary/LoH costume rows visible; Light/Darkness ticket-only visibility, real ownership states and hero gates executed.");
     }
 }
 

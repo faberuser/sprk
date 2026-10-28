@@ -322,7 +322,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         var row=info.Button_Logout.localPosition;
         // Anchor every refresh to Logout so reopening cannot swap the controls back.
         if(language!=null)language.localPosition=row-new Vector3(step*3,0,0);
-        info.Button_Coupon.localPosition=row-new Vector3(step*2,0,0);
+        info.Button_Coupon.localPosition=row+new Vector3(-step*3,100,0);
         if(account!=null)account.localPosition=row-new Vector3(step,0,0);
         if(change!=null)change.localPosition=row+new Vector3(-step,100,0);
         if(delete==null)return;
@@ -337,12 +337,18 @@ public sealed class SprkAccounts : MonoBehaviour {
             load.Interface<NGameAsset.IBundleLoad>().StartLoad();
             if(load.AssetBundle!=null)redAtlas=load.AssetBundle.mainAsset as UIAtlas;
         }
-        foreach(var assigner in delete.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>(true))
-            if(assigner.SpriteName!=null && assigner.SpriteName.StartsWith("Common_Button")){assigner.AtlasName="Common";assigner.SpriteName=red;}
-        foreach(var sprite in delete.GetComponentsInChildren<UISprite>(true))
-            if(sprite.spriteName!=null && sprite.spriteName.StartsWith("Common_Button") && redAtlas!=null){sprite.atlas=redAtlas;sprite.spriteName=red;}
         var button=delete.GetComponent<UIButton>();
-        if(button!=null){button.normalSprite=red;button.hoverSprite=red;button.pressedSprite=red;button.disabledSprite="Common_Button7_Disable";}
+        if(button==null || redAtlas==null || redAtlas.GetSprite(red)==null)return;
+        var background=button.tweenTarget==null?delete.GetComponent<UISprite>():button.tweenTarget.GetComponent<UISprite>();
+        if(background==null)return;
+        // Skin the actual UIButton target regardless of its previous sprite name.
+        // Selecting Common artwork while leaving the coupon atlas makes it blank.
+        foreach(var assigner in delete.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>(true))
+            if(assigner.Target==background){assigner.AtlasName="Common";assigner.SpriteName=red;}
+        background.atlas=redAtlas;background.spriteName=red;background.color=Color.white;
+        button.defaultColor=Color.white;button.hover=Color.white;button.pressed=new Color(.9f,.9f,.9f,1f);
+        button.normalSprite=red;button.hoverSprite=red;button.pressedSprite=red;button.disabledSprite="Common_Button7_Disable";
+        button.SetState(UIButtonColor.State.Normal,true);
     }
     static void AddChangePassword(GameOptionWindow view) {
         var source=view.EtcInfo.Button_Coupon;

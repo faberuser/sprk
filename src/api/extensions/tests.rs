@@ -1964,6 +1964,45 @@ async fn exp_flasks_reattach_same_type_until_stock_runs_out_and_persist() {
 }
 
 #[tokio::test]
+async fn cursed_ruby_flasks_equip_fill_from_stamina_cancel_and_reattach() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for id in [40101,40103,40105,40111,40113,40115] {
+        let row=s.tables.extensions.find("FlaskItem",&[("ItemIndex",id)]).unwrap();
+        let full=n(row,"PotionItemIndex") as i32;let capacity=n(row,"FlaskExp");
+        give(&s,a,id as i32,2).await;
+        let args=format!("HeroIndex=1&ItemIndex={id}");
+        let equipped=call(&s,&u,"item/use_flask_item",&args).await;
+        assert_eq!(equipped["Result"],"Success","{equipped}");assert_eq!(equipped["FlaskResult"]["ItemIndex"],id);
+        assert_eq!(equipped["ItemResult"]["NewCount"],1);
+        assert_ne!(call(&s,&u,"item/use_flask_item",&args).await["Result"],"Success");
+        let mut tx=s.db.begin().await.unwrap();
+        assert!(consumables::fill_flask(&mut tx,&s,a,1,capacity).await.unwrap().is_none());
+        let (progress,items)=consumables::fill_stamina_flask(&mut tx,&s,a,1,1).await.unwrap().unwrap();
+        assert_eq!(progress["Info"]["NewExp"],1);assert!(items.is_empty());tx.commit().await.unwrap();
+        let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+        let hero=login.heroes.iter().find(|h|h.hero_index==1).unwrap();
+        assert_eq!(hero.details["FlaskItemIndex"],id);assert_eq!(hero.details["FlaskExp"],1);
+        let cancelled=call(&s,&u,"item/cancel_flask_item","HeroIndex=1").await;
+        assert_eq!(cancelled["Result"],"Success");assert_eq!(cancelled["ItemResult"]["NewCount"],2);
+        assert_ne!(call(&s,&u,"item/cancel_flask_item","HeroIndex=1").await["Result"],"Success");
+        assert_eq!(call(&s,&u,"item/use_flask_item",&args).await["Result"],"Success");
+        for remaining in [1,0] {
+            let mut tx=s.db.begin().await.unwrap();
+            let (result,items)=consumables::fill_stamina_flask(&mut tx,&s,a,1,capacity).await.unwrap().unwrap();
+            assert_eq!(result["FilledFlaskIndex"],full);assert_eq!(result["FilledFlaskCount"],1);
+            assert_eq!(result["Info"]["ItemIndex"],if remaining==1 {id} else {0});
+            assert!(items.iter().any(|r|r["ItemIndex"]==full && r["AddCount"]==1));
+            tx.commit().await.unwrap();
+        }
+        let mut tx=s.db.begin().await.unwrap();
+        assert!(consumables::fill_stamina_flask(&mut tx,&s,a,1,capacity).await.unwrap().is_none());tx.commit().await.unwrap();
+    }
+    give(&s,a,40201,1).await;
+    assert_ne!(call(&s,&u,"item/use_flask_item","HeroIndex=1&ItemIndex=40201").await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=40201").bind(a).fetch_one(&s.db).await.unwrap(),1);
+}
+
+#[tokio::test]
 async fn exp_flask_replacement_preserves_partial_progress_and_can_be_cancelled_once() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -2020,6 +2059,48 @@ async fn technomagic_restoration_accepts_max_star_locked_gear_and_native_costs()
     assert_eq!(result["ResultEquipItem"]["Locked"], 1);
     assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 90000000);
     assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 163);
+}
+
+#[tokio::test]
+async fn technomagic_awaken_charges_displayed_target_star_costs_and_preserves_failed_attempts() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    give(&s,a,990101,5000).await;
+    let stones=|s:AppState|async move {
+        sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=990101")
+            .bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    for (id,base) in [(911101,10),(901101,15)] {
+        let mut eq=give(&s,a,id,1).await.equipment.remove(0);
+        eq.identified=1;eq.locked=1;
+        save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+        let args=format!("EquipItemSlotIndex={}",eq.slot_index);
+        for star in 0..5 {
+            let expected=base*(1<<star);
+            let price=i64::from(expected)*100000;
+            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=990101").bind(expected-1).bind(a).execute(&s.db).await.unwrap();
+            let rejected=call(&s,&u,"valance_awaken",&args).await;
+            assert_ne!(rejected["Result"],"Success","{id} {star}: {rejected}");
+            assert_eq!(stones(s.clone()).await,expected-1);assert_eq!(gold(&s).await,100000000);
+            assert_eq!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap().star,star);
+            sqlx::query("UPDATE items SET count=5000 WHERE account_id=? AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price-1).bind(a).execute(&s.db).await.unwrap();
+            assert_ne!(call(&s,&u,"valance_awaken",&args).await["Result"],"Success");
+            assert_eq!(stones(s.clone()).await,5000);assert_eq!(gold(&s).await,price-1);
+            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            let result=call(&s,&u,"valance_awaken",&args).await;
+            assert_eq!(result["Result"],"Success","{result}");
+            assert_eq!(result["ResultEquipItem"]["Star"],star+1);
+            assert_eq!(result["ItemResults"][0]["AddCount"],-expected);
+            assert_eq!(stones(s.clone()).await,5000-expected);
+            assert_eq!(gold(&s).await,100000000-price);
+            assert_eq!(result["ResultEquipItem"]["Locked"],1);
+        }
+        let before_gold=gold(&s).await;let before_stones=stones(s.clone()).await;
+        assert_eq!(call(&s,&u,"valance_awaken",&args).await["Result"],"CannotAwakenMore");
+        assert_eq!(gold(&s).await,before_gold);assert_eq!(stones(s.clone()).await,before_stones);
+    }
 }
 
 #[tokio::test]
