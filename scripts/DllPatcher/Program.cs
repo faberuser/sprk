@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--technomagic-refresh-only")) { InstallTechnomagicRefresh(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-technomagic-refresh")) { InstallTechnomagicRefresh(args[0],false,true); return; }
             if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--soul-upgrade-playback-only")) { InstallSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }

@@ -2023,6 +2023,48 @@ async fn technomagic_restoration_accepts_max_star_locked_gear_and_native_costs()
 }
 
 #[tokio::test]
+async fn technomagic_awaken_charges_displayed_target_star_costs_and_preserves_failed_attempts() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    give(&s,a,990101,5000).await;
+    let stones=|s:AppState|async move {
+        sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=990101")
+            .bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    for (id,base) in [(911101,10),(901101,15)] {
+        let mut eq=give(&s,a,id,1).await.equipment.remove(0);
+        eq.identified=1;eq.locked=1;
+        save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
+        let args=format!("EquipItemSlotIndex={}",eq.slot_index);
+        for star in 0..5 {
+            let expected=base*(1<<star);
+            let price=i64::from(expected)*100000;
+            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=990101").bind(expected-1).bind(a).execute(&s.db).await.unwrap();
+            let rejected=call(&s,&u,"valance_awaken",&args).await;
+            assert_ne!(rejected["Result"],"Success","{id} {star}: {rejected}");
+            assert_eq!(stones(s.clone()).await,expected-1);assert_eq!(gold(&s).await,100000000);
+            assert_eq!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap().star,star);
+            sqlx::query("UPDATE items SET count=5000 WHERE account_id=? AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
+            sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price-1).bind(a).execute(&s.db).await.unwrap();
+            assert_ne!(call(&s,&u,"valance_awaken",&args).await["Result"],"Success");
+            assert_eq!(stones(s.clone()).await,5000);assert_eq!(gold(&s).await,price-1);
+            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            let result=call(&s,&u,"valance_awaken",&args).await;
+            assert_eq!(result["Result"],"Success","{result}");
+            assert_eq!(result["ResultEquipItem"]["Star"],star+1);
+            assert_eq!(result["ItemResults"][0]["AddCount"],-expected);
+            assert_eq!(stones(s.clone()).await,5000-expected);
+            assert_eq!(gold(&s).await,100000000-price);
+            assert_eq!(result["ResultEquipItem"]["Locked"],1);
+        }
+        let before_gold=gold(&s).await;let before_stones=stones(s.clone()).await;
+        assert_eq!(call(&s,&u,"valance_awaken",&args).await["Result"],"CannotAwakenMore");
+        assert_eq!(gold(&s).await,before_gold);assert_eq!(stones(s.clone()).await,before_stones);
+    }
+}
+
+#[tokio::test]
 async fn technomagic_restoration_rejections_use_native_messages_and_preserve_costs() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

@@ -143,6 +143,10 @@ pub(super) async fn execute(
     }
     match action {
         "valance_awaken" => {
+            let max_star = n(row(state, "EquipItemDetail", &[("DetailIndex", n(data, "DetailIndex"))])?, "MaxStar");
+            if eq.star < 0 || eq.star as i64 >= max_star {
+                return Err(rule("CannotAwakenMore"));
+            }
             let r = row(
                 state,
                 "ValanceAwaken",
@@ -150,7 +154,8 @@ pub(super) async fn execute(
                     ("Tier", n(data, "Tier")),
                     ("DetailIndex", n(data, "DetailIndex")),
                     ("CreatureTagType", data["TagType"][0].as_i64().unwrap_or(0)),
-                    ("Star", eq.star as i64),
+                    // Native ValanceAwakenWindow uses AfterStar for both stones and gold.
+                    ("Star", eq.star as i64 + 1),
                 ],
             )?;
             out["CurrencyResult"] = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;

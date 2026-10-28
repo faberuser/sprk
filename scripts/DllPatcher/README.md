@@ -14,6 +14,14 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--technomagic-refresh-only` applies TM tier-upgrade account state before UI
+notification, then rebuilds the open awakening window's hero/inventory icons and
+clears the old 5-star target. `--verify-technomagic-refresh` verifies the response
+order, native error paths, and scoped refresh. Installation also executes the
+native response callback with isolated service traces and checks idempotence.
+The full release build installs and verifies this patch. The server prices TM
+star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
+
 `--runes-only` restores both the hero rune selector and the separate Rune of
 Blasphemy inventory subcategory, retaining the native equipment and grind paths.
 Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
