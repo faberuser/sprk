@@ -3502,7 +3502,7 @@ async fn world_boss_unlimited_attempts_keep_daily_best_and_reward_first_attempt_
     let progress:i64=sqlx::query_scalar("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='CompleteWorldBoss'").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(progress,4,"Lower and tied runs still complete missions; retries must not count twice");
     // Moving yesterday's settled ledger/claim out of today's UTC period restores
-    // exactly one reward and a fresh daily best without discarding season totals.
+    // exactly one reward and a fresh daily best while retaining the weekly best.
     let yesterday=(chrono::Utc::now().date_naive()-chrono::Duration::days(1)).to_string();
     sqlx::query("UPDATE battle_scores SET day=? WHERE family='world_boss' AND account=?").bind(&yesterday).bind(a).execute(&s.db).await.unwrap();
     let season=n(&info["WorldBossInfos"][0],"Season");
@@ -3510,10 +3510,24 @@ async fn world_boss_unlimited_attempts_keep_daily_best_and_reward_first_attempt_
     sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(now()-30).bind(a).execute(&s.db).await.unwrap();
     let next=call(&s,&u,"campaign/end_campaign",&format!("{begin}&Completed=false&TotalDamage=150")).await;
     assert_eq!(next["Result"],"Success","{next}");
-    assert_eq!(next["WorldBossRankInfo"]["Score"],350,"Season sums daily bests");
+    assert_eq!(next["WorldBossRankInfo"]["Score"],200,"A weaker run on a new day must not increase the weekly best");
+    assert_eq!(next["WorldBossInfo"]["TotalDamage"],200);
     assert_eq!(next["ItemResults"].as_array().unwrap().iter().map(|v|n(v,"AddCount")).sum::<i64>(),2);
     let daily=call(&s,&u,"world_boss/get_world_boss_daily_score_info",&format!("WorldBossIndex={id}")).await;
     assert_eq!(daily["WorldBossDailyScore"]["Score"],150);
+    for (damage,weekly) in [(199,200),(200,200),(250,250)] {
+        assert_eq!(call(&s,&u,"campaign/begin_campaign",&begin).await["Result"],"Success");
+        sqlx::query("UPDATE battle_runs SET started=? WHERE account=?").bind(now()-30).bind(a).execute(&s.db).await.unwrap();
+        let result=call(&s,&u,"campaign/end_campaign",&format!("{begin}&Completed=false&TotalDamage={damage}")).await;
+        assert_eq!(result["Result"],"Success","{result}");
+        assert_eq!(result["WorldBossRankInfo"]["Score"],weekly);
+        assert_eq!(result["WorldBossInfo"]["TotalDamage"],weekly);
+        assert!(result["ItemResults"].as_array().unwrap().is_empty(),"Daily participation reward must remain claimed");
+    }
+    let reloaded=call(&s,&u,"world_boss/get_world_boss_info","").await;
+    assert_eq!(reloaded["WorldBossInfos"][0]["TotalDamage"],250,"Reload must use the same weekly best policy");
+    let rank=call(&s,&u,"world_boss/get_world_boss_rank_info",&format!("WorldBossIndex={id}")).await;
+    assert_eq!(rank["RankInfo"]["Score"],250);
     let group=s.tables.item_groups.get("WORLDBOSS_ENTER_GROUP").unwrap();
     assert_eq!(group.sub_data_list.iter().map(|r|r.rate).collect::<Vec<_>>(),vec![47,33,12,8]);
 }
