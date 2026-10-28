@@ -229,6 +229,16 @@ while allowing reactivation for the same account; a new avatar creation rebinds
 the owner. Requests wait for a valid completed creature load, with a bounded
 10-second readiness window, then use the native ChangeCustomizeStock path for
 changed parts. The existing hero render facade is never replaced by this path.
+Reconciliation is also queued after initial creation and avatar replacement,
+including basic-weapon outfits. While the lobby is active, it detects a new load
+or live creature after a model reload and reconciles again. Missing ownership
+data during login defers the operation instead of clearing equipped parts.
+Comparisons use the live creature's OpenData stock, since the load's original
+request stock is not updated by ChangeCustomizeStock. Missing live accessory
+instances are repaired even when their original requested stock already matches.
+Tests execute reconciliation against native stock structures and simulated
+creature interfaces for basic and costume weapons, missing instances, changed
+accessories, unequips, stable no-ops, readiness and A-B-A account switching.
 
 Lobby hero snapshots use the current manager's hero and owned accessories, reject
 a portrait snapshot carrying another account ID, and clone accessory transforms

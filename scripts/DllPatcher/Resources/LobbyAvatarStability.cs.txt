@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using NShared;
 using NGameAsset;
@@ -22,18 +23,27 @@ public sealed class SprkLobbyAccessoryLease {
 public sealed class SprkLobbyAccessoryState : MonoBehaviour {
     public readonly SprkLobbyAccessoryLease Lease=new SprkLobbyAccessoryLease();
     public Avatar Target;
+    public ICreatureLoad ObservedLoad;
+    public ICreature ObservedCreature;
     public float Deadline;
     public float NextTry;
-    void OnDisable() { Lease.Cancel();Target=null; }
+    void OnDisable() { Lease.Cancel();Target=null;ObservedLoad=null;ObservedCreature=null; }
     void Update() {
-        if(!Lease.Pending)return;
+        if(Target==null)return;
         var owner=SprkLobbyAvatar.CurrentOwner();
         if(!Lease.Matches(owner)) { Lease.Bind(null);Target=null;return; }
         if(Time.realtimeSinceStartup<NextTry)return;
         NextTry=Time.realtimeSinceStartup+0.1f;
-        if(SprkLobbyAvatar.Apply(Target)) { Lease.Take(owner,true);Target=null; }
+        var facade=Target.RenderFacade;
+        var load=facade==null?null:facade.AssetCreatureAsync;
+        var creature=load==null?null:load.Value;
+        if(!System.Object.ReferenceEquals(load,ObservedLoad) || !System.Object.ReferenceEquals(creature,ObservedCreature)) {
+            ObservedLoad=load;ObservedCreature=creature;Lease.Queue(owner);Deadline=Time.realtimeSinceStartup+10f;
+        }
+        if(!Lease.Pending)return;
+        if(SprkLobbyAvatar.Apply(Target)) { Lease.Take(owner,true); }
         else if(Time.realtimeSinceStartup>=Deadline) {
-            Lease.Take(owner,true);Target=null;
+            Lease.Take(owner,true);
             Debug.LogWarning("SPRK lobby accessories: avatar not ready; kept current hero.");
         }
     }
@@ -45,7 +55,13 @@ public static class SprkLobbyAvatar {
     public static void Bind(MapLayout layout) {
         var state=layout.GetComponent<SprkLobbyAccessoryState>();
         if(state==null)state=layout.gameObject.AddComponent<SprkLobbyAccessoryState>();
-        state.Lease.Bind(CurrentOwner());state.Target=null;
+        state.Lease.Bind(CurrentOwner());state.Target=null;state.ObservedLoad=null;state.ObservedCreature=null;
+    }
+    public static void Track(MapLayout layout,bool forced) {
+        if(layout==null)return;
+        var state=layout.GetComponent<SprkLobbyAccessoryState>();
+        if(forced) { if(state!=null){state.Lease.Cancel();state.Target=null;}return; }
+        if(layout.Mediator!=null)Refresh(layout,layout.Mediator.Avatar,0);
     }
     public static CachedHeroInfo Create(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
         if(hero==null)return null;
@@ -76,25 +92,46 @@ public static class SprkLobbyAvatar {
         int heroIndex=new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex;
         var hero=account.HeroManager.Get(heroIndex);
         var data=GameRoot.Instance.CreatureDataContainer.GetData(heroIndex);
-        if(hero==null || data==null || facade.AssetCreatureAsync.Stock.Code!=data.CodeName)return false;
+        if(hero==null || data==null || facade.AssetCreatureAsync.Stock.Code!=(String.IsNullOrEmpty(data.ModelCode)?data.CodeName:data.ModelCode))return false;
         var load=facade.AssetCreatureAsync;
+        var desired=new List<CustomizeStock>();
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
             int index=hero.GetAccessoryIndex(part);
             var stock=CustomizeStock.CreateEmptyPart(part);
-            if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(heroIndex,index))!=null) {
+            if(index!=0) {
+                // Login can create the lobby before accessory ownership finishes
+                // loading. Wait rather than interpreting that as an unequip.
+                if(account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(heroIndex,index))==null)return false;
                 var accessory=GameRoot.Instance.AccessoryCostumeDataContainer.GetData(index);
                 var position=hero.GetAccessoryPositionInfo(part);
-                if(accessory==null || !RenderFacadeBuilder.TryAssignCustomizeStock(ref stock,heroIndex,accessory,position==null?PositionInfo.Create():position.Clone()))continue;
+                if(accessory==null || !RenderFacadeBuilder.TryAssignCustomizeStock(ref stock,heroIndex,accessory,position==null?PositionInfo.Create():position.Clone()))return false;
             }
+            desired.Add(stock);
+        }
+        return Reconcile(load,desired.ToArray());
+    }
+    public static bool Reconcile(ICreatureLoad load,CustomizeStock[] desired) {
+        if(load==null || !load.IsDone || !load.IsValid || load.Value==null || desired==null)return false;
+        var creature=load.Value;
+        var open=creature.GetCreatureOpenData();
+        if(open==null)return false;
+        foreach(var stock in desired) {
             bool found=false;
-            var values=load.Stock.CustomizeStockValues();
-            if(values!=null)foreach(var old in values)if(old.Part==part) {
+            // CreatureLoad.Stock is the initial request; ChangeCustomizeStock
+            // updates OpenData.Stock. Compare against the live stock instead.
+            var values=open.GetStock().CustomizeStockValues();
+            if(values!=null)foreach(var old in values)if(old.Part==stock.Part) {
                 found=true;
-                if(!old.IsEqualItem(stock) || !old.IsEqualTransform(stock))load.ChangeCustomizeStock(stock);
+                if(!old.IsEqualItem(stock) || !old.IsEqualTransform(stock) ||
+                   (!stock.IsEmptyPart() && creature.GetCutomizeItemInstance(stock)==null))load.ChangeCustomizeStock(stock);
                 break;
             }
             if(!found && !stock.IsEmptyPart())load.ChangeCustomizeStock(stock);
         }
+        // A part's builder can still be unavailable on the first ready body
+        // frame. Keep the queued retry until the live accessory instance exists.
+        foreach(var stock in desired)
+            if(!stock.IsEmptyPart() && creature.GetCutomizeItemInstance(stock)==null)return false;
         return true;
     }
 }
