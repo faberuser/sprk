@@ -14,6 +14,11 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--runes-only` restores both the hero rune selector and the separate Rune of
+Blasphemy inventory subcategory, retaining the native equipment and grind paths.
+Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
+to validate the original inventory prefab and both category selections in Unity.
+
 The shared `tables/CostumeTicketRules.json` also opens all 80 archived League of
 Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits.
 `--costume-tickets-only` installs their native Costume/CostumeGroup rows and

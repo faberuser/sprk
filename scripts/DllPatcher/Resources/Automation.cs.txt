@@ -161,6 +161,10 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="inventory-rune-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Inventory rune probe requires isolated Login");
+                ProbeInventoryRunes();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native inventory prefab exposes Normal Rune and Rune of Blasphemy subcategories, and both select correctly.");Write(reply);return;
+            }
             if(cmd.action=="awakening-material-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
                 ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
@@ -824,6 +828,24 @@ public sealed class SprkAutomation : MonoBehaviour
             catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
         }
         busy=false;Write(failure);
+    }
+    void ProbeInventoryRunes() {
+        var prefab=VespaResource.Load<GameObject>(NGame2.NUI.NWindow.NInventory.InvenList.PrefabPath);
+        if(prefab==null)throw new Exception("Native inventory prefab missing");
+        var go=UnityEngine.Object.Instantiate(prefab);
+        var view=go.GetComponent<NGame2.NUI.NWindow.NInventory.InvenList>();
+        var rune=Array.Find(view.Categories,c=>c.Type==NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune);
+        if(rune==null || rune.SubCategorys.Length<2 || rune.SubCategorys[0].Toggle==null || rune.SubCategorys[1].Toggle==null ||
+           !rune.SubCategorys[0].ItemTypes.Contains(NShared.ItemType.Rune) || !rune.SubCategorys[1].ItemTypes.Contains(NShared.ItemType.PunishmentRune))
+            throw new Exception("Native rune subcategories or item filters missing");
+        rune.SubCategorys[0].Toggle.gameObject.SetActive(false);rune.SubCategorys[1].Toggle.gameObject.SetActive(false);
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+        var select=view.GetType().GetMethod("SelectCategory",flags);
+        select.Invoke(view,new object[]{NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune,0});
+        if(!rune.SubCategorys[0].Toggle.gameObject.activeSelf || !rune.SubCategorys[1].Toggle.gameObject.activeSelf)throw new Exception("Rune category button remains hidden");
+        select.Invoke(view,new object[]{NGame2.NUI.NWindow.NInventory.InvenList.EToggle.Rune,1});
+        if((int)view.GetType().GetField("_subCategoryIndex",flags).GetValue(view)!=1)throw new Exception("Blasphemy rune selection failed");
+        go.SetActive(false);
     }
     void ProbeAwakeningMaterials() {
         var host=new GameObject("AwakeningMaterialFixture");host.SetActive(false);

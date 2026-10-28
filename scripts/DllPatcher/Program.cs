@@ -241,6 +241,7 @@ namespace DllPatcher
                 PatchLegacyHeroStats(module);
                 PatchRuneCategories(module);
                 PatchCachedRuneOptions(module);
+                PatchInventoryRuneCategory(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
                 PatchOrvelVisuals(module);

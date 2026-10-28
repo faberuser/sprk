@@ -1696,6 +1696,79 @@ async fn rune_pages_consume_preserve_and_restore_without_duplication() {
 }
 
 #[tokio::test]
+async fn locked_rune_equips_and_preserves_inventory_lock() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 100001, 2).await;
+    let lock = item::set_lock_rune_item(State(s.clone()), Bytes::from(format!(
+        "SessionKey={}&RuneItemIndex=100001&Locked=1", u.user_info.session_key
+    ))).await.unwrap().0;
+    assert_eq!(lock["Result"], "Success");
+    let args = "HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100001&EquipItemSlotIndex=0";
+    let equipped = call(&s, &u, "equip_rune", args).await;
+    assert_eq!(equipped["Result"], "Success", "{equipped}");
+    assert_eq!(equipped["ItemResults"][0]["Locked"], 1);
+    assert_eq!(equipped["ItemResults"][0]["NewCount"], 1);
+    let locked: (i32,i32) = sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(locked, (1,1));
+    let break_request=Bytes::from(format!("SessionKey={}&ItemIndices=[100001]&Counts=[1]",u.user_info.session_key));
+    let break_result=item::break_rune(State(s.clone()), break_request).await.unwrap().0;
+    assert_ne!(break_result["Result"], "Success");
+    let relogin=user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert!(relogin.hero_rune_page_infos.iter().any(|r| r["HeroIndex"]==1 && r["SlotNum"]==1 && r["ItemIndex"]==100001));
+    assert_eq!(relogin.items.iter().find(|r|r.item_index==100001).unwrap().locked,1);
+    let restored=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
+    assert_eq!(restored["Result"],"Success","{restored}");
+    let locked: (i32,i32) = sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(locked, (2,1));
+    assert_eq!(restored["ItemResults"][0]["Locked"],1);
+    // The lock must survive even when equipping the last copy leaves a
+    // zero-count inventory row until the rune is preserved and returned.
+    sqlx::query("UPDATE items SET count=1 WHERE account_id=? AND item_index=100001").bind(a).execute(&s.db).await.unwrap();
+    let last=call(&s,&u,"equip_rune",args).await;
+    assert_eq!(last["Result"],"Success","{last}");
+    assert_eq!(last["ItemResults"][0]["NewCount"],0);
+    assert_eq!(last["ItemResults"][0]["Locked"],1);
+    let returned=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
+    assert_eq!(returned["Result"],"Success","{returned}");
+    let locked: (i32,i32)=sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(locked,(1,1));
+}
+
+#[tokio::test]
+async fn locked_punishment_rune_equips_once_and_retains_lock_and_rolls() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    for (id,count) in [(45005,10000),(45123,1),(45128,150),(100005,11)] {give(&s,a,id,count).await;}
+    let ingredients=vec![100005;10];
+    let crafted=call(&s,&u,"punishment_rune/craft_punishment_rune",&format!("PunishmentRuneIndex=100262&IngredientRuneIndices={}",json!(ingredients))).await;
+    assert_eq!(crafted["Result"],"Success","{crafted}");
+    let slot=n(&crafted["EquipItemResult"],"SlotIndex");
+    let rolled=crafted["EquipItemResult"]["PunishmentRuneOption"].clone();
+    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?").bind(a).bind(slot).execute(&s.db).await.unwrap();
+    let args=format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
+    let result=call(&s,&u,"equip_rune",&args).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    let duplicate=call(&s,&u,"equip_rune",&format!("HeroIndex=1&RunePage=1&SlotNum=2&ItemIndex=100262&EquipItemSlotIndex={slot}")).await;
+    assert_eq!(duplicate["Result"],"AlreadyEquippedRune","{duplicate}");
+    let same_slot=call(&s,&u,"equip_rune",&args).await;
+    assert_eq!(same_slot["Result"],"AlreadyEquippedRune","{same_slot}");
+    let destroy=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=false").await;
+    assert_ne!(destroy["Result"],"Success");
+    let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    let loaded=login.equip_items.iter().find(|r|r.slot_index as i64==slot).unwrap();
+    assert_eq!(loaded.locked,1);assert_eq!(loaded.punishment_rune_option.as_ref(),Some(&rolled));
+    let restored=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
+    assert_eq!(restored["Result"],"Success","{restored}");
+    let locked:i32=sqlx::query_scalar("SELECT locked FROM equip_items WHERE account_id=? AND slot_index=?").bind(a).bind(slot).fetch_one(&s.db).await.unwrap();
+    assert_eq!(locked,1);
+    let request=Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{slot}]",u.user_info.session_key));
+    assert_ne!(item::break_rune(State(s.clone()),request).await.unwrap().0["Result"],"Success");
+}
+
+#[tokio::test]
 async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     let (mut s, u) = setup().await;
     let a = u.user_info.account_id;
