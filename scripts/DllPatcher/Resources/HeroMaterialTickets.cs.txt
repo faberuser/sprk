@@ -64,7 +64,12 @@ public static class SprkHeroMaterialTickets {
     }
     public static void OpenHall(AwakeChallengeItemComponent component, ItemData material, long required,
         int owned, Action<ItemIconComponent> fallback) {
+#if SPRK_HALL_OPEN_INT
+        // The unpatched release baseline has an int count parameter.
+        component.Open(material, (int)required, owned, fallback);
+#else
         component.Open(material, required, owned, fallback);
+#endif
         if (!IsMaterial(material, HeroAwakeType.Awaken) && !IsMaterial(material, HeroAwakeType.Transcend)) return;
         component.SetListener(TicketClick(material, (int)Math.Min(int.MaxValue, Math.Max(0L, required)), fallback));
     }

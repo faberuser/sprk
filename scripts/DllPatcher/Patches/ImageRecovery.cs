@@ -34,6 +34,16 @@ partial class Program
         Prefix(cache.Methods.Single(m => m.Name == "GetCachedAsset"), "BeforeCachedAsset", OpCodes.Ldarg_0, OpCodes.Ldarg_1, OpCodes.Ldarg_2);
         Prefix(cache.Methods.Single(m => m.Name == "GetCachedResource"), "BeforeCachedResource", OpCodes.Ldarg_0, OpCodes.Ldarg_1);
         var loader = module.GetType("NGame2.NUI.UIBundleLoader");
+        Prefix(loader.Methods.Single(m => m.Name == "SetAssetPath"), "BeforePortraitChange", OpCodes.Ldarg_0, OpCodes.Ldarg_1, OpCodes.Ldarg_2);
+        Prefix(loader.Methods.Single(m => m.Name == "set_AssetPath"), "BeforePortraitPathChange", OpCodes.Ldarg_0, OpCodes.Ldarg_1);
+        var portraitComplete = loader.Methods.Single(m => m.Name == "OnComplete");
+        if (!portraitComplete.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == "FitHeroPortrait")) {
+            var assign = portraitComplete.Body.Instructions.Single(i => i.Operand is MethodReference m && m.DeclaringType.Name == "UIHelper" && m.Name == "SetTextureInfo");
+            var info = portraitComplete.Body.Variables.Single(v => v.VariableType.FullName == "NGameAsset.AssetTexture/TextureInfo");
+            var il = portraitComplete.Body.GetILProcessor();
+            var self = Instruction.Create(OpCodes.Ldarg_0); var data = Instruction.Create(OpCodes.Ldloc, info);
+            il.InsertAfter(assign, self); il.InsertAfter(self, data); il.InsertAfter(data, Instruction.Create(OpCodes.Call, Hook("FitHeroPortrait")));
+        }
         var loadTexture = loader.Methods.Single(m => m.Name == "LoadAssetTexture");
         if (!loadTexture.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == "TryTpIcon")) {
             var il = loadTexture.Body.GetILProcessor(); var first = loadTexture.Body.Instructions[0];
@@ -48,6 +58,12 @@ partial class Program
             update.Body.Instructions.Add(Instruction.Create(OpCodes.Ret)); loader.Methods.Add(update);
         }
         Prefix(update, "Tick", OpCodes.Ldarg_0);
+        var lateUpdate = loader.Methods.SingleOrDefault(m => m.Name == "LateUpdate");
+        if (lateUpdate == null) {
+            lateUpdate = new MethodDefinition("LateUpdate", MethodAttributes.Private | MethodAttributes.HideBySig, module.TypeSystem.Void);
+            lateUpdate.Body.Instructions.Add(Instruction.Create(OpCodes.Ret)); loader.Methods.Add(lateUpdate);
+        }
+        Prefix(lateUpdate, "TickPortrait", OpCodes.Ldarg_0);
         foreach (var name in new[] { "OnDisable", "OnDestroy" }) Prefix(loader.Methods.Single(m => m.Name == name), "Reset", OpCodes.Ldarg_0);
         Prefix(module.GetTypes().Single(t => t.Name == "GlobalUpdateBehaviour").Methods.Single(m => m.Name == "Update"), "TickGlobal");
         foreach (var entry in new[] {
@@ -70,7 +86,7 @@ partial class Program
     {
         var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
             .Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.Name == "SprkImageRecovery").ToArray();
-        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickGlobal", "Reset", "WatchLoadingTip", "WatchLoadingHero" })
+        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickPortrait", "TickGlobal", "Reset", "WatchLoadingTip", "WatchLoadingHero", "BeforePortraitChange", "BeforePortraitPathChange", "FitHeroPortrait" })
             if (calls.Count(m => m.Name == name) != (name == "Reset" || name == "WatchLoadingHero" ? 2 : 1)) throw new InvalidOperationException("Missing or duplicate image recovery hook: " + name);
         Console.WriteLine("Verified image cache guards, bounded widget recovery, atlas retry scheduling and lifecycle cleanup.");
     }
@@ -90,7 +106,16 @@ partial class Program
         using var resource = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.ImageRecovery.cs.txt")!;
         using var reader = new StreamReader(resource);
         var refs = Directory.GetFiles(managed, "*.dll").Where(p => Path.GetFileName(p) != "SprkImageRecovery.dll").Select(p => MetadataReference.CreateFromFile(p));
-        var compilation = CSharpCompilation.Create("SprkImageRecovery", new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()) }, refs,
+        using var rules = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.CostumeTicketRules.json")!;
+        using var doc = System.Text.Json.JsonDocument.Parse(rules);
+        var rows = doc.RootElement.GetProperty("NewCostumes").EnumerateArray()
+            .Concat(doc.RootElement.GetProperty("CostumeUpdates").EnumerateArray()
+                .Where(row => row.TryGetProperty("PortraitPath", out var path) &&
+                    path.GetString()!.StartsWith("Portrait/Monster/Ordeal/Light", StringComparison.OrdinalIgnoreCase)))
+            .Select(row => (Id:row.GetProperty("CostumeIndex").GetInt32(), Path:row.GetProperty("PortraitPath").GetString()!)).ToArray();
+        if (rows.Length == 0 || rows.Select(r => r.Id).Distinct().Count() != rows.Length) throw new InvalidOperationException("Invalid Light costume fallback portrait list.");
+        var source = reader.ReadToEnd().Replace("__SPRK_LIGHT_FALLBACK_PATHS__", string.Join(",", rows.Select(r => "{"+r.Id+","+System.Text.Json.JsonSerializer.Serialize(r.Path)+"}")));
+        var compilation = CSharpCompilation.Create("SprkImageRecovery", new[] { CSharpSyntaxTree.ParseText(source) }, refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         var images = new[] { 10, 15 }.Select(value => new ResourceDescription("SprkTpIcons." + value + ".png",
             () => typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.TpIcons." + value + ".png")!, true));
@@ -106,6 +131,8 @@ partial class Program
         File.WriteAllBytes(Path.Combine(managed, "SprkImageRecovery.dll.staged"), compiled.ToArray());
         using (var verified = AssemblyDefinition.ReadAssembly(staged)) VerifyImageRecovery(verified.MainModule);
         if (!stageOnly) {
+            if (System.Diagnostics.Process.GetProcesses().Any(p => UsesClientFiles(p, clientRoot)))
+                throw new InvalidOperationException("Image patch staged. Close game clients and shared-asset workers before installation.");
             var backup = Path.Combine("target", "image-recovery-backups", DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")); Directory.CreateDirectory(backup);
             File.Copy(dll, Path.Combine(backup, "Assembly-CSharp.dll"));
             var helperPath = Path.Combine(managed, "SprkImageRecovery.dll");

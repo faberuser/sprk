@@ -113,14 +113,18 @@ partial class Program {
         using var reader=new StreamReader(source);
         using var craftSource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.EssenceCraftTickets.cs.txt")!;
         using var craftReader=new StreamReader(craftSource);
+        using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
+        using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
+        var hallCountType=game.MainModule.GetType("NGame2.NUI.NComponent2.AwakeChallengeItemComponent")
+            .Methods.Single(m=>m.Name=="Open" && m.Parameters.Count==4).Parameters[1].ParameterType.FullName;
+        if(hallCountType is not ("System.Int32" or "System.Int64"))throw new InvalidOperationException("Unexpected Hall material count type: "+hallCountType);
+        var parseOptions=CSharpParseOptions.Default.WithPreprocessorSymbols(hallCountType=="System.Int32"?new[]{"SPRK_HALL_OPEN_INT"}:Array.Empty<string>());
         var refs=Directory.GetFiles(managed,"*.dll").Where(p=>p!=helperPath).Select(p=>MetadataReference.CreateFromFile(p));
-        var compilation=CSharpCompilation.Create("SprkHeroMaterialTickets",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(craftReader.ReadToEnd())},refs,
+        var compilation=CSharpCompilation.Create("SprkHeroMaterialTickets",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd(),parseOptions),CSharpSyntaxTree.ParseText(craftReader.ReadToEnd())},refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
         using var compiled=new MemoryStream();var result=compilation.Emit(compiled);
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics.Where(d=>d.Severity==DiagnosticSeverity.Error)));
         using var helper=ModuleDefinition.ReadModule(new MemoryStream(compiled.ToArray()));
-        using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
-        using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
         PatchHeroMaterialTickets(game.MainModule,helper);
         var before=string.Join("\n",HeroTicketSetup(game.MainModule).Body.Instructions);
         PatchHeroMaterialTickets(game.MainModule,helper);
