@@ -3,6 +3,30 @@ using NShared;
 using NGame2.NUI.NWindow;
 
 public static class SprkPetPresentation {
+    public static System.Collections.Generic.IList<PortalRenewalData> Contents(
+        System.Collections.Generic.IList<PortalRenewalData> original, PortalRenewalCategory category) {
+        if(category!=PortalRenewalCategory.Pet)return original;
+        // The native panel binds its two buttons by subcategory. The baked
+        // restoration contains only the generic Pet artwork row.
+        var rows=original==null?new System.Collections.Generic.List<PortalRenewalData>():
+            new System.Collections.Generic.List<PortalRenewalData>(original);
+        PetDestination(rows,PortalRenewalSubCategory.MENUBUTTON,"Pets",ClientActivityType.OpenPetHouse);
+        PetDestination(rows,PortalRenewalSubCategory.Pet,"Pet House",ClientActivityType.OpenPetHouse);
+        PetDestination(rows,PortalRenewalSubCategory.PetIncubator,"See Hatching",ClientActivityType.OpenPetIncubator);
+        PetDestination(rows,PortalRenewalSubCategory.PetHouse,"Visit Lil' Raider House",ClientActivityType.OpenPetHouse);
+        return rows;
+    }
+    static void PetDestination(System.Collections.Generic.List<PortalRenewalData> rows,
+        PortalRenewalSubCategory sub,string title,ClientActivityType activity) {
+        foreach(var row in rows)if(row.Category==PortalRenewalCategory.Pet && row.SubCategory==sub)return;
+        rows.Add(new PortalRenewalData {
+            Category=PortalRenewalCategory.Pet,SubCategory=sub,
+            TitleLocalKey=title,MenuButtonLocalkey=title,
+            MainImagePath="Portal_PetHouse_Image",ContentsShowIndex=rows.Count,
+            SubComponentShape=PortalRenewalCompType.Window,
+            MoveTaskType=activity,MoveTaskValue=new string[0]
+        });
+    }
     static UIAtlas cleanFrameAtlas;
     static Texture2D CopyFrame(UIAtlas atlas,UISpriteData sprite) {
         var source=atlas.texture;
@@ -87,6 +111,11 @@ public static class SprkPetPresentation {
     }
     static bool probeStarted;
     public static void EnsureProbe() {
+        if(!probeStarted && !string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_PET_PORTAL_TEST")) &&
+           !string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) &&
+           !string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR"))) {
+            probeStarted=true;var petHost=new GameObject("SprkPetPortalTests");Object.DontDestroyOnLoad(petHost);petHost.AddComponent<SprkPetPortalTests>();return;
+        }
         if(probeStarted || string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_MYINFO_FRAME_TEST")) ||
            string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) ||
            string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))return;
@@ -116,6 +145,73 @@ public static class SprkPetPresentation {
         System.IO.File.WriteAllText(System.IO.Path.Combine(root,"result.txt"),"PASS native My Info sprite: outer border removed="+removed+", gold pixels preserved="+gold+", native nine-slice geometry, shared atlas isolation and reopen reuse");
         Object.Destroy(host);
     }
+}
+
+public sealed class SprkPetPortalTests : MonoBehaviour, NGame2.NUI.NComponent2.PortalContentsComponent.Listener {
+    PortalRenewalData clicked;
+    bool editing;
+    public void OnClickContentsButton(PortalRenewalData row) { clicked=row; }
+    public void ChangeContentsTitle(string title) {}
+    public void MoveNode(int chapter,int dungeon) {}
+    public bool IsRunningEditMode() { return editing; }
+    System.Collections.IEnumerator Start() {
+        yield return new WaitForSecondsRealtime(3);
+        var root=System.Environment.GetEnvironmentVariable("SPRK_PET_PORTAL_TEST");System.IO.Directory.CreateDirectory(root);
+        try {
+            var prefab=Resources.Load<GameObject>("Prefab2/Window/Portal/PortalRenewalComponents/PortalPethouseComponent");
+            if(prefab==null)throw new System.Exception("Native Pet Portal prefab missing");
+            var host=new GameObject("Inactive Pet Portal fixture");host.SetActive(false);
+            var panel=Object.Instantiate(prefab,host.transform).GetComponent<NGame2.NUI.NComponent2.PortalPethouseComponent>();
+            typeof(NGame2.NUI.NComponent2.PortalContentsComponent).GetField("_listener",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(panel,this);
+            var subs=new[]{PortalRenewalSubCategory.Pet,PortalRenewalSubCategory.PetIncubator,PortalRenewalSubCategory.PetHouse};
+            var nativeContainer=new PortalRenewalDataContainer();
+            for(var type=nativeContainer.GetType();type!=null;type=type.BaseType) {
+                var property=type.GetProperty("Packer",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.DeclaredOnly);
+                if(property==null)continue;
+                var packer=(NShared.NJit.JitPacker)property.GetValue(nativeContainer,null);
+                packer.Deserialize(System.IO.File.ReadAllBytes(System.IO.Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/TableJit/PortalRenewalTable.jit")));
+                break;
+            }
+            var baked=nativeContainer.GetData(PortalRenewalCategory.Pet);
+            if(baked==null || baked.Count!=4)throw new System.Exception("Actual baked Portal lookup did not repair Pet destinations");
+            if(SprkPetPresentation.Contents(null,PortalRenewalCategory.Pet).Count!=4)throw new System.Exception("Null Pet table not repaired");
+            var unaffected=new System.Collections.Generic.List<PortalRenewalData>();
+            if(SprkPetPresentation.Contents(unaffected,PortalRenewalCategory.Raid)!=unaffected ||
+               SprkPetPresentation.Contents(null,PortalRenewalCategory.Raid)!=null)throw new System.Exception("Unrelated Portal category changed");
+            int callbacks=0;
+            for(int mask=0;mask<8;mask++) {
+                var original=new System.Collections.Generic.List<PortalRenewalData>();
+                for(int i=0;i<subs.Length;i++)if((mask&(1<<i))!=0)original.Add(new PortalRenewalData {
+                    Category=PortalRenewalCategory.Pet,SubCategory=subs[i],
+                    MoveTaskType=subs[i]==PortalRenewalSubCategory.PetIncubator?ClientActivityType.OpenPetIncubator:ClientActivityType.OpenPetHouse,
+                    OpenCondition=new[]{"native-condition"}
+                });
+                var rows=SprkPetPresentation.Contents(original,PortalRenewalCategory.Pet);
+                if(rows.Count!=4 || original.Count!=CountBits(mask))throw new System.Exception("Missing/duplicate Pet destinations or input mutated");
+                foreach(var old in original)if(!rows.Contains(old) || old.OpenCondition[0]!="native-condition")throw new System.Exception("Native row/conditions replaced");
+                var again=SprkPetPresentation.Contents(rows,PortalRenewalCategory.Pet);
+                if(again.Count!=rows.Count)throw new System.Exception("Pet reconstruction not idempotent");
+                if(panel.ButtonDatas.Count!=2)throw new System.Exception("Expected two native Pet buttons");
+                foreach(var button in panel.ButtonDatas) {
+                    button.portalData=null;
+                    foreach(var row in rows)if(row.SubCategory==button.subCategory)button.portalData=row;
+                    if(button.portalData==null)throw new System.Exception("Native button has no matching Portal row: "+button.subCategory);
+                    var expected=button.subCategory==PortalRenewalSubCategory.PetIncubator?ClientActivityType.OpenPetIncubator:
+                        button.subCategory==PortalRenewalSubCategory.PetHouse?ClientActivityType.OpenPetHouse:ClientActivityType.None;
+                    if(button.portalData.MoveTaskType!=expected)throw new System.Exception("Incorrect Pet navigation activity");
+                    button.LockedState=NGame2.NUI.NWindow.PortalRenewal.LockedState.NONE;
+                    clicked=null;editing=false;panel.OnClickPetContentsButton(button.ContentsButton);
+                    if(clicked!=button.portalData)throw new System.Exception("Native button failed to dispatch destination");
+                    callbacks++;clicked=null;editing=true;panel.OnClickPetContentsButton(button.ContentsButton);
+                    if(clicked!=null)throw new System.Exception("Edit mode navigation guard bypassed");
+                }
+            }
+            Object.Destroy(host);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(root,"result.txt"),"PASS native Pet Portal: actual baked table lookup; 8 empty/partial/complete table combinations; "+callbacks+" Hatching/House callbacks; null table, unrelated categories, idempotency, native row/condition preservation, edit guard");
+        } catch(System.Exception error) {System.IO.File.WriteAllText(System.IO.Path.Combine(root,"result.txt"),"FAIL "+error);}
+        Application.Quit();
+    }
+    static int CountBits(int value) { int count=0;for(;value!=0;value>>=1)count+=value&1;return count; }
 }
 
 public sealed class SprkMyInfoFrameTests : MonoBehaviour {
