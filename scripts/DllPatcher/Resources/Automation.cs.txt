@@ -161,6 +161,12 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="battle-result-flask-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("flask-result-"))
+                    throw new InvalidOperationException("Flask result fixture requires isolated Login and flask-result profile");
+                busy=true;StartCoroutine(ProbeBattleResultFlask(cmd));return;
+            }
             if(cmd.action=="essence-craft-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("essence-craft-"))
@@ -861,6 +867,28 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(!material.Label_Count.text.Contains("975/300"))throw new Exception("Native essence material balance incorrect: "+material.Label_Count.text);
                 var icon=NGame2.NUI.NComponent2.HeroAwakeItemComponent.PrefabAuto.Factory.Create(popup.transform);
                 var open=Type.GetType("SprkHeroMaterialTickets, SprkHeroMaterialTickets",true).GetMethod("Open");
+                var fragmentIcon=NGame2.NUI.NComponent2.HeroAwakeItemComponent.PrefabAuto.Factory.Create(popup.transform);
+                var fragmentItem=NShared.GameRoot.Instance.ItemDataContainer.GetData(index-100);
+                open.Invoke(null,new object[]{fragmentIcon,fragmentItem,30,0,false,NShared.HeroAwakeType.Awaken,null});
+                if(!fragmentIcon.Sprite_New.gameObject.activeSelf)throw new Exception("Awakening fragment ticket plus icon missing: "+fragmentItem.Index);
+                // Opening/closing popups has a frame-based lifecycle. Exercise
+                // one click here; all seven icon availability paths run below.
+                if(index==20101) {
+                    ((NGame2.NUI.NComponent2.ItemIconComponent.Listener)fragmentIcon).OnClick(fragmentIcon.ItemIconComponent);
+                    var ticketPopup=UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.SelectionItemUsePopup>().Single(p=>p.IsOpen());
+                    if(ticketPopup.InputSelectedCount.value!="30" || (int)ticketPopup.GetType().GetField("_selectedItemIndex",flags).GetValue(ticketPopup)!=fragmentItem.Index)
+                        throw new Exception("Awakening fragment popup lost quantity or material defaults");
+                    ticketPopup.Close();
+                }
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=1}});fragmentIcon.RefreshItemCount(30,0);
+                if(!fragmentIcon.Sprite_New.gameObject.activeSelf)throw new Exception("One available fragment ticket should show plus");
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975,Locked=1}});fragmentIcon.RefreshItemCount(30,0);
+                if(fragmentIcon.Sprite_New.gameObject.activeSelf)throw new Exception("Locked fragment tickets should hide plus");
+                items.Reset(new NShared.ItemInfo[0]);fragmentIcon.RefreshItemCount(30,0);
+                if(fragmentIcon.Sprite_New.gameObject.activeSelf)throw new Exception("No fragment tickets should hide plus");
+                items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975}});fragmentIcon.RefreshItemCount(30,30);
+                if(fragmentIcon.Sprite_New.gameObject.activeSelf)throw new Exception("Satisfied fragment requirement should hide plus");
+                NVespa.NPrefab2.FactoryBase.SafeReleaseComponent(ref fragmentIcon);
                 open.Invoke(null,new object[]{icon,selected,30,0,false,NShared.HeroAwakeType.Transcend,null});
                 if(!icon.Sprite_New.gameObject.activeSelf)throw new Exception("Ticket-only essence plus icon missing: "+index);
                 items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=9}});icon.RefreshItemCount(30,0);
@@ -874,7 +902,7 @@ public sealed class SprkAutomation : MonoBehaviour
                 icon.RefreshItemCount(30,30);if(icon.Sprite_New.gameObject.activeSelf)throw new Exception("Plus visible after essence requirement met");
                 NVespa.NPrefab2.FactoryBase.SafeReleaseComponent(ref icon);
                 items.Reset(new[]{new NShared.ItemInfo{ItemIndex=20108,Count=975}});
-                results.Add("PASS: native essence "+index+" quantity=30, fragments=975/300, Craft enabled; plus icon ticket/mixed/locked/insufficient/owned checks passed");
+                results.Add("PASS: native essence "+index+" quantity=30, fragments=975/300, Craft enabled; essence and fragment plus availability/refresh checks passed"+(index==20101?"; fragment ticket click/prefill/preselection passed":""));
                 popup.OnClickMax();if(popup.GetNumber()!=97)throw new Exception("Native Max does not count tickets");
                 popup.Close();
             }
@@ -885,6 +913,56 @@ public sealed class SprkAutomation : MonoBehaviour
             results.Add("PASS: native shortage clamp: 25 tickets => quantity 2");limited.Close();
         } finally { userField.SetValue(managers,oldUser);itemsField.SetValue(managers,oldItems); }
         return results;
+    }
+    IEnumerator ProbeBattleResultFlask(Command cmd) {
+        var results=new List<object>();Reply failure=null;
+        NGame2.NUI.NComponent2.NBattle.HeroInRewardComponent view=null;
+        System.Reflection.MethodInfo setup=null;
+        NShared.CachedHeroInfo hero=null;
+        var types=new[]{NShared.FlaskType.ExpFlask,NShared.FlaskType.CurseRuby};
+        try {
+            NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+            var parent=new GameObject("FlaskResultFixture");
+            view=NGame2.NUI.NComponent2.NBattle.HeroInRewardComponent.PrefabAuto.Factory.Create(parent.transform);
+            view.flaskFilledEffects=new NGame2.NUI.NComponent2.NBattle.HeroInRewardComponent.FlaskFilledEffect[0];
+            setup=view.GetType().GetMethod("SetupUI",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            hero=new NShared.CachedHeroInfo(new NShared.HeroInfo{HeroIndex=1,Level=60,Star=5});
+        } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        if(failure!=null){busy=false;Write(failure);yield break;}
+        foreach(var type in types)foreach(bool rollover in new[]{false,true}) {
+            float expected=0;string gain=null;NShared.FlaskItemData flask=null;
+            try {
+                flask=NShared.GameRoot.Instance.FlaskItemDataContainer.GetAllData().First(f=>f.Type==type && f.FlaskExp>4);
+                var item=NShared.GameRoot.Instance.ItemDataContainer.GetDataByCode(flask.ItemCode);
+                int added=flask.FlaskExp/4;
+                int current=rollover?added:flask.FlaskExp/2+added;
+                var result=new NShared.FlaskEndCampaignResultInfo{FilledFlaskCount=rollover?1:0,
+                    Info=new NShared.FlaskResultInfo{HeroIndex=1,ItemIndex=item.Index,AddExp=added,NewExp=current,AddExpRatio=1000}};
+                var exp=new NShared.HeroExpResultInfo{HeroIndex=1,OldLevel=60,NewLevel=60,NewValue=0,AddValue=0};
+                if(!(bool)setup.Invoke(view,new object[]{hero,false,false,exp,result,false}))throw new Exception("Native result card setup failed");
+                expected=(float)current/flask.FlaskExp;gain=view.AddExpLabel.text;
+            }catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null)break;
+            yield return new WaitForSecondsRealtime(1.6f);
+            try {
+                if(!view.FlaskExpGauge.gameObject.activeSelf || view.ExpGauge.gameObject.activeSelf)
+                    throw new Exception(type+" result switched from flask to hero EXP after animation");
+                if(Mathf.Abs(view.FlaskExpGauge.fillAmount-expected)>0.02f || view.AddExpLabel.text!=gain || !view.flaskSelector.gameObject.activeSelf)
+                    throw new Exception(type+" result lost its final flask progress, gain text or flask icon");
+                results.Add("PASS: native "+type+" "+(rollover?"rollover":"partial")+" animation retains flask bar, fill="+view.FlaskExpGauge.fillAmount+", gain="+gain);
+            }catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null)break;
+        }
+        if(failure==null)try {
+            setup.Invoke(view,new object[]{hero,false,false,new NShared.HeroExpResultInfo{HeroIndex=1,OldLevel=60,NewLevel=60},null,false});
+            if(!view.ExpGauge.gameObject.activeSelf || view.FlaskExpGauge.gameObject.activeSelf || view.flaskSelector.gameObject.activeSelf)
+                throw new Exception("Reused non-flask result card did not restore native hero EXP");
+            results.Add("PASS: reused card without a flask restores native hero EXP");
+        }catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        if(view!=null)NVespa.NPrefab2.FactoryBase.SafeReleaseComponent(ref view);
+        busy=false;
+        if(failure!=null){Write(failure);yield break;}
+        var reply=Snapshot(cmd.id);reply.materials.AddRange(results);Write(reply);
     }
     void ProbeInventoryRunes() {
         var prefab=VespaResource.Load<GameObject>(NGame2.NUI.NWindow.NInventory.InvenList.PrefabPath);

@@ -105,6 +105,8 @@ partial class Program
         // signatures and every compiled consumer are migrated together.
         InstallHeroMaterialTickets(clientRoot, false);
         VerifyHeroMaterialTicketsFile(clientRoot);
+        InstallBattleResultFlask(clientRoot, false);
+        VerifyBattleResultFlaskFile(clientRoot);
         InstallCurrency64(clientRoot, false);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);

@@ -179,8 +179,11 @@ public static class EssenceCraftTests {
  Check(SprkEssenceCraftTickets.Available(account.ItemManager,"f3",popup)==620,"tickets excluded from essence material total");
  Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==1,"ticket-based essence plus missing");
  Check(SprkEssenceCraftTickets.Indicator("e3",30,30)==0,"plus shown when essence requirement met");
- Check(SprkEssenceCraftTickets.Indicator("f3",30,0)==-1,"non-essence native badge changed");
+ Check(SprkEssenceCraftTickets.Indicator("f3",30,0)==1,"fragment ticket plus missing");
+ Check(SprkEssenceCraftTickets.Indicator("f3",30,30)==0,"fragment plus shown when requirement met");
+ Check(SprkEssenceCraftTickets.Indicator("other",30,0)==-1,"unrelated native badge changed");
  account.ItemManager.rows[20108].Locked=1;Check(SprkEssenceCraftTickets.Available(account.ItemManager,"f3",popup)==5,"locked tickets counted");account.ItemManager.rows[20108].Locked=0;
+ account.ItemManager.rows[20108].Locked=1;Check(SprkEssenceCraftTickets.Indicator("f3",30,0)==0,"locked fragment ticket enables plus");account.ItemManager.rows[20108].Locked=0;
  account.ItemManager.rows[20108].Count=4;Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==0,"plus shown with less than one craft");
  account.ItemManager.rows[20108].Count=5;Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==1,"mixed fragments and tickets not counted for plus");account.ItemManager.rows[20108].Count=615;
  SprkEssenceCraftTickets.Prefill(popup,21);Check(popup.GetNumber()==21 && popup.Changes==1,"required craft quantity not prefilled");

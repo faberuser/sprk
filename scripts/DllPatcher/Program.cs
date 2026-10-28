@@ -176,6 +176,8 @@ namespace DllPatcher
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--continuous-battle-only")) { InstallContinuousBattleSerialization(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-material-tickets-only")) { InstallHeroMaterialTickets(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--battle-result-flask-only")) { InstallBattleResultFlask(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-battle-result-flask")) { VerifyBattleResultFlaskFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-hero-material-tickets")) { VerifyHeroMaterialTicketsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--awakening-materials-only")) { InstallAwakeningMaterials(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-awakening-materials")) { VerifyAwakeningMaterialsFile(args[0],args.Contains("--stage-only")); return; }

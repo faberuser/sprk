@@ -14,6 +14,17 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--battle-result-flask-only` keeps the flask bar, icon, final fill and gain text
+after the battle-result flask animation. It removes the visual-only completion
+callback that initialized hero EXP after every flask animation; native reward
+application, level-up state, flask fill effects and non-flask results are retained.
+`--verify-battle-result-flask` checks the scoped callback and native result paths.
+Stage this patch and automation, then run
+`python scripts/client/verify_battle_result_flask.py` for isolated native EXP/Ruby
+partial-fill, rollover and reused non-flask card checks. Run `--unpatched` before
+installation as a negative control, or `--installed` after installation. The
+full release build installs and verifies the patch.
+
 `--accounts-only` places Use Coupon above Language in Others and assigns the
 Delete Account button's actual background target to the native red Common atlas
 artwork for normal, hover and pressed states. Run
@@ -61,6 +72,12 @@ capped by owned tickets and the 1,000-ticket limit; it starts at zero when enoug
 materials are already owned. Players can edit the quantity before confirming.
 The single material is preselected through the native icon click handler, so
 players can confirm immediately without clicking its icon first.
+Awakening fragment icons show the native “+” when the requirement is unmet and
+at least one matching unlocked fragment ticket is available. The indicator
+updates on refresh and also applies to the Hall of Heroes material row.
+Stage the hero-ticket and automation patches and run
+`python scripts/client/verify_awakening_fragment_tickets.py` for native indicator,
+refresh and ticket-popup checks; `--installed` tests the installed DLLs.
 Ordinary inventory ticket popups keep their native defaults.
 Essence crafting counts loose fragments plus owned, unlocked tickets whose
 reward pools contain the required fragment. The available count, Max quantity,

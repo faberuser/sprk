@@ -26,10 +26,13 @@ public static class SprkEssenceCraftTickets {
         price = material.ItemCount;
         return SprkHeroMaterialTickets.IsMaterial(fragment, NShared.HeroAwakeType.Awaken);
     }
-    // -1 preserves native behavior for non-essence material icons.
+    // -1 preserves native behavior for unrelated material icons.
     public static int Indicator(string code, long required, int owned) {
         var items = NShared.GameRoot.Instance.ItemDataContainer;
-        if (!SprkHeroMaterialTickets.IsMaterial(items.GetDataByCode(code), NShared.HeroAwakeType.Transcend)) return -1;
+        var material = items.GetDataByCode(code);
+        if (SprkHeroMaterialTickets.IsMaterial(material, NShared.HeroAwakeType.Awaken))
+            return owned < required && SprkHeroMaterialTickets.Tickets(material.Index).Count > 0 ? 1 : 0;
+        if (!SprkHeroMaterialTickets.IsMaterial(material, NShared.HeroAwakeType.Transcend)) return -1;
         if (owned >= required) return 0;
         var recipes = NShared.GameRoot.Instance.CraftItemDataContainer.GetCategoryData(code);
         if (recipes == null) return 0;
