@@ -2185,6 +2185,73 @@ async fn tower_sweep_consumes_tickets_and_grants_repeat_rewards() {
 }
 
 #[tokio::test]
+async fn tower_sweep_floor_76_with_67_tickets() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let mut db=s.db.acquire().await.unwrap();
+    let mut tower=dungeons::tower(&mut db,&s,a,21).await.unwrap();
+    tower["CompletedFloor"]=json!(76);
+    put(&mut db,a,"tower",21,&tower).await.unwrap();
+    put(&mut db,a,"top_clear",1,&json!({"SweepDungeonType":1,"DungeonIndex":76})).await.unwrap();
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,5001,76,1,3)")
+        .bind(a).execute(&mut *db).await.unwrap();
+    put(&mut db,a,"key",9,&json!({"Count":67,"RechargeTime":now()})).await.unwrap();
+    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,120125,232) ON CONFLICT(account_id,item_index) DO UPDATE SET count=232")
+        .bind(a).execute(&mut *db).await.unwrap();
+    drop(db);
+    // Native ChallengeTowerWindow sends CompletedFloor + 1, even when the
+    // popup shows 67 repeats of the historical best floor (76).
+    let too_many=call(&s,&u,"sweep/sweep_dungeon","ChapterIndex=5001&DungeonIndex=77&DungeonDifficulty=0&SweepCount=68").await;
+    assert_ne!(too_many["Result"],"Success");
+    let before:i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=120125").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(before,232,"Insufficient entry currency must roll back ticket deductions");
+    let sweep=call(&s,&u,"sweep/sweep_dungeon","ChapterIndex=5001&DungeonIndex=77&DungeonDifficulty=0&SweepCount=67").await;
+    assert_eq!(sweep["Result"],"Success","{sweep}");
+    assert_eq!(sweep["TowerInfoResult"]["CompletedFloor"],76);
+    assert_eq!(sweep["StaminaResult"]["NewValue"],0);
+    assert_eq!(sweep["StartDungeonIndex"],76);
+    assert_eq!(sweep["EndDungeonIndex"],76);
+    let tickets:i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=120125").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(tickets,165);
+    let next:i64=sqlx::query_scalar("SELECT COUNT(*) FROM campaign_progress WHERE account_id=? AND chapter_id=5001 AND dungeon_id=77 AND clear_count>0").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(next,0,"Repeats must not unlock an uncleared floor");
+}
+
+#[tokio::test]
+async fn tower_sweep_continues_after_reset_then_repeats_historical_best() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let mut db=s.db.acquire().await.unwrap();
+    let mut tower=dungeons::tower(&mut db,&s,a,21).await.unwrap();
+    tower["CompletedFloor"]=json!(2);
+    put(&mut db,a,"tower",21,&tower).await.unwrap();
+    put(&mut db,a,"key",9,&json!({"Count":10,"RechargeTime":now()})).await.unwrap();
+    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,120125,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10").bind(a).execute(&mut *db).await.unwrap();
+    drop(db);
+    let args="ChapterIndex=5001&DungeonIndex=3&DungeonDifficulty=0&SweepCount=5";
+    let absent=call(&s,&u,"sweep/sweep_dungeon",args).await;
+    assert_ne!(absent["Result"],"Success","A historical clear is required");
+    put(&mut s.db.acquire().await.unwrap(),a,"top_clear",1,&json!({"SweepDungeonType":1,"DungeonIndex":5})).await.unwrap();
+    let forged=call(&s,&u,"sweep/sweep_dungeon",&args.replace("DungeonIndex=3","DungeonIndex=4")).await;
+    assert_ne!(forged["Result"],"Success","Cannot jump ahead of the current floor");
+    let difficulty=call(&s,&u,"sweep/sweep_dungeon",&args.replace("DungeonDifficulty=0","DungeonDifficulty=3")).await;
+    assert_eq!(difficulty["Result"],"WrongDifficulty");
+    let sweep=call(&s,&u,"sweep/sweep_dungeon",args).await;
+    assert_eq!(sweep["Result"],"Success","{sweep}");
+    assert_eq!(sweep["StartDungeonIndex"],3);
+    assert_eq!(sweep["EndDungeonIndex"],5);
+    assert_eq!(sweep["TowerInfoResult"]["CompletedFloor"],5);
+    assert_eq!(sweep["StaminaResult"]["NewValue"],5);
+    assert_eq!(sweep["CampaignResults"].as_array().unwrap().len(),3,"Publish every skipped floor to the client");
+    let cleared:Vec<(i64,i64)>=sqlx::query_as("SELECT dungeon_id,clear_count FROM campaign_progress WHERE account_id=? AND chapter_id=5001 ORDER BY dungeon_id").bind(a).fetch_all(&s.db).await.unwrap();
+    assert_eq!(cleared,vec![(3,1),(4,1),(5,3)]);
+    let tickets:i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=120125").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(tickets,5);
+    let best=get(&mut s.db.acquire().await.unwrap(),a,"top_clear",1).await.unwrap();
+    assert_eq!(best["DungeonIndex"],5);
+}
+
+#[tokio::test]
 async fn cancelling_dispatch_refunds_unplayed_runs_and_restores_party() {
     let (s, u) = setup().await;
     call(&s, &u, "campaign/begin_campaign", ENTRY).await;

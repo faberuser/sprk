@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::BTreeMap;
 
 fn dispatch_raid<'a>(s: &'a AppState, d: &Value) -> Result<Option<&'a Value>> {
     let kind = match n(d, "BattleType") {
@@ -432,11 +433,18 @@ pub(super) async fn sweep(
     if !matches!(n(d, "BattleType"), 14 | 22 | 38) {
         return Err(rule("ContentsDisabled"));
     }
-    let p = campaign::progress(db, s, a, n(d, "ChapterIndex"), n(d, "DungeonIndex")).await?;
-    if n(&p, "FirstRewardedDiff") & (1 << diff) == 0 {
-        return Err(rule("NotCompletedDungeon"));
+    let stages = sweep_stages(db, s, a, r, count, diff).await?;
+    let mut tickets = 0;
+    let mut cost = 0;
+    for stage in &stages {
+        let dungeon = campaign::dungeon(s, stage)?;
+        if n(dungeon,"ReqStaminaType") != n(d,"ReqStaminaType") ||
+            n(dungeon,"SweepDungeonType") != n(d,"SweepDungeonType") {
+            return Err(rule("NotSweepDungeon"));
+        }
+        tickets += n(dungeon,"SweepTicketCount");
+        cost += campaign::stamina_cost(dungeon,diff) + n(dungeon,"AdvancedReqStamina");
     }
-    let tickets = n(d, "SweepTicketCount") * count;
     let max = n(d, "SweepTicketMaxCount");
     if max > 0 && count > max {
         return Err(rule("InvalidCount"));
@@ -454,23 +462,12 @@ pub(super) async fn sweep(
     } else {
         None
     };
-    let cost = (campaign::stamina_cost(d, diff) + n(d, "AdvancedReqStamina")) * count;
     let stamina = dungeons::charge(db, s, a, n(d, "ReqStaminaType"), cost).await?;
-    let mut params = r.0.clone();
-    if let Some(f) = s.tables.battle.find(
-        "TowerFloor",
-        &[
-            ("ChapterIndex", n(d, "ChapterIndex")),
-            ("DungeonIndex", n(d, "DungeonIndex")),
-        ],
-    ) {
-        params.insert("TowerIndex".into(), n(f, "TowerIndex").to_string());
-        params.insert("TowerFloor".into(), n(f, "Floor").to_string());
-    }
-    let request = Request(params);
     let mut out = item::success();
-    for _ in 0..count {
-        dungeons::validate(db, s, a, &request, d).await?;
+    let mut campaigns = BTreeMap::new();
+    for request in &stages {
+        let dungeon = campaign::dungeon(s, request)?;
+        dungeons::validate(db, s, a, request, dungeon).await?;
         let mut entry = json!({});
         let mut start = json!({});
         dungeons::enter(db, s, a, &request, &mut entry, &mut start).await?;
@@ -489,18 +486,66 @@ pub(super) async fn sweep(
         )
         .await?;
         dungeons::append_rewards(&mut out, &result);
-        out["CampaignResults"] = result["CampaignResults"].clone();
+        for progress in result["CampaignResults"].as_array().into_iter().flatten() {
+            campaigns.insert((n(progress,"ChapterIndex"),n(progress,"DungeonIndex")),progress.clone());
+        }
         if let Some(tower) = result["TowerInfos"].as_array().and_then(|v| v.first()) {
             out["TowerInfoResult"] = tower.clone();
         }
     }
+    out["CampaignResults"] = json!(campaigns.into_values().collect::<Vec<_>>());
     out["StaminaResult"] = stamina;
-    out["StartDungeonIndex"] = d["DungeonIndex"].clone();
-    out["EndDungeonIndex"] = d["DungeonIndex"].clone();
+    out["StartDungeonIndex"] = json!(int(&stages[0],"DungeonIndex")?);
+    out["EndDungeonIndex"] = json!(int(stages.last().unwrap(),"DungeonIndex")?);
     if let Some(v) = removed {
         out["ItemResults"].as_array_mut().unwrap().push(v);
     }
     Ok(out)
+}
+
+// The native tower window submits the next floor, including when the popup
+// displays repeats of the historical best. After a reset it advances to that
+// best floor before repeating. A skip must never establish a new best clear.
+async fn sweep_stages(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,count:i64,diff:i64)->Result<Vec<Request>> {
+    let dungeon=campaign::dungeon(s,r)?;
+    let Some(floor)=dungeons::floor(s,r) else {
+        let progress=campaign::progress(db,s,a,n(dungeon,"ChapterIndex"),n(dungeon,"DungeonIndex")).await?;
+        if n(&progress,"FirstRewardedDiff") & (1<<diff)==0 {return Err(rule("NotCompletedDungeon"));}
+        return Ok((0..count).map(|_|Request(r.0.clone())).collect());
+    };
+    // SweepHelper always submits the tower's native difficulty (zero).
+    // A historical tower record must not authorize another difficulty's loot.
+    if diff!=0 {return Err(rule("WrongDifficulty"));}
+    let tower=n(floor,"TowerIndex");
+    let current=dungeons::tower(db,s,a,tower).await?;
+    let record=get(db,a,"top_clear",n(dungeon,"SweepDungeonType")).await?;
+    let best=s.tables.battle.find("TowerFloor",&[("TowerIndex",tower),
+        ("ChapterIndex",n(dungeon,"ChapterIndex")),("DungeonIndex",n(&record,"DungeonIndex"))])
+        .ok_or_else(||rule("NotCompletedDungeon"))?;
+    let definition=row(s,"Tower",&[("TowerIndex",tower)])?;
+    let max=s.tables.battle.rows("TowerFloor").iter().filter(|f|n(f,"TowerIndex")==tower)
+        .map(|f|n(f,"Floor")).max().ok_or_else(||rule("DungeonNotFound"))?;
+    let requested=n(floor,"Floor");
+    let next=(n(&current,"CompletedFloor")+1).min(max);
+    if requested!=next && (requested>n(&current,"CompletedFloor") || requested>n(best,"Floor")) {
+        return Err(rule("NotCompletedDungeon"));
+    }
+    let start=requested.min(n(best,"Floor"));
+    let mut stages=Vec::new();
+    for offset in 0..count {
+        let target=(start+offset).min(n(best,"Floor"));
+        if target<=n(&current,"CompletedFloor") && definition["RepeatableFloor"]!=true {
+            return Err(rule("NotSweepDungeon"));
+        }
+        let stage=row(s,"TowerFloor",&[("TowerIndex",tower),("Floor",target)])?;
+        let mut params=r.0.clone();
+        params.insert("ChapterIndex".into(),n(stage,"ChapterIndex").to_string());
+        params.insert("DungeonIndex".into(),n(stage,"DungeonIndex").to_string());
+        params.insert("TowerIndex".into(),tower.to_string());
+        params.insert("TowerFloor".into(),target.to_string());
+        stages.push(Request(params));
+    }
+    Ok(stages)
 }
 
 // Freeze the roster and combat buffs before the player disconnects or changes gear.
