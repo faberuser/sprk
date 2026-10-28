@@ -1621,3 +1621,44 @@ async fn all_roster_costume_tickets_cover_102_heroes_and_preserve_failed_claims(
         assert_eq!(balance(&s,&u,"gem").await,before+2100);
     }
 }
+
+#[tokio::test]
+async fn honor_costumes_sell_for_legend_rubies_without_replacing_honor_shop() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let costumes:Vec<_>=s.tables.hero_shop.costumes.values()
+        .filter(|c|c["BodyPrefix"].as_str().is_some_and(|p|p.contains("GloryLeague"))).cloned().collect();
+    assert_eq!(costumes.len(),80);
+    let legend=s.tables.hero_shop.costumes.values().find(|c|c["CostumeType"]==2).unwrap();
+    assert_eq!(item::n(legend,"ReqBuyGem"),10000);
+    let buy=|hero:i64,id:i64,price:i64|format!("HeroIndex={hero}&CostumeIndex={id}&BuyGem={price}&BuyGold={price}&BuyMileage={price}");
+    let before=balance(&s,&u,"gem").await;
+    for req in [buy(84,8409,10000),buy(1,113,9999)] {
+        let out=hero::buy_costume(State(s.clone()),form(&u,&req)).await.unwrap().0;
+        assert_ne!(out["Result"],"Success","{out}");
+        assert_eq!(balance(&s,&u,"gem").await,before);
+    }
+    sqlx::query("UPDATE user_info SET gem=9999,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let out=hero::buy_costume(State(s.clone()),form(&u,&buy(1,113,10000))).await.unwrap().0;
+    assert_ne!(out["Result"],"Success");assert_eq!(balance(&s,&u,"gem").await,9999);
+    sqlx::query("UPDATE user_info SET gem=1000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let gold=balance(&s,&u,"gold").await;
+    let mut spent=0;
+    for c in costumes {
+        let id=item::n(&c,"CostumeIndex");let h=item::n(&c,"HeroIndex");
+        assert_eq!(c["Group"],"LeagueOfHonor");assert_eq!(c["Buyable"],true);
+        assert_eq!(item::n(&c,"ReqBuyGem"),10000);assert_eq!(item::n(&c,"ReqBuyGold"),0);assert_eq!(item::n(&c,"ReqBuyMileage"),0);
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,COALESCE((SELECT MAX(hero_id)+1 FROM heroes WHERE account_id=?),1),? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(a).bind(a).bind(h).bind(a).bind(h).execute(&s.db).await.unwrap();
+        let out=hero::buy_costume(State(s.clone()),form(&u,&buy(h,id,10000))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","{id}: {out}");spent+=10000;
+        assert_eq!(balance(&s,&u,"gem").await,1000000-spent);
+        assert_eq!(balance(&s,&u,"gold").await,gold);
+        let duplicate=hero::buy_costume(State(s.clone()),form(&u,&buy(h,id,10000))).await.unwrap().0;
+        assert_eq!(duplicate["Result"],"AlreadyHaveCostume");assert_eq!(balance(&s,&u,"gem").await,1000000-spent);
+    }
+    let archived:Value=serde_json::from_str(include_str!("../../../tables/ArenaShopCatalog.json")).unwrap();
+    for row in archived["ShopItems"].as_array().unwrap().iter().filter(|r|r["ShopIndex"]==15) {
+        assert!(s.tables.hero_shop.shop_items.iter().any(|r|r["ShopIndex"]==15 && r["Index"]==row["Index"] && r["ItemIndex"]==row["ItemIndex"] && r["BuyCostTypeForItem"]==row["BuyCostTypeForItem"]));
+    }
+}

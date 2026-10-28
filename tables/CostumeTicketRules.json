@@ -3636,7 +3636,8 @@
     "SPRK_COSTUME_LIGHT_OBTAIN": "Obtain from Light Costume Ticket.",
     "ITEM_DESC_600035": "Select 1 Darkness Costume from the 102-hero roster, including Rebel Clause, Dark Lord Kasel, Fallen Frey and Valance. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
     "ITEM_DESC_600100": "Select 1 Light Costume from the 102-hero roster. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
-    "ITEM_DESC2_600035": "Select 1 Darkness Costume from the 102-hero roster, including Rebel Clause, Dark Lord Kasel, Fallen Frey and Valance. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead."
+    "ITEM_DESC2_600035": "Select 1 Darkness Costume from the 102-hero roster, including Rebel Clause, Dark Lord Kasel, Fallen Frey and Valance. You must own the selected hero. If you own every costume in this ticket, you may claim 2,100 Rubies instead.",
+    "COSTUME_GROUP_LEAGUEOFHONOR": "League of Honor"
   },
   "CostumeUpdates": [
     {
@@ -3648,6 +3649,806 @@
       "PortraitPath": "Portrait/Monster/Ordeal/LightValance",
       "IconPortraitPath": "Icon/Creature/Monster/Ordeal/LightValance_5",
       "BattlePortraitPath": "Battle/Portrait/Costume/Ordeal/Valance_Valance_Trans"
+    },
+    {
+      "CostumeIndex": 113,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 114,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 915,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 916,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2313,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2314,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2514,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2515,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2516,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2811,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 2812,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3011,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3012,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3013,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3112,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3113,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3415,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3416,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3611,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 3612,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4012,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4013,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4014,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4015,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4709,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4710,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4912,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 4913,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5011,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5012,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5211,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5212,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5213,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5214,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5311,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5312,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5410,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5411,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5511,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5512,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5613,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5614,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5711,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5712,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5910,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 5911,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6210,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6211,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6212,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6213,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6412,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6413,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6414,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6415,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6513,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6514,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6515,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6516,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6610,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 6611,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7009,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7010,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7108,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7109,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7410,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7411,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7710,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7711,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7911,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 7912,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8110,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8111,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8409,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8410,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8708,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 8709,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 9110,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 9111,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 9310,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
+    },
+    {
+      "CostumeIndex": 9311,
+      "Group": "LeagueOfHonor",
+      "ReqBuyGem": 10000,
+      "ReqBuyGold": 0,
+      "ReqBuyMileage": 0,
+      "IsBuy": true,
+      "IsOpen": true,
+      "IsShow": true
     }
   ],
   "AssetEvidence": {
@@ -6233,5 +7034,100 @@
       "Portrait/Monster/Ordeal/LightXerah",
       "Portrait/Monster/Ordeal/LightZLucikiel"
     ]
-  }
+  },
+  "HonorShop": {
+    "RubyPrice": 10000,
+    "CostumeIndices": [
+      113,
+      114,
+      915,
+      916,
+      2313,
+      2314,
+      2514,
+      2515,
+      2516,
+      2811,
+      2812,
+      3011,
+      3012,
+      3013,
+      3112,
+      3113,
+      3415,
+      3416,
+      3611,
+      3612,
+      4012,
+      4013,
+      4014,
+      4015,
+      4709,
+      4710,
+      4912,
+      4913,
+      5011,
+      5012,
+      5211,
+      5212,
+      5213,
+      5214,
+      5311,
+      5312,
+      5410,
+      5411,
+      5511,
+      5512,
+      5613,
+      5614,
+      5711,
+      5712,
+      5910,
+      5911,
+      6210,
+      6211,
+      6212,
+      6213,
+      6412,
+      6413,
+      6414,
+      6415,
+      6513,
+      6514,
+      6515,
+      6516,
+      6610,
+      6611,
+      7009,
+      7010,
+      7108,
+      7109,
+      7410,
+      7411,
+      7710,
+      7711,
+      7911,
+      7912,
+      8110,
+      8111,
+      8409,
+      8410,
+      8708,
+      8709,
+      9110,
+      9111,
+      9310,
+      9311
+    ],
+    "GroupName": "LeagueOfHonor"
+  },
+  "NewCostumeGroups": [
+    {
+      "CostumeGroupIndex": 43,
+      "GroupName": "LeagueOfHonor",
+      "TexturePath": "",
+      "SelectItemGroup": "SPRK_HONOR",
+      "CostumeType": 1
+    }
+  ]
 }

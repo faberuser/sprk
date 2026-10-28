@@ -14,6 +14,12 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+The shared `tables/CostumeTicketRules.json` also opens all 80 archived League of
+Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits.
+`--costume-tickets-only` installs their native Costume/CostumeGroup rows and
+localized shop group alongside the existing ticket data. The server consumes
+the same sale overrides at startup; its League of Honor item shop is retained.
+
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
 inside gear awakening, then compacts that material grid. It retains the native
 eligibility and selected-item checks and restores items on later refreshes.
