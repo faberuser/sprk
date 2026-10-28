@@ -104,6 +104,8 @@ partial class Program
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
         InstallCurrency64(clientRoot, false);
+        InstallAwakeningMaterials(clientRoot, false);
+        VerifyAwakeningMaterialsFile(clientRoot);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallRaidCoopLimits(clientRoot, false);
