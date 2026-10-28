@@ -19,7 +19,7 @@ partial class Program {
         if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Bind")) {
             var il=create.Body.GetILProcessor();var first=create.Body.Instructions[0];il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));il.InsertBefore(first,il.Create(OpCodes.Call,Hook("Bind")));
         }
-        foreach(var method in new[]{create,map.Methods.Single(m=>m.Name=="ChangePlayerAvatar")}) {
+        foreach(var method in new[]{create,map.Methods.Single(m=>m.Name=="ChangePlayerAvatar"),map.Methods.Single(m=>m.Name=="ChangePlayerAvatarRenderFacadeOnly")}) {
             if(method.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Track"))continue;
             var il=method.Body.GetILProcessor();var ret=method.Body.Instructions.Last();
             if(ret.OpCode!=OpCodes.Ret)throw new Exception("Unknown lobby avatar completion");
@@ -28,7 +28,11 @@ partial class Program {
             il.InsertBefore(ret,il.Create(OpCodes.Call,Hook("Track")));
         }
         var observer=map.Methods.Single(m=>m.Parameters.Count==1 && m.Parameters[0].ParameterType.FullName=="NGame2.NAccount.UserHeroManager/ChangeHeroInfo");
-        foreach(var i in observer.Body.Instructions.Where(i=>i.Operand is MethodReference r && r.Name=="ChangePlayerAvatarRenderFacadeOnly").ToArray()){i.Operand=Hook("Refresh");i.OpCode=OpCodes.Call;}
+        observer.Body=new Mono.Cecil.Cil.MethodBody(observer);
+        var notify=observer.Body.GetILProcessor();
+        notify.Emit(OpCodes.Ldarg_0);notify.Emit(OpCodes.Ldarg_1);notify.Emit(OpCodes.Ldarg_0);
+        notify.Emit(OpCodes.Call,map.Methods.Single(m=>m.Name=="IsForcedHeroAvatar"));
+        notify.Emit(OpCodes.Call,Hook("Notify"));notify.Emit(OpCodes.Ret);
         // An asset completion can remain queued after Close released its OpenData.
         var load=game.GetType("NGameAsset.NCreature.CreatureLoad");
         var complete=load.Methods.Single(m=>m.Name=="OnCompleteAsset");
@@ -45,7 +49,7 @@ partial class Program {
             if(m.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name==pair.Item2)!=1)throw new Exception("Missing/duplicated lobby hook "+pair);
             VerifyArenaResultStack(m);
         }
-        foreach(var name in new[]{"CreatePlayerAvatar","ChangePlayerAvatar"}) {
+        foreach(var name in new[]{"CreatePlayerAvatar","ChangePlayerAvatar","ChangePlayerAvatarRenderFacadeOnly"}) {
             var method=map.Methods.Single(m=>m.Name==name);
             var track=method.Body.Instructions.Single(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Track");
             if(track.Previous.Operand is not MethodReference forced || forced.Name!="IsForcedHeroAvatar" || track.Next.OpCode!=OpCodes.Ret)
@@ -53,8 +57,8 @@ partial class Program {
             VerifyArenaResultStack(method);
         }
         var observer=map.Methods.Single(m=>m.Parameters.Count==1 && m.Parameters[0].ParameterType.FullName=="NGame2.NAccount.UserHeroManager/ChangeHeroInfo");
-        if(observer.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Refresh")!=1 || observer.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="ChangePlayerAvatarRenderFacadeOnly"))throw new Exception("Accessory notification still replaces the whole lobby hero");
-        foreach(var name in new[]{"ShouldRefreshLobbyAccessories","IsForcedHeroAvatar"})if(!observer.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name==name))throw new Exception("Lobby accessory scope missing "+name);
+        if(observer.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Notify")!=1 || observer.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="ChangePlayerAvatarRenderFacadeOnly"))throw new Exception("Lobby appearance notification must defer and coalesce refreshes");
+        if(!observer.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="IsForcedHeroAvatar"))throw new Exception("Lobby appearance forced-avatar guard missing");
         VerifyArenaResultStack(observer);
         var complete=game.GetType("NGameAsset.NCreature.CreatureLoad").Methods.Single(m=>m.Name=="OnCompleteAsset");
         var code=complete.Body.Instructions;
@@ -67,7 +71,9 @@ partial class Program {
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkLobbyAvatarStability.dll"+(staged?".staged":"")));
         VerifyLobbyAvatarStability(game.MainModule);
         var calls=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().ToArray();
-        foreach(var name in new[]{"get_IsDone","get_IsValid","ChangeCustomizeStock","Clone","TryAssignCustomizeStock","get_AccountId","GetCreatureOpenData","GetStock","GetCutomizeItemInstance"})if(!calls.Any(r=>r.Name==name))throw new Exception("Missing lobby safeguard "+name);
+        foreach(var name in new[]{"get_IsDone","get_IsValid","ChangeCustomizeStock","Clone","TryAssignCustomizeStock","GetCreatureOpenData","GetStock","GetCutomizeItemInstance","Observe","IsAppearanceChange","Invoke"})if(!calls.Any(r=>r.Name==name))throw new Exception("Missing lobby safeguard "+name);
+        var create=helper.MainModule.GetType("SprkLobbyAvatar").Methods.Single(m=>m.Name=="Create");
+        if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="CreatePlayerAvatarHeroInfo" && i.Previous.OpCode==OpCodes.Ldnull))throw new Exception("Lobby appearance still uses a saved costume snapshot");
         var matches=helper.MainModule.GetType("SprkLobbyAccessoryLease").Methods.Single(m=>m.Name=="Matches");
         if(!matches.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ceq || i.Operand is MethodReference r && r.Name=="ReferenceEquals"))throw new Exception("Lobby refresh must compare owner identity");
         if(calls.Any(r=>r.Name=="ReleaseRenderFacade" || r.Name=="CreateRenderFacade"))throw new Exception("Accessory refresh must retain the live hero body");
@@ -127,6 +133,7 @@ partial class Program {
             }
             var reconcile=helper.GetType("SprkLobbyAvatar")!.GetMethod("Reconcile")!;
             var native=reconcile.GetParameters()[0].ParameterType.Assembly;
+            TestLobbyAppearance(helper,native);
             var stockType=native.GetType("NGameAsset.CustomizeStock")!;
             var creatureStockType=native.GetType("NGameAsset.CreatureStock")!;
             object Proxy(string name,Func<MethodInfo,object?[]?,object?> handler) {
@@ -184,6 +191,45 @@ partial class Program {
             }
             Console.WriteLine("PASS: native accessory reconciliation for Arch/Esker, basic and two costume weapons; readiness, missing live instances, stale request stock, replacement, unequip and stable no-op.");
         } finally {AppDomain.CurrentDomain.AssemblyResolve-=resolve;}
+    }
+    static void TestLobbyAppearance(Assembly helper,Assembly native) {
+        var heroType=native.GetType("NShared.CachedHeroInfo")!;
+        var hero=Activator.CreateInstance(heroType)!;
+        void Set(string name,object value)=>heroType.GetProperty(name)!.SetValue(hero,value);
+        Set("HeroIndex",1);Set("CostumeIndex",101);Set("HairCostumeIndex",201);Set("WeaponCostumeIndex",301);
+        var appearanceType=helper.GetType("SprkLobbyAppearance")!;
+        var appearance=Activator.CreateInstance(appearanceType)!;
+        int Observe()=>(int)appearanceType.GetMethod("Observe")!.Invoke(appearance,new[]{hero})!;
+        if(Observe()!=0 || Observe()!=0)throw new Exception("Initial/stable lobby appearance must not rebuild the model");
+        foreach(var (field,value) in new[]{("CostumeIndex",102),("HairCostumeIndex",202),("WeaponCostumeIndex",0),("WeaponCostumeIndex",302)}) {
+            Set(field,value);if(Observe()!=1 || Observe()!=0)throw new Exception("Live lobby appearance change not detected/coalesced: "+field);
+        }
+        Set("HideUniqueWeapon",(byte)1);if(Observe()!=1 || Observe()!=0)throw new Exception("Basic/unique weapon visibility not synchronized");
+        var partType=native.GetType("NShared.AccessoryPartType")!;
+        var positionType=native.GetType("NShared.PositionInfo")!;
+        var position=positionType.GetMethod("Create")!.Invoke(null,null)!;
+        var setter=heroType.GetMethod("SetAccessoryCostume")!;
+        setter.Invoke(hero,new[]{Enum.ToObject(partType,1),(object)101,position});
+        if(Observe()!=2 || Observe()!=0)throw new Exception("Accessory equip must update parts without rebuilding the body");
+        foreach(var field in new[]{"PositionX","PositionY","PositionZ","RotationX","RotationY","RotationZ","Scale"}) {
+            positionType.GetProperty(field)!.SetValue(position,2f);
+            if(Observe()!=2 || Observe()!=0)throw new Exception("In-place accessory transform edits not detected: "+field);
+        }
+        setter.Invoke(hero,new[]{Enum.ToObject(partType,1),(object)0,null});
+        if(Observe()!=2 || Observe()!=0)throw new Exception("Accessory removal did not synchronize");
+        Set("Level",(short)10);if(Observe()!=0)throw new Exception("Nonvisual hero updates rebuilt the lobby");
+        var changeType=native.GetType("NGame2.NAccount.UserHeroManager+ChangeHeroInfo")!;
+        var change=Activator.CreateInstance(changeType)!;
+        var heroIndex=changeType.GetField("HeroIndex")!;
+        var kind=changeType.GetField("ChangeType")!;
+        var filter=helper.GetType("SprkLobbyAvatar")!.GetMethod("IsAppearanceChange")!;
+        bool Matches()=>(bool)filter.Invoke(null,new[]{change,(object)1})!;
+        foreach(var name in new[]{"Costume","HairCostume","WeaponCostume","AccessoryCostume","HideUniqueWeapon"}) {
+            heroIndex.SetValue(change,1);kind.SetValue(change,Enum.Parse(kind.FieldType,name));
+            if(!Matches())throw new Exception("Missing lobby notification for "+name);
+            heroIndex.SetValue(change,2);if(Matches())throw new Exception("Other hero's appearance affected the lobby");
+        }
+        Console.WriteLine("PASS: live body/hair/basic and costume weapon changes, weapon visibility, accessory equip/unequip and all seven transform edits; snapshot isolation, stable no-op and selected-hero notification scope.");
     }
     static void InstallLobbyAvatarStability(string root,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));

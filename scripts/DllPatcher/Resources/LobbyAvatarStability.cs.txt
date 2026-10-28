@@ -10,6 +10,7 @@ using NGame2.NUI;
 using NGame2.NUI.NWorldMap;
 using Avatar = NGame2.NUI.NWorldMap.NMapLayout.Avatar;
 using NVespa.NSingleton;
+using UserHeroManager = NGame2.NAccount.UserHeroManager;
 
 public sealed class SprkLobbyAccessoryLease {
     object owner;
@@ -20,20 +21,53 @@ public sealed class SprkLobbyAccessoryLease {
     public bool Queue(object value) { if(!Matches(value))return false;Pending=true;return true; }
     public bool Take(object value,bool ready) { if(!Matches(value)||!Pending||!ready)return false;Pending=false;return true; }
 }
+public sealed class SprkLobbyAppearance {
+    readonly CachedHeroInfo saved=new CachedHeroInfo();
+    bool initialized;
+    static bool SamePosition(PositionInfo a,PositionInfo b) {
+        a=a??PositionInfo.Create();b=b??PositionInfo.Create();
+        return a.PositionX==b.PositionX && a.PositionY==b.PositionY && a.PositionZ==b.PositionZ &&
+            a.RotationX==b.RotationX && a.RotationY==b.RotationY && a.RotationZ==b.RotationZ && a.Scale==b.Scale;
+    }
+    // 1 means the body/hair/weapon needs rebuilding; 2 changes accessories only.
+    public int Observe(CachedHeroInfo hero) {
+        if(hero==null)return 0;
+        int changed=initialized && (saved.HeroIndex!=hero.HeroIndex || saved.CostumeIndex!=hero.CostumeIndex ||
+            saved.HairCostumeIndex!=hero.HairCostumeIndex || saved.WeaponCostumeIndex!=hero.WeaponCostumeIndex ||
+            saved.HideUniqueWeapon!=hero.HideUniqueWeapon)?1:0;
+        foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
+            var position=hero.GetAccessoryPositionInfo(part);
+            if(initialized && (saved.GetAccessoryIndex(part)!=hero.GetAccessoryIndex(part) ||
+                !SamePosition(saved.GetAccessoryPositionInfo(part),position)))changed|=2;
+            saved.SetAccessoryCostume(part,hero.GetAccessoryIndex(part),position==null?null:position.Clone());
+        }
+        saved.HeroIndex=hero.HeroIndex;saved.CostumeIndex=hero.CostumeIndex;
+        saved.HairCostumeIndex=hero.HairCostumeIndex;saved.WeaponCostumeIndex=hero.WeaponCostumeIndex;
+        saved.HideUniqueWeapon=hero.HideUniqueWeapon;initialized=true;return changed;
+    }
+}
 public sealed class SprkLobbyAccessoryState : MonoBehaviour {
     public readonly SprkLobbyAccessoryLease Lease=new SprkLobbyAccessoryLease();
+    public readonly SprkLobbyAppearance Appearance=new SprkLobbyAppearance();
     public Avatar Target;
     public ICreatureLoad ObservedLoad;
     public ICreature ObservedCreature;
     public float Deadline;
     public float NextTry;
-    void OnDisable() { Lease.Cancel();Target=null;ObservedLoad=null;ObservedCreature=null; }
+    // Retain the observed appearance while hidden so edits in the dressing
+    // room are detected on return, even if its notifications were missed.
+    void OnDisable() { Lease.Cancel();ObservedLoad=null;ObservedCreature=null;NextTry=0; }
     void Update() {
         if(Target==null)return;
         var owner=SprkLobbyAvatar.CurrentOwner();
         if(!Lease.Matches(owner)) { Lease.Bind(null);Target=null;return; }
         if(Time.realtimeSinceStartup<NextTry)return;
         NextTry=Time.realtimeSinceStartup+0.1f;
+        int changed=Appearance.Observe(SprkLobbyAvatar.CurrentHero());
+        if((changed&1)!=0) {
+            SprkLobbyAvatar.Reload(GetComponent<MapLayout>(),Target);return;
+        }
+        if(changed!=0) {Lease.Queue(owner);Deadline=Time.realtimeSinceStartup+10f;}
         var facade=Target.RenderFacade;
         var load=facade==null?null:facade.AssetCreatureAsync;
         var creature=load==null?null:load.Value;
@@ -49,6 +83,32 @@ public sealed class SprkLobbyAccessoryState : MonoBehaviour {
     }
 }
 public static class SprkLobbyAvatar {
+    static readonly System.Reflection.MethodInfo rebuild=typeof(MapLayout).GetMethod("ChangePlayerAvatarRenderFacadeOnly",
+        System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic,null,new[]{typeof(Avatar),typeof(int)},null);
+    public static CachedHeroInfo CurrentHero() {
+        if(CurrentOwner()==null)return null;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        return account.HeroManager.Get(new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex);
+    }
+    public static bool IsAppearanceChange(UserHeroManager.ChangeHeroInfo change,int hero) {
+        if(change==null || change.HeroIndex!=hero)return false;
+        return change.ChangeType==UserHeroManager.HeroChangeType.Costume ||
+            change.ChangeType==UserHeroManager.HeroChangeType.HairCostume ||
+            change.ChangeType==UserHeroManager.HeroChangeType.WeaponCostume ||
+            change.ChangeType==UserHeroManager.HeroChangeType.AccessoryCostume ||
+            change.ChangeType==UserHeroManager.HeroChangeType.HideUniqueWeapon;
+    }
+    public static void Notify(MapLayout layout,UserHeroManager.ChangeHeroInfo change,bool forced) {
+        if(forced || layout==null || layout.Mediator==null || CurrentOwner()==null)return;
+        var hero=CurrentHero();
+        if(hero!=null && IsAppearanceChange(change,hero.HeroIndex))Refresh(layout,layout.Mediator.Avatar,0);
+    }
+    public static void Reload(MapLayout layout,Avatar target) {
+        if(layout==null || target==null || CurrentOwner()==null || !layout.gameObject.activeInHierarchy)return;
+        // Use the native replacement so the same lobby avatar keeps its world
+        // position/camera. Track runs after replacement and restores accessories.
+        rebuild.Invoke(layout,new object[]{target,GlobalAutoBehaviour<AccountManager>.instance.UserManager.AvatarHeroIndex});
+    }
     public static object CurrentOwner() {
         return GlobalAutoBehaviour<AccountManager>.isValidInstance?GlobalAutoBehaviour<AccountManager>.instance.UserManager:null;
     }
@@ -61,6 +121,7 @@ public static class SprkLobbyAvatar {
         if(layout==null)return;
         var state=layout.GetComponent<SprkLobbyAccessoryState>();
         if(forced) { if(state!=null){state.Lease.Cancel();state.Target=null;}return; }
+        if(state!=null)state.Appearance.Observe(CurrentHero());
         if(layout.Mediator!=null)Refresh(layout,layout.Mediator.Avatar,0);
     }
     public static CachedHeroInfo Create(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
@@ -68,8 +129,9 @@ public static class SprkLobbyAvatar {
         var account=GlobalAutoBehaviour<AccountManager>.instance;
         var current=account.HeroManager.Get(hero.HeroIndex);
         if(current==null)return null;
-        if(avatar!=null && avatar.AccountId!=0 && avatar.AccountId!=account.UserManager.UserInfo.AccountId)avatar=null;
-        var copy=current.CreatePlayerAvatarHeroInfo(avatar);
+        // The selected hero follows its live appearance, rather than the
+        // snapshot saved by the last "set as main hero" request.
+        var copy=current.CreatePlayerAvatarHeroInfo(null);
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
             int index=current.GetAccessoryIndex(part);
             if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(current.HeroIndex,index))==null)index=0;
