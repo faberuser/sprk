@@ -100,6 +100,7 @@ namespace DllPatcher
             if (args.Contains("--verify-chat-channels") || args.Contains("--verify-chat-send")) { VerifyChatChannelsFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--honor-only")) { InstallHonor(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-honor")) { VerifyHonorFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-legendary-rune-tickets")) { TestLegendaryRuneTickets(); return; }
             if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
             if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
