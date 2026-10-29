@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="../client/restore_legendary_rune_tickets.py" LogicalName="DllPatcher.restore_legendary_rune_tickets.py" />
     <EmbeddedResource Include="Resources/HeroMaterialTickets.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroMaterialTickets.cs.txt" />
     <EmbeddedResource Include="Resources/EssenceCraftTickets.cs.txt" WithCulture="false" LogicalName="DllPatcher.EssenceCraftTickets.cs.txt" />
     <EmbeddedResource Include="Resources/HeroMaterialTicketsTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroMaterialTicketsTests.cs.txt" />

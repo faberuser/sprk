@@ -40,6 +40,14 @@ native response callback with isolated service traces and checks idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
 
+`--legendary-rune-tickets-only` upgrades legacy random ticket 91029 and selector
+94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
+Tenacity and Vitality). It bakes native ItemGroup/SelectItem rows and refreshes
+their integrity hashes; `--verify-legendary-rune-tickets` validates both pools.
+The full release build runs this transformation and verification automatically.
+Server reward pools in `tables/` must stay aligned. Restart the game and server
+after installing their respective changes.
+
 `--runes-only` restores both the hero rune selector and the separate Rune of
 Blasphemy inventory subcategory, retaining the native equipment and grind paths.
 Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`

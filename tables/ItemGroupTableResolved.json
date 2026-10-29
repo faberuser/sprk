@@ -899128,7 +899128,7 @@
     "ItemGroupDesc": "",
     "ShowDetail": false,
     "ItemGroupNameKey": "",
-    "TotalRate": 2000,
+    "TotalRate": 2400,
     "SubDataList": [
       {
         "ItemCode": "RUNE_FIERCE_5",
@@ -899332,6 +899332,46 @@
       },
       {
         "ItemCode": "RUNE_POTENTIAL_5",
+        "Rate": 100,
+        "ItemMin": 1,
+        "ItemMax": 1,
+        "ItemStar": 0,
+        "ItemStarMin": 0,
+        "ItemStarMax": 0,
+        "Free": 0
+      },
+      {
+        "ItemCode": "RUNE_LIFE_5",
+        "Rate": 100,
+        "ItemMin": 1,
+        "ItemMax": 1,
+        "ItemStar": 0,
+        "ItemStarMin": 0,
+        "ItemStarMax": 0,
+        "Free": 0
+      },
+      {
+        "ItemCode": "RUNE_TENACITY_5",
+        "Rate": 100,
+        "ItemMin": 1,
+        "ItemMax": 1,
+        "ItemStar": 0,
+        "ItemStarMin": 0,
+        "ItemStarMax": 0,
+        "Free": 0
+      },
+      {
+        "ItemCode": "RUNE_VITALITY_5",
+        "Rate": 100,
+        "ItemMin": 1,
+        "ItemMax": 1,
+        "ItemStar": 0,
+        "ItemStarMin": 0,
+        "ItemStarMax": 0,
+        "Free": 0
+      },
+      {
+        "ItemCode": "RUNE_SWIFTNESS_5",
         "Rate": 100,
         "ItemMin": 1,
         "ItemMax": 1,

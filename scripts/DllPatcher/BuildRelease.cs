@@ -12,6 +12,7 @@ partial class Program
         if (File.Exists(staged))
             throw new InvalidOperationException("Release builds require a fresh client workspace without a staged DLL.");
 
+        RestoreLegendaryRuneTickets(clientRoot, false);
         Main(new[] { clientRoot, "--stage-only" });
         if (!File.Exists(staged))
             throw new InvalidOperationException("The full patcher did not produce a staged assembly.");
@@ -80,6 +81,7 @@ partial class Program
         VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
+        RestoreLegendaryRuneTickets(clientRoot, true);
         VerifyWebSocketLifecycle(clientRoot);
         VerifyImageRecoveryFile(clientRoot);
         VerifyMailUpdates(clientRoot);
