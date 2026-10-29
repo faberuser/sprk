@@ -44,7 +44,10 @@ star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
 94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
 Tenacity and Vitality). It bakes native ItemGroup/SelectItem rows and refreshes
 their integrity hashes; `--verify-legendary-rune-tickets` validates both pools.
-The full release build runs this transformation and verification automatically.
+The C# patcher edits the native JIT fields directly, without a Python or msgpack
+dependency. `--self-test-legendary-rune-tickets` checks upgrade, preservation,
+idempotence and corrupt-hash rejection. The full release build runs these tests,
+the transformation and verification automatically.
 Server reward pools in `tables/` must stay aligned. Restart the game and server
 after installing their respective changes.
 

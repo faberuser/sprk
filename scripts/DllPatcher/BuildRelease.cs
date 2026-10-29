@@ -12,6 +12,7 @@ partial class Program
         if (File.Exists(staged))
             throw new InvalidOperationException("Release builds require a fresh client workspace without a staged DLL.");
 
+        TestLegendaryRuneTickets();
         RestoreLegendaryRuneTickets(clientRoot, false);
         Main(new[] { clientRoot, "--stage-only" });
         if (!File.Exists(staged))
