@@ -1,0 +1,180 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using NShared;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NManager;
+using NVespa.NSingleton;
+using NVespa;
+using System.Threading;
+using System.Threading.Tasks;
+
+public sealed partial class SprkIllustrationUpscale {
+    static bool probeStarted;
+    public static void EnsureProbe() {
+        string output=Environment.GetEnvironmentVariable("SPRK_ILLUSTRATION_AI_TEST");
+        if(probeStarted || String.IsNullOrEmpty(output) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE"))
+            || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))return;
+        probeStarted=true;Application.runInBackground=true;Directory.CreateDirectory(output);
+        var host=new GameObject("SPRK Illustration AI Probe");DontDestroyOnLoad(host);
+        host.AddComponent<SprkIllustrationProbeRunner>().Begin(output);
+    }
+    public static IEnumerator Probe(string output) {
+        yield return new WaitForSecondsRealtime(5);
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{true});
+        SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(true);
+        SingletonAuto<NGameAsset.TableDataManager>.instance.Load(true);
+        // Login has not loaded the patch catalog. Seed only the installed files
+        // into its native existence map; no network or patch reconciliation.
+        string patch=Path.Combine(Application.dataPath,"Documents","Patch","StandaloneWindows");
+        var installed=new Dictionary<string,AssetInfo>();
+        var entrySetter=typeof(AssetInfo).GetProperty("EntryName").GetSetMethod(true);
+        foreach(string file in Directory.GetFiles(Path.Combine(patch,"Assetbundle"),"*",SearchOption.AllDirectories)) {
+            string relative=file.Substring(patch.Length+1).Replace('\\','/');var info=new AssetInfo();entrySetter.Invoke(info,new object[]{relative});installed.Add(relative,info);
+        }
+        SingletonAuto<NGameAsset.AssetFileManager>.instance.Setup(installed);
+        typeof(UnityCache).GetProperty("persistentDataPath").GetSetMethod(true).Invoke(null,new object[]{Application.dataPath});
+        var loader=SingletonUpdater<NGameAsset.NBundleManager.LoaderPlaying>.instance;
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        loader.GetType().GetMethod("LoadPackFromBinary",flags).Invoke(loader,null);
+        loader.GetType().GetField("_isReady",flags).SetValue(loader,true);
+        var tables=GameRoot.Instance;
+        tables.CostumeDataContainer.Load();
+        var costumes=tables.CostumeDataContainer.GetAllData().Where(c=>!String.IsNullOrEmpty(c.IllustPath)).Take(2).ToList();
+        if(costumes.Count<2)throw new Exception("No illustration test costumes");
+        foreach(var costume in costumes) {
+            var atlasInfo=SingletonAuto<NGameAsset.NNguiAtlas.AtlasDataContainer>.instance;
+            var link=atlasInfo.GetAtlasLink(costume.IllustPath);var atlas=atlasInfo.Get(link.AtlasCode);
+            var load=SingletonAuto<NGameAsset.BundleManager>.instance.LockBundle(atlas.BundleFileName);
+            var stateField=typeof(NGameAsset.NBundleManager.BundleLoadBase).GetField("_DownloadState",flags);
+            stateField.SetValue(load,Enum.ToObject(stateField.FieldType,2));load.StartLoad();
+            float until=Time.realtimeSinceStartup+30;
+            while(!load.IsDone && Time.realtimeSinceStartup<until){SingletonUpdater<NGameAsset.AsyncManager>.instance.ChainUpdate();yield return null;}
+            if(!load.IsValid)throw new Exception("Native atlas preload failed: "+load.LoadMessage);
+            var bundle=(AssetBundle)typeof(NGameAsset.NBundleManager.BundleLoadBase).GetField("AssetBundle",flags).GetValue(load);
+            File.AppendAllText(Path.Combine(output,"paths.txt"),"\nloaded="+atlas.BundleFileName+" assets="+String.Join(",",bundle.GetAllAssetNames())+" main="+bundle.mainAsset);
+            var nativeAtlas=SingletonAuto<NGameAsset.NguiAtlasContainer>.instance.Lock(link.AtlasCode);
+            until=Time.realtimeSinceStartup+30;
+            while(!nativeAtlas.IsDone && Time.realtimeSinceStartup<until){SingletonUpdater<NGameAsset.AsyncManager>.instance.ChainUpdate();yield return null;}
+            if(!nativeAtlas.IsValid)throw new Exception("Native atlas object failed: "+nativeAtlas.LoadMessage+" done="+nativeAtlas.IsDone);
+            File.AppendAllText(Path.Combine(output,"paths.txt"),"\natlas="+link.AtlasCode+" texture="+nativeAtlas.Value.texture+" sprite="+link.SpriteName+" found="+(nativeAtlas.Value.GetSprite(link.SpriteName)!=null));
+        }
+        var manager=SceneAutoBehaviour<LoginManagement>.instance;
+        manager.AddInstance<HeroIllustBook>(HeroIllustBook.PrefabPath);
+        var view=manager.GetInstance<HeroIllustBook>();
+        int nativeUiLayer=view.LabelHeroName.gameObject.layer;
+        view.Init(null,null,costumes[0].CostumeIndex,new List<int>{costumes[0].CostumeIndex,costumes[1].CostumeIndex});view.Open();
+        var fixturePanel=NGUITools.CreateUI(false,30);var uiRoot=fixturePanel.GetComponentInParent<UIRoot>();
+        uiRoot.scalingStyle=UIRoot.Scaling.Constrained;uiRoot.manualWidth=1920;uiRoot.manualHeight=1080;uiRoot.fitWidth=true;uiRoot.fitHeight=true;
+        view.transform.SetParent(fixturePanel.transform,false);view.transform.localPosition=Vector3.zero;view.transform.localScale=Vector3.one;NGUITools.SetLayer(view.gameObject,30);
+        yield return new WaitForSecondsRealtime(1);
+        var state=Get(view);state.storage=Path.Combine(output,"working");Directory.CreateDirectory(state.storage);
+        string fixture=Environment.GetEnvironmentVariable("SPRK_ILLUSTRATION_MODEL_FIXTURE");
+        if(!String.IsNullOrEmpty(fixture)) {
+            string provisioned=Path.Combine(state.storage,"provision.sprkmodel");
+            foreach(bool empty in new[]{false,true}) {
+                if(empty)File.WriteAllBytes(provisioned,new byte[0]);
+                var job=Task.Run(delegate{SprkIllustrationUpscaleCore.Provision(provisioned,CancellationToken.None,fixture+"/default");});
+                while(!job.IsCompleted)yield return null;job.GetAwaiter().GetResult();
+                if(SprkIllustrationUpscaleCore.Hash(File.ReadAllBytes(provisioned))!=SprkIllustrationUpscaleCore.DefaultHash)throw new Exception("Provisioned default hash mismatch");
+            }
+            string race=Path.Combine(state.storage,"provision-race.sprkmodel");
+            var raced=Task.Run(delegate{SprkIllustrationUpscaleCore.Provision(race,CancellationToken.None,fixture+"/race");});
+            while(!raced.IsCompleted)yield return null;raced.GetAwaiter().GetResult();
+            if(File.ReadAllText(race)!="user replacement")throw new Exception("Concurrent user replacement was overwritten");
+            string interrupted=Path.Combine(state.storage,"interrupted.sprkmodel");
+            var truncated=Task.Run(delegate{SprkIllustrationUpscaleCore.Provision(interrupted,CancellationToken.None,fixture+"/truncated");});
+            while(!truncated.IsCompleted)yield return null;
+            if(!truncated.IsFaulted || File.Exists(interrupted))throw new Exception("Partial model was activated");
+            var observed=truncated.Exception;
+            File.WriteAllText(Path.Combine(output,"provisioning.txt"),"PASS: missing/zero-length downloads, pinned hash, atomic activation, concurrent user replacement, truncated download rejection");
+        }
+        if(String.IsNullOrEmpty(fixture))File.Copy(Path.Combine(output,"default.sprkmodel"),Path.Combine(state.storage,"active.sprkmodel"),true);
+        float deadline=Time.realtimeSinceStartup+30;
+        while(!state.ready && Time.realtimeSinceStartup<deadline){loader.ChainUpdate();SingletonUpdater<NGameAsset.AsyncManager>.instance.ChainUpdate();yield return null;}
+        if(!state.ready)throw new Exception("Native artwork assignment did not finish; closed="+state.closed+" open="+view.IsOpen()+" gen="+state.generation+" texture="+view.HeroIllustTexture.mainTexture+" path="+costumes[0].IllustPath);
+        var report=new List<string>();
+        report.Add("player="+Application.unityVersion+" gpu="+SystemInfo.graphicsDeviceName+" api="+SystemInfo.graphicsDeviceType+" colors="+QualitySettings.activeColorSpace);
+        report.Add("source="+state.source.name+" "+state.source.width+"x"+state.source.height+" format="+((Texture2D)state.source).format+" uv="+state.originalUv.ToString("F6")+" material="+(state.originalMaterial==null?"null":state.originalMaterial.shader.name));
+        if(state.requested!=0 || state.pending!=null || state.enhanced!=null)throw new Exception("Viewer did not open Off");
+        if(!String.IsNullOrEmpty(fixture) && File.Exists(Path.Combine(state.storage,"active.sprkmodel")))throw new Exception("Off provisioned a model");
+        if(state.button==null || !state.button.transform.IsChildOf(view.transform) || state.button.GetComponent<Collider>()==null)throw new Exception("Viewer control/collider missing");
+        var aiSkin=state.helpAnchor as UISprite;
+        if(aiSkin==null || aiSkin.atlas==null || aiSkin.leftAnchor.target!=view.WidgetHideUI.transform || aiSkin.rightAnchor.absolute!=-12 || state.label.text!="Off")throw new Exception("Native-style button anchor/label missing");
+        var aiCorners=aiSkin.worldCorners;var hideCorners=view.WidgetHideUI.worldCorners;
+        var aiRight=view.transform.InverseTransformPoint(aiCorners[2]);var hideLeft=view.transform.InverseTransformPoint(hideCorners[1]);
+        if(System.Math.Abs(hideLeft.x-aiRight.x-12)>1 || System.Math.Abs(hideLeft.y-aiRight.y)>1)throw new Exception("AI button is not beside Hide UI");
+        if(view.transform.Find("SPRK Illustration Controls/SPRK AI Status")!=null)throw new Exception("Old status text remains visible");
+        report.Add("compactNativeButton=true label="+state.label.text+" sprite="+aiSkin.spriteName);
+        state.helpAnchor.gameObject.layer=nativeUiLayer;state.ShowHelp();
+        var tooltip=Resources.FindObjectsOfTypeAll<GameOptionTooltip>().FirstOrDefault(t=>t.gameObject.scene.IsValid() && t.gameObject.activeSelf);
+        if(tooltip!=null){tooltip.transform.SetParent(fixturePanel.transform,false);NGUITools.SetLayer(tooltip.gameObject,30);}
+        if(!GameOptionTooltip.IsVisible(state.helpAnchor))throw new Exception("Native viewer help missing; anchor="+state.helpAnchor.gameObject.activeInHierarchy+" print="+state.helpAnchor.GetComponentInParent<NVespa.NNGUIExtension.TooltipPrintInfo>()+" tooltips="+String.Join(",",Resources.FindObjectsOfTypeAll<GameOptionTooltip>().Select(t=>t.name+" active="+t.gameObject.activeSelf+" scene="+t.gameObject.scene.IsValid())));
+        state.HideHelp();state.helpAnchor.gameObject.layer=30;
+        int width=view.HeroIllustTexture.width,height=view.HeroIllustTexture.height;
+        if((int)typeof(HeroIllustBook).GetField("_scaleLimitMax",flags).GetValue(view)!=8)throw new Exception("Native touch zoom limit did not increase");
+        var nativeZoom=typeof(HeroIllustBook).GetMethod("SetZoomRate",flags);
+        nativeZoom.Invoke(view,new object[]{50f});
+        if(view.IllustRoot.localScale.x!=8)throw new Exception("Native zoom did not clamp to 800%");
+        view.OnDoubleClick();yield return new WaitForSecondsRealtime(.6f);
+        if(System.Math.Abs(view.IllustRoot.localScale.x-1)>.001f)throw new Exception("Reset did not restore 100% after extended zoom");
+        report.Add("nativeZoom800AndReset=true");
+        view.IllustRoot.localScale=new Vector3(2,2,1);view.IllustRoot.localPosition=new Vector3(30,20,0);
+        var zoom=view.IllustRoot.localScale;var pan=view.IllustRoot.localPosition;
+        foreach(int factor in new[]{2,4}) {
+            if(factor==2)EventDelegate.Execute(state.button.onClick);else state.Select(factor);
+            if(state.requested!=factor)throw new Exception("Scale cycle button failed");
+            int frames=0;float start=Time.realtimeSinceStartup;deadline=start+130;
+            while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable")){frames++;yield return null;}
+            if(state.enhanced==null)throw new Exception("Enhancement failed: "+state.status);
+            if(state.label.text!="x"+factor)throw new Exception("Button label contains more than the requested factor");
+            if(view.HeroIllustTexture.width!=width || view.HeroIllustTexture.height!=height || view.IllustRoot.localScale!=zoom || view.IllustRoot.localPosition!=pan)
+                throw new Exception("Enhancement changed logical size or viewer transform");
+            report.Add("x"+factor+"="+state.enhanced.width+"x"+state.enhanced.height+" frames="+frames+" seconds="+(Time.realtimeSinceStartup-start));
+            yield return new WaitForEndOfFrame();
+            var camera=UICamera.FindCameraForLayer(30).cachedCamera;var previous=RenderTexture.active;var target=RenderTexture.GetTemporary(1280,720,24);
+            var oldTarget=camera.targetTexture;camera.targetTexture=target;camera.Render();RenderTexture.active=target;
+            var screen=new Texture2D(1280,720,TextureFormat.RGBA32,false);screen.ReadPixels(new Rect(0,0,1280,720),0,0);screen.Apply();
+            camera.targetTexture=oldTarget;RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
+            File.WriteAllBytes(Path.Combine(output,"viewer-x"+factor+".png"),screen.EncodeToPNG());Destroy(screen);
+            state.Select(0);
+            if(view.HeroIllustTexture.mainTexture!=state.source || view.HeroIllustTexture.uvRect!=state.originalUv || state.enhanced!=null)throw new Exception("Off failed to restore original");
+        }
+        state.Select(4);yield return null;state.Select(0);yield return new WaitForSecondsRealtime(.5f);
+        if(state.enhanced!=null || state.pending!=null)throw new Exception("Cancelled result was assigned");
+        report.Add("offDuringProcessing=true");
+        view.OnClickHideUI();yield return new WaitForSecondsRealtime(.6f);
+        if(state.button.gameObject.activeSelf)throw new Exception("AI control remained visible during Hide UI");
+        view.OnClickClose();yield return new WaitForSecondsRealtime(.6f);
+        if(!state.button.gameObject.activeSelf || !view.IsOpen())throw new Exception("Native Show UI did not restore controls");
+        report.Add("helpAndHideUI=true");
+        state.Select(4);view.OnClickNext();yield return new WaitForSecondsRealtime(1);
+        if(state.requested!=0 || state.enhanced!=null)throw new Exception("Navigation retained enhancement");
+        report.Add("navigationOff=true");
+        view.Close();yield return null;
+        view.InitSeasonReward(null,0,costumes);view.Open();yield return new WaitForSecondsRealtime(1);
+        if(state.requested!=0 || !state.ready)throw new Exception("Season viewer did not open Off with its native source");
+        state.Select(2);deadline=Time.realtimeSinceStartup+130;
+        while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable"))yield return null;
+        if(state.enhanced==null)throw new Exception("Season reward enhancement failed: "+state.status);
+        report.Add("seasonReward=true");view.Close();yield return null;
+        if(state.enhanced!=null || state.pending!=null || state.source!=null)throw new Exception("Close retained enhancement resources");
+        report.Add("closeReleases=true");
+        File.WriteAllLines(Path.Combine(output,"PASS.txt"),report.ToArray());Application.Quit();
+    }
+}
+public sealed class SprkIllustrationProbeRunner : MonoBehaviour {
+    public void Begin(string output){StartCoroutine(Guard(SprkIllustrationUpscale.Probe(output),output));}
+    IEnumerator Guard(IEnumerator routine,string output) {
+        while(true) {
+            object current;
+            try {if(!routine.MoveNext())yield break;current=routine.Current;}
+            catch(Exception error){File.WriteAllText(Path.Combine(output,"FAIL.txt"),error.ToString());Debug.LogException(error);Application.Quit();yield break;}
+            yield return current;
+        }
+    }
+}

@@ -7,7 +7,7 @@ public static class SprkIllustrationZoomMath {
         if (float.IsNaN(current) || float.IsInfinity(current) || current <= 0) current = 1;
         if (float.IsNaN(wheel) || float.IsInfinity(wheel)) wheel = 0;
         wheel = Math.Max(-20, Math.Min(20, wheel));
-        return (float)Math.Max(0.5, Math.Min(4, current * Math.Pow(1.15, wheel * 10)));
+        return (float)Math.Max(0.5, Math.Min(8, current * Math.Pow(1.15, wheel * 10)));
     }
     public static float ClampOffset(float offset, float scale, float imageSize, float viewportSize) {
         // Use the native illustration viewer's translation limits.

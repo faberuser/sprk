@@ -1,0 +1,275 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using UnityEngine;
+using NGame2.NUI;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NHelper;
+using NGameAsset;
+
+public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
+    HeroIllustBook window;
+    Texture source;
+    Material originalMaterial;
+    Rect originalUv;
+    Texture2D enhanced;
+    Material enhancedMaterial;
+    int generation,requested;
+    bool ready,closed;
+    CancellationTokenSource cancellation;
+    Task<byte[]> pending;
+    string status="";
+    UIButton button;
+    UILabel label;
+    UIWidget helpAnchor;
+    string storage,runtime;
+    byte[] lastSource;
+    int inputWidth,inputHeight;
+    static SprkIllustrationUpscale active;
+
+    static SprkIllustrationUpscale Get(HeroIllustBook view) {
+        var state=view.GetComponent<SprkIllustrationUpscale>();
+        if(state==null) {state=view.gameObject.AddComponent<SprkIllustrationUpscale>();state.window=view;}
+        return state;
+    }
+    public static void BeforeChange(HeroIllustBook view) {
+        if(view==null)return;
+        var state=Get(view);state.ResetSource();state.closed=false;
+        if(probeStarted)Debug.Log("Illustration probe: change gen="+state.generation);
+    }
+    public static void Closing(HeroIllustBook view) {
+        if(view==null)return;
+        var state=view.GetComponent<SprkIllustrationUpscale>();
+        if(state!=null){state.ResetSource();state.closed=true;}
+    }
+    // Exact native signature, preserving holder ownership and native callbacks.
+    public static PlainAssetHolder Assign(Component owner,UITexture texture,AssetTexture asset,UIHelper.EAssetTextureAssign assign,Action<AssetTexture.TextureInfo> callback) {
+        var view=owner as HeroIllustBook;
+        if(view==null)return UIHelper.ResetPlaneAssetTextureAsync(owner,texture,asset,assign,callback);
+        var state=Get(view);int version=state.generation;
+        return UIHelper.ResetPlaneAssetTextureAsync(owner,texture,asset,assign,delegate(AssetTexture.TextureInfo info) {
+            if(probeStarted)Debug.Log("Illustration probe: assigned "+asset.Path+" info="+(info!=null)+" gen="+version+" current="+state.generation+" closed="+state.closed+" texture="+texture.mainTexture);
+            if(callback!=null)callback(info);
+            if(state!=null && !state.closed && state.generation==version && info!=null && texture.mainTexture!=null) {
+                state.source=texture.mainTexture;state.originalUv=texture.uvRect;
+                state.originalMaterial=texture.material;state.ready=true;
+            }
+        });
+    }
+    void Awake() {
+        storage=Path.Combine(Application.persistentDataPath,"SprkIllustrationAI");
+        runtime=Path.Combine(Application.dataPath,"Managed","SprkIllustrationRuntime");
+    }
+    string ModelDownloadUrl() {
+        // The launcher captures this profile's exact update endpoint at launch.
+        // Do not reread/guess a profile when the launcher supplied its URL.
+        string manifest=Environment.GetEnvironmentVariable("SPRK_UPDATE_MANIFEST_URL");
+        if(!String.IsNullOrEmpty(manifest))return SprkIllustrationUpscaleCore.ModelUrlFromManifest(manifest);
+        string file=Path.Combine(Path.GetDirectoryName(Application.dataPath),"sprk-launcher.json");
+        SprkIllustrationLauncherConfig config=null;
+        if(File.Exists(file)) {
+            if(new FileInfo(file).Length>64*1024)throw new InvalidDataException("Launcher server profile is too large");
+            // JsonUtility cannot populate unregistered helper DTOs in this
+            // player. Use the game's managed JSON parser for launcher profiles.
+            var parsed=MiniJSON.Json.Deserialize(File.ReadAllText(file)) as IDictionary<string,object>;
+            if(parsed==null)throw new InvalidDataException("Launcher server profile is invalid");
+            object value;
+            config=new SprkIllustrationLauncherConfig {
+                SelectedProfile=parsed.TryGetValue("SelectedProfile",out value)?value as string:null,
+                ManifestUrl=parsed.TryGetValue("ManifestUrl",out value)?value as string:null
+            };
+            if(parsed.TryGetValue("Profiles",out value) && value!=null) {
+                var entries=value as IList;
+                if(entries==null)throw new InvalidDataException("Launcher server profiles are invalid");
+                var profiles=new List<SprkIllustrationLauncherProfile>();
+                foreach(var entry in entries) {
+                    var profile=entry as IDictionary<string,object>;
+                    if(profile==null)throw new InvalidDataException("Launcher server profile is invalid");
+                    profiles.Add(new SprkIllustrationLauncherProfile {
+                        Id=profile.TryGetValue("Id",out value)?value as string:null,
+                        HostUrl=profile.TryGetValue("HostUrl",out value)?value as string:null,
+                        ManifestUrl=profile.TryGetValue("ManifestUrl",out value)?value as string:null
+                    });
+                }
+                config.Profiles=profiles.ToArray();
+            }
+        }
+        return SprkIllustrationUpscaleCore.ModelUrlFromProfile(config,Environment.GetEnvironmentVariable("SPRK_HOST_URL"));
+    }
+    void Cancel() {
+        if(cancellation!=null){cancellation.Cancel();cancellation.Dispose();cancellation=null;}
+        // Observe cancelled/faulted jobs even if their viewer has been destroyed.
+        if(pending!=null)pending.ContinueWith(delegate(Task<byte[]> task){var ignored=task.Exception;},TaskContinuationOptions.OnlyOnFaulted);
+        pending=null;lastSource=null;
+    }
+    void Restore() {
+        if(window!=null && window.HeroIllustTexture!=null && enhanced!=null && window.HeroIllustTexture.mainTexture==enhanced) {
+            window.HeroIllustTexture.mainTexture=source;
+            window.HeroIllustTexture.material=originalMaterial;
+            window.HeroIllustTexture.uvRect=originalUv;
+        }
+        if(enhanced!=null){Destroy(enhanced);enhanced=null;}
+        if(enhancedMaterial!=null){Destroy(enhancedMaterial);enhancedMaterial=null;}
+    }
+    void ResetSource() {
+        HideHelp();++generation;requested=0;Cancel();Restore();source=null;originalMaterial=null;ready=false;status="";
+        if(active==this)active=null;
+        Refresh();
+    }
+    void OnDisable(){if(probeStarted)Debug.Log("Illustration probe: disabled gen="+generation);ResetSource();closed=true;}
+    void OnDestroy(){ResetSource();}
+    void OnApplicationQuit(){ResetSource();}
+    bool Visible() {return window!=null && window.IsOpen() && window.gameObject.activeInHierarchy && !closed;}
+    void Refresh() {
+        if(label!=null)label.text=requested==0?"Off":"x"+requested;
+        if(helpAnchor!=null && GameOptionTooltip.IsVisible(helpAnchor))ShowHelp();
+    }
+    void ShowHelp() {
+        if(helpAnchor==null)return;
+        GameOptionTooltip.Open(helpAnchor,new TooltipTextInfo {
+            Name=new NGame2.NUtil.StringProxy{Value="AI Upscale"},
+            Desc=new NGame2.NUtil.StringProxy{Value="Choose x2 or x4 to enhance this illustration. Processing may take time and use additional GPU memory. AI may alter small details. Off displays the original.\nRequires a Vulkan GPU. The first selection downloads the default model.\n"+status}
+        });
+    }
+    void HideHelp(){if(helpAnchor!=null)GameOptionTooltip.Hide(helpAnchor);}
+    void Cycle() {Select(requested==0?2:requested==2?4:0);}
+    public void Select(int factor) {
+        if(!Visible() || (factor!=0 && factor!=2 && factor!=4))return;
+        ++generation;Cancel();Restore();requested=factor;status="";
+        if(factor==0){Refresh();return;}
+        if(!ready || source==null){status="Waiting for artwork";Refresh();return;}
+        if(active!=null && active!=this)active.Select(0);
+        active=this;status="Preparing x"+factor+" (original displayed)";Refresh();
+        StartCoroutine(Prepare(generation,factor));
+    }
+    IEnumerator Prepare(int version,int factor) {
+        yield return null;
+        if(version!=generation || !Visible())yield break;
+        try {
+            if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null || SystemInfo.maxTextureSize<4096)
+                throw new InvalidOperationException("This graphics device does not support illustration enhancement");
+            inputWidth=Mathf.RoundToInt(Mathf.Abs(originalUv.width)*source.width);
+            inputHeight=Mathf.RoundToInt(Mathf.Abs(originalUv.height)*source.height);
+            if(inputWidth<1 || inputHeight<1 || inputWidth>SprkIllustrationUpscaleCore.MaxInput || inputHeight>SprkIllustrationUpscaleCore.MaxInput)
+                throw new InvalidOperationException("Artwork exceeds the 1024 pixel input limit");
+            // Sampling the crop at native pixel centers keeps neighboring atlas
+            // sprites out. NCNN pads the isolated crop, never the whole atlas.
+            var crop=ReadCrop(source,inputWidth,inputHeight,originalUv);
+            try{lastSource=crop.EncodeToPNG();}finally{Destroy(crop);}
+            var bytes=lastSource;int w=inputWidth,h=inputHeight;
+            string model=Path.Combine(storage,"active.sprkmodel"),cache=Path.Combine(storage,"cache");
+            // A usable replacement remains independent of profile files/network.
+            string modelUrl=SprkIllustrationUpscaleCore.Nonempty(model)?null:ModelDownloadUrl();
+            cancellation=new CancellationTokenSource();var token=cancellation.Token;
+            pending=Task.Run(delegate {return SprkIllustrationUpscaleCore.Run(bytes,w,h,factor,model,runtime,cache,token,modelUrl);},token);
+            status="Processing x"+factor+" (original displayed)";Refresh();
+        }catch(Exception error){Fail(error);}
+    }
+    static Texture2D ReadCrop(Texture texture,int width,int height,Rect uv) {
+        var previous=RenderTexture.active;
+        var target=RenderTexture.GetTemporary(width,height,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);
+        Texture2D read=null;
+        try {
+            bool srgb=GL.sRGBWrite;
+            try {GL.sRGBWrite=QualitySettings.activeColorSpace==ColorSpace.Linear;Graphics.Blit(texture,target,new Vector2(uv.width,uv.height),new Vector2(uv.x,uv.y));}
+            finally{GL.sRGBWrite=srgb;}
+            RenderTexture.active=target;
+            read=new Texture2D(width,height,TextureFormat.RGBA32,false,false);
+            read.ReadPixels(new Rect(0,0,width,height),0,0,false);read.Apply(false,false);return read;
+        }catch{if(read!=null)Destroy(read);throw;}
+        finally{RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);}
+    }
+    void Fail(Exception error) {
+        Restore();status="Unavailable: "+error.GetBaseException().Message+". Original displayed.";
+        Debug.LogWarning("SPRK illustration AI: "+error.GetBaseException().Message);Refresh();
+    }
+    void Update() {
+        if(!Visible())return;
+        if(button==null)CreateControls();
+        if(button!=null && window.WidgetHideUI!=null) {
+            bool show=window.WidgetHideUI.gameObject.activeInHierarchy && window.WidgetHideUI.alpha>0.01f;
+            if(button.gameObject.activeSelf!=show){if(!show)HideHelp();button.gameObject.SetActive(show);}
+        }
+        // A subtle pulse communicates pending work without adding button text.
+        if(label!=null)label.alpha=pending!=null || status=="Waiting for artwork" || status.StartsWith("Preparing")
+            ? .65f+.35f*Mathf.Sin(Time.realtimeSinceStartup*5)*Mathf.Sin(Time.realtimeSinceStartup*5):1;
+        // A selection made before the native assignment finishes waits; it never
+        // starts against the previous artwork or schedules work while Off.
+        if(requested!=0 && ready && pending==null && status=="Waiting for artwork") {
+            status="Preparing x"+requested;Refresh();StartCoroutine(Prepare(generation,requested));
+        }
+        if(pending==null || !pending.IsCompleted)return;
+        var completed=pending;pending=null;
+        if(completed.IsCanceled)return;
+        if(completed.IsFaulted){Fail(completed.Exception);return;}
+        if(requested==0 || !ready || window.HeroIllustTexture.mainTexture!=source)return;
+        Texture2D result=null;
+        try {
+            result=new Texture2D(2,2,TextureFormat.RGBA32,false,false);
+            if(!result.LoadImage(completed.Result,false) || result.width!=inputWidth*4 || result.height!=inputHeight*4)
+                throw new InvalidDataException("Enhanced PNG could not be decoded");
+            if(requested==2) {
+                var smaller=ReadCrop(result,inputWidth*2,inputHeight*2,new Rect(0,0,1,1));Destroy(result);result=smaller;
+            }
+            result.wrapMode=TextureWrapMode.Clamp;result.filterMode=FilterMode.Bilinear;result.Apply(false,true);
+            result.name="SPRK Illustration x"+requested;
+            enhanced=result;result=null;
+            if(originalMaterial!=null) {
+                enhancedMaterial=new Material(originalMaterial);enhancedMaterial.mainTexture=enhanced;
+            }
+            window.HeroIllustTexture.material=enhancedMaterial;
+            window.HeroIllustTexture.mainTexture=enhanced;window.HeroIllustTexture.uvRect=new Rect(0,0,1,1);
+            status="x"+requested+" ready";Refresh();lastSource=null;
+        }catch(Exception error) {
+            if(result!=null)Destroy(result);
+            var bytes=lastSource;int scale=requested;
+            if(bytes!=null)Task.Run(delegate {SprkIllustrationUpscaleCore.RemoveCache(bytes,Path.Combine(storage,"active.sprkmodel"),scale,Path.Combine(storage,"cache"));});
+            Fail(error);
+        }
+    }
+    void CreateControls() {
+        var hide=window.WidgetHideUI;
+        if(hide==null)return;
+        var native=hide.GetComponent<UIButton>();if(native==null)native=hide.GetComponentInChildren<UIButton>(true);
+        var nativeLabel=hide.GetComponentInChildren<UILabel>(true);
+        UISprite skin=native!=null && native.tweenTarget!=null?native.tweenTarget.GetComponent<UISprite>():null;
+        if(skin==null)foreach(var candidate in hide.GetComponentsInChildren<UISprite>(true))
+            if(skin==null || candidate.width*candidate.height>skin.width*skin.height)skin=candidate;
+        if(native==null || nativeLabel==null || skin==null)return;
+        // Reuse the actual Hide UI skin and typography on a fresh control,
+        // avoiding inherited native callbacks, anchors and positioning scripts.
+        var controls=new GameObject("SPRK Illustration Controls");controls.layer=hide.gameObject.layer;
+        controls.transform.SetParent(window.transform,false);
+        var panel=controls.AddComponent<UIPanel>();var nativePanel=skin.GetComponentInParent<UIPanel>();
+        panel.depth=nativePanel==null?1000:nativePanel.depth+1;
+        var host=new GameObject("SPRK AI Upscale");host.layer=hide.gameObject.layer;
+        host.transform.SetParent(controls.transform,false);
+        var widget=host.AddComponent<UISprite>();widget.atlas=skin.atlas;widget.spriteName=skin.spriteName;
+        widget.type=skin.type;widget.color=skin.color;widget.depth=skin.depth;widget.width=120;widget.height=hide.height;
+        widget.SetAnchor(hide.gameObject);
+        widget.leftAnchor.Set(0,-132);widget.rightAnchor.Set(0,-12);
+        widget.bottomAnchor.Set(0,0);widget.topAnchor.Set(1,0);widget.UpdateAnchors();
+        button=host.AddComponent<UIButton>();EventDelegate.Add(button.onClick,Cycle);
+        button.tweenTarget=host;button.defaultColor=native.defaultColor;button.hover=native.hover;button.pressed=native.pressed;button.disabledColor=native.disabledColor;
+        button.normalSprite=String.IsNullOrEmpty(native.normalSprite)?skin.spriteName:native.normalSprite;
+        button.hoverSprite=native.hoverSprite;button.pressedSprite=native.pressedSprite;button.disabledSprite=native.disabledSprite;
+        button.enabled=true;button.isEnabled=true;
+        var labelObject=new GameObject("Label");labelObject.layer=host.layer;labelObject.transform.SetParent(host.transform,false);
+        label=labelObject.AddComponent<UILabel>();label.bitmapFont=nativeLabel.bitmapFont;label.trueTypeFont=nativeLabel.trueTypeFont;
+        label.fontSize=nativeLabel.fontSize;label.depth=skin.depth+1;label.color=nativeLabel.color;
+        label.effectStyle=nativeLabel.effectStyle;label.effectColor=nativeLabel.effectColor;
+        label.overflowMethod=UILabel.Overflow.ShrinkContent;label.maxLineCount=1;
+        label.SetAnchor(host);label.leftAnchor.Set(0,10);label.rightAnchor.Set(1,-10);label.bottomAnchor.Set(0,0);label.topAnchor.Set(1,0);label.UpdateAnchors();
+        NGUITools.AddWidgetCollider(host);widget.autoResizeBoxCollider=true;helpAnchor=widget;
+        foreach(var collider in host.GetComponents<Collider>())collider.enabled=true;
+        var print=host.GetComponent<NVespa.NNGUIExtension.TooltipPrintInfo>();
+        if(print==null)print=host.AddComponent<NVespa.NNGUIExtension.TooltipPrintInfo>();
+        print.Mode=(NVespa.NNGUIExtension.UITooltipTrigger.ETooltipTriggerMode)0;
+        print.CustomAnchor=widget;print.OwnerPivot=UIWidget.Pivot.BottomRight;print.TooltipPivot=UIWidget.Pivot.TopRight;
+        var listenerNew=UIEventListener.Get(host);listenerNew.onHover=delegate(GameObject go,bool over){if(over)ShowHelp();else HideHelp();};
+        Refresh();
+    }
+}

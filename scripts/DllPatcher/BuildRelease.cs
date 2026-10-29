@@ -55,6 +55,9 @@ partial class Program
         InstallIllustrationZoom(clientRoot, false);
         VerifyIllustrationZoomFile(clientRoot);
         TestIllustrationZoom(clientRoot);
+        InstallIllustrationUpscale(clientRoot, false);
+        VerifyIllustrationUpscaleFile(clientRoot);
+        TestIllustrationUpscale();
         InstallWorldBossKeys(clientRoot, false);
         VerifyWorldBossKeysFile(clientRoot);
         InstallInventoryExpansion(clientRoot, false);

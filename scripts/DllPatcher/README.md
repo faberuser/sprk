@@ -148,7 +148,8 @@ Argument routing lives in [Program.cs](Program.cs).
 ## Illustration zoom
 
 The hero/costume illustration viewer supports mouse-wheel zoom from 50% to
-400%. Drag to move the artwork, and double-click or middle-click to reset.
+800%. Native touch zoom also reaches 800%. Drag to move the artwork, and
+double-click or middle-click to reset to 100%.
 Switching illustrations restores the default view. Hide UI and the native
 touch controls remain available; wheel input ignores other popups and buttons.
 

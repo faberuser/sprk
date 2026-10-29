@@ -245,7 +245,7 @@ sealed class LauncherForm : Form
             if (!File.Exists(game)) throw new FileNotFoundException("King's Raid.exe is missing. Put the launcher beside the full game client.");
             ClientProfileSupport.EnsureInstalled(root);
             var start = new ProcessStartInfo(game) { WorkingDirectory = root, UseShellExecute = false };
-            start.Environment["SPRK_HOST_URL"] = config.CurrentProfile.HostUrl;
+            ClientProfileSupport.ConfigureLaunchEnvironment(start, config.CurrentProfile);
             Process.Start(start);
             File.WriteAllText(Path.Combine(root, ".sprk-launcher", "running-profile.txt"), ProfileIdentity());
             // Allow the form to close after RunUpdate releases its handles.

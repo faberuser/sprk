@@ -6,7 +6,14 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void PatchIllustrationZoom(ModuleDefinition game, ModuleDefinition helper) {
-        var method=game.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Single(m=>m.Name=="UpdateDerived");
+        var viewer=game.GetType("NGame2.NUI.NWindow.HeroIllustBook");
+        foreach(var name in new[]{"Init","InitSeasonReward"}) {
+            var init=viewer.Methods.Single(m=>m.Name==name);
+            var store=init.Body.Instructions.Single(i=>i.OpCode==OpCodes.Stfld && i.Operand is FieldReference f && f.Name=="_scaleLimitMax");
+            if(store.Previous.OpCode==OpCodes.Ldc_I4_8 && store.Previous.Previous.OpCode==OpCodes.Pop)continue;
+            var il=init.Body.GetILProcessor();il.InsertBefore(store,il.Create(OpCodes.Pop));il.InsertBefore(store,il.Create(OpCodes.Ldc_I4_8));
+        }
+        var method=viewer.Methods.Single(m=>m.Name=="UpdateDerived");
         if (!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkIllustrationZoom")) {
             var first=method.Body.Instructions[0];var il=method.Body.GetILProcessor();
             il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
@@ -16,6 +23,13 @@ partial class Program {
     }
     static void VerifyIllustrationZoom(ModuleDefinition game) {
         var type=game.GetType("NGame2.NUI.NWindow.HeroIllustBook");
+        foreach(var name in new[]{"Init","InitSeasonReward"}) {
+            var init=type.Methods.Single(m=>m.Name==name);
+            var store=init.Body.Instructions.Single(i=>i.OpCode==OpCodes.Stfld && i.Operand is FieldReference f && f.Name=="_scaleLimitMax");
+            if(store.Previous.OpCode!=OpCodes.Ldc_I4_8 || store.Previous.Previous.OpCode!=OpCodes.Pop)
+                throw new InvalidOperationException("Native illustration touch zoom must support 800%: "+name);
+            VerifyArenaResultStack(init);
+        }
         var method=type.Methods.Single(m=>m.Name=="UpdateDerived");
         var code=method.Body.Instructions;
         if (code[0].OpCode!=OpCodes.Ldarg_0 || code[1].Operand is not MethodReference hook
@@ -51,22 +65,25 @@ partial class Program {
         var math=assembly.GetType("SprkIllustrationZoomMath")!;
         float Zoom(float current,float wheel)=>(float)math.GetMethod("NextScale")!.Invoke(null,new object[]{current,wheel})!;
         float Offset(float p,float s,float image,float viewport)=>(float)math.GetMethod("ClampOffset")!.Invoke(null,new object[]{p,s,image,viewport})!;
-        if (Zoom(1,0)!=1 || Zoom(1,0.1f)<=1 || Zoom(1,-0.1f)>=1 || Zoom(1,20)!=4 || Zoom(1,-20)!=0.5f)
+        if (Zoom(1,0)!=1 || Zoom(1,0.1f)<=1 || Zoom(1,-0.1f)>=1 || Zoom(1,20)!=8 || Zoom(1,-20)!=0.5f)
             throw new Exception("Illustration zoom direction or bounds failed.");
         if (Math.Abs(Zoom(Zoom(1,0.1f),-0.1f)-1)>0.00001f || Zoom(float.NaN,0)!=1 || Zoom(1,float.PositiveInfinity)!=1)
             throw new Exception("Illustration zoom reversibility/invalid-input checks failed.");
-        foreach (var current in new[]{0.5f,0.75f,1,2,4}) foreach (var wheel in new[]{-100f,-1,-0.1f,0,0.1f,1,100}) {
+        foreach (var current in new[]{0.5f,0.75f,1,2,4,6,8}) foreach (var wheel in new[]{-100f,-1,-0.1f,0,0.1f,1,100}) {
             float result=Zoom(current,wheel);
-            if (result<0.5f || result>4 || float.IsNaN(result)) throw new Exception("Illustration zoom escaped bounds.");
+            if (result<0.5f || result>8 || float.IsNaN(result)) throw new Exception("Illustration zoom escaped bounds.");
         }
         if (Offset(5000,2,1000,1000)!=500 || Offset(-5000,2,1000,1000)!=-500 || Offset(10,1,1000,1000)!=0)
             throw new Exception("Illustration pan clamp failed.");
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".illustration-zoom-staged":"")));
         using var helper=AssemblyDefinition.ReadAssembly(path);
+        int total=game.MainModule.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Where(m=>m.HasBody).Sum(m=>m.Body.Instructions.Count);
         var before=game.MainModule.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Single(m=>m.Name=="UpdateDerived").Body.Instructions.Count;
         PatchIllustrationZoom(game.MainModule,helper.MainModule);
         if (before!=game.MainModule.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Single(m=>m.Name=="UpdateDerived").Body.Instructions.Count)
             throw new Exception("Illustration zoom patch is not idempotent.");
+        if(total!=game.MainModule.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Where(m=>m.HasBody).Sum(m=>m.Body.Instructions.Count))
+            throw new Exception("Native touch zoom limit patch is not idempotent.");
         Console.WriteLine("PASS: installed zoom math, limits, inverse wheel steps, invalid inputs, pan bounds and patch idempotence.");
     }
     static void InstallIllustrationZoom(string root,bool stageOnly) {

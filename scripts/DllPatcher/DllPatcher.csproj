@@ -16,6 +16,8 @@
     <EmbeddedResource Include="../../tables/CostumeTicketRules.json" LogicalName="DllPatcher.CostumeTicketRules.json" />
     <EmbeddedResource Include="Resources/MotionCostumes.cs.txt" WithCulture="false" LogicalName="DllPatcher.MotionCostumes.cs.txt" />
     <EmbeddedResource Include="Resources/IllustrationZoom.cs.txt" WithCulture="false" LogicalName="DllPatcher.IllustrationZoom.cs.txt" />
+    <EmbeddedResource Include="Resources/IllustrationUpscale*.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
+    <EmbeddedResource Include="prepare_illustration_runtime.py" LogicalName="DllPatcher.prepare_illustration_runtime.py" />
     <EmbeddedResource Include="Resources/MissionHistory.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistory.cs.txt" />
     <EmbeddedResource Include="Resources/MissionHistoryState.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistoryState.cs.txt" />
     <EmbeddedResource Include="Resources/MissionHistoryTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.MissionHistoryTests.cs.txt" />

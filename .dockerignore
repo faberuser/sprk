@@ -15,6 +15,7 @@
 !scripts/docker/
 !scripts/docker/*.sh
 !scripts/DllPatcher/
+!scripts/DllPatcher/prepare_illustration_runtime.py
 !scripts/DllPatcher/Resources/
 !scripts/DllPatcher/Resources/ArtifactSelectorPools.json
 !scripts/DllPatcher/Resources/LegacyData/
