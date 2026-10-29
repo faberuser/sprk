@@ -42,6 +42,8 @@ mod entry_cost_tests;
 mod dispatch_tests;
 #[cfg(test)]
 mod eclipse_tests;
+#[cfg(test)]
+mod maze_tests;
 pub(crate) mod bonuses;
 mod loot_booster;
 

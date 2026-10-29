@@ -24,6 +24,10 @@ impl BattleTable {
     }
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data = Self::load_with_rules(path, "BattleRules.json")?;
+        // Native MazeClearRewardTable: cumulative floors across all seven
+        // Royal Labyrinth towers, rather than independent tower requirements.
+        let maze = serde_json::from_reader(std::fs::File::open(path.with_file_name("MazeClearRewardTable.json"))?)?;
+        data.tables.insert("MazeClearReward".into(), maze);
         let missions: Value = serde_json::from_reader(std::fs::File::open(path.with_file_name("MissionCompletionSupport.json"))?)?;
         for name in ["MonthlyHero", "SubStoryUnlock", "MonsterArchive"] {
             data.tables.insert(name.into(), missions["Tables"][name].as_array()

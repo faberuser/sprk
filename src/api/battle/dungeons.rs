@@ -413,6 +413,28 @@ pub(super) async fn tower_list(
     Ok(out)
 }
 
+async fn maze_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(Value, i64)> {
+    // TowerType.Maze is the seven class towers, reset on the native monthly
+    // schedule. Challenge Tower, Tower of Ordeals and Labyrinth are separate.
+    let towers: Vec<_> = s.tables.battle.rows("Tower").iter().filter(|t| n(t, "Type") == 5).collect();
+    let current = period(towers.first().ok_or_else(|| rule("TowerDataNotFound"))?);
+    let mut cleared = 0;
+    for data in towers {
+        if period(data) != current { return Err(rule("TowerDataNotFound")); }
+        cleared += n(&tower(db, s, a, n(data, "TowerIndex")).await?, "CompletedFloor");
+    }
+    let mut state = get(db, a, "maze_step", 0).await?;
+    if state["Period"] != current {
+        // Also migrate old daily claim receipts. A login or a new day must not
+        // make an already collected milestone claimable again in this cycle.
+        let step: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(idx),0) FROM battle_reward_claims WHERE account=? AND kind='maze' AND period>=? AND period<=?")
+            .bind(a).bind(&current).bind(day()).fetch_one(&mut *db).await?;
+        state = json!({"Step":step,"Period":current});
+        put(db, a, "maze_step", 0, &state).await?;
+    }
+    Ok((state, cleared))
+}
+
 // Repair missing next-stage unlocks and party-clear overwrites from earned
 // dragon/Arcdim clears. Never grant rewards or change the recorded clear.
 pub(super) async fn repair_raid_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
@@ -1369,32 +1391,24 @@ pub(super) async fn execute(
             let k = charge(db, s, a, 14, 0).await?;
             out["MazeKey"] = k["NewValue"].clone();
             out["MazeKeyRechargeTime"] = k["StaminaRechargeTime"].clone();
-            out["MazeTowerRewardStep"] = get(db, a, "maze_step", 0)
-                .await?
-                .get("Step")
-                .cloned()
-                .unwrap_or(json!(0));
+            out["MazeTowerRewardStep"] = json!(n(&maze_progress(db, s, a).await?.0, "Step"));
         }
         "receive_maze_tower_reward" => {
             let id = int(r, "MazeTowerRewardIndex")?;
-            let def = s.tables.battle.rules["MazeTowerRewards"]
-                .as_array()
-                .into_iter()
-                .flatten()
+            let def = s.tables.battle.rows("MazeClearReward").iter()
                 .find(|v| n(v, "Index") == id)
-                .ok_or_else(|| rule("ContentsDisabled"))?;
-            for req in def["Towers"].as_array().into_iter().flatten() {
-                if n(
-                    &tower(db, s, a, n(req, "TowerIndex")).await?,
-                    "CompletedFloor",
-                ) < n(req, "Floor")
-                {
-                    return Err(rule("NotCompletedDungeon"));
-                }
+                .ok_or_else(|| rule("RewardDataNotFound"))?;
+            let (mut state, cleared) = maze_progress(db, s, a).await?;
+            if id <= n(&state, "Step") { return Err(rule("AlreadyRewarded")); }
+            if id != n(&state, "Step") + 1 || cleared < n(def, "ClearFloor") {
+                return Err(rule("NotCleared"));
             }
-            claim(db, a, "maze", id, &day()).await?;
+            let claimed = sqlx::query("INSERT OR IGNORE INTO battle_reward_claims(account,kind,idx,period) VALUES(?,'maze',?,?)")
+                .bind(a).bind(id).bind(state["Period"].as_str().unwrap()).execute(&mut *db).await?;
+            if claimed.rows_affected() != 1 { return Err(rule("AlreadyRewarded")); }
             reward_index(db, s, a, n(def, "RewardIndex"), &mut reward).await?;
-            put(db, a, "maze_step", 0, &json!({"Step":id})).await?;
+            state["Step"] = json!(id);
+            put(db, a, "maze_step", 0, &state).await?;
         }
         "get_dow_dungeon_info" => {
             let date = Utc::now().date_naive();
