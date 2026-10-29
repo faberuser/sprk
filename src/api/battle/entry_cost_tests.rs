@@ -56,6 +56,86 @@ async fn balance(s: &AppState, a: i64, column: &str) -> i64 {
     .await
     .unwrap()
 }
+
+#[tokio::test]
+async fn story_and_raid_costs_are_reserved_until_victory_without_account_opt_in() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    assert!(!entry_costs::enabled(&mut s.db.acquire().await.unwrap(), a).await.unwrap());
+    sqlx::query("UPDATE user_info SET stamina=100000 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    for kind in [1, 2, 10, 12, 23, 24, 25, 29, 30, 33, 40, 41, 42, 45, 46] {
+        let d = s.tables.battle.rows("CampaignDungeon").iter()
+            .filter(|d| n(d, "BattleType") == kind)
+            .max_by_key(|d| campaign::stamina_cost(d, 0)).unwrap();
+        let cost = campaign::stamina_cost(d, 0);
+        let resource = n(d, "ReqStaminaType");
+        let r = Request::parse(format!("ChapterIndex={}&DungeonIndex={}&DungeonDifficulty=0",
+            n(d, "ChapterIndex"), n(d, "DungeonIndex")).as_bytes()).unwrap();
+        let mut db = s.db.acquire().await.unwrap();
+        let before = if cost > 0 {
+            n(&crate::api::account::stamina::snapshot(&mut db, &s, a, resource).await.unwrap(), "NewValue")
+        } else { 0 };
+        for won in [false, false, true] {
+            let mut entry = json!({});
+            let mut out = json!({});
+            entry_costs::prepare(&mut db, &s, a, &r, &mut entry, &mut out).await.unwrap();
+            assert_eq!(entry["DeferredEntryCosts"], true, "mode {kind}");
+            entry_costs::charge(&mut db, &s, a, &mut entry, resource, cost).await.unwrap();
+            if cost > 0 {
+                let current = crate::api::account::stamina::snapshot(&mut db, &s, a, resource).await.unwrap();
+                assert_eq!(n(&current, "NewValue"), before, "mode {kind} deducted on entry");
+                assert_eq!(entry_costs::held(&mut db, a, "Stamina", resource).await.unwrap(), cost);
+            }
+            entry_costs::settle(&mut db, &s, a, &mut entry, won, &mut out).await.unwrap();
+            entry_costs::settle(&mut db, &s, a, &mut entry, won, &mut out).await.unwrap();
+            if cost > 0 {
+                let current = crate::api::account::stamina::snapshot(&mut db, &s, a, resource).await.unwrap();
+                assert_eq!(n(&current, "NewValue"), before - if won { cost } else { 0 }, "mode {kind}");
+                assert_eq!(out["StaminaResult"]["AddValue"], if won { -cost } else { 0 }, "mode {kind} must not refund");
+                assert_eq!(entry_costs::held(&mut db, a, "Stamina", resource).await.unwrap(), 0);
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn challenge_defeat_and_withdrawal_keep_stamina_and_victory_charges_once() {
+    let (mut s, u) = setup().await;
+    let a = account(&u);
+    std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+        .rules["ChallengeRaidRotation"] = json!([70002]);
+    sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    let args = "ChapterIndex=961&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70002&RaidLevel=1&HeroIndices=[1]";
+    let cost = campaign::stamina_cost(campaign::dungeon(&s, &Request::parse(args.as_bytes()).unwrap()).unwrap(), 0);
+    assert!(cost > 0);
+    for outcome in ["defeat", "withdrawal", "victory"] {
+        let begin = call(&s, &u, "campaign/begin_campaign", args).await;
+        assert_eq!(begin["Result"], "Success", "{begin}");
+        assert_eq!(balance(&s, a, "stamina").await, 1000);
+        assert_eq!(begin["StaminaResult"]["AddValue"], 0);
+        assert_eq!(call(&s, &u, "campaign/begin_campaign", args).await, begin);
+        if outcome == "withdrawal" {
+            abandon_local_run_on_lobby(&s, a, u["UserInfo"]["SessionKey"].as_str().unwrap()).await.unwrap();
+            assert_eq!(balance(&s, a, "stamina").await, 1000);
+        } else {
+            let won = outcome == "victory";
+            sqlx::query("UPDATE battle_runs SET started=started-60 WHERE account=?")
+                .bind(a).execute(&s.db).await.unwrap();
+            let end_args = format!("{args}&Completed={won}&Star={}&AliveHeroIndices=[1]&PureBattleTime=60", if won { 3 } else { 0 });
+            let end = call(&s, &u, "campaign/end_campaign", &end_args).await;
+            assert_eq!(end["Result"], "Success", "{end}");
+            assert_eq!(end["StaminaResult"]["AddValue"], if won { -cost } else { 0 });
+            let _ = call(&s, &u, "campaign/end_campaign", &end_args).await;
+            assert_eq!(balance(&s, a, "stamina").await, 1000 - if won { cost } else { 0 });
+        }
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    }
+}
+
 #[tokio::test]
 async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear() {
     for deferred in [false, true] {
@@ -111,7 +191,6 @@ async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear()
 async fn pve_only_victory_deducts_once_and_awards_stamina_exp() {
     let (mut s, u) = setup().await;
     let a = account(&u);
-    enable(&s, a).await;
     std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).rules
         ["RaiderExpPerStamina"] = json!(1);
     sqlx::query("UPDATE user_info SET stamina=100,team_level=1,team_exp=0 WHERE account_id=?")
@@ -229,7 +308,6 @@ async fn technomagic_lobby_withdrawal_releases_hold_and_retries_keep_balance() {
     for (index, dungeon) in [(501, 4001), (502, 4101)] {
         let (s, u) = setup().await;
         let a = account(&u);
-        enable(&s, a).await;
         sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
             .bind(a)
             .execute(&s.db)
@@ -358,7 +436,7 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
     let (s, u) = setup().await;
     let a = account(&u);
     enable(&s, a).await;
-    for kind in [4, 15, 16, 19, 20, 25, 26, 30, 32, 36, 43, 44, 48] {
+    for kind in [4, 15, 16, 19, 20, 26, 32, 36, 43, 44, 48] {
         let Some(d) = s
             .tables
             .battle

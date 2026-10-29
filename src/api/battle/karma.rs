@@ -230,7 +230,7 @@ mod reward_tests {
             &format!("GroupIndex={group}&DungeonType=1"),
         )
         .await;
-        assert_eq!(opened["Result"], "Success", "{opened}");
+        assert!(matches!(opened["Result"].as_str(), Some("Success" | "AlreadyOpened")), "{opened}");
         let begun = call(s,u,"contents/begin_content",&format!("GroupIndex={group}&DungeonType=Karma&ChapterIndex={chapter}&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=1&FlaskItemIndex={flask}")).await;
         assert_eq!(begun["Result"], "Success", "{begun}");
         sqlx::query("UPDATE battle_runs SET started=started-200")
@@ -659,7 +659,11 @@ pub(super) async fn end(
     )
     .await?;
     let mut p = get(db, a, "punishment_open", state_key(n(group, "GroupIndex"))).await?;
-    p["IsOpen"] = json!(0);
+    // A defeat settles this attempt and its earned rewards, but keeps the paid
+    // opening available for another attempt until reset or a completed clear.
+    if boolean(r, "Completed", false)? {
+        p["IsOpen"] = json!(0);
+    }
     p["ClearLevel"] = json!(clear);
     p["ClearCount"] = json!(n(&p, "ClearCount") + 1);
     put(

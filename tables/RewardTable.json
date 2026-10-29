@@ -508797,9 +508797,9 @@
     "GoldRate": 0,
     "GoldMin": 0,
     "GoldMax": 0,
-    "GemRate": 1000,
-    "GemMin": 1000,
-    "GemMax": 1000,
+    "GemRate": 0,
+    "GemMin": 0,
+    "GemMax": 0,
     "LuaPointRate": 0,
     "LuaPointMin": 0,
     "LuaPointMax": 0,
@@ -508808,7 +508808,22 @@
     "ShopEventPointMax": 0,
     "LimitedShopEventPointRate": 0,
     "LimitedShopEventPointValue": 0,
-    "field_15": []
+    "field_15": [
+      [
+        1,
+        [
+          5550,
+          43
+        ],
+        1000,
+        1,
+        null,
+        1,
+        0,
+        0,
+        0
+      ]
+    ]
   },
   {
     "Index": 11883,
@@ -563655,9 +563670,9 @@
     "GoldRate": 0,
     "GoldMin": 0,
     "GoldMax": 0,
-    "GemRate": 1000,
-    "GemMin": 684,
-    "GemMax": 684,
+    "GemRate": 0,
+    "GemMin": 0,
+    "GemMax": 0,
     "LuaPointRate": 0,
     "LuaPointMin": 0,
     "LuaPointMax": 0,
@@ -563666,7 +563681,22 @@
     "ShopEventPointMax": 0,
     "LimitedShopEventPointRate": 0,
     "LimitedShopEventPointValue": 0,
-    "field_15": []
+    "field_15": [
+      [
+        1,
+        [
+          5548,
+          34
+        ],
+        1000,
+        1,
+        null,
+        1,
+        0,
+        0,
+        0
+      ]
+    ]
   },
   {
     "Index": 101701,
@@ -563706,9 +563736,9 @@
     "GoldRate": 0,
     "GoldMin": 0,
     "GoldMax": 0,
-    "GemRate": 1000,
-    "GemMin": 1000,
-    "GemMax": 1000,
+    "GemRate": 0,
+    "GemMin": 0,
+    "GemMax": 0,
     "LuaPointRate": 0,
     "LuaPointMin": 0,
     "LuaPointMax": 0,
@@ -563717,7 +563747,22 @@
     "ShopEventPointMax": 0,
     "LimitedShopEventPointRate": 0,
     "LimitedShopEventPointValue": 0,
-    "field_15": []
+    "field_15": [
+      [
+        1,
+        [
+          5549,
+          39
+        ],
+        1000,
+        1,
+        null,
+        1,
+        0,
+        0,
+        0
+      ]
+    ]
   },
   {
     "Index": 101702,

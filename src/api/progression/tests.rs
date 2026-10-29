@@ -1194,6 +1194,10 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
             "/campaign/begin",
             axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign),
         )
+        .route(
+            "/campaign/end",
+            axum::routing::post(crate::api::battle::campaign_handlers::end_campaign),
+        )
         .layer(axum::middleware::from_fn_with_state(
             s.clone(),
             notifications::notify,
@@ -1224,10 +1228,45 @@ async fn gameplay_response_updates_native_progress_and_stamina_achievement() {
         infos.iter().find(|r| r["AchievementIndex"] == 301).unwrap(),
         "Achievement",
     );
-    assert!(progress > 0);
+    // Story entry reserves stamina; only a committed victory spends it.
+    assert_eq!(progress, 0);
     let mut db = s.db.acquire().await.unwrap();
     let view = View::load(&mut db, u.user_info.account_id).await.unwrap();
     assert_eq!(view.metric("EnterDungeon", "all", Some(1), Some(1)), 1);
+    assert_eq!(view.metric("ConsumeStamina", "all", None, None), 0);
+    drop(db);
+
+    let response = app
+        .call(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/campaign/end")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(axum::body::Body::from(form(
+                    &u,
+                    "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=true&Star=3&AliveHeroIndices=[1]",
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let response: Value = serde_json::from_slice(
+        &axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(response["Result"], "Success", "{response}");
+    let infos = response["AchievementInfos"].as_array().unwrap();
+    let progress = n(
+        infos.iter().find(|r| r["AchievementIndex"] == 301).unwrap(),
+        "Achievement",
+    );
+    let spent = -n(&response["StaminaResult"], "AddValue");
+    assert!(spent > 0);
+    assert_eq!(progress, spent);
+    let mut db = s.db.acquire().await.unwrap();
+    let view = View::load(&mut db, u.user_info.account_id).await.unwrap();
     assert_eq!(view.metric("ConsumeStamina", "all", None, None), progress);
 }
 

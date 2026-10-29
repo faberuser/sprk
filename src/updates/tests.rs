@@ -44,6 +44,34 @@ impl Drop for Fixture {
 
 const FILE: &str = "/updates/releases/1.0.3/files/King%27s%20Raid_Data/Managed/SprkDispatch.dll";
 
+#[tokio::test]
+async fn illustration_model_is_immutable_separate_and_read_only() {
+    let fixture = Fixture::new().await;
+    let directory = fixture.0.join("illustration-models/realesrgan-anime-20220424-v1");
+    tokio::fs::create_dir_all(&directory).await.unwrap();
+    tokio::fs::write(directory.join("model.sprkmodel"), b"model-data").await.unwrap();
+    tokio::fs::write(directory.join("metadata.json"), b"{}").await.unwrap();
+    let app = fixture.router().await;
+    let uri = "/updates/models/realesrgan-anime-20220424-v1/model.sprkmodel";
+    let response = request(&app, Method::GET, uri, Some("bytes=0-4")).await;
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "public, max-age=31536000, immutable");
+    assert_eq!(to_bytes(response.into_body(), 1024).await.unwrap().as_ref(), b"model");
+    assert_eq!(request(&app, Method::HEAD, uri, None).await.status(), StatusCode::OK);
+    assert_eq!(request(&app, Method::POST, uri, None).await.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(request(&app, Method::GET, "/updates/models/realesrgan-anime-20220424-v1/private.pem", None).await.status(), StatusCode::NOT_FOUND);
+    assert_eq!(request(&app, Method::GET, "/updates/models/unknown/model.sprkmodel", None).await.status(), StatusCode::NOT_FOUND);
+    assert_eq!(request(&app, Method::GET, "/updates/models/realesrgan-anime-20220424-v1/metadata.json", None).await.status(), StatusCode::OK);
+    let directory = fixture.0.join("illustration-models/remacri-4x-v1");
+    tokio::fs::create_dir_all(&directory).await.unwrap();
+    tokio::fs::write(directory.join("model.sprkmodel"), b"remacri-model").await.unwrap();
+    let response = request(&app, Method::GET, "/updates/models/remacri-4x-v1/model.sprkmodel", Some("bytes=0-6")).await;
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "public, max-age=31536000, immutable");
+    assert_eq!(to_bytes(response.into_body(), 1024).await.unwrap().as_ref(), b"remacri");
+    assert_eq!(request(&app, Method::GET, "/updates/models/remacri-4x-v1/private.pem", None).await.status(), StatusCode::NOT_FOUND);
+}
+
 async fn request(app: &Router, method: Method, uri: &str, range: Option<&str>) -> Response {
     let mut request = HttpRequest::builder().method(method).uri(uri);
     if let Some(range) = range {

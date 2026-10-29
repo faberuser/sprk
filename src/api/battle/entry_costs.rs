@@ -114,14 +114,21 @@ pub(super) async fn prepare(
     out: &mut Value,
 ) -> Result<()> {
     let dungeon = campaign::dungeon(s, r)?;
-    // God King charges for opening a dungeon, not for winning a stage.
-    // PvP, damage/score competitions, World Boss, Eclipse and Karma keep costs.
-    if matches!(
+    // Story and farming raids always reserve entry costs until victory,
+    // independently of the legacy per-account defeat-refund setting.
+    let victory_only = matches!(
         n(dungeon, "BattleType"),
-        4 | 15 | 16 | 19 | 20 | 25 | 26 | 30 | 32 | 35 | 36 | 43 | 44 | 48
-    ) || int(r, "WorldBossIndex")? > 0
+        1 | 2 | 10 | 12 | 21 | 23 | 24 | 25 | 29 | 30 | 33 | 40 | 41 | 42 | 45 | 46
+    );
+    // God King charges for opening a dungeon, not for winning a stage.
+    // Other score competitions, World Boss, Eclipse and Karma keep costs.
+    if int(r, "WorldBossIndex")? > 0
         || int(r, "EventWorldBossIndex")? > 0
-        || (!enabled(db, a).await? && entry["ServiceOwned"] != true)
+        || (!victory_only
+            && (matches!(
+                n(dungeon, "BattleType"),
+                4 | 15 | 16 | 19 | 20 | 26 | 32 | 35 | 36 | 43 | 44 | 48
+            ) || (!enabled(db, a).await? && entry["ServiceOwned"] != true)))
     {
         return Ok(());
     }

@@ -933,6 +933,82 @@ async fn reforge_same_stat_requires_a_strictly_larger_value() {
 }
 
 #[tokio::test]
+async fn enchant_same_stat_strictly_improves_and_capped_rolls_are_not_charged() {
+    let (mut s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut eq = give(&s, a, 1001, 1).await.equipment.remove(0);
+    eq.star = 5;
+    give(&s, a, 45021, 20).await;
+    {
+        let tables = std::sync::Arc::make_mut(&mut s.tables);
+        let rows = &mut std::sync::Arc::make_mut(&mut tables.extensions).0;
+        rows.get_mut("EquipItem").unwrap().iter_mut()
+            .find(|r| n(r, "ItemIndex") == 1001).unwrap()["EnchantOptionItemCodes"] = json!(["ENCHANTSCROLL_RED_3"]);
+        let options = &mut std::sync::Arc::make_mut(&mut tables.inventory).options;
+        for (id, stat) in [(5011, 8), (5012, 8), (5013, 9)] {
+            // Deliberately different star ranges catch accidental use of gear stars.
+            options.insert(id, json!({"Type":stat,"Ratio":10,"Steps":60,
+                "MinValues":[50,500,500,500,500,500],"MaxValues":[110,1100,1100,1100,1100,1100]}));
+        }
+    }
+    for slot in 1..=3 {
+        let mut value = json!(eq);
+        value[format!("EnchantOptionIndex{slot}")] = json!(5011);
+        value[format!("EnchantOptionStep{slot}")] = json!(45); // 95 / 110
+        eq = serde_json::from_value(value).unwrap();
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        {
+            let rows = &mut std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0;
+            let scroll = rows.get_mut("EquipEnchantOptionItem").unwrap().iter_mut()
+                .find(|r| n(r, "ItemIndex") == 45021).unwrap();
+            for i in 1..=3 { scroll[format!("EnchantOptionIndex{i}")] = json!([]); }
+            scroll[format!("EnchantOptionIndex{slot}")] = json!([5012]);
+        }
+        let args = format!("EquipItemSlotIndex={}&EnchantItemIndex=45021", eq.slot_index);
+        for _ in 0..8 {
+            let rolled = call(&s, &u, "enchant_equip", &args).await;
+            assert_eq!(rolled["Result"], "Success", "{rolled}");
+            assert_eq!(rolled["NewEnchantOptionIndex"], 5012);
+            assert!((46..=60).contains(&n(&rolled, "NewEnchantOptionStep")), "{rolled}");
+            let kept = call(&s, &u, "confirm_equip_enchant_option", &format!(
+                "EquipItemSlotIndex={}&IsNew=false&ConfirmEnchantOptionIndex=5011", eq.slot_index)).await;
+            assert_eq!(kept["Result"], "Success", "{kept}");
+        }
+        // Accepting the pending roll persists its exact value.
+        give(&s, a, 45021, 20).await;
+        let rolled = call(&s, &u, "enchant_equip", &args).await;
+        let accepted = call(&s, &u, "confirm_equip_enchant_option", &format!(
+            "EquipItemSlotIndex={}&IsNew=true&ConfirmEnchantOptionIndex=5012", eq.slot_index)).await;
+        assert_eq!(accepted["Result"], "Success", "{accepted}");
+        assert_eq!(accepted["ResultEquipItem"][format!("EnchantOptionStep{slot}")], rolled["NewEnchantOptionStep"]);
+        let mut value = accepted["ResultEquipItem"].clone();
+        value[format!("EnchantOptionStep{slot}")] = json!(60);
+        eq = serde_json::from_value(value).unwrap();
+        save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
+        let before_gold = gold(&s).await;
+        let before_items: i64 = sqlx::query_scalar("SELECT SUM(count) FROM items WHERE account_id=? AND item_index=45021")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let rejected = call(&s, &u, "enchant_equip", &args).await;
+        assert_ne!(rejected["Result"], "Success", "{rejected}");
+        assert_eq!(gold(&s).await, before_gold);
+        let after_items: i64 = sqlx::query_scalar("SELECT SUM(count) FROM items WHERE account_id=? AND item_index=45021")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!(before_items, after_items);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+        let rows = &mut std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0;
+        rows.get_mut("EquipEnchantOptionItem").unwrap().iter_mut()
+            .find(|r| n(r, "ItemIndex") == 45021).unwrap()[format!("EnchantOptionIndex{slot}")] = json!([5011,5012,5013]);
+        let rolled = call(&s, &u, "enchant_equip", &args).await;
+        assert_eq!(rolled["Result"], "Success", "{rolled}");
+        assert_eq!(rolled["NewEnchantOptionIndex"], 5013);
+        let kept = call(&s, &u, "confirm_equip_enchant_option", &format!(
+            "EquipItemSlotIndex={}&IsNew=false&ConfirmEnchantOptionIndex=5012", eq.slot_index)).await;
+        assert_eq!(kept["Result"], "Success", "{kept}");
+    }
+}
+
+#[tokio::test]
 async fn technomagic_reforge_charges_materials_for_both_options_without_currency() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

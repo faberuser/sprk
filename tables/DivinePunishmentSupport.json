@@ -20,6 +20,10 @@
     {
       "Path": "output/MessagePack/KarmaRewardTable.json",
       "Sha256": "bcb99cb3b29301e2bfdf4e245401c1c19698f85e18a5569336d5f9bf7d8e576e"
+    },
+    {
+      "Path": "output/MessagePack/AffixTable.json",
+      "Sha256": "76ef9e06e7509bb7264d261b8c1ee3bc47de22134cdd7a740c96fd933751ce0e"
     }
   ],
   "Tables": {
@@ -2782,6 +2786,258 @@
         "RewardIndex": 0,
         "IsAccumulate": false,
         "DropChance": 0.0
+      }
+    ],
+    "PunishmentAutoAffix": [
+      {
+        "Index": 10001,
+        "GroupIndex": 101001,
+        "MinLevel": 2
+      },
+      {
+        "Index": 10003,
+        "GroupIndex": 101001,
+        "MinLevel": 6
+      },
+      {
+        "Index": 10004,
+        "GroupIndex": 101001,
+        "MinLevel": 2
+      },
+      {
+        "Index": 10005,
+        "GroupIndex": 101001,
+        "MinLevel": 4
+      },
+      {
+        "Index": 10006,
+        "GroupIndex": 101001,
+        "MinLevel": 6
+      },
+      {
+        "Index": 10007,
+        "GroupIndex": 101001,
+        "MinLevel": 8
+      },
+      {
+        "Index": 10008,
+        "GroupIndex": 101001,
+        "MinLevel": 10
+      },
+      {
+        "Index": 10009,
+        "GroupIndex": 101001,
+        "MinLevel": 12
+      },
+      {
+        "Index": 10010,
+        "GroupIndex": 101001,
+        "MinLevel": 14
+      },
+      {
+        "Index": 10011,
+        "GroupIndex": 101001,
+        "MinLevel": 16
+      },
+      {
+        "Index": 10012,
+        "GroupIndex": 101001,
+        "MinLevel": 18
+      },
+      {
+        "Index": 10013,
+        "GroupIndex": 101001,
+        "MinLevel": 20
+      },
+      {
+        "Index": 10014,
+        "GroupIndex": 101001,
+        "MinLevel": 22
+      },
+      {
+        "Index": 10015,
+        "GroupIndex": 101001,
+        "MinLevel": 24
+      },
+      {
+        "Index": 10016,
+        "GroupIndex": 101001,
+        "MinLevel": 26
+      },
+      {
+        "Index": 10017,
+        "GroupIndex": 101001,
+        "MinLevel": 28
+      },
+      {
+        "Index": 10018,
+        "GroupIndex": 101001,
+        "MinLevel": 30
+      },
+      {
+        "Index": 10019,
+        "GroupIndex": 101001,
+        "MinLevel": 32
+      },
+      {
+        "Index": 10020,
+        "GroupIndex": 101001,
+        "MinLevel": 34
+      },
+      {
+        "Index": 10021,
+        "GroupIndex": 101001,
+        "MinLevel": 36
+      },
+      {
+        "Index": 10022,
+        "GroupIndex": 101001,
+        "MinLevel": 38
+      },
+      {
+        "Index": 10023,
+        "GroupIndex": 101001,
+        "MinLevel": 40
+      },
+      {
+        "Index": 10024,
+        "GroupIndex": 101002,
+        "MinLevel": 2
+      },
+      {
+        "Index": 10025,
+        "GroupIndex": 101002,
+        "MinLevel": 6
+      },
+      {
+        "Index": 10026,
+        "GroupIndex": 101002,
+        "MinLevel": 2
+      },
+      {
+        "Index": 10027,
+        "GroupIndex": 101002,
+        "MinLevel": 4
+      },
+      {
+        "Index": 10028,
+        "GroupIndex": 101002,
+        "MinLevel": 6
+      },
+      {
+        "Index": 10029,
+        "GroupIndex": 101002,
+        "MinLevel": 8
+      },
+      {
+        "Index": 10030,
+        "GroupIndex": 101002,
+        "MinLevel": 10
+      },
+      {
+        "Index": 10031,
+        "GroupIndex": 101002,
+        "MinLevel": 12
+      },
+      {
+        "Index": 10032,
+        "GroupIndex": 101002,
+        "MinLevel": 14
+      },
+      {
+        "Index": 10033,
+        "GroupIndex": 101002,
+        "MinLevel": 16
+      },
+      {
+        "Index": 10034,
+        "GroupIndex": 101002,
+        "MinLevel": 18
+      },
+      {
+        "Index": 10035,
+        "GroupIndex": 101002,
+        "MinLevel": 20
+      },
+      {
+        "Index": 10036,
+        "GroupIndex": 101002,
+        "MinLevel": 22
+      },
+      {
+        "Index": 10037,
+        "GroupIndex": 101002,
+        "MinLevel": 24
+      },
+      {
+        "Index": 10038,
+        "GroupIndex": 101002,
+        "MinLevel": 26
+      },
+      {
+        "Index": 10039,
+        "GroupIndex": 101002,
+        "MinLevel": 28
+      },
+      {
+        "Index": 10040,
+        "GroupIndex": 101002,
+        "MinLevel": 30
+      },
+      {
+        "Index": 10041,
+        "GroupIndex": 101002,
+        "MinLevel": 32
+      },
+      {
+        "Index": 10042,
+        "GroupIndex": 101002,
+        "MinLevel": 34
+      },
+      {
+        "Index": 10043,
+        "GroupIndex": 101002,
+        "MinLevel": 36
+      },
+      {
+        "Index": 10044,
+        "GroupIndex": 101002,
+        "MinLevel": 38
+      },
+      {
+        "Index": 10045,
+        "GroupIndex": 101002,
+        "MinLevel": 40
+      },
+      {
+        "Index": 1937001,
+        "GroupIndex": 101001,
+        "MinLevel": 5
+      },
+      {
+        "Index": 1937002,
+        "GroupIndex": 101002,
+        "MinLevel": 5
+      },
+      {
+        "Index": 1937003,
+        "GroupIndex": 101001,
+        "MinLevel": 9
+      },
+      {
+        "Index": 1937004,
+        "GroupIndex": 101002,
+        "MinLevel": 9
+      },
+      {
+        "Index": 1937005,
+        "GroupIndex": 101001,
+        "MinLevel": 13
+      },
+      {
+        "Index": 1937006,
+        "GroupIndex": 101002,
+        "MinLevel": 13
       }
     ]
   }

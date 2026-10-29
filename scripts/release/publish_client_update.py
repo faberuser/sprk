@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 
 DEFAULT_INCLUDES = [
+    "King's Raid_Data/app.info",
     "King's Raid_Data/boot.config",
     "King's Raid_Data/globalgamemanagers",
     "King's Raid_Data/Managed",

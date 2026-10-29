@@ -6,13 +6,140 @@ using System.Runtime.CompilerServices;
 using NGame2.NUI;
 using NGame2.NUI.NHelper;
 using NGame2.NUI.NWindow.NLoading;
+using NGame2.NUI.NComponent2;
 using NGameAsset;
 using NGameAsset.NNguiAtlas;
 using NVespa;
 using UnityEngine;
 
+public static class SprkLightBattlePortrait
+{
+    static readonly HashSet<int> fallbackCostumes = new HashSet<int> { __SPRK_LIGHT_BATTLE_FALLBACK_IDS__ };
+    public static string Resolve(string heroCode, int star, int costumeIndex)
+    {
+        if (!fallbackCostumes.Contains(costumeIndex) || String.IsNullOrEmpty(heroCode)) return null;
+        // Five stars is the highest basic portrait tier; monster icons are
+        // square and cannot be used as transparent battle bust portraits.
+        return "Battle/Portrait/" + heroCode.Replace('.', '/') + "_5";
+    }
+}
+
 public static class SprkImageRecovery
 {
+    public static string BattlePortraitFallback(string heroCode, int star, int costumeIndex)
+    {
+        return SprkLightBattlePortrait.Resolve(heroCode, star, costumeIndex);
+    }
+    static readonly Dictionary<int,string> lightFallbackPortraits = new Dictionary<int,string> { __SPRK_LIGHT_FALLBACK_PATHS__ };
+    static readonly HashSet<string> lightFallbackPaths = new HashSet<string>(lightFallbackPortraits.Values,StringComparer.OrdinalIgnoreCase);
+    sealed class PortraitLayout {
+        public int Width,Height;
+        public Vector4 DrawRegion;
+        public UITexture Fade;
+        public Texture2D FadeTexture;
+        public int FadeHeight,FadeCardHeight;
+    }
+    static readonly ConditionalWeakTable<UIBundleLoader,PortraitLayout> portraitLayouts = new ConditionalWeakTable<UIBundleLoader,PortraitLayout>();
+    static readonly PropertyInfo currentAssign=typeof(UIBundleLoader).GetProperty("_currentAssign",BindingFlags.Instance|BindingFlags.NonPublic);
+    static readonly FieldInfo defaultAssign=typeof(UIBundleLoader).GetField("_assetTexAssign",BindingFlags.Instance|BindingFlags.NonPublic);
+    static void RemovePortraitFade(PortraitLayout saved) {
+        if(saved.Fade!=null) {
+            saved.Fade.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(saved.Fade.gameObject);
+            saved.Fade=null;
+        }
+        if(saved.FadeTexture!=null) {UnityEngine.Object.Destroy(saved.FadeTexture);saved.FadeTexture=null;}
+        saved.FadeHeight=0;
+    }
+    static void UpdatePortraitFade(UITexture ui,PortraitLayout saved,int fittedHeight) {
+        int gap=saved.Height-fittedHeight;
+        if(gap<=0) {RemovePortraitFade(saved);return;}
+        if(saved.Fade==null) {
+            var host=new GameObject("SPRK Light portrait edge fade");
+            host.transform.SetParent(ui.transform,false);
+            saved.Fade=host.AddComponent<UITexture>();
+            // NGUI trims one pixel from odd-sized textures. A one-pixel-wide
+            // texture therefore produces a zero-width quad and cannot render.
+            saved.FadeTexture=new Texture2D(2,256,TextureFormat.RGBA32,false);
+            saved.FadeTexture.name="SPRK Light portrait edge fade";
+            saved.FadeTexture.wrapMode=TextureWrapMode.Clamp;
+            saved.FadeTexture.filterMode=FilterMode.Bilinear;
+            saved.Fade.mainTexture=saved.FadeTexture;
+        }
+        if(saved.FadeHeight!=fittedHeight || saved.FadeCardHeight!=saved.Height) {
+            var pixels=new Color32[2*256];
+            float solid=gap*0.5f;
+            float fade=Mathf.Max(1f,Mathf.Min(fittedHeight*0.15f,saved.Height*0.06f));
+            for(int y=0;y<256;y++) {
+                float pos=(y+0.5f)*saved.Height/256f;
+                float distance=Mathf.Min(pos,saved.Height-pos);
+                byte alpha=(byte)Mathf.RoundToInt(255f*Mathf.Clamp01((solid+fade-distance)/fade));
+                pixels[y*2]=pixels[y*2+1]=new Color32(0,0,0,alpha);
+            }
+            saved.FadeTexture.SetPixels32(pixels);saved.FadeTexture.Apply();saved.FadeHeight=fittedHeight;saved.FadeCardHeight=saved.Height;
+        }
+        var fadeWidget=saved.Fade;
+        fadeWidget.gameObject.layer=ui.gameObject.layer;
+        fadeWidget.keepAspectRatio=UIWidget.AspectRatioSource.Free;
+        fadeWidget.pivot=ui.pivot;fadeWidget.width=saved.Width;fadeWidget.height=saved.Height;
+        fadeWidget.depth=ui.depth+1;
+        fadeWidget.transform.localPosition=Vector3.zero;
+    }
+    static void RestorePortrait(UIBundleLoader loader) {
+        PortraitLayout saved;
+        if(loader==null || !portraitLayouts.TryGetValue(loader,out saved))return;
+        var ui=loader.UiTex;
+        if(ui!=null)ui.drawRegion=saved.DrawRegion;
+        RemovePortraitFade(saved);
+        portraitLayouts.Remove(loader);
+    }
+    public static void BeforePortraitPathChange(UIBundleLoader loader,string next) {
+        if(loader!=null && loader.AssetPath!=next)RestorePortrait(loader);
+    }
+    public static void BeforePortraitChange(UIBundleLoader loader,string next,UIHelper.EAssetTextureAssign assign) {
+        PortraitLayout saved;
+        if(loader==null || !portraitLayouts.TryGetValue(loader,out saved))return;
+        var effective=assign==UIHelper.EAssetTextureAssign.__Ignore__?(UIHelper.EAssetTextureAssign)defaultAssign.GetValue(loader):assign;
+        if(loader.AssetPath!=next || (UIHelper.EAssetTextureAssign)currentAssign.GetValue(loader,null)!=effective)RestorePortrait(loader);
+    }
+    public static void FitHeroPortrait(UIBundleLoader loader,AssetTexture.TextureInfo info) {
+        if(loader==null || info==null || info.Width<=0 || info.Height<=0 || !lightFallbackPaths.Contains(loader.AssetPath))return;
+        var portrait=loader.GetComponentInParent<HeroPortraitComponent>();
+        if(portrait==null || portrait.HeroBundleTex!=loader || portrait.PortraitMode==HeroPortraitComponent.EPortraitMode.Icon)return;
+        int costume=portrait.HeroInfo==null?portrait.HeroCostumeIndex:portrait.HeroInfo.CostumeIndex;
+        string expected;
+        if(!lightFallbackPortraits.TryGetValue(costume,out expected) || !String.Equals(loader.AssetPath,expected,StringComparison.OrdinalIgnoreCase))return;
+        var ui=loader.UiTex;if(ui==null || ui.width<=0 || ui.height<=0)return;
+        PortraitLayout saved;
+        if(!portraitLayouts.TryGetValue(loader,out saved)) {
+            if(ui.width<=0 || ui.height<=0)return;
+            saved=new PortraitLayout {DrawRegion=ui.drawRegion};
+            portraitLayouts.Add(loader,saved);
+        }
+        saved.Width=ui.width;saved.Height=ui.height;
+        float scale=Mathf.Min((float)saved.Width/info.Width,(float)saved.Height/info.Height);
+        int width=Mathf.Max(1,Mathf.RoundToInt(info.Width*scale));
+        int height=Mathf.Max(1,Mathf.RoundToInt(info.Height*scale));
+        // NGUI width/height setters rewrite anchor offsets. Fit only the drawn
+        // quad, as native UITexture.fixedAspect does, preserving the full UVs
+        // and the anchored card rectangle across pooled hero/costume changes.
+        float x=(saved.Width-width)*0.5f/saved.Width,y=(saved.Height-height)*0.5f/saved.Height;
+        ui.drawRegion=new Vector4(x,y,1f-x,1f-y);
+        // Undo native ClipBottom for these fallback images: keep the entire
+        // atlas sprite, including its transparent pixels, inside the card.
+        ui.uvRect=info.UvRect;
+        UpdatePortraitFade(ui,saved,height);
+    }
+    public static void TickPortrait(UIBundleLoader loader) {
+        // Cached cards can load before HeroInfo is reassigned, or have their
+        // dimensions reset by the party layout without loading a new texture.
+        // Reconcile after those updates, including the first frame after reuse.
+        if(loader==null || !loader.isActiveAndEnabled || !lightFallbackPaths.Contains(loader.AssetPath))return;
+        var ui=loader.UiTex;if(ui==null || !ui.enabled || ui.mainTexture==null)return;
+        var asset=(AssetTexture)texture.GetValue(loader);
+        var info=asset==null?null:asset.GetTextureInfo();
+        if(info!=null && info.Tex==ui.mainTexture)FitHeroPortrait(loader,info);
+    }
     static readonly Dictionary<int, Texture2D> tpIcons = new Dictionary<int, Texture2D>();
 
     // These two valid legacy consumables have no native atlas entries. Keep the
@@ -108,7 +235,7 @@ public static class SprkImageRecovery
         RemoveTime(cache, resourceTimes, resourceOrder, key);
     }
 
-    public static void Reset(UIBundleLoader loader) { states.Remove(loader); }
+    public static void Reset(UIBundleLoader loader) { RestorePortrait(loader);states.Remove(loader); }
 
     internal static void PrepareAtlas(string path)
     {
@@ -133,6 +260,8 @@ public static class SprkImageRecovery
 
     public static void TickGlobal()
     {
+        ProbePortraitRendering();
+        ProbeLightPortraitFit();
         ProbeTpIcons();
         if (atlases.Count == 0) return;
         var due = new List<string>();
@@ -144,6 +273,90 @@ public static class SprkImageRecovery
             catch (Exception error) { Debug.LogWarning("[SPRK Images] Atlas retry failed: " + error.Message); }
             finally { NguiAtlasContainer.ReleaseAtlas(atlas, false); }
         }
+    }
+
+    static bool portraitRenderStarted;
+    static void ProbePortraitRendering() {
+        string report=Environment.GetEnvironmentVariable("SPRK_LIGHT_PORTRAIT_RENDER_PROBE");
+        if(portraitRenderStarted || String.IsNullOrEmpty(report) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) ||
+           String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))return;
+        portraitRenderStarted=true;
+        new GameObject("SPRK portrait render fixture").AddComponent<SprkLightPortraitRenderProbe>().Run(report);
+    }
+
+    static bool portraitProbeStarted;
+    static void ProbeLightPortraitFit() {
+        string report=Environment.GetEnvironmentVariable("SPRK_LIGHT_PORTRAIT_PROBE");
+        if(portraitProbeStarted || String.IsNullOrEmpty(report) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")) ||
+           String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")))return;
+        portraitProbeStarted=true;GameObject root=null;
+        try {
+            root=new GameObject("SPRK Light portrait fixture");
+            var portrait=root.AddComponent<HeroPortraitComponent>();
+            portrait.HeroInfo=new NShared.CachedHeroInfo {CostumeIndex=7280};
+            var child=new GameObject("Portrait image");child.transform.SetParent(root.transform,false);
+            var ui=child.AddComponent<UITexture>();var loader=child.AddComponent<UIBundleLoader>();
+            typeof(UIBundleLoader).GetField("_uiTex",flags).SetValue(loader,ui);portrait.HeroBundleTex=loader;
+            var pathField=typeof(UIBundleLoader).GetField("_assetPath",flags);
+            string path=lightFallbackPortraits[7280];
+            var info=new AssetTexture.TextureInfo {Width=260,Height=490,UvRect=new Rect(0.1f,0.2f,0.3f,0.4f)};
+            foreach(var pivot in new[]{UIWidget.Pivot.Center,UIWidget.Pivot.TopLeft,UIWidget.Pivot.BottomRight}) {
+                ui.pivot=pivot;ui.keepAspectRatio=UIWidget.AspectRatioSource.Free;ui.width=200;ui.height=450;
+                ui.transform.localPosition=new Vector3(13,27,0);pathField.SetValue(loader,path);
+                var offset=ui.pivotOffset;var originalCenter=ui.transform.localPosition+new Vector3((0.5f-offset.x)*200,(0.5f-offset.y)*450,0);
+                FitHeroPortrait(loader,info);
+                var drawn=ui.drawingDimensions;
+                if(ui.width!=200 || ui.height!=450 || Mathf.Abs(drawn.w-drawn.y-377)>0.01f || ui.uvRect!=info.UvRect)throw new Exception("Tall monster portrait was not fitted with original UVs and intact widget bounds");
+                PortraitLayout fitted;
+                if(!portraitLayouts.TryGetValue(loader,out fitted) || fitted.Fade==null || fitted.Fade.transform.parent!=ui.transform ||
+                   fitted.Fade.width!=200 || fitted.Fade.height!=450 || fitted.Fade.depth!=ui.depth+1)
+                    throw new Exception("Missing or incorrectly layered card-edge fade");
+                var fadePixels=fitted.FadeTexture.GetPixels32();
+                if(fadePixels[0].a!=255 || fadePixels[510].a!=255 || fadePixels[256].a!=0 || fadePixels[80].a!=0 ||
+                   fadePixels[50].a==0 || fadePixels[50].a==255 || fadePixels[460].a!=fadePixels[50].a)
+                    throw new Exception("Black edges must cover the gaps and fade smoothly into the portrait");
+                foreach(var pixel in fadePixels)if(pixel.r!=0 || pixel.g!=0 || pixel.b!=0)throw new Exception("Portrait fade is not black");
+                var center=ui.transform.localPosition+new Vector3((drawn.x+drawn.z)*0.5f,(drawn.y+drawn.w)*0.5f,0);
+                if((center-originalCenter).sqrMagnitude>0.001f)throw new Exception("Portrait pivot is not centered");
+                var overlayCenter=fitted.Fade.transform.localPosition+new Vector3((0.5f-offset.x)*fitted.Fade.width,(0.5f-offset.y)*fitted.Fade.height,0);
+                if((ui.transform.TransformPoint(overlayCenter)-ui.transform.parent.TransformPoint(originalCenter)).sqrMagnitude>0.001f)
+                    throw new Exception("Edge fade is not centered over the original card");
+                FitHeroPortrait(loader,info);
+                if(ui.width!=200 || ui.height!=450 || fitted.FadeTexture!=fitted.Fade.mainTexture)throw new Exception("Repeated loads changed the card dimensions or fade");
+                // Exercise the actual patched native setter when the pooled card changes.
+                var oldFade=fitted.Fade;
+                loader.SetAssetPath("",UIHelper.EAssetTextureAssign.ClipBottom);
+                if(ui.width!=200 || ui.height!=450 || ui.transform.localPosition!=new Vector3(13,27,0))throw new Exception("Reused portrait failed to restore its layout");
+                if(oldFade!=null && oldFade.gameObject.activeSelf)throw new Exception("Fade leaked onto the next card");
+            }
+            FieldInfo modeField=null;
+            foreach(var field in typeof(HeroPortraitComponent).GetFields(flags))
+                if(field.FieldType==typeof(HeroPortraitComponent.EPortraitMode)) {modeField=field;break;}
+            if(modeField==null)throw new Exception("Portrait mode backing field missing");
+            foreach(HeroPortraitComponent.EPortraitMode mode in Enum.GetValues(typeof(HeroPortraitComponent.EPortraitMode))) {
+                if(mode==HeroPortraitComponent.EPortraitMode.Icon)continue;
+                modeField.SetValue(portrait,mode);if(portrait.PortraitMode!=mode)throw new Exception("Incorrect portrait mode field");
+                portrait.HeroInfo.CostumeIndex=11106;pathField.SetValue(loader,lightFallbackPortraits[11106]);
+                FitHeroPortrait(loader,info);
+                if(ui.width!=200 || ui.height!=450 || Mathf.Abs(ui.drawingDimensions.w-ui.drawingDimensions.y-377)>0.01f)throw new Exception("Valance fallback did not fit in mode "+mode);
+                loader.SetAssetPath("",UIHelper.EAssetTextureAssign.ClipBottom);
+            }
+            modeField.SetValue(portrait,HeroPortraitComponent.EPortraitMode.Basic);
+            portrait.HeroInfo.CostumeIndex=680;pathField.SetValue(loader,lightFallbackPortraits[680]);
+            var square=new AssetTexture.TextureInfo {Width=124,Height=124,UvRect=new Rect(0,0,0.5f,0.5f)};
+            FitHeroPortrait(loader,square);
+            if(ui.width!=200 || ui.height!=450 || Mathf.Abs(ui.drawingDimensions.w-ui.drawingDimensions.y-200)>0.01f)throw new Exception("Square fallback portrait was stretched");
+            PortraitLayout squareLayout;
+            if(!portraitLayouts.TryGetValue(loader,out squareLayout) || squareLayout.FadeTexture.GetPixels32()[128].a!=255)
+                throw new Exception("Square portrait gaps were not covered");
+            loader.SetAssetPath("",UIHelper.EAssetTextureAssign.ClipBottom);
+            portrait.HeroInfo.CostumeIndex=180;pathField.SetValue(loader,"Portrait/Costume/Hero/Kasel_Kasel_Trans");
+            FitHeroPortrait(loader,info);
+            if(ui.width!=200 || ui.height!=450)throw new Exception("Dedicated Kasel portrait was modified");
+            if(portraitLayouts.TryGetValue(loader,out squareLayout))throw new Exception("Dedicated Kasel portrait acquired a fade");
+            System.IO.File.WriteAllText(report,"PASS: native centered portrait fit, opaque black gaps and smooth symmetric edge fades, multiple pivots, atlas UVs, repeat loading, pooled cleanup, square portraits and unchanged Kasel");
+        } catch(Exception error) {System.IO.File.WriteAllText(report,"FAIL: "+error);}
+        finally {if(root!=null)UnityEngine.Object.Destroy(root);Application.Quit();}
     }
 
     static bool loadingProbeStarted;
@@ -354,6 +567,139 @@ public sealed class SprkLoadingBackground : MonoBehaviour
 
 // Opt-in regression probe runs in a separate client process, through the patched
 // native initializer and real atlas/PlainAssetHolder asynchronous lifecycle.
+public sealed class SprkLightPortraitRenderProbe : MonoBehaviour {
+    string report;
+    GameObject panelRoot,cameraRoot;
+    RenderTexture target;
+    Texture2D picture,white;
+    static void CompleteCachedPortrait(UIBundleLoader loader,AssetTexture.TextureInfo info) {
+        // Seed only the atlas result; use the real AssetTexture accessor and
+        // UIBundleLoader callback to reproduce callback/owner ordering offline.
+        const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
+        loader.SendMessage("ReleaseAssetTexture",SendMessageOptions.RequireReceiver);
+        var cached=Activator.CreateInstance(typeof(AssetTexture).Assembly.GetType("NGameAsset.NAssetTexture.TextureFromNguiAtlas"));
+        cached.GetType().GetField("_texInfo",flags).SetValue(cached,new AssetTexture.TextureInfo {
+            Width=info.Width,Height=info.Height,Tex=info.Tex,Mtrl=info.Mtrl,UvRect=info.UvRect,SrcType=info.SrcType});
+        var asset=new AssetTexture();
+        typeof(AssetTexture).GetField("_load",flags).SetValue(asset,cached);
+        typeof(AssetTexture).GetProperty("IsDone").SetValue(asset,true,null);
+        typeof(UIBundleLoader).GetField("_assetTex",flags).SetValue(loader,asset);
+        loader.SendMessage("OnComplete",SendMessageOptions.RequireReceiver);
+        if(loader.UiTex.mainTexture!=info.Tex)throw new Exception("Native cached completion did not bind fixture texture");
+    }
+    public void Run(string path) {report=path;StartCoroutine(Observe());}
+    IEnumerator Observe() {
+        var test=Check();
+        for(;;) {
+            object current=null;bool more=false;
+            try {more=test.MoveNext();if(more)current=test.Current;}
+            catch(Exception error) {System.IO.File.WriteAllText(report,"FAIL: "+error);break;}
+            if(!more)break;
+            yield return current;
+        }
+        if(panelRoot!=null)Destroy(panelRoot);
+        if(cameraRoot!=null)Destroy(cameraRoot);
+        if(target!=null) {target.Release();Destroy(target);}
+        if(picture!=null)Destroy(picture);
+        if(white!=null)Destroy(white);
+        Application.Quit();
+    }
+    IEnumerator Check() {
+        yield return new WaitForSecondsRealtime(2f);
+        const int layer=30,w=288,h=660;
+        panelRoot=new GameObject("SPRK portrait render panel");panelRoot.layer=layer;
+        var panel=panelRoot.AddComponent<UIPanel>();panel.depth=50;
+        cameraRoot=new GameObject("SPRK portrait render camera");cameraRoot.layer=layer;
+        var camera=cameraRoot.AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=h/2f;
+        camera.nearClipPlane=0.1f;camera.farClipPlane=100f;camera.clearFlags=CameraClearFlags.SolidColor;
+        camera.backgroundColor=new Color(0.08f,0.2f,0.4f,1f);camera.cullingMask=1<<layer;
+        cameraRoot.AddComponent<UICamera>();
+        camera.transform.position=new Vector3(0,0,-10);
+        target=new RenderTexture(w,h,24,RenderTextureFormat.ARGB32);target.Create();camera.targetTexture=target;
+        var heroGo=new GameObject("HeroPortrait");heroGo.layer=layer;heroGo.transform.SetParent(panelRoot.transform,false);
+        var hero=heroGo.AddComponent<HeroPortraitComponent>();hero.HeroInfo=new NShared.CachedHeroInfo {CostumeIndex=7280};
+        var card=heroGo.AddComponent<UIWidget>();card.width=w+40;card.height=h+60;
+        var imageGo=new GameObject("Texture_HeroPortrait");imageGo.layer=layer;imageGo.transform.SetParent(heroGo.transform,false);
+        var ui=imageGo.AddComponent<UITexture>();ui.pivot=UIWidget.Pivot.Center;ui.width=w;ui.height=h;ui.depth=102;
+        // Match the real HeroPortrait prefab's four anchors and margins.
+        ui.leftAnchor.target=heroGo.transform;ui.leftAnchor.relative=0f;ui.leftAnchor.absolute=20;
+        ui.rightAnchor.target=heroGo.transform;ui.rightAnchor.relative=1f;ui.rightAnchor.absolute=-20;
+        ui.bottomAnchor.target=heroGo.transform;ui.bottomAnchor.relative=0f;ui.bottomAnchor.absolute=30;
+        ui.topAnchor.target=heroGo.transform;ui.topAnchor.relative=1f;ui.topAnchor.absolute=-30;
+        ui.updateAnchors=UIRect.AnchorUpdate.OnUpdate;ui.ResetAnchors();ui.UpdateAnchors();
+        white=new Texture2D(2,2,TextureFormat.RGBA32,false);white.SetPixels(new[]{Color.white,Color.white,Color.white,Color.white});white.Apply();
+        var sample=Environment.GetEnvironmentVariable("SPRK_LIGHT_PORTRAIT_RENDER_IMAGE");
+        if(!String.IsNullOrEmpty(sample) && !ImageConversion.LoadImage(white,System.IO.File.ReadAllBytes(sample)))throw new Exception("Could not load sample portrait");
+        ui.mainTexture=white;
+        var loader=imageGo.AddComponent<UIBundleLoader>();hero.HeroBundleTex=loader;
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic;
+        typeof(UIBundleLoader).GetField("_uiTex",flags).SetValue(loader,ui);
+        typeof(UIBundleLoader).GetField("_assetPath",flags).SetValue(loader,"Portrait/Monster/Ordeal/LightPancironne");
+        var info=new AssetTexture.TextureInfo {Width=260,Height=490,Tex=white,UvRect=new Rect(0,0,1,1)};
+        bool lifecycle=Environment.GetEnvironmentVariable("SPRK_LIGHT_PORTRAIT_LIFECYCLE")=="1";
+        if(lifecycle) {
+            // Complete the first cached request with stale pooled ownership.
+            hero.HeroInfo.CostumeIndex=180;
+            loader.SetAssetPath("Portrait/Monster/Ordeal/LightPancironne",UIHelper.EAssetTextureAssign.ClipBottom);
+            CompleteCachedPortrait(loader,info);
+            for(int cycle=0;cycle<6;cycle++) {
+                if(cycle>0) {
+                    heroGo.SetActive(false);
+                    if(ui.width!=w || ui.height!=h)throw new Exception("Pool disable failed to restore original card");
+                    hero.HeroInfo.CostumeIndex=180;
+                    heroGo.SetActive(true);
+                    loader.SetAssetPath("Portrait/Monster/Ordeal/LightPancironne",UIHelper.EAssetTextureAssign.ClipBottom);
+                    CompleteCachedPortrait(loader,info);
+                    yield return null;
+                }
+                hero.HeroInfo.CostumeIndex=7280;
+                // Same path: native SetAssetPath deliberately skips OnComplete.
+                loader.SetAssetPath("Portrait/Monster/Ordeal/LightPancironne",UIHelper.EAssetTextureAssign.ClipBottom);
+                yield return new WaitForEndOfFrame();
+                int expectedHeight=Mathf.RoundToInt(info.Height*Mathf.Min((float)w/info.Width,(float)h/info.Height));
+                var edge=imageGo.transform.Find("SPRK Light portrait edge fade");
+                if(ui.width!=w || ui.height!=h || Mathf.Abs(ui.drawingDimensions.w-ui.drawingDimensions.y-expectedHeight)>0.01f || edge==null || !edge.gameObject.activeSelf || edge.gameObject.layer!=layer)
+                    throw new Exception("Cached portrait did not recover after party reuse, cycle "+cycle+" dimensions="+ui.width+"x"+ui.height+" expected="+expectedHeight+" fade="+edge+" texture="+ui.mainTexture+" active="+loader.isActiveAndEnabled+" asset="+typeof(UIBundleLoader).GetField("_assetTex",flags).GetValue(loader)+" path="+loader.AssetPath+" mode="+hero.PortraitMode+" costume="+(hero.HeroInfo==null?-1:hero.HeroInfo.CostumeIndex));
+                ui.drawRegion=new Vector4(0,0,1,1);ui.uvRect=new Rect(0,0,1,0.5f);ui.UpdateAnchors();
+                yield return new WaitForEndOfFrame();
+                if(Mathf.Abs(ui.drawingDimensions.w-ui.drawingDimensions.y-expectedHeight)>0.01f || ui.uvRect!=info.UvRect)throw new Exception("Late party layout reset was not repaired");
+                if(ui.leftAnchor.absolute!=20 || ui.rightAnchor.absolute!=-20 || ui.bottomAnchor.absolute!=30 || ui.topAnchor.absolute!=-30)
+                    throw new Exception("Fallback fit mutated the native card anchor offsets");
+                hero.HeroInfo.CostumeIndex=0;
+                loader.SetAssetPath("Portrait/Hero/Frey_5",UIHelper.EAssetTextureAssign.ClipBottom);
+                CompleteCachedPortrait(loader,new AssetTexture.TextureInfo {Width=500,Height=1200,Tex=white,UvRect=new Rect(0,0,1,1)});
+                ui.UpdateAnchors();yield return new WaitForEndOfFrame();
+                if(ui.width!=w || ui.height!=h || ui.transform.localPosition.sqrMagnitude>0.01f || ui.drawRegion!=new Vector4(0,0,1,1))
+                    throw new Exception("Normal portrait overflowed after reusing a fallback card");
+                hero.HeroInfo.CostumeIndex=7280;
+                loader.SetAssetPath("Portrait/Monster/Ordeal/LightPancironne",UIHelper.EAssetTextureAssign.ClipBottom);
+                CompleteCachedPortrait(loader,info);yield return new WaitForEndOfFrame();
+            }
+        } else SprkImageRecovery.FitHeroPortrait(loader,info);
+        var fade=imageGo.transform.Find("SPRK Light portrait edge fade");
+        if(fade==null)throw new Exception("Fade widget not created");
+        if(fade.gameObject.layer!=layer)throw new Exception("Fade does not follow portrait UI layer");
+        yield return null;yield return null;yield return new WaitForEndOfFrame();
+        camera.Render();var old=RenderTexture.active;RenderTexture.active=target;
+        picture=new Texture2D(w,h,TextureFormat.RGBA32,false);picture.ReadPixels(new Rect(0,0,w,h),0,0);picture.Apply();RenderTexture.active=old;
+        System.IO.File.WriteAllBytes(report+".png",picture.EncodeToPNG());
+        System.IO.File.WriteAllText(report+".diagnostics","panel="+panel+" widgets="+panel.widgets.Count+" drawcalls="+panel.DrawCallCount+
+            " uiVisible="+ui.isVisible+" uiShader="+ui.shader+" uiDrawCall="+ui.drawCall+" fadeVisible="+fade.GetComponent<UITexture>().isVisible+
+            " fadeShader="+fade.GetComponent<UITexture>().shader+" fadeDrawCall="+fade.GetComponent<UITexture>().drawCall+
+            " camera="+NGUITools.FindCameraForLayer(layer)+" uiLayer="+ui.drawCall.gameObject.layer+
+            " fadeLayer="+fade.GetComponent<UITexture>().drawCall.gameObject.layer+
+            " uiPos="+ui.drawCall.transform.position+" fadePos="+fade.GetComponent<UITexture>().drawCall.transform.position+
+            " uiRenderer="+ui.drawCall.GetComponent<Renderer>()+" uiBounds="+ui.drawCall.GetComponent<Renderer>().bounds+
+            " cameraPos="+camera.transform.position+" cameraSize="+camera.orthographicSize);
+        var top=picture.GetPixel(w/2,h-10);var middle=picture.GetPixel(w/2,h/2);var bottom=picture.GetPixel(w/2,10);
+        if(top.maxColorComponent>0.15f || bottom.maxColorComponent>0.15f || middle.maxColorComponent<0.6f ||
+           (String.IsNullOrEmpty(sample) && (middle.r<0.8f || middle.g<0.8f || middle.b<0.8f)))
+            throw new Exception("Fade did not render black at both card edges with an unobscured portrait center: top="+top+", middle="+middle+", bottom="+bottom);
+        System.IO.File.WriteAllText(report,"PASS: actual NGUI camera render shows black at both edges and the image in the center"+
+            (lifecycle?"; six anchored native cached-callback cycles, normal/fallback costume switches, intact anchor offsets and late layout resets":""));
+    }
+}
+
 public sealed class SprkLoadingBackgroundProbe : MonoBehaviour
 {
     string report;

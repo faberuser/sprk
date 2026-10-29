@@ -1,0 +1,299 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+// No Unity APIs here: all disk/network/inference work runs on one worker.
+public sealed class SprkIllustrationProgress {
+    readonly object sync=new object();
+    string stage="Preparing";
+    float fraction=-1;
+    public void Report(string text,float value) {lock(sync){stage=text;fraction=value;}}
+    public void Read(out string text,out float value) {lock(sync){text=stage;value=fraction;}}
+}
+// Optional bounded storage for a compressed native-x4 result.
+public sealed class SprkIllustrationReuse {
+    readonly object sync=new object();
+    string key;
+    byte[] bytes;
+    public byte[] Get(string identity) {lock(sync)return identity==key?bytes:null;}
+    public void Set(string identity,byte[] value) {lock(sync){key=identity;bytes=value;}}
+    public void Clear() {lock(sync){key=null;bytes=null;}}
+}
+[Serializable]
+public sealed class SprkIllustrationLauncherProfile {
+    public string Id,HostUrl,ManifestUrl;
+}
+[Serializable]
+public sealed class SprkIllustrationLauncherConfig {
+    public string SelectedProfile,ManifestUrl;
+    public SprkIllustrationLauncherProfile[] Profiles;
+}
+public static class SprkIllustrationUpscaleCore {
+    public const int MaxInput = 1024, MaxPngBytes = 80 * 1024 * 1024;
+    public const long DiskBudget = 1024L * 1024 * 1024;
+    public const string Interface = "sprk-ncnn-rrdb-rgb-x4-v1";
+    public const string DefaultHash = "f18ef1a86726f26288739b107f2bb6d4b815d04bc14f6bb7b3d0dacbc1a1fdba";
+    public const int DefaultSize = 33564831;
+    public const string DefaultUrl = "https://updates.krinfo.net/updates/models/remacri-4x-v1/model.sprkmodel";
+    public const string LegacyDefaultHash = "3aae12f7f04f602e301d82f84e7fa507a09827d99935e045c39d1d5ecccc7d67";
+    public static string ModelPath(string storage) {
+        string active=Path.Combine(storage,"active.sprkmodel");
+        // Upgrade only the exact previous stock model. Keep it intact, and never
+        // replace a custom model, including one written while a download runs.
+        if(File.Exists(active) && new FileInfo(active).Length==8973806 && Hash(File.ReadAllBytes(active))==LegacyDefaultHash)
+            return Path.Combine(storage,"default-remacri-4x-v1.sprkmodel");
+        return active;
+    }
+    static readonly SemaphoreSlim Gate = new SemaphoreSlim(1,1);
+    public static string ModelUrlFromManifest(string manifest) {
+        Uri uri;
+        if(!Uri.TryCreate(manifest,UriKind.Absolute,out uri) ||
+            !(uri.Scheme=="https" || uri.Scheme=="http" && uri.IsLoopback) ||
+            !String.IsNullOrEmpty(uri.UserInfo) || !String.IsNullOrEmpty(uri.Fragment))
+            throw new InvalidDataException("Invalid server update URL for illustration models");
+        // Keep the configured origin, port and reverse-proxy prefix. The model
+        // service is a sibling of the stable channel, never the game host port.
+        return new Uri(uri,"../models/remacri-4x-v1/model.sprkmodel").AbsoluteUri;
+    }
+    public static string ModelUrlFromProfile(SprkIllustrationLauncherConfig config,string activeHost) {
+        var profiles=config==null || config.Profiles==null?new SprkIllustrationLauncherProfile[0]:config.Profiles;
+        SprkIllustrationLauncherProfile selected=null;
+        if(!String.IsNullOrEmpty(activeHost)) {
+            Uri host;
+            if(!Uri.TryCreate(activeHost,UriKind.Absolute,out host))throw new InvalidDataException("Invalid active server profile");
+            var matches=profiles.Where(p=>{Uri candidate;return p!=null && Uri.TryCreate(p.HostUrl,UriKind.Absolute,out candidate) && candidate.Equals(host);}).ToArray();
+            selected=matches.FirstOrDefault(p=>p.Id==config.SelectedProfile);
+            if(selected==null && matches.Length==1)selected=matches[0];
+            if(selected==null)throw new InvalidDataException("No update profile matches the active server; launch through the configured launcher");
+        } else if(profiles.Length>0) {
+            selected=profiles.FirstOrDefault(p=>p!=null && p.Id==config.SelectedProfile);
+            if(selected==null)throw new InvalidDataException("The selected server update profile is missing");
+        }
+        if(selected!=null)return ModelUrlFromManifest(selected.ManifestUrl);
+        if(config!=null && !String.IsNullOrEmpty(config.ManifestUrl))return ModelUrlFromManifest(config.ManifestUrl);
+        // Legacy standalone clients with no profile retain their public default.
+        return DefaultUrl;
+    }
+    public static string Hash(byte[] data) {
+        using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(data)).Replace("-","").ToLowerInvariant();
+    }
+    public static string CacheKey(byte[] source,string model,int factor) {
+        if(factor!=4)throw new InvalidDataException("Only native x4 enhancement is supported");
+        return Hash(Encoding.UTF8.GetBytes("crop-srgb-alpha-tile64-v2|"+Interface+"|"+Hash(source)+"|"+model+"|4"));
+    }
+    public static bool Nonempty(string path) { return File.Exists(path) && new FileInfo(path).Length>0; }
+    static void Delete(string path) {try{if(File.Exists(path))File.Delete(path);}catch(IOException){}catch(UnauthorizedAccessException){} }
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    static extern SafeFileHandle CreateFile(string name,uint access,uint share,IntPtr security,uint disposition,uint flags,IntPtr template);
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern bool GetFileSizeEx(SafeFileHandle file,out long size);
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern bool SetFileInformationByHandle(SafeFileHandle file,int infoClass,ref int delete,int size);
+    [StructLayout(LayoutKind.Sequential)]
+    struct JobLimits {
+        public long ProcessTime,JobTime;public uint Flags;public UIntPtr MinWorkingSet,MaxWorkingSet;public uint ActiveProcesses;
+        public UIntPtr Affinity;public uint Priority,Scheduling;
+        public ulong ReadOperations,WriteOperations,OtherOperations,ReadBytes,WriteBytes,OtherBytes;
+        public UIntPtr ProcessMemory,JobMemory,PeakProcessMemory,PeakJobMemory;
+    }
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    static extern SafeFileHandle CreateJobObject(IntPtr security,string name);
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern bool SetInformationJobObject(SafeFileHandle job,int infoClass,ref JobLimits limits,uint length);
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern bool AssignProcessToJobObject(SafeFileHandle job,IntPtr process);
+    static SafeFileHandle BoundProcess(Process process) {
+        var job=CreateJobObject(IntPtr.Zero,null);
+        try {
+            var limits=new JobLimits{Flags=0x2100,ProcessMemory=new UIntPtr(2048UL*1024*1024)};
+            if(job.IsInvalid || !SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf(typeof(JobLimits))) || !AssignProcessToJobObject(job,process.Handle))
+                throw new IOException("Could not apply the inference memory limit");
+            return job;
+        }catch {job.Dispose();try{process.Kill();process.WaitForExit();}catch(InvalidOperationException){}throw;}
+    }
+    public static void InstallAbsent(string temp,string destination) {
+        // Never replace a nonempty user model, including one supplied during a download.
+        // FileMode.CreateNew/File.Move are atomic with respect to competing creators.
+        if(Nonempty(destination))return;
+        if(File.Exists(destination)) {
+            // Inspect and mark the SAME exclusively opened empty file for deletion.
+            // There is no check-by-path/delete-by-path race with a user replacement.
+            using(var empty=CreateFile(destination,0x80010000,0,IntPtr.Zero,3,0,IntPtr.Zero)) {
+                long length;
+                if(empty.IsInvalid || !GetFileSizeEx(empty,out length))throw new IOException("Local model is busy; retry selection");
+                if(length!=0)return;
+                int delete=1;
+                if(!SetFileInformationByHandle(empty,4,ref delete,4))throw new IOException("Empty model could not be removed");
+            }
+        }
+        try {File.Move(temp,destination);} catch(IOException) {if(!Nonempty(destination))throw;}
+    }
+    public static void Provision(string active,CancellationToken token,string sourceUrl=null,SprkIllustrationProgress progress=null) {
+        if(Nonempty(active))return;
+        Directory.CreateDirectory(Path.GetDirectoryName(active));
+        string temp=active+"."+Guid.NewGuid().ToString("N")+".tmp";
+        try {
+            if(progress!=null)progress.Report("Downloading model",0);
+            var request=(HttpWebRequest)WebRequest.Create(sourceUrl ?? DefaultUrl);
+            request.Timeout=30000;request.ReadWriteTimeout=30000;request.AllowAutoRedirect=false;
+            using(token.Register(request.Abort))
+            using(var response=request.GetResponse())
+            using(var input=response.GetResponseStream())
+            using(var output=new FileStream(temp,FileMode.CreateNew,FileAccess.Write,FileShare.None)) {
+                var buffer=new byte[64*1024];int count,total=0;
+                while((count=input.Read(buffer,0,buffer.Length))>0) {
+                    token.ThrowIfCancellationRequested();total+=count;
+                    if(total>DefaultSize)throw new InvalidDataException("Default model exceeds verified size");
+                    output.Write(buffer,0,count);
+                    if(progress!=null)progress.Report("Downloading model",(float)total/DefaultSize);
+                }
+                if(total!=DefaultSize)throw new InvalidDataException("Incomplete default model");
+                output.Flush(true);
+            }
+            if(Hash(File.ReadAllBytes(temp))!=DefaultHash)throw new InvalidDataException("Default model integrity check failed");
+            token.ThrowIfCancellationRequested();InstallAbsent(temp,active);
+        } finally {Delete(temp);}
+    }
+    public static byte[] ReadModel(string path) {
+        using(var input=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read)) {
+            if(input.Length<16 || input.Length>65*1024*1024)throw new InvalidDataException("Incompatible local model; original retained");
+            var data=new byte[(int)input.Length];int offset=0,n;
+            while(offset<data.Length && (n=input.Read(data,offset,data.Length-offset))>0)offset+=n;
+            if(offset!=data.Length)throw new InvalidDataException("Local model changed while loading");
+            ValidateModel(data);return data;
+        }
+    }
+    public static void ValidateModel(byte[] data) {
+        if(data.Length<16 || Encoding.ASCII.GetString(data,0,8)!="SPRKSR01")throw new InvalidDataException("Local model must use "+Interface);
+        int p=BitConverter.ToInt32(data,8),b=BitConverter.ToInt32(data,12);
+        if(p<1 || p>512*1024 || b<1 || b>64*1024*1024 || 16L+p+b!=data.Length)throw new InvalidDataException("Invalid model lengths");
+        string param=Encoding.ASCII.GetString(data,16,p);
+        if(!param.StartsWith("7767517") || !param.Contains("data") || !param.Contains("output"))throw new InvalidDataException("Incompatible NCNN tensor names");
+    }
+    static void SplitModel(byte[] data,string directory) {
+        ValidateModel(data);Directory.CreateDirectory(directory);
+        int p=BitConverter.ToInt32(data,8),b=BitConverter.ToInt32(data,12);
+        using(var stream=File.Create(Path.Combine(directory,"realesrgan-x4plus-anime.param")))stream.Write(data,16,p);
+        using(var stream=File.Create(Path.Combine(directory,"realesrgan-x4plus-anime.bin")))stream.Write(data,16+p,b);
+    }
+    static int BigEndian(byte[] data,int offset) {return (data[offset]<<24)|(data[offset+1]<<16)|(data[offset+2]<<8)|data[offset+3];}
+    static readonly uint[] CrcTable=MakeCrcTable();
+    static uint[] MakeCrcTable() {
+        var table=new uint[256];
+        for(uint n=0;n<256;n++){uint value=n;for(int bit=0;bit<8;bit++)value=(value&1)!=0?0xedb88320U^(value>>1):value>>1;table[n]=value;}
+        return table;
+    }
+    public static void ValidatePng(byte[] data,int width,int height) {
+        byte[] magic={137,80,78,71,13,10,26,10};
+        if(data.Length<33 || data.Length>MaxPngBytes || !data.Take(8).SequenceEqual(magic)
+            || Encoding.ASCII.GetString(data,12,4)!="IHDR" || BigEndian(data,16)!=width || BigEndian(data,20)!=height
+            || data[24]!=8 || (data[25]!=6 && data[25]!=2))throw new InvalidDataException("Invalid enhanced image");
+        int offset=8;bool end=false;
+        while(offset<data.Length) {
+            if(offset>data.Length-12)throw new InvalidDataException("Truncated PNG chunk");
+            int length=BigEndian(data,offset);
+            if(length<0 || length>data.Length-offset-12)throw new InvalidDataException("Invalid PNG chunk length");
+            uint crc=0xffffffffU;
+            for(int i=offset+4;i<offset+8+length;i++)crc=CrcTable[(crc^data[i])&255]^(crc>>8);
+            if((crc^0xffffffffU)!=(uint)BigEndian(data,offset+8+length))throw new InvalidDataException("Corrupt cached PNG");
+            end=Encoding.ASCII.GetString(data,offset+4,4)=="IEND";
+            offset+=12+length;if(end)break;
+        }
+        if(!end || offset!=data.Length)throw new InvalidDataException("Incomplete PNG");
+    }
+    public static void Prune(string directory,long budget) {
+        var files=new DirectoryInfo(directory).GetFiles("*.png").OrderBy(f=>f.LastWriteTimeUtc).ToArray();
+        long total=files.Sum(f=>f.Length);
+        foreach(var file in files) {if(total<=budget)break;long length=file.Length;Delete(file.FullName);file.Refresh();if(!file.Exists)total-=length;}
+    }
+    static string Quote(string value) {
+        if(value.IndexOf('"')>=0 || value.EndsWith("\\"))throw new InvalidDataException("Invalid inference path");
+        return "\""+value+"\"";
+    }
+    public static bool TryProgress(string line,out float fraction) {
+        fraction=0;
+        if(String.IsNullOrEmpty(line))return false;
+        line=line.Trim();float percent;
+        if(!line.EndsWith("%") || !float.TryParse(line.Substring(0,line.Length-1),NumberStyles.Float,CultureInfo.InvariantCulture,out percent)
+            || float.IsNaN(percent) || float.IsInfinity(percent) || percent<0 || percent>100)return false;
+        fraction=percent/100;return true;
+    }
+    public static byte[] Run(byte[] source,int width,int height,int factor,string active,string runtime,string cache,CancellationToken token,string sourceUrl=null,SprkIllustrationProgress progress=null,SprkIllustrationReuse reuse=null) {
+        if(width<1 || height<1 || width>MaxInput || height>MaxInput)throw new InvalidDataException("Artwork exceeds the 1024 pixel input limit");
+        if(progress!=null)progress.Report("Waiting for GPU",-1);
+        Gate.Wait(token);
+        string work=null;
+        try {
+            token.ThrowIfCancellationRequested();Provision(active,token,sourceUrl,progress);
+            if(progress!=null)progress.Report("Checking cache",-1);
+            var model=ReadModel(active);string hash=Hash(model),key=CacheKey(source,hash,factor);
+            if(reuse!=null) {
+                var saved=reuse.Get(key);
+                if(saved!=null) {if(progress!=null)progress.Report("Loading saved image",-1);return saved;}
+            }
+            bool disk=true;
+            try {Directory.CreateDirectory(cache);Prune(cache,DiskBudget);}catch(IOException){disk=false;}catch(UnauthorizedAccessException){disk=false;}
+            string entry=Path.Combine(cache,key+".png");
+            if(disk && File.Exists(entry)) {
+                try {
+                    if(new FileInfo(entry).Length>MaxPngBytes)throw new InvalidDataException("Oversized cache entry");
+                    var cached=File.ReadAllBytes(entry);ValidatePng(cached,width*4,height*4);
+                    try{File.SetLastWriteTimeUtc(entry,DateTime.UtcNow);}catch(IOException){}catch(UnauthorizedAccessException){}
+                    if(progress!=null)progress.Report("Loading cached image",-1);
+                    if(reuse!=null)reuse.Set(key,cached);
+                    return cached;
+                }catch(IOException){Delete(entry);}catch(UnauthorizedAccessException){}catch(InvalidDataException){Delete(entry);}
+            }
+            token.ThrowIfCancellationRequested();
+            work=Path.Combine(Path.GetTempPath(),"sprk-illustration-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(work);
+            string models=Path.Combine(work,"models"),input=Path.Combine(work,"input.png"),output=Path.Combine(work,"output.png");
+            SplitModel(model,models);model=null;File.WriteAllBytes(input,source);
+            var start=new ProcessStartInfo(Path.Combine(runtime,"realesrgan-ncnn-vulkan.exe")) {
+                Arguments="-i "+Quote(input)+" -o "+Quote(output)+" -m "+Quote(models)+" -n realesrgan-x4plus-anime -s 4 -t 64 -j 1:1:1",
+                UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,
+                RedirectStandardError=true,RedirectStandardOutput=true,WorkingDirectory=runtime
+            };
+            using(var process=new Process{StartInfo=start}) {
+                if(progress!=null)progress.Report("Upscaling",0);
+                process.Start();
+                using(var job=BoundProcess(process)) {
+                // Drain progress without accumulating unbounded process output.
+                process.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs args){float value;if(progress!=null && TryProgress(args.Data,out value))progress.Report("Upscaling",value);};
+                process.OutputDataReceived+=delegate{};
+                process.BeginErrorReadLine();process.BeginOutputReadLine();
+                using(token.Register(delegate {try{if(!process.HasExited)process.Kill();}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){} })) {
+                    if(!process.WaitForExit(120000)) {process.Kill();process.WaitForExit();throw new TimeoutException("GPU processing timed out");}
+                    process.WaitForExit(); // Drain the final asynchronous progress events.
+                    token.ThrowIfCancellationRequested();
+                    if(process.ExitCode!=0)throw new InvalidOperationException("GPU processing unavailable (exit "+process.ExitCode+")");
+                }
+                }
+            }
+            token.ThrowIfCancellationRequested();
+            if(progress!=null)progress.Report("Finishing image",-1);
+            if(!File.Exists(output) || new FileInfo(output).Length>MaxPngBytes)throw new InvalidDataException("Missing/oversized enhanced image");
+            var result=File.ReadAllBytes(output);ValidatePng(result,width*4,height*4);
+            if(reuse!=null)reuse.Set(key,result);
+            if(disk) {
+                string temp=entry+".tmp";
+                try {File.WriteAllBytes(temp,result);Delete(entry);File.Move(temp,entry);Prune(cache,DiskBudget);}
+                catch(IOException){}catch(UnauthorizedAccessException){}finally{Delete(temp);}
+            }
+            return result;
+        } finally {
+            if(work!=null)try{Directory.Delete(work,true);}catch(IOException){}catch(UnauthorizedAccessException){}
+            Gate.Release();
+        }
+    }
+    public static void RemoveCache(byte[] source,string active,int factor,string cache) {
+        try{Delete(Path.Combine(cache,CacheKey(source,Hash(ReadModel(active)),factor)+".png"));}catch(Exception){}
+    }
+}

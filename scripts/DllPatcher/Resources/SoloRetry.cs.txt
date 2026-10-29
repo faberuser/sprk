@@ -1,0 +1,48 @@
+using NGame2.NBattleContext;
+using NGame2.NBattleField.NManager.NPlay;
+using NGame2.NUI.NWindow;
+using NShared;
+
+public static class SprkSoloRetry
+{
+    // Retry during a fight and after defeat share Lose. Do not turn the
+    // victory Repeat button on for one-clear Punishment nodes or score modes.
+    public static bool Allow(IDataProvider provider, BattleRetryConditionType condition)
+    {
+        if (provider == null || condition != BattleRetryConditionType.Lose
+            || !(provider is CampaignContext || provider is PunishmentRaidContext)
+            || provider.IsOnline()) return false;
+        var dungeon = provider.GetEnterDungeon();
+        if (dungeon == null || dungeon.OriginalDungeonData == null) return false;
+        switch ((int)provider.GetBattleType())
+        {
+            case 1: case 2: case 10: case 23: case 24: // Story
+            case 12: case 21: case 29: // Normal / Hard Dragons
+            case 25: case 30: // Challenge
+            case 33: // Field
+            case 40: case 41: case 42: // Technomagic
+            case 45: case 46: // ARCDIM / ARCDIM X
+            case 47: case 48: // Divine Punishment / Karma
+                return true;
+            default:
+                return false; // Includes Guild Conquest (26).
+        }
+    }
+
+    public static void Retry(BattleContext context, BattlePartySetting.ExtraOptionData option)
+    {
+        if (context.DataProvider is PunishmentRaidContext)
+            context.RepeatContent(option);
+        else
+            context.RepeatCampaign(option);
+    }
+
+    public static void PreserveShards(NShared.BeginContent.Request request, PunishmentRaidContext source)
+    {
+        // Native RepeatContent copies Karma flasks, but omits Boss shards.
+        // Keep the selection reserved by the active run when retrying a Boss.
+        if (source.PunishmentDungeonType != EPunishmentDungeonType.Boss) return;
+        request.FlaskItemIndex = source.ExtraData.FlaskItemIndex;
+        request.FlaskItemCount = source.ExtraData.FlaskItemCount;
+    }
+}

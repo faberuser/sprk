@@ -1,3 +1,7 @@
+FROM python:3.12-slim-bookworm AS illustration-model
+COPY scripts/DllPatcher/prepare_illustration_runtime.py /prepare.py
+RUN python /prepare.py --server /models
+
 FROM rust:1.93-bookworm AS build
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
@@ -15,6 +19,7 @@ RUN apt-get update \
 COPY --from=build /build/target/release/sprk-server /usr/local/bin/sprk-server
 COPY tables /app/tables
 COPY config/client-update-public.pem /app/client-update-public.pem
+COPY --from=illustration-model /models /app/illustration-models
 COPY --chown=sprk:sprk build-input/worker /opt/sprk-worker
 COPY --chmod=755 scripts/docker/docker-entrypoint.sh /usr/local/bin/sprk-entrypoint
 COPY --chmod=755 scripts/docker/docker-battle-worker.sh /usr/local/bin/sprk-battle-worker
@@ -23,6 +28,7 @@ ARG CLIENT_UPDATE_TAG=""
 ARG CLIENT_UPDATE_REPO=""
 ENV SPRK_UPDATES_GITHUB_TAG=${CLIENT_UPDATE_TAG} SPRK_UPDATES_GITHUB_REPO=${CLIENT_UPDATE_REPO}
 ENV SPRK_UPDATES_PUBLIC_KEY_FILE=/app/client-update-public.pem
+ENV SPRK_ILLUSTRATION_MODELS_DIR=/app/illustration-models
 ENV SPRK_SERVICE_MODE=game GAME_TABLES_PATH=/app/tables PORT=8080
 WORKDIR /data
 USER sprk

@@ -243,6 +243,13 @@ with backoff. Failed shared atlas requests reopen through native reference
 counting. Healthy images and story scene-loading waits are unchanged. A file
 that is genuinely missing still needs its asset repaired.
 
+For Light costumes whose battle portrait is a monster icon, the battle portrait
+lookup now uses the hero's five-star basic battle art. The fallback is scoped to
+the audited costume IDs; dedicated Light/Dark art and regular party portraits
+retain their native paths. The focused installer and full release verifier run
+the compiled fallback against all 73 affected costumes, lower/current star
+levels, dedicated costumes and missing hero codes.
+
 Use `--stage-only` to produce `Assembly-CSharp.dll.image-recovery-staged` and
 `SprkImageRecovery.dll.staged`. Test both together in an isolated client before
 installing; `--verify-image-recovery` checks installed hooks and the helper.
@@ -452,7 +459,9 @@ Effect Coverage offers Full (default), Reduced and Minimal during battle. Eligib
 
 Adaptive Battle Scale offers Off (default), 30 FPS, 60 FPS, 120 FPS and 144 FPS targets. Existing saved 60/120 FPS selections retain their meaning. Six fresh GPU samples above 110% of the target budget lower world scale by 25 points; twelve below 70% restore 25 points, up to the selected World Scale. Samples are taken at 4 Hz, with a 75% floor. CPU-dominated samples do not trigger reductions. Missing/stale GPU timings, focus loss and leaving battle restore the selected scale. AA and the frame limit remain independent; the target does not guarantee FPS. Display UI and Preview Scale remain independent of temporary adaptive reductions. Target changes use existing bindings and reset TAA histories.
 
-The graphics installer stages `globalgamemanagers` with its DLLs and changes only the native `enableFrameTimingStats` byte. `FrameTimingPlayerSettings.bin` is the original 808-byte PlayerSettings payload from Unity 6000.0.53f1. Exactly one complete original/already-enabled payload must match; unsupported layouts fail without installation. Every other asset byte is retained. Focused/full release paths verify the setting. GPU timing capture is requested during active adaptive battles. Native validation windows must present frames: hidden/minimized D3D11 windows can return CPU timings with zero GPU timings, which never drive adaptation.
+The graphics installer stages `globalgamemanagers` with its DLLs and changes only the native `enableFrameTimingStats` byte. `FrameTimingPlayerSettings.bin` is the original 808-byte PlayerSettings payload from Unity 6000.0.53f1. Exactly one complete baseline or isolated-company payload must match, allowing either value for frame timing and player logging; unsupported layouts fail without installation. Every other asset byte is retained. Focused/full release paths verify the setting. GPU timing capture is requested during active adaptive battles. Native validation windows must present frames: hidden/minimized D3D11 windows can return CPU timings with zero GPU timings, which never drive adaptation.
+
+`--player-logging-only` enables the native `usePlayerLog` byte (410 in the baseline, 402 after company isolation) and sets `app.info` to company `sprk`, product `King's Raid`. Unity uses `app.info` for the early default log directory. `--verify-player-logging` checks both inputs; `--build-release` installs and verifies them after storage isolation. The storage converter preserves the logging flag. The default signed snapshot includes `app.info`.
 
 Native circle shadows cache transform reads within each call and omit unchanged XZ position, local height and world rotation writes. Their original pose operations are tested under translated, rotated and scaled parents. Creature action/animation and material-effect updates remain native. Pool dequeue skips destroyed entries and continues to a reusable object instead of returning null at the first dead entry. Particle observation reuses component lists and value-type emitter records; overlapping observers claim each system once and release ownership on cleanup. Existing effect pools remain in use.
 
@@ -626,3 +635,20 @@ and tests this helper. Run `python scripts/client/verify_network_performance.py`
 for an isolated Unity gzip/native-state proof. See
 [network responsiveness](../../docs/network-performance.md) for cache invalidation,
 trace fields, measurement commands and compatibility behavior.
+
+### Solo battle Retry
+
+`--solo-retry-only` installs pause-menu and defeat Retry for solo story,
+Normal/Hard Dragons, Field, Technomagic, ARCDIM/ARCDIM X, Challenge, Divine
+Punishment and Karma battles. Online battles, replay providers and Guild
+Conquest retain the native policy. Victory Repeat and auto-repeat rules are
+unchanged; cleared Punishment nodes cannot be replayed through this patch.
+
+`SprkSoloRetry` routes paused Punishment/Karma battles through `RepeatContent`
+and preserves Boss shard selections that native `RepeatContent` omitted.
+`--verify-solo-retry` verifies the native hooks and IL stack behavior;
+`--self-test-solo-retry` tests mode exclusions, restart routing and shard/flask
+selection. Installation also checks idempotence and the serialized DLL.
+`BuildRelease.cs` installs and verifies this patch before RaidCoopLimits loads
+the game assembly for native table verification (which locks the file on Windows).
+The companion DLL is included by the normal complete signed client snapshot.

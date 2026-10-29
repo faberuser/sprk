@@ -1,10 +1,18 @@
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Diagnostics;
 
 namespace SprkLauncher.Core;
 
 public static class ClientProfileSupport
 {
+    public static void ConfigureLaunchEnvironment(ProcessStartInfo start, ServerProfile profile)
+    {
+        profile.Validate();
+        start.Environment["SPRK_HOST_URL"] = profile.HostUrl;
+        start.Environment["SPRK_UPDATE_MANIFEST_URL"] = profile.ManifestUrl;
+    }
+
     public static void EnsureInstalled(string root)
     {
         var managed = Path.Combine(root, "King's Raid_Data", "Managed");

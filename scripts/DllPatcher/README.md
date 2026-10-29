@@ -14,6 +14,17 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--battle-result-flask-only` keeps the flask bar, icon, final fill and gain text
+after the battle-result flask animation. It removes the visual-only completion
+callback that initialized hero EXP after every flask animation; native reward
+application, level-up state, flask fill effects and non-flask results are retained.
+`--verify-battle-result-flask` checks the scoped callback and native result paths.
+Stage this patch and automation, then run
+`python scripts/client/verify_battle_result_flask.py` for isolated native EXP/Ruby
+partial-fill, rollover and reused non-flask card checks. Run `--unpatched` before
+installation as a negative control, or `--installed` after installation. The
+full release build installs and verifies the patch.
+
 `--accounts-only` places Use Coupon above Language in Others and assigns the
 Delete Account button's actual background target to the native red Common atlas
 artwork for normal, hover and pressed states. Run
@@ -28,6 +39,14 @@ order, native error paths, and scoped refresh. Installation also executes the
 native response callback with isolated service traces and checks idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
+
+`--legendary-rune-tickets-only` upgrades legacy random ticket 91029 and selector
+94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
+Tenacity and Vitality). It bakes native ItemGroup/SelectItem rows and refreshes
+their integrity hashes; `--verify-legendary-rune-tickets` validates both pools.
+The full release build runs this transformation and verification automatically.
+Server reward pools in `tables/` must stay aligned. Restart the game and server
+after installing their respective changes.
 
 `--runes-only` restores both the hero rune selector and the separate Rune of
 Blasphemy inventory subcategory, retaining the native equipment and grind paths.
@@ -50,6 +69,52 @@ The same rules enable Ashen costumes for Dark Lord Kasel (8408), Fallen Frey
 Their dedicated tickets (600066, 600067, 600068 respectively) remain valid.
 Table baking reads original backing fields so patched UI getters cannot change
 unrelated costume data.
+
+`--hero-material-tickets-only` lets players tap fragment/essence material icons
+on the hero awakening page and the required-material row in Hall of Heroes /
+Room of Ordeals to use owned selection tickets. Matching tickets are found from
+their reward pools; multiple eligible tickets open a ticket chooser.
+The native use popup offers only the tapped material and retains its quantity
+limit and explicit confirmation. The quantity starts at the missing material count,
+capped by owned tickets and the 1,000-ticket limit; it starts at zero when enough
+materials are already owned. Players can edit the quantity before confirming.
+The single material is preselected through the native icon click handler, so
+players can confirm immediately without clicking its icon first.
+Awakening fragment icons show the native “+” when the requirement is unmet and
+at least one matching unlocked fragment ticket is available. The indicator
+updates on refresh and also applies to the Hall of Heroes material row.
+Stage the hero-ticket and automation patches and run
+`python scripts/client/verify_awakening_fragment_tickets.py` for native indicator,
+refresh and ticket-popup checks; `--installed` tests the installed DLLs.
+Ordinary inventory ticket popups keep their native defaults.
+Essence crafting counts loose fragments plus owned, unlocked tickets whose
+reward pools contain the required fragment. The available count, Max quantity,
+and Craft button all use that combined balance.
+The essence material's native “+” crafting indicator also counts those tickets,
+including mixtures of loose fragments and tickets, and refreshes as balances
+change. It stays hidden when the essence requirement is met or fewer than one
+craft's ingredients are available. When opened from a material
+shortcut, the quantity starts at the required essence amount, capped by the
+native material/gold limits. Craft redeems only the fragment shortage through
+the native ticket endpoint (up to 1,000 per request), applies confirmed balances,
+then invokes normal crafting. Failed redemption prevents crafting; any fragments
+already redeemed remain in inventory. Other recipes keep their native behavior.
+Recipe matching ignores the native JIT's empty ingredient slots. After staging
+the hero-ticket and automation patches, run
+`python scripts/client/verify_essence_crafting.py` for an isolated Unity check
+of all seven actual essence recipes, visible combined balances, required
+quantities, Max, Craft availability, and material shortage clamping. It uses
+temporary in-memory balances at Login and never redeems tickets or crafts.
+Material counts stay visible. Native inventory observers
+refresh counts and awakening availability after use. With no matching ticket,
+essences retain the native crafting action; fragments show an unavailable-ticket
+notice because they cannot be crafted. Transcendence stones, limit break,
+and other screens retain their native behavior.
+`--verify-hero-material-tickets` checks the scoped hooks, signatures and observer;
+installation also runs isolated service/UI probes against the exact helper source
+for successful/failed use, duplicate requests/responses, stale sessions, depleted
+tickets, multiple ticket choices, and fallback behavior. These probes do not use
+player inventory. Both installation and verification run in `--build-release`.
 
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
 inside gear awakening, then compacts that material grid. It retains the native
@@ -88,10 +153,36 @@ Restart the client after installation.
 Find feature-specific flags and checks in the [patch reference](REFERENCE.md).
 Argument routing lives in [Program.cs](Program.cs).
 
+## Illustration AI
+
+The viewer's small Off / On button displays Remacri's full native x4 output
+when On and restores the original when Off. No x2 option or downsampling remains.
+Disk cache entries identify source content, actual model hash and processing
+version, so turning On again can load a completed result without new inference.
+Off, navigation and close cancel pending processing and release owned textures.
+
+A gold loading bar below the button reports downloaded bytes and NCNN tile
+percentages. Preparation/cache/image-loading stages show indeterminate activity.
+The button text stays Off / On. Hide UI also hides the loading indicator.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --illustration-ai-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-illustration-ai --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-illustration-ai
+python scripts/client/verify_illustration_ai.py
+```
+
+The native verifier uses private managed DLLs, runtime, model storage and cache.
+It checks Off/On toggling, native x4 output, progress rendering, rejected x2
+selection and disk cache reuse with the executable unavailable. Use `--installed` to test the
+installed helper. See the [custom-model guide](../../docs/illustration-ai-custom-model.md)
+for client-only model swaps.
+
 ## Illustration zoom
 
 The hero/costume illustration viewer supports mouse-wheel zoom from 50% to
-400%. Drag to move the artwork, and double-click or middle-click to reset.
+800%. Native touch zoom also reaches 800%. Drag to move the artwork, and
+double-click or middle-click to reset to 100%.
 Switching illustrations restores the default view. Hide UI and the native
 touch controls remain available; wheel input ignores other popups and buttons.
 

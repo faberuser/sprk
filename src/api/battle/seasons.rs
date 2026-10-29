@@ -2,8 +2,11 @@ use super::*;
 use crate::models::item::ItemGrant;
 
 async fn world_boss_total(db:&mut SqliteConnection,id:i64,season:i64)->Result<i64> {
-    Ok(sqlx::query_scalar("SELECT COALESCE(SUM(best),0) FROM (SELECT MAX(score) best FROM battle_scores WHERE family='world_boss' AND boss=? AND season=? GROUP BY account)")
-        .bind(id).bind(season).fetch_one(db).await?)
+    // Keep individual scores exact; cap only the shared display total when
+    // multiple players' best scores exceed the signed 64-bit wire format.
+    let scores = sqlx::query_scalar::<_, i64>("SELECT MAX(score) FROM battle_scores WHERE family='world_boss' AND boss=? AND season=? GROUP BY account")
+        .bind(id).bind(season).fetch_all(db).await?;
+    Ok(scores.into_iter().fold(0_i64, i64::saturating_add))
 }
 
 pub(super) async fn migrate_best_daily(db: &SqlitePool) -> Result<()> {
@@ -363,6 +366,20 @@ mod daily_best_tests {
         }
     }
     #[tokio::test]
+    async fn world_boss_max_scores_keep_exact_ranks_and_saturate_shared_total() {
+        let db=database().await;
+        sqlx::query("INSERT INTO accounts(account_id,login_id,nick) VALUES(8,'max-second','Second')").execute(&db).await.unwrap();
+        sqlx::query("INSERT INTO user_info(account_id) VALUES(7),(8)").execute(&db).await.unwrap();
+        let mut c=db.acquire().await.unwrap();
+        for (account,date,damage) in [(7,"2030-01-01",i64::MAX),(7,"2030-01-02",i64::MAX),(8,"2030-01-01",i64::MAX-1)] {
+            score(&mut c,"world_boss",3,1,account,damage,240,date).await.unwrap();
+        }
+        assert_eq!(world_boss_total(&mut c,3,1).await.unwrap(),i64::MAX);
+        let ranks=rankers(&mut c,"world_boss",3,1).await.unwrap();
+        assert_eq!(ranks[0]["Score"],i64::MAX);
+        assert_eq!(ranks[1]["Score"],i64::MAX-1);
+    }
+    #[tokio::test]
     async fn world_boss_best_daily_migration_archives_only_today_preserves_rewards_and_runs_once() {
         let db=database().await;
         sqlx::query("DELETE FROM battle_state WHERE kind='world_boss_best_daily_policy'").execute(&db).await.unwrap();
@@ -446,7 +463,7 @@ pub(super) async fn finish(
                 > elapsed.max(1).saturating_mul(settings(
                     s,
                     "WorldBossMaxDamagePerSecond",
-                    1000000000,
+                    i64::MAX,
                 ))
         {
             return Err(rule("WorldBossHpError"));

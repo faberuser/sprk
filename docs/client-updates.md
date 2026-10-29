@@ -32,11 +32,20 @@ python scripts/release/publish_client_update.py --client ../sprk-client --output
 
 The default selection includes all files under:
 
+- `King's Raid_Data/app.info` (Unity startup company/product identity)
 - `King's Raid_Data/Managed`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/TableData`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit`
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/Video`
+
+Normal client launches write `%USERPROFILE%\AppData\LocalLow\sprk\King's Raid\Player.log`.
+The full patcher enables native `usePlayerLog` and aligns `app.info` with the
+`sprk` PlayerSettings identity; Unity chooses its initial log path from this file.
+Use `--player-logging-only` for a focused installation and
+`--verify-player-logging` to verify both settings. Restart the game after installing.
+`python scripts/client/verify_player_logging.py` proves the default path with an
+isolated native client and no `-logFile` argument.
 
 Generate release-signing keys once with
 `python scripts/release/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`

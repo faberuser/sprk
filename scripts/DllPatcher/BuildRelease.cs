@@ -12,6 +12,7 @@ partial class Program
         if (File.Exists(staged))
             throw new InvalidOperationException("Release builds require a fresh client workspace without a staged DLL.");
 
+        RestoreLegendaryRuneTickets(clientRoot, false);
         Main(new[] { clientRoot, "--stage-only" });
         if (!File.Exists(staged))
             throw new InvalidOperationException("The full patcher did not produce a staged assembly.");
@@ -43,6 +44,8 @@ partial class Program
         InstallClientStorage(clientRoot, false);
         VerifyClientStorage(clientRoot);
         TestClientStorage();
+        InstallPlayerLogging(clientRoot, false);
+        VerifyPlayerLogging(clientRoot, false);
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
         InstallRoomShortcut(clientRoot, false);
@@ -55,6 +58,9 @@ partial class Program
         InstallIllustrationZoom(clientRoot, false);
         VerifyIllustrationZoomFile(clientRoot);
         TestIllustrationZoom(clientRoot);
+        InstallIllustrationUpscale(clientRoot, false);
+        VerifyIllustrationUpscaleFile(clientRoot);
+        TestIllustrationUpscale();
         InstallWorldBossKeys(clientRoot, false);
         VerifyWorldBossKeysFile(clientRoot);
         InstallInventoryExpansion(clientRoot, false);
@@ -75,6 +81,7 @@ partial class Program
         VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
+        RestoreLegendaryRuneTickets(clientRoot, true);
         VerifyWebSocketLifecycle(clientRoot);
         VerifyImageRecoveryFile(clientRoot);
         VerifyMailUpdates(clientRoot);
@@ -96,6 +103,8 @@ partial class Program
         InstallLobbyAvatarStability(clientRoot, false);
         VerifyLobbyAvatarStabilityFile(clientRoot);
         TestLobbyAvatarStability(clientRoot);
+        InstallEnchantEmptyOption(clientRoot, false);
+        InstallEnchantEmptyOption(clientRoot, false, true);
         InstallSoulUpgradePlayback(clientRoot, false);
         VerifySoulUpgradePlaybackFile(clientRoot);
         TestSoulUpgradePlayback(clientRoot);
@@ -103,6 +112,10 @@ partial class Program
         InstallCostumeTickets(clientRoot, false, true);
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
+        InstallHeroMaterialTickets(clientRoot, false);
+        VerifyHeroMaterialTicketsFile(clientRoot);
+        InstallBattleResultFlask(clientRoot, false);
+        VerifyBattleResultFlaskFile(clientRoot);
         InstallCurrency64(clientRoot, false);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
@@ -110,6 +123,8 @@ partial class Program
         InstallTechnomagicRefresh(clientRoot, false, true);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
+        InstallSoloRetry(clientRoot, false);
+        InstallSoloRetry(clientRoot, false, true);
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");

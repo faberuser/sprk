@@ -1,6 +1,18 @@
 use super::*;
 use std::sync::Arc;
 
+#[tokio::test]
+async fn world_boss_history_accepts_max_scores_on_multiple_days() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    for day in ["2026-10-27","2026-10-28"] {
+        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,?,?,?)")
+            .bind(a).bind(day).bind(i64::MAX).execute(&s.db).await.unwrap();
+    }
+    let history=mission_history::History::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
+    assert_eq!(history.world_rank,Some(1));
+}
+
 async fn setup() -> (AppState, crate::api::account::user::LoginResponse) {
     let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)

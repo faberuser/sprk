@@ -1,0 +1,69 @@
+using System;
+using System.IO;
+using System.Text;
+using System.Threading;
+
+public static class IllustrationUpscaleTests {
+    static void Check(bool pass,string message){if(!pass)throw new Exception(message);}
+    static void Invalid(Action action) {try{action();}catch(InvalidDataException){return;}throw new Exception("Invalid data accepted");}
+    public static void Run() {
+        string directory=Path.Combine(Path.GetTempPath(),"sprk-ai-tests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
+        try {
+            var local=new SprkIllustrationLauncherProfile{Id="local",HostUrl="http://127.0.0.1:8080/host.json",ManifestUrl="http://127.0.0.1:8081/updates/stable/manifest.json"};
+            var remote=new SprkIllustrationLauncherProfile{Id="public",HostUrl="https://play.krinfo.net/host.json",ManifestUrl="https://updates.krinfo.net/updates/stable/manifest.json"};
+            var profiles=new SprkIllustrationLauncherConfig{SelectedProfile="local",Profiles=new[]{local,remote}};
+            const string modelPath="/models/remacri-4x-v1/model.sprkmodel";
+            Check(SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,null)=="http://127.0.0.1:8081/updates"+modelPath,"Local profile did not select the update port");
+            profiles.SelectedProfile="public";
+            Check(SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,local.HostUrl)=="http://127.0.0.1:8081/updates"+modelPath,"Active local host leaked to public profile");
+            Check(SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,remote.HostUrl)=="https://updates.krinfo.net/updates"+modelPath,"Public profile lost its update origin");
+            Check(SprkIllustrationUpscaleCore.ModelUrlFromManifest("http://localhost:9123/prefix/updates/stable/manifest.json")=="http://localhost:9123/prefix/updates"+modelPath,"Custom update port/prefix lost");
+            Check(SprkIllustrationUpscaleCore.ModelUrlFromManifest("http://[::1]:9123/updates/stable/manifest.json")=="http://[::1]:9123/updates"+modelPath,"IPv6 loopback failed");
+            Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,"http://localhost:9999/host.json");});
+            Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromProfile(null,local.HostUrl);});
+            Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromManifest("http://example.com/updates/stable/manifest.json");});
+            Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromManifest("https://user:password@example.com/updates/stable/manifest.json");});
+            byte[] source={1,2,3};string a=SprkIllustrationUpscaleCore.CacheKey(source,"model-a",4);
+            Check(a!=SprkIllustrationUpscaleCore.CacheKey(source,"model-b",4),"Replacement model collision");
+            Check(a!=SprkIllustrationUpscaleCore.CacheKey(new byte[]{1,2,4},"model-a",4),"Source collision");
+            Invalid(delegate{SprkIllustrationUpscaleCore.CacheKey(source,"a",2);});
+            Invalid(delegate{SprkIllustrationUpscaleCore.CacheKey(source,"a",8);});
+            float value;
+            Check(SprkIllustrationUpscaleCore.TryProgress(" 42.50% ",out value) && System.Math.Abs(value-.425f)<.0001f,"NCNN progress not parsed");
+            Check(!SprkIllustrationUpscaleCore.TryProgress("GPU error",out value) && !SprkIllustrationUpscaleCore.TryProgress("NaN%",out value)
+                && !SprkIllustrationUpscaleCore.TryProgress("101%",out value),"Invalid progress accepted");
+            var reuse=new SprkIllustrationReuse();reuse.Set(a,source);
+            Check(reuse.Get(a)==source && reuse.Get("different-model-or-artwork")==null,"Saved image identity was ignored");
+            reuse.Clear();Check(reuse.Get(a)==null,"Saved image was not released");
+            Invalid(delegate{SprkIllustrationUpscaleCore.ValidateModel(new byte[16]);});
+            byte[] param=Encoding.ASCII.GetBytes("7767517\nInput data output\n"),model;
+            using(var buffer=new MemoryStream())using(var writer=new BinaryWriter(buffer)) {
+                writer.Write(Encoding.ASCII.GetBytes("SPRKSR01"));writer.Write(param.Length);writer.Write(1);writer.Write(param);writer.Write((byte)0);model=buffer.ToArray();
+            }
+            SprkIllustrationUpscaleCore.ValidateModel(model);
+            var truncated=new byte[model.Length-1];Array.Copy(model,truncated,truncated.Length);
+            Invalid(delegate{SprkIllustrationUpscaleCore.ValidateModel(truncated);});
+            string active=Path.Combine(directory,"active.sprkmodel"),temp=Path.Combine(directory,"download.tmp");
+            Check(SprkIllustrationUpscaleCore.ModelPath(directory)==active,"Absent model path changed");
+            File.WriteAllBytes(temp,model);SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
+            Check(File.ReadAllBytes(active).Length==model.Length,"Absent model not installed");
+            File.WriteAllText(temp,"new default");SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
+            Check(File.ReadAllBytes(active).Length==model.Length && File.Exists(temp),"Nonempty replacement overwritten");
+            Check(SprkIllustrationUpscaleCore.ModelPath(directory)==active,"Custom model selection changed");
+            File.WriteAllText(active,"");SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
+            Check(File.ReadAllText(active)=="new default","Empty model not provisioned");
+            File.WriteAllText(active,"corrupt user model");
+            SprkIllustrationUpscaleCore.Provision(active,CancellationToken.None);
+            Invalid(delegate{SprkIllustrationUpscaleCore.ReadModel(active);});
+            Check(File.ReadAllText(active)=="corrupt user model","Invalid nonempty model replaced");
+            var cancelled=new CancellationToken(true);
+            try{SprkIllustrationUpscaleCore.Run(source,1,1,4,active,directory,directory,cancelled);throw new Exception("Cancellation ignored");}catch(OperationCanceledException){}
+            Invalid(delegate{SprkIllustrationUpscaleCore.Run(source,1025,1,4,active,directory,directory,CancellationToken.None);});
+            string old=Path.Combine(directory,"old.png"),recent=Path.Combine(directory,"recent.png");
+            File.WriteAllBytes(old,new byte[12]);File.SetLastWriteTimeUtc(old,DateTime.UtcNow.AddHours(-1));File.WriteAllBytes(recent,new byte[12]);
+            SprkIllustrationUpscaleCore.Prune(directory,12);Check(!File.Exists(old) && File.Exists(recent),"LRU budget failed");
+            Invalid(delegate{SprkIllustrationUpscaleCore.ValidatePng(new byte[40],4,4);});
+            Console.WriteLine("PASS: local/public/active-host update profiles, custom ports/prefixes, model validation, missing/empty provisioning, nonempty preservation, corrupt local model, cancellation, dimensions, x4-only cache identity, progress parsing, saved-result identity/release and LRU budget.");
+        }finally{Directory.Delete(directory,true);}
+    }
+}

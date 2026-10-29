@@ -18,6 +18,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Profiles preserve legacy settings and persist selection and signing keys", ProfileConfiguration),
     ("Server management persists additions, edits and removals and retains Local", ServerManagement),
     ("Switching profiles checks the selected endpoint and replaces shared files", ProfileUpdates),
+    ("Game launches capture both URLs from the selected profile", ProfileLaunchEnvironment),
 };
 foreach (var test in tests) { await test.Run(); Console.WriteLine($"PASS {test.Name}"); }
 Console.WriteLine($"{tests.Length} launcher checks passed.");
@@ -28,6 +29,22 @@ if (args.Length == 2 && args[0] == "--verify-client")
 }
 
 static void Require(bool value, string message) { if (!value) throw new Exception(message); }
+static async Task ProfileLaunchEnvironment()
+{
+    var local = new ServerProfile { Id="local", Name="Local", HostUrl="http://localhost:9000/host.json", ManifestUrl="http://localhost:9200/custom/updates/stable/manifest.json" };
+    var alternate = new ServerProfile { Id="alternate", Name="Alternate", HostUrl=local.HostUrl, ManifestUrl="https://cdn.example.com/other/updates/stable/manifest.json" };
+    var start = new System.Diagnostics.ProcessStartInfo("game.exe") { UseShellExecute=false };
+    start.Environment["SPRK_HOST_URL"]="https://stale.example.com/host.json";
+    start.Environment["SPRK_UPDATE_MANIFEST_URL"]="https://stale.example.com/updates/stable/manifest.json";
+    ClientProfileSupport.ConfigureLaunchEnvironment(start,local);
+    Require(start.Environment["SPRK_HOST_URL"]==local.HostUrl && start.Environment["SPRK_UPDATE_MANIFEST_URL"]==local.ManifestUrl,"Selected profile URLs were not passed together");
+    ClientProfileSupport.ConfigureLaunchEnvironment(start,alternate);
+    Require(start.Environment["SPRK_HOST_URL"]==local.HostUrl && start.Environment["SPRK_UPDATE_MANIFEST_URL"]==alternate.ManifestUrl,"Profiles sharing a game host lost their distinct update origins");
+    var captured=alternate.ManifestUrl; alternate.ManifestUrl="https://changed.example.com/updates/stable/manifest.json";
+    Require(start.Environment["SPRK_UPDATE_MANIFEST_URL"]==captured,"A later profile edit changed the pending game launch");
+    alternate.ManifestUrl="http://public.example.com/updates/stable/manifest.json";
+    await Reject(()=>{ClientProfileSupport.ConfigureLaunchEnvironment(start,alternate);return Task.CompletedTask;});
+}
 static async Task Reject(Func<Task> action)
 {
     try { await action(); } catch (Exception error) when (error is IOException || error is InvalidDataException || error is CryptographicException || error is InvalidOperationException) { return; }

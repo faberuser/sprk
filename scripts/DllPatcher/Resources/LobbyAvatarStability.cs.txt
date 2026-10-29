@@ -7,6 +7,7 @@ using NGame2;
 using NGame2.N3D;
 using NGame2.NAccount;
 using NGame2.NUI;
+using NGame2.NUI.NWindow;
 using NGame2.NUI.NWorldMap;
 using Avatar = NGame2.NUI.NWorldMap.NMapLayout.Avatar;
 using NVespa.NSingleton;
@@ -82,12 +83,51 @@ public sealed class SprkLobbyAccessoryState : MonoBehaviour {
         }
     }
 }
+public sealed class SprkProfilePortraitState : MonoBehaviour {
+    public UIBundleLoader Target;
+    public bool FullPortrait;
+    float nextPoll;
+    void OnEnable() {nextPoll=0;}
+    public void Refresh() {
+        if(Target==null || !GlobalAutoBehaviour<AccountManager>.isValidInstance)return;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        if(account.UserManager==null || account.HeroManager==null)return;
+        int selected=account.UserManager.AvatarHeroIndex;
+        string path=FullPortrait?SprkLobbyAvatar.GetProfilePortraitPath(selected):SprkLobbyAvatar.GetProfileIconPath(selected);
+        if(!String.IsNullOrEmpty(path) && Target.AssetPath!=path)
+            Target.SetAssetPath(path,FullPortrait?UIHelper.EAssetTextureAssign.ClipCenter:UIHelper.EAssetTextureAssign.__Ignore__);
+    }
+    void Update() {
+        if(Time.realtimeSinceStartup<nextPoll)return;
+        nextPoll=Time.realtimeSinceStartup+0.1f;
+        Refresh();
+    }
+}
 public static class SprkLobbyAvatar {
+    public static int ProfileAvatarIndex(CachedHeroInfo hero,int fallback) {
+        if(hero==null)return fallback;
+        return hero.CostumeIndex>0?10000+hero.CostumeIndex:hero.HeroIndex*10+hero.Star;
+    }
+    public static string GetProfileIconPath(int selected) {
+        return UIAvatarHelper.GetIconPath(ProfileAvatarIndex(CurrentHero(),selected));
+    }
+    public static string GetProfilePortraitPath(int selected) {
+        return UIAvatarHelper.GetPortraitPath(ProfileAvatarIndex(CurrentHero(),selected));
+    }
+    static void WatchProfilePortrait(UIBundleLoader loader,bool full) {
+        if(loader==null)return;
+        var state=loader.GetComponent<SprkProfilePortraitState>();
+        if(state==null)state=loader.gameObject.AddComponent<SprkProfilePortraitState>();
+        state.Target=loader;state.FullPortrait=full;state.Refresh();
+    }
+    public static void WatchProfileIcon(LobbyTopmostMenu view) {WatchProfilePortrait(view.ProfileUi.BundleTexMyHero,false);}
+    public static void WatchMyInfoPortrait(MyInfoWindow view) {WatchProfilePortrait(view.MyInfo.BundleTex_Avatar,true);}
     static readonly System.Reflection.MethodInfo rebuild=typeof(MapLayout).GetMethod("ChangePlayerAvatarRenderFacadeOnly",
         System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic,null,new[]{typeof(Avatar),typeof(int)},null);
     public static CachedHeroInfo CurrentHero() {
         if(CurrentOwner()==null)return null;
         var account=GlobalAutoBehaviour<AccountManager>.instance;
+        if(account.HeroManager==null)return null;
         return account.HeroManager.Get(new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex);
     }
     public static bool IsAppearanceChange(UserHeroManager.ChangeHeroInfo change,int hero) {

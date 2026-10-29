@@ -46,8 +46,33 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
         .route("/:channel/manifest.json", get(channel_manifest))
         .route("/releases/:release/manifest.json", get(release_manifest))
         .route("/releases/:release/files/*file_path", get(release_file))
+        .route("/models/:version/:artifact", get(illustration_model))
         .fallback(|| async { StatusCode::NOT_FOUND })
         .with_state(UpdateStorage(Arc::new(root))))
+}
+
+// Model provisioning is independent of launcher reconciliation and release
+// retention. Only these immutable, reproducibly prepared artifacts are served.
+// Their expected hash/size/interface are authenticated by the signed client.
+async fn illustration_model(
+    State(storage): State<UpdateStorage>,
+    Path((version, artifact)): Path<(String, String)>,
+    request: Request,
+) -> Result<Response, StatusCode> {
+    if !matches!(version.as_str(), "realesrgan-anime-20220424-v1" | "remacri-4x-v1")
+        || (artifact != "model.sprkmodel" && artifact != "metadata.json") {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let root = std::env::var_os("SPRK_ILLUSTRATION_MODELS_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| storage.0.join("illustration-models"));
+    let root = tokio::fs::canonicalize(root).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    serve(
+        &UpdateStorage(Arc::new(root)),
+        FsPath::new(&version).join(artifact),
+        request,
+        true,
+    ).await
 }
 
 fn valid_identifier(value: &str) -> bool {

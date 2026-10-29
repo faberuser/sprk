@@ -193,7 +193,7 @@ async fn honor(
     }
     // Rank source is persisted server score state; no ranking payload is accepted from clients.
     let source=match kind {
-        1=>"SELECT account AS id,season,SUM(score) AS score,0 AS wins,0 AS losses,MAX(boss) AS idx FROM battle_scores WHERE family='world_boss' GROUP BY account,season",
+        1=>"SELECT account AS id,season,MAX(score) AS score,0 AS wins,0 AS losses,MAX(boss) AS idx FROM battle_scores WHERE family='world_boss' GROUP BY account,season",
         2=>"SELECT guild_id AS id,season,SUM(score) AS score,0 AS wins,0 AS losses,0 AS idx FROM guild_battle_scores WHERE kind='suppress' GROUP BY guild_id,season",
         3=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=0",
         _=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=1"

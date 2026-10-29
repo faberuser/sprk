@@ -9,6 +9,35 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[tokio::test]
+async fn legacy_legendary_rune_tickets_include_all_2022_runes() {
+    let (state, u) = setup().await;
+    let targets = [100115, 100136, 100137, 100138];
+    assert_eq!(state.tables.inventory.selectors[&94609]["ItemIndices"],
+        state.tables.inventory.selectors[&94650]["ItemIndices"]);
+    put(&state, &u, 94609, 4).await;
+    for target in targets {
+        let response = item::use_package_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex=94609&ItemCount=1&SelectItemIndex={target}")))
+            .await.unwrap().0;
+        assert_eq!(response["Result"], "Success");
+        assert_eq!(count(&state, &u, target).await, 1);
+    }
+    assert_eq!(count(&state, &u, 94609).await, 0);
+    let group = state.tables.item_groups.get("PACKAGE_RUNE_5_GROUP").unwrap();
+    let positive: Vec<_> = group.sub_data_list.iter().filter(|r| r.rate > 0).collect();
+    assert_eq!(positive.len(), 24);
+    assert_eq!(positive.iter().map(|r| r.rate).sum::<i32>(), 2400);
+    for code in ["RUNE_SWIFTNESS_5", "RUNE_LIFE_5", "RUNE_TENACITY_5", "RUNE_VITALITY_5"] {
+        assert!(positive.iter().any(|r| r.item_code == code && r.rate == 100));
+    }
+    put(&state, &u, 91029, 1).await;
+    let response = item::use_package_item(State(state.clone()),
+        form(&u, "ItemIndex=91029&ItemCount=1")).await.unwrap().0;
+    assert_eq!(response["Result"], "Success");
+    assert_eq!(count(&state, &u, 91029).await, 0);
+}
+
+#[tokio::test]
 async fn point_currencies_accept_balances_above_old_caps_up_to_i64_max() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -919,6 +948,50 @@ async fn packages_grant_gold_and_mileage_from_drop_lists() {
         .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
     // Package 93999 also has 15,000 rubies in its fixed currency fields.
     assert_eq!(balances, (200000000, 125000, 1000));
+}
+
+#[tokio::test]
+async fn random_pet_tickets_summon_pets_and_convert_duplicates_without_ruby_compensation() {
+    for ticket in [800012,800014,800016,800020,800024] {
+        let (state,u)=setup().await;
+        put(&state,&u,ticket,2).await;
+        let before:i64=sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?")
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+        let invalid=item::use_package_item(State(state.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=3"))).await.unwrap().0;
+        assert_ne!(invalid["Result"],"Success");
+        assert_eq!(count(&state,&u,ticket).await,2);
+        for duplicate in [false,true] {
+            if duplicate {
+                let mut db=state.db.acquire().await.unwrap();
+                for pet in state.tables.live.rows("Pet") {
+                    crate::api::live::add_pet(&mut db,&state,u.user_info.account_id,item::n(pet,"Index")).await.unwrap();
+                }
+            }
+            let out=item::use_package_item(State(state.clone()),form(&u,
+                &format!("ItemIndex={ticket}&ItemCount=1"))).await.unwrap().0;
+            assert_eq!(out["Result"],"Success","ticket {ticket}: {out}");
+            let reward=&out["RewardResults"][0];
+            assert_eq!(reward["CurrencyResults"],json!([]));
+            if duplicate {
+                assert_eq!(reward["PetInfos"],json!([]));
+                assert_eq!(reward["ItemResults"].as_array().unwrap().len(),1);
+                assert_eq!(reward["ItemResults"][0]["AddCount"],1);
+            } else {
+                let pets=reward["PetInfos"].as_array().unwrap();
+                assert_eq!(pets.len(),1,"ticket {ticket}: {out}");
+                let pet=state.tables.live.find("Pet",&[("Index",item::n(&pets[0],"PetIndex"))]).unwrap();
+                assert!(matches!(item::n(pet,"Grade"),5|6));
+                if ticket==800024 { assert_eq!(pet["Grade"],6); }
+            }
+        }
+        assert_eq!(count(&state,&u,ticket).await,0);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?")
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap(),before);
+        let replay=item::use_package_item(State(state.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1"))).await.unwrap().0;
+        assert_ne!(replay["Result"],"Success");
+    }
 }
 
 #[tokio::test]

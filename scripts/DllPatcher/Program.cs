@@ -9,6 +9,13 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--solo-retry-only")) { InstallSoloRetry(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-solo-retry")) { InstallSoloRetry(args[0], args.Contains("--stage-only"), true); return; }
+            if (args.Contains("--self-test-solo-retry")) { TestSoloRetry(); return; }
+            if (args.Contains("--enchant-empty-option-only")) { InstallEnchantEmptyOption(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-enchant-empty-option")) { InstallEnchantEmptyOption(args[0],false,true); return; }
+            if (args.Contains("--player-logging-only")) { InstallPlayerLogging(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-player-logging")) { VerifyPlayerLogging(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--technomagic-refresh-only")) { InstallTechnomagicRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-refresh")) { InstallTechnomagicRefresh(args[0],false,true); return; }
             if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
@@ -93,6 +100,8 @@ namespace DllPatcher
             if (args.Contains("--verify-chat-channels") || args.Contains("--verify-chat-send")) { VerifyChatChannelsFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--honor-only")) { InstallHonor(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-honor")) { VerifyHonorFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
+            if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-runes")) { VerifyRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
@@ -108,6 +117,9 @@ namespace DllPatcher
             if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
             if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--illustration-zoom-only")) { InstallIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--illustration-ai-only")) { InstallIllustrationUpscale(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-illustration-ai")) { VerifyIllustrationUpscaleFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-illustration-ai")) { TestIllustrationUpscale(); return; }
             if (args.Contains("--verify-illustration-zoom")) { VerifyIllustrationZoomFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-illustration-zoom")) { TestIllustrationZoom(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-coop-limits")) { InstallRaidCoopLimits(args[0], false, true); return; }
@@ -175,6 +187,10 @@ namespace DllPatcher
             if (args.Contains("--verify-honor-buff")) { VerifyHonorBuffFile(args[0]); return; }
             if (args.Contains("--dispatch-only")) { InstallDispatch(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--continuous-battle-only")) { InstallContinuousBattleSerialization(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--hero-material-tickets-only")) { InstallHeroMaterialTickets(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--battle-result-flask-only")) { InstallBattleResultFlask(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-battle-result-flask")) { VerifyBattleResultFlaskFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-hero-material-tickets")) { VerifyHeroMaterialTicketsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--awakening-materials-only")) { InstallAwakeningMaterials(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-awakening-materials")) { VerifyAwakeningMaterialsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-continuous-battle")) { VerifyContinuousBattleSerializationFile(args[0],args.Contains("--stage-only")); return; }

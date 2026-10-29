@@ -1,0 +1,212 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+public class Obj { public static bool operator ==(Obj a,Obj b)=>ReferenceEquals(a,b); public static bool operator !=(Obj a,Obj b)=>!ReferenceEquals(a,b); public override bool Equals(object o)=>ReferenceEquals(this,o); public override int GetHashCode()=>base.GetHashCode(); }
+public class UILabel { public string text="1/10"; }
+public class UIButton { public bool enabled=true; }
+public class UISprite { public bool active; }
+public class UIInput { public string value="1"; }
+namespace NShared {
+ public enum HeroAwakeType { Awaken,Transcend,LimitBreak }
+ public enum ItemType { PackageSelectItem,Other }
+ public enum SelectItemPopupType { Normal,RuneSelectItem }
+ public enum BaseResultType { Failure,Success }
+ public class ItemData { public int Index; public string Code,Name; public ItemType Type; }
+ public class ItemInfo { public int Count; public byte Locked; }
+ public class SelectItemData { public int[] ItemIndices; public SelectItemPopupType SelectType; }
+ public class SelectionPopupItemInfo { public ItemData Data; public int Count; public SelectionPopupItemInfo(ItemData d,int c){Data=d;Count=c;} }
+ public class ItemResultInfo { public int Index,Count; }
+ public class CreatureAwakeChallengeItemData { public string GetItemCode(int i)=>"f"+i; public string GetTranscendItemCode(int i)=>"e"+i; }
+ public class MaterialContainer { public List<CreatureAwakeChallengeItemData> GetAllData()=>new List<CreatureAwakeChallengeItemData>{new CreatureAwakeChallengeItemData()}; }
+ public class Items { public List<ItemData> rows=new List<ItemData>(); public List<ItemData> GetAllData()=>rows; public ItemData GetData(int i)=>rows.Find(x=>x.Index==i); public ItemData GetDataByCode(string code)=>rows.Find(x=>x.Code==code); }
+ public class Selectors { public Dictionary<string,SelectItemData> rows=new Dictionary<string,SelectItemData>(); public SelectItemData GetData(string c)=>rows.ContainsKey(c)?rows[c]:null; }
+ public class Crafts { public List<CraftItemData> Rows=new List<CraftItemData>();public List<CraftItemData> GetCategoryData(string code)=>Rows.Where(r=>r.ItemCode==code).ToList(); }
+ public class GameRoot { public static GameRoot Instance=new GameRoot(); public Crafts CraftItemDataContainer=new Crafts();public MaterialContainer CreatureAwakeChallengeItemDataContainer=new MaterialContainer(); public Items ItemDataContainer=new Items(); public Selectors SelectItemDataContainer=new Selectors(); }
+}
+namespace NShared.UsePackageSelectItem {
+ public enum ResultType { Failure,Success }
+ public class Request { public int ItemIndex,ItemCount,SelectItemIndex; }
+ public class Response { public NShared.BaseResultType BaseResult; public ResultType Result; public NShared.ItemResultInfo ItemResult,RewardItemResult; }
+}
+namespace NGame2.NAccount {
+ public class UserItemManager { public Dictionary<int,NShared.ItemInfo> rows=new Dictionary<int,NShared.ItemInfo>(); public List<int> Applied=new List<int>(); public int GetItemCount(string code){var item=NShared.GameRoot.Instance.ItemDataContainer.GetDataByCode(code);return item==null || Get(item.Index)==null?0:Get(item.Index).Count;} public NShared.ItemInfo Get(int i)=>rows.ContainsKey(i)?rows[i]:null; public void Apply(NShared.ItemResultInfo r){Applied.Add(r.Index);rows[r.Index]=new NShared.ItemInfo{Count=r.Count};} }
+ public class AccountManager { public UserItemManager ItemManager=new UserItemManager(); }
+}
+namespace NVespa.NSingleton { public class GlobalAutoBehaviour<T> where T:new() { public static T instance=new T(); } }
+namespace NVespa { public class SingletonUpdater<T> where T:new() { public static T instance=new T(); } }
+namespace NVespa.NGlobal { public class WebServiceManager { public NVespa.Requester Requester=new NVespa.Requester(); } }
+namespace NVespa {
+
+ public class Requester { public string SessionKey="s"; public int Requests; public NShared.UsePackageSelectItem.Request Last; public Action<NShared.UsePackageSelectItem.Response> Callback;
+ public void Request(NShared.UsePackageSelectItem.Request r,Action<NShared.UsePackageSelectItem.Response> cb){Requests++;Last=r;Callback=cb;} }
+}
+namespace NGame2.NUI { public static class UIHelper { public static void EnableButton(UIButton b,bool enabled){b.enabled=enabled;} public static void EnableGameObject(UISprite sprite,bool enabled){sprite.active=enabled;} } }
+namespace NGame2.NUI.NComponent2 {
+ public class ItemIconComponent { public int ItemIndex; public interface Listener { void OnClick(ItemIconComponent icon); } }
+ public class AwakeChallengeItemComponent { public Action<ItemIconComponent> Listener;
+ public void Open(NShared.ItemData d,long r,int o,Action<ItemIconComponent> f){Listener=f;}
+ public void SetListener(Action<ItemIconComponent> a){Listener=a;} }
+ public class HeroAwakeItemComponent { public UISprite Sprite_New=new UISprite();public UILabel Label_Count=new UILabel(); public bool Counts; public Action<ItemIconComponent> Listener;
+ public void Open(NShared.ItemData d,int r,int o,bool c,NShared.HeroAwakeType t,Action<ItemIconComponent> f){Listener=t==NShared.HeroAwakeType.Awaken?null:f;}
+ public void SetListener(Action<ItemIconComponent> a){Listener=a;} public void ShowCountLabel(bool b){Counts=b;} }
+}
+namespace NGame2.NUI.NWindow {
+ public class SelectionItemUsePopup:Obj,NGame2.NUI.NComponent2.ItemIconComponent.Listener {
+ public int Selected;
+ public void OnClick(NGame2.NUI.NComponent2.ItemIconComponent icon){Selected=icon.ItemIndex;}
+ public interface IListener { void OnClickOk(SelectionItemUsePopup p,int t,int m,int n); }
+ public static IListener Listener; public static List<NShared.SelectionPopupItemInfo> Rewards; public static NShared.SelectionPopupItemInfo Ticket;
+ public UIButton ButtonOk=new UIButton(); public bool Closed;
+ public UIInput InputSelectedCount=new UIInput(); public int CountUpdates;
+ public void OnChangeInputSelectCount(){CountUpdates++;}
+ public static void Open(NShared.SelectionPopupItemInfo t,List<NShared.SelectionPopupItemInfo> r,IListener l){Ticket=t;Rewards=r;Listener=l;}
+ public void Close(){Closed=true;} }
+ public class SelectItemMessagePopup { public static Action<SelectItemMessagePopup,int,int> Choose; public static void Open2(string t,string c,List<Tuple<NShared.ItemData,int>> l,Action<SelectItemMessagePopup,int,int> a){Choose=a;} }
+ public class MessagePopup { public static int Errors; public static void OpenError(object o){Errors++;} public static void Open(string t,string c){Errors++;} }
+}
+namespace NGame2.NUI.NWindow.NBattle {
+ public class BaseRewardPopup { public class PopupOpenData { public void SetItemResultInfos(NShared.ItemResultInfo[] r){} } public static int Shown; public static void OpenPopup(PopupOpenData d,bool b){Shown++;} }
+}
+public static class HeroTicketTests {
+ static List<NGame2.NUI.NComponent2.ItemIconComponent> Choices()=>NGame2.NUI.NWindow.SelectionItemUsePopup.Rewards.Select(r=>new NGame2.NUI.NComponent2.ItemIconComponent{ItemIndex=r.Data.Index}).ToList();
+ static void Check(bool b,string s){if(!b)throw new Exception(s);}
+ public static void Run(){
+ foreach(var row in new[]{new[]{100,0,500,100},new[]{100,35,500,65},new[]{100,35,20,20},new[]{2000,0,5000,1000},new[]{100,100,500,0},new[]{100,150,500,0},new[]{100,0,0,0}})
+  Check(SprkHeroMaterialTickets.InitialCount(row[0],row[1],row[2])==row[3],"prefill shortage/cap regression");
+ var root=NShared.GameRoot.Instance;
+ var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+ var f=new NShared.ItemData{Index=20001,Code="f1",Name="Fragment"};
+ var e=new NShared.ItemData{Index=20101,Code="e1",Name="Essence"};
+ var ft=new NShared.ItemData{Index=20108,Code="ft",Name="Fragment Ticket",Type=NShared.ItemType.PackageSelectItem};
+ var et=new NShared.ItemData{Index=20109,Code="et",Name="Essence Ticket",Type=NShared.ItemType.PackageSelectItem};
+ root.ItemDataContainer.rows.AddRange(new[]{f,e,ft,et});root.SelectItemDataContainer.rows["ft"]=new NShared.SelectItemData{ItemIndices=new[]{20001}};root.SelectItemDataContainer.rows["et"]=new NShared.SelectItemData{ItemIndices=new[]{20101}};
+ account.ItemManager.rows[ft.Index]=new NShared.ItemInfo{Count=20};account.ItemManager.rows[et.Index]=new NShared.ItemInfo{Count=30};
+ int fallback=0;var icon=new NGame2.NUI.NComponent2.ItemIconComponent();
+ var component=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();
+ SprkHeroMaterialTickets.Open(component,f,10,0,false,NShared.HeroAwakeType.Awaken,i=>fallback++);
+ Check(component.Counts && component.Label_Count.text=="1/10","count label changed or ticket hint restored");component.Listener(icon);
+ Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==20108 && NGame2.NUI.NWindow.SelectionItemUsePopup.Rewards.Single().Data.Index==20001,"fragment selector mismatch");
+ var prefilled=new NGame2.NUI.NWindow.SelectionItemUsePopup();
+ SprkHeroMaterialTickets.Prefill(prefilled,NGame2.NUI.NWindow.SelectionItemUsePopup.Listener,Choices());
+ Check(prefilled.Selected==20001,"fragment was not preselected");
+ Check(prefilled.InputSelectedCount.value=="10" && prefilled.CountUpdates==1,"fragment popup did not prefill");
+ account.ItemManager.rows[e.Index]=new NShared.ItemInfo{Count=3};
+ SprkHeroMaterialTickets.Open(component,e,10,0,false,NShared.HeroAwakeType.Transcend,i=>fallback++);component.Listener(icon);
+ Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==20109 && NGame2.NUI.NWindow.SelectionItemUsePopup.Rewards.Single().Data.Index==20101,"essence selector mismatch");
+ SprkHeroMaterialTickets.Prefill(prefilled,NGame2.NUI.NWindow.SelectionItemUsePopup.Listener,Choices());
+ Check(prefilled.Selected==20101,"essence was not preselected");
+ Check(prefilled.InputSelectedCount.value=="7","essence popup did not subtract owned materials");
+ prefilled.Selected=0;SprkHeroMaterialTickets.Prefill(prefilled,null,Choices());
+ Check(prefilled.Selected==0,"ordinary popup was automatically selected");
+ Check(prefilled.InputSelectedCount.value=="7" && prefilled.CountUpdates==2,"ordinary inventory popup changed");
+ var hall=new NGame2.NUI.NComponent2.AwakeChallengeItemComponent();
+ SprkHeroMaterialTickets.OpenHall(hall,f,15L,0,null);hall.Listener(icon);
+ SprkHeroMaterialTickets.Prefill(prefilled,NGame2.NUI.NWindow.SelectionItemUsePopup.Listener,Choices());
+ Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==20108 && prefilled.InputSelectedCount.value=="15","Hall fragment click/prefill failed");
+ SprkHeroMaterialTickets.OpenHall(hall,e,40L,3,null);hall.Listener(icon);
+ SprkHeroMaterialTickets.Prefill(prefilled,NGame2.NUI.NWindow.SelectionItemUsePopup.Listener,Choices());
+ Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==20109 && prefilled.InputSelectedCount.value=="30","Hall essence click/ticket cap failed");
+ var listener=NGame2.NUI.NWindow.SelectionItemUsePopup.Listener;var popup=new NGame2.NUI.NWindow.SelectionItemUsePopup();
+ var requester=NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester;
+ listener.OnClickOk(popup,20108,20101,1);listener.OnClickOk(popup,20109,20001,1);listener.OnClickOk(popup,20109,20101,0);listener.OnClickOk(popup,20109,20101,1001);Check(requester.Requests==0,"invalid request accepted");
+ listener.OnClickOk(popup,20109,20101,5);listener.OnClickOk(popup,20109,20101,5);Check(requester.Requests==1 && requester.Last.ItemCount==5 && !popup.ButtonOk.enabled,"duplicate request/count");
+ requester.Callback(new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UsePackageSelectItem.ResultType.Failure});
+ Check(account.ItemManager.Applied.Count==0 && !popup.Closed && popup.ButtonOk.enabled && NGame2.NUI.NWindow.MessagePopup.Errors==1,"failure applied rewards");
+ listener.OnClickOk(popup,20109,20101,5);var response=new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UsePackageSelectItem.ResultType.Success,ItemResult=new NShared.ItemResultInfo{Index=20109,Count=25},RewardItemResult=new NShared.ItemResultInfo{Index=20101,Count=5}};
+ requester.Callback(response);requester.Callback(response);
+ Check(account.ItemManager.Applied.SequenceEqual(new[]{20109,20101}) && popup.Closed && NGame2.NUI.NWindow.NBattle.BaseRewardPopup.Shown==1,"consumption/reward/duplicate response");
+ // An old response cannot reapply balances while a later request is pending.
+ var firstCallback=requester.Callback;listener.OnClickOk(popup,20109,20101,1);firstCallback(response);
+ Check(account.ItemManager.Applied.Count==2,"old response applied during retry");
+ requester.Callback(new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Failure,Result=NShared.UsePackageSelectItem.ResultType.Success});
+ Check(account.ItemManager.Applied.Count==2,"transport failure applied rewards");
+ requester.SessionKey="different";int requests=requester.Requests;
+ listener.OnClickOk(popup,20109,20101,1);Check(requester.Requests==requests,"stale session accepted");requester.SessionKey="s";
+ SprkHeroMaterialTickets.Open(component,e,10,0,false,NShared.HeroAwakeType.Transcend,i=>fallback++);component.Listener(icon);
+ listener=NGame2.NUI.NWindow.SelectionItemUsePopup.Listener;
+ listener.OnClickOk(popup,20109,20101,1);requester.SessionKey="changed";requester.Callback(response);
+ Check(account.ItemManager.Applied.Count==2,"stale session response applied");requester.SessionKey="s";
+ account.ItemManager.rows[et.Index].Count=0;requests=requester.Requests;listener.OnClickOk(popup,20109,20101,1);
+ Check(requester.Requests==requests,"depleted ticket accepted");account.ItemManager.rows[et.Index].Count=25;
+ var alternative=new NShared.ItemData{Index=22222,Code="et2",Name="Restricted Essence Ticket",Type=NShared.ItemType.PackageSelectItem};
+ root.ItemDataContainer.rows.Add(alternative);root.SelectItemDataContainer.rows["et2"]=new NShared.SelectItemData{ItemIndices=new[]{20101}};account.ItemManager.rows[22222]=new NShared.ItemInfo{Count=2};
+ SprkHeroMaterialTickets.Open(component,e,10,0,false,NShared.HeroAwakeType.Transcend,i=>fallback++);component.Listener(icon);
+ Check(NGame2.NUI.NWindow.SelectItemMessagePopup.Choose!=null,"multiple ticket chooser missing");
+ NGame2.NUI.NWindow.SelectItemMessagePopup.Choose(null,22222,1);
+ Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==22222,"ticket chooser ignored selection");
+ int errors=NGame2.NUI.NWindow.MessagePopup.Errors;
+ account.ItemManager.rows[ft.Index].Count=0;component=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();SprkHeroMaterialTickets.Open(component,f,10,0,false,NShared.HeroAwakeType.Awaken,i=>fallback++);component.Listener(icon);Check(fallback==0 && NGame2.NUI.NWindow.MessagePopup.Errors==errors+1 && !component.Label_Count.text.Contains("Tickets"),"fragment incorrectly opened crafting");
+ SprkHeroMaterialTickets.OpenHall(hall,f,10L,0,i=>fallback++);hall.Listener(icon);Check(fallback==0 && NGame2.NUI.NWindow.MessagePopup.Errors==errors+2,"Hall fragment incorrectly opened crafting");
+ account.ItemManager.rows[et.Index].Count=0;account.ItemManager.rows[22222].Count=0;
+ component=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();SprkHeroMaterialTickets.Open(component,e,10,0,false,NShared.HeroAwakeType.Transcend,i=>fallback++);component.Listener(icon);Check(fallback==1,"essence crafting fallback missing");
+ component=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();SprkHeroMaterialTickets.Open(component,e,10,0,false,NShared.HeroAwakeType.LimitBreak,i=>fallback++);component.Listener(icon);Check(fallback==2 && !component.Counts,"limit-break changed");
+ Console.WriteLine("PASS: compiled helper fragment/essence selection, unchanged count labels, mismatch/count guards, duplicate clicks/responses, failure, success consumption/reward ordering, empty-ticket fallback and limit-break preservation.");
+ }
+}
+namespace NShared {
+ public class CraftItemData {
+  public int CraftIndex, ResultItemCount=1, ReqTime; public bool Countable=true, IsOpen=true; public string ItemCode;
+  public class MaterialItemInfo { public string ItemCode; public int ItemCount; }
+  public List<MaterialItemInfo> Materials=new List<MaterialItemInfo>();
+  public List<MaterialItemInfo> GetMaterialItemList()=>Materials;
+ }
+}
+namespace NGame2.NUI.NWindow {
+ public class CraftItemSelectMessagePopup:Obj {
+  public class CraftUiData { public NShared.CraftItemData SelectedData; }
+  public class MaterialUiData { public UIInput NumberInput=new UIInput();public UIButton Button_Craft=new UIButton(); }
+  public CraftUiData CraftUi=new CraftUiData();public MaterialUiData MaterialUi=new MaterialUiData();
+  public bool Closed,WasReset;public int Changes;
+  public int GetNumber()=>int.Parse(MaterialUi.NumberInput.value);
+  public void OnNumberChanged(){Changes++;}
+  public bool IsOpen()=>!Closed;public void Reset(){WasReset=true;}public void Close(){Closed=true;}
+ }
+}
+public static class EssenceCraftTests {
+ static void Check(bool b,string s){if(!b)throw new Exception(s);}
+ public static void Run(){
+ var root=NShared.GameRoot.Instance;root.ItemDataContainer.rows.Clear();root.SelectItemDataContainer.rows.Clear();
+ var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;account.ItemManager.rows.Clear();account.ItemManager.Applied.Clear();
+ var f=new NShared.ItemData{Index=20003,Code="f3",Name="Wisdom Fragment"};var e=new NShared.ItemData{Index=20103,Code="e3",Name="Wisdom Essence"};
+ var ticket=new NShared.ItemData{Index=20108,Code="ticket",Name="Fragment Ticket",Type=NShared.ItemType.PackageSelectItem};
+ root.ItemDataContainer.rows.AddRange(new[]{f,e,ticket});root.SelectItemDataContainer.rows["ticket"]=new NShared.SelectItemData{ItemIndices=new[]{20003}};
+ account.ItemManager.rows[20108]=new NShared.ItemInfo{Count=615};account.ItemManager.rows[20003]=new NShared.ItemInfo{Count=5};
+ var row=new NShared.CraftItemData{CraftIndex=3,ItemCode="e3"};row.Materials.Add(new NShared.CraftItemData.MaterialItemInfo{ItemCode="f3",ItemCount=10});
+ // Native JIT rows retain seven empty serialized ingredient slots.
+ for(int slot=1;slot<8;slot++)row.Materials.Add(new NShared.CraftItemData.MaterialItemInfo{ItemCode="",ItemCount=0});
+ root.CraftItemDataContainer.Rows.Add(row);
+ var popup=new NGame2.NUI.NWindow.CraftItemSelectMessagePopup();popup.CraftUi.SelectedData=row;
+ Check(SprkEssenceCraftTickets.Available(account.ItemManager,"f3",popup)==620,"tickets excluded from essence material total");
+ Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==1,"ticket-based essence plus missing");
+ Check(SprkEssenceCraftTickets.Indicator("e3",30,30)==0,"plus shown when essence requirement met");
+ Check(SprkEssenceCraftTickets.Indicator("f3",30,0)==1,"fragment ticket plus missing");
+ Check(SprkEssenceCraftTickets.Indicator("f3",30,30)==0,"fragment plus shown when requirement met");
+ Check(SprkEssenceCraftTickets.Indicator("other",30,0)==-1,"unrelated native badge changed");
+ account.ItemManager.rows[20108].Locked=1;Check(SprkEssenceCraftTickets.Available(account.ItemManager,"f3",popup)==5,"locked tickets counted");account.ItemManager.rows[20108].Locked=0;
+ account.ItemManager.rows[20108].Locked=1;Check(SprkEssenceCraftTickets.Indicator("f3",30,0)==0,"locked fragment ticket enables plus");account.ItemManager.rows[20108].Locked=0;
+ account.ItemManager.rows[20108].Count=4;Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==0,"plus shown with less than one craft");
+ account.ItemManager.rows[20108].Count=5;Check(SprkEssenceCraftTickets.Indicator("e3",30,0)==1,"mixed fragments and tickets not counted for plus");account.ItemManager.rows[20108].Count=615;
+ SprkEssenceCraftTickets.Prefill(popup,21);Check(popup.GetNumber()==21 && popup.Changes==1,"required craft quantity not prefilled");
+ Check(SprkEssenceCraftTickets.Quantity(21,10)==3 && SprkEssenceCraftTickets.Quantity(int.MaxValue,1)==int.MaxValue,"batch output quantity/overflow");
+ var requester=NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester;requester.SessionKey="craft-session";requester.Requests=0;
+ int crafts=0;Action<int,int,int> craft=(recipe,index,count)=>{Check(recipe==3 && index==20103 && count==popup.GetNumber(),"native craft payload changed");crafts++;};
+ Check(SprkEssenceCraftTickets.TryCraft(popup,craft) && requester.Last.ItemCount==205 && requester.Last.SelectItemIndex==20003,"did not redeem only shortage");
+ Check(!popup.MaterialUi.Button_Craft.enabled,"craft button enabled during redemption");SprkEssenceCraftTickets.TryCraft(popup,craft);Check(requester.Requests==1,"duplicate craft redemption");
+ var success=new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UsePackageSelectItem.ResultType.Success,ItemResult=new NShared.ItemResultInfo{Index=20108,Count=410},RewardItemResult=new NShared.ItemResultInfo{Index=20003,Count=210}};
+ requester.Callback(success);requester.Callback(success);
+ Check(crafts==1 && popup.Closed && popup.WasReset && account.ItemManager.Get(20003).Count==210,"craft before redemption or duplicate craft");
+ popup=new NGame2.NUI.NWindow.CraftItemSelectMessagePopup();popup.CraftUi.SelectedData=row;popup.MaterialUi.NumberInput.value="2";
+ Check(!SprkEssenceCraftTickets.TryCraft(popup,craft),"loose-fragment craft did not retain native path");
+ account.ItemManager.rows[20003].Count=0;int requests=requester.Requests;
+ SprkEssenceCraftTickets.TryCraft(popup,craft);requester.Callback(new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UsePackageSelectItem.ResultType.Failure});
+ Check(crafts==1 && !popup.Closed && popup.MaterialUi.Button_Craft.enabled,"failed redemption crafted/closed popup");
+ row.ItemCode="other";Check(SprkEssenceCraftTickets.Available(account.ItemManager,"f3",popup)==0 && !SprkEssenceCraftTickets.TryCraft(popup,craft),"unrelated recipe changed");row.ItemCode="e3";
+ account.ItemManager.rows[20108].Count=3000;popup.MaterialUi.NumberInput.value="250";SprkEssenceCraftTickets.TryCraft(popup,craft);
+ int redeemed=0;
+ while(!popup.Closed){var count=requester.Last.ItemCount;Check(count>0 && count<=1000,"ticket batch limit exceeded");redeemed+=count;requester.Callback(new NShared.UsePackageSelectItem.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.UsePackageSelectItem.ResultType.Success,ItemResult=new NShared.ItemResultInfo{Index=20108,Count=3000-redeemed},RewardItemResult=new NShared.ItemResultInfo{Index=20003,Count=redeemed}});}
+ Check(redeemed==2500 && crafts==2,"multi-batch redemption spent wrong quantity");
+ popup=new NGame2.NUI.NWindow.CraftItemSelectMessagePopup();popup.CraftUi.SelectedData=row;account.ItemManager.rows[20003].Count=0;popup.MaterialUi.NumberInput.value="1";
+ SprkEssenceCraftTickets.TryCraft(popup,craft);popup.Close();requester.Callback(success);Check(crafts==2,"cancelled popup crafted");
+ Console.WriteLine("PASS: essence recipe scoping, loose+unlocked ticket availability, required/batch quantity, exact shortage redemption, 1,000-ticket batching, native crafting after successful conversion, duplicate/failure/cancellation handling.");
+ }
+}
