@@ -395,6 +395,15 @@ async fn send_chat(
         let slot = integer(&link["EquipItemInfo"]["SlotIndex"]).unwrap_or(0);
         let eq = crate::api::extensions::equip(&mut tx, account, slot).await?;
         // Client-supplied stats and item identity are replaced by owned equipment.
+        // Chat recipients cannot resolve the sender's account-wide soul list.
+        // Embed the attached soul in the snapshot so the native inspector keeps
+        // the liberated name, advancement frame and reinforcement badge.
+        let mut soul = crate::api::extensions::get(&mut tx, account, "soul", slot).await?;
+        if !soul.is_null() {
+            crate::api::extensions::refresh_soul_weapon_stats(state, std::slice::from_mut(&mut soul))?;
+        }
+        let mut eq = json!(eq);
+        eq["SoulWeaponInfo"] = soul;
         verified.push(json!({"MaxEquipLevel":0,"EquipItemInfo":eq}));
     }
     if callout.is_none() {content["LinkedItem"] = json!(verified);}

@@ -1541,12 +1541,45 @@ async fn socket_requires_session_proof_and_accepts_native_string_ids() {
 async fn chat_equipment_links_use_owned_snapshot() {
     let (state,a,b)=setup().await;
     sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index) VALUES(?,50,1010101)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
-    let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999}}]"#).into_owned();
+    let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999,"SoulWeaponInfo":{"Grade":2,"ReinforceLevel":20}}}]"#).into_owned();
     let v=chat::send_world_chat(State(state.clone()),form(&a,&format!("Chat=item&LinkedItem={link}"))).await.unwrap().0;
     let content:Value=serde_json::from_str(v["Message"]["Content"].as_str().unwrap()).unwrap();
     assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["ItemIndex"],1010101);
     assert_eq!(content["LinkedItem"][0]["MaxEquipLevel"],0);
+    assert!(content["LinkedItem"][0]["EquipItemInfo"]["SoulWeaponInfo"].is_null());
     assert!(chat::send_world_chat(State(state.clone()),form(&b,&format!("Chat=item&LinkedItem={link}"))).await.is_err());
+}
+
+#[tokio::test]
+async fn chat_equipment_links_include_sender_soul_weapon_snapshot() {
+    let (state,a,b)=setup().await;
+    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index,star) VALUES(?,50,1001,5)")
+        .bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    let mut soul=json!({"EquipItemSlotIndex":50,"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,
+        "OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":100,"OptionBonusRatio2":200});
+    {
+        let mut db=state.db.acquire().await.unwrap();
+        crate::api::extensions::put(&mut db,a.user_info.account_id,"soul",50,&soul).await.unwrap();
+        // Even conflicting recipient-side extension state cannot replace the sender's soul.
+        crate::api::extensions::put(&mut db,b.user_info.account_id,"soul",50,
+            &json!({"EquipItemSlotIndex":50,"ItemIndex":1001,"Grade":0,"ReinforceLevel":0})).await.unwrap();
+    }
+    crate::api::extensions::refresh_soul_weapon_stats(&state,std::slice::from_mut(&mut soul)).unwrap();
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sender=Socket::connect(addr,&a,1).await;
+    let mut receiver=Socket::connect(addr,&b,1).await;
+    sender.send("MessageReq",json!({"RequestId":42,"GroupType":"Channel","Message":format!("ChannelChat {}",
+        json!({"Chat":"shared UW","LinkedItem":[{"EquipItemInfo":{"SlotIndex":50,"SoulWeaponInfo":{"Grade":0}}}]}))})).await;
+    assert_eq!(sender.read().await.1["Result"],"Success");
+    let notice=receiver.read().await.1;
+    let content:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["SoulWeaponInfo"],soul);
+    assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["Star"],5);
+    let stored:String=sqlx::query_scalar("SELECT content FROM chat_messages WHERE sender_id=? ORDER BY message_id DESC LIMIT 1")
+        .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&stored).unwrap()["LinkedItem"],content["LinkedItem"]);
+    server.abort();
 }
 
 #[tokio::test]
