@@ -12,6 +12,21 @@ partial class Program {
     static void PatchLobbyAvatarStability(ModuleDefinition game,ModuleDefinition helper) {
         var map=game.GetType("NGame2.NUI.NWorldMap.MapLayout");var hooks=helper.GetType("SprkLobbyAvatar");
         MethodReference Hook(string name)=>game.ImportReference(hooks.Methods.Single(m=>m.Name==name));
+        foreach(var entry in new[]{("LobbyTopmostMenu","SetAvatarHero","GetProfileIconPath","WatchProfileIcon"),
+            ("MyInfoWindow","UpdateAvatarHero","GetProfilePortraitPath","WatchMyInfoPortrait")}) {
+            var method=game.GetTypes().Single(t=>t.Name==entry.Item1).Methods.Single(m=>m.Name==entry.Item2);
+            var path=method.Body.Instructions.Single(i=>i.Operand is MethodReference r &&
+                (r.DeclaringType.Name=="UIAvatarHelper" && (r.Name=="GetIconPath" || r.Name=="GetPortraitPath") ||
+                 r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name==entry.Item3));
+            path.Operand=Hook(entry.Item3);
+            if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name==entry.Item4)) {
+                var il=method.Body.GetILProcessor();
+                foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                    ret.OpCode=OpCodes.Ldarg_0;
+                    var call=il.Create(OpCodes.Call,Hook(entry.Item4));il.InsertAfter(ret,call);il.InsertAfter(call,il.Create(OpCodes.Ret));
+                }
+            }
+        }
         var builder=map.Methods.Single(m=>m.Name=="CreateAvatarHeroRenderFacadeBuilder");
         var clone=builder.Body.Instructions.Single(i=>i.Operand is MethodReference r && ((r.DeclaringType.Name=="SprkAccounts" && r.Name=="CreateLobbyAvatarHeroInfo") || (r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Create") || (r.DeclaringType.Name=="Customizing_Extension_Method" && r.Name=="CreatePlayerAvatarHeroInfo")));
         clone.Operand=Hook("Create");clone.OpCode=OpCodes.Call;
@@ -43,6 +58,14 @@ partial class Program {
         VerifyLobbyAvatarStability(game);
     }
     static void VerifyLobbyAvatarStability(ModuleDefinition game) {
+        foreach(var entry in new[]{("LobbyTopmostMenu","SetAvatarHero","GetProfileIconPath","WatchProfileIcon"),
+            ("MyInfoWindow","UpdateAvatarHero","GetProfilePortraitPath","WatchMyInfoPortrait")}) {
+            var method=game.GetTypes().Single(t=>t.Name==entry.Item1).Methods.Single(m=>m.Name==entry.Item2);
+            foreach(var hook in new[]{entry.Item3,entry.Item4})
+                if(method.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name==hook)!=1)
+                    throw new Exception("Missing/duplicated own-profile appearance hook "+hook);
+            VerifyArenaResultStack(method);
+        }
         var map=game.GetType("NGame2.NUI.NWorldMap.MapLayout");
         foreach(var pair in new[]{("CreateAvatarHeroRenderFacadeBuilder","Create"),("CreatePlayerAvatar","Bind")}) {
             var m=map.Methods.Single(m=>m.Name==pair.Item1);
@@ -229,6 +252,17 @@ partial class Program {
             if(!Matches())throw new Exception("Missing lobby notification for "+name);
             heroIndex.SetValue(change,2);if(Matches())throw new Exception("Other hero's appearance affected the lobby");
         }
+        var profileIndex=helper.GetType("SprkLobbyAvatar")!.GetMethod("ProfileAvatarIndex")!;
+        int Profile(object? selectedHero,int saved)=>(int)profileIndex.Invoke(null,new[]{selectedHero,(object)saved})!;
+        Set("HeroIndex",72);Set("Star",(sbyte)5);
+        foreach(var (costume,expected) in new[]{(7280,17280),(7210,17210),(0,725),(7280,17280)}) {
+            Set("CostumeIndex",costume);
+            if(Profile(hero,17201)!=expected)throw new Exception("Profile kept the selected costume snapshot after equip/unequip");
+        }
+        Set("HeroIndex",111);Set("CostumeIndex",11106);
+        if(Profile(hero,17201)!=21106)throw new Exception("New account/selected hero did not replace the profile portrait");
+        if(Profile(null,17201)!=17201)throw new Exception("Unloaded hero lost the native profile fallback");
+        Console.WriteLine("PASS: own-profile icon/portrait follows ordinary and Light costume equip/unequip, hero/account replacement and unloaded-hero fallback.");
         Console.WriteLine("PASS: live body/hair/basic and costume weapon changes, weapon visibility, accessory equip/unequip and all seven transform edits; snapshot isolation, stable no-op and selected-hero notification scope.");
     }
     static void InstallLobbyAvatarStability(string root,bool stageOnly) {

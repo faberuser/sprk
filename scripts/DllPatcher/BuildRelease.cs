@@ -103,6 +103,8 @@ partial class Program
         InstallLobbyAvatarStability(clientRoot, false);
         VerifyLobbyAvatarStabilityFile(clientRoot);
         TestLobbyAvatarStability(clientRoot);
+        InstallEnchantEmptyOption(clientRoot, false);
+        InstallEnchantEmptyOption(clientRoot, false, true);
         InstallSoulUpgradePlayback(clientRoot, false);
         VerifySoulUpgradePlaybackFile(clientRoot);
         TestSoulUpgradePlayback(clientRoot);

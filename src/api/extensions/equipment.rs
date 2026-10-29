@@ -892,7 +892,16 @@ async fn enchant(
         .iter()
         .filter_map(Value::as_i64)
         .collect();
-    let (new, step) = option(state, &candidates)?;
+    let value = json!(eq);
+    let current = n(&value, &format!("EnchantOptionIndex{slot}"));
+    let (new, step) = if current == 0 {
+        option(state, &candidates)?
+    } else {
+        // Enchants use the zero-star range even on awakened equipment. Compare
+        // actual values by stat type so another scroll's row cannot downgrade it.
+        reforge_option(state, &candidates, current,
+            n(&value, &format!("EnchantOptionStep{slot}")), 0, true)?
+    };
     pending(
         db,
         account,
