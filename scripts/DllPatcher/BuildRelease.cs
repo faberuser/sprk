@@ -123,6 +123,8 @@ partial class Program
         InstallTechnomagicRefresh(clientRoot, false, true);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
+        InstallSoloRetry(clientRoot, false);
+        InstallSoloRetry(clientRoot, false, true);
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");

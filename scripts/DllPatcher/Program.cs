@@ -9,6 +9,9 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--solo-retry-only")) { InstallSoloRetry(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-solo-retry")) { InstallSoloRetry(args[0], args.Contains("--stage-only"), true); return; }
+            if (args.Contains("--self-test-solo-retry")) { TestSoloRetry(); return; }
             if (args.Contains("--enchant-empty-option-only")) { InstallEnchantEmptyOption(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-enchant-empty-option")) { InstallEnchantEmptyOption(args[0],false,true); return; }
             if (args.Contains("--player-logging-only")) { InstallPlayerLogging(args[0],args.Contains("--stage-only")); return; }

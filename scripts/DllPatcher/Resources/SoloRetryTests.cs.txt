@@ -1,0 +1,81 @@
+using System;
+using System.Linq;
+using NGame2.NBattleContext;
+using NShared;
+
+public static class SoloRetryTests
+{
+    static void Check(bool value, string message) { if (!value) throw new Exception(message); }
+    public static void Run()
+    {
+        var allowed = new[] { 1, 2, 10, 12, 21, 23, 24, 25, 29, 30, 33, 40, 41, 42, 45, 46, 47, 48 };
+        for (int kind = 0; kind <= 48; kind++)
+        {
+            CampaignContext provider = kind >= 47 ? new PunishmentRaidContext() : new CampaignContext();
+            provider.Kind = (BattleType)kind;
+            Check(SprkSoloRetry.Allow(provider, BattleRetryConditionType.Lose) == allowed.Contains(kind), "Mode " + kind);
+            Check(!SprkSoloRetry.Allow(provider, BattleRetryConditionType.Win), "Victory behavior overridden " + kind);
+            provider.Online = true;
+            Check(!SprkSoloRetry.Allow(provider, BattleRetryConditionType.Lose), "Online retry allowed " + kind);
+        }
+        Check(!SprkSoloRetry.Allow(null, BattleRetryConditionType.Lose), "Null provider");
+        var solo = new CampaignContext { Kind = (BattleType)12 };
+        solo.Dungeon = null;
+        Check(!SprkSoloRetry.Allow(solo, BattleRetryConditionType.Lose), "Missing dungeon");
+        solo.Dungeon = new EnterDungeonData { OriginalDungeonData = null };
+        Check(!SprkSoloRetry.Allow(solo, BattleRetryConditionType.Lose), "Missing dungeon data");
+        Check(!SprkSoloRetry.Allow(new ReplayProvider(), BattleRetryConditionType.Lose), "Replay provider");
+        var option = new NGame2.NUI.NWindow.BattlePartySetting.ExtraOptionData();
+        foreach (bool content in new[] { false, true })
+        {
+            var context = new BattleContext { DataProvider = content ? (CampaignContext)new PunishmentRaidContext() : new CampaignContext() };
+            SprkSoloRetry.Retry(context, option);
+            Check(context.ContentCalls == (content ? 1 : 0) && context.CampaignCalls == (content ? 0 : 1), "Wrong restart contract");
+            Check(Object.ReferenceEquals(context.Option, option), "Restart options lost");
+        }
+        var source = new PunishmentRaidContext { PunishmentDungeonType = EPunishmentDungeonType.Boss };
+        source.ExtraData.FlaskItemIndex = 40245; source.ExtraData.FlaskItemCount = 3;
+        var request = new NShared.BeginContent.Request();
+        SprkSoloRetry.PreserveShards(request, source);
+        Check(request.FlaskItemIndex == 40245 && request.FlaskItemCount == 3, "Boss shard selection lost");
+        source.PunishmentDungeonType = EPunishmentDungeonType.Karma;
+        request.FlaskItemIndex = 40251; request.FlaskItemCount = 10;
+        SprkSoloRetry.PreserveShards(request, source);
+        Check(request.FlaskItemIndex == 40251 && request.FlaskItemCount == 10, "Native Karma flask handling changed");
+    }
+}
+namespace NShared {
+    public enum BattleType { }
+    public enum BattleRetryConditionType { None, Win, Lose }
+    public enum EPunishmentDungeonType { None, Karma, Boss }
+    public class BattleInstanceExtraData { public int FlaskItemIndex, FlaskItemCount; }
+}
+namespace NShared.BeginContent { public class Request { public int FlaskItemIndex, FlaskItemCount; } }
+namespace NGame2.NUI.NWindow { public class BattlePartySetting { public class ExtraOptionData { } } }
+namespace NGame2.NBattleField.NManager.NPlay {
+    public interface IDataProvider {
+        bool IsOnline(); NShared.BattleType GetBattleType(); NGame2.NBattleContext.EnterDungeonData GetEnterDungeon();
+    }
+}
+namespace NGame2.NBattleContext {
+    public class EnterDungeonData { public object OriginalDungeonData = new object(); }
+    public class CampaignContext : NGame2.NBattleField.NManager.NPlay.IDataProvider {
+        public bool Online; public NShared.BattleType Kind; public EnterDungeonData Dungeon = new EnterDungeonData();
+        public bool IsOnline() { return Online; } public NShared.BattleType GetBattleType() { return Kind; }
+        public EnterDungeonData GetEnterDungeon() { return Dungeon; }
+    }
+    public class PunishmentRaidContext : CampaignContext {
+        public NShared.EPunishmentDungeonType PunishmentDungeonType;
+        public NShared.BattleInstanceExtraData ExtraData = new NShared.BattleInstanceExtraData();
+    }
+    public class ReplayProvider : NGame2.NBattleField.NManager.NPlay.IDataProvider {
+        public bool IsOnline() { return false; } public NShared.BattleType GetBattleType() { return (NShared.BattleType)1; }
+        public EnterDungeonData GetEnterDungeon() { return new EnterDungeonData(); }
+    }
+    public class BattleContext {
+        public NGame2.NBattleField.NManager.NPlay.IDataProvider DataProvider;
+        public int CampaignCalls, ContentCalls; public NGame2.NUI.NWindow.BattlePartySetting.ExtraOptionData Option;
+        public void RepeatCampaign(NGame2.NUI.NWindow.BattlePartySetting.ExtraOptionData option) { CampaignCalls++; Option = option; }
+        public void RepeatContent(NGame2.NUI.NWindow.BattlePartySetting.ExtraOptionData option) { ContentCalls++; Option = option; }
+    }
+}

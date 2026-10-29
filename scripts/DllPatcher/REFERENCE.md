@@ -628,3 +628,20 @@ and tests this helper. Run `python scripts/client/verify_network_performance.py`
 for an isolated Unity gzip/native-state proof. See
 [network responsiveness](../../docs/network-performance.md) for cache invalidation,
 trace fields, measurement commands and compatibility behavior.
+
+### Solo battle Retry
+
+`--solo-retry-only` installs pause-menu and defeat Retry for solo story,
+Normal/Hard Dragons, Field, Technomagic, ARCDIM/ARCDIM X, Challenge, Divine
+Punishment and Karma battles. Online battles, replay providers and Guild
+Conquest retain the native policy. Victory Repeat and auto-repeat rules are
+unchanged; cleared Punishment nodes cannot be replayed through this patch.
+
+`SprkSoloRetry` routes paused Punishment/Karma battles through `RepeatContent`
+and preserves Boss shard selections that native `RepeatContent` omitted.
+`--verify-solo-retry` verifies the native hooks and IL stack behavior;
+`--self-test-solo-retry` tests mode exclusions, restart routing and shard/flask
+selection. Installation also checks idempotence and the serialized DLL.
+`BuildRelease.cs` installs and verifies this patch before RaidCoopLimits loads
+the game assembly for native table verification (which locks the file on Windows).
+The companion DLL is included by the normal complete signed client snapshot.

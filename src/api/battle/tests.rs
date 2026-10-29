@@ -256,10 +256,11 @@ async fn story_10_23_uses_loaned_heroes_without_recruiting_or_leveling_them() {
     let roster: i64 = sqlx::query_scalar("SELECT count(*) FROM heroes WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
     let begin = call(&s, &u, "campaign/begin_campaign", entry).await;
     assert_eq!(begin["Result"], "Success", "{begin}");
-    assert_eq!(balance(&s, "stamina").await, stamina - 20);
+    assert_eq!(balance(&s, "stamina").await, stamina);
     let end = format!("{entry}&Completed=true&Star=13&AliveHeroIndices=[52,35,72,74,1]");
     let result = call(&s, &u, "campaign/end_campaign", &end).await;
     assert_eq!(result["Result"], "Success", "{result}");
+    assert_eq!(balance(&s, "stamina").await, stamina - 20);
     assert_eq!(result["HeroExpResults"].as_array().unwrap().len(), 1);
     assert_eq!(result["HeroExpResults"][0]["HeroIndex"], 1);
     assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count(*) FROM heroes WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), roster);
@@ -1099,7 +1100,7 @@ async fn campaign_requires_entry_and_rejects_forged_results_and_replays() {
     assert_eq!(first["Result"], "Success", "{first}");
     let repeat = call(&s, &u, "campaign/begin_campaign", ENTRY).await;
     assert_eq!(repeat, first);
-    assert_eq!(balance(&s, "stamina").await, stamina - 6);
+    assert_eq!(balance(&s, "stamina").await, stamina);
     for bad in [
         END.replace("DungeonIndex=1", "DungeonIndex=2"),
         END.replace("Star=3", "Star=4"),
@@ -1113,6 +1114,7 @@ async fn campaign_requires_entry_and_rejects_forged_results_and_replays() {
     }
     let end = call(&s, &u, "campaign/end_campaign", END).await;
     assert_eq!(end["Result"], "Success", "{end}");
+    assert_eq!(balance(&s, "stamina").await, stamina - 6);
     let gold = balance(&s, "gold").await;
     assert_ne!(
         call(&s, &u, "campaign/end_campaign", END).await["Result"],
@@ -1121,7 +1123,7 @@ async fn campaign_requires_entry_and_rejects_forged_results_and_replays() {
     assert_eq!(balance(&s, "gold").await, gold);
 }
 #[tokio::test]
-async fn only_selected_heroes_receive_exp_and_entry_survives_login() {
+async fn only_selected_heroes_receive_exp_after_restarting_entry_on_login() {
     let (s, u) = setup().await;
     hero::recruit_at(
         &mut s.db.acquire().await.unwrap(),
@@ -1138,12 +1140,16 @@ async fn only_selected_heroes_receive_exp_and_entry_survives_login() {
         call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"],
         "Success"
     );
+    let stamina = balance(&s, "stamina").await;
     let new = json!(
         user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test"))
             .await
             .unwrap()
             .0
     );
+    assert_ne!(call(&s, &new, "campaign/end_campaign", END).await["Result"], "Success");
+    assert_eq!(balance(&s, "stamina").await, stamina);
+    assert_eq!(call(&s, &new, "campaign/begin_campaign", ENTRY).await["Result"], "Success");
     let end = call(&s, &new, "campaign/end_campaign", END).await;
     assert_eq!(end["Result"], "Success", "{end}");
     assert_eq!(end["HeroExpResults"].as_array().unwrap().len(), 1);
@@ -2589,11 +2595,12 @@ async fn stamina_exp_replaces_hero_exp_and_is_transactional() {
     assert_eq!(balance(&s,"team_exp").await,exp);
     let end=call(&s,&u,"campaign/end_campaign",END).await;
     assert_eq!(end["Result"],"Success");
-    assert_eq!(balance(&s,"team_exp").await,exp);
+    let victory_exp = exp + 60;
+    assert_eq!(balance(&s,"team_exp").await,victory_exp);
     assert!(end["ExpResult"].is_null());
     assert_ne!(call(&s,&u,"campaign/end_campaign",END).await["Result"],"Success");
     let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
-    assert_eq!(login.user_info.team_exp as i64,exp);
+    assert_eq!(login.user_info.team_exp as i64,victory_exp);
 }
 
 #[tokio::test]
@@ -2852,10 +2859,11 @@ async fn dragon_solo_native_raid_type_keeps_party_and_level_guards() {
     assert_ne!(party["Result"], "Success");
     let entry = call(&s, &u, "campaign/begin_campaign", args).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
-    assert_eq!(entry["StaminaResult"]["AddValue"], -48);
+    assert_eq!(entry["StaminaResult"]["AddValue"], 0);
     assert_eq!(call(&s, &u, "campaign/begin_campaign", args).await, entry);
     let loss = call(&s, &u, "campaign/end_campaign", "ChapterIndex=905&DungeonIndex=7&DungeonDifficulty=0&Completed=false").await;
     assert_eq!(loss["Result"], "Success", "{loss}");
+    assert_eq!(balance(&s, "stamina").await, 1000);
 }
 
 #[tokio::test]
@@ -2919,10 +2927,11 @@ async fn hard_dragon_solo_requires_unlock_and_keeps_multiplayer_guard() {
     assert_eq!(balance(&s, "stamina").await, 1000);
     let entry = call(&s, &u, "campaign/begin_campaign", args).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
-    assert_eq!(entry["StaminaResult"]["AddValue"], -60);
+    assert_eq!(entry["StaminaResult"]["AddValue"], 0);
     assert_eq!(call(&s, &u, "campaign/begin_campaign", args).await, entry);
     let loss = call(&s, &u, "campaign/end_campaign", "ChapterIndex=931&DungeonIndex=1&DungeonDifficulty=0&Completed=false").await;
     assert_eq!(loss["Result"], "Success", "{loss}");
+    assert_eq!(balance(&s, "stamina").await, 1000);
 }
 
 #[tokio::test]
@@ -2958,7 +2967,7 @@ async fn hard_black_dragon_unlocks_after_matching_normal_solo_clear() {
     assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "raid", 4).await.unwrap()["RaidLevel"], 10);
     let entry = call(&s, &u, "campaign/begin_campaign", hard).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
-    assert_eq!(entry["StaminaResult"]["AddValue"], -60);
+    assert_eq!(entry["StaminaResult"]["AddValue"], 0);
 }
 
 #[tokio::test]
@@ -3074,10 +3083,11 @@ async fn technomagic_restored_stages_keep_story_gates_costs_and_shared_progress(
         let begin=call(&s,&u,"campaign/begin_campaign",&entry).await;
         assert_eq!(begin["Result"],"Success","raid {index}/{level}: {begin}");
         assert_eq!(begin["StaminaResult"]["Type"],if key_type==29 {"TechnoEnchantKey"} else {"Chicken"});
-        assert_eq!(begin["StaminaResult"]["AddValue"],if key_type==29 {-1} else {-(90+level*10)});
+        assert_eq!(begin["StaminaResult"]["AddValue"], 0);
         let end=format!("{entry}&Completed=true&Star=3&AliveHeroIndices=[1]");
         let won=call(&s,&u,"campaign/end_campaign",&end).await;
         assert_eq!(won["Result"],"Success","raid {index}/{level}: {won}");
+        assert_eq!(won["StaminaResult"]["AddValue"],if key_type==29 {-1} else {-(90+level*10)});
         assert_eq!(won["CompletedRaidInfo"]["RaidIndex"],raid["ClearRaidIndex"]);
         assert_eq!(won["CompletedRaidInfo"]["RaidLevel"],level+1.min(if key_type==29 {3-level} else {9-level}));
         assert!(!won["ItemResults"].as_array().unwrap().is_empty() || !won["EquipItemInfos"].as_array().unwrap().is_empty());
@@ -3242,7 +3252,7 @@ async fn technomagic_enchantment_group_indices_mark_the_second_team_once() {
         }
         let begun = call(&s, &u, "campaign/begin_campaign", &entry).await;
         assert_eq!(begun["Result"], "Success", "{begun}");
-        assert_eq!(begun["StaminaResult"]["AddValue"], -1);
+        assert_eq!(begun["StaminaResult"]["AddValue"], 0);
         assert_eq!(call(&s, &u, "campaign/begin_campaign", &entry).await, begun);
         let stored: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
             .bind(a)
@@ -3255,7 +3265,7 @@ async fn technomagic_enchantment_group_indices_mark_the_second_team_once() {
             get(&mut s.db.acquire().await.unwrap(), a, "key", 29)
                 .await
                 .unwrap()["Count"],
-            4
+            5
         );
         let changed = entry.replace(
             "HeroIndices=[1,2,3,4,5,6,7,8]",
@@ -3279,7 +3289,7 @@ async fn technomagic_enchantment_group_indices_mark_the_second_team_once() {
             get(&mut s.db.acquire().await.unwrap(), a, "key", 29)
                 .await
                 .unwrap()["Count"],
-            4
+            5
         );
         let abandoned = call(
             &s,
@@ -3309,7 +3319,7 @@ async fn technomagic_enchantment_group_indices_mark_the_second_team_once() {
             get(&mut s.db.acquire().await.unwrap(), a, "key", 29)
                 .await
                 .unwrap()["Count"],
-            3
+            5
         );
         let won = call(
             &s,
@@ -3319,6 +3329,7 @@ async fn technomagic_enchantment_group_indices_mark_the_second_team_once() {
         )
         .await;
         assert_eq!(won["Result"], "Success", "{won}");
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "key", 29).await.unwrap()["Count"], 4);
         let rewarded = won["HeroExpResults"].as_array().unwrap();
         assert_eq!(rewarded.len(), 8);
         assert_eq!(
@@ -3371,11 +3382,12 @@ async fn field_raid_unlock_cost_and_progression_are_scoped_to_solo() {
     assert_eq!(balance(&s,"stamina").await,1000);
     let entry = call(&s,&u,"campaign/begin_campaign",args).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
-    assert_eq!(entry["StaminaResult"]["AddValue"], -54);
+    assert_eq!(entry["StaminaResult"]["AddValue"], 0);
     assert_eq!(call(&s,&u,"campaign/begin_campaign",args).await,entry);
     let equipment_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
     let win = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=101&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1").await;
     assert_eq!(win["Result"], "Success", "{win}");
+    assert_eq!(win["StaminaResult"]["AddValue"], -54);
     assert_eq!(win["CompletedRaidInfo"]["RaidIndex"],21);
     assert_eq!(win["CompletedRaidInfo"]["RaidLevel"],2);
     let equipment_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
@@ -3386,9 +3398,10 @@ async fn field_raid_unlock_cost_and_progression_are_scoped_to_solo() {
     let next = args.replace("DungeonIndex=101", "DungeonIndex=111").replace("RaidLevel=1", "RaidLevel=2");
     let entry = call(&s,&u,"campaign/begin_campaign",&next).await;
     assert_eq!(entry["Result"], "Success", "{entry}");
-    assert_eq!(entry["StaminaResult"]["AddValue"], -70);
+    assert_eq!(entry["StaminaResult"]["AddValue"], 0);
     let loss = call(&s,&u,"campaign/end_campaign","ChapterIndex=8&DungeonIndex=111&DungeonDifficulty=0&Completed=false").await;
     assert_eq!(loss["Result"], "Success", "{loss}");
+    assert_eq!(balance(&s,"stamina").await, 946);
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0;
     let login = serde_json::to_value(login).unwrap();
     assert!(login["ChapterDungeons"].as_array().unwrap().iter()
@@ -3413,13 +3426,14 @@ async fn all_field_raid_stages_settle_once_and_cap_shared_progress() {
             let stamina = balance(&s,"stamina").await;
             let entry = call(&s,&u,"campaign/begin_campaign",&args).await;
             assert_eq!(entry["Result"],"Success","raid {raid}/{stage}: {entry}");
-            assert_eq!(balance(&s,"stamina").await,stamina-if stage==1 {54} else {70});
+            assert_eq!(balance(&s,"stamina").await,stamina);
             assert_eq!(call(&s,&u,"campaign/begin_campaign",&args).await,entry);
             let count_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
             let points_before = balance(&s,"raid_point").await;
             let end = format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices=1");
             let win = call(&s,&u,"campaign/end_campaign",&end).await;
             assert_eq!(win["Result"],"Success","raid {raid}/{stage}: {win}");
+            assert_eq!(balance(&s,"stamina").await,stamina-if stage==1 {54} else {70});
             assert_eq!(win["CampaignResults"],json!([]),"Field Raids must not trigger story-map unlock effects");
             assert_eq!(win["CompletedRaidInfo"]["RaidIndex"],shared);
             assert_eq!(win["CompletedRaidInfo"]["RaidLevel"],2);
@@ -3789,11 +3803,11 @@ async fn new_login_can_replace_abandoned_local_battle_without_rewarding_it() {
             .unwrap()
             .0
     );
-    let retry = call(&s, &new, "campaign/begin_campaign", ENTRY).await;
-    assert_eq!(retry["RunId"], first["RunId"]);
+    // Logging in abandons the old reserved entry without charging it.
     let replacement = call(&s, &new, "campaign/begin_campaign", &changed).await;
     assert_eq!(replacement["Result"], "Success", "{replacement}");
     assert_ne!(replacement["RunId"], first["RunId"]);
+    assert_eq!(call(&s, &new, "campaign/begin_campaign", &changed).await, replacement);
     assert_ne!(
         call(&s, &new, "campaign/end_campaign", END).await["Result"],
         "Success"
