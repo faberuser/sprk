@@ -153,6 +153,31 @@ Restart the client after installation.
 Find feature-specific flags and checks in the [patch reference](REFERENCE.md).
 Argument routing lives in [Program.cs](Program.cs).
 
+## Illustration AI
+
+The viewer's small Off / On button displays Remacri's full native x4 output
+when On and restores the original when Off. No x2 option or downsampling remains.
+Disk cache entries identify source content, actual model hash and processing
+version, so turning On again can load a completed result without new inference.
+Off, navigation and close cancel pending processing and release owned textures.
+
+A gold loading bar below the button reports downloaded bytes and NCNN tile
+percentages. Preparation/cache/image-loading stages show indeterminate activity.
+The button text stays Off / On. Hide UI also hides the loading indicator.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --illustration-ai-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-illustration-ai --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --self-test-illustration-ai
+python scripts/client/verify_illustration_ai.py
+```
+
+The native verifier uses private managed DLLs, runtime, model storage and cache.
+It checks Off/On toggling, native x4 output, progress rendering, rejected x2
+selection and disk cache reuse with the executable unavailable. Use `--installed` to test the
+installed helper. See the [custom-model guide](../../docs/illustration-ai-custom-model.md)
+for client-only model swaps.
+
 ## Illustration zoom
 
 The hero/costume illustration viewer supports mouse-wheel zoom from 50% to

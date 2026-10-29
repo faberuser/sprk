@@ -53,11 +53,11 @@ partial class Program {
         PatchIllustrationUpscale(game.MainModule,helper.MainModule);
         if(before!=game.MainModule.GetType("NGame2.NUI.NWindow.HeroIllustBook").Methods.Sum(m=>m.HasBody?m.Body.Instructions.Count:0))
             throw new InvalidOperationException("Illustration AI patch is not idempotent");
-        foreach(var name in new[]{"SprkIllustrationUpscale","SprkIllustrationUpscaleCore"})
+        foreach(var name in new[]{"SprkIllustrationUpscale","SprkIllustrationUpscaleCore","SprkIllustrationProgress","SprkIllustrationReuse"})
             if(helper.MainModule.GetType(name)==null)throw new InvalidOperationException("Missing illustration helper: "+name);
         var core=helper.MainModule.GetType("SprkIllustrationUpscaleCore");
         if(!core.Methods.Any(m=>m.Name=="ModelUrlFromProfile") || !core.Methods.Any(m=>m.Name=="ModelUrlFromManifest")
-            || !core.Methods.Single(m=>m.Name=="Run").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="Provision" && m.Parameters.Count==3)
+            || !core.Methods.Single(m=>m.Name=="Run").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="Provision" && m.Parameters.Count==4)
             || !helper.MainModule.GetType("SprkIllustrationUpscale").Methods.Single(m=>m.Name=="ModelDownloadUrl").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="ModelUrlFromProfile"))
             throw new InvalidOperationException("Illustration model provisioning must use the active server update profile");
         var resolve=helper.MainModule.GetType("SprkIllustrationUpscale").Methods.Single(m=>m.Name=="ModelDownloadUrl");

@@ -125,25 +125,39 @@ public sealed partial class SprkIllustrationUpscale {
         report.Add("nativeZoom800AndReset=true");
         view.IllustRoot.localScale=new Vector3(2,2,1);view.IllustRoot.localPosition=new Vector3(30,20,0);
         var zoom=view.IllustRoot.localScale;var pan=view.IllustRoot.localPosition;
-        foreach(int factor in new[]{2,4}) {
-            if(factor==2)EventDelegate.Execute(state.button.onClick);else state.Select(factor);
-            if(state.requested!=factor)throw new Exception("Scale cycle button failed");
-            int frames=0;float start=Time.realtimeSinceStartup;deadline=start+130;
-            while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable")){frames++;yield return null;}
-            if(state.enhanced==null)throw new Exception("Enhancement failed: "+state.status);
-            if(state.label.text!="x"+factor)throw new Exception("Button label contains more than the requested factor");
-            if(view.HeroIllustTexture.width!=width || view.HeroIllustTexture.height!=height || view.IllustRoot.localScale!=zoom || view.IllustRoot.localPosition!=pan)
-                throw new Exception("Enhancement changed logical size or viewer transform");
-            report.Add("x"+factor+"="+state.enhanced.width+"x"+state.enhanced.height+" frames="+frames+" seconds="+(Time.realtimeSinceStartup-start));
-            yield return new WaitForEndOfFrame();
-            var camera=UICamera.FindCameraForLayer(30).cachedCamera;var previous=RenderTexture.active;var target=RenderTexture.GetTemporary(1280,720,24);
-            var oldTarget=camera.targetTexture;camera.targetTexture=target;camera.Render();RenderTexture.active=target;
-            var screen=new Texture2D(1280,720,TextureFormat.RGBA32,false);screen.ReadPixels(new Rect(0,0,1280,720),0,0);screen.Apply();
-            camera.targetTexture=oldTarget;RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
-            File.WriteAllBytes(Path.Combine(output,"viewer-x"+factor+".png"),screen.EncodeToPNG());Destroy(screen);
-            state.Select(0);
-            if(view.HeroIllustTexture.mainTexture!=state.source || view.HeroIllustTexture.uvRect!=state.originalUv || state.enhanced!=null)throw new Exception("Off failed to restore original");
+        bool sawProgress=false;
+        EventDelegate.Execute(state.button.onClick);
+        if(state.requested!=4 || state.label.text!="On")throw new Exception("Off did not toggle directly to On/x4");
+        state.Select(2);
+        if(state.requested!=4 || state.label.text!="On")throw new Exception("Removed x2 option was accepted");
+        float start=Time.realtimeSinceStartup;deadline=start+130;
+        while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable")) {
+            yield return null;
+            if(state.progress!=null) {
+                string stage;float value;state.progress.Read(out stage,out value);
+                if(stage=="Upscaling" && value>.1f && value<.9f && !sawProgress) {
+                    if(state.loading==null || !state.loading.activeSelf || !state.loadingLabel.text.Contains("%"))throw new Exception("Visible tile progress missing");
+                    sawProgress=true;var running=state.pending;state.Select(4);
+                    if(state.pending!=running)throw new Exception("Repeated On restarted the job");
+                    yield return new WaitForEndOfFrame();CaptureProbe(Path.Combine(output,"viewer-loading.png"));
+                }
+            }
         }
+        if(state.enhanced==null || state.enhanced.width!=state.inputWidth*4 || state.enhanced.height!=state.inputHeight*4 || state.label.text!="On")throw new Exception("Full x4 enhancement failed: "+state.status);
+        if(view.HeroIllustTexture.width!=width || view.HeroIllustTexture.height!=height || view.IllustRoot.localScale!=zoom || view.IllustRoot.localPosition!=pan)throw new Exception("Enhancement changed logical size or viewer transform");
+        if(!sawProgress)throw new Exception("GPU progress not exercised");
+        report.Add("onFullX4="+state.enhanced.width+"x"+state.enhanced.height+" seconds="+(Time.realtimeSinceStartup-start));
+        yield return new WaitForEndOfFrame();CaptureProbe(Path.Combine(output,"viewer-on.png"));
+        EventDelegate.Execute(state.button.onClick);
+        if(state.requested!=0 || state.label.text!="Off" || view.HeroIllustTexture.mainTexture!=state.source || view.HeroIllustTexture.uvRect!=state.originalUv || state.enhanced!=null || state.loading.activeSelf)throw new Exception("On did not toggle directly to Off/restore original");
+        string executable=Path.Combine(state.runtime,"realesrgan-ncnn-vulkan.exe");
+        File.Move(executable,executable+".probe-disabled");
+        EventDelegate.Execute(state.button.onClick);start=Time.realtimeSinceStartup;deadline=start+20;
+        while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable"))yield return null;
+        if(state.enhanced==null || state.label.text!="On")throw new Exception("Repeated On did not reuse disk cache");
+        report.Add("offOnOnly=true x2Rejected=true visibleTileProgress=true cachedOnWithoutRuntimeSeconds="+(Time.realtimeSinceStartup-start));
+        File.Move(executable+".probe-disabled",executable);
+        state.Select(0);
         state.Select(4);yield return null;state.Select(0);yield return new WaitForSecondsRealtime(.5f);
         if(state.enhanced!=null || state.pending!=null)throw new Exception("Cancelled result was assigned");
         report.Add("offDuringProcessing=true");
@@ -158,13 +172,20 @@ public sealed partial class SprkIllustrationUpscale {
         view.Close();yield return null;
         view.InitSeasonReward(null,0,costumes);view.Open();yield return new WaitForSecondsRealtime(1);
         if(state.requested!=0 || !state.ready)throw new Exception("Season viewer did not open Off with its native source");
-        state.Select(2);deadline=Time.realtimeSinceStartup+130;
+        state.Select(4);deadline=Time.realtimeSinceStartup+130;
         while(state.enhanced==null && Time.realtimeSinceStartup<deadline && !state.status.StartsWith("Unavailable"))yield return null;
         if(state.enhanced==null)throw new Exception("Season reward enhancement failed: "+state.status);
         report.Add("seasonReward=true");view.Close();yield return null;
         if(state.enhanced!=null || state.pending!=null || state.source!=null)throw new Exception("Close retained enhancement resources");
         report.Add("closeReleases=true");
         File.WriteAllLines(Path.Combine(output,"PASS.txt"),report.ToArray());Application.Quit();
+    }
+    static void CaptureProbe(string path) {
+        var camera=UICamera.FindCameraForLayer(30).cachedCamera;var previous=RenderTexture.active;var target=RenderTexture.GetTemporary(1280,720,24);
+        var oldTarget=camera.targetTexture;camera.targetTexture=target;camera.Render();RenderTexture.active=target;
+        var screen=new Texture2D(1280,720,TextureFormat.RGBA32,false);screen.ReadPixels(new Rect(0,0,1280,720),0,0);screen.Apply();
+        camera.targetTexture=oldTarget;RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);
+        File.WriteAllBytes(path,screen.EncodeToPNG());Destroy(screen);
     }
 }
 public sealed class SprkIllustrationProbeRunner : MonoBehaviour {

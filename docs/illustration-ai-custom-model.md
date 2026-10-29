@@ -1,7 +1,7 @@
 # Use a custom illustration model on your client
 
 Replace `active.sprkmodel` in the game's writable model folder to use your own
-model with the illustration viewer's **Off / x2 / x4** button. This changes the
+model with the illustration viewer's **Off / On** button. This changes the
 model for your Windows user. It requires no server changes, client DLL patch,
 launcher update, or signed release. The launcher leaves this folder alone.
 
@@ -99,12 +99,18 @@ until you have tried the result. Do not put the model in the installed game's
 
 ## 4. Try it in the viewer
 
-Start the game, open an illustration, and select **x2** or **x4**. The original
+Start the game, open an illustration, and select **On**. The original
 artwork stays visible while processing. Hover the button for progress or error
 details. **Off** restores the original artwork.
 
-Both choices use the same model: x4 is its native output; x2 downsamples that
-output. The runtime processes one image at a time with 64-pixel tiles, a 2 GiB
+On displays the model's full native x4 output. There is no x2 option or
+output downsampling. Off restores the original. Turning On again can reuse the
+completed disk cache instead of running the model again. A loading bar below
+the button shows download/processing percentages and an activity indicator
+during preparation and image loading. It disappears when ready, cancelled,
+or hidden by Hide UI.
+
+The runtime processes one image at a time with 64-pixel tiles, a 2 GiB
 child-process memory limit, and a 120-second inference timeout. A model that
 exceeds those limits or fails to load leaves the original artwork visible.
 
@@ -140,7 +146,7 @@ if (Test-Path -LiteralPath $activeModel) {
 }
 ```
 
-Restart the game and select x2/x4. With no active model, the game downloads and
+Restart the game and select On. With no active model, the game downloads and
 verifies Remacri from the update endpoint captured by your launcher. Your local
 update server must be running when using a Local launcher profile.
 
@@ -150,5 +156,5 @@ stock anime model, the game keeps that file but selects
 models in `active.sprkmodel` take priority over that migration file. Leave the
 migration file alone when swapping custom models.
 
-See [Illustration AI runtime](illustration-ai-runtime.md) for the model interface,
-download verification, runtime notices, and default-model distribution details.
+See [Illustration AI in the patcher guide](../scripts/DllPatcher/README.md#illustration-ai)
+for runtime behavior and verification commands.

@@ -24,6 +24,11 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
     string status="";
     UIButton button;
     UILabel label;
+    GameObject loading;
+    UILabel loadingLabel;
+    UITexture loadingFill;
+    SprkIllustrationProgress progress;
+    SprkIllustrationReuse reuse=new SprkIllustrationReuse();
     UIWidget helpAnchor;
     string storage,runtime;
     byte[] lastSource;
@@ -103,7 +108,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         if(cancellation!=null){cancellation.Cancel();cancellation.Dispose();cancellation=null;}
         // Observe cancelled/faulted jobs even if their viewer has been destroyed.
         if(pending!=null)pending.ContinueWith(delegate(Task<byte[]> task){var ignored=task.Exception;},TaskContinuationOptions.OnlyOnFaulted);
-        pending=null;lastSource=null;
+        pending=null;progress=null;
     }
     void Restore() {
         if(window!=null && window.HeroIllustTexture!=null && enhanced!=null && window.HeroIllustTexture.mainTexture==enhanced) {
@@ -116,6 +121,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
     }
     void ResetSource() {
         HideHelp();++generation;requested=0;Cancel();Restore();source=null;originalMaterial=null;ready=false;status="";
+        lastSource=null;reuse=new SprkIllustrationReuse();
         if(active==this)active=null;
         Refresh();
     }
@@ -124,25 +130,26 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
     void OnApplicationQuit(){ResetSource();}
     bool Visible() {return window!=null && window.IsOpen() && window.gameObject.activeInHierarchy && !closed;}
     void Refresh() {
-        if(label!=null)label.text=requested==0?"Off":"x"+requested;
+        if(label!=null)label.text=requested==0?"Off":"On";
+        UpdateLoading();
         if(helpAnchor!=null && GameOptionTooltip.IsVisible(helpAnchor))ShowHelp();
     }
     void ShowHelp() {
         if(helpAnchor==null)return;
         GameOptionTooltip.Open(helpAnchor,new TooltipTextInfo {
             Name=new NGame2.NUtil.StringProxy{Value="AI Upscale"},
-            Desc=new NGame2.NUtil.StringProxy{Value="Choose x2 or x4 to enhance this illustration. Processing may take time and use additional GPU memory. AI may alter small details. Off displays the original.\nRequires a Vulkan GPU. The first selection downloads the default model.\n"+status}
+            Desc=new NGame2.NUtil.StringProxy{Value="Turn On to enhance this illustration at the model's full x4 resolution. Processing may take time and use additional GPU memory. AI may alter small details. Off displays the original.\nRequires a Vulkan GPU. The first selection downloads the default model.\n"+status}
         });
     }
     void HideHelp(){if(helpAnchor!=null)GameOptionTooltip.Hide(helpAnchor);}
-    void Cycle() {Select(requested==0?2:requested==2?4:0);}
+    void Cycle() {Select(requested==0?4:0);}
     public void Select(int factor) {
-        if(!Visible() || (factor!=0 && factor!=2 && factor!=4))return;
-        ++generation;Cancel();Restore();requested=factor;status="";
-        if(factor==0){Refresh();return;}
+        if(!Visible() || (factor!=0 && factor!=4) || factor==requested)return;
+        ++generation;Cancel();requested=factor;status="";
+        if(factor==0){Restore();lastSource=null;reuse=new SprkIllustrationReuse();Refresh();return;}
         if(!ready || source==null){status="Waiting for artwork";Refresh();return;}
         if(active!=null && active!=this)active.Select(0);
-        active=this;status="Preparing x"+factor+" (original displayed)";Refresh();
+        active=this;status="Preparing x"+factor;Refresh();
         StartCoroutine(Prepare(generation,factor));
     }
     IEnumerator Prepare(int version,int factor) {
@@ -157,15 +164,18 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
                 throw new InvalidOperationException("Artwork exceeds the 1024 pixel input limit");
             // Sampling the crop at native pixel centers keeps neighboring atlas
             // sprites out. NCNN pads the isolated crop, never the whole atlas.
-            var crop=ReadCrop(source,inputWidth,inputHeight,originalUv);
-            try{lastSource=crop.EncodeToPNG();}finally{Destroy(crop);}
+            if(lastSource==null) {
+                var crop=ReadCrop(source,inputWidth,inputHeight,originalUv);
+                try{lastSource=crop.EncodeToPNG();}finally{Destroy(crop);}
+            }
             var bytes=lastSource;int w=inputWidth,h=inputHeight;
             string model=SprkIllustrationUpscaleCore.ModelPath(storage),cache=Path.Combine(storage,"cache");
             // A usable replacement remains independent of profile files/network.
             string modelUrl=SprkIllustrationUpscaleCore.Nonempty(model)?null:ModelDownloadUrl();
             cancellation=new CancellationTokenSource();var token=cancellation.Token;
-            pending=Task.Run(delegate {return SprkIllustrationUpscaleCore.Run(bytes,w,h,factor,model,runtime,cache,token,modelUrl);},token);
-            status="Processing x"+factor+" (original displayed)";Refresh();
+            progress=new SprkIllustrationProgress();var jobProgress=progress;var jobReuse=reuse;
+            pending=Task.Run(delegate {return SprkIllustrationUpscaleCore.Run(bytes,w,h,factor,model,runtime,cache,token,modelUrl,jobProgress,jobReuse);},token);
+            status="Processing x"+factor;Refresh();
         }catch(Exception error){Fail(error);}
     }
     static Texture2D ReadCrop(Texture texture,int width,int height,Rect uv) {
@@ -183,7 +193,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         finally{RenderTexture.active=previous;RenderTexture.ReleaseTemporary(target);}
     }
     void Fail(Exception error) {
-        Restore();status="Unavailable: "+error.GetBaseException().Message+". Original displayed.";
+        Restore();progress=null;reuse.Clear();status="Unavailable: "+error.GetBaseException().Message+". Original displayed.";
         Debug.LogWarning("SPRK illustration AI: "+error.GetBaseException().Message);Refresh();
     }
     void Update() {
@@ -196,6 +206,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         // A subtle pulse communicates pending work without adding button text.
         if(label!=null)label.alpha=pending!=null || status=="Waiting for artwork" || status.StartsWith("Preparing")
             ? .65f+.35f*Mathf.Sin(Time.realtimeSinceStartup*5)*Mathf.Sin(Time.realtimeSinceStartup*5):1;
+        UpdateLoading();
         // A selection made before the native assignment finishes waits; it never
         // starts against the previous artwork or schedules work while Off.
         if(requested!=0 && ready && pending==null && status=="Waiting for artwork") {
@@ -205,30 +216,41 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         var completed=pending;pending=null;
         if(completed.IsCanceled)return;
         if(completed.IsFaulted){Fail(completed.Exception);return;}
-        if(requested==0 || !ready || window.HeroIllustTexture.mainTexture!=source)return;
+        if(requested==0 || !ready || (window.HeroIllustTexture.mainTexture!=source && window.HeroIllustTexture.mainTexture!=enhanced))return;
         Texture2D result=null;
         try {
             result=new Texture2D(2,2,TextureFormat.RGBA32,false,false);
             if(!result.LoadImage(completed.Result,false) || result.width!=inputWidth*4 || result.height!=inputHeight*4)
                 throw new InvalidDataException("Enhanced PNG could not be decoded");
-            if(requested==2) {
-                var smaller=ReadCrop(result,inputWidth*2,inputHeight*2,new Rect(0,0,1,1));Destroy(result);result=smaller;
-            }
             result.wrapMode=TextureWrapMode.Clamp;result.filterMode=FilterMode.Bilinear;result.Apply(false,true);
             result.name="SPRK Illustration x"+requested;
+            Restore();
             enhanced=result;result=null;
             if(originalMaterial!=null) {
                 enhancedMaterial=new Material(originalMaterial);enhancedMaterial.mainTexture=enhanced;
             }
             window.HeroIllustTexture.material=enhancedMaterial;
             window.HeroIllustTexture.mainTexture=enhanced;window.HeroIllustTexture.uvRect=new Rect(0,0,1,1);
-            status="x"+requested+" ready";Refresh();lastSource=null;
+            progress=null;reuse.Clear();lastSource=null;status="On (x4 ready)";Refresh();
         }catch(Exception error) {
             if(result!=null)Destroy(result);
             var bytes=lastSource;int scale=requested;
             if(bytes!=null)Task.Run(delegate {SprkIllustrationUpscaleCore.RemoveCache(bytes,SprkIllustrationUpscaleCore.ModelPath(storage),scale,Path.Combine(storage,"cache"));});
             Fail(error);
         }
+    }
+    void UpdateLoading() {
+        if(loading==null)return;
+        bool busy=requested!=0 && (pending!=null || status.StartsWith("Preparing") || status=="Waiting for artwork");
+        bool show=busy && button!=null && button.gameObject.activeInHierarchy;
+        if(loading.activeSelf!=show)loading.SetActive(show);
+        if(!show)return;
+        string stage=status=="Waiting for artwork"?"Waiting for artwork":"Preparing";float value=-1;
+        if(progress!=null)progress.Read(out stage,out value);
+        loadingLabel.text=stage+(value<0?"...":" "+Mathf.FloorToInt(Mathf.Clamp01(value)*100)+"%");
+        // Indeterminate stages pulse; percentages come from bytes/NCNN tiles.
+        loadingFill.width=Mathf.Max(2,Mathf.RoundToInt(240*(value<0?.35f:Mathf.Clamp01(value))));
+        loadingFill.alpha=value<0?.55f+.45f*Mathf.Sin(Time.realtimeSinceStartup*4)*Mathf.Sin(Time.realtimeSinceStartup*4):1;
     }
     void CreateControls() {
         var hide=window.WidgetHideUI;
@@ -270,6 +292,24 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         print.Mode=(NVespa.NNGUIExtension.UITooltipTrigger.ETooltipTriggerMode)0;
         print.CustomAnchor=widget;print.OwnerPivot=UIWidget.Pivot.BottomRight;print.TooltipPivot=UIWidget.Pivot.TopRight;
         var listenerNew=UIEventListener.Get(host);listenerNew.onHover=delegate(GameObject go,bool over){if(over)ShowHelp();else HideHelp();};
+        loading=new GameObject("SPRK AI Loading");loading.layer=host.layer;loading.transform.SetParent(controls.transform,false);
+        var anchor=loading.AddComponent<UITexture>();anchor.mainTexture=Texture2D.whiteTexture;anchor.width=260;anchor.height=62;anchor.SetAnchor(host);
+        anchor.leftAnchor.Set(0,0);anchor.rightAnchor.Set(0,260);anchor.bottomAnchor.Set(0,-70);anchor.topAnchor.Set(0,-8);anchor.UpdateAnchors();
+        var background=anchor;
+        background.width=260;background.height=62;background.color=new Color(.025f,.035f,.05f,.9f);background.depth=skin.depth+2;
+        var text=new GameObject("Progress text");text.layer=host.layer;text.transform.SetParent(loading.transform,false);
+        loadingLabel=text.AddComponent<UILabel>();loadingLabel.bitmapFont=nativeLabel.bitmapFont;loadingLabel.trueTypeFont=nativeLabel.trueTypeFont;
+        loadingLabel.fontSize=22;loadingLabel.color=new Color(1,.89f,.62f,1);loadingLabel.depth=skin.depth+3;
+        loadingLabel.maxLineCount=1;loadingLabel.overflowMethod=UILabel.Overflow.ShrinkContent;
+        loadingLabel.SetAnchor(loading);loadingLabel.leftAnchor.Set(0,10);loadingLabel.rightAnchor.Set(1,-10);
+        loadingLabel.bottomAnchor.Set(0,20);loadingLabel.topAnchor.Set(1,-4);loadingLabel.UpdateAnchors();
+        var track=new GameObject("Progress track");track.layer=host.layer;track.transform.SetParent(loading.transform,false);
+        var trackWidget=track.AddComponent<UITexture>();trackWidget.mainTexture=Texture2D.whiteTexture;trackWidget.color=new Color(.2f,.18f,.13f,1);
+        trackWidget.width=240;trackWidget.height=6;trackWidget.depth=skin.depth+3;trackWidget.transform.localPosition=new Vector3(0,-20,0);
+        var fill=new GameObject("Progress fill");fill.layer=host.layer;fill.transform.SetParent(track.transform,false);
+        loadingFill=fill.AddComponent<UITexture>();loadingFill.mainTexture=Texture2D.whiteTexture;loadingFill.color=new Color(.93f,.72f,.32f,1);
+        loadingFill.pivot=UIWidget.Pivot.Left;loadingFill.width=2;loadingFill.height=6;loadingFill.depth=skin.depth+4;
+        loadingFill.transform.localPosition=new Vector3(-120,0,0);
         Refresh();
     }
 }

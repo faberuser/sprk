@@ -23,11 +23,18 @@ public static class IllustrationUpscaleTests {
             Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromProfile(null,local.HostUrl);});
             Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromManifest("http://example.com/updates/stable/manifest.json");});
             Invalid(delegate{SprkIllustrationUpscaleCore.ModelUrlFromManifest("https://user:password@example.com/updates/stable/manifest.json");});
-            byte[] source={1,2,3};string a=SprkIllustrationUpscaleCore.CacheKey(source,"model-a",2);
-            Check(a!=SprkIllustrationUpscaleCore.CacheKey(source,"model-a",4),"Scale collision");
-            Check(a!=SprkIllustrationUpscaleCore.CacheKey(source,"model-b",2),"Replacement model collision");
-            Check(a!=SprkIllustrationUpscaleCore.CacheKey(new byte[]{1,2,4},"model-a",2),"Source collision");
+            byte[] source={1,2,3};string a=SprkIllustrationUpscaleCore.CacheKey(source,"model-a",4);
+            Check(a!=SprkIllustrationUpscaleCore.CacheKey(source,"model-b",4),"Replacement model collision");
+            Check(a!=SprkIllustrationUpscaleCore.CacheKey(new byte[]{1,2,4},"model-a",4),"Source collision");
+            Invalid(delegate{SprkIllustrationUpscaleCore.CacheKey(source,"a",2);});
             Invalid(delegate{SprkIllustrationUpscaleCore.CacheKey(source,"a",8);});
+            float value;
+            Check(SprkIllustrationUpscaleCore.TryProgress(" 42.50% ",out value) && System.Math.Abs(value-.425f)<.0001f,"NCNN progress not parsed");
+            Check(!SprkIllustrationUpscaleCore.TryProgress("GPU error",out value) && !SprkIllustrationUpscaleCore.TryProgress("NaN%",out value)
+                && !SprkIllustrationUpscaleCore.TryProgress("101%",out value),"Invalid progress accepted");
+            var reuse=new SprkIllustrationReuse();reuse.Set(a,source);
+            Check(reuse.Get(a)==source && reuse.Get("different-model-or-artwork")==null,"Saved image identity was ignored");
+            reuse.Clear();Check(reuse.Get(a)==null,"Saved image was not released");
             Invalid(delegate{SprkIllustrationUpscaleCore.ValidateModel(new byte[16]);});
             byte[] param=Encoding.ASCII.GetBytes("7767517\nInput data output\n"),model;
             using(var buffer=new MemoryStream())using(var writer=new BinaryWriter(buffer)) {
@@ -50,13 +57,13 @@ public static class IllustrationUpscaleTests {
             Invalid(delegate{SprkIllustrationUpscaleCore.ReadModel(active);});
             Check(File.ReadAllText(active)=="corrupt user model","Invalid nonempty model replaced");
             var cancelled=new CancellationToken(true);
-            try{SprkIllustrationUpscaleCore.Run(source,1,1,2,active,directory,directory,cancelled);throw new Exception("Cancellation ignored");}catch(OperationCanceledException){}
-            Invalid(delegate{SprkIllustrationUpscaleCore.Run(source,1025,1,2,active,directory,directory,CancellationToken.None);});
+            try{SprkIllustrationUpscaleCore.Run(source,1,1,4,active,directory,directory,cancelled);throw new Exception("Cancellation ignored");}catch(OperationCanceledException){}
+            Invalid(delegate{SprkIllustrationUpscaleCore.Run(source,1025,1,4,active,directory,directory,CancellationToken.None);});
             string old=Path.Combine(directory,"old.png"),recent=Path.Combine(directory,"recent.png");
             File.WriteAllBytes(old,new byte[12]);File.SetLastWriteTimeUtc(old,DateTime.UtcNow.AddHours(-1));File.WriteAllBytes(recent,new byte[12]);
             SprkIllustrationUpscaleCore.Prune(directory,12);Check(!File.Exists(old) && File.Exists(recent),"LRU budget failed");
             Invalid(delegate{SprkIllustrationUpscaleCore.ValidatePng(new byte[40],4,4);});
-            Console.WriteLine("PASS: local/public/active-host update profiles, custom ports/prefixes, model validation, missing/empty provisioning, nonempty preservation, corrupt local model, cancellation, dimensions, cache invalidation and LRU budget.");
+            Console.WriteLine("PASS: local/public/active-host update profiles, custom ports/prefixes, model validation, missing/empty provisioning, nonempty preservation, corrupt local model, cancellation, dimensions, x4-only cache identity, progress parsing, saved-result identity/release and LRU budget.");
         }finally{Directory.Delete(directory,true);}
     }
 }

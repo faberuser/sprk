@@ -6,10 +6,27 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
 // No Unity APIs here: all disk/network/inference work runs on one worker.
+public sealed class SprkIllustrationProgress {
+    readonly object sync=new object();
+    string stage="Preparing";
+    float fraction=-1;
+    public void Report(string text,float value) {lock(sync){stage=text;fraction=value;}}
+    public void Read(out string text,out float value) {lock(sync){text=stage;value=fraction;}}
+}
+// Optional bounded storage for a compressed native-x4 result.
+public sealed class SprkIllustrationReuse {
+    readonly object sync=new object();
+    string key;
+    byte[] bytes;
+    public byte[] Get(string identity) {lock(sync)return identity==key?bytes:null;}
+    public void Set(string identity,byte[] value) {lock(sync){key=identity;bytes=value;}}
+    public void Clear() {lock(sync){key=null;bytes=null;}}
+}
 [Serializable]
 public sealed class SprkIllustrationLauncherProfile {
     public string Id,HostUrl,ManifestUrl;
@@ -69,8 +86,8 @@ public static class SprkIllustrationUpscaleCore {
         using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(data)).Replace("-","").ToLowerInvariant();
     }
     public static string CacheKey(byte[] source,string model,int factor) {
-        if(factor!=2 && factor!=4)throw new InvalidDataException("Unsupported scale");
-        return Hash(Encoding.UTF8.GetBytes("crop-srgb-alpha-tile64-v2|"+Interface+"|"+Hash(source)+"|"+model+"|"+factor));
+        if(factor!=4)throw new InvalidDataException("Only native x4 enhancement is supported");
+        return Hash(Encoding.UTF8.GetBytes("crop-srgb-alpha-tile64-v2|"+Interface+"|"+Hash(source)+"|"+model+"|4"));
     }
     public static bool Nonempty(string path) { return File.Exists(path) && new FileInfo(path).Length>0; }
     static void Delete(string path) {try{if(File.Exists(path))File.Delete(path);}catch(IOException){}catch(UnauthorizedAccessException){} }
@@ -119,11 +136,12 @@ public static class SprkIllustrationUpscaleCore {
         }
         try {File.Move(temp,destination);} catch(IOException) {if(!Nonempty(destination))throw;}
     }
-    public static void Provision(string active,CancellationToken token,string sourceUrl=null) {
+    public static void Provision(string active,CancellationToken token,string sourceUrl=null,SprkIllustrationProgress progress=null) {
         if(Nonempty(active))return;
         Directory.CreateDirectory(Path.GetDirectoryName(active));
         string temp=active+"."+Guid.NewGuid().ToString("N")+".tmp";
         try {
+            if(progress!=null)progress.Report("Downloading model",0);
             var request=(HttpWebRequest)WebRequest.Create(sourceUrl ?? DefaultUrl);
             request.Timeout=30000;request.ReadWriteTimeout=30000;request.AllowAutoRedirect=false;
             using(token.Register(request.Abort))
@@ -135,6 +153,7 @@ public static class SprkIllustrationUpscaleCore {
                     token.ThrowIfCancellationRequested();total+=count;
                     if(total>DefaultSize)throw new InvalidDataException("Default model exceeds verified size");
                     output.Write(buffer,0,count);
+                    if(progress!=null)progress.Report("Downloading model",(float)total/DefaultSize);
                 }
                 if(total!=DefaultSize)throw new InvalidDataException("Incomplete default model");
                 output.Flush(true);
@@ -199,13 +218,27 @@ public static class SprkIllustrationUpscaleCore {
         if(value.IndexOf('"')>=0 || value.EndsWith("\\"))throw new InvalidDataException("Invalid inference path");
         return "\""+value+"\"";
     }
-    public static byte[] Run(byte[] source,int width,int height,int factor,string active,string runtime,string cache,CancellationToken token,string sourceUrl=null) {
+    public static bool TryProgress(string line,out float fraction) {
+        fraction=0;
+        if(String.IsNullOrEmpty(line))return false;
+        line=line.Trim();float percent;
+        if(!line.EndsWith("%") || !float.TryParse(line.Substring(0,line.Length-1),NumberStyles.Float,CultureInfo.InvariantCulture,out percent)
+            || float.IsNaN(percent) || float.IsInfinity(percent) || percent<0 || percent>100)return false;
+        fraction=percent/100;return true;
+    }
+    public static byte[] Run(byte[] source,int width,int height,int factor,string active,string runtime,string cache,CancellationToken token,string sourceUrl=null,SprkIllustrationProgress progress=null,SprkIllustrationReuse reuse=null) {
         if(width<1 || height<1 || width>MaxInput || height>MaxInput)throw new InvalidDataException("Artwork exceeds the 1024 pixel input limit");
+        if(progress!=null)progress.Report("Waiting for GPU",-1);
         Gate.Wait(token);
         string work=null;
         try {
-            token.ThrowIfCancellationRequested();Provision(active,token,sourceUrl);
+            token.ThrowIfCancellationRequested();Provision(active,token,sourceUrl,progress);
+            if(progress!=null)progress.Report("Checking cache",-1);
             var model=ReadModel(active);string hash=Hash(model),key=CacheKey(source,hash,factor);
+            if(reuse!=null) {
+                var saved=reuse.Get(key);
+                if(saved!=null) {if(progress!=null)progress.Report("Loading saved image",-1);return saved;}
+            }
             bool disk=true;
             try {Directory.CreateDirectory(cache);Prune(cache,DiskBudget);}catch(IOException){disk=false;}catch(UnauthorizedAccessException){disk=false;}
             string entry=Path.Combine(cache,key+".png");
@@ -214,6 +247,8 @@ public static class SprkIllustrationUpscaleCore {
                     if(new FileInfo(entry).Length>MaxPngBytes)throw new InvalidDataException("Oversized cache entry");
                     var cached=File.ReadAllBytes(entry);ValidatePng(cached,width*4,height*4);
                     try{File.SetLastWriteTimeUtc(entry,DateTime.UtcNow);}catch(IOException){}catch(UnauthorizedAccessException){}
+                    if(progress!=null)progress.Report("Loading cached image",-1);
+                    if(reuse!=null)reuse.Set(key,cached);
                     return cached;
                 }catch(IOException){Delete(entry);}catch(UnauthorizedAccessException){}catch(InvalidDataException){Delete(entry);}
             }
@@ -227,21 +262,26 @@ public static class SprkIllustrationUpscaleCore {
                 RedirectStandardError=true,RedirectStandardOutput=true,WorkingDirectory=runtime
             };
             using(var process=new Process{StartInfo=start}) {
+                if(progress!=null)progress.Report("Upscaling",0);
                 process.Start();
                 using(var job=BoundProcess(process)) {
                 // Drain progress without accumulating unbounded process output.
-                process.ErrorDataReceived+=delegate{};process.OutputDataReceived+=delegate{};
+                process.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs args){float value;if(progress!=null && TryProgress(args.Data,out value))progress.Report("Upscaling",value);};
+                process.OutputDataReceived+=delegate{};
                 process.BeginErrorReadLine();process.BeginOutputReadLine();
                 using(token.Register(delegate {try{if(!process.HasExited)process.Kill();}catch(InvalidOperationException){}catch(System.ComponentModel.Win32Exception){} })) {
                     if(!process.WaitForExit(120000)) {process.Kill();process.WaitForExit();throw new TimeoutException("GPU processing timed out");}
+                    process.WaitForExit(); // Drain the final asynchronous progress events.
                     token.ThrowIfCancellationRequested();
                     if(process.ExitCode!=0)throw new InvalidOperationException("GPU processing unavailable (exit "+process.ExitCode+")");
                 }
                 }
             }
             token.ThrowIfCancellationRequested();
+            if(progress!=null)progress.Report("Finishing image",-1);
             if(!File.Exists(output) || new FileInfo(output).Length>MaxPngBytes)throw new InvalidDataException("Missing/oversized enhanced image");
             var result=File.ReadAllBytes(output);ValidatePng(result,width*4,height*4);
+            if(reuse!=null)reuse.Set(key,result);
             if(disk) {
                 string temp=entry+".tmp";
                 try {File.WriteAllBytes(temp,result);Delete(entry);File.Move(temp,entry);Prune(cache,DiskBudget);}
