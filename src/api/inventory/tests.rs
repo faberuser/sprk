@@ -951,6 +951,50 @@ async fn packages_grant_gold_and_mileage_from_drop_lists() {
 }
 
 #[tokio::test]
+async fn random_pet_tickets_summon_pets_and_convert_duplicates_without_ruby_compensation() {
+    for ticket in [800012,800014,800016,800020,800024] {
+        let (state,u)=setup().await;
+        put(&state,&u,ticket,2).await;
+        let before:i64=sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?")
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
+        let invalid=item::use_package_item(State(state.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=3"))).await.unwrap().0;
+        assert_ne!(invalid["Result"],"Success");
+        assert_eq!(count(&state,&u,ticket).await,2);
+        for duplicate in [false,true] {
+            if duplicate {
+                let mut db=state.db.acquire().await.unwrap();
+                for pet in state.tables.live.rows("Pet") {
+                    crate::api::live::add_pet(&mut db,&state,u.user_info.account_id,item::n(pet,"Index")).await.unwrap();
+                }
+            }
+            let out=item::use_package_item(State(state.clone()),form(&u,
+                &format!("ItemIndex={ticket}&ItemCount=1"))).await.unwrap().0;
+            assert_eq!(out["Result"],"Success","ticket {ticket}: {out}");
+            let reward=&out["RewardResults"][0];
+            assert_eq!(reward["CurrencyResults"],json!([]));
+            if duplicate {
+                assert_eq!(reward["PetInfos"],json!([]));
+                assert_eq!(reward["ItemResults"].as_array().unwrap().len(),1);
+                assert_eq!(reward["ItemResults"][0]["AddCount"],1);
+            } else {
+                let pets=reward["PetInfos"].as_array().unwrap();
+                assert_eq!(pets.len(),1,"ticket {ticket}: {out}");
+                let pet=state.tables.live.find("Pet",&[("Index",item::n(&pets[0],"PetIndex"))]).unwrap();
+                assert!(matches!(item::n(pet,"Grade"),5|6));
+                if ticket==800024 { assert_eq!(pet["Grade"],6); }
+            }
+        }
+        assert_eq!(count(&state,&u,ticket).await,0);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?")
+            .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap(),before);
+        let replay=item::use_package_item(State(state.clone()),form(&u,
+            &format!("ItemIndex={ticket}&ItemCount=1"))).await.unwrap().0;
+        assert_ne!(replay["Result"],"Success");
+    }
+}
+
+#[tokio::test]
 async fn package_currency_overflow_rolls_back_all_rewards_and_consumption() {
     let (state, u) = setup().await;
     put(&state, &u, 93008, 1).await;
