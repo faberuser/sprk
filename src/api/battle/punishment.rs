@@ -3,6 +3,14 @@ use super::*;
 use crate::models::item::ItemGrant;
 use std::collections::BTreeMap;
 
+pub(super) fn automatic_affixes(s: &AppState, group: i64, level: i64) -> Vec<i64> {
+    // Native GetPunishmentAffixIndices adds level-based affixes to every node,
+    // separately from the boss's dragon-clear domain skills.
+    s.tables.battle.rows("PunishmentAutoAffix").iter()
+        .filter(|row| n(row,"GroupIndex")==group && level>=n(row,"MinLevel"))
+        .map(|row| n(row,"Index")).collect()
+}
+
 pub(super) fn scaled(s: &AppState, index: i64, level: i64) -> Result<i64> {
     if !(1..=i32::MAX as i64).contains(&level) {
         return Err(rule("InvalidValue"));
@@ -305,6 +313,56 @@ mod tests {
         .await
     }
     #[test]
+    fn punishment_automatic_affixes_follow_native_enhancement_thresholds() {
+        let tables=crate::tables::test_tables();
+        let rows=tables.battle.rows("PunishmentAutoAffix");
+        let active=|group,level| rows.iter().filter(|r|n(r,"GroupIndex")==group && n(r,"MinLevel")<=level)
+            .map(|r|n(r,"Index")).collect::<BTreeSet<_>>();
+        assert!(active(101001,1).is_empty());
+        assert_eq!(active(101001,2),BTreeSet::from([10001,10004]));
+        assert_eq!(active(101001,5),BTreeSet::from([10001,10004,10005,1937001]));
+        assert_eq!(active(101002,2),BTreeSet::from([10024,10026]));
+        for group in [101001,101002] {
+            assert_eq!(active(group,40).len(),25);
+            assert_eq!(active(group,40),active(group,100));
+        }
+    }
+
+    #[tokio::test]
+    async fn punishment_enhanced_apocalypsion_accepts_native_modifiers_after_prior_clear() {
+        let (s,u)=fixture().await;
+        let a=account(&u);
+        put(&mut s.db.acquire().await.unwrap(),a,"punishment_open",101001,
+            &json!({"GroupIndex":101001,"DungeonType":2,"IsOpen":0,"ClearLevel":1,"ClearCount":1,"Day":day()})).await.unwrap();
+        assert_eq!(open(&s,&u,101001,2).await["Result"],"Success");
+        let domains="&AffixIndices=5001&AffixIndices=5002&AffixIndices=5003&AffixIndices=5004";
+        let modifiers="&AffixIndices=10001&AffixIndices=10004";
+        let boss=entry(101001,5,2,&format!("{domains}{modifiers}"));
+        for invalid in [
+            entry(101001,5,2,domains),
+            entry(101001,5,2,modifiers),
+            format!("{boss}&AffixIndices=10001"),
+            format!("{boss}&AffixIndices=10005"),
+            format!("{boss}&AffixIndices=10024"),
+        ] {
+            assert_ne!(call(&s,&u,"contents/begin_content",&invalid).await["Result"],"Success");
+        }
+        // The same enhancement modifiers apply to dragon nodes too.
+        let dragon=entry(101001,1,2,modifiers);
+        assert_eq!(call(&s,&u,"contents/begin_content",&dragon).await["Result"],"Success");
+        assert_eq!(call(&s,&u,"contents/end_content",&end(101001,1,false,1)).await["Result"],"Success");
+        let begun=call(&s,&u,"contents/begin_content",&boss).await;
+        assert_eq!(begun["Result"],"Success","{begun}");
+        assert_eq!(call(&s,&u,"contents/begin_content",&boss).await,begun);
+        let won=call(&s,&u,"contents/end_content",&end(101001,5,true,1)).await;
+        assert_eq!(won["Result"],"Success","{won}");
+        assert_eq!(won["OpenPunishmentRaidInfos"][0]["ClearLevel"],2);
+        assert_eq!(open(&s,&u,101001,3).await["Result"],"Success");
+        let next=entry(101001,5,3,&format!("{domains}{modifiers}"));
+        assert_eq!(call(&s,&u,"contents/begin_content",&next).await["Result"],"Success");
+    }
+
+    #[test]
     fn punishment_per_mille_rates_keep_fractional_and_whole_rewards() {
         assert_eq!(ratio_count(200, 199), 1);
         assert_eq!(ratio_count(200, 200), 0);
@@ -417,12 +475,12 @@ mod tests {
             .execute(&s.db)
             .await
             .unwrap();
-        let begin = entry(101002, 3, 5, "&FlaskItemIndex=40251&FlaskItemCount=3");
+        let begin = entry(101002, 3, 5, "&FlaskItemIndex=40251&FlaskItemCount=3&AffixIndices=10024&AffixIndices=10026&AffixIndices=10027&AffixIndices=1937002");
         for invalid in [
             begin.replace("40251", "40241"),
             begin.replace("Count=3", "Count=5"),
             begin.replace("Level=5", "Level=4"),
-            entry(101002, 1, 5, "&FlaskItemIndex=40251&FlaskItemCount=1"),
+            entry(101002, 1, 5, "&FlaskItemIndex=40251&FlaskItemCount=1&AffixIndices=10024&AffixIndices=10026&AffixIndices=10027&AffixIndices=1937002"),
         ] {
             assert_ne!(
                 call(&s, &u, "contents/begin_content", &invalid).await["Result"],

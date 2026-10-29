@@ -876,6 +876,9 @@ pub(super) async fn validate_inner(
                     }
                 }
             }
+            expected.extend(super::punishment::automatic_affixes(
+                s, n(def,"GroupIndex"), n(&opened,"OpenLevel"),
+            ));
             let mut supplied = ids(r, "AffixIndices", 32)?;
             supplied.sort();
             expected.sort();
