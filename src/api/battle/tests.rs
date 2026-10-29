@@ -1524,7 +1524,7 @@ async fn karma_native_groups_settle_default_shards_once_and_restore_login() {
         let result=call(&s,&u,"contents/end_content",&end).await;
         assert_eq!(result["Result"],"Success","{result}");
         assert!(result["ItemResults"].as_array().unwrap().iter().any(|v|n(v,"ItemIndex")==shard && n(v,"AddCount")>=1),"{result}");
-        assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"],0);
+        assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"],1);
         assert_ne!(call(&s,&u,"contents/end_content",&end).await["Result"],"Success");
     }
     let login=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
@@ -1599,11 +1599,23 @@ async fn karma_defeat_with_empty_party_survivors_settles_once_without_refunding_
     assert_eq!(pending, 0);
     let result = call(&s, &u, "contents/end_content", &format!("{end}&AliveHeroIndices=[]")).await;
     assert_eq!(result["Result"], "Success", "{result}");
-    assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"], 0);
+    assert_eq!(result["OpenPunishmentRaidInfos"][0]["IsOpen"], 1);
     assert!(result["ItemResults"].as_array().unwrap().iter().any(|v| n(v,"ItemIndex")==40241 && n(v,"AddCount")>0));
     let stamina: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(stamina, 47000);
     assert_ne!(call(&s, &u, "contents/end_content", &format!("{end}&AliveHeroIndices=[]")).await["Result"], "Success");
+    assert_eq!(call(&s, &u, "punishment_raid/open_punishment_raid", "GroupIndex=101001&DungeonType=1").await["Result"], "AlreadyOpened");
+    let login=json!(user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=battle-test")).await.unwrap().0);
+    let opening=login["OpenPunishmentRaidInfos"].as_array().unwrap().iter()
+        .find(|p| n(p,"GroupIndex")==101001 && n(p,"DungeonType")==1).unwrap();
+    assert_eq!(opening["IsOpen"],1);
+    assert_eq!(call(&s, &login, "contents/begin_content", begin).await["Result"], "Success");
+    assert_eq!(balance(&s, "stamina").await,47000,"Retry must not charge another opening");
+    sqlx::query("UPDATE battle_runs SET started=started-60 WHERE account=?").bind(a).execute(&s.db).await.unwrap();
+    let win=call(&s,&login,"contents/end_content",&end.replace("Completed=false","Completed=true")).await;
+    assert_eq!(win["Result"],"Success","{win}");
+    assert_eq!(win["OpenPunishmentRaidInfos"][0]["IsOpen"],0);
+    assert_ne!(call(&s,&login,"contents/begin_content",begin).await["Result"],"Success");
 }
 
 #[tokio::test]
