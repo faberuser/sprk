@@ -243,6 +243,13 @@ with backoff. Failed shared atlas requests reopen through native reference
 counting. Healthy images and story scene-loading waits are unchanged. A file
 that is genuinely missing still needs its asset repaired.
 
+For Light costumes whose battle portrait is a monster icon, the battle portrait
+lookup now uses the hero's five-star basic battle art. The fallback is scoped to
+the audited costume IDs; dedicated Light/Dark art and regular party portraits
+retain their native paths. The focused installer and full release verifier run
+the compiled fallback against all 73 affected costumes, lower/current star
+levels, dedicated costumes and missing hero codes.
+
 Use `--stage-only` to produce `Assembly-CSharp.dll.image-recovery-staged` and
 `SprkImageRecovery.dll.staged`. Test both together in an isolated client before
 installing; `--verify-image-recovery` checks installed hooks and the helper.

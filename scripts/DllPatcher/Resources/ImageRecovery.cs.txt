@@ -12,8 +12,24 @@ using NGameAsset.NNguiAtlas;
 using NVespa;
 using UnityEngine;
 
+public static class SprkLightBattlePortrait
+{
+    static readonly HashSet<int> fallbackCostumes = new HashSet<int> { __SPRK_LIGHT_BATTLE_FALLBACK_IDS__ };
+    public static string Resolve(string heroCode, int star, int costumeIndex)
+    {
+        if (!fallbackCostumes.Contains(costumeIndex) || String.IsNullOrEmpty(heroCode)) return null;
+        // Five stars is the highest basic portrait tier; monster icons are
+        // square and cannot be used as transparent battle bust portraits.
+        return "Battle/Portrait/" + heroCode.Replace('.', '/') + "_5";
+    }
+}
+
 public static class SprkImageRecovery
 {
+    public static string BattlePortraitFallback(string heroCode, int star, int costumeIndex)
+    {
+        return SprkLightBattlePortrait.Resolve(heroCode, star, costumeIndex);
+    }
     static readonly Dictionary<int,string> lightFallbackPortraits = new Dictionary<int,string> { __SPRK_LIGHT_FALLBACK_PATHS__ };
     static readonly HashSet<string> lightFallbackPaths = new HashSet<string>(lightFallbackPortraits.Values,StringComparer.OrdinalIgnoreCase);
     sealed class PortraitLayout {

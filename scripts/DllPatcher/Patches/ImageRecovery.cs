@@ -23,6 +23,17 @@ partial class Program
     {
         var worker = helper.GetType("SprkImageRecovery");
         MethodReference Hook(string name) => module.ImportReference(worker.Methods.Single(m => m.Name == name));
+        var battlePortrait = module.GetType("NGame2.NUI.UIHelper").Methods.Single(m => m.Name == "GetBattleHeroPortraitPath"
+            && m.Parameters.Count == 3 && m.Parameters[0].ParameterType.FullName == "System.String");
+        if (!battlePortrait.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == "BattlePortraitFallback")) {
+            var il = battlePortrait.Body.GetILProcessor(); var first = battlePortrait.Body.Instructions[0];
+            var fallback = Instruction.Create(OpCodes.Pop);
+            foreach (var instruction in new[] {
+                il.Create(OpCodes.Ldarg_0), il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Ldarg_2),
+                il.Create(OpCodes.Call, Hook("BattlePortraitFallback")), il.Create(OpCodes.Dup),
+                il.Create(OpCodes.Brfalse, fallback), il.Create(OpCodes.Ret), fallback })
+                il.InsertBefore(first, instruction);
+        }
         void Prefix(MethodDefinition method, string hook, params OpCode[] loads) {
             if (method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "SprkImageRecovery" && m.Name == hook)) return;
             var il = method.Body.GetILProcessor(); var first = method.Body.Instructions[0];
@@ -86,8 +97,17 @@ partial class Program
     {
         var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
             .Select(i => i.Operand).OfType<MethodReference>().Where(m => m.DeclaringType.Name == "SprkImageRecovery").ToArray();
-        foreach (var name in new[] { "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickPortrait", "TickGlobal", "Reset", "WatchLoadingTip", "WatchLoadingHero", "BeforePortraitChange", "BeforePortraitPathChange", "FitHeroPortrait" })
+        foreach (var name in new[] { "BattlePortraitFallback", "BeforeCachedBundle", "BeforeCachedAsset", "BeforeCachedResource", "TryTpIcon", "Tick", "TickPortrait", "TickGlobal", "Reset", "WatchLoadingTip", "WatchLoadingHero", "BeforePortraitChange", "BeforePortraitPathChange", "FitHeroPortrait" })
             if (calls.Count(m => m.Name == name) != (name == "Reset" || name == "WatchLoadingHero" ? 2 : 1)) throw new InvalidOperationException("Missing or duplicate image recovery hook: " + name);
+        var portrait = module.GetType("NGame2.NUI.UIHelper").Methods.Single(m => m.Name == "GetBattleHeroPortraitPath" && m.Parameters.Count == 3);
+        var code = portrait.Body.Instructions;
+        if (code[0].OpCode != OpCodes.Ldarg_0 || code[1].OpCode != OpCodes.Ldarg_1 || code[2].OpCode != OpCodes.Ldarg_2
+            || code[3].Operand is not MethodReference hook || hook.Name != "BattlePortraitFallback"
+            || code[4].OpCode != OpCodes.Dup || code[5].OpCode != OpCodes.Brfalse || code[5].Operand != code[7]
+            || code[6].OpCode != OpCodes.Ret || code[7].OpCode != OpCodes.Pop
+            || !code.Any(i => i.Operand is MethodReference m && m.Name == "get_BattlePortraitPath"))
+            throw new InvalidOperationException("Light battle portrait fallback must preserve the native costume/basic portrait path.");
+        VerifyArenaResultStack(portrait);
         Console.WriteLine("Verified image cache guards, bounded widget recovery, atlas retry scheduling and lifecycle cleanup.");
     }
 
@@ -97,6 +117,37 @@ partial class Program
         using var assembly = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "Assembly-CSharp.dll"));
         VerifyImageRecovery(assembly.MainModule);
         if (!File.Exists(Path.Combine(managed, "SprkImageRecovery.dll"))) throw new InvalidOperationException("Missing image recovery helper.");
+        TestLightBattlePortraits(File.ReadAllBytes(Path.Combine(managed, "SprkImageRecovery.dll")));
+    }
+
+    static void TestLightBattlePortraits(byte[] bytes)
+    {
+        using var input = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.CostumeTicketRules.json")!;
+        using var doc = System.Text.Json.JsonDocument.Parse(input);
+        var rules = doc.RootElement;
+        var light = rules.GetProperty("LightCostumeIndices").EnumerateArray().Select(x => x.GetInt32()).ToHashSet();
+        var fallback = rules.GetProperty("NewCostumes").EnumerateArray().Concat(rules.GetProperty("CostumeUpdates").EnumerateArray())
+            .Where(row => light.Contains(row.GetProperty("CostumeIndex").GetInt32()) && row.TryGetProperty("BattlePortraitPath", out var path)
+                && path.GetString()!.StartsWith("Icon/Creature/Monster/", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var method = System.Reflection.Assembly.Load(bytes).GetType("SprkLightBattlePortrait")!.GetMethod("Resolve")!;
+        var ids = fallback.Select(row => row.GetProperty("CostumeIndex").GetInt32()).ToHashSet();
+        if (ids.Count == 0 || ids.Count != fallback.Length) throw new InvalidOperationException("Invalid Light battle fallback selection.");
+        foreach (var row in fallback) {
+            var id = row.GetProperty("CostumeIndex").GetInt32();
+            var hero = row.GetProperty("HeroIndex").GetInt32();
+            var bundle = rules.GetProperty("AssetEvidence").GetProperty("Models").GetProperty(hero.ToString())[0].GetProperty("BundleFileName").GetString()!;
+            var code = System.Text.RegularExpressions.Regex.Match(bundle, @"^Creature_Hero_(.+)_Star\d+\.unity3d$").Groups[1].Value;
+            if (code.Length == 0) throw new InvalidOperationException("Missing basic hero code for Light costume " + id);
+            foreach (var star in new[] { 0, 1, 3, 5 })
+                if ((string?)method.Invoke(null, new object[] { "Hero." + code, star, id }) != "Battle/Portrait/Hero/" + code + "_5")
+                    throw new InvalidOperationException("Light costume must use highest-star basic battle art: " + id);
+            foreach (var codeValue in new string?[] { null, "" })
+                if (method.Invoke(null, new object?[] { codeValue, 5, id }) != null) throw new InvalidOperationException("Empty hero code changed.");
+        }
+        foreach (var id in light.Concat(rules.GetProperty("DarkCostumeIndices").EnumerateArray().Select(x => x.GetInt32())).Append(0).Append(999999).Where(id => !ids.Contains(id)))
+            if (method.Invoke(null, new object[] { "Hero.Kasel", 1, id }) != null)
+                throw new InvalidOperationException("Dedicated Light/Dark or ordinary costume portrait changed: " + id);
+        Console.WriteLine($"PASS: {ids.Count} Light monster-icon fallbacks use highest-star basic battle portraits at every star; dedicated Light/Dark, ordinary and missing-code paths retain native behavior.");
     }
 
     static void InstallImageRecovery(string clientRoot, bool stageOnly, string? sourcePath = null)
@@ -114,13 +165,20 @@ partial class Program
                     path.GetString()!.StartsWith("Portrait/Monster/Ordeal/Light", StringComparison.OrdinalIgnoreCase)))
             .Select(row => (Id:row.GetProperty("CostumeIndex").GetInt32(), Path:row.GetProperty("PortraitPath").GetString()!)).ToArray();
         if (rows.Length == 0 || rows.Select(r => r.Id).Distinct().Count() != rows.Length) throw new InvalidOperationException("Invalid Light costume fallback portrait list.");
-        var source = reader.ReadToEnd().Replace("__SPRK_LIGHT_FALLBACK_PATHS__", string.Join(",", rows.Select(r => "{"+r.Id+","+System.Text.Json.JsonSerializer.Serialize(r.Path)+"}")));
+        var light = doc.RootElement.GetProperty("LightCostumeIndices").EnumerateArray().Select(x => x.GetInt32()).ToHashSet();
+        var battleFallbacks = doc.RootElement.GetProperty("NewCostumes").EnumerateArray().Concat(doc.RootElement.GetProperty("CostumeUpdates").EnumerateArray())
+            .Where(row => light.Contains(row.GetProperty("CostumeIndex").GetInt32()) && row.TryGetProperty("BattlePortraitPath", out var path)
+                && path.GetString()!.StartsWith("Icon/Creature/Monster/", StringComparison.OrdinalIgnoreCase))
+            .Select(row => row.GetProperty("CostumeIndex").GetInt32()).ToArray();
+        var source = reader.ReadToEnd().Replace("__SPRK_LIGHT_FALLBACK_PATHS__", string.Join(",", rows.Select(r => "{"+r.Id+","+System.Text.Json.JsonSerializer.Serialize(r.Path)+"}")))
+            .Replace("__SPRK_LIGHT_BATTLE_FALLBACK_IDS__", string.Join(",", battleFallbacks));
         var compilation = CSharpCompilation.Create("SprkImageRecovery", new[] { CSharpSyntaxTree.ParseText(source) }, refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         var images = new[] { 10, 15 }.Select(value => new ResourceDescription("SprkTpIcons." + value + ".png",
             () => typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.TpIcons." + value + ".png")!, true));
         using var compiled = new MemoryStream(); var result = compilation.Emit(compiled, manifestResources: images);
         if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+        TestLightBattlePortraits(compiled.ToArray());
         compiled.Position = 0;
         using var helper = AssemblyDefinition.ReadAssembly(compiled);
         using var resolver = new DefaultAssemblyResolver(); resolver.AddSearchDirectory(managed);
