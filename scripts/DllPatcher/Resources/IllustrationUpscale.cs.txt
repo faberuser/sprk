@@ -160,7 +160,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
             var crop=ReadCrop(source,inputWidth,inputHeight,originalUv);
             try{lastSource=crop.EncodeToPNG();}finally{Destroy(crop);}
             var bytes=lastSource;int w=inputWidth,h=inputHeight;
-            string model=Path.Combine(storage,"active.sprkmodel"),cache=Path.Combine(storage,"cache");
+            string model=SprkIllustrationUpscaleCore.ModelPath(storage),cache=Path.Combine(storage,"cache");
             // A usable replacement remains independent of profile files/network.
             string modelUrl=SprkIllustrationUpscaleCore.Nonempty(model)?null:ModelDownloadUrl();
             cancellation=new CancellationTokenSource();var token=cancellation.Token;
@@ -226,7 +226,7 @@ public sealed partial class SprkIllustrationUpscale : MonoBehaviour {
         }catch(Exception error) {
             if(result!=null)Destroy(result);
             var bytes=lastSource;int scale=requested;
-            if(bytes!=null)Task.Run(delegate {SprkIllustrationUpscaleCore.RemoveCache(bytes,Path.Combine(storage,"active.sprkmodel"),scale,Path.Combine(storage,"cache"));});
+            if(bytes!=null)Task.Run(delegate {SprkIllustrationUpscaleCore.RemoveCache(bytes,SprkIllustrationUpscaleCore.ModelPath(storage),scale,Path.Combine(storage,"cache"));});
             Fail(error);
         }
     }

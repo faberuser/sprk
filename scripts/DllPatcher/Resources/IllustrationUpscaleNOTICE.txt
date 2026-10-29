@@ -1,4 +1,13 @@
-Real-ESRGAN NCNN Vulkan 20220424; RealESRGAN_x4plus_anime_6B.
+Real-ESRGAN NCNN Vulkan 20220424; default model: 4x Remacri by FoolhardyVEVO.
+
+Remacri model: https://openmodeldb.info/models/4x-Remacri
+License: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+The model is distributed for noncommercial use under that license, with attribution
+to FoolhardyVEVO. Upscayl's NCNN conversion is packaged without changing its weights
+in an SPRKSR01 container. No endorsement is implied.
+NCNN source: https://github.com/upscayl/upscayl/tree/6cfaf45b2aae2847cba4f2313b57ca20a0ddd79c/resources/models
+Original RealESRGAN_x4plus_anime_6B remains available on the legacy model route.
 
 Sources: https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan and https://github.com/xinntao/Real-ESRGAN
 

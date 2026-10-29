@@ -43,6 +43,8 @@ partial class Program
         InstallClientStorage(clientRoot, false);
         VerifyClientStorage(clientRoot);
         TestClientStorage();
+        InstallPlayerLogging(clientRoot, false);
+        VerifyPlayerLogging(clientRoot, false);
         InstallMailUpdates(clientRoot, false);
         InstallCinematicSkip(clientRoot, false);
         InstallRoomShortcut(clientRoot, false);

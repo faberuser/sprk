@@ -20,9 +20,10 @@ def transform(asset, output, fingerprint):
     obj=settings[0]; raw=obj.get_raw_data(); desired=None
     for pattern,flag in [(original,648),(isolated,640)]:
         for enabled in (0,1):
-            candidate=bytearray(pattern);candidate[flag]=enabled
-            if raw==candidate:
-                desired=bytearray(isolated);desired[640]=enabled
+            for logging in (0,1):
+                candidate=bytearray(pattern);candidate[flag]=enabled;candidate[flag-238]=logging
+                if raw==candidate:
+                    desired=bytearray(isolated);desired[640]=enabled;desired[402]=logging
     if desired is None:raise ValueError("Unknown native PlayerSettings; refusing schema-based rewrite")
     if raw==desired:
         Path(output).write_bytes(Path(asset).read_bytes())

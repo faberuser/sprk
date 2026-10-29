@@ -71,8 +71,8 @@ partial class Program {
             if(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(runtime,pair.Item1)))).ToLowerInvariant()!=pair.Item2)
                 throw new InvalidOperationException("Illustration runtime integrity mismatch: "+pair.Item1);
         var descriptor=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(runtime,"default-model.json"))).RootElement;
-        if(descriptor.GetProperty("sha256").GetString()!="3aae12f7f04f602e301d82f84e7fa507a09827d99935e045c39d1d5ecccc7d67"
-            || descriptor.GetProperty("size").GetInt32()!=8973806 || descriptor.GetProperty("interface").GetString()!="sprk-ncnn-rrdb-rgb-x4-v1")
+        if(descriptor.GetProperty("sha256").GetString()!="f18ef1a86726f26288739b107f2bb6d4b815d04bc14f6bb7b3d0dacbc1a1fdba"
+            || descriptor.GetProperty("size").GetInt32()!=33564831 || descriptor.GetProperty("interface").GetString()!="sprk-ncnn-rrdb-rgb-x4-v1")
             throw new InvalidOperationException("Default model descriptor differs from authenticated helper metadata");
         Console.WriteLine("Verified illustration AI lifecycle, async assignment for both viewer modes, zoom preservation, runtime and model descriptor.");
     }

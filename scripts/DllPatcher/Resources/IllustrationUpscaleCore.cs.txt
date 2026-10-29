@@ -23,9 +23,18 @@ public static class SprkIllustrationUpscaleCore {
     public const int MaxInput = 1024, MaxPngBytes = 80 * 1024 * 1024;
     public const long DiskBudget = 1024L * 1024 * 1024;
     public const string Interface = "sprk-ncnn-rrdb-rgb-x4-v1";
-    public const string DefaultHash = "3aae12f7f04f602e301d82f84e7fa507a09827d99935e045c39d1d5ecccc7d67";
-    public const int DefaultSize = 8973806;
-    public const string DefaultUrl = "https://updates.krinfo.net/updates/models/realesrgan-anime-20220424-v1/model.sprkmodel";
+    public const string DefaultHash = "f18ef1a86726f26288739b107f2bb6d4b815d04bc14f6bb7b3d0dacbc1a1fdba";
+    public const int DefaultSize = 33564831;
+    public const string DefaultUrl = "https://updates.krinfo.net/updates/models/remacri-4x-v1/model.sprkmodel";
+    public const string LegacyDefaultHash = "3aae12f7f04f602e301d82f84e7fa507a09827d99935e045c39d1d5ecccc7d67";
+    public static string ModelPath(string storage) {
+        string active=Path.Combine(storage,"active.sprkmodel");
+        // Upgrade only the exact previous stock model. Keep it intact, and never
+        // replace a custom model, including one written while a download runs.
+        if(File.Exists(active) && new FileInfo(active).Length==8973806 && Hash(File.ReadAllBytes(active))==LegacyDefaultHash)
+            return Path.Combine(storage,"default-remacri-4x-v1.sprkmodel");
+        return active;
+    }
     static readonly SemaphoreSlim Gate = new SemaphoreSlim(1,1);
     public static string ModelUrlFromManifest(string manifest) {
         Uri uri;
@@ -35,7 +44,7 @@ public static class SprkIllustrationUpscaleCore {
             throw new InvalidDataException("Invalid server update URL for illustration models");
         // Keep the configured origin, port and reverse-proxy prefix. The model
         // service is a sibling of the stable channel, never the game host port.
-        return new Uri(uri,"../models/realesrgan-anime-20220424-v1/model.sprkmodel").AbsoluteUri;
+        return new Uri(uri,"../models/remacri-4x-v1/model.sprkmodel").AbsoluteUri;
     }
     public static string ModelUrlFromProfile(SprkIllustrationLauncherConfig config,string activeHost) {
         var profiles=config==null || config.Profiles==null?new SprkIllustrationLauncherProfile[0]:config.Profiles;
@@ -61,7 +70,7 @@ public static class SprkIllustrationUpscaleCore {
     }
     public static string CacheKey(byte[] source,string model,int factor) {
         if(factor!=2 && factor!=4)throw new InvalidDataException("Unsupported scale");
-        return Hash(Encoding.UTF8.GetBytes("crop-srgb-alpha-v1|"+Interface+"|"+Hash(source)+"|"+model+"|"+factor));
+        return Hash(Encoding.UTF8.GetBytes("crop-srgb-alpha-tile64-v2|"+Interface+"|"+Hash(source)+"|"+model+"|"+factor));
     }
     public static bool Nonempty(string path) { return File.Exists(path) && new FileInfo(path).Length>0; }
     static void Delete(string path) {try{if(File.Exists(path))File.Delete(path);}catch(IOException){}catch(UnauthorizedAccessException){} }
@@ -87,7 +96,7 @@ public static class SprkIllustrationUpscaleCore {
     static SafeFileHandle BoundProcess(Process process) {
         var job=CreateJobObject(IntPtr.Zero,null);
         try {
-            var limits=new JobLimits{Flags=0x2100,ProcessMemory=new UIntPtr(1536UL*1024*1024)};
+            var limits=new JobLimits{Flags=0x2100,ProcessMemory=new UIntPtr(2048UL*1024*1024)};
             if(job.IsInvalid || !SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf(typeof(JobLimits))) || !AssignProcessToJobObject(job,process.Handle))
                 throw new IOException("Could not apply the inference memory limit");
             return job;
@@ -213,7 +222,7 @@ public static class SprkIllustrationUpscaleCore {
             string models=Path.Combine(work,"models"),input=Path.Combine(work,"input.png"),output=Path.Combine(work,"output.png");
             SplitModel(model,models);model=null;File.WriteAllBytes(input,source);
             var start=new ProcessStartInfo(Path.Combine(runtime,"realesrgan-ncnn-vulkan.exe")) {
-                Arguments="-i "+Quote(input)+" -o "+Quote(output)+" -m "+Quote(models)+" -n realesrgan-x4plus-anime -s 4 -t 128 -j 1:1:1",
+                Arguments="-i "+Quote(input)+" -o "+Quote(output)+" -m "+Quote(models)+" -n realesrgan-x4plus-anime -s 4 -t 64 -j 1:1:1",
                 UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,
                 RedirectStandardError=true,RedirectStandardOutput=true,WorkingDirectory=runtime
             };

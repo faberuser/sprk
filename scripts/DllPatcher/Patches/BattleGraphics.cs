@@ -57,8 +57,9 @@ partial class Program {
     static int FindFrameTimingSettings(byte[] bytes,out bool enabled) {
         var original=OriginalPlayerSettings();int match=-1;enabled=false;
         foreach(var (pattern,flag) in new[]{(original,648),(IsolatedPlayerSettings(original),640)})
-        foreach(var value in new[]{0,1}) {
-            var candidate=(byte[])pattern.Clone();candidate[flag]=(byte)value;
+        foreach(var value in new[]{0,1})
+        foreach(var logging in new[]{0,1}) {
+            var candidate=(byte[])pattern.Clone();candidate[flag]=(byte)value;candidate[flag-PlayerLogToFrameTiming]=(byte)logging;
             int offset=bytes.AsSpan().IndexOf(candidate);if(offset<0)continue;
             if(match>=0 || bytes.AsSpan(offset+1).IndexOf(candidate)>=0)throw new InvalidOperationException("Ambiguous PlayerSettings fingerprint.");
             match=offset+flag;enabled=value==1;

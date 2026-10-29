@@ -12,7 +12,7 @@ public static class IllustrationUpscaleTests {
             var local=new SprkIllustrationLauncherProfile{Id="local",HostUrl="http://127.0.0.1:8080/host.json",ManifestUrl="http://127.0.0.1:8081/updates/stable/manifest.json"};
             var remote=new SprkIllustrationLauncherProfile{Id="public",HostUrl="https://play.krinfo.net/host.json",ManifestUrl="https://updates.krinfo.net/updates/stable/manifest.json"};
             var profiles=new SprkIllustrationLauncherConfig{SelectedProfile="local",Profiles=new[]{local,remote}};
-            const string modelPath="/models/realesrgan-anime-20220424-v1/model.sprkmodel";
+            const string modelPath="/models/remacri-4x-v1/model.sprkmodel";
             Check(SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,null)=="http://127.0.0.1:8081/updates"+modelPath,"Local profile did not select the update port");
             profiles.SelectedProfile="public";
             Check(SprkIllustrationUpscaleCore.ModelUrlFromProfile(profiles,local.HostUrl)=="http://127.0.0.1:8081/updates"+modelPath,"Active local host leaked to public profile");
@@ -37,10 +37,12 @@ public static class IllustrationUpscaleTests {
             var truncated=new byte[model.Length-1];Array.Copy(model,truncated,truncated.Length);
             Invalid(delegate{SprkIllustrationUpscaleCore.ValidateModel(truncated);});
             string active=Path.Combine(directory,"active.sprkmodel"),temp=Path.Combine(directory,"download.tmp");
+            Check(SprkIllustrationUpscaleCore.ModelPath(directory)==active,"Absent model path changed");
             File.WriteAllBytes(temp,model);SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
             Check(File.ReadAllBytes(active).Length==model.Length,"Absent model not installed");
             File.WriteAllText(temp,"new default");SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
             Check(File.ReadAllBytes(active).Length==model.Length && File.Exists(temp),"Nonempty replacement overwritten");
+            Check(SprkIllustrationUpscaleCore.ModelPath(directory)==active,"Custom model selection changed");
             File.WriteAllText(active,"");SprkIllustrationUpscaleCore.InstallAbsent(temp,active);
             Check(File.ReadAllText(active)=="new default","Empty model not provisioned");
             File.WriteAllText(active,"corrupt user model");

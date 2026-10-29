@@ -49,7 +49,7 @@ def prepare(client, root, installed=False):
             junction(source, target)
         elif "." not in source.name or source.suffix in (".config", ".assets", ".resS", ".resource", ".json", ".info"):
             # Copy the settings asset; other files are immutable runtime inputs.
-            if source.name == "globalgamemanagers":
+            if source.name in ("globalgamemanagers", "app.info", "boot.config"):
                 shutil.copy2(source, target)
             else:
                 os.link(source, target)

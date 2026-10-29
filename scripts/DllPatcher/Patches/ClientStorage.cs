@@ -5,7 +5,7 @@ partial class Program {
     static void VerifyClientStorageFiles(string settings,string helperPath,string assemblyPath) {
         var bytes=File.ReadAllBytes(settings);var expected=IsolatedPlayerSettings(OriginalPlayerSettings());
         bool company=false;
-        foreach(var value in new[]{0,1}){expected[640]=(byte)value;int start=bytes.AsSpan().IndexOf(expected);if(start>=0){if(company || bytes.AsSpan(start+1).IndexOf(expected)>=0)throw new InvalidOperationException("Ambiguous isolated company payload.");company=true;}}
+        foreach(var value in new[]{0,1})foreach(var logging in new[]{0,1}){expected[640]=(byte)value;expected[402]=(byte)logging;int start=bytes.AsSpan().IndexOf(expected);if(start>=0){if(company || bytes.AsSpan(start+1).IndexOf(expected)>=0)throw new InvalidOperationException("Ambiguous isolated company payload.");company=true;}}
         if(!company)throw new InvalidOperationException("Client company is not sprk.");
         FindFrameTimingSettings(bytes,out _);
         using var helper=AssemblyDefinition.ReadAssembly(helperPath);using var game=AssemblyDefinition.ReadAssembly(assemblyPath);
@@ -54,9 +54,10 @@ partial class Program {
         var compilation=Microsoft.CodeAnalysis.CSharp.CSharpCompilation.Create("StorageTests-"+Guid.NewGuid().ToString("N"),new[]{Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(Resource("StorageMigration.cs.txt")),Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(Resource("StorageMigrationTests.cs.txt"))},refs,new Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions(Microsoft.CodeAnalysis.OutputKind.DynamicallyLinkedLibrary));
         using var output=new MemoryStream();var emitted=compilation.Emit(output);if(!emitted.Success)throw new InvalidOperationException(string.Join("\n",emitted.Diagnostics));
         System.Reflection.Assembly.Load(output.ToArray()).GetType("StorageMigrationTestRunner")!.GetMethod("Run")!.Invoke(null,null);
-        foreach(var originalFlag in new[]{0,1}) {
-            var original=OriginalPlayerSettings();original[648]=(byte)originalFlag;var isolated=IsolatedPlayerSettings(original);
+        foreach(var originalFlag in new[]{0,1})foreach(var logging in new[]{0,1}) {
+            var original=OriginalPlayerSettings();original[648]=(byte)originalFlag;original[410]=(byte)logging;var isolated=IsolatedPlayerSettings(original);
             int offset=FindFrameTimingSettings(isolated,out bool enabled);if(offset!=640 || enabled!=(originalFlag==1))throw new InvalidOperationException("Isolated timing flag mismatch.");
+            if(isolated[402]!=logging)throw new InvalidOperationException("Storage conversion changed player logging.");
         }
         Console.WriteLine("PASS: one-time storage migration, existing data preservation, preference scope, no future reimport, tombstone recovery, partial failure, concurrency and both timing fingerprints.");
     }

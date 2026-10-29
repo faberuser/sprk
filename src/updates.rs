@@ -46,7 +46,7 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
         .route("/:channel/manifest.json", get(channel_manifest))
         .route("/releases/:release/manifest.json", get(release_manifest))
         .route("/releases/:release/files/*file_path", get(release_file))
-        .route("/models/realesrgan-anime-20220424-v1/:artifact", get(illustration_model))
+        .route("/models/:version/:artifact", get(illustration_model))
         .fallback(|| async { StatusCode::NOT_FOUND })
         .with_state(UpdateStorage(Arc::new(root))))
 }
@@ -56,10 +56,11 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
 // Their expected hash/size/interface are authenticated by the signed client.
 async fn illustration_model(
     State(storage): State<UpdateStorage>,
-    Path(artifact): Path<String>,
+    Path((version, artifact)): Path<(String, String)>,
     request: Request,
 ) -> Result<Response, StatusCode> {
-    if artifact != "model.sprkmodel" && artifact != "metadata.json" {
+    if !matches!(version.as_str(), "realesrgan-anime-20220424-v1" | "remacri-4x-v1")
+        || (artifact != "model.sprkmodel" && artifact != "metadata.json") {
         return Err(StatusCode::NOT_FOUND);
     }
     let root = std::env::var_os("SPRK_ILLUSTRATION_MODELS_DIR")
@@ -68,7 +69,7 @@ async fn illustration_model(
     let root = tokio::fs::canonicalize(root).await.map_err(|_| StatusCode::NOT_FOUND)?;
     serve(
         &UpdateStorage(Arc::new(root)),
-        FsPath::new("realesrgan-anime-20220424-v1").join(artifact),
+        FsPath::new(&version).join(artifact),
         request,
         true,
     ).await
