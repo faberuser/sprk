@@ -358,6 +358,20 @@ async fn authoritative_campaign_requires_credentials_run_binding_and_applies_onc
     );
 }
 #[tokio::test]
+async fn world_boss_honor_ranking_accepts_max_scores_on_multiple_days() {
+    let (s,u)=setup().await;
+    let a=aid(&u);
+    for day in ["2026-10-27","2026-10-28"] {
+        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,?,?,?)")
+            .bind(a).bind(day).bind(i64::MAX).execute(&s.db).await.unwrap();
+    }
+    let v=call(&s,&u,"records_of_honor/get_records_of_honor_ranking_list","ContentType=1&Season=43").await;
+    ok(&v);
+    assert_eq!(v["ServerInfo"][0]["Score"],i64::MAX);
+    assert_eq!(v["MyInfo"][0]["Rank"],1);
+}
+
+#[tokio::test]
 async fn honor_ranking_uses_scores_and_deterministic_ties() {
     let (s, u) = setup().await;
     let a = aid(&u);

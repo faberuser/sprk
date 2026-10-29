@@ -3628,20 +3628,20 @@ async fn world_boss_high_damage_party_settles_and_progresses_once() {
     sqlx::query("UPDATE battle_runs SET started=? WHERE account=?")
         .bind(now()-240).bind(a).execute(&s.db).await.unwrap();
     let end="ChapterIndex=7003&DungeonIndex=1&DungeonDifficulty=0&Completed=false&TotalDamage=0";
-    // Keep malformed/negative and impossible scores rejected without settling
-    // the run, then accept the multi-trillion damage reported by a strong party.
-    for damage in ["-1", "9223372036854775807", "not-a-number"] {
+    // Keep malformed/negative and out-of-range scores rejected without settling
+    // the run, then accept the largest signed 64-bit native damage value.
+    for damage in ["-1", "9223372036854775808", "not-a-number"] {
         let record=json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":damage}]);
         let payload=serde_urlencoded::to_string([("CreatureInfoString",record.to_string())]).unwrap();
         assert_ne!(call(&s,&u,"campaign/end_campaign",&format!("{end}&{payload}")).await["Result"],"Success");
     }
-    let record=json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":"6164131807809"}]);
+    let record=json!([{"Index":"900","Key":"900_0_1","TeamId":"1","GivedDamage":i64::MAX.to_string()}]);
     let payload=serde_urlencoded::to_string([("CreatureInfoString",urlencoding::encode(&record.to_string()).into_owned())]).unwrap();
     let args=format!("{end}&{payload}");
     let result=call(&s,&u,"campaign/end_campaign",&args).await;
     assert_eq!(result["Result"],"Success","{result}");
     // Global scoring retains full damage without exhausting a shared HP pool.
-    let credited=6_164_131_807_809_i64;
+    let credited=i64::MAX;
     assert_eq!(result["WorldBossRankInfo"]["Score"],credited);
     assert_eq!(result["WorldBossInfo"]["TotalDamage"],credited);
     assert!(n(&result["WorldBossInfo"],"MonsterHp0")>0);

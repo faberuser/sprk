@@ -73,7 +73,7 @@ impl History {
             .bind(account).fetch_one(&mut *db).await?;
         out.linked_account = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM credentials c JOIN accounts a ON a.login_id=c.login_id WHERE a.account_id=?)")
             .bind(account).fetch_one(&mut *db).await?;
-        out.world_rank = sqlx::query_scalar("SELECT MIN(place) FROM (SELECT account,ROW_NUMBER() OVER (PARTITION BY boss,season ORDER BY total DESC,account) place FROM (SELECT account,boss,season,SUM(score) total FROM battle_scores WHERE family='world_boss' GROUP BY account,boss,season HAVING SUM(score)>0)) WHERE account=?")
+        out.world_rank = sqlx::query_scalar("SELECT MIN(place) FROM (SELECT account,ROW_NUMBER() OVER (PARTITION BY boss,season ORDER BY total DESC,account) place FROM (SELECT account,boss,season,MAX(score) total FROM battle_scores WHERE family='world_boss' GROUP BY account,boss,season HAVING MAX(score)>0)) WHERE account=?")
             .bind(account).fetch_one(&mut *db).await?;
         Ok(out)
     }
