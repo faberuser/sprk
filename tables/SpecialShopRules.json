@@ -10520,7 +10520,10 @@
       "ProductName": "Crystal of Ascalon",
       "ItemCode": "TECHNOMAGIC_CRYSTAL_ASCALON",
       "ItemIndex": 990003,
-      "ItemCount": 100
+      "ItemCount": 100,
+      "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400
     },
     {
       "Index": 50000301,
@@ -10528,7 +10531,10 @@
       "ProductName": "Crystal of Galgoria",
       "ItemCode": "TECHNOMAGIC_CRYSTAL_GARGORIA",
       "ItemIndex": 990001,
-      "ItemCount": 100
+      "ItemCount": 100,
+      "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400
     },
     {
       "Index": 50000302,
@@ -10536,7 +10542,10 @@
       "ProductName": "Crystal of Siegfried",
       "ItemCode": "TECHNOMAGIC_CRYSTAL_SIEGFRIED",
       "ItemIndex": 990002,
-      "ItemCount": 100
+      "ItemCount": 100,
+      "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400
     },
     {
       "Index": 3094119,

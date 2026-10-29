@@ -66,7 +66,7 @@ async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_it
         assert!(indices.insert(n(product, "Index")));
         assert!(product["ProductType"].is_string());
         assert!(product["PriceType"].is_string());
-        if [3094170, 3094594, 3094595].contains(&n(product, "Index")) {
+        if [3094170, 3094594, 3094595, 50000301, 50000302, 50000303].contains(&n(product, "Index")) {
             assert_eq!(product["Price"], 0);
             assert_eq!(product["Flag"], "Free");
         } else {
@@ -175,8 +175,9 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     let catalog = shop_snapshot(&s, a).await.unwrap();
     let products = catalog["PayShopProductInfos"].as_array().unwrap();
     let free: Vec<_> = products.iter().filter(|p| n(p, "Price") == 0).collect();
-    assert_eq!(free.len(), 3);
-    for (id, item) in [(3094170, 94170), (3094594, 94594), (3094595, 94595)] {
+    assert_eq!(free.len(), 6);
+    for (id, item, amount) in [(3094170, 94170, 1), (3094594, 94594, 1), (3094595, 94595, 1),
+        (50000301, 990001, 100), (50000302, 990002, 100), (50000303, 990003, 100)] {
         let product = free.iter().find(|p| n(p, "Index") == id).unwrap();
         assert_eq!(product["Flag"], "Free");
         assert_eq!(product["PurchasableCount"], 1);
@@ -208,7 +209,7 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
             assert_eq!(persisted["PlayerProductPurchaseInfos"].as_array().unwrap().iter()
                 .find(|p| n(p, "ProductIndex") == id).unwrap()["PurchasedCount"], 1);
             assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=?")
-                .bind(a).bind(item).fetch_one(&s.db).await.unwrap(), expected);
+                .bind(a).bind(item).fetch_one(&s.db).await.unwrap(), expected * amount);
         }
     }
     for currency in ["gold", "gem", "mileage"] {
