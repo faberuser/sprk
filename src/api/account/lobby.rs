@@ -351,6 +351,10 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     if let Some(user)=&mut user_info {
         let mut value=serde_json::to_value(&*user).map_err(|e|ServerError::Internal(e.to_string()))?;
         for key in battle["BattleKeyResults"].as_array().into_iter().flatten(){if let Some(kind)=key["Type"].as_str(){value[kind]=key["NewValue"].clone();}}
+        // World Boss shops read this counter from UserInfo after lobby refresh.
+        value["WorldBossPoint"] = battle["PlayerCurrencyInfos"].as_array().into_iter().flatten()
+            .find(|c| c["CurrencyType"] == "WorldBossPoint").map(|c| c["Amount"].clone())
+            .unwrap_or_else(|| serde_json::json!(0));
         *user=serde_json::from_value(value).map_err(|e|ServerError::Internal(e.to_string()))?;
     }
     battle.as_object_mut().unwrap().remove("DungeonInfos");
