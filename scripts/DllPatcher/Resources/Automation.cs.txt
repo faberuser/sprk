@@ -318,6 +318,91 @@ public sealed class SprkAutomation : MonoBehaviour
                     RestoredPortal.ReadablePerkDescription(popup);
                 }
             }
+            else if(cmd.action=="open-raid-info") {
+                var raids=new List<object>(); NShared.RaidData selected=null;
+                foreach(var type in new[]{NShared.RaidType.DragonNormal,NShared.RaidType.DragonHard,NShared.RaidType.PunishmentRaid,NShared.RaidType.Challenge,NShared.RaidType.KarmaRaid,NShared.RaidType.GuildSuppress,NShared.RaidType.GuildSuppressSingle}) {
+                    System.Collections.Generic.IList<NShared.RaidData> list=null;
+                    try{ list=NShared.GameRoot.Instance.RaidDataContainer.GetRaidDataListByType(type); }catch(Exception){}
+                    if(list==null)continue;
+                    foreach(var raid in list) {
+                        if(raid==null)continue;
+                        string name=null,key=null,typeName=null;
+                        int index=0,level=0;
+                        try{ key=raid.Name; name=NVespa.NGlobal.LocalizationManager.GetStringDirect(key); }catch(Exception){}
+                        try{ index=raid.Index; }catch(Exception){}
+                        try{ level=raid.Level; }catch(Exception){}
+                        try{ typeName=raid.Type.ToString(); }catch(Exception){}
+                        raids.Add(new Dictionary<string,object>{{"index",index},{"level",level},{"type",typeName},{"name",name},{"key",key}});
+                        if(cmd.target>0) { if(index==cmd.target)selected=raid; continue; }
+                        if(String.IsNullOrEmpty(cmd.text))continue;
+                        if(name==null || name.IndexOf(cmd.text,StringComparison.OrdinalIgnoreCase)<0)continue;
+                        if(selected==null || level<selected.Level)selected=raid;
+                    }
+                }
+                if(selected==null) {
+                    // Fall back to the live raid nodes, which carry the same RaidData.
+                    foreach(var node in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.PunishmentRaidComponent>()) {
+                        var data=node.PunishmentRaidData;
+                        if(data==null)continue;
+                        var raid=NShared.GameRoot.Instance.RaidDataContainer.GetData(data.RaidIndex,data.RaidLevel);
+                        if(raid==null)continue;
+                        raids.Add(new Dictionary<string,object>{{"index",raid.Index},{"level",raid.Level},{"type",raid.Type.ToString()},{"name",null},{"key",raid.Name},{"node",node.name}});
+                        if(cmd.target>0) { if(raid.Index==cmd.target)selected=raid; continue; }
+                        if(String.IsNullOrEmpty(cmd.text))continue;
+                        string localized=null;
+                        try{ localized=NVespa.NGlobal.LocalizationManager.GetStringDirect(raid.Name); }catch(Exception){}
+                        if(localized==null || localized.IndexOf(cmd.text,StringComparison.OrdinalIgnoreCase)<0)continue;
+                        if(selected==null || raid.Level<selected.Level)selected=raid;
+                    }
+                }
+                if(selected==null)throw new InvalidOperationException("Raid not found: "+(String.IsNullOrEmpty(cmd.text)?cmd.target.ToString():cmd.text)+" ; available="+String.Join(",",raids.ConvertAll(x=>((Dictionary<string,object>)x)["type"]+":"+((Dictionary<string,object>)x)["index"]).ToArray()));
+                NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.RaidManagement>.instance.OpenRaidInfo(selected);
+                reply.materials.Add(new Dictionary<string,object>{{"kind","openedRaid"},{"index",selected.Index},{"level",selected.Level},{"raids",raids}});
+            }
+            else if(cmd.action=="raid-info-probe") {
+                foreach(var info in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.RaidInfoBase>()) {
+                    var label=info.RaidTacticLabel;
+                    if(label==null)continue;
+                    var values=new Dictionary<string,object>{{"kind","raidInfo"},{"path",Hierarchy(info.transform)},
+                        {"label",Hierarchy(label.transform)},{"textLength",label.text==null?0:label.text.Length},
+                        {"text",label.text}, {"labelPos",label.transform.localPosition},
+                        {"width",label.width},{"height",label.height},{"pivot",label.pivot.ToString()},
+                        {"overflow",label.overflowMethod.ToString()},{"parent",Hierarchy(label.transform.parent)}};
+                    var collider=label.GetComponent<Collider>();
+                    if(collider!=null)values["collider"]=new Dictionary<string,object>{{"x",collider.bounds.size.x},{"y",collider.bounds.size.y}};
+                    var labelDrag=label.GetComponent<UIDragScrollView>();
+                    values["labelDrag"]=labelDrag==null||labelDrag.scrollView==null?null:Hierarchy(labelDrag.scrollView.transform);
+                    var scrolls=new List<object>();
+                    foreach(var scroll in info.GetComponentsInChildren<UIScrollView>(true)) {
+                        var panel=scroll.panel;
+                        var entry=new Dictionary<string,object>{{"path",Hierarchy(scroll.transform)},
+                            {"pos",scroll.transform.localPosition},{"panelDepth",panel==null?-1:panel.depth},
+                            {"clipping",panel==null?"none":panel.clipping.ToString()},
+                            {"canMoveV",scroll.canMoveVertically},
+                            {"disableDragIfFits",scroll.disableDragIfFits},{"movement",scroll.movement.ToString()},
+                            {"contentPivot",scroll.contentPivot.ToString()}};
+                        if(panel!=null) {
+                            entry["baseClip"]=new Dictionary<string,object>{{"x",panel.baseClipRegion.x},{"y",panel.baseClipRegion.y},{"z",panel.baseClipRegion.z},{"w",panel.baseClipRegion.w}};
+                            entry["finalClip"]=new Dictionary<string,object>{{"x",panel.finalClipRegion.x},{"y",panel.finalClipRegion.y},{"z",panel.finalClipRegion.z},{"w",panel.finalClipRegion.w}};
+                            entry["clipOffset"]=new Dictionary<string,object>{{"x",panel.clipOffset.x},{"y",panel.clipOffset.y}};
+                            entry["panelSize"]=new Dictionary<string,object>{{"x",panel.width},{"y",panel.height}};
+                            try{ entry["shouldMoveV"]=scroll.shouldMoveVertically; }catch(Exception){}
+                        }
+                        try{ var bounds=scroll.bounds;
+                            entry["boundsMin"]=new Dictionary<string,object>{{"x",bounds.min.x},{"y",bounds.min.y}};
+                            entry["boundsMax"]=new Dictionary<string,object>{{"x",bounds.max.x},{"y",bounds.max.y}};
+                        }catch(Exception){}
+                        scrolls.Add(entry);
+                    }
+                    values["scrolls"]=scrolls;
+                    var drags=new List<object>();
+                    foreach(var drag in info.GetComponentsInChildren<UIDragScrollView>(true))
+                        drags.Add(new Dictionary<string,object>{{"path",Hierarchy(drag.transform)},
+                            {"target",drag.scrollView==null?null:Hierarchy(drag.scrollView.transform)}});
+                    values["drags"]=drags;
+                    reply.materials.Add(values);
+                }
+            }
             else if(cmd.action!="hero-growth-probe" && cmd.action!="account-form-probe" && cmd.action!="guild-attendance-probe" && cmd.action!="payment-probe" && cmd.action!="lobby-probe" && cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
             reply=Snapshot(cmd.id);
             if(cmd.action=="ui-navigation-probe") {
