@@ -56,6 +56,8 @@ partial class Program
         InstallRaidInfoScroll(clientRoot, false);
         InstallMotionCostumes(clientRoot, false);
         VerifyMotionCostumesFile(clientRoot);
+        InstallArenaPractice(clientRoot, false);
+        InstallArenaPractice(clientRoot, false, true);
         InstallIllustrationZoom(clientRoot, false);
         VerifyIllustrationZoomFile(clientRoot);
         TestIllustrationZoom(clientRoot);
