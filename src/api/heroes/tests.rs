@@ -1343,6 +1343,21 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
     assert_eq!(r.player_book_mark_hero_info["BookMarkHeroIndices"], "2,1");
     assert_eq!(r.hero_preset_storages.len(), 2);
 }
+
+#[tokio::test]
+async fn deleted_preset_gear_keeps_current_equipment_and_other_slots() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let key=s.tables.hero_shop.preset_slots.iter().find(|(_,v)|v["IsPaid"]==false).unwrap().0.clone();
+    let mut tx=s.db.begin().await.unwrap();let mut rewards=crate::api::tutorial::Rewards::default();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:2,star:0,custom:0},&mut rewards).await.unwrap();
+    tx.commit().await.unwrap();let old=rewards.equipment[0].slot_index;let current=rewards.equipment[1].slot_index;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(old).bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(hero::add_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0["Result"],"Success");
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(current).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("DELETE FROM equip_items WHERE slot_index=? AND account_id=?").bind(old).bind(a).execute(&s.db).await.unwrap();
+    let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],current);
+}
 #[tokio::test]
 async fn shop_purchase_limits_reset_and_failed_delivery_does_not_charge() {
     let (mut s, u) = setup().await;

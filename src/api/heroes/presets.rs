@@ -120,14 +120,14 @@ pub(crate) async fn execute(
             }
             "set_hero_storage_slot" => {
                 let row = existing.ok_or_else(|| rule("InvalidHeroStorageKey"))?;
-                let presets: Vec<Value> = serde_json::from_str(&row.get::<String, _>("data"))
+                let mut presets: Vec<Value> = serde_json::from_str(&row.get::<String, _>("data"))
                     .map_err(|_| rule("InvalidHeroStorageKey"))?;
                 if presets.is_empty() {
                     return Err(rule("InvalidHeroStorageKey"));
                 }
                 let mut used = BTreeSet::new();
                 let mut equips = vec![];
-                for p in &presets {
+                for p in &mut presets {
                     let h = hero::info(db, account, n(p, "HeroIndex") as i32).await?;
                     let page = n(p, "ApplySkillPage");
                     if page > 1
@@ -138,16 +138,27 @@ pub(crate) async fn execute(
                     {
                         return Err(rule("InvalidHeroStorageKey"));
                     }
+                    let uids = p["EquipItemUid"].as_array().cloned().unwrap_or_default();
                     let slots = p["EquipItemSlotIndex"]
-                        .as_array()
+                        .as_array_mut()
                         .ok_or_else(|| rule("InvalidHeroStorageKey"))?;
                     if slots.len() != 10 {
                         return Err(rule("EquipSlotDataNotFound"));
                     }
-                    for s in slots {
-                        let slot = s.as_i64().ok_or_else(|| rule("EquipSlotDataNotFound"))?;
+                    for (part, s) in slots.iter_mut().enumerate() {
+                        let mut slot = s.as_i64().ok_or_else(|| rule("EquipSlotDataNotFound"))?;
                         if slot <= 0 {
                             continue;
+                        }
+                        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0)")
+                            .bind(account).bind(slot).fetch_one(&mut *db).await?;
+                        let uid_matches = uids.get(part).and_then(Value::as_str)
+                            .is_none_or(|uid| uid.is_empty() || uid == slot.to_string());
+                        if !exists || !uid_matches {
+                            // Sold, ground, upgraded or stored gear leaves this slot as equipped.
+                            slot = n(&h, &format!("EquipItemSlotIndex{}", part + 1));
+                            *s = json!(slot);
+                            if slot <= 0 { continue; }
                         }
                         if !used.insert(slot) {
                             return Err(rule("EquipSlotDataNotFound"));
