@@ -15,7 +15,7 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
     // PvE DefeatAllEnemy rules instead of Victory's MoreCreatureAlive rules,
     // changing combat state and ending the worker while the replay still fights.
     let mut payload=json!({"RunId":id,"ArenaMatch":true,"MatchUid":uid,"MatchInfo":info,"BossHp":0,"BossIndex":0,"Seed":rand::random::<u32>()%i32::MAX as u32,
-        "Simulation":{"Uid":uid.to_string(),"ChapterIndex":1000,"DungeonIndex":1,"DungeonDifficulty":0,"RepeatCount":1,"RemainCount":1,"AccountInfos":info["AccountInfos"]}});
+        "Simulation":{"Uid":uid.to_string(),"ChapterIndex":info["ChapterIndex"],"DungeonIndex":info["DungeonIndex"],"DungeonDifficulty":0,"RepeatCount":1,"RemainCount":1,"AccountInfos":info["AccountInfos"]}});
     if info["ArenaType"]=="BanPick" {payload["Draft"]=honor::initial(&members);}
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker,master:members[0],room:0,members,payload,
         entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),

@@ -33,7 +33,7 @@ pub(crate) async fn pair(
         accounts[1]["TeamType"] = json!("Right");
         let info = json!({"Uid":uid,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"SeasonIndex":season(s).0,
             "AccountInfos":accounts,"BattleServerAddress":s.conquest.address,"BattleServerPort":s.conquest.port,
-            "ChapterIndex":1000,"DungeonIndex":1,"DungeonDifficulty":"Easy","OnlineGameSpeedRatio":100,"ExtraData":null,"CanCheat":false});
+            "ChapterIndex":1000,"DungeonIndex":if kind==1{2}else{1},"DungeonDifficulty":"Easy","OnlineGameSpeedRatio":100,"ExtraData":null,"CanCheat":false});
         let mut response = Value::Null;
         for (row_id, account_id, saved, enemy) in [(id,a,mine,b),(other_id,b,&other,a)] {
             let mut data = saved.clone();
