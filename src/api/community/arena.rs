@@ -353,9 +353,12 @@ async fn execute_inner(
             out["Rankers"] = json!([{"ServerGroup":"local","Rank":0,"Score":score}]);
         }
         "register_match" => {
-            if int(r, "DuelType")? != 0 {
+            let duel=int(r,"DuelType")?;
+            if !(0..=1).contains(&duel) || (duel==1 && kind!=0) {
                 return Err(rule("ContentsDisabled"));
             }
+            let group=r.number("GroupId",0)?;
+            let invited=if duel==1 {super::duel::opponent(db,a,group).await?} else {0};
             if n(&user(db, a).await?, "TeamLevel") < constant(s, "ArenaOpenTeamLevel", 10) {
                 return Err(rule("ContentsDisabled"));
             }
@@ -381,7 +384,7 @@ async fn execute_inner(
             .await?;
             if let Some(active) = active {
                 let data: Value = parse(&active.get::<String, _>("data"))?;
-                if data["Heroes"] == json!(heroes) && n(&data, "Leader") == leader {
+                if data["Heroes"] == json!(heroes) && n(&data, "Leader") == leader && n(&data,"DuelType")==duel && n(&data,"GroupId")==group {
                     return Ok(data["Register"].clone());
                 }
                 return Err(rule("WaitMore"));
@@ -400,7 +403,7 @@ async fn execute_inner(
             out["DeckInfo"] = if kind==1 {Value::Null} else {
                 json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}})
             };
-            let data = json!({"Kind":kind,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
+            let data = json!({"Kind":kind,"DuelType":duel,"GroupId":group,"InvitedOpponent":invited,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
             sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,'waiting',?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).execute(db).await?;
         }
         "cancel_match" => {
@@ -443,7 +446,7 @@ async fn execute_inner(
             if let Some(matched) = online::pair(db, s, a, id, &data).await? {
                 return Ok(matched);
             }
-            if kind==1 || !flag(r, "PlayOfflineMatch")? {
+            if kind==1 || n(&data,"DuelType")==1 || !flag(r, "PlayOfflineMatch")? {
                 out["Result"] = json!("WaitMore");
                 return Ok(out);
             }
@@ -625,6 +628,13 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
         return Err(rule("InvalidHero"));
     }
     let previous = battle_info_kind(db, s, a,kind).await?;
+    if n(&data,"DuelType")==1 {
+        out["MatchResult"]=json!({"MatchUid":n(&data,"OnlineMatchUid"),"ArenaType":"Normal","Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":0,"NewMatchScore":previous["MatchScore"],"NewTierIndex":previous["TierIndex"],"NewTierRank":previous["Rank"],"NewTotalRank":previous["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"CurrencyResults":[],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?});
+        out["BattleInfo"]=previous;
+        data["End"]=out.clone();data["CompletedAt"]=json!(now());
+        sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?").bind(data.to_string()).bind(id).execute(db).await?;
+        return Ok(out);
+    }
     let delta = if win == 1 {
         settings(s, "ArenaWinScore", 20)
     } else {

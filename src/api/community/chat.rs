@@ -190,6 +190,11 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                                             tracing::debug!(%error, account_id, "Party invitation rejected");
                                             response["Result"] = json!("Fail");
                                         }
+                                    } else if super::duel::supported(protocol) {
+                                        if let Err(error)=super::duel::send(&state,account_id,target,protocol,content).await {
+                                            tracing::debug!(%error,protocol,account_id,"Duel message rejected");
+                                            response["Result"]=json!("Fail");
+                                        }
                                     } else if protocol == "GuildRaidOpen" {
                                         if announce_guild_raid(&state, account_id, &content).await.is_err() {
                                             response["Result"] = json!("Fail");

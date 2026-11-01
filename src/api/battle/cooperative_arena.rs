@@ -150,6 +150,30 @@ mod tests {
         *s.conquest.worker.write().await=Some(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
         (s,users,rx)
     }
+
+    #[tokio::test]
+    async fn friendly_duels_pair_only_the_invited_accounts_and_keep_tickets_and_scores() {
+        let (s,users,_worker)=fixture().await;
+        let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");
+        sqlx::query("INSERT INTO friendly_duels VALUES(123,?,?,'accepted',?)").bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE user_info SET sword=0 WHERE account_id IN (?,?)").bind(a).bind(b).execute(&s.db).await.unwrap();
+        register(&s,&users[2]).await;
+        let entry="ArenaType=Normal&DuelType=Friendly&GroupId=123&HeroIndices=1&LeaderHeroIndex=1";
+        for u in &users[..2] {assert_eq!(call(&s,u,"match/register_match",entry).await["Result"],"Success");}
+        let matched=call(&s,&users[0],"match/wait_match","PlayOfflineMatch=true").await;
+        assert_eq!(matched["Result"],"Success","{matched}");
+        assert_eq!(matched["MatchInfo"]["AccountInfos"][1]["UserInfo"]["AccountId"],b);
+        let uid=number(&matched["MatchInfo"],"Uid");let mut db=s.db.acquire().await.unwrap();
+        online::charge(&mut db,&s,uid).await.unwrap();
+        online::finish(&mut db,&s,uid,a,&json!({"Creatures":[],"TimeMs":1000}),None).await.unwrap();
+        drop(db);
+        for u in &users[..2] {
+            assert_eq!(sword(&s,u).await,0);
+            let result=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
+            assert_eq!(result["MatchResult"]["GainedMatchScore"],0);
+            assert_eq!(result["MatchResult"]["CurrencyResults"],json!([]));
+        }
+    }
     async fn register(s:&AppState,u:&Value) {
         let out=call(s,u,"match/register_match","ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;
         assert_eq!(out["Result"],"Success","{out}");

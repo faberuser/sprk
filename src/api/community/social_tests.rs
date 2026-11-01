@@ -1081,6 +1081,39 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
 struct Socket(BufReader<TcpStream>);
 
 #[tokio::test]
+async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated() {
+    async fn message(socket:&mut Socket,expected:&str)->Value {
+        loop {
+            let (name,value)=socket.read().await;
+            if name=="MessageNot" && matches!(value["Type"].as_str(),Some("Login"|"Logout"|"GuildLogin"|"GuildLogout")) {continue;}
+            if expected=="MessageRes" {assert_eq!(name,expected);}
+            else {assert_eq!(value["Type"],expected);}
+            return value;
+        }
+    }
+    let (state,a,b)=setup().await;
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,1).await;
+    sqlx::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES(?,?,'accepted')")
+        .bind(a.user_info.account_id).bind(b.user_info.account_id).execute(&state.db).await.unwrap();
+    let group=a.user_info.account_id;
+    sa.send("MessageReq",json!({"RequestId":10,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group,"Nick":"FORGED"}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");
+    let notice=message(&mut sb,"RequestDuel").await;
+    let body:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(body["Nick"],a.user_info.nick);
+    sb.send("MessageReq",json!({"RequestId":11,"ReceiverIds":[a.user_info.account_id],"Message":format!("AcceptDuel {}",json!({"GroupId":group}))})).await;
+    assert_eq!(message(&mut sb,"MessageRes").await["Result"],"Success");message(&mut sa,"AcceptDuel").await;
+    assert_eq!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.unwrap(),b.user_info.account_id);
+    sa.send("MessageReq",json!({"RequestId":12,"ReceiverIds":[b.user_info.account_id],"Message":format!("CancelDuel {}",json!({"GroupId":group,"IsReject":false}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"CancelDuel").await;
+    assert!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.is_err());
+    sa.send("MessageReq",json!({"RequestId":13,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"RequestDuel").await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
     let (s, a, b) = setup().await;
     sqlx::query("UPDATE heroes SET level=37 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
