@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
+            if (args.Contains("--verify-friendly-duel-menu")) { InstallFriendlyDuelMenu(args[0], true); return; }
             if (args.Contains("--godking-recharge-prompt-only")) { InstallGodkingRechargePrompt(args[0], false); return; }
             if (args.Contains("--verify-godking-recharge-prompt")) { InstallGodkingRechargePrompt(args[0], true); return; }
             if (args.Contains("--solo-retry-only")) { InstallSoloRetry(args[0], args.Contains("--stage-only")); return; }

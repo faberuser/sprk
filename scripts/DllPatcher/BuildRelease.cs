@@ -126,10 +126,14 @@ partial class Program
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallSoloRetry(clientRoot, false);
         InstallSoloRetry(clientRoot, false, true);
-        InstallRaidCoopLimits(clientRoot, false);
-        InstallRaidCoopLimits(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
+        InstallFriendlyDuelMenu(clientRoot, false);
+        InstallFriendlyDuelMenu(clientRoot, true);
+        // Raid table validation loads the game assembly into this process and
+        // keeps it locked on Windows. Finish all DLL replacements first.
+        InstallRaidCoopLimits(clientRoot, false);
+        InstallRaidCoopLimits(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }
