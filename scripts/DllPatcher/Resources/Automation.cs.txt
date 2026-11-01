@@ -181,6 +181,26 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
                 ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
             }
+            if(cmd.action=="friend-duel-menu-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Friend menu fixture requires isolated Login");
+                var prefab=VespaResource.Load<GameObject>("Resources/Prefab2/Window/MessagePopup/InspectUserMenuPopup");
+                if(prefab==null)throw new Exception("Friend menu prefab missing");
+                var parent=new GameObject("FriendDuelFixture");parent.SetActive(false);
+                var go=UnityEngine.Object.Instantiate(prefab,parent.transform,false);
+                var menu=go.GetComponent<NGame2.NUI.NWindow.InspectUserMenuPopup>();
+                if(menu==null || menu.DuelButton==null)throw new Exception("Native friend menu has no Duel button binding");
+                var show=menu.GetType().GetMethod("SprkSetDuelButtonVisible");
+                if(show==null)throw new Exception("Friend menu visibility patch missing");
+                show.Invoke(menu,new object[]{true});
+                NGame2.NUI.UIHelper.EnableButton(menu.DuelButton,false,true,false);
+                if(!menu.DuelButton.gameObject.activeSelf || menu.DuelButton.isEnabled)throw new Exception("Unavailable friend duel must remain visible and disabled");
+                NGame2.NUI.UIHelper.EnableButton(menu.DuelButton,true,true,false);
+                if(!menu.DuelButton.gameObject.activeSelf || !menu.DuelButton.isEnabled)throw new Exception("Available friend duel must be visible and enabled");
+                show.Invoke(menu,new object[]{false});
+                if(menu.DuelButton.gameObject.activeSelf)throw new Exception("Nonfriend duel must remain hidden");
+                UnityEngine.Object.Destroy(parent);
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
+            }
             if(cmd.action=="tower-continuous-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");
                 busy=true;StartCoroutine(ProbeTowerContinuous(cmd));return;
