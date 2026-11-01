@@ -1,5 +1,36 @@
 # SPRK development instructions
 
+## Shell and efficient DLL inspection
+
+- On Windows, prefer Git Bash when available for routine repository navigation,
+  `git`, `rg`, and text inspection. Discover Git Bash from the local Git for
+  Windows installation and verify the executable; bare `bash` may resolve to
+  the Windows/WSL launcher. On Linux/macOS, use the available native shell.
+  Start Bash without profiles where possible
+  (`--noprofile --norc`) to avoid prompt noise. If the command tool cannot select
+  Git Bash directly, invoke that executable from PowerShell; for complex commands,
+  pipe a literal here-string to `bash.exe --noprofile --norc -s` to avoid nested
+  quoting and unintended PowerShell expansion.
+- Use repository-relative paths where possible. Discover client/reference-data
+  locations from the current workspace, configuration, or user-provided paths;
+  do not assume a drive letter or checkout location. Use `cygpath` when path
+  conversion is needed and quote paths containing spaces or apostrophes.
+  When invoking native Windows tools, use the path format they expect; Git Bash
+  is not a Linux environment. Fall back to PowerShell when path conversion or
+  native-tool compatibility makes it simpler.
+- Use PowerShell for existing `.ps1` workflows, Windows services/process APIs,
+  and Windows-specific administration. For deletion or moving files on Windows,
+  use native PowerShell cmdlets with `-LiteralPath`; verify resolved targets
+  before recursive operations. Keep each file operation within one shell.
+- Reduce tool output: search scoped paths with `rg`, list candidate files before
+  reading them, and return relevant line ranges or matches. Avoid repeated full
+  file dumps and broad recursive scans of client assets.
+- Inspect managed DLLs with the repository's disassembly/patch tooling or an
+  appropriate .NET decompiler. Target the needed types/methods; do not dump raw
+  DLL bytes or entire assemblies into chat. Reuse local disassembly/decompilation
+  output when helpful, checking the source DLL hash to avoid stale results and
+  keeping generated output out of tracked source unless intentionally required.
+
 ## Reproducible client changes and CI deployment
 
 Follow [GitHub client releases](docs/github-client-updates.md) for CI inputs,
