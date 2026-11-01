@@ -2169,6 +2169,32 @@ async fn ordeal_victory_keeps_fallen_heroes_revivable_with_paid_rubies() {
 }
 
 #[tokio::test]
+async fn ordeal_requires_revival_of_each_dead_party_member_before_battle_entry() {
+    let (s,u)=setup().await;let a=account(&u);
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,100,5)")
+        .bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await["Result"],"Success");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let mut db=s.db.acquire().await.unwrap();let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ClearNodeIndices"]=json!(s.tables.battle.rows("OrdealArenaNode").iter()
+        .filter(|v|n(v,"Floor")<n(node,"Floor")).map(|v|n(v,"Index")).collect::<Vec<_>>());
+    info["DeadHeroIndices"]=json!([1,2]);put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=60 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let enter=format!("NodeIndex={}&HeroIndices=[1,2]",n(node,"Index"));
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+    let first=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await;
+    assert_eq!(first["Result"],"Success","{first}");assert_eq!(first["DeadHeroIndices"],json!([2]));
+    assert_eq!(first["CurrencyResults"][0]["AddValue"],-30);
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+    let second=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=2").await;
+    assert_eq!(second["Result"],"Success","{second}");assert_eq!(second["DeadHeroIndices"],json!([]));
+    assert_eq!(second["CurrencyResults"][0]["AddValue"],-30);
+    assert_eq!(call(&s,&u,"ordeal_arena/ordeal_info","").await["DeadHeroIndices"],json!([]));
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pay_gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+}
+
+#[tokio::test]
 async fn ordeal_native_escaped_result_records_victory_and_failed_runs_can_restart() {
     let (s,u)=setup().await;let a=account(&u);
     assert_eq!(call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await["Result"],"Success");

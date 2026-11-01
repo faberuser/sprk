@@ -201,6 +201,32 @@ public sealed class SprkAutomation : MonoBehaviour
                 UnityEngine.Object.Destroy(parent);
                 reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
             }
+            if(cmd.action=="ordeal-revival-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ordeals revival fixture requires isolated Login");
+                NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+                var manager=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NOrdeal.OrdealArenaManager>.instance;
+                var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance;
+                var info=manager.GetType().GetField("_infoManager",flags).GetValue(manager);
+                var setDead=info.GetType().GetMethod("SetDeadHeroIndices",flags);
+                var original=manager.GetDeadHeroInidices();
+                var prefab=VespaResource.Load<GameObject>("Resources/"+NGame2.NUI.NComponent2.HeroPortraitComponent.PrefabPath);
+                if(prefab==null)throw new Exception("Hero portrait prefab missing");
+                var host=new GameObject("OrdealRevivalFixture");host.SetActive(false);
+                var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+                var portrait=go.GetComponent<NGame2.NUI.NComponent2.HeroPortraitComponent>();
+                portrait.GetType().GetField("<HeroInfo>k__BackingField",flags).SetValue(portrait,new NShared.CachedHeroInfo{HeroIndex=1});
+                var sync=typeof(NGame2.NOrdeal.OrdealHelper).GetMethod("SprkSyncDeadPortrait");
+                if(sync==null)throw new Exception("Ordeal death-state synchronization missing");
+                try {
+                    setDead.Invoke(info,new object[]{new int[]{1}});
+                    if(portrait.IsDead)throw new Exception("Fixture must start with an unmarked portrait");
+                    if(!(bool)sync.Invoke(null,new object[]{portrait}) || !portrait.IsDead)throw new Exception("Unmarked dead hero bypasses revival");
+                    if(NGame2.NOrdeal.OrdealHelper.GetResurrectionHeroGemCount()!=30)throw new Exception("Revival price differs from archived 30 Rubies");
+                    setDead.Invoke(info,new object[]{new int[0]});
+                    if((bool)sync.Invoke(null,new object[]{portrait}) || portrait.IsDead)throw new Exception("Revived hero remains marked dead");
+                } finally {setDead.Invoke(info,new object[]{original});UnityEngine.Object.Destroy(host);}
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual portrait catches stale-alive state, enters native 30-Ruby revival branch, and clears after successful revival.");Write(reply);return;
+            }
             if(cmd.action=="tower-continuous-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");
                 busy=true;StartCoroutine(ProbeTowerContinuous(cmd));return;

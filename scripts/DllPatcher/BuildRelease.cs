@@ -132,6 +132,7 @@ partial class Program
         InstallGodkingRechargePrompt(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
+        VerifyOrdealUnlockFile(clientRoot, false);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);
