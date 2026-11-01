@@ -18,10 +18,6 @@ public sealed class SprkAccounts : MonoBehaviour {
     public static CachedHeroInfo CreateLobbyAvatarHeroInfo(CachedHeroInfo hero, PlayerAvatarHeroInfo avatar) {
         var copy=hero.CreatePlayerAvatarHeroInfo(avatar);
         if(copy==null)return null;
-        // The portrait's body costume stays independent; lobby accessories follow
-        // the hero's equipped items and their current position, rotation and scale.
-        foreach(var part in AccessoryPartTypeHelper.PartTypes())
-            copy.SetAccessoryCostume(part,hero.GetAccessoryIndex(part),hero.GetAccessoryPositionInfo(part)??PositionInfo.Create());
         return copy;
     }
     public static bool ShouldRefreshLobbyAccessories(NGame2.NAccount.UserHeroManager.ChangeHeroInfo change) {

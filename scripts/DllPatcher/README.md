@@ -341,11 +341,11 @@ Tests execute reconciliation against native stock structures and simulated
 creature interfaces for basic and costume weapons, missing instances, changed
 accessories, unequips, stable no-ops, readiness and A-B-A account switching.
 
-Lobby hero snapshots use the current manager's hero and owned accessories, reject
-a portrait snapshot carrying another account ID, and clone accessory transforms
-so previews cannot share mutable positions with the live hero. Portrait body
-costumes retain their independent native behavior. Story-forced avatars and
-unrelated hero notifications retain their existing exclusions.
+Lobby appearances use the saved `PlayerAvatarHeroInfo` selection, including its
+costume, hair, weapon and accessories. Equipping different hero cosmetics leaves
+that selection intact. The profile icon and portrait use the selected avatar
+index. Account isolation, readiness checks, accessory instance repair and cloned
+transforms remain in place. Story-forced avatars retain their native behavior.
 
 Closed CreatureLoad completion callbacks must return before accessing released
 OpenData. Existing guards are retained; the patch adds the same guard if missing

@@ -96,7 +96,7 @@ partial class Program {
         var calls=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().ToArray();
         foreach(var name in new[]{"get_IsDone","get_IsValid","ChangeCustomizeStock","Clone","TryAssignCustomizeStock","GetCreatureOpenData","GetStock","GetCutomizeItemInstance","Observe","IsAppearanceChange","Invoke"})if(!calls.Any(r=>r.Name==name))throw new Exception("Missing lobby safeguard "+name);
         var create=helper.MainModule.GetType("SprkLobbyAvatar").Methods.Single(m=>m.Name=="Create");
-        if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="CreatePlayerAvatarHeroInfo" && i.Previous.OpCode==OpCodes.Ldnull))throw new Exception("Lobby appearance still uses a saved costume snapshot");
+        if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="CreatePlayerAvatarHeroInfo" && i.Previous.OpCode==OpCodes.Ldarg_1))throw new Exception("Lobby appearance must use the selected costume snapshot");
         var matches=helper.MainModule.GetType("SprkLobbyAccessoryLease").Methods.Single(m=>m.Name=="Matches");
         if(!matches.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ceq || i.Operand is MethodReference r && r.Name=="ReferenceEquals"))throw new Exception("Lobby refresh must compare owner identity");
         if(calls.Any(r=>r.Name=="ReleaseRenderFacade" || r.Name=="CreateRenderFacade"))throw new Exception("Accessory refresh must retain the live hero body");
@@ -257,12 +257,12 @@ partial class Program {
         Set("HeroIndex",72);Set("Star",(sbyte)5);
         foreach(var (costume,expected) in new[]{(7280,17280),(7210,17210),(0,725),(7280,17280)}) {
             Set("CostumeIndex",costume);
-            if(Profile(hero,17201)!=expected)throw new Exception("Profile kept the selected costume snapshot after equip/unequip");
+            if(Profile(hero,17201)!=17201)throw new Exception("Equipped costume changed the selected profile portrait");
         }
         Set("HeroIndex",111);Set("CostumeIndex",11106);
-        if(Profile(hero,17201)!=21106)throw new Exception("New account/selected hero did not replace the profile portrait");
+        if(Profile(hero,17201)!=17201)throw new Exception("Live hero replaced the selected profile portrait");
         if(Profile(null,17201)!=17201)throw new Exception("Unloaded hero lost the native profile fallback");
-        Console.WriteLine("PASS: own-profile icon/portrait follows ordinary and Light costume equip/unequip, hero/account replacement and unloaded-hero fallback.");
+        Console.WriteLine("PASS: selected profile icon/portrait survives ordinary and Light costume equip/unequip and live hero replacement.");
         Console.WriteLine("PASS: live body/hair/basic and costume weapon changes, weapon visibility, accessory equip/unequip and all seven transform edits; snapshot isolation, stable no-op and selected-hero notification scope.");
     }
     static void InstallLobbyAvatarStability(string root,bool stageOnly) {
