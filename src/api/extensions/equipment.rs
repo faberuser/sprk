@@ -612,6 +612,9 @@ async fn renew(
         return Err(rule("InvalidOptionSlotIndex"));
     }
     let data = meta(state, eq.item_index)?;
+    if skill && slot==2 && n(data,"EquipType")==1 {
+        return Err(rule("InvalidOptionSlotIndex"));
+    }
     let detail = row(
         state,
         "EquipItemDetail",

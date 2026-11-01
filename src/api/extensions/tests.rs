@@ -70,6 +70,24 @@ async fn public_awakening_stones_obey_equipment_type() {
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
 }
 #[tokio::test]
+async fn technomagic_migration_preserves_first_skill_in_inventory_and_storage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let data=s.tables.extensions.rows("EquipItem").iter().find(|v|n(v,"EquipType")==1 && n(v,"EquipGrade")==1).unwrap();
+    let id=n(data,"ItemIndex") as i32;
+    for storage in [0,1] {
+        let eq=give(&s,a,id,1).await.equipment.remove(0);
+        sqlx::query("UPDATE equip_items SET extra_option_index_1=123,extra_option_step_1=4,extra_option_index_2=456,extra_option_step_2=7,inventory_type=? WHERE slot_index=?")
+            .bind(storage).bind(eq.slot_index).execute(&s.db).await.unwrap();
+    }
+    for _ in 0..2 {schema::migrate_technomagic(&s.db,&s.tables).await.unwrap();}
+    let rows:Vec<(i64,i64,i64,i64)>=sqlx::query_as("SELECT extra_option_index_1,extra_option_step_1,extra_option_index_2,extra_option_step_2 FROM equip_items WHERE item_index=? AND account_id=?")
+        .bind(id).bind(a).fetch_all(&s.db).await.unwrap();
+    assert_eq!(rows,vec![(123,4,0,0);2]);
+    let mut eq=EquipItemInfo::default();
+    valance::unique_options(&s,data,&mut eq).unwrap();
+    assert!(eq.extra_option_index_1>0);assert_eq!(eq.extra_option_index_2,0);
+}
+#[tokio::test]
 async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     let (mut s, u) = setup().await;
     assert_eq!(u.misc_info.as_ref().unwrap().extra["RestoreSoulStoneIndices"], "");
