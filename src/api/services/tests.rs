@@ -36,6 +36,20 @@ fn ok(v: &Value) {
     assert_eq!(v["Result"], "Success", "{v}");
 }
 #[tokio::test]
+async fn godking_recharge_accepts_free_paid_and_large_ruby_balances() {
+    let (s,u)=setup().await;let a=aid(&u);
+    for (free,paid) in [(1000_i64,0_i64),(0,1000),(3_000_000_000,0),(500,500)] {
+        sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=?").bind(free).bind(paid).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='stamina_recharges'").bind(a).execute(&s.db).await.unwrap();
+        crate::api::battle::put(&mut s.db.acquire().await.unwrap(),a,"key",21,&json!({"Count":0,"Day":chrono::Utc::now().format("%Y-%m-%d").to_string()})).await.unwrap();
+        let out=call(&s,&u,"user/recharge_stamina","StaminaType=GodkingTrialKey").await;
+        ok(&out);
+        assert_eq!(out["CurrencyResult"]["AddValue"],-1000);
+        assert_eq!(out["StaminaResult"]["NewValue"],1);
+    }
+}
+
+#[tokio::test]
 async fn arena_history_is_available_to_both_players_in_each_native_category() {
     let (s,u)=setup().await;let a=aid(&u);
     let other=json!(user::test_login(State(s.clone()),Bytes::from("LoginId=history-opponent")).await.unwrap().0);let b=aid(&other);
