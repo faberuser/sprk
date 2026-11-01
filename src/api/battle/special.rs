@@ -309,7 +309,7 @@ async fn ordeal(
                 return Err(rule("NotAvailableNodeIndex"));
             }
             if info["Selected"] != true
-                || n(&info, "ActiveNode") != 0
+                || ![0,id].contains(&n(&info, "ActiveNode"))
                 || !info["SelectableBuffIndices"].as_array().unwrap().is_empty()
             {
                 return Err(rule("NotAvailableNodeIndex"));
@@ -386,7 +386,14 @@ async fn ordeal(
                 let fallen = if r.text("CreatureInfoString").is_empty() {
                     if won {vec![]} else {heroes.clone()}
                 } else {
-                    let creatures:Vec<Value>=read_json(r.text("CreatureInfoString"))?;
+                    // Unity EscapeURL-encodes this JSON before the form encoder
+                    // adds its own layer, as in native raid result requests.
+                    let raw=r.text("CreatureInfoString");
+                    let creatures:Vec<Value>=serde_json::from_str(raw).or_else(|_| {
+                        let decoded=urlencoding::decode(raw)
+                            .map_err(<serde_json::Error as serde::de::Error>::custom)?;
+                        serde_json::from_str(&decoded)
+                    }).map_err(|_|rule("NotAvailableHero"))?;
                     if creatures.len()>512 {return Err(rule("NotAvailableHero"));}
                     let mut seen=BTreeSet::new();let mut fallen=vec![];
                     let number=|v:&Value,key:&str|v[key].as_i64().or_else(||v[key].as_str().and_then(|v|v.parse().ok()));

@@ -2169,6 +2169,34 @@ async fn ordeal_victory_keeps_fallen_heroes_revivable_with_paid_rubies() {
 }
 
 #[tokio::test]
+async fn ordeal_native_escaped_result_records_victory_and_failed_runs_can_restart() {
+    let (s,u)=setup().await;let a=account(&u);
+    assert_eq!(call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await["Result"],"Success");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let id=n(node,"Index");let mut db=s.db.acquire().await.unwrap();
+    let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ClearNodeIndices"]=json!(s.tables.battle.rows("OrdealArenaNode").iter()
+        .filter(|v|n(v,"Floor")<n(node,"Floor")).map(|v|n(v,"Index")).collect::<Vec<_>>());
+    info["ActiveNode"]=json!(id);info["ActiveHeroes"]=json!([1]);info["Started"]=json!(now()-30);
+    let score=n(&info,"MatchScore");put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    // Reopening the same uncleared stage recovers a prior failed result; other
+    // active stages remain blocked, and no completion/rewards are fabricated.
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&format!("NodeIndex={id}&HeroIndices=[1]")).await["Result"],"Success");
+    let args=format!("NodeIndex={id}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1]&Completed=true",n(node,"ChapterIndex"),n(node,"DungeonIndex"));
+    let malformed=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("{args}&CreatureInfoString=invalid")).await;
+    assert_ne!(malformed["Result"],"Success");
+    let creatures=json!([{"TeamId":"0","Index":"1","Hp":"3000000000","MaxHp":"4000000000"},
+        {"TeamId":"1","Index":"1","Hp":"0","MaxHp":"100"}]);
+    let wire=serde_urlencoded::to_string([("CreatureInfoString",urlencoding::encode(&creatures.to_string()).into_owned())]).unwrap();
+    let out=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("{args}&{wire}")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert!(out["ClearNodeIndices"].as_array().unwrap().contains(&json!(id)));
+    assert_eq!(out["MatchScore"],score+100);
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"ordeal",0).await.unwrap()["ActiveNode"],0);
+    assert_ne!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&format!("NodeIndex={id}&HeroIndices=[1]")).await["Result"],"Success");
+}
+
+#[tokio::test]
 async fn tower_sweep_consumes_tickets_and_grants_repeat_rewards() {
     let (s, u) = setup().await;
     let entry="ChapterIndex=5001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&TowerIndex=21&TowerFloor=1";
