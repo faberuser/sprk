@@ -27,6 +27,7 @@ DEFAULT_INCLUDES = [
     "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit",
     "King's Raid_Data/Documents/Patch/StandaloneWindows/Video",
 ]
+OVERRIDE_ROOT = Path(__file__).resolve().parents[2] / "client-overrides/files"
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -68,6 +69,24 @@ def collect_files(client: Path, includes: list[str]) -> list[Path]:
     if not selected:
         raise ValueError("No client files were selected")
     return sorted(selected)
+
+
+def complete_snapshot_includes(client: Path, includes: list[str]) -> list[str]:
+    selected = list(includes)
+    if not set(DEFAULT_INCLUDES).issubset(selected):
+        return selected
+    # Restored models and other installed overrides are release inputs just as
+    # they are in the isolated CI builder. Publish the installed bytes; do not
+    # silently substitute repository files for an unpatched local installation.
+    for source in sorted(OVERRIDE_ROOT.rglob("*")):
+        if not source.is_file():
+            continue
+        relative = safe_path(source.relative_to(OVERRIDE_ROOT).as_posix())
+        if (client / relative).is_file() and not any(
+            relative == path or relative.startswith(path + "/") for path in selected
+        ):
+            selected.append(relative)
+    return selected
 
 
 def copy_and_hash(source: Path, destination: Path) -> tuple[int, str]:
@@ -126,7 +145,7 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     privacy = json.loads(privacy_path.read_text(encoding="utf-8")) if privacy_path.exists() else {}
     if privacy and privacy.get("schema_version") != 1:
         raise ValueError("Unsupported client privacy policy schema")
-    selected = list(includes)
+    selected = complete_snapshot_includes(client, includes)
     # Native table migrations update their integrity metadata alongside the JIT
     # files. Keep it in subsequent releases too, even when using default includes.
     for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json", "SPRK-NativeLocalization.json"):
