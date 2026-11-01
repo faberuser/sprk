@@ -120,6 +120,11 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            if matches!(action,"exec_equip_gacha"|"exec_pet_gacha") {
+                tracing::warn!(path,account=a,gacha=r.number("GachaIndex",0).unwrap_or(0),
+                    category=r.number("HighGachaCategory",0).unwrap_or(0),
+                    free=flag(&r,"Free").unwrap_or(false),reason=%code,"Summon request rejected");
+            }
             let allowed = contract["Results"]
                 .as_array()
                 .is_some_and(|v| v.contains(&json!(code)));

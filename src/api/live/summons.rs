@@ -87,6 +87,14 @@ async fn settle_gauge(
 fn free(d: &Value, v: &Value) -> Value {
     json!({"GachaIndex":d["Index"],"LastGachaTime":if n(v,"LastFree")>0{json!(time(n(v,"LastFree")))}else{Value::Null},"LastGachaResetTime":time(day()*86400),"RemainDayGachaChance":(n(d,"DailyMaxFree")-n(v,"DailyFree")).max(0),"ResetRemainTime":((day()+1)*86400-now()).max(0)})
 }
+fn free_available(d: &Value, v: &Value, at: i64) -> bool {
+    let maximum=n(d,"DailyMaxFree");
+    if maximum<=n(v,"DailyFree") { return false; }
+    // UserFreeEquipGachaManager.GetNextGachaFreeTime treats one-per-day
+    // banners as calendar resets. Their 86400 table value is not an extra
+    // rolling cooldown after the daily allowance has already reset.
+    maximum==1 || n(v,"LastFree")+n(d,"FreeCoolTime")<=at
+}
 fn info(d: &Value, cfg: &Value) -> Value {
     json!({"GachaIndex":d["Index"],"BeginTime":time(n(cfg,"Begin")),"EndTime":time(if n(cfg,"End")>0{n(cfg,"End")}else{4102444800}),"OnSale":true,"Discount":n(cfg,"Discount"),"Durational":n(d,"Durational"),"SaleResetTime":time((day()+1)*86400),"ProgressResetTime":time(4102444800),"IsUTCBeginTime":1,"IsUTCEndTime":1,"IsUTCProgressResetTime":1,"RemainNumberOfDiscount":0})
 }
@@ -241,10 +249,10 @@ pub(super) async fn execute(
             None
         };
         if is_free {
-            if n(d, "DailyMaxFree") <= n(&v, "DailyFree")
-                || n(&v, "LastFree") + n(d, "FreeCoolTime") > now()
-            {
-                return Err(rule("NotFreeTime"));
+            if !free_available(d,&v,now()) {
+                // This is the native result code; NotFreeTime is unsupported
+                // and was converted to Fail/the generic network error.
+                return Err(rule("NotDailyEnded"));
             }
             v["DailyFree"] = json!(n(&v, "DailyFree") + 1);
             v["LastFree"] = json!(now());
@@ -412,4 +420,21 @@ pub(super) async fn execute(
         .cloned()
         .unwrap_or(Value::Null);
     Ok(out)
+}
+
+#[cfg(test)]
+mod free_tests {
+    use super::*;
+    #[test]
+    fn single_daily_banner_uses_calendar_allowance_while_other_cooldowns_remain_enforced() {
+        let at=1793502000;
+        let daily=json!({"DailyMaxFree":1,"FreeCoolTime":86400});
+        assert!(free_available(&daily,&json!({"DailyFree":0,"LastFree":1793478773}),at));
+        assert!(!free_available(&daily,&json!({"DailyFree":1,"LastFree":0}),at));
+        let multiple=json!({"DailyMaxFree":2,"FreeCoolTime":3600});
+        assert!(!free_available(&multiple,&json!({"DailyFree":1,"LastFree":at-1}),at));
+        assert!(free_available(&multiple,&json!({"DailyFree":1,"LastFree":at-3600}),at));
+        assert!(!free_available(&multiple,&json!({"DailyFree":2,"LastFree":0}),at));
+        assert!(!free_available(&json!({"DailyMaxFree":0}),&json!({"DailyFree":0}),at));
+    }
 }

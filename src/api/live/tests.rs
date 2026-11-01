@@ -450,6 +450,32 @@ async fn free_ticket_and_currency_summons_are_atomic() {
     .await);
     assert_eq!(balance(&s, &u, "gold").await, gold - 100000);
 }
+
+#[tokio::test]
+async fn daily_single_summon_resets_at_midnight_for_every_class_and_shares_one_allowance() {
+    let (s,u)=setup().await;let a=account(&u);
+    let baseline_gold=balance(&s,&u,"gold").await;let baseline_gem=balance(&s,&u,"gem").await;
+    for category in ["None","Warrior","Archer","Knight","Wizard","Priest","Assassin","Mechanic","NewHero","All"] {
+        // Delraz's record: a used daily allowance on the previous day, with a
+        // LastFree less than 24 hours ago. Preserve cumulative summon progress.
+        let saved=json!({"GachaIndex":3,"GachaCount":2,"DailyFree":1,"Day":day()-1,"LastFree":day()*86400-1,"Step":1,"Claimed":0,"CompletedCount":0,"CompletedStep":0,"IsTakeLastReward":false});
+        put(&mut s.db.acquire().await.unwrap(),a,"summon",3,&saved).await.unwrap();
+        let info=call(&s,&u,"equip_gacha/get_free_equip_gacha_info","").await;
+        let free=info["freeEquipGachaInfos"].as_array().unwrap().iter().find(|v|v["GachaIndex"]==3).unwrap();
+        assert_eq!(free["RemainDayGachaChance"],1);
+        let drawn=call(&s,&u,"equip_gacha/exec_equip_gacha",&format!("GachaIndex=3&Free=true&HighGachaCategory={category}")).await;
+        ok(&drawn);
+        assert_eq!(drawn["GachaInfo"]["RemainDayGachaChance"],0);
+        assert_eq!(drawn["GachaItemResults"].as_array().unwrap().len(),1);
+        let after=get(&mut s.db.acquire().await.unwrap(),a,"summon",3).await.unwrap();
+        assert_eq!(after["GachaCount"],3);assert_eq!(after["DailyFree"],1);
+        let rejected=call(&s,&u,"equip_gacha/exec_equip_gacha","GachaIndex=3&Free=true&HighGachaCategory=All").await;
+        assert_eq!(rejected["Result"],"NotDailyEnded","{rejected}");
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"summon",3).await.unwrap(),after);
+        assert_eq!(balance(&s,&u,"gold").await,baseline_gold);
+        assert_eq!(balance(&s,&u,"gem").await,baseline_gem);
+    }
+}
 #[tokio::test]
 async fn ceiling_is_claimed_once_and_pet_summons_create_owned_pets() {
     let (mut s, u) = setup().await;
