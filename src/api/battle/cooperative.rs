@@ -41,6 +41,7 @@ struct Run {
     id:String,worker:String,master:i64,room:i64,members:Vec<i64>,payload:Value,
     entered:BTreeSet<i64>,ready:BTreeSet<i64>,sent:BTreeSet<i64>,
     departed:BTreeSet<i64>,offline:BTreeSet<i64>,cancelled:BTreeSet<i64>,
+    disconnect_cutoffs:std::collections::BTreeMap<i64,(i64,usize)>,
     logs:Vec<Packet>,pending_actions:Vec<Value>,result:Option<Value>,started:bool,wave_started:bool,prepared:bool,created:i64,time_ms:i64,
 }
 impl BattleHub {
@@ -196,7 +197,7 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
     room["Status"]=json!(2);room["ConquestRunId"]=json!(id);
     sqlx::query("UPDATE battle_rooms SET data=?,updated=? WHERE id=?").bind(room.to_string()).bind(now()).bind(room_id).execute(&mut *db).await?;
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker:worker_id,master,room:room_id,members,payload,
-        entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
+        entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),disconnect_cutoffs:Default::default(),logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
     Ok(result)
 }
 fn ensure_ban(s:&AppState,ban:i64,hero:i64)->Result<()> {
@@ -352,6 +353,13 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
     } else if account>0 {
         s.conquest.peers.remove_if(&account,|_,v|v.id==connection_id);
         if let Some(id)=battle_run {
+            if let Some(handle)=s.conquest.runs.get(&id).map(|v|v.value().clone()) {
+                let mut run=handle.lock().await;
+                if run.payload["ArenaMatch"]==true && run.result.is_none() && !s.conquest.peers.contains_key(&account) {
+                    let cutoff=(run.time_ms,run.logs.len());
+                    run.disconnect_cutoffs.insert(account,cutoff);
+                }
+            }
             let s=s.clone();tokio::spawn(async move {
                 // Permit a brief transport reconnect, then release abandoned
                 // entries instead of blocking the next party for 2–20 minutes.
@@ -388,6 +396,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             for (name,body) in &run.logs {tx.send((name.clone(),body.clone())).await.map_err(|_|rule("InvalidValue"))?;}
             run.entered.insert(a);
             run.offline.remove(&a);
+            run.disconnect_cutoffs.remove(&a);
             prepare_wave(s,&mut run).await?;
             start_wave(s,&mut run).await?;
             if run.payload["ArenaMatch"]==true {

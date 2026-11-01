@@ -19,7 +19,7 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
     if info["ArenaType"]=="BanPick" {payload["Draft"]=honor::initial(&members);}
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker,master:members[0],room:0,members,payload,
         entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),
-        logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
+        disconnect_cutoffs:Default::default(),logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
 }
 
 pub(super) async fn charge(s:&AppState,run:&Run)->Result<()> {
@@ -58,13 +58,7 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
         return cancel(s,run).await;
     }
     online::finish(&mut db,s,uid,winner,body,give_up).await?;
-    let friendly:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.DuelType')=1)")
-        .bind(uid).fetch_one(&mut *db).await?;
-    if let Some(accounts)=run.payload["Simulation"]["AccountInfos"].as_array().filter(|_|!friendly) {
-        crate::api::services::records::arena_history(&mut db,s,run.master,
-            if run.payload["MatchInfo"]["ArenaType"]=="BanPick"{1}else{0},accounts,&run.members,
-            winner==run.members[0],number(body,"TimeMs"),body["ReplayLogs"].as_str().unwrap_or("")).await?;
-    }
+    save_history(&mut db,s,run,winner,body,give_up.is_some()).await?;
     db.commit().await?;
     run.result=Some(json!({"WinnerAccountId":winner,"Creatures":body["Creatures"],"GiveUp":give_up.is_some()}));
     // ArenaContext waits for the replay to finish after BattleResultNot. Do
@@ -74,6 +68,56 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
     run.sent.extend(delivered);
     if give_up.is_some() {
         let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;
+    }
+    Ok(())
+}
+
+/// The transport already retains the trusted worker's native BaseBattleLogs.
+/// On forfeit freeze that prefix here, before cancelling the worker, and append
+/// the native terminal event so playback ends even though heroes remain alive.
+fn forfeit_logs(run:&Run,winner:i64)->String {
+    use base64::Engine;
+    let (time,count)=forfeit_cutoff(run,winner);
+    let mut logs:Vec<Value>=run.logs.iter().take(count).filter(|(name,_)|name=="BattleLogNot")
+        .flat_map(|(_,packet)|packet["BattleLogs"].as_array().into_iter().flatten().cloned()).collect();
+    if !run.started || logs.is_empty() {return String::new();}
+    // Match BattleLogContainer.GetAllBattleLogList's sequence ordering.
+    logs.sort_by_key(|v|number(v,"No"));
+    if !logs.iter().any(|v|v["Type"]=="WaveEnd") {
+        let no=logs.last().map(|v|number(v,"No")+1).unwrap_or(0);
+        logs.push(json!({"No":no.to_string(),"GlobalTimeMs":time.to_string(),"Type":"WaveEnd",
+            "Data":json!({"winner":if winner==run.members[0]{"Left"}else{"Right"},"_winDecider":"MoreCreatureAlive","_withdraw":"True"}).to_string()}));
+    }
+    let bytes=serde_json::to_vec(&logs).expect("native log JSON");
+    // Build 1558 uses the legacy LZ4Stream framing (varint flags, original
+    // length, compressed length), rather than the newer LZ4 frame format.
+    fn varint(out:&mut Vec<u8>,mut value:usize) {
+        while value>=128 {out.push((value as u8 & 127)|128);value>>=7;}
+        out.push(value as u8);
+    }
+    let mut framed=Vec::new();
+    for block in bytes.chunks(1024*1024) {
+        let compressed=lz4_flex::block::compress(block);
+        let smaller=compressed.len()<block.len();
+        varint(&mut framed,usize::from(smaller));varint(&mut framed,block.len());
+        if smaller {varint(&mut framed,compressed.len());framed.extend(compressed);} else {framed.extend(block);}
+    }
+    base64::engine::general_purpose::STANDARD.encode(framed)
+}
+
+fn forfeit_cutoff(run:&Run,winner:i64)->(i64,usize) {
+    run.members.iter().find(|a|**a!=winner).and_then(|a|run.disconnect_cutoffs.get(a)).copied()
+        .unwrap_or((run.time_ms,run.logs.len()))
+}
+
+async fn save_history(db:&mut SqliteConnection,s:&AppState,run:&Run,winner:i64,body:&Value,forfeit:bool)->Result<()> {
+    let friendly:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.DuelType')=1)")
+        .bind(number(&run.payload,"MatchUid")).fetch_one(&mut *db).await?;
+    if let Some(accounts)=run.payload["Simulation"]["AccountInfos"].as_array().filter(|_|!friendly) {
+        let logs=if forfeit {forfeit_logs(run,winner)} else {body["ReplayLogs"].as_str().unwrap_or("").to_owned()};
+        crate::api::services::records::arena_history(db,s,run.master,
+            if run.payload["MatchInfo"]["ArenaType"]=="BanPick"{1}else{0},accounts,&run.members,
+            winner==run.members[0],if forfeit{forfeit_cutoff(run,winner).0}else{number(body,"TimeMs")},&logs).await?;
     }
     Ok(())
 }
@@ -136,6 +180,9 @@ pub(super) async fn sync_finished(s:&AppState,run:&mut Run)->Result<bool> {
         if data["End"]["MatchResult"]["Win"]==true {winner=a;}
     }
     if canceled {cancel(s,run).await?;} else {
+        let mut db=s.db.begin().await?;
+        save_history(&mut db,s,run,winner,&Value::Null,true).await?;
+        db.commit().await?;
         run.result=Some(json!({"WinnerAccountId":winner,"Creatures":[],"GiveUp":true}));
         let delivered=notify_result(s,run,run.result.as_ref().unwrap());
         run.sent.extend(delivered);
@@ -145,7 +192,7 @@ pub(super) async fn sync_finished(s:&AppState,run:&mut Run)->Result<bool> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use crate::api::community::tests::{setup,login,call};
     use crate::websocket::tests::{server,Client};
@@ -224,6 +271,63 @@ mod tests {
             c.recv("BattleStartRes").await;
         }
         assert_eq!(worker.recv().await.unwrap(),("WorkerStart".into(),json!({"RunId":format!("arena:{uid}")})));
+    }
+
+    pub(in crate::api::battle::cooperative) async fn replay_prefix(s:&AppState,worker:&str,uid:i64,clients:&mut [Client]) {
+        worker_packet(s,worker,"WorkerPacket",json!({"RunId":format!("arena:{uid}"),"Name":"BattleLogNot","Body":{
+            "ServerTimeMs":1200,"BattleLogs":[{"No":"0","GlobalTimeMs":"0","Type":"WaveReady","Data":"{}"},
+            {"No":"1","GlobalTimeMs":"1100","Type":"CreatureSetAi","Data":"{}"}]}})).await.unwrap();
+        // Clock-only packets are deliberately not retained in run.logs.
+        worker_packet(s,worker,"WorkerPacket",json!({"RunId":format!("arena:{uid}"),"Name":"BattleLogNot","Body":{
+            "ServerTimeMs":1500,"BattleLogs":[]}})).await.unwrap();
+        for client in clients {
+            assert_eq!(client.recv("BattleLogNot").await["ServerTimeMs"],1200);
+            assert_eq!(client.recv("BattleLogNot").await["ServerTimeMs"],1500);
+        }
+    }
+
+    pub(in crate::api::battle::cooperative) async fn assert_forfeit_replay(s:&AppState,users:&[Value],kind:i64,winner:usize) {
+        use base64::Engine;
+        async fn replay_call(s:&AppState,u:&Value,path:&str,args:&str)->Value {
+            crate::api::services::execute_request(s,path,&axum::http::HeaderMap::new(),
+                Bytes::from(format!("SessionKey={}&{args}",u["UserInfo"]["SessionKey"].as_str().unwrap())))
+                .await.unwrap()
+        }
+        let mut saved_uid=Value::Null;
+        for u in users.iter().take(2) {
+            let list=replay_call(s,u,"replay/get_replay_list",&format!("Type={kind}&Count=10")).await;
+            let entries=list["Replays"].as_array().unwrap_or_else(||panic!("replay list: {list}"));
+            assert_eq!(entries.len(),1,"Both participants must retain exactly one forfeit replay: {list}");
+            if saved_uid.is_null(){saved_uid=entries[0]["Uid"].clone();}
+            assert_eq!(entries[0]["Uid"],saved_uid);
+            let info:Value=serde_json::from_str(entries[0]["Info"].as_str().unwrap()).unwrap();
+            assert_eq!(info["WinTeam"],if winner==0{"Left"}else{"Right"});
+            assert_eq!(info["PlayTimeMs"],1500);
+            assert_eq!(info["ArenaType"],if kind==2{"BanPick"}else{"Normal"});
+            let out=replay_call(s,u,"replay/get_replay",&format!("ReplayUid={saved_uid}")).await;
+            let bytes=base64::engine::general_purpose::STANDARD.decode(out["Replay"]["Data"].as_str().unwrap()).unwrap();
+            fn read(bytes:&[u8],cursor:&mut usize)->usize {
+                let mut value=0;let mut shift=0;
+                loop {let b=bytes[*cursor];*cursor+=1;value|=((b&127) as usize)<<shift;if b<128{return value;}shift+=7;}
+            }
+            let mut cursor=0;let mut decoded=vec![];
+            while cursor<bytes.len() {
+                let flags=read(&bytes,&mut cursor);let size=read(&bytes,&mut cursor);
+                let stored=if flags&1==1{read(&bytes,&mut cursor)}else{size};
+                let block=&bytes[cursor..cursor+stored];cursor+=stored;
+                decoded.extend(if flags&1==1{lz4_flex::block::decompress(block,size).unwrap()}else{block.to_vec()});
+            }
+            let logs:Value=serde_json::from_slice(&decoded).unwrap();
+            let logs=logs.as_array().unwrap();assert_eq!(logs.len(),3);
+            assert_eq!(logs[1]["GlobalTimeMs"],"1100");
+            assert_eq!(logs[2]["Type"],"WaveEnd");assert_eq!(logs[2]["No"],"2");
+            assert_eq!(logs[2]["GlobalTimeMs"],"1500");
+            let end:Value=serde_json::from_str(logs[2]["Data"].as_str().unwrap()).unwrap();
+            assert_eq!(end["winner"],info["WinTeam"]);assert_eq!(end["_withdraw"],"True");
+            if let Ok(path)=std::env::var("SPRK_FORFEIT_REPLAY_CAPTURE") {
+                std::fs::write(path,out["Replay"]["Data"].as_str().unwrap()).unwrap();
+            }
+        }
     }
 
     #[tokio::test]
@@ -476,6 +580,7 @@ mod tests {
             let (_server,mut clients)=transport(&s,&users,&matched).await;
             start(&s,&mut clients,&mut worker,uid).await;
             let swords=[sword(&s,&users[0]).await,sword(&s,&users[1]).await];
+            replay_prefix(&s,"arena-worker",uid,&mut clients).await;
             // The original Quit button sends only RequestId. Account IDs in
             // any extra fields must not let it forfeit on behalf of an opponent.
             clients[quitter].send("BattleGiveUpReq",json!({"RequestId":"4","AccountId":users[1-quitter]["UserInfo"]["AccountId"]})).await;
@@ -491,6 +596,7 @@ mod tests {
             assert_eq!(clients[quitter].recv("BattleGiveUpRes").await["Result"],"Success");
             worker_packet(&s,"arena-worker","WorkerResult",json!({"RunId":format!("arena:{uid}"),"Win":quitter==0,"Winner":if quitter==0{"Left"}else{"Right"},"Creatures":[],"TimeMs":10000})).await.unwrap();
             assert!(worker.try_recv().is_err(),"Duplicate Quit/result packets must not settle or cancel twice");
+            assert_forfeit_replay(&s,&users,0,1-quitter).await;
             for (i,c) in clients.iter_mut().enumerate() {
                 c.send("PingReq",json!({"RequestId":6,"ClientTimeMs":7000})).await;
                 assert_eq!(c.recv("PingRes").await["ClientTimeMs"],7000,"Both sockets remain usable after intentional Quit");
@@ -509,6 +615,7 @@ mod tests {
         let matched=pair(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
         let (_server,mut clients)=transport(&s,&users,&matched).await;
         start(&s,&mut clients,&mut worker,uid).await;
+        replay_prefix(&s,"arena-worker",uid,&mut clients).await;
         clients[1].send("WithdrawBattleReq",json!({"RequestId":4})).await;
         assert_eq!(clients[1].recv("BattleResultNot").await["Win"],false);
         clients[1].recv("WithdrawBattleRes").await;
@@ -516,6 +623,7 @@ mod tests {
         let out=call(&s,&users[1],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!(out["MatchResult"]["GiveUp"],true);
         assert_eq!(out["MatchResult"]["NewMatchScore"],990);
+        assert_forfeit_replay(&s,&users,0,0).await;
     }
 
     #[tokio::test]
@@ -525,6 +633,7 @@ mod tests {
         let before=sword(&s,&users[1]).await;
         let (_server,mut clients)=transport(&s,&users,&matched).await;
         start(&s,&mut clients,&mut worker,uid).await;
+        replay_prefix(&s,"arena-worker",uid,&mut clients).await;
         call(&s,&users[1],"match/cancel_match","").await;
         assert_eq!(clients[0].recv("BattleResultNot").await["Win"],true);
         assert_eq!(clients[1].recv("BattleResultNot").await["Win"],false);
@@ -532,6 +641,29 @@ mod tests {
         let out=call(&s,&users[1],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!(out["MatchResult"]["GiveUp"],true);
         assert_eq!(out["MatchResult"]["Canceled"],false);
+        // Repeated HTTP cancellation must preserve the same replay.
+        call(&s,&users[1],"match/cancel_match","").await;
+        assert_forfeit_replay(&s,&users,0,0).await;
+    }
+
+    #[tokio::test]
+    async fn arena_disconnect_retains_replay_at_disconnect() {
+        let (s,users,mut worker)=fixture().await;
+        let matched=pair(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
+        let (_server,mut clients)=transport(&s,&users,&matched).await;
+        start(&s,&mut clients,&mut worker,uid).await;
+        replay_prefix(&s,"arena-worker",uid,&mut clients).await;
+        drop(clients.pop());
+        let handle=s.conquest.runs.get(&format!("arena:{uid}")).unwrap().clone();
+        tokio::time::timeout(std::time::Duration::from_secs(2),async {
+            while handle.lock().await.disconnect_cutoffs.is_empty(){tokio::time::sleep(std::time::Duration::from_millis(10)).await;}
+        }).await.unwrap();
+        // The reconnect grace must not extend the saved replay past quitting.
+        worker_packet(&s,"arena-worker","WorkerPacket",json!({"RunId":format!("arena:{uid}"),"Name":"BattleLogNot","Body":{
+            "ServerTimeMs":2500,"BattleLogs":[{"No":"2","GlobalTimeMs":"2400","Type":"CreatureSetAi","Data":"{}"}]}})).await.unwrap();
+        clients[0].recv("BattleLogNot").await;
+        assert_eq!(clients[0].recv("BattleResultNot").await["Win"],true);
+        assert_forfeit_replay(&s,&users,0,0).await;
     }
 
     #[tokio::test]
@@ -560,6 +692,7 @@ mod tests {
             while arena_worker(&s).await.is_none(){tokio::time::sleep(std::time::Duration::from_millis(100)).await;}
         }).await.expect("Native arena worker did not authenticate");
         let matched=pair(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
+        let forfeit=std::env::var_os("SPRK_ARENA_NATIVE_FORFEIT").is_some();
         let mut clients=vec![];
         for (side,u) in users.iter().take(2).enumerate() {
             let socket=TcpStream::connect(("127.0.0.1",port)).await.unwrap();let (reader,mut writer)=socket.into_split();
@@ -568,13 +701,17 @@ mod tests {
             let mut line=String::new();reader.read_line(&mut line).await.unwrap();assert_eq!(decode_packet(line.as_bytes()).unwrap().0,"BattleLoginRes");
             writer.write_all(&encode_packet("BattleEnterReq",&json!({"RequestId":2}))).await.unwrap();
             clients.push(tokio::spawn(async move {
-                let mut request_id=3;let mut logs=vec![];let mut reserved=false;
+                let mut request_id=3;let mut logs=vec![];let mut reserved=false;let mut gave_up=false;
                 loop {
                     let mut line=String::new();let count=tokio::time::timeout(std::time::Duration::from_secs(60),reader.read_line(&mut line)).await.unwrap().unwrap();
                     assert!(count>0,"Native arena socket closed before result");
                     let (name,body)=decode_packet(line.as_bytes()).unwrap();
                     if name=="BattleLogNot" {
                         logs.push(body.clone());
+                        if forfeit && side==0 && !gave_up && number(&body,"ServerTimeMs")>=1500 {
+                            gave_up=true;
+                            writer.write_all(&encode_packet("BattleGiveUpReq",&json!({"RequestId":request_id}))).await.unwrap();request_id+=1;
+                        }
                         if !reserved && body["BattleLogs"].as_array().unwrap().iter().any(|log| {
                             log["Type"]=="CreatureReserveOnSkill" && serde_json::from_str::<Value>(log["Data"].as_str().unwrap())
                                 .is_ok_and(|data|number(&data,"CreatureUid")==side as i64+1)
@@ -601,9 +738,11 @@ mod tests {
             "Native worker must publish advancing time between combat actions");
         let logs=results[0].0.iter().flat_map(|packet|packet["BattleLogs"].as_array().unwrap()).collect::<Vec<_>>();
         let ready:Value=serde_json::from_str(logs.iter().find(|log|log["Type"]=="WaveReady").unwrap()["Data"].as_str().unwrap()).unwrap();
-        let end:Value=serde_json::from_str(logs.iter().find(|log|log["Type"]=="WaveEnd").unwrap()["Data"].as_str().unwrap()).unwrap();
         assert_eq!(ready["Difficulty"],"Easy","Native worker and arena replay must use the same ruleset");
-        assert_eq!(end["_winDecider"],"MoreCreatureAlive","Victory must use its native PvP victory rules");
+        if !forfeit {
+            let end:Value=serde_json::from_str(logs.iter().find(|log|log["Type"]=="WaveEnd").unwrap()["Data"].as_str().unwrap()).unwrap();
+            assert_eq!(end["_winDecider"],"MoreCreatureAlive","Victory must use its native PvP victory rules");
+        }
         assert_eq!(results[0].1["Win"],false);assert_eq!(results[1].1["Win"],true);
         for (i,u) in users.iter().take(2).enumerate() {
             let result=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
@@ -611,6 +750,13 @@ mod tests {
             assert_eq!(result["MatchResult"]["Canceled"],false);
         }
         std::fs::write("target/arena-lab/native-results.json",json!(results).to_string()).unwrap();
+        if forfeit {
+            let data:String=sqlx::query_scalar("SELECT data FROM service_replays").fetch_one(&s.db).await.unwrap();
+            std::fs::write("target/arena-lab/native-forfeit-replay.txt",data).unwrap();
+            let info:String=sqlx::query_scalar("SELECT info FROM service_replays").fetch_one(&s.db).await.unwrap();
+            std::fs::write("target/arena-lab/native-forfeit-info.json",info).unwrap();
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM service_replay_accounts").fetch_one(&s.db).await.unwrap(),2);
+        }
         task.abort();
     }
 }
