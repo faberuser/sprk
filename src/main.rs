@@ -105,6 +105,7 @@ async fn game_router() -> anyhow::Result<Router> {
         }
     };
     
+    api::extensions::schema::migrate_technomagic(&db, &tables).await?;
     // Create application state
     let state = AppState::new(db, tables);
     api::community::mail::start_notifications(state.clone());

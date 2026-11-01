@@ -105,8 +105,7 @@ public sealed class SprkProfilePortraitState : MonoBehaviour {
 }
 public static class SprkLobbyAvatar {
     public static int ProfileAvatarIndex(CachedHeroInfo hero,int fallback) {
-        if(hero==null)return fallback;
-        return hero.CostumeIndex>0?10000+hero.CostumeIndex:hero.HeroIndex*10+hero.Star;
+        return fallback;
     }
     public static string GetProfileIconPath(int selected) {
         return UIAvatarHelper.GetIconPath(ProfileAvatarIndex(CurrentHero(),selected));
@@ -128,7 +127,8 @@ public static class SprkLobbyAvatar {
         if(CurrentOwner()==null)return null;
         var account=GlobalAutoBehaviour<AccountManager>.instance;
         if(account.HeroManager==null)return null;
-        return account.HeroManager.Get(new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex);
+        var hero=account.HeroManager.Get(new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex);
+        return hero==null?null:hero.CreatePlayerAvatarHeroInfo(account.UserManager.PlayerAvatarHeroInfo);
     }
     public static bool IsAppearanceChange(UserHeroManager.ChangeHeroInfo change,int hero) {
         if(change==null || change.HeroIndex!=hero)return false;
@@ -167,15 +167,11 @@ public static class SprkLobbyAvatar {
     public static CachedHeroInfo Create(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
         if(hero==null)return null;
         var account=GlobalAutoBehaviour<AccountManager>.instance;
-        var current=account.HeroManager.Get(hero.HeroIndex);
-        if(current==null)return null;
-        // The selected hero follows its live appearance, rather than the
-        // snapshot saved by the last "set as main hero" request.
-        var copy=current.CreatePlayerAvatarHeroInfo(null);
+        var copy=hero.CreatePlayerAvatarHeroInfo(avatar);
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
-            int index=current.GetAccessoryIndex(part);
-            if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(current.HeroIndex,index))==null)index=0;
-            var position=current.GetAccessoryPositionInfo(part);
+            int index=copy.GetAccessoryIndex(part);
+            if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(copy.HeroIndex,index))==null)index=0;
+            var position=copy.GetAccessoryPositionInfo(part);
             copy.SetAccessoryCostume(part,index,position==null?PositionInfo.Create():position.Clone());
         }
         return copy;
@@ -192,7 +188,7 @@ public static class SprkLobbyAvatar {
         if(facade==null || facade.AssetCreatureAsync==null || !facade.AssetCreatureAsync.IsDone || !facade.AssetCreatureAsync.IsValid)return false;
         var account=GlobalAutoBehaviour<AccountManager>.instance;
         int heroIndex=new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex;
-        var hero=account.HeroManager.Get(heroIndex);
+        var hero=CurrentHero();
         var data=GameRoot.Instance.CreatureDataContainer.GetData(heroIndex);
         if(hero==null || data==null || facade.AssetCreatureAsync.Stock.Code!=(String.IsNullOrEmpty(data.ModelCode)?data.CodeName:data.ModelCode))return false;
         var load=facade.AssetCreatureAsync;

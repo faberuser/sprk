@@ -119,7 +119,9 @@ pub(super) async fn prepare(
     let victory_only = matches!(
         n(dungeon, "BattleType"),
         1 | 2 | 10 | 12 | 21 | 23 | 24 | 25 | 29 | 30 | 33 | 40 | 41 | 42 | 45 | 46
-    );
+    ) || (n(dungeon, "BattleType") == 38 && s.tables.battle.find(
+        "ShakmehDungeon", &[("DungeonIndex", int(r, "DungeonIndex")?)]
+    ).is_some_and(|v| n(v, "ShakmehIndex") == 2));
     // God King charges for opening a dungeon, not for winning a stage.
     // Other score competitions, World Boss, Eclipse and Karma keep costs.
     if int(r, "WorldBossIndex")? > 0
@@ -312,7 +314,8 @@ pub(super) async fn opening_charge(
         }
         Ok(result)
     } else {
-        dungeons::charge(db, s, a, kind, amount).await
+        // Unlocking Divine Punishment is an access cost, not battle EXP.
+        dungeons::charge_reserved(db, s, a, kind, amount).await
     }
 }
 
@@ -372,6 +375,7 @@ pub(crate) async fn settle(
         }
     }
     let mut exp_cost = 0;
+    let mut flask_cost = 0;
     for cost in costs {
         let kind = n(&cost, "Kind");
         let amount = n(&cost, "Amount");
@@ -409,7 +413,13 @@ pub(crate) async fn settle(
         }
         if won {
             if cost["Family"] == "Stamina" && kind == 1 {
-                exp_cost += amount;
+                flask_cost += amount;
+                // Includes receipts saved before this policy changed. The gate's
+                // reservation is the opening cost; ordinary battle costs still
+                // earn their normal stamina EXP.
+                let punishment_opening=entry["EntryCostGate"]["State"]=="punishment_open"
+                    && cost["ReservationOwner"].is_string();
+                if !punishment_opening {exp_cost += amount;}
             }
         } else if !deferred && cost["Family"] == "Stamina" && !matches!(kind, 3 | 4 | 7) {
             let result = crate::api::account::stamina::refund(db, s, a, kind, amount).await?;
@@ -459,8 +469,8 @@ pub(crate) async fn settle(
     }
     if exp_cost > 0 {
         out["ExpResult2"] = dungeons::stamina_exp(db, s, a, exp_cost).await?;
-        fill_stamina_flasks(db,s,a,entry,exp_cost,out).await?;
     }
+    if flask_cost > 0 {fill_stamina_flasks(db,s,a,entry,flask_cost,out).await?;}
     if let Some(state) = entry["EntryCostGate"]["State"].as_str() {
         if state != "godking" {
             let idx = n(&entry["EntryCostGate"], "Index");

@@ -1,0 +1,192 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using NGame2.NAccount;
+using NGame2.NBattleContext;
+using NGame2.NScene;
+using NGame2.NScene.NLobby;
+using NGame2.NUI;
+using NGame2.NUI.NManager;
+using NGame2.NUI.NWindow;
+using NGameAsset;
+using NShared;
+using NVespa;
+using NVespa.NSingleton;
+using UnityEngine;
+
+public static class SprkArenaPractice
+{
+    public const string CardName = "SPRK Arena Practice";
+    public static bool Active { get; private set; }
+    static int Chapter { get { return GameRoot.Instance.ConstantDataContainer.GetValueInt("HeroTryUseChapterIndex"); } }
+    static int Dungeon { get { return GameRoot.Instance.ConstantDataContainer.GetValueInt("HeroTryUseDungeonIndex"); } }
+    public static void Clear() { Active = false; }
+    static CampaignDungeonData ArenaDungeon()
+    {
+        var arena = GameRoot.Instance.CampaignDungeonDataContainer.GetAllDataOfBattleType(BattleType.Arena)
+            .FirstOrDefault(x => (string)x.BattleDefineCode == "Arena");
+        if (arena == null) throw new InvalidOperationException("League of Victory dungeon is unavailable.");
+        return arena;
+    }
+
+    // Only the battle instance receives this private copy. CampaignUpdater and
+    // preloading keep the original dummy coordinates, field and monster waves.
+    // Combat reads the Arena chapter, battle type and define for PvP conditions.
+    public static CampaignDungeonData CombatDungeon(CampaignDungeonData original)
+    {
+        if (!Active || original == null || original.ChapterIndex != Chapter || original.DungeonIndex != Dungeon) return original;
+        var copy = JsonMarshaler.Clone(ArenaDungeon());
+        copy.BattleField = original.BattleField;
+        copy.BgmCode = original.BgmCode;
+        copy.Constant = (copy.Constant ?? new string[0]).Concat(new[] { "InfiniteTime=true" }).ToArray();
+        return copy;
+    }
+
+    public static EBattleMenu Menu(EBattleMenu original)
+    {
+        if (!Active) return original;
+        return EBattleMenu.TimeStatus | EBattleMenu.SystemButton | EBattleMenu.DamageMeter
+            | EBattleMenu.HeroParty | EBattleMenu.Hud | EBattleMenu.SystemButtonAutoSimple;
+    }
+
+    public static float Speed(float original) { return Active ? 1f : original; }
+    public static ERenderDamageText DamageText() { return Active ? ERenderDamageText.ShowAll : SystemOptionData.Render_DamageText; }
+    public static bool ShowDamage(bool original) { return Active || original; }
+    public static BattleDefineData DisplayDefine(BattleDefineData original)
+    {
+        return Active ? ArenaDungeon().GetBattleDefine(false) : original;
+    }
+
+    public static CreatureData CombatTarget(CreatureData original)
+    {
+        if (!Active || original == null || original.Index != 999999) return original;
+        // The archived training model is classified as an Orc. PvP modifiers
+        // must see a hero target, while its model, passives and base stats stay.
+        var copy = JsonMarshaler.Clone(original);
+        copy.Race = CreatureRaceType.Hero;
+        return copy;
+    }
+    public static BattleCreatureCreateInfo ProtectTarget(BattleCreatureCreateInfo info)
+    {
+        if (Active && info != null && info.HeroInfo != null && info.HeroInfo.HeroIndex == 999999)
+        {
+            info.ForceNoDie = true;
+            info.ForceMinHp = 1;
+        }
+        return info;
+    }
+
+    public static void AddCard(MatchSelect view)
+    {
+        if (view == null || view.Grid == null) return;
+        var existing = view.Grid.transform.Find(CardName);
+        if (existing != null) { existing.gameObject.SetActive(true); return; }
+        var group = view.PvpButtonGroups.FirstOrDefault(x => x.ArenaType == MatchArenaType.Normal);
+        var ordeal = view.PvpButtonGroups.FirstOrDefault(x => x.ArenaType == MatchArenaType.Ordeal);
+        if (group == null || group.Button == null || ordeal == null || ordeal.Button == null)
+            throw new InvalidOperationException("League of Victory or Ordeals card is unavailable.");
+        Transform source = group.Button.transform;
+        while (source.parent != view.Grid.transform && source.parent != null) source = source.parent;
+        Transform after = ordeal.Button.transform;
+        while (after.parent != view.Grid.transform && after.parent != null) after = after.parent;
+        if (source.parent == null || after.parent == null) throw new InvalidOperationException("Arena card is outside the Arena grid.");
+        var card = UnityEngine.Object.Instantiate(source.gameObject, view.Grid.transform, false);
+        card.name = CardName;
+        card.transform.SetSiblingIndex(after.GetSiblingIndex() + 1);
+        // Keep this extra child outside the original serialized slot list.
+        var oldButtonPath = RelativePath(source, group.Button.transform);
+        var button = card.transform.Find(oldButtonPath).GetComponent<UIButton>();
+        button.onClick.Clear();
+        EventDelegate.Add(button.onClick, delegate { OpenParty(); });
+        button.gameObject.SetActive(true);
+        button.isEnabled = true;
+        if (group.WidgetLocked != null) card.transform.Find(RelativePath(source, group.WidgetLocked.transform)).gameObject.SetActive(false);
+        if (group.Enable != null) card.transform.Find(RelativePath(source, group.Enable.transform)).gameObject.SetActive(true);
+        if (group.WidgetLockedBg != null) UIHelper.SetWidgetGrayScale(card.transform.Find(RelativePath(source, group.WidgetLockedBg.transform)).GetComponent<UIWidget>(), false);
+        foreach (var label in card.GetComponentsInChildren<UILabel>(true))
+        {
+            var localize = label.GetComponent<NVespa.NNGUIExtension.UILocalizeEx>();
+            if (localize != null) { localize.enabled = false; UnityEngine.Object.Destroy(localize); }
+            var path = RelativePath(card.transform, label.transform).ToLowerInvariant();
+            if (label.transform.IsChildOf(button.transform)) label.text = "Practice";
+            else if (path.Contains("desc") || label.name == "Label_Info") label.text = "Test Arena damage with 4 heroes and equipped gear.";
+            else if (!path.Contains("lock")) label.text = "Arena Practice";
+        }
+        card.SetActive(true);
+        view.Grid.Reposition();
+        UIHelper.RepositionGrid(view.ScrollView);
+    }
+    public static void SetSlots(MatchSelect view, int[] slots)
+    {
+        var enabled = new HashSet<int>(slots ?? new int[0]);
+        for (int i = 0; i < view.Sprite_Slot.Count; i++)
+            if (view.Sprite_Slot[i] != null) view.Sprite_Slot[i].gameObject.SetActive(enabled.Contains(i + 1));
+        AddCard(view);
+        view.Grid.Reposition();
+    }
+    static string RelativePath(Transform root, Transform child)
+    {
+        var names = new List<string>();
+        while (child != root) { names.Insert(0, child.name); child = child.parent; if (child == null) throw new Exception("Invalid card binding"); }
+        return string.Join("/", names.ToArray());
+    }
+
+    public static void OpenParty()
+    {
+        Clear();
+        var manager = SceneAutoBehaviour<MatchManagement>.instance;
+        var provider = new DefaultBattlePartySettingDataProdiver("SprkArenaPractice", StaminaType.None, 0,
+            NShared.NLocalization.Battle.MATCH_START_BUTTON_LABEL, new EnterDungeonData());
+        manager.GetInstance<BattlePartySetting>().Open(new PartyListener(), provider);
+    }
+
+    public static PlayerEnterBattleLog CreateParty(BattlePartySetting.BattlePartyInfo party)
+    {
+        if (party == null || party.heroIndices == null || party.heroIndices.Length != 4 || party.heroIndices.Distinct().Count() != 4)
+            throw new InvalidOperationException("Select four different heroes for Arena Practice.");
+        // The identical native factory used by OfflineArenaContext preserves
+        // gear, skill levels, perks, soul weapons, account and class buffs.
+        var log = CampaignContext.CreateMyEnterPlayerBattleLog(party.heroIndices, null, party.leaderHeroIndex, null, null, null);
+        if (log == null || log.CreatureCreateInfos == null || log.CreatureCreateInfos.Length != 4)
+            throw new InvalidOperationException("The selected heroes are no longer available.");
+        return log;
+    }
+
+    sealed class PartyListener : BattlePartySetting.Listener
+    {
+        public void StartBattle(EnterDungeonData enter, BattlePartySetting.BattlePartyInfo party, BattlePartySetting.ExtraOptionData option)
+        {
+            try
+            {
+                var log = CreateParty(party);
+                if (GameRoot.Instance.CampaignDungeonDataContainer.GetData(Chapter, Dungeon) == null) throw new Exception("Skill-test dummy dungeon is unavailable.");
+                ArenaDungeon();
+                SingletonAuto<BattleContext>.instance.SetCustomCampaign(Chapter, Dungeon, DungeonDifficultyType.Easy);
+                SingletonAuto<CustomCampaignContext>.instance.SetEnterPlayerBattleLog(log);
+                SingletonAuto<CustomCampaignContext>.instance.SetBattleEndCallback(delegate { Finish(); });
+                LobbyScene2.ListReturnState.Clear();
+                LobbyScene2.ListReturnState.Add(new ReturnState());
+                Active = true;
+                SingletonAuto<BattleContext>.instance.MoveToBattleScene();
+            }
+            catch (Exception ex) { Clear(); MessagePopup.Open("Arena Practice", ex.Message); }
+        }
+        public bool OnCloseRequest(BattlePartySetting window) { Clear(); return true; }
+        public void OpenHeroDetailView(CachedHeroInfo hero) { }
+        public bool OpenAutoNextBattleSelect() { return false; }
+    }
+    static void Finish()
+    {
+        Clear();
+        GlobalAutoBehaviour<LoadingManager>.instance.MoveScene(LoadingManager.ESceneType.Lobby);
+    }
+    sealed class ReturnState : BaseEntryMenuReturnState
+    {
+        public override void Execute(LobbyScene2.ReturnStateInfo info, Action onEnd)
+        {
+            Clear();
+            SceneAutoBehaviour<MatchManagement>.instance.OpenMatchSelect(true);
+            if (onEnd != null) onEnd();
+        }
+    }
+}

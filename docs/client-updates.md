@@ -59,6 +59,11 @@ Backup (`.backup`, `.before-*`), staged (`.patched`, `.eye-patched`, `.staged`,
 Symlinks/junctions in the input are rejected. Stop client patching/baking while
 publishing so the snapshot represents one tested build.
 
+Complete snapshots that include all default paths also include installed files
+declared under `client-overrides/files`, such as Jane and Maria's restored Legend
+models. The publisher reads the installed copies; apply and verify the overrides
+before publishing. An explicit partial `--include` selection retains its scope.
+
 For other code/assets, use repeated `--include` options. These **replace** the
 defaults, so include the default directories too if they should stay managed:
 

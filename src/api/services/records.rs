@@ -2,6 +2,19 @@ use super::*;
 use crate::api::heroes;
 use std::collections::BTreeSet;
 
+pub(crate) async fn arena_history(db:&mut SqliteConnection,s:&AppState,owner:i64,kind:i64,accounts:&[Value],participants:&[i64],win_left:bool,play_ms:i64,logs:&str)->Result<()> {
+    if logs.is_empty() || accounts.len()!=2 {return Ok(());}
+    let winner=usize::from(!win_left);let loser=1-winner;
+    let before=|side:usize|accounts[side]["BattleInfo"]["MatchScore"].as_i64().unwrap_or(0);
+    let win_score=(before(winner)+s.tables.arena_guild.rules["ArenaWinScore"].as_i64().unwrap_or(20)).clamp(0,i32::MAX as i64)-before(winner);
+    let lose_score=before(loser)-(before(loser)-s.tables.arena_guild.rules["ArenaLossScore"].as_i64().unwrap_or(10)).clamp(0,i32::MAX as i64);
+    let team=|v:&Value,side:&str| json!({"AccountId":v["UserInfo"]["AccountId"],"Level":v["UserInfo"]["TeamLevel"],"NickName":v["UserInfo"]["Nick"],"AvaterIndex":v["UserInfo"]["AvatarHeroIndex"],"MatchScore":v["BattleInfo"]["MatchScore"].as_i64().unwrap_or(0),"TierIndex":v["BattleInfo"]["TierIndex"].as_i64().unwrap_or(0),"TierRank":v["BattleInfo"]["Rank"].as_i64().unwrap_or(0),"TeamType":side,"HeroInfos":v["HeroInfos"].as_object().into_iter().flat_map(|h|h.values()).map(|h|json!({"Index":h["HeroIndex"],"Star":h["Star"]})).collect::<Vec<_>>()});
+    let info=json!({"ChapterIndex":1000,"DungeonIndex":if kind==1{2}else{1},"Difficulty":"Easy","LeftTeam":team(&accounts[0],"Left"),"RightTeam":team(&accounts[1],"Right"),"WinTeam":if win_left{"Left"}else{"Right"},"WinMatchScore":win_score,"LoseMatchScore":lose_score,"PlayTimeMs":play_ms,"RecordedTime":chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),"ArenaType":if kind==1{"BanPick"}else{"Normal"}});
+    let req=Request([("Type".into(),if kind==1{"2"}else{"0"}.into()),("Info".into(),info.to_string()),("BattleLogs".into(),logs.into()),("AccountIds".into(),json!(participants).to_string())].into());
+    save(db,s,owner,&req,true).await?;
+    Ok(())
+}
+
 pub(super) async fn execute(
     db: &mut SqliteConnection,
     s: &AppState,
@@ -110,7 +123,7 @@ async fn save(
         }
     }
     let owner = if trusted { accounts[0] } else { a };
-    let old:Option<i64>=sqlx::query_scalar("SELECT id FROM service_replays WHERE owner=? AND kind=? AND info=? AND data=? ORDER BY id DESC LIMIT 1").bind(owner).bind(kind).bind(info).bind(logs).fetch_optional(&mut *db).await?;
+    let old:Option<i64>=sqlx::query_scalar("SELECT id FROM service_replays WHERE owner=? AND kind=? AND data=? ORDER BY id DESC LIMIT 1").bind(owner).bind(kind).bind(logs).fetch_optional(&mut *db).await?;
     let id = match old {
         Some(id) => id,
         None => sqlx::query(

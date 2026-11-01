@@ -12,12 +12,13 @@ pub(crate) async fn pair(
 ) -> Result<Option<Value>> {
     let Some(worker) = cooperative::arena_worker(s).await else { return Ok(None); };
     let kind=n(mine,"Kind");
+    let friendly=n(mine,"DuelType")==1;
     let cutoff = now() - settings(s, "ArenaQueueStaleSeconds", 15).clamp(6, 120);
     let candidates: Vec<(i64, i64, String)> = sqlx::query_as(
         "SELECT id,account,data FROM arena_runs WHERE kind=? AND status='waiting' AND account!=? AND started>=? AND COALESCE(json_extract(data,'$.LastPoll'),started)>=? AND json_extract(data,'$.Season')=? ORDER BY started,id LIMIT 100")
         .bind(kind).bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).bind(cutoff)
         .bind(season(s).0).fetch_all(&mut *db).await?;
-    if n(&match_tickets(db,s,a,kind,0).await?,"NewValue") < 1 {
+    if !friendly && n(&match_tickets(db,s,a,kind,0).await?,"NewValue") < 1 {
         return Err(rule("NotEnoughSword"));
     }
     for (other_id, b, raw) in candidates {
@@ -25,7 +26,9 @@ pub(crate) async fn pair(
         // recently polled queue entry. Cancelled/bot/in-battle rows never qualify.
         if !s.sessions.iter().any(|v|v.account_id==b) { continue; }
         let other: Value = parse(&raw)?;
-        if n(&other,"Expires") < now() || n(&match_tickets(db,s,b,kind,0).await?,"NewValue") < 1 { continue; }
+        if friendly != (n(&other,"DuelType")==1) {continue;}
+        if friendly && (n(mine,"GroupId")!=n(&other,"GroupId") || n(mine,"InvitedOpponent")!=b || n(&other,"InvitedOpponent")!=a) {continue;}
+        if n(&other,"Expires") < now() || (!friendly && n(&match_tickets(db,s,b,kind,0).await?,"NewValue") < 1) { continue; }
         let uid = id.min(other_id);
         let mut accounts = vec![mine["Register"]["AccountInfo"].clone(),other["Register"]["AccountInfo"].clone()];
         if id > other_id { accounts.swap(0,1); }
@@ -33,7 +36,7 @@ pub(crate) async fn pair(
         accounts[1]["TeamType"] = json!("Right");
         let info = json!({"Uid":uid,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"SeasonIndex":season(s).0,
             "AccountInfos":accounts,"BattleServerAddress":s.conquest.address,"BattleServerPort":s.conquest.port,
-            "ChapterIndex":1000,"DungeonIndex":1,"DungeonDifficulty":"Easy","OnlineGameSpeedRatio":100,"ExtraData":null,"CanCheat":false});
+            "ChapterIndex":1000,"DungeonIndex":if kind==1{2}else{1},"DungeonDifficulty":"Easy","OnlineGameSpeedRatio":100,"ExtraData":null,"CanCheat":false});
         let mut response = Value::Null;
         for (row_id, account_id, saved, enemy) in [(id,a,mine,b),(other_id,b,&other,a)] {
             let mut data = saved.clone();
@@ -64,7 +67,7 @@ pub(crate) async fn charge(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
         let data:Value=parse(&raw)?;
         if n(&data,"Season")!=season(s).0 {return Err(rule("MatchingAborted"));}
         if data["OnlineCharged"]!=true {
-            match_tickets(db,s,a,n(&data,"Kind"),-1).await?;
+            if n(&data,"DuelType")!=1 {match_tickets(db,s,a,n(&data,"Kind"),-1).await?;}
             sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
                 .bind(a).bind(uid).execute(&mut *db).await?;
         }
@@ -88,6 +91,10 @@ pub(crate) async fn finish(db:&mut SqliteConnection,s:&AppState,uid:i64,winner:i
         service_result(db,s,a,&req).await?;
         sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.End.MatchResult.MatchUid',?,'$.End.MatchResult.GiveUp',json(?)) WHERE account=? AND status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
             .bind(uid).bind(if give_up==Some(a){"true"}else{"false"}).bind(a).bind(uid).execute(&mut *db).await?;
+        if n(&data,"DuelType")==1 {
+            sqlx::query("UPDATE friendly_duels SET status='complete' WHERE group_id=?")
+                .bind(n(&data,"GroupId")).execute(&mut *db).await?;
+        }
     }
     Ok(())
 }
@@ -114,7 +121,7 @@ pub(crate) async fn cancel(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
     for (id,a,raw) in rows {
         let mut data:Value=parse(&raw)?;
         let kind=n(&data,"Kind");
-        if data["OnlineCharged"]==true {match_tickets(db,s,a,kind,1).await?;data["OnlineCharged"]=json!(false);}
+        if data["OnlineCharged"]==true {if n(&data,"DuelType")!=1 {match_tickets(db,s,a,kind,1).await?;}data["OnlineCharged"]=json!(false);}
         let info=battle_info_kind(db,s,a,kind).await?;
         data["End"]=json!({"BaseResult":"Success","Result":"Success",
             "MatchResult":{"MatchUid":uid,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Canceled":true,"Win":false,"GiveUp":false,
@@ -124,6 +131,10 @@ pub(crate) async fn cancel(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
         data["End"][if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}]=info;
         sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
             .bind(data.to_string()).bind(id).execute(&mut *db).await?;
+        if n(&data,"DuelType")==1 {
+            sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=?")
+                .bind(n(&data,"GroupId")).execute(&mut *db).await?;
+        }
     }
     Ok(())
 }

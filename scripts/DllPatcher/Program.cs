@@ -9,6 +9,14 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--arena-practice-only")) { InstallArenaPractice(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-arena-practice")) { InstallArenaPractice(args[0], args.Contains("--stage-only"), true); return; }
+            if (args.Contains("--preset-disposal-only")) { InstallPresetDisposal(args[0], false); return; }
+            if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
+            if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
+            if (args.Contains("--verify-friendly-duel-menu")) { InstallFriendlyDuelMenu(args[0], true); return; }
+            if (args.Contains("--godking-recharge-prompt-only")) { InstallGodkingRechargePrompt(args[0], false); return; }
+            if (args.Contains("--verify-godking-recharge-prompt")) { InstallGodkingRechargePrompt(args[0], true); return; }
             if (args.Contains("--solo-retry-only")) { InstallSoloRetry(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-solo-retry")) { InstallSoloRetry(args[0], args.Contains("--stage-only"), true); return; }
             if (args.Contains("--self-test-solo-retry")) { TestSoloRetry(); return; }
@@ -92,6 +100,8 @@ namespace DllPatcher
             if (args.Contains("--friend-recommendations-only")) { InstallFriendRecommendations(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-friend-recommendations")) { VerifyFriendRecommendationsFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-friend-recommendations")) { TestFriendRecommendations(args[0]); return; }
+            if (args.Contains("--maria-legend-bird-only")) { InstallMariaLegendBird(args[0]); return; }
+            if (args.Contains("--verify-maria-legend-bird")) { InstallMariaLegendBird(args[0],true); return; }
             if (args.Contains("--ordeal-unlock-only")) { InstallOrdealUnlock(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-ordeal-unlock")) { VerifyOrdealUnlockFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-claim-all-only")) { InstallMissionClaimAll(args[0], args.Contains("--stage-only")); return; }

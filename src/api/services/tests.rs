@@ -35,6 +35,38 @@ async fn call(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
 fn ok(v: &Value) {
     assert_eq!(v["Result"], "Success", "{v}");
 }
+#[tokio::test]
+async fn godking_recharge_accepts_free_paid_and_large_ruby_balances() {
+    let (s,u)=setup().await;let a=aid(&u);
+    for (free,paid) in [(1000_i64,0_i64),(0,1000),(3_000_000_000,0),(500,500)] {
+        sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=?").bind(free).bind(paid).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='stamina_recharges'").bind(a).execute(&s.db).await.unwrap();
+        crate::api::battle::put(&mut s.db.acquire().await.unwrap(),a,"key",21,&json!({"Count":0,"Day":chrono::Utc::now().format("%Y-%m-%d").to_string()})).await.unwrap();
+        let out=call(&s,&u,"user/recharge_stamina","StaminaType=GodkingTrialKey").await;
+        ok(&out);
+        assert_eq!(out["CurrencyResult"]["AddValue"],-1000);
+        assert_eq!(out["StaminaResult"]["NewValue"],1);
+    }
+}
+
+#[tokio::test]
+async fn arena_history_is_available_to_both_players_in_each_native_category() {
+    let (s,u)=setup().await;let a=aid(&u);
+    let other=json!(user::test_login(State(s.clone()),Bytes::from("LoginId=history-opponent")).await.unwrap().0);let b=aid(&other);
+    let accounts=vec![json!({"UserInfo":{"AccountId":a,"Nick":"left","TeamLevel":100,"AvatarHeroIndex":15},"HeroInfos":{"1":{"HeroIndex":1,"Star":5}},"BattleInfo":{"MatchScore":1000,"TierIndex":11,"Rank":0}}),json!({"UserInfo":{"AccountId":b,"Nick":"right","TeamLevel":100,"AvatarHeroIndex":25},"HeroInfos":{"2":{"HeroIndex":2,"Star":5}},"BattleInfo":{"MatchScore":1000,"TierIndex":11,"Rank":0}})];
+    for (kind,category) in [(0,"Arena"),(1,"BanPick")] {
+        let mut db=s.db.acquire().await.unwrap();
+        for _ in 0..2 {records::arena_history(&mut db,&s,a,kind,&accounts,&[a,b],true,1000,"native-logs").await.unwrap();}
+        drop(db);
+        for user in [&u,&other] {
+            let out=call(&s,user,"replay/get_replay_list",&format!("Type={category}&Count=10")).await;
+            ok(&out);assert_eq!(out["Replays"].as_array().unwrap().len(),1);
+            let info:Value=serde_json::from_str(out["Replays"][0]["Info"].as_str().unwrap()).unwrap();
+            assert_eq!(info["DungeonIndex"],if kind==1{2}else{1});
+            assert_eq!(info["WinMatchScore"],20);assert_eq!(info["LoseMatchScore"],10);
+        }
+    }
+}
 async fn battle(s: &AppState, u: &Value, path: &str, args: &str) -> Value {
     crate::api::battle::execute_request(s, path, form(u, args))
         .await

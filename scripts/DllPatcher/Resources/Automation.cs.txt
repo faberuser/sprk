@@ -173,6 +173,14 @@ public sealed class SprkAutomation : MonoBehaviour
                     throw new InvalidOperationException("Essence crafting fixture requires isolated Login and essence-craft profile");
                 var results=ProbeEssenceCraft();reply=Snapshot(cmd.id);reply.materials.AddRange(results);Write(reply);return;
             }
+            if(cmd.action=="arena-practice-probe" || cmd.action=="arena-practice-labels") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("arena-practice-"))
+                    throw new InvalidOperationException("Arena practice fixture requires isolated Login and arena-practice profile");
+                var probe=System.Reflection.Assembly.Load("SprkArenaPractice").GetType("SprkArenaPracticeProbe");
+                var result=(string)probe.GetMethod(cmd.action=="arena-practice-probe" ? "Run" : "VerifyLabels").Invoke(null,null);
+                reply=Snapshot(cmd.id);reply.materials.Add(result);Write(reply);return;
+            }
             if(cmd.action=="inventory-rune-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Inventory rune probe requires isolated Login");
                 ProbeInventoryRunes();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native inventory prefab exposes Normal Rune and Rune of Blasphemy subcategories, and both select correctly.");Write(reply);return;
@@ -180,6 +188,141 @@ public sealed class SprkAutomation : MonoBehaviour
             if(cmd.action=="awakening-material-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
                 ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
+            }
+            if(cmd.action=="friend-duel-menu-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Friend menu fixture requires isolated Login");
+                var prefab=VespaResource.Load<GameObject>("Resources/Prefab2/Window/MessagePopup/InspectUserMenuPopup");
+                if(prefab==null)throw new Exception("Friend menu prefab missing");
+                var parent=new GameObject("FriendDuelFixture");parent.SetActive(false);
+                var go=UnityEngine.Object.Instantiate(prefab,parent.transform,false);
+                var menu=go.GetComponent<NGame2.NUI.NWindow.InspectUserMenuPopup>();
+                if(menu==null || menu.DuelButton==null)throw new Exception("Native friend menu has no Duel button binding");
+                var show=menu.GetType().GetMethod("SprkSetDuelButtonVisible");
+                if(show==null)throw new Exception("Friend menu visibility patch missing");
+                show.Invoke(menu,new object[]{true});
+                NGame2.NUI.UIHelper.EnableButton(menu.DuelButton,false,true,false);
+                if(!menu.DuelButton.gameObject.activeSelf || menu.DuelButton.isEnabled)throw new Exception("Unavailable friend duel must remain visible and disabled");
+                NGame2.NUI.UIHelper.EnableButton(menu.DuelButton,true,true,false);
+                if(!menu.DuelButton.gameObject.activeSelf || !menu.DuelButton.isEnabled)throw new Exception("Available friend duel must be visible and enabled");
+                show.Invoke(menu,new object[]{false});
+                if(menu.DuelButton.gameObject.activeSelf)throw new Exception("Nonfriend duel must remain hidden");
+                UnityEngine.Object.Destroy(parent);
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
+            }
+            if(cmd.action=="boss-characteristics-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Boss scroll fixture requires isolated Login");
+                busy=true;StartCoroutine(ProbeBossCharacteristics(cmd));return;
+            }
+            if(cmd.action=="maria-bird-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Maria fixture requires isolated Login");
+                NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+                string patch=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows");
+                var installed=new Dictionary<string,NShared.AssetInfo>();
+                var entrySetter=typeof(NShared.AssetInfo).GetProperty("EntryName").GetSetMethod(true);
+                foreach(string file in Directory.GetFiles(Path.Combine(patch,"Assetbundle"),"*",SearchOption.AllDirectories)) {
+                    string relative=file.Substring(patch.Length+1).Replace('\\','/');var asset=new NShared.AssetInfo();entrySetter.Invoke(asset,new object[]{relative});installed.Add(relative,asset);
+                }
+                NVespa.SingletonAuto<NGameAsset.AssetFileManager>.instance.Setup(installed);
+                typeof(NVespa.UnityCache).GetProperty("persistentDataPath").GetSetMethod(true).Invoke(null,new object[]{Application.dataPath});
+                typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{true});
+                var loader=NVespa.SingletonUpdater<NGameAsset.NBundleManager.LoaderPlaying>.instance;
+                JsonBin.JsonRead pack;
+                if(!JsonBin.JsonRead.CreateRoot(File.ReadAllBytes(Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle/BundlePack.bin")),out pack))throw new Exception("Bundle pack unavailable");
+                loader.InfoContainer.LoadFromJson(pack["BundleFileInfo"]);
+                NVespa.SingletonAuto<NGameAsset.NCreature.BuilderContainer>.instance.Load(pack["Creature"]);
+                var builder=NVespa.SingletonAuto<NGameAsset.NCreature.BuilderContainer>.instance.Get("Hero.Maria");
+                if(builder==null)throw new Exception("Maria builder unavailable");
+                var weapon=builder.WeaponList.Single(w=>w.Name=="Weapon1");
+                var cases=new List<object>();
+                foreach(string body in new[]{"Cos21Legend","Cos21Legend1"})
+                foreach(string incoming in new[]{"Unique01","","Trans",body})
+                foreach(NGameAsset.CreatureStock.ELoadLevel level in Enum.GetValues(typeof(NGameAsset.CreatureStock.ELoadLevel))) {
+                    var stock=new NGameAsset.CreatureStock {Code="Hero.Maria",Star=5,BodyPrefix=body,HairPrefix=body,LoadLevel=level,
+                        WeaponStock=new NGameAsset.WeaponStock(incoming,5,true,2)};
+                    var open=weapon.CreateOpenData(stock);
+                    if(open==null)throw new Exception("Maria weapon open failed");
+                    try {
+                        var model=(NGameAsset.NCreature.ModelData)((NGameAsset.NCreature.WeaponInstance.IOpenData)open).GetModelData();
+                        if(model.Prefix!=body || !model.AssetName.Contains("Cos21Legend_Weapon"))throw new Exception("Maria "+body+" / "+incoming+" uses base bird "+model.AssetName);
+                        foreach(var animation in open.AnimationLoadList) {
+                            // The archive deliberately falls back for motions
+                            // without a Legend clip (for example emotes). Every
+                            // dedicated Legend motion must retain its override.
+                            var dedicated=model.AnimationList.FirstOrDefault(a=>NGameAsset.NCreature.AnimationKeyData.Comparer.Default.Equals(a.Key,animation.Data.Key));
+                            if(dedicated!=null && animation.Data.AssetName!=dedicated.AssetName)throw new Exception("Maria bird lost Legend animation "+dedicated.AssetName);
+                        }
+                        cases.Add(new Dictionary<string,object>{{"body",body},{"incoming",incoming},{"level",level.ToString()},{"model",model.AssetName},{"animations",open.AnimationLoadList.Count}});
+                    } finally {open.Close();}
+                }
+                var normalize=weapon.GetType().GetMethod("SprkMariaLegendStock");
+                foreach(var preserved in new[]{
+                    new NGameAsset.CreatureStock {Code="Hero.Jane",BodyPrefix="Cos21Legend",WeaponStock=new NGameAsset.WeaponStock("Unique01",5,true,2)},
+                    new NGameAsset.CreatureStock {Code="Hero.Maria",BodyPrefix="Cos20Dessert",WeaponStock=new NGameAsset.WeaponStock("Unique01",5,true,2)},
+                    new NGameAsset.CreatureStock {Code="Hero.Maria",BodyPrefix="Cos21Legend",WeaponStock=new NGameAsset.WeaponStock("Cos17Summer",5,true,2)}
+                }) {
+                    var after=(NGameAsset.CreatureStock)normalize.Invoke(weapon,new object[]{preserved});
+                    if(after.WeaponStock.WeaponPrefix!=preserved.WeaponStock.WeaponPrefix || !after.WeaponStock.IsEquipSoulWeapon || after.WeaponStock.SoulWeaponGrade!=2 || after.WeaponStock.WeaponStar!=5)throw new Exception("Maria fix changed an unrelated appearance or soul weapon");
+                }
+                reply=Snapshot(cmd.id);reply.materials.AddRange(cases);
+                ProbeMariaBirdFrames(cmd,reply);
+                reply.materials.Add("PASS: Maria Legend bird/animation selection across initial load, refresh and preview/combat load levels.");Write(reply);return;
+            }
+            if(cmd.action=="ordeal-revival-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ordeals revival fixture requires isolated Login");
+                NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+                var manager=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NOrdeal.OrdealArenaManager>.instance;
+                var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance;
+                var infoField=manager.GetType().GetField("_infoManager",flags);
+                var originalInfo=infoField.GetValue(manager);
+                var info=new NGame2.NOrdeal.UserOrdealArenaInfoManager();
+                infoField.SetValue(manager,info);
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var accountManagers=account.GetType().GetProperty("AccountManagers",flags).GetValue(account,null);
+                var userField=accountManagers.GetType().GetField("UserManager");
+                var originalUser=userField.GetValue(accountManagers);
+                userField.SetValue(accountManagers,new NGame2.NAccount.UserManager(account,new NShared.UserInfo(),new NShared.PlayerMiscInfo(),new NShared.PlayerGuildPointInfo()));
+                var setDead=info.GetType().GetMethod("SetDeadHeroIndices",flags);
+                var prefab=VespaResource.Load<GameObject>("Resources/"+NGame2.NUI.NComponent2.HeroPortraitComponent.PrefabPath);
+                if(prefab==null)throw new Exception("Hero portrait prefab missing");
+                var host=new GameObject("OrdealRevivalFixture");host.SetActive(false);
+                var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+                var portrait=go.GetComponent<NGame2.NUI.NComponent2.HeroPortraitComponent>();
+                portrait.GetType().GetField("<HeroInfo>k__BackingField",flags).SetValue(portrait,new NShared.CachedHeroInfo{HeroIndex=1});
+                var sync=typeof(NGame2.NOrdeal.OrdealHelper).GetMethod("SprkSyncDeadPortrait");
+                if(sync==null)throw new Exception("Ordeal death-state synchronization missing");
+                try {
+                    setDead.Invoke(info,new object[]{new int[]{1}});
+                    if(portrait.IsDead)throw new Exception("Fixture must start with an unmarked portrait");
+                    if(!(bool)sync.Invoke(null,new object[]{portrait}) || !portrait.IsDead)throw new Exception("Unmarked dead hero bypasses revival");
+                    if(NGame2.NOrdeal.OrdealHelper.GetResurrectionHeroGemCount()!=30)throw new Exception("Revival price differs from archived 30 Rubies");
+                    setDead.Invoke(info,new object[]{new int[0]});
+                    if((bool)sync.Invoke(null,new object[]{portrait}) || portrait.IsDead)throw new Exception("Revived hero remains marked dead");
+                    var captureType=manager.GetType().GetNestedTypes(flags).Single(t=>t.GetField("isWin",flags)!=null);
+                    var capture=Activator.CreateInstance(captureType,true);
+                    captureType.GetField("<>4__this",flags).SetValue(capture,manager);
+                    var callback=captureType.GetMethods(flags).Single(m=>m.GetParameters().Length==1 && m.GetParameters()[0].ParameterType==typeof(NShared.EndOrdealArena.Response));
+                    var heroes=new int[]{1,2,3,4};
+                    for(int cycle=0;cycle<2;cycle++) {
+                        captureType.GetField("isWin",flags).SetValue(capture,false);
+                        callback.Invoke(capture,new object[]{new NShared.EndOrdealArena.Response {
+                            BaseResult=NShared.BaseResultType.Success,Result=NShared.EndOrdealArena.ResultType.Success,
+                            DeadHeroIndices=heroes,ClearNodeIndices=new int[0],SelectableBuffIndices=new int[0],ResultMatchScore=5800
+                        }});
+                        if(!manager.GetDeadHeroInidices().OrderBy(i=>i).SequenceEqual(heroes))throw new Exception("Defeat callback failed to mark all four heroes dead");
+                        if(!(bool)sync.Invoke(null,new object[]{portrait}) || !portrait.IsDead)throw new Exception("Defeated-again hero bypasses revival");
+                        for(int revived=1;revived<=4;revived++) {
+                            info.Apply(new NShared.ResurrectionHero.Response {DeadHeroIndices=heroes.Skip(revived).ToArray(),CurrencyResults=new NShared.CurrencyResultInfo3[0]});
+                        }
+                        if(manager.GetDeadHeroInidices().Length!=0 || (bool)sync.Invoke(null,new object[]{portrait}) || portrait.IsDead)throw new Exception("Repeated revival failed to clear death state");
+                    }
+                    captureType.GetField("isWin",flags).SetValue(capture,true);
+                    callback.Invoke(capture,new object[]{new NShared.EndOrdealArena.Response {
+                        BaseResult=NShared.BaseResultType.Success,Result=NShared.EndOrdealArena.ResultType.Success,
+                        DeadHeroIndices=new int[]{1},ClearNodeIndices=new int[0],SelectableBuffIndices=new int[0],ResultMatchScore=5900
+                    }});
+                    if(!manager.IsDeadHero(1) || manager.IsDeadHero(2))throw new Exception("Victory callback lost partial death state");
+                } finally {infoField.SetValue(manager,originalInfo);userField.SetValue(accountManagers,originalUser);UnityEngine.Object.Destroy(host);}
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: native defeat callback marks four heroes dead through two defeat/revive cycles; portraits require 30-Ruby revival again; victory retains partial deaths.");Write(reply);return;
             }
             if(cmd.action=="tower-continuous-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");
@@ -316,6 +459,91 @@ public sealed class SprkAutomation : MonoBehaviour
                     var text=popup.Label_SkillDesc.text;
                     popup.Label_SkillDesc.text=text+"\n\n"+text+"\n\n"+text;
                     RestoredPortal.ReadablePerkDescription(popup);
+                }
+            }
+            else if(cmd.action=="open-raid-info") {
+                var raids=new List<object>(); NShared.RaidData selected=null;
+                foreach(var type in new[]{NShared.RaidType.DragonNormal,NShared.RaidType.DragonHard,NShared.RaidType.PunishmentRaid,NShared.RaidType.Challenge,NShared.RaidType.KarmaRaid,NShared.RaidType.GuildSuppress,NShared.RaidType.GuildSuppressSingle}) {
+                    System.Collections.Generic.IList<NShared.RaidData> list=null;
+                    try{ list=NShared.GameRoot.Instance.RaidDataContainer.GetRaidDataListByType(type); }catch(Exception){}
+                    if(list==null)continue;
+                    foreach(var raid in list) {
+                        if(raid==null)continue;
+                        string name=null,key=null,typeName=null;
+                        int index=0,level=0;
+                        try{ key=raid.Name; name=NVespa.NGlobal.LocalizationManager.GetStringDirect(key); }catch(Exception){}
+                        try{ index=raid.Index; }catch(Exception){}
+                        try{ level=raid.Level; }catch(Exception){}
+                        try{ typeName=raid.Type.ToString(); }catch(Exception){}
+                        raids.Add(new Dictionary<string,object>{{"index",index},{"level",level},{"type",typeName},{"name",name},{"key",key}});
+                        if(cmd.target>0) { if(index==cmd.target)selected=raid; continue; }
+                        if(String.IsNullOrEmpty(cmd.text))continue;
+                        if(name==null || name.IndexOf(cmd.text,StringComparison.OrdinalIgnoreCase)<0)continue;
+                        if(selected==null || level<selected.Level)selected=raid;
+                    }
+                }
+                if(selected==null) {
+                    // Fall back to the live raid nodes, which carry the same RaidData.
+                    foreach(var node in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NComponent2.PunishmentRaidComponent>()) {
+                        var data=node.PunishmentRaidData;
+                        if(data==null)continue;
+                        var raid=NShared.GameRoot.Instance.RaidDataContainer.GetData(data.RaidIndex,data.RaidLevel);
+                        if(raid==null)continue;
+                        raids.Add(new Dictionary<string,object>{{"index",raid.Index},{"level",raid.Level},{"type",raid.Type.ToString()},{"name",null},{"key",raid.Name},{"node",node.name}});
+                        if(cmd.target>0) { if(raid.Index==cmd.target)selected=raid; continue; }
+                        if(String.IsNullOrEmpty(cmd.text))continue;
+                        string localized=null;
+                        try{ localized=NVespa.NGlobal.LocalizationManager.GetStringDirect(raid.Name); }catch(Exception){}
+                        if(localized==null || localized.IndexOf(cmd.text,StringComparison.OrdinalIgnoreCase)<0)continue;
+                        if(selected==null || raid.Level<selected.Level)selected=raid;
+                    }
+                }
+                if(selected==null)throw new InvalidOperationException("Raid not found: "+(String.IsNullOrEmpty(cmd.text)?cmd.target.ToString():cmd.text)+" ; available="+String.Join(",",raids.ConvertAll(x=>((Dictionary<string,object>)x)["type"]+":"+((Dictionary<string,object>)x)["index"]).ToArray()));
+                NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.RaidManagement>.instance.OpenRaidInfo(selected);
+                reply.materials.Add(new Dictionary<string,object>{{"kind","openedRaid"},{"index",selected.Index},{"level",selected.Level},{"raids",raids}});
+            }
+            else if(cmd.action=="raid-info-probe") {
+                foreach(var info in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.RaidInfoBase>()) {
+                    var label=info.RaidTacticLabel;
+                    if(label==null)continue;
+                    var values=new Dictionary<string,object>{{"kind","raidInfo"},{"path",Hierarchy(info.transform)},
+                        {"label",Hierarchy(label.transform)},{"textLength",label.text==null?0:label.text.Length},
+                        {"text",label.text}, {"labelPos",label.transform.localPosition},
+                        {"width",label.width},{"height",label.height},{"pivot",label.pivot.ToString()},
+                        {"overflow",label.overflowMethod.ToString()},{"parent",Hierarchy(label.transform.parent)}};
+                    var collider=label.GetComponent<Collider>();
+                    if(collider!=null)values["collider"]=new Dictionary<string,object>{{"x",collider.bounds.size.x},{"y",collider.bounds.size.y}};
+                    var labelDrag=label.GetComponent<UIDragScrollView>();
+                    values["labelDrag"]=labelDrag==null||labelDrag.scrollView==null?null:Hierarchy(labelDrag.scrollView.transform);
+                    var scrolls=new List<object>();
+                    foreach(var scroll in info.GetComponentsInChildren<UIScrollView>(true)) {
+                        var panel=scroll.panel;
+                        var entry=new Dictionary<string,object>{{"path",Hierarchy(scroll.transform)},
+                            {"pos",scroll.transform.localPosition},{"panelDepth",panel==null?-1:panel.depth},
+                            {"clipping",panel==null?"none":panel.clipping.ToString()},
+                            {"canMoveV",scroll.canMoveVertically},
+                            {"disableDragIfFits",scroll.disableDragIfFits},{"movement",scroll.movement.ToString()},
+                            {"contentPivot",scroll.contentPivot.ToString()}};
+                        if(panel!=null) {
+                            entry["baseClip"]=new Dictionary<string,object>{{"x",panel.baseClipRegion.x},{"y",panel.baseClipRegion.y},{"z",panel.baseClipRegion.z},{"w",panel.baseClipRegion.w}};
+                            entry["finalClip"]=new Dictionary<string,object>{{"x",panel.finalClipRegion.x},{"y",panel.finalClipRegion.y},{"z",panel.finalClipRegion.z},{"w",panel.finalClipRegion.w}};
+                            entry["clipOffset"]=new Dictionary<string,object>{{"x",panel.clipOffset.x},{"y",panel.clipOffset.y}};
+                            entry["panelSize"]=new Dictionary<string,object>{{"x",panel.width},{"y",panel.height}};
+                            try{ entry["shouldMoveV"]=scroll.shouldMoveVertically; }catch(Exception){}
+                        }
+                        try{ var bounds=scroll.bounds;
+                            entry["boundsMin"]=new Dictionary<string,object>{{"x",bounds.min.x},{"y",bounds.min.y}};
+                            entry["boundsMax"]=new Dictionary<string,object>{{"x",bounds.max.x},{"y",bounds.max.y}};
+                        }catch(Exception){}
+                        scrolls.Add(entry);
+                    }
+                    values["scrolls"]=scrolls;
+                    var drags=new List<object>();
+                    foreach(var drag in info.GetComponentsInChildren<UIDragScrollView>(true))
+                        drags.Add(new Dictionary<string,object>{{"path",Hierarchy(drag.transform)},
+                            {"target",drag.scrollView==null?null:Hierarchy(drag.scrollView.transform)}});
+                    values["drags"]=drags;
+                    reply.materials.Add(values);
                 }
             }
             else if(cmd.action!="hero-growth-probe" && cmd.action!="account-form-probe" && cmd.action!="guild-attendance-probe" && cmd.action!="payment-probe" && cmd.action!="lobby-probe" && cmd.action!="snapshot" && cmd.action!="screenshot" && cmd.action!="quit" && cmd.action!="renderers" && cmd.action!="probe-renderer" && cmd.action!="soul-scene" && cmd.action!="dispatch-probe" && cmd.action!="party-ui" && cmd.action!="inn-scene" && cmd.action!="input-focus" && cmd.action!="perk-popup" && cmd.action!="skill-probe" && cmd.action!="combat-probe" && cmd.action!="combat-simulation" && cmd.action!="skill-table-probe" && cmd.action!="combat-table-probe") throw new InvalidOperationException("Unknown action");
@@ -1057,6 +1285,146 @@ public sealed class SprkAutomation : MonoBehaviour
         var result=new Dictionary<string,object>();
         if(data!=null) foreach(var stat in CombatStatTypes()) result[stat.ToString()]=data.GetStat(stat);
         return result;
+    }
+    IEnumerator ProbeBossCharacteristics(Command cmd) {
+        var report=new List<object>();
+        foreach(string path in new[]{"Resources/Prefab2/Window/Raid/RaidInfo","Resources/Prefab2/Window/GuildSuppress/GuildSuppressBossInfo",
+            "Resources/Prefab2/Window/WorldBoss/WorldBossProfile","Resources/Prefab2/Window/ShakmehDungeon/ShakmehBossInfoPopup",
+            "Resources/Prefab2/Window/GodkingTrial/PopupUIGodkingTrialBossInfo"}) {
+            GameObject host=null;UILabel label=null;UIScrollView scroll=null;Reply failure=null;
+            string description=String.Join("\n",Enumerable.Range(1,45).Select(i=>"Boss characteristic "+i+": this description must remain scrollable after release."));
+            Action<string> setDescription=null;
+            var values=new Dictionary<string,object>{{"prefab",path}};
+            try {
+                var prefab=VespaResource.Load<GameObject>(path);if(prefab==null)throw new Exception("Boss prefab missing: "+path);
+                host=new GameObject("BossScrollFixture");host.SetActive(false);
+                var uiRoot=UnityEngine.Object.FindObjectOfType<UIRoot>();if(uiRoot!=null)host.transform.SetParent(uiRoot.transform,false);
+                var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+                var window=go.GetComponents<MonoBehaviour>().First(c=>c.GetType().GetField("RaidTacticLabel")!=null || c.GetType().GetField("TacticLabel")!=null);
+                var field=window.GetType().GetField("RaidTacticLabel")??window.GetType().GetField("TacticLabel");label=(UILabel)field.GetValue(window);
+                values["originalWidth"]=label.width;values["originalHeight"]=label.height;values["originalMaxLines"]=label.maxLineCount;
+                values["originalParent"]=Hierarchy(label.transform.parent);
+                values["originalScrolls"]=label.GetComponentsInParent<UIScrollView>(true).Select(s=>s.name).ToArray();
+                report.Add(values);
+                window.enabled=false;
+                for(var t=label.transform;t!=null && t!=host.transform;t=t.parent)t.gameObject.SetActive(true);
+                host.SetActive(true);
+                var helper=System.Reflection.Assembly.Load("SprkRaidInfoScroll").GetType("SprkRaidInfoScroll");
+                var setText=helper.GetMethod("SetText");
+                var refreshLabel=helper.GetMethod("RefreshLabel");
+                setDescription=text=> {
+                    if(setText!=null)setText.Invoke(null,new object[]{label,text,false});
+                    else NGame2.NUI.UIHelper.SetLabelText(label,text,false);
+                    if(refreshLabel!=null)refreshLabel.Invoke(null,new object[]{label});
+                    else if(window is NGame2.NUI.NWindow.RaidInfoBase)helper.GetMethod("Refresh").Invoke(null,new object[]{window});
+                };
+                setDescription(description);
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null) {if(host!=null)UnityEngine.Object.Destroy(host);failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+            for(int frame=0;frame<6;frame++)yield return null;
+            float before=0,dragged=0;
+            try {
+                scroll=label.GetComponent<UIDragScrollView>()==null?null:label.GetComponent<UIDragScrollView>().scrollView;
+                if(scroll==null)throw new Exception("Characteristics has no scroll binding: "+path);
+                values["height"]=label.height;values["boundsHeight"]=scroll.bounds.size.y;values["viewportHeight"]=scroll.panel.height;
+                if(scroll.bounds.size.y<=scroll.panel.height+1)throw new Exception("Overflow text has no scrollable bounds: "+path);
+                before=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                UICamera.currentScheme=UICamera.ControlScheme.Mouse;
+                scroll.Press(true);scroll.MoveRelative(new Vector3(0,120,0));scroll.Press(false);
+                dragged=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                values["before"]=before;values["dragged"]=dragged;
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null) {UnityEngine.Object.Destroy(host);failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(1.2f);
+            try {
+                float after=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;values["afterRelease"]=after;
+                if(dragged-before<80 || Mathf.Abs(after-dragged)>2)throw new Exception("Characteristics jumps back after release: "+path+" "+before+" -> "+dragged+" -> "+after);
+                for(int refresh=0;refresh<10;refresh++)setDescription(description);
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    float after=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                    if(Mathf.Abs(after-dragged)>2)throw new Exception("Repeated UI refresh resets Characteristics scroll: "+path);
+                    host.SetActive(false);host.SetActive(true);
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    if(Mathf.Abs(scroll.transform.parent.InverseTransformPoint(label.transform.position).y-dragged)>2)throw new Exception("Tab reopening resets unchanged Characteristics: "+path);
+                    setDescription(description+"\nAnother boss description.");
+                    if(Mathf.Abs(scroll.transform.parent.InverseTransformPoint(label.transform.position).y-before)>2)throw new Exception("Changed boss description did not return to top: "+path);
+                    setDescription("Short characteristic.");
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    if(scroll.bounds.size.y>scroll.panel.height+5)throw new Exception("Short Characteristics retained stale overflow: "+path);
+                    setDescription(description);scroll.InvalidateBounds();
+                    if(scroll.bounds.size.y<=scroll.panel.height+1)throw new Exception("Long Characteristics did not become scrollable again: "+path);
+                    values["refreshReopenAndTextChanges"]=true;
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            UnityEngine.Object.Destroy(host);
+            if(failure!=null) {failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+        }
+        busy=false;var result=Snapshot(cmd.id);result.materials.AddRange(report);result.materials.Add("PASS: native boss prefab overflow remains scrolled after release.");Write(result);
+    }
+    void ProbeMariaBirdFrames(Command cmd,Reply reply) {
+        string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");
+        var opened=new List<AssetBundle>();
+        Func<string,AssetBundle> load=relative=> {
+            string file=Path.Combine(bundles,relative);
+            var bundle=AssetBundle.LoadFromFile(file);
+            if(bundle==null)throw new Exception("Maria visual bundle unavailable: "+relative);
+            opened.Add(bundle);return bundle;
+        };
+        GameObject body=null,bird=null,cameraObject=null;RenderTexture target=null;Texture2D picture=null;
+        try {
+            if(janeProbeShaders==null)janeProbeShaders=AssetBundle.GetAllLoadedAssetBundles().FirstOrDefault(b=>b.name.ToLowerInvariant().Contains("shader"));
+            if(janeProbeShaders==null)janeProbeShaders=AssetBundle.LoadFromFile(Path.Combine(bundles,"Unity_2020/Shader.unity3d"));
+            var bodyBundle=load("OriginalSpec/Creature_Hero_Maria_Cos21.unity3d");var birdBundle=load("OriginalSpec/Creature_Hero_Maria_Star0.unity3d");
+            var idle=load("Creature_Hero_Maria.unity3d");var battle=load("Creature_Hero_Maria_Animation.unity3d");
+            body=UnityEngine.Object.Instantiate(bodyBundle.LoadAsset<GameObject>(bodyBundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_maria_cos21legend_body"))));
+            bird=UnityEngine.Object.Instantiate(birdBundle.LoadAsset<GameObject>(birdBundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_maria_cos21legend_weapon"))));
+            body.transform.position=Vector3.zero;body.transform.rotation=Quaternion.identity;
+            bird.transform.SetParent(body.transform,false);bird.transform.localPosition=Vector3.zero;bird.transform.localRotation=Quaternion.identity;
+            foreach(var node in body.GetComponentsInChildren<Transform>(true))node.gameObject.layer=30;
+            var bodyAnimation=body.GetComponent<Animation>();var birdAnimation=bird.GetComponent<Animation>();
+            if(bodyAnimation==null || birdAnimation==null)throw new Exception("Maria native animation component missing");
+            bodyAnimation.playAutomatically=false;birdAnimation.playAutomatically=false;bodyAnimation.Stop();birdAnimation.Stop();
+            foreach(var renderer in body.GetComponentsInChildren<SkinnedMeshRenderer>(true)) {
+                renderer.updateWhenOffscreen=true;
+                foreach(var material in renderer.sharedMaterials)if(material==null || material.shader==null || !material.shader.isSupported || material.mainTexture==null)throw new Exception("Maria visual has a missing material/texture");
+            }
+            cameraObject=new GameObject("MariaBirdProbeCamera");var camera=cameraObject.AddComponent<Camera>();
+            camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.2f,.25f,.3f,1);
+            camera.orthographic=true;camera.orthographicSize=1.5f;camera.transform.position=new Vector3(0,1,4);camera.transform.LookAt(new Vector3(0,1,0));
+            RestoredPortal.EnsureNativeShaderVariables();target=new RenderTexture(768,768,24);camera.targetTexture=target;
+            foreach(string motion in new[]{"Idle","Astand","Attack1","Skill1","Skill2","Victory"}) {
+                var source=motion=="Idle" || motion=="Astand"?idle:battle;
+                var bodyClip=source.LoadAllAssets<AnimationClip>().Single(c=>c.name.Equals("Hero_Maria_Legend@"+motion+"_"+motion,StringComparison.OrdinalIgnoreCase));
+                var birdClip=source.LoadAllAssets<AnimationClip>().Single(c=>c.name.Equals("Hero_Maria_Legend_Weapon@"+motion+"_"+motion,StringComparison.OrdinalIgnoreCase));
+                bodyAnimation.AddClip(bodyClip,"probe");birdAnimation.AddClip(birdClip,"probe");bodyAnimation.Play("probe");birdAnimation.Play("probe");
+                for(int frame=0;frame<25;frame++) {
+                    bodyAnimation["probe"].time=bodyClip.length*frame/25f;birdAnimation["probe"].time=birdClip.length*frame/25f;
+                    bodyAnimation.Sample();birdAnimation.Sample();camera.Render();
+                    if(frame==12) {
+                        var previous=RenderTexture.active;RenderTexture.active=target;picture=new Texture2D(768,768,TextureFormat.RGB24,false);
+                        picture.ReadPixels(new Rect(0,0,768,768),0,0);picture.Apply();RenderTexture.active=previous;
+                        string file=cmd.id+"-"+motion+".png";File.WriteAllBytes(Path.Combine(root,file),picture.EncodeToPNG());
+                        UnityEngine.Object.Destroy(picture);picture=null;reply.screenshot=file;
+                    }
+                }
+            }
+            reply.materials.Add("PASS: rendered 150 frames of archived Legend body/bird motions: idle, battle idle, attack, skills and victory.");
+        } finally {
+            if(body!=null)UnityEngine.Object.DestroyImmediate(body);if(cameraObject!=null)UnityEngine.Object.DestroyImmediate(cameraObject);
+            if(target!=null){target.Release();UnityEngine.Object.DestroyImmediate(target);}if(picture!=null)UnityEngine.Object.DestroyImmediate(picture);
+            foreach(var bundle in opened)bundle.Unload(false);
+        }
     }
     AssetBundle janeProbeShaders;
     void ProbeJaneLegend(Command cmd,Reply reply) {

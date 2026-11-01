@@ -161,7 +161,8 @@ pub(super) async fn opening(
         if p["Day"] == day() && n(&p, "IsOpen") == 1 {
             return Err(rule("AlreadyOpened"));
         }
-        out["StaminaResult"] = dungeons::charge(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
+        // Opening access consumes stamina without granting team EXP.
+        out["StaminaResult"] = dungeons::charge_reserved(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
         p = json!({"GroupIndex":n(group,"GroupIndex"),"DungeonType":1,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":1,"ClearLevel":0,"ClearCount":0,"Day":day()});
         put(db, a, "punishment_open", key, &p).await?;
     } else if action == "reset_punishment_raid" {
@@ -340,6 +341,22 @@ mod reward_tests {
         assert_eq!(out["Result"], "Success", "{out}");
         assert_eq!(added(&out, 45121), 1);
         assert_eq!(added(&out, 40237), 0);
+    }
+
+    #[tokio::test]
+    async fn karma_fills_every_selected_flask_and_retains_rewards() {
+        let (s,u)=setup().await;let a=account(&u);
+        for (group,chapter) in [(101001,70101),(101002,70201)] {
+            let flasks:Vec<_>=s.tables.battle.rows("ShardFlaskItem").iter().filter(|v|n(v,"GroupIndex")==group).cloned().collect();
+            for flask in flasks {
+                let id=n(&flask,"Index");
+                sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,3) ON CONFLICT(account_id,item_index) DO UPDATE SET count=3").bind(a).bind(id).execute(&s.db).await.unwrap();
+                begin(&s,&u,group,chapter,id).await;
+                let out=call(&s,&u,"contents/end_content",&ending(&s,group,chapter,100)).await;
+                assert_eq!(out["Result"],"Success","flask {id}: {out}");
+                assert!(added(&out,n(&flask,"ShardItemIndex"))>0,"flask {id} failed to fill: {out}");
+            }
+        }
     }
 }
 pub(super) async fn validate(

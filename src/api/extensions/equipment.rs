@@ -117,6 +117,8 @@ pub(super) async fn execute(
                                     .rows("NPCFriendlyPoint")
                                     .iter()
                                     .any(|npc| n(npc, "HeroIndex") == i)
+                                    && state.tables.hero_shop.heroes.get(&(i as i32))
+                                        .is_some_and(|hero| n(hero,"OpenType")==1)
                             })
                         })
                 {
@@ -438,7 +440,7 @@ async fn break_equipment(
     }
     let mut rewards = Rewards::default();
     for slot in ids {
-        let eq = material(db, account, slot).await?;
+        let eq = material_checked(db, account, slot, true).await?;
         let data = meta(state, eq.item_index)?;
         let all = state.tables.extensions.rows("EquipItemBreak");
         let r = if n(data, "SetIndex") > 0 {
@@ -612,6 +614,9 @@ async fn renew(
         return Err(rule("InvalidOptionSlotIndex"));
     }
     let data = meta(state, eq.item_index)?;
+    if skill && slot==2 && n(data,"EquipType")==1 {
+        return Err(rule("InvalidOptionSlotIndex"));
+    }
     let detail = row(
         state,
         "EquipItemDetail",

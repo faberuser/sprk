@@ -14,6 +14,22 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--arena-practice-only` adds Arena Practice immediately after Battlefield of
+Ordeals. Its Practice button opens the native four-hero Arena party selector,
+with a separate saved roster and no entry cost. It uses the equipped-hero
+factory from League of Victory and the See Motions field/dummy. A private combat
+copy uses Victory's chapter, battle definition and stat modifiers; the dummy
+counts as a hero target and cannot die. Preview mana regeneration is excluded.
+The card uses League of Victory artwork. Practice enables health/status HUDs and
+floating damage/heal text, retains manual skills and Auto, and fixes battle speed
+at x1 with no speed button. These display rules do not change saved damage-text
+preferences or other battle modes. Exit returns to Arena
+selection without ranked results or rewards. Regular See Motions is unchanged.
+Run `--verify-arena-practice` for installed hooks/helper checks and
+`python scripts/client/verify_arena_practice.py` for isolated native prefab,
+equipped-party, combat damage and preview-isolation checks (`--installed` checks
+the installed patch). The full `--build-release` installs and verifies this patch.
+
 `--battle-result-flask-only` keeps the flask bar, icon, final fill and gain text
 after the battle-result flask animation. It removes the visual-only completion
 callback that initialized hero EXP after every flask animation; native reward
@@ -341,11 +357,11 @@ Tests execute reconciliation against native stock structures and simulated
 creature interfaces for basic and costume weapons, missing instances, changed
 accessories, unequips, stable no-ops, readiness and A-B-A account switching.
 
-Lobby hero snapshots use the current manager's hero and owned accessories, reject
-a portrait snapshot carrying another account ID, and clone accessory transforms
-so previews cannot share mutable positions with the live hero. Portrait body
-costumes retain their independent native behavior. Story-forced avatars and
-unrelated hero notifications retain their existing exclusions.
+Lobby appearances use the saved `PlayerAvatarHeroInfo` selection, including its
+costume, hair, weapon and accessories. Equipping different hero cosmetics leaves
+that selection intact. The profile icon and portrait use the selected avatar
+index. Account isolation, readiness checks, accessory instance repair and cloned
+transforms remain in place. Story-forced avatars retain their native behavior.
 
 Closed CreatureLoad completion callbacks must return before accessing released
 OpenData. Existing guards are retained; the patch adds the same guard if missing

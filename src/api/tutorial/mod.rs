@@ -532,7 +532,7 @@ async fn complete_in_transaction(
     if !claimed {
         let row = sqlx::query("SELECT completed_time, completion_response FROM tutorial_progress WHERE account_id = ? AND tutorial_index = ?")
             .bind(account_id).bind(index).fetch_one(&mut *tx).await?;
-        let response = match row.get::<Option<String>, _>("completion_response") {
+        let mut response = match row.get::<Option<String>, _>("completion_response") {
             Some(response) => {
                 let mut response = serde_json::from_str(&response)
                     .map_err(|e| ServerError::Internal(e.to_string()))?;
@@ -543,6 +543,7 @@ async fn complete_in_transaction(
                 json!({"BaseResult": "Success", "Result": "Success", "Info": {"TutorialIndex": index, "CompletedTime": row.get::<Option<String>, _>("completed_time")}})
             }
         };
+        response["StaminaResultInfos"] = json!([crate::api::account::stamina::chicken(tx, state, account_id).await?]);
         return Ok(response);
     }
     let mut rewards = Rewards::default();
@@ -551,9 +552,10 @@ async fn complete_in_transaction(
     for hero in &rewards.heroes {
         heroes.push(hero_info(&mut *tx, account_id, *hero).await?);
     }
+    let stamina = crate::api::account::stamina::chicken(tx, state, account_id).await?;
     let response = json!({"BaseResult": "Success", "Result": "Success", "Info": {"TutorialIndex": index, "CompletedTime": now},
         "CurrencyResults": rewards.currencies, "ItemResults": rewards.items, "EquipItemResults": rewards.equipment,
-        "HeroInfos": heroes, "TeamExpResultInfos": rewards.team_exp, "StaminaResultInfos": [], "DungeonInfos": rewards.dungeons});
+        "HeroInfos": heroes, "TeamExpResultInfos": rewards.team_exp, "StaminaResultInfos": [stamina], "DungeonInfos": rewards.dungeons});
     sqlx::query("UPDATE tutorial_progress SET completion_response = ? WHERE account_id = ? AND tutorial_index = ?")
         .bind(response.to_string()).bind(account_id).bind(index).execute(&mut *tx).await?;
     Ok(response)

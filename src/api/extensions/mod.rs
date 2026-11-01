@@ -212,6 +212,9 @@ pub(crate) async fn save_equip(
     Ok(())
 }
 pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+    material_checked(db, account, slot, false).await
+}
+async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, disposing: bool) -> Result<EquipItemInfo> {
     let eq = equip(db, account, slot).await?;
     if eq.locked != 0 {
         return Err(rule("LockedEquip"));
@@ -233,11 +236,7 @@ pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64)
     .bind(slot)
     .fetch_one(&mut *db)
     .await?;
-    if worn || pending {
-        return Err(rule("EquippedItem"));
-    }
-    let preset:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM extension_state s,json_each(s.data) j WHERE s.account_id=? AND s.kind='equip_storage' AND j.key LIKE 'EquipItemSlotIndex%' AND j.value=?)").bind(account).bind(slot).fetch_one(&mut *db).await?;
-    if preset {
+    if worn || (pending && !disposing) {
         return Err(rule("EquippedItem"));
     }
     if !get(&mut *db, account, "soul", slot).await?.is_null() {
@@ -246,6 +245,7 @@ pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64)
     Ok(eq)
 }
 async fn remove_equip(db: &mut SqliteConnection, account: i64, slot: i32) -> Result<()> {
+    crate::api::heroes::presets::forget_equipment(db, account, slot as i64).await?;
     sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
         .bind(account)
         .bind(slot)
@@ -383,7 +383,10 @@ pub(crate) async fn misc(
 pub(crate) async fn storage_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
     let mut tx = state.db.begin().await?;
     storage::initialize(&mut tx, state, account).await?;
-    let rows = list(&mut tx, account, "equip_storage").await?;
+    let mut rows = list(&mut tx, account, "equip_storage").await?;
+    for value in &mut rows {
+        storage::reconcile(&mut tx, account, value).await?;
+    }
     tx.commit().await?;
     Ok(rows)
 }

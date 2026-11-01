@@ -45,6 +45,24 @@ async fn complete(state: &AppState, key: &str, index: i32) -> Value {
         .unwrap()
         .0
 }
+fn reward_receipt(mut v:Value)->Value {
+    v.as_object_mut().unwrap().remove("StaminaResultInfos");
+    v
+}
+
+#[tokio::test]
+async fn tutorial_completion_and_retry_refresh_stamina_clock() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    for _ in 0..2 {
+        sqlx::query("UPDATE user_info SET stamina=0,stamina_recharge_time=? WHERE account_id=?")
+            .bind(chrono::Utc::now().timestamp()).bind(a).execute(&s.db).await.unwrap();
+        let out=complete(&s,&u.user_info.session_key,10001).await;
+        let timer=&out["StaminaResultInfos"][0];
+        assert_eq!(timer["Type"],"Chicken");
+        assert!(timer["NextRechargeRemainTime"].as_i64().unwrap()>0);
+        assert!(timer["FullRechargeRemainTime"].as_i64().unwrap()>0);
+    }
+}
 
 #[tokio::test]
 async fn fresh_account_recruits_party_and_resumes_after_login() {
@@ -115,13 +133,13 @@ async fn concurrent_completion_grants_once_and_replays_response() {
     let (state, first) = setup().await;
     let key = &first.user_info.session_key;
     let (left, right) = tokio::join!(complete(&state, key, 10001), complete(&state, key, 10001));
-    assert_eq!(left, right);
+    assert_eq!(reward_receipt(left.clone()), reward_receipt(right));
     let current = login(&state).await;
     assert_eq!(current.user_info.gold, first.user_info.gold + 1200);
     assert_eq!(current.heroes.len(), 3);
     assert_eq!(current.equip_items.len(), 2);
     let replay = complete(&state, key, 10001).await;
-    assert_eq!(left, replay);
+    assert_eq!(reward_receipt(left), reward_receipt(replay));
 }
 
 #[tokio::test]
@@ -348,8 +366,8 @@ async fn custom_equipment_survives_relogin_and_replay() {
     assert_eq!(current.equip_items[0].option_renew_count_4, 1);
     assert_eq!(current.equip_items[0].is_renewed_option_4, 1);
     assert_eq!(
-        original,
-        complete(&state, &first.user_info.session_key, 9500).await
+        reward_receipt(original),
+        reward_receipt(complete(&state, &first.user_info.session_key, 9500).await)
     );
 }
 

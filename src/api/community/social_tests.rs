@@ -1081,6 +1081,58 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
 struct Socket(BufReader<TcpStream>);
 
 #[tokio::test]
+async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated() {
+    async fn message(socket:&mut Socket,expected:&str)->Value {
+        loop {
+            let (name,value)=socket.read().await;
+            if name=="MessageNot" && matches!(value["Type"].as_str(),Some("Login"|"Logout"|"GuildLogin"|"GuildLogout")) {continue;}
+            if expected=="MessageRes" {assert_eq!(name,expected);}
+            else {assert_eq!(value["Type"],expected);}
+            return value;
+        }
+    }
+    let (state,a,b)=setup().await;
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,1).await;
+    sqlx::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES(?,?,'accepted')")
+        .bind(a.user_info.account_id).bind(b.user_info.account_id).execute(&state.db).await.unwrap();
+    let group=a.user_info.account_id;
+    sa.send("MessageReq",json!({"RequestId":10,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group,"Nick":"FORGED"}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");
+    let notice=message(&mut sb,"RequestDuel").await;
+    let body:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(body["Nick"],a.user_info.nick);
+    // Native DuelManager starts its first 10-second ping while RequestDuel is
+    // still pending. The receiver is in None state and replies with GroupId=0.
+    sa.send("MessageReq",json!({"RequestId":101,"ReceiverIds":[b.user_info.account_id],"Message":format!("DuelPing {}",json!({"GroupId":group.to_string()}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"DuelPing").await;
+    sb.send("MessageReq",json!({"RequestId":102,"ReceiverIds":[a.user_info.account_id],"Message":"DuelPong {\"GroupId\":\"0\"}"})).await;
+    assert_eq!(message(&mut sb,"MessageRes").await["Result"],"Success");
+    let pong=message(&mut sa,"DuelPong").await;
+    assert_eq!(serde_json::from_str::<Value>(pong["Content"].as_str().unwrap()).unwrap()["GroupId"],"0");
+    sb.send("MessageReq",json!({"RequestId":11,"ReceiverIds":[a.user_info.account_id],"Message":format!("AcceptDuel {}",json!({"GroupId":group}))})).await;
+    assert_eq!(message(&mut sb,"MessageRes").await["Result"],"Success");message(&mut sa,"AcceptDuel").await;
+    // Hero selection can remain open beyond the native first-ping deadline.
+    tokio::time::sleep(std::time::Duration::from_millis(10100)).await;
+    for reverse in [false,true] {
+        let (sender,receiver,target,source)=if reverse {(&mut sb,&mut sa,a.user_info.account_id,b.user_info.account_id)} else {(&mut sa,&mut sb,b.user_info.account_id,a.user_info.account_id)};
+        sender.send("MessageReq",json!({"RequestId":103,"ReceiverIds":[target],"Message":format!("DuelPing {}",json!({"GroupId":group}))})).await;
+        assert_eq!(message(sender,"MessageRes").await["Result"],"Success");message(receiver,"DuelPing").await;
+        receiver.send("MessageReq",json!({"RequestId":104,"ReceiverIds":[source],"Message":format!("DuelPong {}",json!({"GroupId":group}))})).await;
+        assert_eq!(message(receiver,"MessageRes").await["Result"],"Success");message(sender,"DuelPong").await;
+    }
+    assert_eq!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.unwrap(),b.user_info.account_id);
+    sa.send("MessageReq",json!({"RequestId":12,"ReceiverIds":[b.user_info.account_id],"Message":format!("CancelDuel {}",json!({"GroupId":group,"IsReject":false}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"CancelDuel").await;
+    assert!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.is_err());
+    sb.send("MessageReq",json!({"RequestId":105,"ReceiverIds":[a.user_info.account_id],"Message":"DuelPong {\"GroupId\":0}"})).await;
+    assert_ne!(message(&mut sb,"MessageRes").await["Result"],"Success","closed invitations cannot relay zero-group pongs");
+    sa.send("MessageReq",json!({"RequestId":13,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"RequestDuel").await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
     let (s, a, b) = setup().await;
     sqlx::query("UPDATE heroes SET level=37 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
@@ -1541,12 +1593,45 @@ async fn socket_requires_session_proof_and_accepts_native_string_ids() {
 async fn chat_equipment_links_use_owned_snapshot() {
     let (state,a,b)=setup().await;
     sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index) VALUES(?,50,1010101)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
-    let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999}}]"#).into_owned();
+    let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999,"SoulWeaponInfo":{"Grade":2,"ReinforceLevel":20}}}]"#).into_owned();
     let v=chat::send_world_chat(State(state.clone()),form(&a,&format!("Chat=item&LinkedItem={link}"))).await.unwrap().0;
     let content:Value=serde_json::from_str(v["Message"]["Content"].as_str().unwrap()).unwrap();
     assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["ItemIndex"],1010101);
     assert_eq!(content["LinkedItem"][0]["MaxEquipLevel"],0);
+    assert!(content["LinkedItem"][0]["EquipItemInfo"]["SoulWeaponInfo"].is_null());
     assert!(chat::send_world_chat(State(state.clone()),form(&b,&format!("Chat=item&LinkedItem={link}"))).await.is_err());
+}
+
+#[tokio::test]
+async fn chat_equipment_links_include_sender_soul_weapon_snapshot() {
+    let (state,a,b)=setup().await;
+    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index,star) VALUES(?,50,1001,5)")
+        .bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    let mut soul=json!({"EquipItemSlotIndex":50,"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,
+        "OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":100,"OptionBonusRatio2":200});
+    {
+        let mut db=state.db.acquire().await.unwrap();
+        crate::api::extensions::put(&mut db,a.user_info.account_id,"soul",50,&soul).await.unwrap();
+        // Even conflicting recipient-side extension state cannot replace the sender's soul.
+        crate::api::extensions::put(&mut db,b.user_info.account_id,"soul",50,
+            &json!({"EquipItemSlotIndex":50,"ItemIndex":1001,"Grade":0,"ReinforceLevel":0})).await.unwrap();
+    }
+    crate::api::extensions::refresh_soul_weapon_stats(&state,std::slice::from_mut(&mut soul)).unwrap();
+    let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+    let server=tokio::spawn(chat::serve(listener,state.clone()));
+    let mut sender=Socket::connect(addr,&a,1).await;
+    let mut receiver=Socket::connect(addr,&b,1).await;
+    sender.send("MessageReq",json!({"RequestId":42,"GroupType":"Channel","Message":format!("ChannelChat {}",
+        json!({"Chat":"shared UW","LinkedItem":[{"EquipItemInfo":{"SlotIndex":50,"SoulWeaponInfo":{"Grade":0}}}]}))})).await;
+    assert_eq!(sender.read().await.1["Result"],"Success");
+    let notice=receiver.read().await.1;
+    let content:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["SoulWeaponInfo"],soul);
+    assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["Star"],5);
+    let stored:String=sqlx::query_scalar("SELECT content FROM chat_messages WHERE sender_id=? ORDER BY message_id DESC LIMIT 1")
+        .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&stored).unwrap()["LinkedItem"],content["LinkedItem"]);
+    server.abort();
 }
 
 #[tokio::test]

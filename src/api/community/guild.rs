@@ -123,6 +123,16 @@ pub(super) async fn member(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     put(db, a, "guild_member", g, &v).await?;
     merge(&mut u, v);
     u["IsOnline"] = json!(super::friend::online(s, a));
+    // Native guild rows call this LastLoginTime, but render it as "Today / Nd"
+    // of inactivity. Long-lived logins and saved attendance must count too.
+    // Derive this on read so existing check-ins work after server restarts,
+    // without rewriting the account's actual login time or attendance rewards.
+    let saved:Option<String>=sqlx::query_scalar("SELECT MAX(last_time) FROM (SELECT last_login AS last_time FROM accounts WHERE account_id=? UNION ALL SELECT last_logout FROM accounts WHERE account_id=? UNION ALL SELECT json_extract(data,'$.LastAttendanceTime') FROM community_state WHERE owner=? AND kind='attendance' AND idx=?)")
+        .bind(a).bind(a).bind(a).bind(g).fetch_one(&mut *db).await?;
+    let session=s.sessions.iter().filter(|entry|entry.account_id==a)
+        .map(|entry|entry.last_activity.format("%Y-%m-%d %H:%M:%S").to_string()).max();
+    let connected=s.chat.online(a).then(||time(now()));
+    u["LastLoginTime"]=json!(saved.into_iter().chain(session).chain(connected).max());
     Ok(u)
 }
 pub(super) async fn save(db: &mut SqliteConnection, g: i64, v: &Value) -> Result<()> {

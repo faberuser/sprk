@@ -622,6 +622,10 @@ pub async fn login(
     user_value["GloryPoint"] = battle["PlayerCurrencyInfos"].as_array().into_iter().flatten()
         .find(|c| c["CurrencyType"] == "GloryPoint").map(|c| c["Amount"].clone())
         .unwrap_or_else(|| serde_json::json!(0));
+    // World Boss shops use the same UserInfo lookup for their balance.
+    user_value["WorldBossPoint"] = battle["PlayerCurrencyInfos"].as_array().into_iter().flatten()
+        .find(|c| c["CurrencyType"] == "WorldBossPoint").map(|c| c["Amount"].clone())
+        .unwrap_or_else(|| serde_json::json!(0));
     user_info=serde_json::from_value(user_value).map_err(|e|ServerError::Internal(e.to_string()))?;
     for info in battle["DungeonInfos"].as_array().into_iter().flatten(){
         if let Some(current)=chapter_dungeons.iter_mut().find(|d|d.chapter_index as i64==info["ChapterIndex"].as_i64().unwrap_or(0)&&d.dungeon_index as i64==info["DungeonIndex"].as_i64().unwrap_or(0)){

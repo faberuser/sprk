@@ -19,7 +19,9 @@ pub(super) fn unique_options(state: &AppState, data: &Value, eq: &mut EquipItemI
             pool.extend(ids.iter().map(|i| *i as i64));
         }
     }
-    let count = if n(data, "EquipGrade") == 1 { 2 } else { 1 };
+    let count = 1;
+    eq.extra_option_index_2 = 0;
+    eq.extra_option_step_2 = 0;
     let mut v = json!(eq);
     for i in 1..=count {
         let (id, step) = equipment::option(state, &pool.iter().copied().collect::<Vec<_>>())?;
@@ -38,7 +40,7 @@ pub(crate) fn select_unique(
     chosen: &[i32],
 ) -> Result<()> {
     let data = meta(state, eq.item_index)?;
-    let count = if n(data, "EquipGrade") == 1 { 2 } else { 1 };
+    let count = 1;
     if n(data, "EquipType") != 1 || chosen.len() != count {
         return Err(rule("NoAvailableOption"));
     }
@@ -58,6 +60,8 @@ pub(crate) fn select_unique(
             pool.extend(ids.iter().map(|v| *v as i64));
         }
     }
+    eq.extra_option_index_2 = 0;
+    eq.extra_option_step_2 = 0;
     let mut v = json!(eq);
     for (slot, id) in chosen.iter().enumerate() {
         if !pool.contains(&(*id as i64)) {

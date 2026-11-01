@@ -69,6 +69,45 @@ async fn public_awakening_stones_obey_equipment_type() {
     assert_eq!(gold(&s).await,large_gold-price);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
 }
+
+#[tokio::test]
+async fn awakening_stones_check_the_entire_unique_weapon_roster() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gold=10000000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let weapons:Vec<_>=s.tables.extensions.rows("EquipItem").iter()
+        .filter(|r|r["IsOpenSoulWeapon"]==true && n(r,"PartType")==1).cloned().collect();
+    assert!(weapons.iter().any(|r|n(r,"ItemIndex")==1080));
+    for weapon in weapons {
+        let id=n(&weapon,"ItemIndex") as i32;
+        let npc=weapon["CreatureIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64).any(|i|
+            s.tables.extensions.rows("NPCFriendlyPoint").iter().any(|r|n(r,"HeroIndex")==i)
+            && s.tables.hero_shop.heroes.get(&(i as i32)).is_some_and(|h|n(h,"OpenType")==1));
+        for stone in [5301,5315] {
+            let eq=give(&s,a,id,1).await.equipment.remove(0);
+            give(&s,a,stone,1).await;
+            let out=call(&s,&u,"awaken_equip",&format!("EquipItemSlotIndex={}&MaterialItemInfors=[{stone},1]",eq.slot_index)).await;
+            assert_eq!(out["Result"]=="Success",stone==5301 || !npc,"weapon {id}, stone {stone}: {out}");
+        }
+    }
+}
+#[tokio::test]
+async fn technomagic_migration_preserves_first_skill_in_inventory_and_storage() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let data=s.tables.extensions.rows("EquipItem").iter().find(|v|n(v,"EquipType")==1 && n(v,"EquipGrade")==1).unwrap();
+    let id=n(data,"ItemIndex") as i32;
+    for storage in [0,1] {
+        let eq=give(&s,a,id,1).await.equipment.remove(0);
+        sqlx::query("UPDATE equip_items SET extra_option_index_1=123,extra_option_step_1=4,extra_option_index_2=456,extra_option_step_2=7,inventory_type=? WHERE slot_index=?")
+            .bind(storage).bind(eq.slot_index).execute(&s.db).await.unwrap();
+    }
+    for _ in 0..2 {schema::migrate_technomagic(&s.db,&s.tables).await.unwrap();}
+    let rows:Vec<(i64,i64,i64,i64)>=sqlx::query_as("SELECT extra_option_index_1,extra_option_step_1,extra_option_index_2,extra_option_step_2 FROM equip_items WHERE item_index=? AND account_id=?")
+        .bind(id).bind(a).fetch_all(&s.db).await.unwrap();
+    assert_eq!(rows,vec![(123,4,0,0);2]);
+    let mut eq=EquipItemInfo::default();
+    valance::unique_options(&s,data,&mut eq).unwrap();
+    assert!(eq.extra_option_index_1>0);assert_eq!(eq.extra_option_index_2,0);
+}
 #[tokio::test]
 async fn restore_soul_stone_persists_choices_and_rejects_replayed_claims() {
     let (mut s, u) = setup().await;
@@ -650,7 +689,7 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
     );
 }
 #[tokio::test]
-async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
+async fn equipment_presets_keep_paid_slots_without_locking_saved_items() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
     let eq = give(&s, a, 890203, 1).await.equipment.remove(0);
@@ -663,7 +702,7 @@ async fn equipment_presets_keep_paid_slots_and_protect_saved_items() {
     assert!(
         material(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64)
             .await
-            .is_err()
+            .is_ok()
     );
     let r = call(
         &s,
@@ -734,6 +773,95 @@ async fn gear_custom_native_save_load_preserves_pairs_empty_slots_and_hero_gear(
     let lobby = first_lobby(&s, login.user_info.account_id).await.unwrap();
     assert_eq!(lobby["EquipPresetInfos"][0]["EquipItemSlotIndex"], expected);
     assert_eq!(login.heroes[0].equip_item_slot_index_1, weapon.slot_index);
+}
+
+#[tokio::test]
+async fn preset_disposal_discards_pending_rolls_and_clears_references_immediately() {
+    for action in ["sell", "grind"] {
+        let (s, u) = setup().await;
+        let a = u.user_info.account_id;
+        let saved = give(&s, a, 70004, 1).await.equipment.remove(0);
+        let current = give(&s, a, 70004, 1).await.equipment.remove(0);
+        let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
+        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+            .bind(saved.slot_index).bind(a).execute(&s.db).await.unwrap();
+        let saved_result = call(&s, &u, "add_equip_storage_slot", &format!(
+            "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[2,4]&EquipItemSlotIndex=[{},{}]",
+            armor.slot_index, saved.slot_index)).await;
+        assert_eq!(saved_result["Result"], "Success", "{saved_result}");
+        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+            .bind(current.slot_index).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("INSERT INTO equipment_pending(account_id,slot_index,kind,data) VALUES(?,?,'enchant','{\"Index\":5088,\"Slot\":1,\"Step\":0}')")
+            .bind(a).bind(saved.slot_index).execute(&s.db).await.unwrap();
+        let snapshot=json!([{"HeroIndex":1,"EquipItemSlotIndex":[0,0,0,saved.slot_index],"EquipItemUid":["","","",saved.uid],"EquipItemRunePage":[0,0,0,2]}]);
+        for owner in [a,a+100] {
+            sqlx::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES(?,'disposal',?)")
+                .bind(owner).bind(snapshot.to_string()).execute(&s.db).await.unwrap();
+        }
+        let locked=give(&s,a,70004,1).await.equipment.remove(0);
+        sqlx::query("UPDATE equip_items SET locked=1 WHERE slot_index=?").bind(locked.slot_index).execute(&s.db).await.unwrap();
+        let rejected=if action=="sell" {
+            item::sell_equip(State(s.clone()),Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{},{}]",u.user_info.session_key,saved.slot_index,locked.slot_index))).await.unwrap().0
+        } else {
+            call(&s,&u,"break_equip",&format!("EquipItemSlotIndices=[{},{}]",saved.slot_index,locked.slot_index)).await
+        };
+        assert_ne!(rejected["Result"],"Success","{rejected}");
+        let mut db=s.db.acquire().await.unwrap();
+        assert_eq!(get(&mut db,a,"equip_storage",1).await.unwrap()["EquipItemSlotIndex4"],saved.slot_index,"failed batches must roll back preset cleanup");
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),1);
+        drop(db);
+        let result = if action == "sell" {
+            item::sell_equip(State(s.clone()), Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{}]", u.user_info.session_key, saved.slot_index)))
+                .await.unwrap().0
+        } else {
+            call(&s, &u, "break_equip", &format!("EquipItemSlotIndices=[{}]", saved.slot_index)).await
+        };
+        assert_eq!(result["Result"], "Success", "{action}: {result}");
+        let mut db = s.db.acquire().await.unwrap();
+        assert_eq!(get(&mut db,a,"equip_storage",1).await.unwrap()["EquipItemSlotIndex4"], 0);
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),0);
+        for owner in [a,a+100] {
+            let value:String=sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key='disposal'").bind(owner).fetch_one(&mut *db).await.unwrap();
+            let value:Value=serde_json::from_str(&value).unwrap();
+            assert_eq!(value[0]["EquipItemSlotIndex"][3],if owner==a {0}else{saved.slot_index});
+            assert_eq!(value[0]["EquipItemUid"][3],if owner==a {""}else{saved.uid.as_str()});
+            assert_eq!(value[0]["EquipItemRunePage"][3],if owner==a {0}else{2});
+        }
+        drop(db);
+        let loaded = call(&s, &u, "set_equip_storage_slot", "EquipStorageSlotIndex=1&HeroIndex=1").await;
+        assert_eq!(loaded["Result"], "Success", "{action}: {loaded}");
+        assert_eq!(loaded["HeroInfo"]["EquipItemSlotIndex4"], 0);
+        assert_eq!(loaded["HeroInfo"]["EquipItemSlotIndex2"], armor.slot_index);
+        assert_eq!(loaded["EquipPresetInfo"]["EquipItemUid"][3], "");
+        let mut db = s.db.acquire().await.unwrap();
+        assert_eq!(get(&mut db,a,"equip_storage",1).await.unwrap()["EquipItemSlotIndex4"], 0);
+        drop(db);
+        assert_eq!(call(&s,&u,"set_equip_storage_slot","EquipStorageSlotIndex=1&HeroIndex=1").await["Result"],"Success");
+        // A genuine equipped item is still protected from both operations.
+        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+            .bind(current.slot_index).bind(a).execute(&s.db).await.unwrap();
+        assert_ne!(call(&s,&u,"break_equip",&format!("EquipItemSlotIndices=[{}]", current.slot_index)).await["Result"],"Success");
+        assert_ne!(item::sell_equip(State(s.clone()),Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{}]",u.user_info.session_key,current.slot_index)))
+            .await.unwrap().0["Result"],"Success");
+    }
+}
+
+#[tokio::test]
+async fn deleted_gear_presets_reconcile_on_rename_and_login() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let eq=give(&s,a,70004,1).await.equipment.remove(0);
+    for index in [1,2] {
+        assert_eq!(call(&s,&u,"add_equip_storage_slot",&format!("EquipStorageSlotIndex={index}&HeroIndex=1&HeroPartIndex=[4]&EquipItemSlotIndex=[{}]",eq.slot_index)).await["Result"],"Success");
+    }
+    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?").bind(a).bind(eq.slot_index).execute(&s.db).await.unwrap();
+    let renamed=call(&s,&u,"change_equip_storage_slot_name","EquipStorageSlotIndex=1&Name=AfterSale").await;
+    assert_eq!(renamed["Result"],"Success","{renamed}");
+    assert_eq!(renamed["EquipPresetInfo"]["EquipItemSlotIndex"][3],0);
+    assert_eq!(renamed["EquipPresetInfo"]["EquipItemUid"][3],"");
+    let login=storage_login(&s,a).await.unwrap();
+    assert!(login.iter().all(|v|n(v,"EquipItemSlotIndex4")==0));
+    let lobby=first_lobby(&s,a).await.unwrap();
+    assert_eq!(lobby["EquipPresetInfos"][0]["EquipItemUid"][3],"");
 }
 
 #[tokio::test]

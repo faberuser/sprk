@@ -704,7 +704,7 @@ async fn shakmeh_stage_two_win_and_skip_publish_the_empty_gauge_to_the_client() 
     let entry = "ChapterIndex=50000&DungeonIndex=602&DungeonDifficulty=0&HeroIndices=[1]";
     let begin = call(&s, &u, "campaign/begin_campaign", entry).await;
     assert_eq!(begin["Result"], "Success", "{begin}");
-    assert_eq!(begin["ReservedCurrencyResults"][0]["NewValue"], 0);
+    assert_eq!(begin["ReservedCurrencyResults"][0]["NewValue"], 600);
     let won = call(&s, &u, "campaign/end_campaign", &format!("{entry}&Completed=true&AliveHeroIndices=[1]")).await;
     assert_eq!(won["Result"], "Success", "{won}");
     assert_eq!(won["ReservedCurrencyResults"][0]["CurrencyType"], "ShakmehMiddleBossPoint");
@@ -798,8 +798,8 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     let first = call(&s, &login, "campaign/begin_campaign", final_entry).await;
     assert_eq!(first["Result"], "Success", "{first}");
     assert_eq!(first["ReservedCurrencyResults"][0]["CurrencyType"], "ShakmehMiddleBossPoint");
-    assert_eq!(first["ReservedCurrencyResults"][0]["NewValue"], 0);
-    assert_eq!(first["ReservedCurrencyResults"][0]["AddValue"], -600);
+    assert_eq!(first["ReservedCurrencyResults"][0]["NewValue"], 600);
+    assert_eq!(first["ReservedCurrencyResults"][0]["AddValue"], 0);
     assert_eq!(
         call(&s, &login, "campaign/begin_campaign", final_entry).await,
         first
@@ -811,7 +811,7 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     .fetch_one(&s.db)
     .await
     .unwrap();
-    assert_eq!(gauge, 0);
+    assert_eq!(gauge, 600);
     assert_eq!(
         call(&s, &login, "shakmeh_dungeon/get_passive_info", "").await["PassiveInfos"],
         passive["PassiveInfos"]
@@ -824,7 +824,7 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     )
     .await;
     assert_eq!(result["Result"], "Success", "{result}");
-    assert_eq!(result["ReservedCurrencyResults"][0]["NewValue"], 0);
+    assert_eq!(result["ReservedCurrencyResults"][0]["NewValue"], 600);
     assert_eq!(result["ReservedCurrencyResults"][0]["AddValue"], 0);
     assert_eq!(
         call(&s, &login, "shakmeh_dungeon/get_passive_info", "").await["PassiveInfos"],
@@ -887,7 +887,6 @@ async fn shakmeh_story_unlock_blocks_farming_but_allows_first_final_story_battle
     let lost = call(&s, &u, "campaign/end_campaign",
         "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&Completed=false").await;
     assert_eq!(lost["Result"], "Success");
-    assert_eq!(lost["CurrencyResults"][0]["NewValue"], 600);
     assert_eq!(lost["ReservedCurrencyResults"][0]["NewValue"], 600);
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
         .bind(a).fetch_one(&s.db).await.unwrap(), 600);
@@ -936,7 +935,7 @@ async fn shakmeh_final_group_indices_tag_the_full_roster_without_duplicate_heroe
     let stored: Value = serde_json::from_str(&stored).unwrap();
     assert_eq!(stored["Heroes"], json!([1,2,3,4,5,6,7,8]));
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
-        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+        .bind(a).fetch_one(&s.db).await.unwrap(), 600);
     let end = "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&Completed=true&AliveHeroIndices=[1,2,3,4,5,6,7,8]";
     assert_eq!(call(&s, &u, "campaign/end_campaign", end).await["Result"], "Success");
 }
@@ -2148,6 +2147,93 @@ async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
             ["MatchSeasonType"],
         "Regular"
     );
+}
+
+#[tokio::test]
+async fn ordeal_victory_keeps_fallen_heroes_revivable_with_paid_rubies() {
+    let (s,u)=setup().await;let a=account(&u);
+    let selected=call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await;
+    assert_eq!(selected["SelectedTier"],"Challenger");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let mut db=s.db.acquire().await.unwrap();let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ActiveNode"]=node["Index"].clone();info["ActiveHeroes"]=json!([1,2]);info["Started"]=json!(now());
+    put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    let creatures=json!([{"TeamId":"0","Index":"1","Hp":"0","MaxHp":"100"},{"TeamId":"0","Index":"2","Hp":"100","MaxHp":"100"},{"TeamId":"1","Index":"1","Hp":"0","MaxHp":"100"}]);
+    let ended=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("NodeIndex={}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1,2]&Completed=true&CreatureInfoString={creatures}",n(node,"Index"),n(node,"ChapterIndex"),n(node,"DungeonIndex"))).await;
+    assert_eq!(ended["Result"],"Success","{ended}");assert_eq!(ended["DeadHeroIndices"],json!([1]));
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=30 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let revived=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await;
+    assert_eq!(revived["Result"],"Success","{revived}");assert_eq!(revived["DeadHeroIndices"],json!([]));
+    assert_eq!(revived["CurrencyResults"][0]["AddValue"],-30);
+    assert_ne!(call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await["Result"],"Success");
+}
+
+#[tokio::test]
+async fn ordeal_requires_revival_of_each_dead_party_member_before_battle_entry() {
+    let (s,u)=setup().await;let a=account(&u);
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,100,5)")
+        .bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await["Result"],"Success");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let mut db=s.db.acquire().await.unwrap();let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ClearNodeIndices"]=json!(s.tables.battle.rows("OrdealArenaNode").iter()
+        .filter(|v|n(v,"Floor")<n(node,"Floor")).map(|v|n(v,"Index")).collect::<Vec<_>>());
+    info["DeadHeroIndices"]=json!([1,2]);put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=60 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let enter=format!("NodeIndex={}&HeroIndices=[1,2]",n(node,"Index"));
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+    let first=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await;
+    assert_eq!(first["Result"],"Success","{first}");assert_eq!(first["DeadHeroIndices"],json!([2]));
+    assert_eq!(first["CurrencyResults"][0]["AddValue"],-30);
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+    let second=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=2").await;
+    assert_eq!(second["Result"],"Success","{second}");assert_eq!(second["DeadHeroIndices"],json!([]));
+    assert_eq!(second["CurrencyResults"][0]["AddValue"],-30);
+    assert_eq!(call(&s,&u,"ordeal_arena/ordeal_info","").await["DeadHeroIndices"],json!([]));
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"Success");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pay_gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    // Revived heroes can die again on the same uncleared node. Each defeat
+    // response must carry the current deaths, and each new revival costs 30.
+    sqlx::query("UPDATE user_info SET pay_gem=120 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for _ in 0..2 {
+        let loss=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("NodeIndex={}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1,2]&Completed=false",n(node,"Index"),n(node,"ChapterIndex"),n(node,"DungeonIndex"))).await;
+        assert_eq!(loss["Result"],"Success","{loss}");assert_eq!(loss["DeadHeroIndices"],json!([1,2]));
+        assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+        for id in [1,2] {
+            let revived=call(&s,&u,"ordeal_arena/resurrection_hero",&format!("HeroIndex={id}")).await;
+            assert_eq!(revived["Result"],"Success","{revived}");assert_eq!(revived["CurrencyResults"][0]["AddValue"],-30);
+        }
+        assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"Success");
+    }
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pay_gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+}
+
+#[tokio::test]
+async fn ordeal_native_escaped_result_records_victory_and_failed_runs_can_restart() {
+    let (s,u)=setup().await;let a=account(&u);
+    assert_eq!(call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await["Result"],"Success");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let id=n(node,"Index");let mut db=s.db.acquire().await.unwrap();
+    let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ClearNodeIndices"]=json!(s.tables.battle.rows("OrdealArenaNode").iter()
+        .filter(|v|n(v,"Floor")<n(node,"Floor")).map(|v|n(v,"Index")).collect::<Vec<_>>());
+    info["ActiveNode"]=json!(id);info["ActiveHeroes"]=json!([1]);info["Started"]=json!(now()-30);
+    let score=n(&info,"MatchScore");put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    // Reopening the same uncleared stage recovers a prior failed result; other
+    // active stages remain blocked, and no completion/rewards are fabricated.
+    assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&format!("NodeIndex={id}&HeroIndices=[1]")).await["Result"],"Success");
+    let args=format!("NodeIndex={id}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1]&Completed=true",n(node,"ChapterIndex"),n(node,"DungeonIndex"));
+    let malformed=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("{args}&CreatureInfoString=invalid")).await;
+    assert_ne!(malformed["Result"],"Success");
+    let creatures=json!([{"TeamId":"0","Index":"1","Hp":"3000000000","MaxHp":"4000000000"},
+        {"TeamId":"1","Index":"1","Hp":"0","MaxHp":"100"}]);
+    let wire=serde_urlencoded::to_string([("CreatureInfoString",urlencoding::encode(&creatures.to_string()).into_owned())]).unwrap();
+    let out=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("{args}&{wire}")).await;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert!(out["ClearNodeIndices"].as_array().unwrap().contains(&json!(id)));
+    assert_eq!(out["MatchScore"],score+100);
+    assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"ordeal",0).await.unwrap()["ActiveNode"],0);
+    assert_ne!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&format!("NodeIndex={id}&HeroIndices=[1]")).await["Result"],"Success");
 }
 
 #[tokio::test]

@@ -1343,6 +1343,44 @@ async fn hero_presets_save_restore_and_clearing_preserves_paid_slot() {
     assert_eq!(r.player_book_mark_hero_info["BookMarkHeroIndices"], "2,1");
     assert_eq!(r.hero_preset_storages.len(), 2);
 }
+
+#[tokio::test]
+async fn deleted_preset_gear_keeps_current_equipment_and_other_slots() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let key=s.tables.hero_shop.preset_slots.iter().find(|(_,v)|v["IsPaid"]==false).unwrap().0.clone();
+    let mut tx=s.db.begin().await.unwrap();let mut rewards=crate::api::tutorial::Rewards::default();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:2,star:0,custom:0},&mut rewards).await.unwrap();
+    tx.commit().await.unwrap();let old=rewards.equipment[0].slot_index;let current=rewards.equipment[1].slot_index;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(old).bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(hero::add_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0["Result"],"Success");
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(current).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("DELETE FROM equip_items WHERE slot_index=? AND account_id=?").bind(old).bind(a).execute(&s.db).await.unwrap();
+    let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],current);
+    let stored:String=sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key=?")
+        .bind(a).bind(&key).fetch_one(&s.db).await.unwrap();
+    let stored:Value=serde_json::from_str(&stored).unwrap();
+    let saved=stored.as_array().unwrap().iter().find(|p|p["HeroIndex"]==1).unwrap();
+    assert_eq!(saved["EquipItemSlotIndex"][0],current);
+    assert_eq!(saved["EquipItemUid"][0],current.to_string());
+}
+
+#[tokio::test]
+async fn every_advancement_costume_can_be_purchased_at_its_listed_price() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=1000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let costumes:Vec<_>=s.tables.hero_shop.costumes.values().filter(|c|c["BodyPrefix"].as_str().is_some_and(|v|v.contains("Advance")) && c["IsDefault"]==false).cloned().collect();
+    assert_eq!(costumes.len(),21);
+    for c in costumes {
+        let hero_index=item::n(&c,"HeroIndex");let id=item::n(&c,"CostumeIndex");let price=item::n(&c,"ReqBuyGem");
+        assert!(price>0);assert_eq!(c["Buyable"],true);
+        sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)").bind(a).bind(hero_index).bind(hero_index).execute(&s.db).await.unwrap();
+        // Couple variants can grant each other as a bonus; test every direct sale independently.
+        sqlx::query("DELETE FROM costumes WHERE account_id=? AND costume_index=?").bind(a).bind(id).execute(&s.db).await.unwrap();
+        let out=hero::buy_costume(State(s.clone()),form(&u,&format!("HeroIndex={hero_index}&CostumeIndex={id}&BuyGem={price}&BuyGold=0&BuyMileage=0"))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","costume {id}: {out}");
+    }
+}
 #[tokio::test]
 async fn shop_purchase_limits_reset_and_failed_delivery_does_not_charge() {
     let (mut s, u) = setup().await;

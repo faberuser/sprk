@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
 pub(crate) mod arena;
+mod duel;
 pub mod chat;
 pub mod friend;
 mod guild;
@@ -63,6 +64,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS guild_battle_scores(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,kind TEXT NOT NULL,season INTEGER NOT NULL,stage INTEGER NOT NULL,score INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild_id,account,kind,season,stage))",
         "CREATE INDEX IF NOT EXISTS guild_battle_scores_account_kind ON guild_battle_scores(account,kind)",
         "CREATE TABLE IF NOT EXISTS guild_arena_decks(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,season INTEGER NOT NULL,deck INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,season,deck))",
+        "CREATE TABLE IF NOT EXISTS friendly_duels(group_id INTEGER PRIMARY KEY,requester INTEGER NOT NULL,opponent INTEGER NOT NULL,status TEXT NOT NULL,expires INTEGER NOT NULL)",
         "CREATE TABLE IF NOT EXISTS guild_arena_records(id INTEGER PRIMARY KEY AUTOINCREMENT,guild_id INTEGER NOT NULL,enemy_guild INTEGER NOT NULL,account INTEGER NOT NULL,enemy INTEGER NOT NULL,season INTEGER NOT NULL,win INTEGER NOT NULL,data TEXT NOT NULL)",
     ] {sqlx::query(q).execute(db).await?;}
     Ok(())
@@ -318,6 +320,10 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
             .as_ref()
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
+        if r.is_some() {
+            h[format!("EquipItemInfo{part}")]["SoulWeaponInfo"] =
+                crate::api::extensions::get(db, a, "soul", slot).await?;
+        }
     }
     h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
     Ok(h)

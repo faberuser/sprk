@@ -15,7 +15,7 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
     // PvE DefeatAllEnemy rules instead of Victory's MoreCreatureAlive rules,
     // changing combat state and ending the worker while the replay still fights.
     let mut payload=json!({"RunId":id,"ArenaMatch":true,"MatchUid":uid,"MatchInfo":info,"BossHp":0,"BossIndex":0,"Seed":rand::random::<u32>()%i32::MAX as u32,
-        "Simulation":{"Uid":uid.to_string(),"ChapterIndex":1000,"DungeonIndex":1,"DungeonDifficulty":0,"RepeatCount":1,"RemainCount":1,"AccountInfos":info["AccountInfos"]}});
+        "Simulation":{"Uid":uid.to_string(),"ChapterIndex":info["ChapterIndex"],"DungeonIndex":info["DungeonIndex"],"DungeonDifficulty":0,"RepeatCount":1,"RemainCount":1,"AccountInfos":info["AccountInfos"]}});
     if info["ArenaType"]=="BanPick" {payload["Draft"]=honor::initial(&members);}
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker,master:members[0],room:0,members,payload,
         entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),
@@ -58,6 +58,13 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
         return cancel(s,run).await;
     }
     online::finish(&mut db,s,uid,winner,body,give_up).await?;
+    let friendly:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.DuelType')=1)")
+        .bind(uid).fetch_one(&mut *db).await?;
+    if let Some(accounts)=run.payload["Simulation"]["AccountInfos"].as_array().filter(|_|!friendly) {
+        crate::api::services::records::arena_history(&mut db,s,run.master,
+            if run.payload["MatchInfo"]["ArenaType"]=="BanPick"{1}else{0},accounts,&run.members,
+            winner==run.members[0],number(body,"TimeMs"),body["ReplayLogs"].as_str().unwrap_or("")).await?;
+    }
     db.commit().await?;
     run.result=Some(json!({"WinnerAccountId":winner,"Creatures":body["Creatures"],"GiveUp":give_up.is_some()}));
     // ArenaContext waits for the replay to finish after BattleResultNot. Do
@@ -149,6 +156,30 @@ mod tests {
         let (tx,rx)=mpsc::channel(100);
         *s.conquest.worker.write().await=Some(Worker{id:"arena-worker".into(),sender:tx,arena_version:1,challenge_version:0,dispatch_version:0});
         (s,users,rx)
+    }
+
+    #[tokio::test]
+    async fn friendly_duels_pair_only_the_invited_accounts_and_keep_tickets_and_scores() {
+        let (s,users,_worker)=fixture().await;
+        let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");
+        sqlx::query("INSERT INTO friendly_duels VALUES(123,?,?,'accepted',?)").bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE user_info SET sword=0 WHERE account_id IN (?,?)").bind(a).bind(b).execute(&s.db).await.unwrap();
+        register(&s,&users[2]).await;
+        let entry="ArenaType=Normal&DuelType=Friendly&GroupId=123&HeroIndices=1&LeaderHeroIndex=1";
+        for u in &users[..2] {assert_eq!(call(&s,u,"match/register_match",entry).await["Result"],"Success");}
+        let matched=call(&s,&users[0],"match/wait_match","PlayOfflineMatch=true").await;
+        assert_eq!(matched["Result"],"Success","{matched}");
+        assert_eq!(matched["MatchInfo"]["AccountInfos"][1]["UserInfo"]["AccountId"],b);
+        let uid=number(&matched["MatchInfo"],"Uid");let mut db=s.db.acquire().await.unwrap();
+        online::charge(&mut db,&s,uid).await.unwrap();
+        online::finish(&mut db,&s,uid,a,&json!({"Creatures":[],"TimeMs":1000}),None).await.unwrap();
+        drop(db);
+        for u in &users[..2] {
+            assert_eq!(sword(&s,u).await,0);
+            let result=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
+            assert_eq!(result["MatchResult"]["GainedMatchScore"],0);
+            assert_eq!(result["MatchResult"]["CurrencyResults"],json!([]));
+        }
     }
     async fn register(s:&AppState,u:&Value) {
         let out=call(s,u,"match/register_match","ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;

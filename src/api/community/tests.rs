@@ -200,7 +200,7 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     let s = setup().await;
     let u = login(&s, "arena-one").await;
     let _v = login(&s, "arena-two").await;
-    let end = "Win=1&PlayTime=30&AliveHeroIndices=[1]";
+    let end = "Win=1&PlayTime=30&AliveHeroIndices=[1]&BattleLogs=native-compressed-replay";
     assert_ne!(
         call(&s, &u, "match/set_offline_match_result", end).await["Result"],
         "Success"
@@ -236,6 +236,9 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     assert_eq!(result["MatchResult"]["NewTotalRank"], 0);
     assert_eq!(result["MatchResult"]["NewTierRank"], 0);
     assert_eq!(result["BattleInfo"]["Rank"], 0);
+    let saved: (i64,String)=sqlx::query_as("SELECT kind,data FROM service_replays WHERE owner=?")
+        .bind(n(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap();
+    assert_eq!(saved,(0,"native-compressed-replay".into()));
     let snapshot: String = sqlx::query_scalar("SELECT data FROM community_state WHERE owner=? AND kind='arena_daily'")
         .bind(n(&u["UserInfo"], "AccountId")).fetch_one(&s.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&snapshot).unwrap()["Rank"], 1);
@@ -245,6 +248,22 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     );
     let u = login(&s, "arena-one").await;
     assert_eq!(u["BattleInfo"]["MatchScore"], 1020);
+}
+
+#[tokio::test]
+async fn arena_defense_keeps_the_saved_short_deck_and_soul_weapon() {
+    let s=setup().await;let u=login(&s,"saved-defense").await;let a=n(&u["UserInfo"],"AccountId");
+    let out=call(&s,&u,"match/register_match","ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;
+    assert_eq!(out["Result"],"Success");
+    let mut db=s.db.acquire().await.unwrap();
+    assert_eq!(arena::defense_heroes(&mut db,a).await.unwrap(),vec![1]);
+    let mut rewards=Rewards::default();
+    item::give(&mut db,&s,a,crate::models::item::ItemGrant{index:1001,count:1,star:0,custom:0},&mut rewards).await.unwrap();
+    let slot=rewards.equipment[0].slot_index as i64;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(slot).bind(a).execute(&mut *db).await.unwrap();
+    crate::api::extensions::put(&mut db,a,"soul",slot,&json!({"SlotIndex":slot,"Grade":2})).await.unwrap();
+    let hero=cached_hero(&mut db,a,1).await.unwrap();
+    assert_eq!(hero["EquipItemInfo1"]["SoulWeaponInfo"]["Grade"],2);
 }
 #[tokio::test]
 async fn arena_mirror_opponent_has_distinct_battle_identity() {
