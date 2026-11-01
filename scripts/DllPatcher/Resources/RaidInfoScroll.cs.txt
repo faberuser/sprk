@@ -1,12 +1,19 @@
 using UnityEngine;
 using NGame2.NUI.NWindow;
 
+public sealed class SprkRaidInfoScrollState : MonoBehaviour {
+    public string LastText;
+}
 public static class SprkRaidInfoScroll {
     public static void Refresh(RaidInfoBase info) {
         if(info==null || info.RaidTacticLabel==null)return;
         var label=info.RaidTacticLabel;
+        var state=label.GetComponent<SprkRaidInfoScrollState>();
+        if(state==null)state=label.gameObject.AddComponent<SprkRaidInfoScrollState>();
         var viewport=label.transform.parent;
+        bool created=false;
         if(viewport.name!="SprkCharacteristicsScroll") {
+            created=true;
             var parent=viewport;
             int width=label.width, height=label.height;
             var corners=label.worldCorners;
@@ -36,12 +43,18 @@ public static class SprkRaidInfoScroll {
         }
         var view=viewport.GetComponent<UIScrollView>();
         label.overflowMethod=UILabel.Overflow.ResizeHeight;
-        label.MarkAsChanged();
-        NGUITools.AddWidgetCollider(label.gameObject);
+        bool textChanged=label.text!=state.LastText;
+        if(created||textChanged) {
+            state.LastText=label.text;
+            label.MarkAsChanged();
+            NGUITools.AddWidgetCollider(label.gameObject);
+        }
         var drag=label.GetComponent<UIDragScrollView>();
         if(drag==null)drag=label.gameObject.AddComponent<UIDragScrollView>();
         drag.scrollView=view;
-        view.DisableSpring();view.currentMomentum=Vector3.zero;
-        view.InvalidateBounds();view.ResetPosition();
+        if(created||textChanged) {
+            view.DisableSpring();view.currentMomentum=Vector3.zero;
+            view.InvalidateBounds();view.ResetPosition();
+        }
     }
 }

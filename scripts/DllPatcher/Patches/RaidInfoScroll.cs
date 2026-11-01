@@ -16,6 +16,9 @@ partial class Program {
         using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".raid-scroll-staged":"")));
         VerifyRaidInfoScroll(game.MainModule);
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkRaidInfoScroll.dll"+(staged?".staged":"")));
+        var state=helper.MainModule.GetType("SprkRaidInfoScrollState");
+        if(state==null || !state.Fields.Any(f=>f.Name=="LastText" && !f.IsStatic))
+            throw new InvalidOperationException("Characteristics text state must belong to each label.");
         var calls=helper.MainModule.GetType("SprkRaidInfoScroll").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().Select(m=>m.Name).ToArray();
         foreach(var name in new[]{"set_overflowMethod","set_clipping","InvalidateBounds","ResetPosition"})
             if(!calls.Contains(name))throw new InvalidOperationException("Incomplete Characteristics scrolling: "+name);
