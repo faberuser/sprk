@@ -206,9 +206,16 @@ public sealed class SprkAutomation : MonoBehaviour
                 NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
                 var manager=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NOrdeal.OrdealArenaManager>.instance;
                 var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance;
-                var info=manager.GetType().GetField("_infoManager",flags).GetValue(manager);
+                var infoField=manager.GetType().GetField("_infoManager",flags);
+                var originalInfo=infoField.GetValue(manager);
+                var info=new NGame2.NOrdeal.UserOrdealArenaInfoManager();
+                infoField.SetValue(manager,info);
+                var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                var accountManagers=account.GetType().GetProperty("AccountManagers",flags).GetValue(account,null);
+                var userField=accountManagers.GetType().GetField("UserManager");
+                var originalUser=userField.GetValue(accountManagers);
+                userField.SetValue(accountManagers,new NGame2.NAccount.UserManager(account,new NShared.UserInfo(),new NShared.PlayerMiscInfo(),new NShared.PlayerGuildPointInfo()));
                 var setDead=info.GetType().GetMethod("SetDeadHeroIndices",flags);
-                var original=manager.GetDeadHeroInidices();
                 var prefab=VespaResource.Load<GameObject>("Resources/"+NGame2.NUI.NComponent2.HeroPortraitComponent.PrefabPath);
                 if(prefab==null)throw new Exception("Hero portrait prefab missing");
                 var host=new GameObject("OrdealRevivalFixture");host.SetActive(false);
@@ -224,8 +231,32 @@ public sealed class SprkAutomation : MonoBehaviour
                     if(NGame2.NOrdeal.OrdealHelper.GetResurrectionHeroGemCount()!=30)throw new Exception("Revival price differs from archived 30 Rubies");
                     setDead.Invoke(info,new object[]{new int[0]});
                     if((bool)sync.Invoke(null,new object[]{portrait}) || portrait.IsDead)throw new Exception("Revived hero remains marked dead");
-                } finally {setDead.Invoke(info,new object[]{original});UnityEngine.Object.Destroy(host);}
-                reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual portrait catches stale-alive state, enters native 30-Ruby revival branch, and clears after successful revival.");Write(reply);return;
+                    var captureType=manager.GetType().GetNestedTypes(flags).Single(t=>t.GetField("isWin",flags)!=null);
+                    var capture=Activator.CreateInstance(captureType,true);
+                    captureType.GetField("<>4__this",flags).SetValue(capture,manager);
+                    var callback=captureType.GetMethods(flags).Single(m=>m.GetParameters().Length==1 && m.GetParameters()[0].ParameterType==typeof(NShared.EndOrdealArena.Response));
+                    var heroes=new int[]{1,2,3,4};
+                    for(int cycle=0;cycle<2;cycle++) {
+                        captureType.GetField("isWin",flags).SetValue(capture,false);
+                        callback.Invoke(capture,new object[]{new NShared.EndOrdealArena.Response {
+                            BaseResult=NShared.BaseResultType.Success,Result=NShared.EndOrdealArena.ResultType.Success,
+                            DeadHeroIndices=heroes,ClearNodeIndices=new int[0],SelectableBuffIndices=new int[0],ResultMatchScore=5800
+                        }});
+                        if(!manager.GetDeadHeroInidices().OrderBy(i=>i).SequenceEqual(heroes))throw new Exception("Defeat callback failed to mark all four heroes dead");
+                        if(!(bool)sync.Invoke(null,new object[]{portrait}) || !portrait.IsDead)throw new Exception("Defeated-again hero bypasses revival");
+                        for(int revived=1;revived<=4;revived++) {
+                            info.Apply(new NShared.ResurrectionHero.Response {DeadHeroIndices=heroes.Skip(revived).ToArray(),CurrencyResults=new NShared.CurrencyResultInfo3[0]});
+                        }
+                        if(manager.GetDeadHeroInidices().Length!=0 || (bool)sync.Invoke(null,new object[]{portrait}) || portrait.IsDead)throw new Exception("Repeated revival failed to clear death state");
+                    }
+                    captureType.GetField("isWin",flags).SetValue(capture,true);
+                    callback.Invoke(capture,new object[]{new NShared.EndOrdealArena.Response {
+                        BaseResult=NShared.BaseResultType.Success,Result=NShared.EndOrdealArena.ResultType.Success,
+                        DeadHeroIndices=new int[]{1},ClearNodeIndices=new int[0],SelectableBuffIndices=new int[0],ResultMatchScore=5900
+                    }});
+                    if(!manager.IsDeadHero(1) || manager.IsDeadHero(2))throw new Exception("Victory callback lost partial death state");
+                } finally {infoField.SetValue(manager,originalInfo);userField.SetValue(accountManagers,originalUser);UnityEngine.Object.Destroy(host);}
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: native defeat callback marks four heroes dead through two defeat/revive cycles; portraits require 30-Ruby revival again; victory retains partial deaths.");Write(reply);return;
             }
             if(cmd.action=="tower-continuous-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Continuous Battle prefab probe requires isolated Login");

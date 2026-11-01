@@ -7,6 +7,17 @@ partial class Program
 {
     static void PatchOrdealUnlock(ModuleDefinition module)
     {
+        var result=OrdealBattleResultCallback(module);
+        var win=result.Body.Instructions.SingleOrDefault(i=>i.Operand is FieldReference f && f.Name=="isWin");
+        if(win!=null) {
+            if(win.Previous.OpCode!=OpCodes.Ldarg_0 || win.Next.OpCode.Code is not (Code.Brfalse or Code.Brfalse_S))
+                throw new InvalidOperationException("Unexpected Ordeals victory-only state application guard.");
+            // A successful defeat response also contains authoritative dead heroes.
+            // Keep both response success checks; only remove the victory guard.
+            foreach(var instruction in new[]{win.Previous,win,win.Next}) {
+                instruction.OpCode=OpCodes.Nop;instruction.Operand=null;
+            }
+        }
         var ordeal = module.GetType("NGame2.NOrdeal.OrdealHelper");
         var view=module.GetType("NGame2.NUI.NWindow.OrdealArenaBattlePartySetting");
         var portrait=module.GetType("NGame2.NUI.NComponent2.HeroPortraitComponent");
@@ -74,6 +85,12 @@ partial class Program
 
     static void VerifyOrdealUnlock(ModuleDefinition module)
     {
+        var result=OrdealBattleResultCallback(module);
+        var callsResult=result.Body.Instructions.Select(i=>i.Operand).OfType<MethodReference>().ToArray();
+        if(result.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="isWin") ||
+            !callsResult.Any(m=>m.Name=="get_BaseResult") || !callsResult.Any(m=>m.Name=="get_Result"))
+            throw new InvalidOperationException("Ordeals must apply successful battle responses on defeat as well as victory.");
+        VerifyArenaResultStack(result);
         var view=module.GetType("NGame2.NUI.NWindow.OrdealArenaBattlePartySetting");
         var click=view.Methods.Single(m=>m.Name.EndsWith("HeroPortraitComponent.Listener.OnClick"));
         var sync=module.GetType("NGame2.NOrdeal.OrdealHelper").Methods.Single(m=>m.Name=="SprkSyncDeadPortrait");
@@ -106,6 +123,14 @@ partial class Program
             throw new InvalidOperationException("Missing native completion / tutorial skip policy.");
         VerifyArenaResultStack(gate);
     }
+
+    static MethodDefinition OrdealBattleResultCallback(ModuleDefinition module)
+        => module.GetType("NGame2.NOrdeal.OrdealArenaManager").NestedTypes
+            .Where(t=>t.Fields.Any(f=>f.Name=="isWin"))
+            .SelectMany(t=>t.Methods).Single(m=>m.HasBody && m.Body.Instructions.Any(i=>
+                i.Operand is MethodReference r && r.Name=="Apply" &&
+                r.DeclaringType.FullName=="NGame2.NOrdeal.UserOrdealArenaInfoManager" &&
+                r.Parameters.Count==1 && r.Parameters[0].ParameterType.FullName=="NShared.EndOrdealArena.Response"));
 
     static void VerifyOrdealUnlockFile(string root, bool staged)
     {

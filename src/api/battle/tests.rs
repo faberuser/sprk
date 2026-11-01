@@ -2192,6 +2192,20 @@ async fn ordeal_requires_revival_of_each_dead_party_member_before_battle_entry()
     assert_eq!(call(&s,&u,"ordeal_arena/ordeal_info","").await["DeadHeroIndices"],json!([]));
     assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"Success");
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pay_gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
+    // Revived heroes can die again on the same uncleared node. Each defeat
+    // response must carry the current deaths, and each new revival costs 30.
+    sqlx::query("UPDATE user_info SET pay_gem=120 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for _ in 0..2 {
+        let loss=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("NodeIndex={}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1,2]&Completed=false",n(node,"Index"),n(node,"ChapterIndex"),n(node,"DungeonIndex"))).await;
+        assert_eq!(loss["Result"],"Success","{loss}");assert_eq!(loss["DeadHeroIndices"],json!([1,2]));
+        assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"NotAvailableHero");
+        for id in [1,2] {
+            let revived=call(&s,&u,"ordeal_arena/resurrection_hero",&format!("HeroIndex={id}")).await;
+            assert_eq!(revived["Result"],"Success","{revived}");assert_eq!(revived["CurrencyResults"][0]["AddValue"],-30);
+        }
+        assert_eq!(call(&s,&u,"ordeal_arena/begin_ordeal_arena",&enter).await["Result"],"Success");
+    }
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pay_gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),0);
 }
 
 #[tokio::test]
