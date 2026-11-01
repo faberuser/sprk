@@ -1357,6 +1357,12 @@ async fn deleted_preset_gear_keeps_current_equipment_and_other_slots() {
     sqlx::query("DELETE FROM equip_items WHERE slot_index=? AND account_id=?").bind(old).bind(a).execute(&s.db).await.unwrap();
     let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
     assert_eq!(out["Result"],"Success","{out}");assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],current);
+    let stored:String=sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key=?")
+        .bind(a).bind(&key).fetch_one(&s.db).await.unwrap();
+    let stored:Value=serde_json::from_str(&stored).unwrap();
+    let saved=stored.as_array().unwrap().iter().find(|p|p["HeroIndex"]==1).unwrap();
+    assert_eq!(saved["EquipItemSlotIndex"][0],current);
+    assert_eq!(saved["EquipItemUid"][0],current.to_string());
 }
 
 #[tokio::test]

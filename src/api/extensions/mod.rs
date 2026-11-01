@@ -236,10 +236,6 @@ pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64)
     if worn || pending {
         return Err(rule("EquippedItem"));
     }
-    let preset:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM extension_state s,json_each(s.data) j WHERE s.account_id=? AND s.kind='equip_storage' AND j.key LIKE 'EquipItemSlotIndex%' AND j.value=?)").bind(account).bind(slot).fetch_one(&mut *db).await?;
-    if preset {
-        return Err(rule("EquippedItem"));
-    }
     if !get(&mut *db, account, "soul", slot).await?.is_null() {
         return Err(rule("InvalidMaterial"));
     }
@@ -383,7 +379,10 @@ pub(crate) async fn misc(
 pub(crate) async fn storage_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
     let mut tx = state.db.begin().await?;
     storage::initialize(&mut tx, state, account).await?;
-    let rows = list(&mut tx, account, "equip_storage").await?;
+    let mut rows = list(&mut tx, account, "equip_storage").await?;
+    for value in &mut rows {
+        storage::reconcile(&mut tx, account, value).await?;
+    }
     tx.commit().await?;
     Ok(rows)
 }

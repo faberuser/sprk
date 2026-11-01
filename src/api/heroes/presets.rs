@@ -200,6 +200,13 @@ pub(crate) async fn execute(
                     d["ApplyRunePage"] = p["ApplyRunePage"].clone();
                     hero::save_details(db, account, id, &d).await?;
                 }
+                for p in &mut presets {
+                    p["EquipItemUid"] = json!(p["EquipItemSlotIndex"].as_array().unwrap().iter()
+                        .map(|slot| slot.as_i64().filter(|slot| *slot > 0).map(|slot| slot.to_string()).unwrap_or_default())
+                        .collect::<Vec<_>>());
+                }
+                sqlx::query("UPDATE hero_presets SET data=? WHERE account_id=? AND storage_key=?")
+                    .bind(json!(presets).to_string()).bind(account).bind(key).execute(&mut *db).await?;
                 out["Heroes"] = json!(hero::snapshot(db, account).await?);
                 out["EquipItems"] = json!(equips);
                 out["UnEquippedSlotIndices"] = json!(removed);

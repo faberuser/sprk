@@ -1143,8 +1143,6 @@ async fn equipment_action(
         if (row.get::<i32, _>("inventory_type") > 1 || in_use) && action != "set_lock_equip_item" {
             return Err(rule("Equipped"));
         }
-        let preset:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM extension_state s,json_each(s.data) j WHERE s.account_id=? AND s.kind='equip_storage' AND j.key LIKE 'EquipItemSlotIndex%' AND j.value=?)").bind(account).bind(id).fetch_one(&mut *db).await?;
-        if preset && action!="set_lock_equip_item" {return Err(rule("Equipped"));}
         if action == "set_lock_equip_item" {
             let locked = req.number("Locked", 0)?;
             if ![0, 1].contains(&locked) {

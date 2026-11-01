@@ -32,14 +32,36 @@ pub(super) async fn initialize(
     }
     Ok(())
 }
+pub(super) async fn reconcile(db: &mut SqliteConnection, account: i64, v: &mut Value) -> Result<BTreeSet<i64>> {
+    let mut missing = BTreeSet::new();
+    for part in 1..=10 {
+        let key = format!("EquipItemSlotIndex{part}");
+        let slot = n(v, &key);
+        if slot <= 0 { continue; }
+        // A preset is a reference, not an ownership lock. Keep references to
+        // chest gear, but remove deleted/foreign gear when the preset is used.
+        let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=?)")
+            .bind(account).bind(slot).fetch_one(&mut *db).await?;
+        if !owned {
+            v[key] = json!(0);
+            missing.insert(part);
+        }
+    }
+    if !missing.is_empty() {
+        put(db, account, "equip_storage", n(v, "EquipStorageSlotIndex"), v).await?;
+    }
+    Ok(missing)
+}
 pub(super) async fn preset(db: &mut SqliteConnection, account: i64, v: &Value) -> Result<Value> {
+    let mut v = v.clone();
+    reconcile(db, account, &mut v).await?;
     let mut slots = vec![];
     let mut uids = vec![];
     for i in 1..=10 {
-        let slot = n(v, &format!("EquipItemSlotIndex{i}"));
+        let slot = n(&v, &format!("EquipItemSlotIndex{i}"));
         slots.push(slot);
         let uid = if slot > 0 {
-            equip(db, account, slot).await?.uid
+            slot.to_string()
         } else {
             String::new()
         };
@@ -86,6 +108,7 @@ pub(super) async fn execute(
     if v.is_null() {
         return Err(rule("SlotNotFound"));
     }
+    let missing = reconcile(db, account, &mut v).await?;
     match action {
         "change_equip_storage_slot_name" | "add_equip_storage_slot" => {
             let name = req.0.get("Name").map(|s| s.trim())
@@ -153,6 +176,12 @@ pub(super) async fn execute(
         "set_equip_storage_slot" => {
             let hero_id = i32::try_from(req.number("HeroIndex", 0)?).map_err(|_| rule("NoHero"))?;
             let h = hero::info(db, account, hero_id).await?;
+            // Missing gear leaves the hero's current piece in place. Persist
+            // that replacement so the next load no longer references deletion.
+            for part in &missing {
+                let key = format!("EquipItemSlotIndex{part}");
+                v[&key] = h[&key].clone();
+            }
             let mut equipped = vec![];
             let mut removed = vec![];
             let mut old_removed = vec![];
