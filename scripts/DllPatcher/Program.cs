@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--preset-disposal-only")) { InstallPresetDisposal(args[0], false); return; }
+            if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
             if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
             if (args.Contains("--verify-friendly-duel-menu")) { InstallFriendlyDuelMenu(args[0], true); return; }
             if (args.Contains("--godking-recharge-prompt-only")) { InstallGodkingRechargePrompt(args[0], false); return; }

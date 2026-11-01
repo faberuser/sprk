@@ -440,7 +440,7 @@ async fn break_equipment(
     }
     let mut rewards = Rewards::default();
     for slot in ids {
-        let eq = material(db, account, slot).await?;
+        let eq = material_checked(db, account, slot, true).await?;
         let data = meta(state, eq.item_index)?;
         let all = state.tables.extensions.rows("EquipItemBreak");
         let r = if n(data, "SetIndex") > 0 {

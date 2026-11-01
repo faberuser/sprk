@@ -13,6 +13,49 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection};
 use std::collections::BTreeSet;
 
+/// Called inside the same transaction that permanently removes equipment.
+pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<()> {
+    let rows = sqlx::query("SELECT idx,data FROM extension_state WHERE account_id=? AND kind='equip_storage'")
+        .bind(account).fetch_all(&mut *db).await?;
+    for row in rows {
+        let mut value: Value = serde_json::from_str(&row.get::<String,_>("data"))
+            .map_err(|e|ServerError::Internal(e.to_string()))?;
+        let mut changed=false;
+        for part in 1..=10 {
+            let key=format!("EquipItemSlotIndex{part}");
+            if n(&value,&key)==slot { value[key]=json!(0); changed=true; }
+        }
+        if changed {
+            sqlx::query("UPDATE extension_state SET data=? WHERE account_id=? AND kind='equip_storage' AND idx=?")
+                .bind(value.to_string()).bind(account).bind(row.get::<i64,_>("idx")).execute(&mut *db).await?;
+        }
+    }
+    let rows=sqlx::query("SELECT storage_key,data FROM hero_presets WHERE account_id=?")
+        .bind(account).fetch_all(&mut *db).await?;
+    for row in rows {
+        let mut presets:Vec<Value>=serde_json::from_str(&row.get::<String,_>("data"))
+            .map_err(|e|ServerError::Internal(e.to_string()))?;
+        let mut changed=false;
+        for preset in &mut presets {
+            let parts:Vec<usize>=preset["EquipItemSlotIndex"].as_array().into_iter().flatten().enumerate()
+                .filter(|(_,value)|value.as_i64()==Some(slot)).map(|(part,_)|part).collect();
+            for part in parts {
+                preset["EquipItemSlotIndex"][part]=json!(0);
+                if let Some(uid)=preset["EquipItemUid"].as_array_mut().and_then(|a|a.get_mut(part)) { *uid=json!(""); }
+                if let Some(page)=preset["EquipItemRunePage"].as_array_mut().and_then(|a|a.get_mut(part)) { *page=json!(0); }
+                changed=true;
+            }
+        }
+        if changed {
+            sqlx::query("UPDATE hero_presets SET data=? WHERE account_id=? AND storage_key=?")
+                .bind(json!(presets).to_string()).bind(account).bind(row.get::<String,_>("storage_key")).execute(&mut *db).await?;
+        }
+    }
+    sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index=?")
+        .bind(account).bind(slot).execute(&mut *db).await?;
+    Ok(())
+}
+
 pub(crate) async fn list(db: &mut SqliteConnection, account: i64) -> Result<Vec<Value>> {
     let rows = sqlx::query("SELECT * FROM hero_presets WHERE account_id=? ORDER BY storage_key")
         .bind(account)

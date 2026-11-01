@@ -212,6 +212,9 @@ pub(crate) async fn save_equip(
     Ok(())
 }
 pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+    material_checked(db, account, slot, false).await
+}
+async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, disposing: bool) -> Result<EquipItemInfo> {
     let eq = equip(db, account, slot).await?;
     if eq.locked != 0 {
         return Err(rule("LockedEquip"));
@@ -233,7 +236,7 @@ pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64)
     .bind(slot)
     .fetch_one(&mut *db)
     .await?;
-    if worn || pending {
+    if worn || (pending && !disposing) {
         return Err(rule("EquippedItem"));
     }
     if !get(&mut *db, account, "soul", slot).await?.is_null() {
@@ -242,6 +245,7 @@ pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64)
     Ok(eq)
 }
 async fn remove_equip(db: &mut SqliteConnection, account: i64, slot: i32) -> Result<()> {
+    crate::api::heroes::presets::forget_equipment(db, account, slot as i64).await?;
     sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
         .bind(account)
         .bind(slot)

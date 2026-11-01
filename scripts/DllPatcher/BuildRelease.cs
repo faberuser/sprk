@@ -118,6 +118,8 @@ partial class Program
         InstallBattleResultFlask(clientRoot, false);
         VerifyBattleResultFlaskFile(clientRoot);
         InstallCurrency64(clientRoot, false);
+        InstallPresetDisposal(clientRoot, false);
+        InstallPresetDisposal(clientRoot, true);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
         InstallTechnomagicRefresh(clientRoot, false);

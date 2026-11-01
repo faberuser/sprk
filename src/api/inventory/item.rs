@@ -1139,7 +1139,7 @@ async fn equipment_action(
             .fetch_optional(&mut *db)
             .await?
             .ok_or_else(|| rule("EquipNotOwned"))?;
-        let in_use:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?)").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
+        let in_use:bool=sqlx::query_scalar("SELECT (? AND EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?)) OR EXISTS(SELECT 1 FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?)").bind(action != "sell_equip").bind(account).bind(id).bind(account).bind(id).fetch_one(&mut *db).await?;
         if (row.get::<i32, _>("inventory_type") > 1 || in_use) && action != "set_lock_equip_item" {
             return Err(rule("Equipped"));
         }
@@ -1169,6 +1169,7 @@ async fn equipment_action(
                 return Err(rule("NotForSale"));
             }
             gold += n(item, "SellGold");
+            crate::api::heroes::presets::forget_equipment(db, account, id).await?;
             sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
                 .bind(account)
                 .bind(id)
