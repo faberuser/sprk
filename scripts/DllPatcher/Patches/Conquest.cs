@@ -74,6 +74,10 @@ partial class Program {
     static void VerifyArcdimWorker(string clientRoot) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"));
+        var finish=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="Finish");
+        if(!finish.Body.Instructions.Any(i=>Equals(i.Operand,"ReplayLogs")) ||
+            !finish.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="CreateBattleLogString"))
+            throw new InvalidOperationException("Arena worker must return native compressed replay logs.");
         var prepare=helper.MainModule.GetType("SprkConquest").Methods.Single(m=>m.Name=="Prepare");
         if(!prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SetExtraData")
             || !prepare.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="set_AffixIndices"))

@@ -666,6 +666,11 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     if kind==1 {honor_rewards::record(db,a,&current,now()).await?;}
     out["MatchResult"] = json!({"MatchUid":id,"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":delta,"NewMatchScore":score,"NewTierIndex":current["TierIndex"],"NewTierRank":current["Rank"],"NewTotalRank":current["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[currency]});
     out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}] = current;
+    if data["OnlineMatchUid"].is_null() {
+        crate::api::services::records::arena_history(db,s,a,kind,
+            &[data["Register"]["AccountInfo"].clone(),data["Wait"]["MatchedNpcInfo"].clone()],
+            &[a],win==1,int(r,"PlayTime")?.saturating_mul(1000),r.text("BattleLogs")).await?;
+    }
     data["End"] = out.clone();
     data["CompletedAt"] = json!(now());
     sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")

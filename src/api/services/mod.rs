@@ -54,7 +54,9 @@ pub(crate) async fn execute_request(
     headers: &HeaderMap,
     body: Bytes,
 ) -> Result<Value> {
-    let mut r = Request::parse(&body)?;
+    let mut r = if matches!(path,"replay/save_replay"|"internal/b2m_save_replay") {
+        Request::parse_with_integer_arrays(&body,&["AccountIds"])?
+    } else {Request::parse(&body)?};
     if path == "user/get_stamina_infos" {
         let pairs: Vec<(String, String)> =
             serde_urlencoded::from_bytes(&body).map_err(|_| rule("Fail"))?;

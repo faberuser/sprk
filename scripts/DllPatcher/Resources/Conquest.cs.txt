@@ -323,6 +323,7 @@ public sealed class SprkConquest : MonoBehaviour {
         var contributions=new Dictionary<string,object>();
         foreach(long account in run.players)contributions[account.ToString()]=battle.Snapshot.StatisticsManager.GetTotalDamageOfAccount(account);
         Send("WorkerResult",new Dictionary<string,object>{{"RunId",run.id},{"Win",run.updater.GetWinner()==TeamType.Left},
+            {"ReplayLogs",run.arena?ReplayUtil.CreateBattleLogString(battle,value=>JsonMarshaler.EncodeJsonString(value),true):""},
             {"Winner",run.updater.GetWinner().ToString()},
             {"Creatures",creatures},{"DefeatedCreatures",run.defeated},{"AccountDamage",contributions},{"TimeMs",battle.MainTimer.GetCurrentTimeMs()},{"MaxWaveIndex",run.updater.MaxWaveIndex}});
         runs.Remove(run.id);

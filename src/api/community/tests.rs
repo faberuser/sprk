@@ -200,7 +200,7 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     let s = setup().await;
     let u = login(&s, "arena-one").await;
     let _v = login(&s, "arena-two").await;
-    let end = "Win=1&PlayTime=30&AliveHeroIndices=[1]";
+    let end = "Win=1&PlayTime=30&AliveHeroIndices=[1]&BattleLogs=native-compressed-replay";
     assert_ne!(
         call(&s, &u, "match/set_offline_match_result", end).await["Result"],
         "Success"
@@ -236,6 +236,9 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     assert_eq!(result["MatchResult"]["NewTotalRank"], 0);
     assert_eq!(result["MatchResult"]["NewTierRank"], 0);
     assert_eq!(result["BattleInfo"]["Rank"], 0);
+    let saved: (i64,String)=sqlx::query_as("SELECT kind,data FROM service_replays WHERE owner=?")
+        .bind(n(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap();
+    assert_eq!(saved,(0,"native-compressed-replay".into()));
     let snapshot: String = sqlx::query_scalar("SELECT data FROM community_state WHERE owner=? AND kind='arena_daily'")
         .bind(n(&u["UserInfo"], "AccountId")).fetch_one(&s.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&snapshot).unwrap()["Rank"], 1);

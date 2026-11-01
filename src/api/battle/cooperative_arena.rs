@@ -58,6 +58,13 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
         return cancel(s,run).await;
     }
     online::finish(&mut db,s,uid,winner,body,give_up).await?;
+    let friendly:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.DuelType')=1)")
+        .bind(uid).fetch_one(&mut *db).await?;
+    if let Some(accounts)=run.payload["Simulation"]["AccountInfos"].as_array().filter(|_|!friendly) {
+        crate::api::services::records::arena_history(&mut db,s,run.master,
+            if run.payload["MatchInfo"]["ArenaType"]=="BanPick"{1}else{0},accounts,&run.members,
+            winner==run.members[0],number(body,"TimeMs"),body["ReplayLogs"].as_str().unwrap_or("")).await?;
+    }
     db.commit().await?;
     run.result=Some(json!({"WinnerAccountId":winner,"Creatures":body["Creatures"],"GiveUp":give_up.is_some()}));
     // ArenaContext waits for the replay to finish after BattleResultNot. Do
