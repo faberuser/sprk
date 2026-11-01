@@ -117,6 +117,8 @@ pub(super) async fn execute(
                                     .rows("NPCFriendlyPoint")
                                     .iter()
                                     .any(|npc| n(npc, "HeroIndex") == i)
+                                    && state.tables.hero_shop.heroes.get(&(i as i32))
+                                        .is_some_and(|hero| n(hero,"OpenType")==1)
                             })
                         })
                 {

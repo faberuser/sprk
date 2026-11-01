@@ -69,6 +69,27 @@ async fn public_awakening_stones_obey_equipment_type() {
     assert_eq!(gold(&s).await,large_gold-price);
     assert_eq!(r["ResultEquipItem"]["Star"], 1);
 }
+
+#[tokio::test]
+async fn awakening_stones_check_the_entire_unique_weapon_roster() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gold=10000000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let weapons:Vec<_>=s.tables.extensions.rows("EquipItem").iter()
+        .filter(|r|r["IsOpenSoulWeapon"]==true && n(r,"PartType")==1).cloned().collect();
+    assert!(weapons.iter().any(|r|n(r,"ItemIndex")==1080));
+    for weapon in weapons {
+        let id=n(&weapon,"ItemIndex") as i32;
+        let npc=weapon["CreatureIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64).any(|i|
+            s.tables.extensions.rows("NPCFriendlyPoint").iter().any(|r|n(r,"HeroIndex")==i)
+            && s.tables.hero_shop.heroes.get(&(i as i32)).is_some_and(|h|n(h,"OpenType")==1));
+        for stone in [5301,5315] {
+            let eq=give(&s,a,id,1).await.equipment.remove(0);
+            give(&s,a,stone,1).await;
+            let out=call(&s,&u,"awaken_equip",&format!("EquipItemSlotIndex={}&MaterialItemInfors=[{stone},1]",eq.slot_index)).await;
+            assert_eq!(out["Result"]=="Success",stone==5301 || !npc,"weapon {id}, stone {stone}: {out}");
+        }
+    }
+}
 #[tokio::test]
 async fn technomagic_migration_preserves_first_skill_in_inventory_and_storage() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
