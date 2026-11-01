@@ -1102,12 +1102,31 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
     assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");
     let notice=message(&mut sb,"RequestDuel").await;
     let body:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(body["Nick"],a.user_info.nick);
+    // Native DuelManager starts its first 10-second ping while RequestDuel is
+    // still pending. The receiver is in None state and replies with GroupId=0.
+    sa.send("MessageReq",json!({"RequestId":101,"ReceiverIds":[b.user_info.account_id],"Message":format!("DuelPing {}",json!({"GroupId":group.to_string()}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"DuelPing").await;
+    sb.send("MessageReq",json!({"RequestId":102,"ReceiverIds":[a.user_info.account_id],"Message":"DuelPong {\"GroupId\":\"0\"}"})).await;
+    assert_eq!(message(&mut sb,"MessageRes").await["Result"],"Success");
+    let pong=message(&mut sa,"DuelPong").await;
+    assert_eq!(serde_json::from_str::<Value>(pong["Content"].as_str().unwrap()).unwrap()["GroupId"],"0");
     sb.send("MessageReq",json!({"RequestId":11,"ReceiverIds":[a.user_info.account_id],"Message":format!("AcceptDuel {}",json!({"GroupId":group}))})).await;
     assert_eq!(message(&mut sb,"MessageRes").await["Result"],"Success");message(&mut sa,"AcceptDuel").await;
+    // Hero selection can remain open beyond the native first-ping deadline.
+    tokio::time::sleep(std::time::Duration::from_millis(10100)).await;
+    for reverse in [false,true] {
+        let (sender,receiver,target,source)=if reverse {(&mut sb,&mut sa,a.user_info.account_id,b.user_info.account_id)} else {(&mut sa,&mut sb,b.user_info.account_id,a.user_info.account_id)};
+        sender.send("MessageReq",json!({"RequestId":103,"ReceiverIds":[target],"Message":format!("DuelPing {}",json!({"GroupId":group}))})).await;
+        assert_eq!(message(sender,"MessageRes").await["Result"],"Success");message(receiver,"DuelPing").await;
+        receiver.send("MessageReq",json!({"RequestId":104,"ReceiverIds":[source],"Message":format!("DuelPong {}",json!({"GroupId":group}))})).await;
+        assert_eq!(message(receiver,"MessageRes").await["Result"],"Success");message(sender,"DuelPong").await;
+    }
     assert_eq!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.unwrap(),b.user_info.account_id);
     sa.send("MessageReq",json!({"RequestId":12,"ReceiverIds":[b.user_info.account_id],"Message":format!("CancelDuel {}",json!({"GroupId":group,"IsReject":false}))})).await;
     assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"CancelDuel").await;
     assert!(super::duel::opponent(&mut state.db.acquire().await.unwrap(),a.user_info.account_id,group).await.is_err());
+    sb.send("MessageReq",json!({"RequestId":105,"ReceiverIds":[a.user_info.account_id],"Message":"DuelPong {\"GroupId\":0}"})).await;
+    assert_ne!(message(&mut sb,"MessageRes").await["Result"],"Success","closed invitations cannot relay zero-group pongs");
     sa.send("MessageReq",json!({"RequestId":13,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group}))})).await;
     assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"RequestDuel").await;
     server.abort();

@@ -26,8 +26,16 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
             content=json!({"GroupId":group,"Nick":user["Nick"],"TeamLevel":user["TeamLevel"],"AvatarIndex":user["AvatarHeroIndex"]});
         },
         _=>{
-            let row=sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE group_id=? AND expires>?")
-                .bind(group).bind(now()).fetch_optional(&mut *tx).await?.ok_or_else(||rule("WrongMember"))?;
+            // Native clients start pinging before acceptance. In that state the
+            // receiver replies with GroupId=0, which DuelManager explicitly accepts.
+            // Resolve only that pong through the authenticated, live invitation pair.
+            let row=if protocol=="DuelPong" && group==0 {
+                sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>? AND ((requester=? AND opponent=?) OR (requester=? AND opponent=?))")
+                    .bind(now()).bind(a).bind(b).bind(b).bind(a).fetch_optional(&mut *tx).await?
+            } else {
+                sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE group_id=? AND expires>?")
+                    .bind(group).bind(now()).fetch_optional(&mut *tx).await?
+            }.ok_or_else(||rule("WrongMember"))?;
             let requester:i64=row.get("requester");let opponent:i64=row.get("opponent");let status:String=row.get("status");
             if !((requester==a && opponent==b)||(requester==b && opponent==a)) {return Err(rule("WrongMember"));}
             if protocol=="AcceptDuel" {
@@ -36,6 +44,8 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
                     .bind(now()+900).bind(group).execute(&mut *tx).await?;
             } else if protocol=="CancelDuel" {
                 sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=?").bind(group).execute(&mut *tx).await?;
+            } else if matches!(protocol,"DuelPing"|"DuelPong") {
+                if !matches!(status.as_str(),"invited"|"accepted") {return Err(rule("WrongMember"));}
             } else if status!="accepted" {return Err(rule("WrongMember"));}
         }
     }
