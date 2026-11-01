@@ -704,7 +704,7 @@ async fn shakmeh_stage_two_win_and_skip_publish_the_empty_gauge_to_the_client() 
     let entry = "ChapterIndex=50000&DungeonIndex=602&DungeonDifficulty=0&HeroIndices=[1]";
     let begin = call(&s, &u, "campaign/begin_campaign", entry).await;
     assert_eq!(begin["Result"], "Success", "{begin}");
-    assert_eq!(begin["ReservedCurrencyResults"][0]["NewValue"], 0);
+    assert_eq!(begin["ReservedCurrencyResults"][0]["NewValue"], 600);
     let won = call(&s, &u, "campaign/end_campaign", &format!("{entry}&Completed=true&AliveHeroIndices=[1]")).await;
     assert_eq!(won["Result"], "Success", "{won}");
     assert_eq!(won["ReservedCurrencyResults"][0]["CurrencyType"], "ShakmehMiddleBossPoint");
@@ -798,8 +798,8 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     let first = call(&s, &login, "campaign/begin_campaign", final_entry).await;
     assert_eq!(first["Result"], "Success", "{first}");
     assert_eq!(first["ReservedCurrencyResults"][0]["CurrencyType"], "ShakmehMiddleBossPoint");
-    assert_eq!(first["ReservedCurrencyResults"][0]["NewValue"], 0);
-    assert_eq!(first["ReservedCurrencyResults"][0]["AddValue"], -600);
+    assert_eq!(first["ReservedCurrencyResults"][0]["NewValue"], 600);
+    assert_eq!(first["ReservedCurrencyResults"][0]["AddValue"], 0);
     assert_eq!(
         call(&s, &login, "campaign/begin_campaign", final_entry).await,
         first
@@ -811,7 +811,7 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     .fetch_one(&s.db)
     .await
     .unwrap();
-    assert_eq!(gauge, 0);
+    assert_eq!(gauge, 600);
     assert_eq!(
         call(&s, &login, "shakmeh_dungeon/get_passive_info", "").await["PassiveInfos"],
         passive["PassiveInfos"]
@@ -824,7 +824,7 @@ async fn shakmeh_gauge_caps_passives_persist_and_final_entry_charges_once() {
     )
     .await;
     assert_eq!(result["Result"], "Success", "{result}");
-    assert_eq!(result["ReservedCurrencyResults"][0]["NewValue"], 0);
+    assert_eq!(result["ReservedCurrencyResults"][0]["NewValue"], 600);
     assert_eq!(result["ReservedCurrencyResults"][0]["AddValue"], 0);
     assert_eq!(
         call(&s, &login, "shakmeh_dungeon/get_passive_info", "").await["PassiveInfos"],
@@ -887,7 +887,6 @@ async fn shakmeh_story_unlock_blocks_farming_but_allows_first_final_story_battle
     let lost = call(&s, &u, "campaign/end_campaign",
         "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&Completed=false").await;
     assert_eq!(lost["Result"], "Success");
-    assert_eq!(lost["CurrencyResults"][0]["NewValue"], 600);
     assert_eq!(lost["ReservedCurrencyResults"][0]["NewValue"], 600);
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
         .bind(a).fetch_one(&s.db).await.unwrap(), 600);
@@ -936,7 +935,7 @@ async fn shakmeh_final_group_indices_tag_the_full_roster_without_duplicate_heroe
     let stored: Value = serde_json::from_str(&stored).unwrap();
     assert_eq!(stored["Heroes"], json!([1,2,3,4,5,6,7,8]));
     assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
-        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+        .bind(a).fetch_one(&s.db).await.unwrap(), 600);
     let end = "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&Completed=true&AliveHeroIndices=[1,2,3,4,5,6,7,8]";
     assert_eq!(call(&s, &u, "campaign/end_campaign", end).await["Result"], "Success");
 }

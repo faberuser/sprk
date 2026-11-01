@@ -155,7 +155,7 @@ async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear()
         let entry = "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&HeroIndices=[1]";
         for reconnect in [false, true] {
             assert_eq!(call(&s, &u, "campaign/begin_campaign", entry).await["Result"], "Success");
-            assert_eq!(gauge().await, if deferred { 600 } else { 0 });
+            assert_eq!(gauge().await, 600);
             if reconnect {
                 let mut tx = s.db.begin().await.unwrap();
                 entry_costs::abandon_on_login(&mut tx, &s, a).await.unwrap();
@@ -164,7 +164,7 @@ async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear()
             } else {
                 // An unrelated session must not cancel the active story fight.
                 abandon_local_run_on_lobby(&s, a, "other-session").await.unwrap();
-                assert_eq!(gauge().await, if deferred { 600 } else { 0 });
+                assert_eq!(gauge().await, 600);
                 let session = u["UserInfo"]["SessionKey"].as_str().unwrap();
                 let withdrawal = abandon_local_run_on_lobby(&s, a, session).await.unwrap();
                 assert!(withdrawal["ReservedCurrencyResults"].as_array().unwrap().iter()

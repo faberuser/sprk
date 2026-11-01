@@ -119,7 +119,9 @@ pub(super) async fn prepare(
     let victory_only = matches!(
         n(dungeon, "BattleType"),
         1 | 2 | 10 | 12 | 21 | 23 | 24 | 25 | 29 | 30 | 33 | 40 | 41 | 42 | 45 | 46
-    );
+    ) || (n(dungeon, "BattleType") == 38 && s.tables.battle.find(
+        "ShakmehDungeon", &[("DungeonIndex", int(r, "DungeonIndex")?)]
+    ).is_some_and(|v| n(v, "ShakmehIndex") == 2));
     // God King charges for opening a dungeon, not for winning a stage.
     // Other score competitions, World Boss, Eclipse and Karma keep costs.
     if int(r, "WorldBossIndex")? > 0
