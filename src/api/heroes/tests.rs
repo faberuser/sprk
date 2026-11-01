@@ -1358,6 +1358,23 @@ async fn deleted_preset_gear_keeps_current_equipment_and_other_slots() {
     let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
     assert_eq!(out["Result"],"Success","{out}");assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],current);
 }
+
+#[tokio::test]
+async fn every_advancement_costume_can_be_purchased_at_its_listed_price() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=1000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let costumes:Vec<_>=s.tables.hero_shop.costumes.values().filter(|c|c["BodyPrefix"].as_str().is_some_and(|v|v.contains("Advance")) && c["IsDefault"]==false).cloned().collect();
+    assert_eq!(costumes.len(),21);
+    for c in costumes {
+        let hero_index=item::n(&c,"HeroIndex");let id=item::n(&c,"CostumeIndex");let price=item::n(&c,"ReqBuyGem");
+        assert!(price>0);assert_eq!(c["Buyable"],true);
+        sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)").bind(a).bind(hero_index).bind(hero_index).execute(&s.db).await.unwrap();
+        // Couple variants can grant each other as a bonus; test every direct sale independently.
+        sqlx::query("DELETE FROM costumes WHERE account_id=? AND costume_index=?").bind(a).bind(id).execute(&s.db).await.unwrap();
+        let out=hero::buy_costume(State(s.clone()),form(&u,&format!("HeroIndex={hero_index}&CostumeIndex={id}&BuyGem={price}&BuyGold=0&BuyMileage=0"))).await.unwrap().0;
+        assert_eq!(out["Result"],"Success","costume {id}: {out}");
+    }
+}
 #[tokio::test]
 async fn shop_purchase_limits_reset_and_failed_delivery_does_not_charge() {
     let (mut s, u) = setup().await;
