@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build a signed client release in an isolated workspace from pinned CI inputs."""
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 
 # Allow both direct execution and package imports from any working directory.
 if __package__ in (None, ""):
@@ -19,8 +21,23 @@ if __package__ in (None, ""):
 from scripts.release.publish_client_update import IDENTIFIER, ignored, publish, safe_path
 from scripts.release.client_update_bundle import package, verified_manifest
 from scripts.release.client_baseline import BASELINE
+from scripts.release.client_release_inputs import fingerprint
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+@contextmanager
+def phase(name):
+    start = time.perf_counter()
+    print(f"Starting: {name}", flush=True)
+    try:
+        yield
+    finally:
+        duration = time.perf_counter() - start
+        print(f"Phase timing: {name}: {duration:.2f}s", flush=True)
+        if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(summary, "a", encoding="utf-8") as output:
+                output.write(f"- Client build phase `{name}`: {duration:.2f}s\n")
 
 
 def file_hash(path):
@@ -124,13 +141,18 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
         raise ValueError("Build workspace already exists; choose a new path")
     work.mkdir(parents=True)
     client = work / "client"
-    metadata = extract_baseline(baseline, client, BASELINE["sha256"], public_key)
-    apply_overrides(REPO / "client-overrides/files", client)
+    inputs_hash = fingerprint(REPO)
+    with phase("Extract and verify baseline"):
+        metadata = extract_baseline(baseline, client, BASELINE["sha256"], public_key)
+        apply_overrides(REPO / "client-overrides/files", client)
     tools = work / "tools"
-    subprocess.run(["dotnet", "build", str(REPO / "scripts/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
-    subprocess.run([sys.executable, str(REPO / "scripts/client/remove_client_telemetry.py"),
-                    str(client), "--patcher", str(tools / "DllPatcher.dll")], check=True)
-    subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
+    with phase("Compile patcher"):
+        subprocess.run(["dotnet", "build", str(REPO / "scripts/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
+    with phase("Remove and verify telemetry"):
+        subprocess.run([sys.executable, str(REPO / "scripts/client/remove_client_telemetry.py"),
+                        str(client), "--patcher", str(tools / "DllPatcher.dll")], check=True)
+    with phase("Patch and verify client"):
+        subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
     output = work / "updates"
     (output / "stable").mkdir(parents=True)
     previous = previous or (json.dumps(metadata["previous_manifest"]) + "\n").encode()
@@ -140,12 +162,17 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
     # Include new assets automatically, and let the publisher carry removals
     # forward when patcher code deletes an obsolete file.
     includes = managed_build_files(client)
-    manifest = publish(client, output, version, "stable", includes, signing_key)
+    if fingerprint(REPO) != inputs_hash:
+        raise ValueError("Client build inputs changed during the build")
+    with phase("Create and sign managed snapshot"):
+        manifest = publish(client, output, version, "stable", includes, signing_key,
+                           build_inputs_sha256=inputs_hash)
     release = output / "releases" / version
     if (release / "manifest.json").read_bytes() != (output / "stable/manifest.json").read_bytes():
         raise ValueError("Published manifests do not match")
     print(f"Verified new managed snapshot: {len(manifest['files'])} files; {len(manifest['deleted_files'])} deletion paths")
-    return package(output, version, public_key, work / "assets")
+    with phase("Verify and compress release bundle"):
+        return package(output, version, public_key, work / "assets")
 
 
 def main():
@@ -172,18 +199,20 @@ def main():
         baseline = args.baseline
         if baseline is None:
             pin = BASELINE
-            subprocess.run(["gh", "release", "download", pin["tag"], "--repo", pin["repository"],
-                            "--pattern", pin["asset"], "--dir", str(temporary)], check=True)
+            with phase("Download baseline"):
+                subprocess.run(["gh", "release", "download", pin["tag"], "--repo", pin["repository"],
+                                "--pattern", pin["asset"], "--dir", str(temporary)], check=True)
             baseline = temporary / pin["asset"]
         previous = previous_release(args.repo, temporary / "previous", args.public_key) if args.publish else None
         archive, manifest = build(baseline.resolve(strict=True), args.work.resolve(), args.version,
                                   key.resolve(strict=True), args.public_key.resolve(strict=True), previous)
         tag = "client-" + args.version
         if args.publish:
-            subprocess.run(["gh", "release", "create", tag, str(archive), str(manifest), "--repo", args.repo,
-                            "--target", os.environ["GITHUB_SHA"], "--draft", "--title", f"Client {args.version}",
-                            "--notes", f"Built from server/patcher commit {os.environ['GITHUB_SHA']}."], check=True)
-            subprocess.run(["gh", "release", "edit", tag, "--repo", args.repo, "--draft=false", "--latest=false"], check=True)
+            with phase("Upload and publish release"):
+                subprocess.run(["gh", "release", "create", tag, str(archive), str(manifest), "--repo", args.repo,
+                                "--target", os.environ["GITHUB_SHA"], "--draft", "--title", f"Client {args.version}",
+                                "--notes", f"Built from server/patcher commit {os.environ['GITHUB_SHA']}."], check=True)
+                subprocess.run(["gh", "release", "edit", tag, "--repo", args.repo, "--draft=false", "--latest=false"], check=True)
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as output:
                 output.write(f"tag={tag}\n")

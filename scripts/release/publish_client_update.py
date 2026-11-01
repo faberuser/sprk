@@ -132,7 +132,7 @@ def sign_manifest(manifest: dict, private_key: Path) -> dict:
     }}
 
 
-def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None) -> dict:
+def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None) -> dict:
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch(channel) or channel.lower() == "releases":
         raise ValueError("Version/channel must start with a letter or digit and contain only letters, digits, '.', '_', '-' (max 128 characters); channel cannot be 'releases'")
     client = client.resolve(strict=True)
@@ -198,6 +198,10 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 "deleted_files": sorted((removed | (previous_files - current_files)) - current_files),
             }
             if signing_key is not None:
+                if build_inputs_sha256 is not None:
+                    if not re.fullmatch(r"[0-9a-f]{64}", build_inputs_sha256):
+                        raise ValueError("Invalid client build input fingerprint")
+                    manifest["build_inputs_sha256"] = build_inputs_sha256
                 manifest = sign_manifest(manifest, signing_key)
             payload = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
             (snapshot / "manifest.json").write_bytes(payload)

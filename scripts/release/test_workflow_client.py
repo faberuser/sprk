@@ -22,14 +22,15 @@ class ReleaseSelectionWorkflowTests(unittest.TestCase):
             entry = temp / "actions-step.py"
             output = temp / "output"
             entry.write_text(script, encoding="utf-8")
-            env = dict(os.environ, GITHUB_WORKSPACE=str(repo), GITHUB_OUTPUT=str(output), INPUT_TAG=tag)
+            env = dict(os.environ, GITHUB_WORKSPACE=str(repo), GITHUB_OUTPUT=str(output), INPUT_TAG=tag,
+                       FORCE_CLIENT_BUILD="false" if tag else "true", RELEASE_REPOSITORY="owner/repo")
             # -I excludes PYTHONPATH and the current directory: imports must use
             # the explicit checkout path, not incidental local interpreter setup.
             result = subprocess.run([sys.executable, "-I", str(entry)], cwd=repo,
                                     env=env, capture_output=True, text=True)
             return result, output.read_text() if output.exists() else None
 
-    def test_blank_override_selects_normal_build_from_temporary_script(self):
+    def test_forced_build_runs_from_temporary_script_without_network_access(self):
         result, output = self.run_selection("")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(output, "tag=\n")

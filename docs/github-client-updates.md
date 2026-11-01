@@ -1,7 +1,9 @@
 # Build and host client updates through GitHub
 
-Normal pushes to `main` build the client update and server from the same commit
-on GitHub-hosted runners. No local upload or SSH/SFTP deployment is required
+Normal pushes to `main` compile the server and resolve the client update in
+parallel on GitHub-hosted runners. Changed client inputs produce a new signed
+release; unchanged inputs reuse the newest complete release with a matching
+signed `build_inputs_sha256`. No local upload or SSH/SFTP deployment is required
 after the one-time baseline setup.
 
 ## Pipeline
@@ -11,12 +13,23 @@ battle checks. [Build and deploy](../.github/workflows/build-and-deploy.yml)
 runs on pushes to `main` or manual dispatch, publishing the client before
 building and validating the server image and calling Portainer.
 
-1. On PRs, Ubuntu runs the server tests and client build-tool tests, then native
-   battle integration checks under Wine using the latest complete signed
-   published worker release. `Dockerfile.tests` shares production stages through
-   `docker-bake.hcl`; these checks do not rebuild client changes in the PR.
+1. On PRs, Ubuntu runs the server and client build-tool tests in parallel with
+   native battle integration checks under Wine using the latest complete signed
+   published worker release. New commits cancel obsolete PR runs. Rust dependencies
+   are cached on the runner and in Docker dependency layers. `Dockerfile.tests`
+   shares the production toolchain and Wine runtime through `docker-bake.hcl`
+   without building the optimized server binary; these checks do not rebuild
+   client changes in the PR.
    Native combat tests no longer run in the deployment job.
-2. Windows downloads the immutable baseline pinned by `scripts/release/client_baseline.py`,
+2. Windows fingerprints scripts, overrides, tables, configuration, build settings
+   and the deployment workflow. Only the newest complete published client's
+   verified manifest can authorize automatic reuse, preserving cumulative deleted
+   paths. Legacy manifests without a fingerprint require a new build. A manual
+   `client_release_tag` override still verifies the release; `force_client_build`
+   forces a rebuild for toolchain refreshes and cannot be combined with an override.
+   Reuse skips Python/.NET setup and patch dependencies. New builds cache pip
+   downloads and NuGet packages, and report phase timings in logs and the job summary.
+   When building, Windows downloads the immutable baseline pinned by `scripts/release/client_baseline.py`,
    verifies its SHA-256 and file hashes, and verifies the original distribution's
    signed manifest against the existing public key.
 3. It applies tracked files from `client-overrides/files/`, runs telemetry cleanup
@@ -31,7 +44,10 @@ building and validating the server image and calling Portainer.
    `client-ci-<commit-prefix>-<run-id>-<attempt>`. Assets go to a draft before
    publishing. Existing releases are never replaced.
 6. Ubuntu assembles the [Linux battle worker](linux-battle-worker.md) from the
-   pinned Unity runtime and that verified client release, builds the image,
+   pinned Unity runtime and that verified client release. A parallel Linux job
+   exports the release-mode server binary as a seven-day artifact scoped to this run;
+   final image assembly downloads that exact artifact by ID and restores executable permissions,
+   without recompiling the server. It builds the image,
    and requires worker readiness in an isolated container before pushing to
    GHCR and calling Portainer.
 7. At startup, the update container downloads that exact release, verifies its

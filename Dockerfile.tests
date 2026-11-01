@@ -1,6 +1,7 @@
-# PR integration image. docker-bake.hcl supplies the production build/runtime
-# stages as named contexts, keeping Wine and worker configuration shared.
-FROM server-build AS test-build
+# Share the production toolchain and Wine runtime without building its binary.
+FROM server-test-deps AS test-build
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
 COPY tables ./tables
 COPY config/mission-rule-gaps.json config/mission-rule-gaps.json
 COPY scripts/DllPatcher/Resources/ArtifactSelectorPools.json scripts/DllPatcher/Resources/ArtifactSelectorPools.json

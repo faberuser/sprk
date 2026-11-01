@@ -9,7 +9,7 @@ permissions:
 
 concurrency:
   group: sprk-pr-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -24,7 +24,12 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust
-        run: rustup toolchain install 1.93.0 --profile minimal
+        run: |
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup override set 1.93.0
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
 
       - name: Test
         run: cargo +1.93.0 test --locked
@@ -35,7 +40,6 @@ jobs:
   native-tests:
     name: Test native battles under Wine
     if: github.event_name == 'pull_request'
-    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -85,12 +89,15 @@ jobs:
           load: true
           push: false
           set: |
-            *.cache-from=type=gha,scope=sprk-native-tests
-            *.cache-to=type=gha,scope=sprk-native-tests,mode=max
+            server-test-deps.cache-from=type=gha,scope=sprk-native-test-deps
+            server-test-deps.cache-to=type=gha,scope=sprk-native-test-deps,mode=max
+            server-runtime.cache-from=type=gha,scope=sprk-native-runtime
+            server-runtime.cache-to=type=gha,scope=sprk-native-runtime,mode=max
+            native-tests.cache-from=type=gha,scope=sprk-native-tests
+            native-tests.cache-to=type=gha,scope=sprk-native-tests,mode=max
 
       - name: Run worker tests under Wine
         run: |
-          docker run --rm --init sprk-native-tests:ci readiness_requires_live_worker_and_supported_capabilities --nocapture
           docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
           docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
 
