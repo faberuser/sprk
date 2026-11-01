@@ -246,6 +246,22 @@ async fn arena_offline_flow_rejects_unentered_and_replayed_results() {
     let u = login(&s, "arena-one").await;
     assert_eq!(u["BattleInfo"]["MatchScore"], 1020);
 }
+
+#[tokio::test]
+async fn arena_defense_keeps_the_saved_short_deck_and_soul_weapon() {
+    let s=setup().await;let u=login(&s,"saved-defense").await;let a=n(&u["UserInfo"],"AccountId");
+    let out=call(&s,&u,"match/register_match","ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;
+    assert_eq!(out["Result"],"Success");
+    let mut db=s.db.acquire().await.unwrap();
+    assert_eq!(arena::defense_heroes(&mut db,a).await.unwrap(),vec![1]);
+    let mut rewards=Rewards::default();
+    item::give(&mut db,&s,a,crate::models::item::ItemGrant{index:1001,count:1,star:0,custom:0},&mut rewards).await.unwrap();
+    let slot=rewards.equipment[0].slot_index as i64;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(slot).bind(a).execute(&mut *db).await.unwrap();
+    crate::api::extensions::put(&mut db,a,"soul",slot,&json!({"SlotIndex":slot,"Grade":2})).await.unwrap();
+    let hero=cached_hero(&mut db,a,1).await.unwrap();
+    assert_eq!(hero["EquipItemInfo1"]["SoulWeaponInfo"]["Grade"],2);
+}
 #[tokio::test]
 async fn arena_mirror_opponent_has_distinct_battle_identity() {
     let s = setup().await;

@@ -3,6 +3,22 @@ use super::*;
 pub(crate) mod online;
 #[path = "arena_honor_rewards.rs"]
 pub(crate) mod honor_rewards;
+pub(crate) async fn defense_heroes(db: &mut SqliteConnection, a: i64) -> Result<Vec<i64>> {
+    let saved: Option<String> = sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND kind=0 AND json_extract(data,'$.DuelType') IS NOT 1 ORDER BY id DESC LIMIT 1")
+        .bind(a).fetch_optional(&mut *db).await?;
+    if let Some(saved) = saved {
+        let saved: Value = parse(&saved)?;
+        let mut heroes = vec![];
+        for id in saved["Heroes"].as_array().into_iter().flatten().filter_map(Value::as_i64).take(4) {
+            let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+                .bind(a).bind(id).fetch_one(&mut *db).await?;
+            if owned && !heroes.contains(&id) { heroes.push(id); }
+        }
+        if !heroes.is_empty() { return Ok(heroes); }
+    }
+    Ok(sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY RANDOM() LIMIT 4")
+        .bind(a).fetch_all(db).await?)
+}
 pub(crate) fn season(s: &AppState) -> (i64, i64, i64) {
     let epoch = s.tables.arena_guild.rules["SeasonEpoch"]
         .as_str()
@@ -433,7 +449,7 @@ async fn execute_inner(
             }
             let selected:Option<i64>=sqlx::query_scalar("SELECT account_id FROM heroes WHERE account_id!=? GROUP BY account_id ORDER BY RANDOM() LIMIT 1").bind(a).fetch_optional(&mut *db).await?;
             let opponent = selected.unwrap_or(a);
-            let heroes:Vec<i64>=sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY level DESC,hero_index LIMIT 4").bind(opponent).fetch_all(&mut *db).await?;
+            let heroes=defense_heroes(db,opponent).await?;
             out["Result"] = json!("WaitMore");
             out["MatchedNpcInfo"] = account(db, opponent, &heroes, true).await?;
             if opponent == a {

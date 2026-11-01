@@ -149,15 +149,10 @@ pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> R
 pub(super) async fn opponent(db: &mut SqliteConnection, a: i64, exclude: i64) -> Result<Value> {
     let selected:Option<i64>=sqlx::query_scalar("SELECT account_id FROM heroes WHERE account_id!=? AND account_id!=? GROUP BY account_id ORDER BY RANDOM() LIMIT 1").bind(a).bind(exclude).fetch_optional(&mut *db).await?;
     let account = selected.unwrap_or(a);
-    let ids: Vec<i32> = sqlx::query_scalar(
-        "SELECT hero_index FROM heroes WHERE account_id=? ORDER BY RANDOM() LIMIT 4",
-    )
-    .bind(account)
-    .fetch_all(&mut *db)
-    .await?;
+    let ids = crate::api::community::arena::defense_heroes(db, account).await?;
     let mut heroes = serde_json::Map::new();
     for id in ids {
-        heroes.insert(id.to_string(), cached_hero(db, account, id).await?);
+        heroes.insert(id.to_string(), cached_hero(db, account, id as i32).await?);
     }
     let user=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=?").bind(account).fetch_one(db).await?;
     Ok(
@@ -242,7 +237,7 @@ async fn ordeal(
             let id = int(r, "HeroIndex")?;
             let dead = info["DeadHeroIndices"].as_array_mut().unwrap();
             if !dead.contains(&json!(id)) {
-                return Err(rule("NotAvailableHero"));
+                return Err(rule("CannotResurrectionHero"));
             }
             let c = hero::currency(
                 db,
@@ -387,6 +382,28 @@ async fn ordeal(
                 return Err(rule("InvalidHero"));
             }
             let won = boolean(r, "Completed", false)?;
+            if battle {
+                let fallen = if r.text("CreatureInfoString").is_empty() {
+                    if won {vec![]} else {heroes.clone()}
+                } else {
+                    let creatures:Vec<Value>=read_json(r.text("CreatureInfoString"))?;
+                    if creatures.len()>512 {return Err(rule("NotAvailableHero"));}
+                    let mut seen=BTreeSet::new();let mut fallen=vec![];
+                    let number=|v:&Value,key:&str|v[key].as_i64().or_else(||v[key].as_str().and_then(|v|v.parse().ok()));
+                    for creature in &creatures {
+                        if number(creature,"TeamId")!=Some(0) {continue;}
+                        let id=number(creature,"Index").ok_or_else(||rule("NotAvailableHero"))?;
+                        let hp=number(creature,"Hp").ok_or_else(||rule("NotAvailableHero"))?;
+                        let max=number(creature,"MaxHp").ok_or_else(||rule("NotAvailableHero"))?;
+                        if !heroes.contains(&id) || !seen.insert(id) || hp<0 || max<=0 || hp>max {return Err(rule("NotAvailableHero"));}
+                        if hp==0 {fallen.push(id);}
+                    }
+                    if seen.len()!=heroes.len() {return Err(rule("NotAvailableHero"));}
+                    fallen
+                };
+                let dead=info["DeadHeroIndices"].as_array_mut().unwrap();
+                for id in fallen {if !dead.contains(&json!(id)) {dead.push(json!(id));}}
+            }
             if won {
                 if battle {crate::api::progression::record(db,a,"WinOrdealArena",0,0,1).await?;}
                 if n(node,"NodeType")==3 {
@@ -452,13 +469,6 @@ async fn ordeal(
                         }
                     }
                 }
-            } else {
-                let dead = info["DeadHeroIndices"].as_array_mut().unwrap();
-                for h in heroes {
-                    if !dead.contains(&json!(h)) {
-                        dead.push(json!(h));
-                    }
-                }
             }
             info["ActiveNode"] = json!(0);
         }
@@ -476,6 +486,9 @@ async fn ordeal(
     ] {
         out[key] = info[key].clone();
     }
+    // Native enum marshalers consume names; numeric JSON silently becomes Bronze.
+    out["SelectedTier"] = json!(["Bronze","Silver","Gold","Platinum","Diamond","Master","RoyalMaster","Challenger"]
+        .get(n(&info,"SelectedTier") as usize).copied().unwrap_or("Bronze"));
     if action != "refresh_node" {
         // The native client treats a nonempty node list as a selected tier.
         // Publishing the generated map early skips select_tier entirely.

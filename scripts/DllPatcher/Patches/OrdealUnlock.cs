@@ -7,6 +7,24 @@ partial class Program
 {
     static void PatchOrdealUnlock(ModuleDefinition module)
     {
+        var ordeal = module.GetType("NGame2.NOrdeal.OrdealHelper");
+        var user = module.GetType("NShared.UserInfo");
+        var gem = user.Methods.Single(m=>m.Name=="get_Gem");
+        var total = ordeal.Methods.SingleOrDefault(m=>m.Name=="SprkTotalGem");
+        if(total==null) {
+            total=new MethodDefinition("SprkTotalGem",MethodAttributes.Public|MethodAttributes.Static,gem.ReturnType);
+            total.Parameters.Add(new ParameterDefinition("user",ParameterAttributes.None,user));
+            ordeal.Methods.Add(total);
+            var il=total.Body.GetILProcessor();
+            il.Emit(OpCodes.Ldarg_0);il.Emit(OpCodes.Callvirt,gem);
+            il.Emit(OpCodes.Ldarg_0);il.Emit(OpCodes.Callvirt,user.Methods.Single(m=>m.Name=="get_PayGem"));
+            il.Emit(OpCodes.Add);il.Emit(OpCodes.Ret);
+        }
+        foreach(var type in new[]{"NGame2.NUI.NWindow.OrdealArenaBattlePartySetting","NGame2.NUI.NManager.OrdealArenaManagement"})
+            foreach(var method in module.GetType(type).Methods.Where(m=>m.HasBody))
+                foreach(var i in method.Body.Instructions.Where(i=>i.Operand is MethodReference r && r.DeclaringType==user && r.Name=="get_Gem")) {
+                    i.OpCode=OpCodes.Call;i.Operand=total;
+                }
         var gate = module.GetType("NGame2.NOrdeal.OrdealHelper").Methods.Single(m => m.Name == "CheckOpenCondition");
         var helper = module.GetType("SprkAdventureUnlocks").Methods.Single(m => m.Name == "PortalTutorial");
         foreach (var instruction in gate.Body.Instructions.Where(i => i.Operand is MethodReference m
@@ -21,6 +39,11 @@ partial class Program
 
     static void VerifyOrdealUnlock(ModuleDefinition module)
     {
+        foreach(var type in new[]{"NGame2.NUI.NWindow.OrdealArenaBattlePartySetting","NGame2.NUI.NManager.OrdealArenaManagement"}) {
+            var calls2=module.GetType(type).Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>();
+            if(calls2.Any(m=>m.DeclaringType.FullName=="NShared.UserInfo" && m.Name=="get_Gem") || !calls2.Any(m=>m.Name=="SprkTotalGem"))
+                throw new InvalidOperationException("Ordeals ruby checks must include paid rubies.");
+        }
         var gate = module.GetType("NGame2.NOrdeal.OrdealHelper").Methods.Single(m => m.Name == "CheckOpenCondition");
         var calls = gate.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>().ToArray();
         if (calls.Count(m => m.DeclaringType.Name == "SprkAdventureUnlocks" && m.Name == "PortalTutorial") != 1

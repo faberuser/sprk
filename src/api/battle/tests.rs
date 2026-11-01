@@ -2150,6 +2150,25 @@ async fn ordeal_opponents_events_and_battle_proof_follow_native_flow() {
 }
 
 #[tokio::test]
+async fn ordeal_victory_keeps_fallen_heroes_revivable_with_paid_rubies() {
+    let (s,u)=setup().await;let a=account(&u);
+    let selected=call(&s,&u,"ordeal_arena/select_tier","Tier=Challenger").await;
+    assert_eq!(selected["SelectedTier"],"Challenger");
+    let node=s.tables.battle.rows("OrdealArenaNode").iter().find(|v|n(v,"NodeType")==2).unwrap();
+    let mut db=s.db.acquire().await.unwrap();let mut info=get(&mut db,a,"ordeal",0).await.unwrap();
+    info["ActiveNode"]=node["Index"].clone();info["ActiveHeroes"]=json!([1,2]);info["Started"]=json!(now());
+    put(&mut db,a,"ordeal",0,&info).await.unwrap();drop(db);
+    let creatures=json!([{"TeamId":"0","Index":"1","Hp":"0","MaxHp":"100"},{"TeamId":"0","Index":"2","Hp":"100","MaxHp":"100"},{"TeamId":"1","Index":"1","Hp":"0","MaxHp":"100"}]);
+    let ended=call(&s,&u,"ordeal_arena/end_ordeal_arena",&format!("NodeIndex={}&ChapterIndex={}&DungeonIndex={}&HeroIndices=[1,2]&Completed=true&CreatureInfoString={creatures}",n(node,"Index"),n(node,"ChapterIndex"),n(node,"DungeonIndex"))).await;
+    assert_eq!(ended["Result"],"Success","{ended}");assert_eq!(ended["DeadHeroIndices"],json!([1]));
+    sqlx::query("UPDATE user_info SET gem=0,pay_gem=30 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let revived=call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await;
+    assert_eq!(revived["Result"],"Success","{revived}");assert_eq!(revived["DeadHeroIndices"],json!([]));
+    assert_eq!(revived["CurrencyResults"][0]["AddValue"],-30);
+    assert_ne!(call(&s,&u,"ordeal_arena/resurrection_hero","HeroIndex=1").await["Result"],"Success");
+}
+
+#[tokio::test]
 async fn tower_sweep_consumes_tickets_and_grants_repeat_rewards() {
     let (s, u) = setup().await;
     let entry="ChapterIndex=5001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&TowerIndex=21&TowerFloor=1";
