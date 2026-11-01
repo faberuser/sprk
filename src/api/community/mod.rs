@@ -318,6 +318,10 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
             .as_ref()
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
+        if r.is_some() {
+            h[format!("EquipItemInfo{part}")]["SoulWeaponInfo"] =
+                crate::api::extensions::get(db, a, "soul", slot).await?;
+        }
     }
     h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
     Ok(h)
