@@ -1,60 +1,62 @@
+using System.Linq;
 using UnityEngine;
 using NGame2.NUI.NWindow;
 
 public sealed class SprkRaidInfoScrollState : MonoBehaviour {
     public string LastText;
+    public UILabel Label;
+    public UIScrollView View;
+    int lastWidth,lastHeight;
+    void LateUpdate() { RefreshLayout(); }
+    void OnEnable() { lastHeight=0; }
+    public void RefreshLayout() {
+        if(Label==null || View==null || !Label.gameObject.activeInHierarchy)return;
+        bool changed=LastText!=Label.text;
+        if(changed) {
+            Label.MarkAsChanged();
+            // Process wrapping before measuring bounds or rebuilding the collider.
+            var printed=Label.printedSize;
+        }
+        if(!changed && lastWidth==Label.width && lastHeight==Label.height)return;
+        LastText=Label.text;lastWidth=Label.width;lastHeight=Label.height;
+        NGUITools.AddWidgetCollider(Label.gameObject);View.InvalidateBounds();
+        if(changed) {View.DisableSpring();View.currentMomentum=Vector3.zero;View.ResetPosition();}
+        View.UpdateScrollbars(true);
+    }
 }
 public static class SprkRaidInfoScroll {
-    public static void Refresh(RaidInfoBase info) {
-        if(info==null || info.RaidTacticLabel==null)return;
-        var label=info.RaidTacticLabel;
+    public static void Refresh(RaidInfoBase info) {if(info!=null)RefreshLabel(info.RaidTacticLabel);}
+    public static void SetText(UILabel label,object text,bool option) {
+        // Capture the viewport before text expands an empty template label.
+        var state=Bind(label);NGame2.NUI.UIHelper.SetLabelText(label,text,option);
+        if(state!=null)state.RefreshLayout();
+    }
+    public static void RefreshLabel(UILabel label) {var state=Bind(label);if(state!=null)state.RefreshLayout();}
+    static SprkRaidInfoScrollState Bind(UILabel label) {
+        if(label==null)return null;
         var state=label.GetComponent<SprkRaidInfoScrollState>();
+        if(state!=null && state.View!=null)return state;
         if(state==null)state=label.gameObject.AddComponent<SprkRaidInfoScrollState>();
-        var viewport=label.transform.parent;
-        bool created=false;
-        if(viewport.name!="SprkCharacteristicsScroll") {
-            created=true;
-            var parent=viewport;
-            int width=label.width, height=label.height;
-            var corners=label.worldCorners;
-            var center=parent.InverseTransformPoint((corners[0]+corners[2])*.5f);
-            var go=new GameObject("SprkCharacteristicsScroll");
-            go.layer=label.gameObject.layer;
-            viewport=go.transform;
-            viewport.SetParent(parent,false);
-            viewport.localPosition=center;
-            var panel=go.AddComponent<UIPanel>();
-            var ancestor=NGUITools.FindInParents<UIPanel>(parent.gameObject);
-            panel.depth=ancestor==null?1:ancestor.depth+1;
-            panel.clipping=UIDrawCall.Clipping.SoftClip;
-            panel.clipSoftness=new Vector2(2,2);
-            panel.baseClipRegion=new Vector4(0,0,width,height);
-            var scroll=go.AddComponent<UIScrollView>();
-            scroll.movement=UIScrollView.Movement.Vertical;
-            scroll.contentPivot=UIWidget.Pivot.TopLeft;
-            scroll.restrictWithinPanel=true;
-            scroll.disableDragIfFits=true;
-            label.transform.SetParent(viewport,false);
-            label.leftAnchor.target=null;label.rightAnchor.target=null;
-            label.topAnchor.target=null;label.bottomAnchor.target=null;
-            label.pivot=UIWidget.Pivot.TopLeft;
-            label.overflowMethod=UILabel.Overflow.ResizeHeight;
-            label.transform.localPosition=new Vector3(-width*.5f,height*.5f,0);
+        var view=label.GetComponentInParent<UIScrollView>(true);
+        // Reuse a dedicated native Characteristics viewport. A nested scroll
+        // competes with the original bounds and can spring back on release.
+        if(view!=null && view.GetComponentsInChildren<UILabel>(true).Any(l=>l!=label))view=null;
+        if(view==null) {
+            var parent=label.transform.parent;int width=label.width,height=label.height;
+            var corners=label.worldCorners;var center=parent.InverseTransformPoint((corners[0]+corners[2])*.5f);
+            var go=new GameObject("SprkCharacteristicsScroll");go.layer=label.gameObject.layer;
+            go.transform.SetParent(parent,false);go.transform.localPosition=center;
+            var panel=go.AddComponent<UIPanel>();var ancestor=NGUITools.FindInParents<UIPanel>(parent.gameObject);
+            panel.depth=ancestor==null?1:ancestor.depth+1;panel.clipping=UIDrawCall.Clipping.SoftClip;
+            panel.clipSoftness=Vector2.zero;panel.baseClipRegion=new Vector4(0,0,width,height);
+            view=go.AddComponent<UIScrollView>();label.transform.SetParent(go.transform,false);
+            label.pivot=UIWidget.Pivot.TopLeft;label.transform.localPosition=new Vector3(-width*.5f,height*.5f,0);
         }
-        var view=viewport.GetComponent<UIScrollView>();
-        label.overflowMethod=UILabel.Overflow.ResizeHeight;
-        bool textChanged=label.text!=state.LastText;
-        if(created||textChanged) {
-            state.LastText=label.text;
-            label.MarkAsChanged();
-            NGUITools.AddWidgetCollider(label.gameObject);
-        }
-        var drag=label.GetComponent<UIDragScrollView>();
-        if(drag==null)drag=label.gameObject.AddComponent<UIDragScrollView>();
-        drag.scrollView=view;
-        if(created||textChanged) {
-            view.DisableSpring();view.currentMomentum=Vector3.zero;
-            view.InvalidateBounds();view.ResetPosition();
-        }
+        view.movement=UIScrollView.Movement.Vertical;view.contentPivot=UIWidget.Pivot.TopLeft;
+        view.restrictWithinPanel=true;view.disableDragIfFits=true;view.dragEffect=UIScrollView.DragEffect.Momentum;
+        label.leftAnchor.target=null;label.rightAnchor.target=null;label.topAnchor.target=null;label.bottomAnchor.target=null;
+        label.ResetAnchors();label.overflowMethod=UILabel.Overflow.ResizeHeight;label.maxLineCount=0;
+        var drag=label.GetComponent<UIDragScrollView>();if(drag==null)drag=label.gameObject.AddComponent<UIDragScrollView>();
+        drag.scrollView=view;state.Label=label;state.View=view;return state;
     }
 }

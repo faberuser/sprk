@@ -5,11 +5,34 @@ using Mono.Cecil.Cil;
 
 namespace DllPatcher;
 partial class Program {
+    static IEnumerable<(MethodDefinition Method,Instruction Call)> RaidCharacteristicsWriters(ModuleDefinition module) {
+        foreach(var type in module.GetTypes().Where(t=>t.Namespace=="NGame2.NUI.NWindow"))
+        foreach(var method in type.Methods.Where(m=>m.HasBody))
+        foreach(var field in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ldfld && i.Operand is FieldReference f && f.FieldType.FullName=="UILabel" && (f.Name=="RaidTacticLabel" || f.Name=="TacticLabel"))) {
+            for(var next=field.Next;next!=null;next=next.Next) {
+                if(next.OpCode==OpCodes.Ret)break;
+                if(next.Operand is FieldReference f && f.FieldType.FullName=="UILabel")break;
+                if(next.Operand is MethodReference call &&
+                    ((call.DeclaringType.FullName=="NGame2.NUI.UIHelper" && call.Name=="SetLabelText") ||
+                     (call.DeclaringType.FullName=="SprkRaidInfoScroll" && call.Name=="SetText"))) {
+                    yield return (method,next);break;
+                }
+            }
+        }
+    }
     static void VerifyRaidInfoScroll(ModuleDefinition module) {
         var method=module.GetType("NGame2.NUI.NWindow.RaidInfoBase").Methods.Single(m=>m.Name=="UpdateButtonState");
         var calls=method.Body.Instructions.Where(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkRaidInfoScroll" && m.Name=="Refresh").ToArray();
         if(calls.Length!=1 || calls[0].Previous.OpCode!=OpCodes.Ldarg_0 || calls[0].Next.OpCode!=OpCodes.Ret)
             throw new InvalidOperationException("Raid information scroll hook missing or duplicated.");
+        var writers=RaidCharacteristicsWriters(module).ToArray();
+        foreach(var type in new[]{"RaidInfoBase","RaidInfo","GuildSuppressBossInfo","ShakmehBossInfoPopup","WorldBossProfile","PopupUIGodkingTrialBossInfo"})
+            if(!writers.Any(w=>w.Method.DeclaringType.Name==type))throw new InvalidOperationException("Missing Characteristics label coverage: "+type);
+        foreach(var writer in writers) {
+            if(writer.Call.Operand is not MethodReference call || call.DeclaringType.FullName!="SprkRaidInfoScroll" || call.Name!="SetText")
+                throw new InvalidOperationException("Unbound Characteristics label: "+writer.Method.FullName);
+            VerifyArenaResultStack(writer.Method);
+        }
     }
     static void VerifyRaidInfoScrollFile(string root,bool staged=false) {
         var managed=Path.Combine(root,"King's Raid_Data","Managed");
@@ -19,9 +42,13 @@ partial class Program {
         var state=helper.MainModule.GetType("SprkRaidInfoScrollState");
         if(state==null || !state.Fields.Any(f=>f.Name=="LastText" && !f.IsStatic))
             throw new InvalidOperationException("Characteristics text state must belong to each label.");
-        var calls=helper.MainModule.GetType("SprkRaidInfoScroll").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().Select(m=>m.Name).ToArray();
+        var calls=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().Select(m=>m.Name).ToArray();
         foreach(var name in new[]{"set_overflowMethod","set_clipping","InvalidateBounds","ResetPosition"})
             if(!calls.Contains(name))throw new InvalidOperationException("Incomplete Characteristics scrolling: "+name);
+        foreach(var name in new[]{"LateUpdate","RefreshLayout"})
+            if(!state.Methods.Any(m=>m.Name==name))throw new InvalidOperationException("Missing stable Characteristics layout: "+name);
+        if(!calls.Contains("set_maxLineCount") || !calls.Contains("GetComponentInParent"))
+            throw new InvalidOperationException("Characteristics must expand all lines and reuse dedicated native scroll views.");
         if(!helper.MainModule.GetType("SprkRaidInfoScroll").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.OpCode==OpCodes.Stfld && i.Operand is FieldReference f && f.Name=="scrollView"))
             throw new InvalidOperationException("Characteristics drag target missing.");
         Console.WriteLine("Verified Characteristics viewport, full text sizing, drag binding and reset hook.");
@@ -41,6 +68,10 @@ partial class Program {
         using var helper=AssemblyDefinition.ReadAssembly(compiled);
         using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var game=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
+        var setText=game.MainModule.ImportReference(helper.MainModule.GetType("SprkRaidInfoScroll").Methods.Single(m=>m.Name=="SetText"));
+        foreach(var writer in RaidCharacteristicsWriters(game.MainModule).ToArray()) {
+            writer.Call.OpCode=OpCodes.Call;writer.Call.Operand=setText;
+        }
         var method=game.MainModule.GetType("NGame2.NUI.NWindow.RaidInfoBase").Methods.Single(m=>m.Name=="UpdateButtonState");
         if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkRaidInfoScroll")) {
             var ret=method.Body.Instructions.Single(i=>i.OpCode==OpCodes.Ret);

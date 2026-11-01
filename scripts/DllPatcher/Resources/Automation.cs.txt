@@ -201,6 +201,10 @@ public sealed class SprkAutomation : MonoBehaviour
                 UnityEngine.Object.Destroy(parent);
                 reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
             }
+            if(cmd.action=="boss-characteristics-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Boss scroll fixture requires isolated Login");
+                busy=true;StartCoroutine(ProbeBossCharacteristics(cmd));return;
+            }
             if(cmd.action=="maria-bird-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Maria fixture requires isolated Login");
                 NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
@@ -1273,6 +1277,92 @@ public sealed class SprkAutomation : MonoBehaviour
         var result=new Dictionary<string,object>();
         if(data!=null) foreach(var stat in CombatStatTypes()) result[stat.ToString()]=data.GetStat(stat);
         return result;
+    }
+    IEnumerator ProbeBossCharacteristics(Command cmd) {
+        var report=new List<object>();
+        foreach(string path in new[]{"Resources/Prefab2/Window/Raid/RaidInfo","Resources/Prefab2/Window/GuildSuppress/GuildSuppressBossInfo",
+            "Resources/Prefab2/Window/WorldBoss/WorldBossProfile","Resources/Prefab2/Window/ShakmehDungeon/ShakmehBossInfoPopup",
+            "Resources/Prefab2/Window/GodkingTrial/PopupUIGodkingTrialBossInfo"}) {
+            GameObject host=null;UILabel label=null;UIScrollView scroll=null;Reply failure=null;
+            string description=String.Join("\n",Enumerable.Range(1,45).Select(i=>"Boss characteristic "+i+": this description must remain scrollable after release."));
+            Action<string> setDescription=null;
+            var values=new Dictionary<string,object>{{"prefab",path}};
+            try {
+                var prefab=VespaResource.Load<GameObject>(path);if(prefab==null)throw new Exception("Boss prefab missing: "+path);
+                host=new GameObject("BossScrollFixture");host.SetActive(false);
+                var uiRoot=UnityEngine.Object.FindObjectOfType<UIRoot>();if(uiRoot!=null)host.transform.SetParent(uiRoot.transform,false);
+                var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+                var window=go.GetComponents<MonoBehaviour>().First(c=>c.GetType().GetField("RaidTacticLabel")!=null || c.GetType().GetField("TacticLabel")!=null);
+                var field=window.GetType().GetField("RaidTacticLabel")??window.GetType().GetField("TacticLabel");label=(UILabel)field.GetValue(window);
+                values["originalWidth"]=label.width;values["originalHeight"]=label.height;values["originalMaxLines"]=label.maxLineCount;
+                values["originalParent"]=Hierarchy(label.transform.parent);
+                values["originalScrolls"]=label.GetComponentsInParent<UIScrollView>(true).Select(s=>s.name).ToArray();
+                report.Add(values);
+                window.enabled=false;
+                for(var t=label.transform;t!=null && t!=host.transform;t=t.parent)t.gameObject.SetActive(true);
+                host.SetActive(true);
+                var helper=System.Reflection.Assembly.Load("SprkRaidInfoScroll").GetType("SprkRaidInfoScroll");
+                var setText=helper.GetMethod("SetText");
+                var refreshLabel=helper.GetMethod("RefreshLabel");
+                setDescription=text=> {
+                    if(setText!=null)setText.Invoke(null,new object[]{label,text,false});
+                    else NGame2.NUI.UIHelper.SetLabelText(label,text,false);
+                    if(refreshLabel!=null)refreshLabel.Invoke(null,new object[]{label});
+                    else if(window is NGame2.NUI.NWindow.RaidInfoBase)helper.GetMethod("Refresh").Invoke(null,new object[]{window});
+                };
+                setDescription(description);
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null) {if(host!=null)UnityEngine.Object.Destroy(host);failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+            for(int frame=0;frame<6;frame++)yield return null;
+            float before=0,dragged=0;
+            try {
+                scroll=label.GetComponent<UIDragScrollView>()==null?null:label.GetComponent<UIDragScrollView>().scrollView;
+                if(scroll==null)throw new Exception("Characteristics has no scroll binding: "+path);
+                values["height"]=label.height;values["boundsHeight"]=scroll.bounds.size.y;values["viewportHeight"]=scroll.panel.height;
+                if(scroll.bounds.size.y<=scroll.panel.height+1)throw new Exception("Overflow text has no scrollable bounds: "+path);
+                before=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                UICamera.currentScheme=UICamera.ControlScheme.Mouse;
+                scroll.Press(true);scroll.MoveRelative(new Vector3(0,120,0));scroll.Press(false);
+                dragged=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                values["before"]=before;values["dragged"]=dragged;
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null) {UnityEngine.Object.Destroy(host);failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+            yield return new WaitForSecondsRealtime(1.2f);
+            try {
+                float after=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;values["afterRelease"]=after;
+                if(dragged-before<80 || Mathf.Abs(after-dragged)>2)throw new Exception("Characteristics jumps back after release: "+path+" "+before+" -> "+dragged+" -> "+after);
+                for(int refresh=0;refresh<10;refresh++)setDescription(description);
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    float after=scroll.transform.parent.InverseTransformPoint(label.transform.position).y;
+                    if(Mathf.Abs(after-dragged)>2)throw new Exception("Repeated UI refresh resets Characteristics scroll: "+path);
+                    host.SetActive(false);host.SetActive(true);
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    if(Mathf.Abs(scroll.transform.parent.InverseTransformPoint(label.transform.position).y-dragged)>2)throw new Exception("Tab reopening resets unchanged Characteristics: "+path);
+                    setDescription(description+"\nAnother boss description.");
+                    if(Mathf.Abs(scroll.transform.parent.InverseTransformPoint(label.transform.position).y-before)>2)throw new Exception("Changed boss description did not return to top: "+path);
+                    setDescription("Short characteristic.");
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            if(failure==null) {
+                for(int frame=0;frame<8;frame++)yield return null;
+                try {
+                    if(scroll.bounds.size.y>scroll.panel.height+5)throw new Exception("Short Characteristics retained stale overflow: "+path);
+                    setDescription(description);scroll.InvalidateBounds();
+                    if(scroll.bounds.size.y<=scroll.panel.height+1)throw new Exception("Long Characteristics did not become scrollable again: "+path);
+                    values["refreshReopenAndTextChanges"]=true;
+                } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            }
+            UnityEngine.Object.Destroy(host);
+            if(failure!=null) {failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
+        }
+        busy=false;var result=Snapshot(cmd.id);result.materials.AddRange(report);result.materials.Add("PASS: native boss prefab overflow remains scrolled after release.");Write(result);
     }
     void ProbeMariaBirdFrames(Command cmd,Reply reply) {
         string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");
