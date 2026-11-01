@@ -56,9 +56,9 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
 1. Run commands from the `sprk-server` repository root. The installed client is
    normally `../sprk-client`; confirm it exists before patching.
 2. Preserve existing client patches. Use the appropriate focused patch mode and
-   validate the final installed files. If King’s Raid is running and prevents
-   installation, prepare/stage the fix, ask the user to close it, and continue
-   after closure. Never publish the unchanged client as if the staged fix were
+   validate the final installed files. The user authorizes closing the local
+   server and King's Raid client when patching or validation requires it;
+   no separate confirmation is needed. Never publish the unchanged client as if the staged fix were
    installed. If the user requests source-only or stage-only work, respect that
    scope and explicitly report that no installed-client release was generated.
 3. Choose a **new, unique** release identifier such as
