@@ -575,6 +575,44 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
     );
 }
 #[tokio::test]
+async fn punishment_opening_costs_never_grant_team_exp() {
+    let (s,u)=setup().await;let a=account(&u);
+    put(&mut s.db.acquire().await.unwrap(),a,"dungeon",campaign::key(11,10),&json!({"FirstRewardedDiff":1})).await.unwrap();
+    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=100000,team_level=1,team_exp=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for deferred in [false,true] {
+        if deferred {enable(&s,a).await;}
+        for group in [101001,101002] {
+            for kind in [1,2] {
+                let before=balance(&s,a,"stamina").await;
+                let args=format!("GroupIndex={group}&Level=1&DungeonType={kind}");
+                let opened=call(&s,&u,"punishment_raid/open_punishment_raid",&args).await;
+                assert_eq!(opened["Result"],"Success","{opened}");
+                let cost=if kind==1 {3000} else {6000};
+                let charged=if kind==2 && deferred {0} else {cost};
+                assert_eq!(opened["StaminaResult"]["AddValue"],-charged,"{opened}");
+                assert_eq!(balance(&s,a,"stamina").await,before-charged);
+                assert!(opened["StaminaResult"]["RaiderExpResult"].is_null(),"{opened}");
+                assert_eq!(balance(&s,a,"team_level").await,1);
+                assert_eq!(balance(&s,a,"team_exp").await,0);
+                assert_eq!(call(&s,&u,"punishment_raid/reset_punishment_raid",&args).await["Result"],"Success");
+            }
+        }
+    }
+    // An existing deferred opening receipt must not grant EXP on settlement.
+    // A separate ordinary battle cost in the same receipt still earns EXP.
+    let mut receipt=json!({"DeferredEntryCosts":true,"EntryCostGate":{"State":"punishment_open","Index":101001},
+        "VictoryEntryCosts":[{"Family":"Stamina","Kind":1,"Amount":6000,"ReservationOwner":"old-opening"},
+            {"Family":"Stamina","Kind":1,"Amount":2}]});
+    let mut out=json!({});
+    entry_costs::settle(&mut s.db.acquire().await.unwrap(),&s,a,&mut receipt,true,&mut out).await.unwrap();
+    assert_eq!(out["ExpResult2"]["AddValue"],2*settings(&s,"RaiderExpPerStamina",100));
+    let before=balance(&s,a,"team_exp").await;
+    entry_costs::settle(&mut s.db.acquire().await.unwrap(),&s,a,&mut receipt,true,&mut out).await.unwrap();
+    assert_eq!(balance(&s,a,"team_exp").await,before);
+}
+
+#[tokio::test]
 async fn apocalypsion_opening_stamina_is_deducted_on_first_victory() {
     let (s, u) = setup().await;
     let a = account(&u);
@@ -629,6 +667,7 @@ async fn apocalypsion_opening_stamina_is_deducted_on_first_victory() {
     .await;
     assert_eq!(won["Result"], "Success", "{won}");
     assert_eq!(balance(&s, a, "stamina").await, 44000);
+    assert!(won["ExpResult2"].is_null(),"Opening stamina must not grant EXP at victory: {won}");
     let second = entry.replace("DungeonIndex=1", "DungeonIndex=2");
     assert_eq!(
         call(&s, &u, "contents/begin_content", &second).await["Result"],

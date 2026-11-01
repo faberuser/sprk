@@ -161,7 +161,8 @@ pub(super) async fn opening(
         if p["Day"] == day() && n(&p, "IsOpen") == 1 {
             return Err(rule("AlreadyOpened"));
         }
-        out["StaminaResult"] = dungeons::charge(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
+        // Opening access consumes stamina without granting team EXP.
+        out["StaminaResult"] = dungeons::charge_reserved(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
         p = json!({"GroupIndex":n(group,"GroupIndex"),"DungeonType":1,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":1,"ClearLevel":0,"ClearCount":0,"Day":day()});
         put(db, a, "punishment_open", key, &p).await?;
     } else if action == "reset_punishment_raid" {
