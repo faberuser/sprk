@@ -128,6 +128,8 @@ partial class Program
         InstallSoloRetry(clientRoot, false, true);
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
+        InstallGodkingRechargePrompt(clientRoot, false);
+        InstallGodkingRechargePrompt(clientRoot, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }
