@@ -133,6 +133,8 @@ partial class Program
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
         VerifyOrdealUnlockFile(clientRoot, false);
+        InstallMariaLegendBird(clientRoot);
+        InstallMariaLegendBird(clientRoot,true);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);

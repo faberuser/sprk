@@ -201,6 +201,60 @@ public sealed class SprkAutomation : MonoBehaviour
                 UnityEngine.Object.Destroy(parent);
                 reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
             }
+            if(cmd.action=="maria-bird-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Maria fixture requires isolated Login");
+                NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+                string patch=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows");
+                var installed=new Dictionary<string,NShared.AssetInfo>();
+                var entrySetter=typeof(NShared.AssetInfo).GetProperty("EntryName").GetSetMethod(true);
+                foreach(string file in Directory.GetFiles(Path.Combine(patch,"Assetbundle"),"*",SearchOption.AllDirectories)) {
+                    string relative=file.Substring(patch.Length+1).Replace('\\','/');var asset=new NShared.AssetInfo();entrySetter.Invoke(asset,new object[]{relative});installed.Add(relative,asset);
+                }
+                NVespa.SingletonAuto<NGameAsset.AssetFileManager>.instance.Setup(installed);
+                typeof(NVespa.UnityCache).GetProperty("persistentDataPath").GetSetMethod(true).Invoke(null,new object[]{Application.dataPath});
+                typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{true});
+                var loader=NVespa.SingletonUpdater<NGameAsset.NBundleManager.LoaderPlaying>.instance;
+                JsonBin.JsonRead pack;
+                if(!JsonBin.JsonRead.CreateRoot(File.ReadAllBytes(Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle/BundlePack.bin")),out pack))throw new Exception("Bundle pack unavailable");
+                loader.InfoContainer.LoadFromJson(pack["BundleFileInfo"]);
+                NVespa.SingletonAuto<NGameAsset.NCreature.BuilderContainer>.instance.Load(pack["Creature"]);
+                var builder=NVespa.SingletonAuto<NGameAsset.NCreature.BuilderContainer>.instance.Get("Hero.Maria");
+                if(builder==null)throw new Exception("Maria builder unavailable");
+                var weapon=builder.WeaponList.Single(w=>w.Name=="Weapon1");
+                var cases=new List<object>();
+                foreach(string body in new[]{"Cos21Legend","Cos21Legend1"})
+                foreach(string incoming in new[]{"Unique01","","Trans",body})
+                foreach(NGameAsset.CreatureStock.ELoadLevel level in Enum.GetValues(typeof(NGameAsset.CreatureStock.ELoadLevel))) {
+                    var stock=new NGameAsset.CreatureStock {Code="Hero.Maria",Star=5,BodyPrefix=body,HairPrefix=body,LoadLevel=level,
+                        WeaponStock=new NGameAsset.WeaponStock(incoming,5,true,2)};
+                    var open=weapon.CreateOpenData(stock);
+                    if(open==null)throw new Exception("Maria weapon open failed");
+                    try {
+                        var model=(NGameAsset.NCreature.ModelData)((NGameAsset.NCreature.WeaponInstance.IOpenData)open).GetModelData();
+                        if(model.Prefix!=body || !model.AssetName.Contains("Cos21Legend_Weapon"))throw new Exception("Maria "+body+" / "+incoming+" uses base bird "+model.AssetName);
+                        foreach(var animation in open.AnimationLoadList) {
+                            // The archive deliberately falls back for motions
+                            // without a Legend clip (for example emotes). Every
+                            // dedicated Legend motion must retain its override.
+                            var dedicated=model.AnimationList.FirstOrDefault(a=>NGameAsset.NCreature.AnimationKeyData.Comparer.Default.Equals(a.Key,animation.Data.Key));
+                            if(dedicated!=null && animation.Data.AssetName!=dedicated.AssetName)throw new Exception("Maria bird lost Legend animation "+dedicated.AssetName);
+                        }
+                        cases.Add(new Dictionary<string,object>{{"body",body},{"incoming",incoming},{"level",level.ToString()},{"model",model.AssetName},{"animations",open.AnimationLoadList.Count}});
+                    } finally {open.Close();}
+                }
+                var normalize=weapon.GetType().GetMethod("SprkMariaLegendStock");
+                foreach(var preserved in new[]{
+                    new NGameAsset.CreatureStock {Code="Hero.Jane",BodyPrefix="Cos21Legend",WeaponStock=new NGameAsset.WeaponStock("Unique01",5,true,2)},
+                    new NGameAsset.CreatureStock {Code="Hero.Maria",BodyPrefix="Cos20Dessert",WeaponStock=new NGameAsset.WeaponStock("Unique01",5,true,2)},
+                    new NGameAsset.CreatureStock {Code="Hero.Maria",BodyPrefix="Cos21Legend",WeaponStock=new NGameAsset.WeaponStock("Cos17Summer",5,true,2)}
+                }) {
+                    var after=(NGameAsset.CreatureStock)normalize.Invoke(weapon,new object[]{preserved});
+                    if(after.WeaponStock.WeaponPrefix!=preserved.WeaponStock.WeaponPrefix || !after.WeaponStock.IsEquipSoulWeapon || after.WeaponStock.SoulWeaponGrade!=2 || after.WeaponStock.WeaponStar!=5)throw new Exception("Maria fix changed an unrelated appearance or soul weapon");
+                }
+                reply=Snapshot(cmd.id);reply.materials.AddRange(cases);
+                ProbeMariaBirdFrames(cmd,reply);
+                reply.materials.Add("PASS: Maria Legend bird/animation selection across initial load, refresh and preview/combat load levels.");Write(reply);return;
+            }
             if(cmd.action=="ordeal-revival-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ordeals revival fixture requires isolated Login");
                 NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
@@ -1219,6 +1273,60 @@ public sealed class SprkAutomation : MonoBehaviour
         var result=new Dictionary<string,object>();
         if(data!=null) foreach(var stat in CombatStatTypes()) result[stat.ToString()]=data.GetStat(stat);
         return result;
+    }
+    void ProbeMariaBirdFrames(Command cmd,Reply reply) {
+        string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");
+        var opened=new List<AssetBundle>();
+        Func<string,AssetBundle> load=relative=> {
+            string file=Path.Combine(bundles,relative);
+            var bundle=AssetBundle.LoadFromFile(file);
+            if(bundle==null)throw new Exception("Maria visual bundle unavailable: "+relative);
+            opened.Add(bundle);return bundle;
+        };
+        GameObject body=null,bird=null,cameraObject=null;RenderTexture target=null;Texture2D picture=null;
+        try {
+            if(janeProbeShaders==null)janeProbeShaders=AssetBundle.GetAllLoadedAssetBundles().FirstOrDefault(b=>b.name.ToLowerInvariant().Contains("shader"));
+            if(janeProbeShaders==null)janeProbeShaders=AssetBundle.LoadFromFile(Path.Combine(bundles,"Unity_2020/Shader.unity3d"));
+            var bodyBundle=load("OriginalSpec/Creature_Hero_Maria_Cos21.unity3d");var birdBundle=load("OriginalSpec/Creature_Hero_Maria_Star0.unity3d");
+            var idle=load("Creature_Hero_Maria.unity3d");var battle=load("Creature_Hero_Maria_Animation.unity3d");
+            body=UnityEngine.Object.Instantiate(bodyBundle.LoadAsset<GameObject>(bodyBundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_maria_cos21legend_body"))));
+            bird=UnityEngine.Object.Instantiate(birdBundle.LoadAsset<GameObject>(birdBundle.GetAllAssetNames().Single(n=>n.EndsWith("gameobject.hero_maria_cos21legend_weapon"))));
+            body.transform.position=Vector3.zero;body.transform.rotation=Quaternion.identity;
+            bird.transform.SetParent(body.transform,false);bird.transform.localPosition=Vector3.zero;bird.transform.localRotation=Quaternion.identity;
+            foreach(var node in body.GetComponentsInChildren<Transform>(true))node.gameObject.layer=30;
+            var bodyAnimation=body.GetComponent<Animation>();var birdAnimation=bird.GetComponent<Animation>();
+            if(bodyAnimation==null || birdAnimation==null)throw new Exception("Maria native animation component missing");
+            bodyAnimation.playAutomatically=false;birdAnimation.playAutomatically=false;bodyAnimation.Stop();birdAnimation.Stop();
+            foreach(var renderer in body.GetComponentsInChildren<SkinnedMeshRenderer>(true)) {
+                renderer.updateWhenOffscreen=true;
+                foreach(var material in renderer.sharedMaterials)if(material==null || material.shader==null || !material.shader.isSupported || material.mainTexture==null)throw new Exception("Maria visual has a missing material/texture");
+            }
+            cameraObject=new GameObject("MariaBirdProbeCamera");var camera=cameraObject.AddComponent<Camera>();
+            camera.cullingMask=1<<30;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.2f,.25f,.3f,1);
+            camera.orthographic=true;camera.orthographicSize=1.5f;camera.transform.position=new Vector3(0,1,4);camera.transform.LookAt(new Vector3(0,1,0));
+            RestoredPortal.EnsureNativeShaderVariables();target=new RenderTexture(768,768,24);camera.targetTexture=target;
+            foreach(string motion in new[]{"Idle","Astand","Attack1","Skill1","Skill2","Victory"}) {
+                var source=motion=="Idle" || motion=="Astand"?idle:battle;
+                var bodyClip=source.LoadAllAssets<AnimationClip>().Single(c=>c.name.Equals("Hero_Maria_Legend@"+motion+"_"+motion,StringComparison.OrdinalIgnoreCase));
+                var birdClip=source.LoadAllAssets<AnimationClip>().Single(c=>c.name.Equals("Hero_Maria_Legend_Weapon@"+motion+"_"+motion,StringComparison.OrdinalIgnoreCase));
+                bodyAnimation.AddClip(bodyClip,"probe");birdAnimation.AddClip(birdClip,"probe");bodyAnimation.Play("probe");birdAnimation.Play("probe");
+                for(int frame=0;frame<25;frame++) {
+                    bodyAnimation["probe"].time=bodyClip.length*frame/25f;birdAnimation["probe"].time=birdClip.length*frame/25f;
+                    bodyAnimation.Sample();birdAnimation.Sample();camera.Render();
+                    if(frame==12) {
+                        var previous=RenderTexture.active;RenderTexture.active=target;picture=new Texture2D(768,768,TextureFormat.RGB24,false);
+                        picture.ReadPixels(new Rect(0,0,768,768),0,0);picture.Apply();RenderTexture.active=previous;
+                        string file=cmd.id+"-"+motion+".png";File.WriteAllBytes(Path.Combine(root,file),picture.EncodeToPNG());
+                        UnityEngine.Object.Destroy(picture);picture=null;reply.screenshot=file;
+                    }
+                }
+            }
+            reply.materials.Add("PASS: rendered 150 frames of archived Legend body/bird motions: idle, battle idle, attack, skills and victory.");
+        } finally {
+            if(body!=null)UnityEngine.Object.DestroyImmediate(body);if(cameraObject!=null)UnityEngine.Object.DestroyImmediate(cameraObject);
+            if(target!=null){target.Release();UnityEngine.Object.DestroyImmediate(target);}if(picture!=null)UnityEngine.Object.DestroyImmediate(picture);
+            foreach(var bundle in opened)bundle.Unload(false);
+        }
     }
     AssetBundle janeProbeShaders;
     void ProbeJaneLegend(Command cmd,Reply reply) {
