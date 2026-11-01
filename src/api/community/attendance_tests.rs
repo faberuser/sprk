@@ -7,6 +7,33 @@ async fn store_card(s: &AppState, a: i64, g: i64, value: &Value) {
 }
 
 #[tokio::test]
+async fn guild_member_activity_tracks_checkins_and_long_lived_sessions() {
+    let s=setup().await;let u=login(&s,"guild-activity").await;
+    let a=n(&u["UserInfo"],"AccountId");let g=create(&s,&u,"Activity",1).await;
+    let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
+    // Simulate a client that logged in days ago and stayed connected.
+    sqlx::query("UPDATE accounts SET last_login='2020-01-01 00:00:00',last_logout='2020-01-02 00:00:00' WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    if let Some(mut entry)=s.sessions.get_mut(session) {entry.last_activity=chrono::Utc::now()-chrono::Duration::days(4);}
+    let checked=call(&s,&u,"guild/set_guild_attendance","").await;
+    assert_eq!(checked["Result"],"Success","{checked}");
+    // Even without an in-memory session, persisted check-in must repair the
+    // native roster timestamp, including after a server restart.
+    let removed=s.sessions.remove(session).unwrap();
+    let mut db=s.db.acquire().await.unwrap();
+    let member=guild::member(&mut db,&s,a).await.unwrap();
+    assert_eq!(member["LastLoginTime"],checked["GuildMemberAttendanceInfo"]["LastAttendanceTime"]);
+    let actual:Option<String>=sqlx::query_scalar("SELECT last_login FROM accounts WHERE account_id=?").bind(a).fetch_one(&mut *db).await.unwrap();
+    assert_eq!(actual.as_deref(),Some("2020-01-01 00:00:00"),"Do not overwrite the account's real login timestamp");
+    // Another member without attendance still exposes their latest real session
+    // activity. Reading the roster must not mark a stale member active.
+    sqlx::query("DELETE FROM community_state WHERE owner=? AND kind='attendance' AND idx=?").bind(a).bind(g).execute(&mut *db).await.unwrap();
+    assert_eq!(guild::member(&mut db,&s,a).await.unwrap()["LastLoginTime"],"2020-01-02 00:00:00");
+    s.sessions.insert(removed.0,removed.1);
+    let activity=chrono::Utc::now();s.sessions.get_mut(session).unwrap().last_activity=activity;
+    assert_eq!(guild::member(&mut db,&s,a).await.unwrap()["LastLoginTime"],activity.format("%Y-%m-%d %H:%M:%S").to_string());
+}
+
+#[tokio::test]
 async fn guild_attendance_first_card_is_claimable_and_counts_once_after_relogin() {
     let s = setup().await;
     let u = login(&s, "attendance-first").await;
