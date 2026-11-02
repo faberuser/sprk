@@ -12,6 +12,7 @@ services:
     init: true
     environment:
       SPRK_SERVICE_MODE: game
+      RUST_LOG: ${RUST_LOG:-info,tower_http=debug}
       PORT: "8080"
       GAME_TABLES_PATH: /app/tables
       SERVER_HOST: ${SPRK_GAME_HOST:-127.0.0.1:8080}
@@ -40,6 +41,7 @@ services:
       start_period: 20m
     environment:
       SPRK_SERVICE_MODE: updates
+      RUST_LOG: ${RUST_LOG:-info,tower_http=debug}
       PORT: "8080"
       SPRK_UPDATES_DIR: /client-updates
       # The release tag/repository are pinned in the image by CI.
