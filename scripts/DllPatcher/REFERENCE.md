@@ -11,6 +11,23 @@ patching; fixes to an existing patch need no additional registration in CI.
 `--build-release` is for a fresh disposable build workspace, not an installed
 client. Focused installation commands below remain available for local changes.
 
+## Arena ranking player menu
+
+`--friendly-duel-menu-only` also restores `MatchRankerComponent.OnClickComponent`.
+Ranking rows construct native `InspectUserData` with the Arena category and open
+the existing player menu. Empty rows are ignored; the native manager handles
+self-selection and the menu retains friend, block and duel eligibility checks.
+The full release build installs and verifies this hook. The opt-in automation
+action `arena-ranking-probe` checks the actual row prefab with four, zero and two
+portraits across reuse and exercises both empty-row click guards.
+
+The server supplies the last completed competitive squad for the selected league
+and season, including Honor's final drafted team. Friendly duels, canceled runs
+and the full Honor registration roster do not replace it. A player without a
+completed match in that league/season has no squad to display. Honor and Victory
+have separate scores and standings; compare the same mode and season when
+investigating ranking discrepancies.
+
 ## Mission completion worker
 
 The Conquest worker also reports confirmed monster defeats for mission progress.

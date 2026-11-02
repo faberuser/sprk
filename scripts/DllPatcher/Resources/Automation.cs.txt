@@ -219,6 +219,30 @@ public sealed class SprkAutomation : MonoBehaviour
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
                 ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
             }
+            if(cmd.action=="arena-ranking-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ranking fixture requires isolated Login");
+                NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+                var prefab=VespaResource.Load<GameObject>("Resources/Prefab2/Component/Match/MatchRankerComponent");
+                if(prefab==null)throw new Exception("Native arena ranking row missing");
+                var parent=new GameObject("ArenaRankingFixture");parent.SetActive(false);
+                try {
+                    var go=UnityEngine.Object.Instantiate(prefab,parent.transform,false);
+                    var row=go.GetComponent<NGame2.NUI.NComponent2.MatchRankerComponent>();
+                    var click=row.GetType().GetMethod("OnClickComponent",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic);
+                    click.Invoke(row,null); // empty pooled row must be safe
+                    foreach(var heroes in new[]{new[]{1,2,3,4},new int[0],new[]{4,3}}) {
+                        var ranker=new NShared.MatchRankerInfo { Rank=0,MatchScore=1000,CountryCode="US",
+                            UserInfo=new NShared.CachedUserInfo { AccountId=987654321,Nick="Ranking Fixture",TeamLevel=100,AvatarHeroIndex=15 },
+                            HeroInfos=heroes.Select(id=>new NShared.DeckHeroInfo { Index=id,Star=5,Level=100 }).ToArray() };
+                        if(!row.Open(ranker,NShared.MatchPvpType.Normal,null,true))throw new Exception("Ranking row did not open");
+                        var portraits=(System.Collections.IList)row.GetType().GetField("_HeroPortraitComponentList",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(row);
+                        if(portraits.Count!=heroes.Length)throw new Exception("Ranking portrait count mismatch: "+portraits.Count);
+                    }
+                    row.Open(new NShared.MatchRankerInfo(),NShared.MatchPvpType.Normal,null,true);
+                    click.Invoke(row,null); // missing user must also be safe
+                } finally { UnityEngine.Object.Destroy(parent); }
+                reply=Snapshot(cmd.id);reply.materials.Add("PASS: native ranking prefab renders four, zero and two squad portraits on reuse; empty-row click guards pass.");Write(reply);return;
+            }
             if(cmd.action=="friend-duel-menu-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Friend menu fixture requires isolated Login");
                 var prefab=VespaResource.Load<GameObject>("Resources/Prefab2/Window/MessagePopup/InspectUserMenuPopup");

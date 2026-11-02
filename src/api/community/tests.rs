@@ -170,6 +170,48 @@ async fn guild_contribution_limits_and_attendance_are_persistent() {
     assert_ne!(blocked["Result"], "Success");
 }
 #[tokio::test]
+async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squad() {
+    let s = setup().await;
+    let users = [login(&s,"ranking-viewer-a").await,login(&s,"ranking-viewer-b").await];
+    let a = n(&users[0]["UserInfo"],"AccountId");
+    let b = n(&users[1]["UserInfo"],"AccountId");
+    let season = arena::season(&s).0;
+    for u in &users { call(&s,u,"match/get_match_rank","ArenaType=BanPick").await; }
+    sqlx::query("UPDATE arena_scores SET score=CASE WHEN account=? THEN 1040 ELSE 1000 END WHERE kind=0")
+        .bind(b).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE arena_scores SET score=CASE WHEN account=? THEN 1500 ELSE 1100 END WHERE kind=1")
+        .bind(a).execute(&s.db).await.unwrap();
+    // Snapshot stars/levels must describe the saved formation, not today's hero.
+    let snapshot = json!({"1":{"Star":5,"Level":100},"2":{"Star":4,"Level":90},"3":{"Star":3,"Level":80},"4":{"Star":2,"Level":70}});
+    for (kind, saved_season, status, duel, heroes) in [
+        (0,season,"complete",0,json!([2,1])),
+        (1,season,"complete",0,json!([4,3,2,1])),
+        (0,season-1,"complete",0,json!([3])),
+        (0,season,"complete",1,json!([4])),
+        (0,season,"canceled",0,json!([3])),
+        (1,season,"complete",0,json!((1..=12).collect::<Vec<_>>())),
+    ] {
+        let data = json!({"Season":saved_season,"DuelType":duel,"Heroes":heroes,"Register":{"AccountInfo":{"HeroInfos":snapshot}}});
+        sqlx::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES(?,?,?,?,?)")
+            .bind(a).bind(kind).bind(status).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap();
+    }
+    for (mode, first, expected) in [("Normal",b,json!([2,1])),("BanPick",a,json!([4,3,2,1]))] {
+        let args = format!("ArenaType={mode}&StartRank=0&EndRank=99");
+        let left = call(&s,&users[0],"global_arena/get_world_ranker",&args).await;
+        let right = call(&s,&users[1],"global_arena/get_world_ranker",&args).await;
+        assert_eq!(left["Rankers"],right["Rankers"]);
+        assert_eq!(left["Rankers"][0]["UserInfo"]["AccountId"],first);
+        let ranks = left["Rankers"].as_array().unwrap();
+        let mine = ranks.iter().find(|r|r["UserInfo"]["AccountId"]==a).unwrap();
+        assert_eq!(mine["HeroInfos"].as_array().unwrap().iter().map(|h|h["Index"].clone()).collect::<Vec<_>>(),expected.as_array().unwrap().clone());
+        assert_eq!(mine["HeroInfos"].as_array().unwrap().iter().find(|h|h["Index"]==1).unwrap()["Star"],5);
+        assert!(ranks.iter().find(|r|r["UserInfo"]["AccountId"]==b).unwrap()["HeroInfos"].as_array().unwrap().is_empty());
+        let previous = call(&s,&users[1],"global_arena/get_world_ranker",&format!("{args}&SeasonIndex={}",season-1)).await;
+        assert!(previous["Rankers"].as_array().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
 async fn arena_honor_rank_is_separate_from_victory_and_requires_full_roster() {
     let s = setup().await;
     let u = login(&s, "honor-ranker").await;
