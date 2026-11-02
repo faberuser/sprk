@@ -60,6 +60,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS guild_requests(account INTEGER NOT NULL,guild_id INTEGER NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(account,guild_id),FOREIGN KEY(guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE)",
         "CREATE TABLE IF NOT EXISTS arena_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL,kind INTEGER NOT NULL,started INTEGER NOT NULL,status TEXT NOT NULL,data TEXT NOT NULL)",
         "CREATE UNIQUE INDEX IF NOT EXISTS arena_active_account ON arena_runs(account) WHERE status IN ('waiting','battle')",
+        "CREATE INDEX IF NOT EXISTS arena_completed_squad ON arena_runs(account,kind,json_extract(data,'$.Season'),id DESC) WHERE status='complete'",
         "CREATE INDEX IF NOT EXISTS arena_online_match_status ON arena_runs(json_extract(data,'$.OnlineMatchUid'),status) WHERE json_extract(data,'$.OnlineMatchUid') IS NOT NULL",
         "CREATE TABLE IF NOT EXISTS arena_scores(account INTEGER NOT NULL,kind INTEGER NOT NULL,season INTEGER NOT NULL,score INTEGER NOT NULL,wins INTEGER NOT NULL DEFAULT 0,losses INTEGER NOT NULL DEFAULT 0,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account,kind,season))",
         "CREATE TABLE IF NOT EXISTS guild_battle_scores(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,kind TEXT NOT NULL,season INTEGER NOT NULL,stage INTEGER NOT NULL,score INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild_id,account,kind,season,stage))",

@@ -71,6 +71,26 @@ const ENTRY: &str = "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndic
 const END: &str =
     "ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&Completed=true&Star=3&AliveHeroIndices=[1]";
 
+#[tokio::test]
+async fn campaign_entry_saves_inspection_deck_without_scripted_or_other_mode_teams() {
+    let (s,u)=setup().await;
+    let a=account(&u);
+    let begin=call(&s,&u,"campaign/begin_campaign",ENTRY).await;
+    assert_eq!(begin["Result"],"Success","{begin}");
+    let saved=get(&mut s.db.acquire().await.unwrap(),a,"inspection_deck",1).await.unwrap();
+    assert_eq!(saved["BattleType"],"Campaign");
+    assert_eq!(saved["HeroIndex1"],1);assert_eq!(saved["HeroIndex2"],0);
+    let entry=json!({"ChapterIndex":1,"DungeonIndex":1,"Heroes":[1]});
+    for (key,value) in [("ScenarioDungeon",json!(true)),("PresetStoryParty",json!({})),("LoanedHeroIndices",json!([1]))] {
+        let mut scripted=entry.clone();scripted[key]=value;
+        assert!(campaign_inspection_deck(&s,&scripted,now()).is_none());
+    }
+    let other=s.tables.battle.rows("CampaignDungeon").iter().find(|d|n(d,"BattleType")!=1).unwrap();
+    let other=json!({"ChapterIndex":other["ChapterIndex"],"DungeonIndex":other["DungeonIndex"],"Heroes":[1]});
+    assert!(campaign_inspection_deck(&s,&other,now()).is_none());
+    assert!(campaign_inspection_deck(&s,&json!({"ChapterIndex":1,"DungeonIndex":1,"Heroes":[]}),now()).is_none());
+}
+
 async fn treasure_points(s: &AppState, a: i64) -> i64 {
     n(
         &super::treasure::snapshot(&mut s.db.acquire().await.unwrap(), a)

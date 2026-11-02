@@ -576,7 +576,8 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let expected = &pos["3100013"];
     assert_eq!(selected["PlayerAvatarHeroInfo"][&slot_key], 3100013);
     assert_eq!(serde_json::from_str::<Value>(selected["PlayerAvatarHeroInfo"][&position_key].as_str().unwrap()).unwrap(), *expected);
-    // A position-only edit must be reflected in the next login's lobby snapshot.
+    let snapshot = selected["PlayerAvatarHeroInfo"].clone();
+    // Position edits change the equipped accessory, never the saved lobby look.
     let mut edited = pos.clone();
     edited["3100013"]["Scale"] = json!("1.5");
     edited["3100013"]["PositionX"] = json!("0.2");
@@ -584,15 +585,32 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
     let edited_result = call(&s, &login, "hero/edit_accessory_costume_position",
         &format!("HeroIndex=1&AccessoryCostumePositionInfo={}", urlencoding::encode(&encoded))).await;
     assert_eq!(edited_result["Result"], "Success");
+    assert_eq!(hero::avatar_info(&mut s.db.acquire().await.unwrap(), &s, a).await.unwrap(), snapshot);
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(serde_json::from_str::<Value>(login.player_avatar_hero_info[&position_key].as_str().unwrap()).unwrap(), edited["3100013"]);
+    assert_eq!(login.player_avatar_hero_info, snapshot);
+    let equipped = login.player_accessory_costume_infos.iter().find(|v| v["AccessoryCostumeIndex"] == 3100013).unwrap();
+    assert_eq!(serde_json::from_str::<Value>(equipped["PositionInfo"].as_str().unwrap()).unwrap(), edited["3100013"]);
     let unset = call(&s, &login, "hero/buy_customizing_costumes",
         "HeroIndex=1&CostumeIndex=0&HairCostumeIndex=0&WeaponCostumeIndex=0&HideUniqueWeapon=0&UnsetAccessoryCostumeIndices=3100013&BuyGold=0&BuyGem=0").await;
     assert_eq!(unset["Result"], "Success");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
-    assert_eq!(login.player_avatar_hero_info[&slot_key], 0);
-    assert_eq!(login.player_avatar_hero_info[&position_key], "");
+    assert_eq!(login.player_avatar_hero_info, snapshot);
+    assert_eq!(hero::info(&mut s.db.acquire().await.unwrap(), a, 1).await.unwrap()[&slot_key], 0);
     assert!(login.player_accessory_costume_infos.iter().any(|v| v["AccessoryCostumeIndex"] == 3100013));
+    // Selecting the same portrait again deliberately replaces the snapshot.
+    let reselected = hero::change_avatar_hero(State(s.clone()),
+        Bytes::from(format!("SessionKey={}&HeroIndex=1&AvatarHeroIndex=11", login.user_info.session_key)))
+        .await.unwrap().0;
+    assert_eq!(reselected["Result"], "Success");
+    let empty_snapshot = reselected["PlayerAvatarHeroInfo"].clone();
+    assert_eq!(empty_snapshot[&slot_key], 0);
+    assert_eq!(empty_snapshot[&position_key], "");
+    let equipped = call(&s, &login, "hero/buy_customizing_costumes", &format!("{args}&BuyGem=0")).await;
+    assert_eq!(equipped["Result"], "Success", "{equipped}");
+    let reset = call(&s, &login, "hero/reset_all_customizing_costumes", "HeroIndex=1").await;
+    assert_eq!(reset["Result"], "Success");
+    let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.player_avatar_hero_info, empty_snapshot);
 }
 
 #[tokio::test]

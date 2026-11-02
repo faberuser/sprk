@@ -69,7 +69,12 @@ public sealed class SprkConquest : MonoBehaviour {
     public static Dictionary<string,object> Login(Dictionary<string,object> value) {
         int buffer;
         if(!Int32.TryParse(Environment.GetEnvironmentVariable("SPRK_ARENA_REPLAY_BUFFER_MS"),out buffer))buffer=100;
-        replayClock=value.ContainsKey("MatchUid") && Convert.ToInt64(value["MatchUid"])>0?new SprkReplayClock(buffer):null;
+        bool arena=value.ContainsKey("MatchUid") && Convert.ToInt64(value["MatchUid"])>0;
+        bool coop=value.ContainsKey("MasterId") && Convert.ToInt64(value["MasterId"])>0;
+        // GlobalTimer is continuous across native waves. Reset only for login
+        // (including reconnect), never on WaveReady or a team replacement.
+        // Co-op filters stale clocks with zero added presentation delay.
+        replayClock=arena || coop?new SprkReplayClock(arena?buffer:0):null;
         var web=SingletonUpdater<WebServiceManager>.instance;
         if(web!=null && web.Requester!=null)value["SessionKey"]=web.Requester.SessionKey;
         return value;

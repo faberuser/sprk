@@ -7,6 +7,27 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static void TestStoryAutoRecovery()
+    {
+        string Read(string name) {
+            using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher." + name + ".cs.txt")!;
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+        var source = CSharpSyntaxTree.ParseText(Read("StoryAuto")).GetRoot();
+        var recovery = source.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+            .Single(m => m.Identifier.Text == "RecoverSkippedClause");
+        var shipping = "using System; using NShared; using NGame2.NAccount; using NVespa; using NVespa.NSingleton; using UnityEngine; public static partial class SprkStoryAuto {" + recovery + "}";
+        var refs = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p => MetadataReference.CreateFromFile(p));
+        var compilation = CSharpCompilation.Create("StoryAutoRecoveryTests", new[] {
+            CSharpSyntaxTree.ParseText(shipping), CSharpSyntaxTree.ParseText(Read("StoryAutoRecoveryTests")) }, refs,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var bytes = new MemoryStream();
+        var result = compilation.Emit(bytes);
+        if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics));
+        System.Reflection.Assembly.Load(bytes.ToArray()).GetType("SprkStoryAuto")!.GetMethod("RunTests")!.Invoke(null, null);
+    }
+
     static void TestStoryAutoCancellation()
     {
         var trees = new[] { "StoryAutoCancellation", "StoryAutoCancellationTests" }.Select(name => {
@@ -32,6 +53,13 @@ partial class Program
         var tick = helper.MainModule.GetType("SprkStoryAuto").Methods.Single(m => m.Name == "Tick");
         if (tick.Body.Instructions[0].Operand is not MethodReference { Name: "FinishPendingStop" })
             throw new InvalidOperationException("Pending Stop cleanup must run before the active-mode and clock guards.");
+        var worker = helper.MainModule.GetType("SprkStoryAuto");
+        var resume = worker.Methods.Single(m => m.Name == "ResumeNext");
+        var recovery = resume.Body.Instructions.Single(i => i.Operand is MethodReference { Name: "RecoverSkippedClause" });
+        var move = resume.Body.Instructions.Single(i => i.Operand is MethodReference { Name: "MovePlayerToDungeon" });
+        if (resume.Body.Instructions.IndexOf(recovery) >= resume.Body.Instructions.IndexOf(move) ||
+            recovery.Next.OpCode.FlowControl != FlowControl.Cond_Branch)
+            throw new InvalidOperationException("Recruitment recovery must gate next-stage movement.");
         Console.WriteLine("Verified opening-window cancellation guards, option tracking and cleanup after disarming.");
     }
 

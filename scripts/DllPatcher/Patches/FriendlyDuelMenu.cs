@@ -9,6 +9,7 @@ partial class Program
 
     static void PatchFriendlyDuelMenu(ModuleDefinition module)
     {
+        PatchArenaRankerMenu(module);
         var menu = module.GetType(FriendlyDuelMenuType);
         var open = menu.Methods.Single(m => m.Name == "OpenInternal");
         var request = menu.Methods.Single(m => m.Name == "RequestCanDuel");
@@ -45,6 +46,7 @@ partial class Program
 
     static void VerifyFriendlyDuelMenu(ModuleDefinition module)
     {
+        VerifyArenaRankerMenu(module);
         var menu = module.GetType(FriendlyDuelMenuType);
         var open = menu.Methods.Single(m => m.Name == "OpenInternal");
         bool Calls(MethodDefinition method, string name) => method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == name);
@@ -67,6 +69,45 @@ partial class Program
             !Calls(click, "RequestDuel") || !callback.Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "DuelButton"))
             throw new InvalidOperationException("Friendly duels must retain native party/eligibility checks, peer response and invitation action.");
         foreach (var method in new[] { open, request, callback, click, show }) VerifyArenaResultStack(method);
+    }
+
+    static void PatchArenaRankerMenu(ModuleDefinition module)
+    {
+        var row = module.GetType("NGame2.NUI.NComponent2.MatchRankerComponent");
+        var click = row.Methods.Single(m => m.Name == "OnClickComponent");
+        var friend = module.GetType("NGame2.NUI.NComponent2.FriendSlotComponent")
+            .Methods.Single(m => m.Name == "OnClickComponent");
+        var constructor = (MethodReference)friend.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == ".ctor").Operand;
+        var instance = (MethodReference)friend.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "get_instance").Operand;
+        var open = (MethodReference)friend.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "OpenMenuPopup").Operand;
+        var ranker = row.Methods.Single(m => m.Name == "get_RankerInfo");
+        var user = module.GetType("NShared.MatchRankerInfo").Methods.Single(m => m.Name == "get_UserInfo");
+        // Reuse native menu creation and its self/friend/block/duel checks.
+        click.Body = new MethodBody(click) { InitLocals = true };
+        click.Body.Variables.Add(new VariableDefinition(constructor.DeclaringType));
+        var il = click.Body.GetILProcessor();
+        var done = il.Create(OpCodes.Ret);
+        il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Call, ranker); il.Emit(OpCodes.Brfalse, done);
+        il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Call, ranker); il.Emit(OpCodes.Callvirt, user); il.Emit(OpCodes.Brfalse, done);
+        il.Emit(OpCodes.Ldloca, click.Body.Variables[0]);
+        il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Call, ranker); il.Emit(OpCodes.Callvirt, user);
+        il.Emit(OpCodes.Ldc_I4_1); // InspectUserCategory.Arena
+        il.Emit(OpCodes.Call, constructor);
+        il.Emit(OpCodes.Call, instance); il.Emit(OpCodes.Ldloc_0); il.Emit(OpCodes.Callvirt, open);
+        il.Append(done);
+        VerifyArenaRankerMenu(module);
+    }
+
+    static void VerifyArenaRankerMenu(ModuleDefinition module)
+    {
+        var click = module.GetType("NGame2.NUI.NComponent2.MatchRankerComponent").Methods.Single(m => m.Name == "OnClickComponent");
+        var instructions = click.Body.Instructions;
+        var constructor = instructions.Single(i => i.Operand is MethodReference m && m.Name == ".ctor" && m.DeclaringType.Name == "InspectUserData");
+        if (constructor.Previous.OpCode != OpCodes.Ldc_I4_1 ||
+            !instructions.Any(i => i.Operand is MethodReference m && m.Name == "OpenMenuPopup") ||
+            instructions.Count(i => i.OpCode == OpCodes.Brfalse) != 2)
+            throw new InvalidOperationException("Arena ranking rows must open the native Arena player menu, with empty-row guards.");
+        VerifyArenaResultStack(click);
     }
 
     static void InstallFriendlyDuelMenu(string root, bool verifyOnly)

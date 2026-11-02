@@ -32,6 +32,9 @@ partial class Program {
         }
         VerifyArenaResultStack(playable);VerifyArenaResultStack(clock);
         var worker=helper.MainModule.GetType("SprkConquest");
+        var login=worker.Methods.Single(m=>m.Name=="Login");
+        if(!login.Body.Instructions.Any(i=>Equals(i.Operand,"MasterId")))
+            throw new InvalidOperationException("Co-op login must initialize stale-clock filtering too");
         var send=worker.Methods.Single(m=>m.Name=="Send");
         if(send.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="WriteLine") ||
             !send.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkBattleLink" && m.Name=="Send"))

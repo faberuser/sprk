@@ -447,9 +447,19 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         "CREATE TABLE IF NOT EXISTS hero_details(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account_id,hero_index))",
         "CREATE TABLE IF NOT EXISTS costumes(account_id INTEGER NOT NULL,costume_index INTEGER NOT NULL,created_time TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(account_id,costume_index))",
         "CREATE TABLE IF NOT EXISTS costume_presets(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,slot_index INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account_id,hero_index,slot_index))",
+        "CREATE TABLE IF NOT EXISTS lobby_appearance(account_id INTEGER PRIMARY KEY,avatar_hero_index INTEGER NOT NULL,costume_index INTEGER NOT NULL,hair_costume_index INTEGER NOT NULL,weapon_costume_index INTEGER NOT NULL,hide_unique_weapon INTEGER NOT NULL,snapshot TEXT)",
         "CREATE TABLE IF NOT EXISTS shop_stock(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 1,restock_time INTEGER NOT NULL DEFAULT 0,restock_count INTEGER NOT NULL DEFAULT 0,stock TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(account_id,shop_index))",
         "CREATE TABLE IF NOT EXISTS shop_purchase_ledger(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,item_index INTEGER NOT NULL,period TEXT NOT NULL,purchased INTEGER NOT NULL DEFAULT 0,purchased_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account_id,shop_index,item_index,period))",
     ] { sqlx::query(statement).execute(pool).await?; }
+
+    // Upgrade the earlier cosmetic-only lobby snapshot without losing it.
+    let columns = sqlx::query("PRAGMA table_info(lobby_appearance)").fetch_all(pool).await?;
+    if !columns.iter().any(|row| {
+        use sqlx::Row;
+        row.get::<String, _>("name") == "snapshot"
+    }) {
+        sqlx::query("ALTER TABLE lobby_appearance ADD COLUMN snapshot TEXT").execute(pool).await?;
+    }
 
     crate::api::progression::schema::migrate(pool).await?;
     crate::api::extensions::schema::migrate(pool).await?;

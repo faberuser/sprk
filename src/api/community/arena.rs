@@ -246,13 +246,46 @@ async fn ranking_kind(db: &mut SqliteConnection, s: &AppState, season: i64, kind
             json!({"Rank":rank,"TotalRank":rank,"TierRank":rank,"TierIndex":tier(s,kind,rank+1,score),"MatchScore":score,"SeasonWin":r.get::<i64,_>("wins"),"SeasonLose":r.get::<i64,_>("losses"),"ServerGroup":"local","CountryCode":"US"}),
         );
         u["UserInfo"] = u.clone();
-        u["HeroInfos"] = json!([]);
+        u["HeroInfos"] = ranking_deck(db, r.get("account"), season, kind).await?;
         out.push(u);
     }
     Ok(out)
 }
+async fn ranking_deck(db: &mut SqliteConnection, account: i64, season: i64, kind: i64) -> Result<Value> {
+    // Honor registration contains the eligible collection, not the final four.
+    // Its draft persists the actual combat formation in Heroes before loading.
+    // Never substitute another league/season, a friendly duel or a random team.
+    let saved: Option<String> = sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND kind=? AND status='complete' AND json_extract(data,'$.Season')=? AND json_extract(data,'$.DuelType') IS NOT 1 AND json_array_length(data,'$.Heroes') BETWEEN 1 AND 4 ORDER BY id DESC LIMIT 1")
+        .bind(account).bind(kind).bind(season).fetch_optional(&mut *db).await?;
+    let Some(saved) = saved else { return Ok(json!([])); };
+    let saved: Value = parse(&saved)?;
+    let mut result = vec![];
+    let mut seen = std::collections::BTreeSet::new();
+    for id in saved["Heroes"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
+        if id <= 0 || !seen.insert(id) { continue; }
+        let hero = &saved["Register"]["AccountInfo"]["HeroInfos"][id.to_string()];
+        if !hero.is_null() {
+            result.push(json!({"Index":id,"Star":hero["Star"],"Level":hero["Level"]}));
+        } else if let Some((star,level)) = sqlx::query_as::<_,(i64,i64)>("SELECT star,level FROM heroes WHERE account_id=? AND hero_index=?")
+            .bind(account).bind(id).fetch_optional(&mut *db).await? {
+            result.push(json!({"Index":id,"Star":star,"Level":level}));
+        }
+    }
+    Ok(json!(result))
+}
 pub(super) async fn battle_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     battle_info_kind(db, s, a, 0).await
+}
+pub(super) async fn inspection_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    // Inspecting another player must not enroll them in the current season.
+    let season = season(s).0;
+    let rank = ranking_kind(db, s, season, 0).await?.into_iter().find(|v| n(v,"AccountId")==a);
+    let data: Option<String> = sqlx::query_scalar("SELECT data FROM arena_scores WHERE account=? AND kind=0 AND season=?")
+        .bind(a).bind(season).fetch_optional(&mut *db).await?;
+    let data: Value = data.map(|v|parse(&v)).transpose()?.unwrap_or_else(||json!({}));
+    let mut out = rank.unwrap_or_else(||json!({"Rank":-1,"TierIndex":0,"MatchScore":0,"SeasonWin":0,"SeasonLose":0}));
+    out["SuccessiveWin"] = json!(n(&data,"SuccessiveWin"));
+    Ok(out)
 }
 pub(crate) async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<Value> {
     ensure_kind(db, s, a, kind).await?;

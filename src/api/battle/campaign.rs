@@ -398,6 +398,9 @@ async fn begin_local_inner(
     } else { crate::api::services::records::snapshot(db,a,&party).await? };
     out["RunId"] = json!(run_id);
     sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,?,?,0,?,?) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
+    if let Some(deck) = super::campaign_inspection_deck(s,&entry,now()) {
+        put(db,a,"inspection_deck",1,&deck).await?;
+    }
     super::super::progression::record(
         db,
         a,

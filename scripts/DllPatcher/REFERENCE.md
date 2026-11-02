@@ -11,6 +11,23 @@ patching; fixes to an existing patch need no additional registration in CI.
 `--build-release` is for a fresh disposable build workspace, not an installed
 client. Focused installation commands below remain available for local changes.
 
+## Arena ranking player menu
+
+`--friendly-duel-menu-only` also restores `MatchRankerComponent.OnClickComponent`.
+Ranking rows construct native `InspectUserData` with the Arena category and open
+the existing player menu. Empty rows are ignored; the native manager handles
+self-selection and the menu retains friend, block and duel eligibility checks.
+The full release build installs and verifies this hook. The opt-in automation
+action `arena-ranking-probe` checks the actual row prefab with four, zero and two
+portraits across reuse and exercises both empty-row click guards.
+
+The server supplies the last completed competitive squad for the selected league
+and season, including Honor's final drafted team. Friendly duels, canceled runs
+and the full Honor registration roster do not replace it. A player without a
+completed match in that league/season has no squad to display. Honor and Victory
+have separate scores and standings; compare the same mode and season when
+investigating ranking discrepancies.
+
 ## Mission completion worker
 
 The Conquest worker also reports confirmed monster defeats for mission progress.
@@ -324,6 +341,21 @@ The opt-in automation bridge supports `ui-navigation-probe` to inspect the nativ
 Back stack and input-block owners. `click-and-stop-story` clicks a specified
 Continuous Story button and immediately invokes the native Stop action in the
 same update, for reproducible cancellation testing without a battle request.
+
+Continuous Story also recovers Clause's skipped recruitment after a confirmed
+1-20 clear, before entering the next stage. With tutorial skip enabled, it claims
+the native 20001 and 20002 completion receipts in order and applies their rewards
+to the running account. Recruitment uses the native immediate window queue:
+the ordinary lobby popup queue pauses while AutoNextBattle is enabled. Entry
+waits for the recruitment opening task and window to finish. Native tutorials
+remain responsible for recruitment when tutorial skip is disabled.
+
+`--self-test-story-auto-recovery` exercises the shipping recovery method against
+controlled request/account stand-ins, including eligibility, receipt ordering,
+duplicate requests, reward application, announcement routing, cancellation,
+failed responses and account changes. The full release build runs this test.
+`story-auto-probe` reports the local Clause roster/recruitment flags and current
+cutscene path/touch/skip state for real-client checks.
 
 ### Soul Weapon unlock cinematic
 

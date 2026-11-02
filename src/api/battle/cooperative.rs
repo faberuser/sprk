@@ -29,12 +29,13 @@ pub(crate) struct BattleHub {
     dispatch:Mutex<Option<dispatch_worker::Pending>>,
     peers:DashMap<i64,Peer>,
     disconnects:DashMap<String,tokio::sync::watch::Sender<bool>>,
+    heartbeats:DashMap<i64,(i64,i64)>, // account -> (room, latest observed time)
     runs:DashMap<String,Arc<Mutex<Run>>>,
     pub port:u16,
     pub address:String,
 }
 impl Default for BattleHub {
-    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),disconnects:DashMap::new(),runs:DashMap::new(),
+    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),disconnects:DashMap::new(),heartbeats:DashMap::new(),runs:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
         address:crate::websocket::public_url("battle")}}
 }
@@ -72,6 +73,21 @@ impl BattleHub {
         if let Some(close)=self.disconnects.get(&peer.id) {let _=close.send(true);}
         false
     }
+}
+
+// Persist liveness without a match lock or socket handler waiting on SQLite.
+// Keep failed/newer observations for retry; never touch a replacement room or
+// move a timestamp backwards after a concurrent HTTP/settlement update.
+async fn flush_heartbeats(s:&AppState)->Result<()> {
+    let pending:Vec<_>=s.conquest.heartbeats.iter().map(|entry|(*entry.key(),*entry.value())).collect();
+    if pending.is_empty() {return Ok(());}
+    let mut db=s.db.acquire().await?;
+    for (account,(room,observed)) in pending {
+        sqlx::query("UPDATE battle_room_members SET updated=MAX(updated,?) WHERE account=? AND room=?")
+            .bind(observed).bind(account).bind(room).execute(&mut *db).await?;
+        s.conquest.heartbeats.remove_if(&account,|_,value|*value==(room,observed));
+    }
+    Ok(())
 }
 
 fn number(v:&Value,key:&str)->i64 {v[key].as_i64().or_else(||v[key].as_str().and_then(|v|v.parse().ok())).unwrap_or(0)}
@@ -233,6 +249,13 @@ pub(crate) async fn party_start(db:&mut SqliteConnection,s:&AppState,a:i64,room:
 }
 
 pub(crate) async fn serve(listener:TcpListener,s:AppState)->std::io::Result<()> {
+    let liveness=s.clone();tokio::spawn(async move {
+        let mut interval=tokio::time::interval(std::time::Duration::from_secs(5));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {interval.tick().await;
+            if let Err(error)=flush_heartbeats(&liveness).await {tracing::warn!(%error,"Battle room heartbeat persistence failed; will retry");}
+        }
+    });
     let cleanup=s.clone();tokio::spawn(async move {
         let mut interval=tokio::time::interval(std::time::Duration::from_secs(2));
         loop {interval.tick().await;
@@ -459,8 +482,8 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
         }
         "PingReq"|"PingIdleReq"=> {
             reply["ClientTimeMs"]=body["ClientTimeMs"].clone();reply["ServerTimeMs"]=json!(run.time_ms);
-            if run.payload["ArenaMatch"]!=true {
-                sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?").bind(now()).bind(a).execute(&s.db).await?;
+            if run.payload["ArenaMatch"]!=true && run.room>0 {
+                s.conquest.heartbeats.insert(a,(run.room,now()));
             }
             let replay_wave = body.get("ReplayWaveIndex").is_none()
                 || number(&body,"ReplayWaveIndex") == number(&run.payload,"ReplayWaveIndex");
@@ -676,6 +699,8 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
     }
     sqlx::query("UPDATE battle_rooms SET data=json_remove(json_set(data,'$.Status',0),'$.ConquestRunId'),updated=? WHERE id=? AND json_extract(data,'$.ConquestRunId')=?")
         .bind(now()).bind(run.room).bind(&run.id).execute(&mut *db).await?;
+    sqlx::query("UPDATE battle_room_members SET updated=MAX(updated,?) WHERE room=?")
+        .bind(now()).bind(run.room).execute(&mut *db).await?;
     db.commit().await?;Ok(())
 }
 async fn cancel(s:&AppState,run:&Run)->Result<()> {
@@ -698,6 +723,8 @@ async fn cancel(s:&AppState,run:&Run)->Result<()> {
         .bind(now()).bind(run.room).bind(&run.id).execute(&mut *db).await?;
     sqlx::query("UPDATE battle_rooms SET data=json_remove(json_set(data,'$.Status',0),'$.CoopRunId'),updated=? WHERE id=? AND json_extract(data,'$.CoopRunId')=?")
         .bind(now()).bind(run.room).bind(&run.id).execute(&mut *db).await?;
+    sqlx::query("UPDATE battle_room_members SET updated=MAX(updated,?) WHERE room=?")
+        .bind(now()).bind(run.room).execute(&mut *db).await?;
     db.commit().await?;
     s.conquest.notify(run,"BattleEndNot",json!({"Reason":"MasterLogOff"}));
     let _=s.conquest.send_worker("WorkerCancel",json!({"RunId":run.id})).await;s.conquest.runs.remove(&run.id);Ok(())
@@ -877,6 +904,68 @@ mod tests {
         for a in &members {let tx=s.conquest.peers.get(a).unwrap().sender.clone();player_packet(s,*a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();}
         id
     }
+    #[tokio::test]
+    async fn coop_heartbeats_do_not_block_combat_and_persist_room_liveness_safely() {
+        let (s,users,_,mut worker,mut clients)=fixture().await;
+        let id=start(&s).await;
+        while worker.try_recv().is_ok() {}
+        for client in &mut clients {while client.try_recv().is_ok() {}}
+        let account=n(&users[0]["UserInfo"],"AccountId");
+        let tx=s.conquest.peers.get(&account).unwrap().sender.clone();
+        // The fixture's only connection is occupied by unrelated database work.
+        let held=s.db.acquire().await.unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2),async {
+            for name in ["PingReq","PingIdleReq"] {
+                player_packet(&s,account,name,json!({"RequestId":40,"ClientTimeMs":10}),&tx).await.unwrap();
+                assert_eq!(clients[0].recv().await.unwrap().1["ClientTimeMs"],10);
+            }
+            player_packet(&s,account,"ReserveOnSkillReq",json!({"RequestId":41,"CreatureUid":1,"SkillSlotIndex":1}),&tx).await.unwrap();
+            assert_eq!(clients[0].recv().await.unwrap().0,"BaseCreatureActionRes");
+            assert_eq!(worker.recv().await.unwrap().0,"WorkerCommand");
+            worker_packet(&s,"test-worker","WorkerPacket",json!({"RunId":id,"Name":"BattleLogNot","Body":{"ServerTimeMs":1200,"BattleLogs":[]}})).await.unwrap();
+            for client in &mut clients {assert_eq!(client.recv().await.unwrap().1["ServerTimeMs"],1200);}
+        }).await.expect("Co-op combat waited for SQLite");
+        let (room,observed)=*s.conquest.heartbeats.get(&account).unwrap();
+        assert_eq!(room,1);
+        // Poll a flush until it waits for SQLite, then publish a newer heartbeat.
+        // Completion of the old snapshot must not discard that newer observation.
+        let flush=flush_heartbeats(&s);tokio::pin!(flush);
+        assert!(tokio::time::timeout(std::time::Duration::from_millis(50),&mut flush).await.is_err());
+        s.conquest.heartbeats.insert(account,(room,observed+1));
+        player_packet(&s,account,"PingReq",json!({"RequestId":42,"ClientTimeMs":11}),&tx).await.unwrap();
+        clients[0].recv().await.unwrap();
+        // Use a distinct value after the real heartbeat's current-time update.
+        s.conquest.heartbeats.insert(account,(room,observed+1));
+        drop(held);
+        tokio::time::timeout(std::time::Duration::from_secs(2),&mut flush).await.unwrap().unwrap();
+        assert_eq!(*s.conquest.heartbeats.get(&account).unwrap(),(room,observed+1));
+        flush_heartbeats(&s).await.unwrap();
+        assert!(s.conquest.heartbeats.is_empty());
+        assert!(sqlx::query_scalar::<_,i64>("SELECT updated FROM battle_room_members WHERE account=?")
+            .bind(account).fetch_one(&s.db).await.unwrap()>=observed+1);
+        s.conquest.heartbeats.insert(account,(room,observed-10));
+        flush_heartbeats(&s).await.unwrap();
+        assert!(sqlx::query_scalar::<_,i64>("SELECT updated FROM battle_room_members WHERE account=?")
+            .bind(account).fetch_one(&s.db).await.unwrap()>=observed+1,"Delayed persistence rolled liveness backwards");
+        // A queued heartbeat for the old room must not refresh a new membership.
+        sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(2,'raid',?,'{}',0)")
+            .bind(account).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE battle_room_members SET room=2,updated=0 WHERE account=?").bind(account).execute(&s.db).await.unwrap();
+        s.conquest.heartbeats.insert(account,(room,observed));
+        flush_heartbeats(&s).await.unwrap();
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT updated FROM battle_room_members WHERE account=?")
+            .bind(account).fetch_one(&s.db).await.unwrap(),0);
+        // A persistence failure retains observations for the next flush.
+        sqlx::query("CREATE TRIGGER fail_heartbeat BEFORE UPDATE ON battle_room_members BEGIN SELECT RAISE(ABORT,'test busy'); END")
+            .execute(&s.db).await.unwrap();
+        s.conquest.heartbeats.insert(account,(2,observed));
+        assert!(flush_heartbeats(&s).await.is_err());
+        assert!(s.conquest.heartbeats.contains_key(&account));
+        sqlx::query("DROP TRIGGER fail_heartbeat").execute(&s.db).await.unwrap();
+        flush_heartbeats(&s).await.unwrap();
+        assert!(s.conquest.heartbeats.is_empty());
+    }
+
     #[tokio::test]
     async fn initial_wave_survives_leave_before_enter_or_before_ready() {
         for leave_before_enter in [true,false] {
