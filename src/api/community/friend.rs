@@ -20,16 +20,24 @@ fn response(result: &str) -> Value {
 pub async fn profile(state: &AppState, account: i64) -> Result<Value> {
     let row = sqlx::query("SELECT a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id = ? AND a.is_banned = 0")
         .bind(account).fetch_one(&state.db).await?;
-    Ok(profile_row(state, &row))
+    profile_row(&mut *state.db.acquire().await?, state, &row).await
 }
-pub(super) fn profile_row(state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Value {
+async fn profile_row(db: &mut SqliteConnection, state: &AppState, row: &sqlx::sqlite::SqliteRow) -> Result<Value> {
     let account: i64 = row.get("account_id");
     let last: Option<String> = row.get("last_login");
     let logout: Option<String> = row.get("last_logout");
     let last_online = last.iter().chain(logout.iter()).max().cloned();
     let online = online(state, account);
-    json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
-        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":1, "LastDungeonIndex":1})
+    // Both persisted progress formats are in use. An unlock or a numerically
+    // higher raid/event chapter is not main-story completion.
+    let clears: Vec<(i64,i64)> = sqlx::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=? AND clear_count>0 UNION SELECT COALESCE(json_extract(data,'$.ChapterIndex'),idx >> 32),COALESCE(json_extract(data,'$.DungeonIndex'),idx & 4294967295) FROM battle_state WHERE account=? AND kind='dungeon' AND (json_extract(data,'$.FirstRewardedDiff')>0 OR json_extract(data,'$.MaxStar')>0 OR json_extract(data,'$.ScenarioComplete')=1)")
+        .bind(account).bind(account).fetch_all(db).await?;
+    let (chapter,dungeon) = clears.into_iter().filter(|(c,d)|
+        state.tables.battle.find("CampaignChapter",&[("Index",*c)]).is_some_and(|v|v["MainField"]==true) &&
+        state.tables.battle.find("CampaignDungeon",&[("ChapterIndex",*c),("DungeonIndex",*d)]).is_some_and(|v|matches!(super::n(v,"BattleType"),1|2|10)))
+        .max().unwrap_or((1,1));
+    Ok(json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
+        "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon}))
 }
 
 pub(super) fn online(state: &AppState, account: i64) -> bool {
@@ -49,7 +57,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
-    let mut user = profile_row(&state, &row);
+    let mut user = profile_row(&mut db, &state, &row).await?;
     let arena = super::arena::inspection_info(&mut db, &state, target).await?;
     for key in ["TierIndex","MatchScore","SeasonWin","SeasonLose","SuccessiveWin"] {
         user[key] = arena[key].clone();
@@ -119,7 +127,7 @@ pub async fn login_data(
             outgoing.push(json!({"FriendId":other,"InvitedTime":time}));
         }
         if accepted || row.get::<i64, _>("receiver") == account {
-            let mut info = profile_row(state, &row);
+            let mut info = profile_row(&mut *state.db.acquire().await?, state, &row).await?;
             info["InvitedTime"] = json!(time);
             incoming.push(info);
         }
@@ -200,7 +208,8 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
     }
     query.push(" LIMIT 20");
     let rows = query.build().fetch_all(&state.db).await?;
-    let infos: Vec<_> = rows.iter().map(|row| profile_row(&state, row)).collect();
+    let mut infos = Vec::with_capacity(rows.len());
+    for row in &rows { infos.push(profile_row(&mut *state.db.acquire().await?, &state, row).await?); }
     Ok(Json(
         json!({"BaseResult":"Success", "Result":if !keyword.is_empty() && infos.is_empty() {"FriendNotFound"} else {"Success"}, "FriendInfos":infos}),
     ))

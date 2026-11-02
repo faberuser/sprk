@@ -1133,6 +1133,42 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
 }
 
 #[tokio::test]
+async fn current_chapter_profiles_follow_saved_main_story_progress_across_friend_views() {
+    let (s,a,b)=setup().await;
+    let target=b.user_info.account_id;
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],1);
+    let mut stages=std::collections::BTreeMap::new();
+    for d in s.tables.battle.rows("CampaignDungeon") {
+        let c=super::n(d,"ChapterIndex");
+        if c>1 && matches!(super::n(d,"BattleType"),1|2|10) && s.tables.battle.find("CampaignChapter",&[("Index",c)]).is_some_and(|v|v["MainField"]==true) {
+            stages.entry(c).or_insert(super::n(d,"DungeonIndex"));
+        }
+    }
+    let stages:Vec<_>=stages.into_iter().collect();
+    let (legacy_c,legacy_d)=stages[0];let (modern_c,modern_d)=stages[1];let (locked_c,locked_d)=stages[2];
+    for (chapter,dungeon,count) in [(legacy_c,legacy_d,1),(locked_c,locked_d,0),(999999,1,100)] {
+        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,?,?,?,1) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=excluded.clear_count")
+            .bind(target).bind(chapter).bind(dungeon).bind(count).execute(&s.db).await.unwrap();
+    }
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],legacy_c);
+    // Older dungeon state may carry its chapter/stage only in the packed key.
+    crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"dungeon",(modern_c<<32)|modern_d,&json!({"FirstRewardedDiff":1})).await.unwrap();
+    let info=friend::profile(&s,target).await.unwrap();
+    assert_eq!(info["LastChapterIndex"],modern_c);assert_eq!(info["LastDungeonIndex"],modern_d);
+    let inspected=friend::inspect_user(State(s.clone()),form(&a,&format!("TargetAccountId={target}"))).await.unwrap().0;
+    assert_eq!(inspected["CachedAccountInfo"]["UserInfo"]["LastChapterIndex"],modern_c);
+    let searched=friend::search_friend(State(s.clone()),form(&a,&format!("Keyword={target}"))).await.unwrap().0;
+    assert_eq!(searched["FriendInfos"][0]["LastChapterIndex"],modern_c);
+    befriend(&s,&a,&b).await;
+    let listed=friend::get_friend_list(State(s.clone()),form(&a,"")).await.unwrap().0;
+    let friend=listed["FriendInvitorInfos"].as_array().unwrap().iter().find(|v|v["AccountId"]==target).unwrap();
+    assert_eq!(friend["LastChapterIndex"],modern_c);
+    // A recent low chapter deck must not replace actual cleared progress.
+    crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"inspection_deck",1,&json!({"ChapterIndex":1,"HeroIndex1":1})).await.unwrap();
+    assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],modern_c);
+}
+
+#[tokio::test]
 async fn hero_info_keeps_campaign_and_victory_squads_separate_for_native_categories() {
     let (s,a,b)=setup().await;
     let target=b.user_info.account_id;
