@@ -1133,6 +1133,51 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
 }
 
 #[tokio::test]
+async fn hero_info_shows_victory_deck_and_current_stats_without_registering_unranked_players() {
+    let (s,a,b) = setup().await;
+    let target=b.user_info.account_id;
+    let season=super::arena::season(&s).0;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,90,5)")
+        .bind(target).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE arena_scores SET score=1420,wins=7,losses=3,data=? WHERE account=? AND kind=0 AND season=?")
+        .bind(json!({"SuccessiveWin":3}).to_string()).bind(target).bind(season).execute(&s.db).await.unwrap();
+    sqlx::query("INSERT OR REPLACE INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,1,?,2200,99,10)")
+        .bind(target).bind(season).execute(&s.db).await.unwrap();
+    // The saved Victory deck survives season rollover. Newer Honor/friendly
+    // games and an abandoned queue must not replace it in the public inspector.
+    for (kind,status,duel,heroes) in [(0,"complete",0,json!([2,1])),(1,"complete",0,json!([1])),(0,"complete",1,json!([1])),(0,"canceled",0,json!([1]))] {
+        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,?,?)")
+            .bind(target).bind(kind).bind(super::now()-86400).bind(status)
+            .bind(json!({"Season":season-1,"DuelType":duel,"Heroes":heroes}).to_string()).execute(&s.db).await.unwrap();
+    }
+    let out=friend::inspect_user(State(s.clone()),form(&a,&format!("TargetAccountId={target}&Category=Arena"))).await.unwrap().0;
+    let cached=&out["CachedAccountInfo"];
+    let info=&cached["UserInfo"];
+    assert_eq!(info["MatchScore"],1420);
+    assert_eq!(info["SeasonWin"],7);
+    assert_eq!(info["SeasonLose"],3);
+    assert_eq!(info["SuccessiveWin"],3);
+    assert!(info["TierIndex"].as_i64().unwrap()>0);
+    assert_eq!(out["MatchTierRank"],0);
+    assert_eq!(out["MatchTotalRank"],0);
+    let deck=&cached["DeckInfos"]["Arena"];
+    assert_eq!(deck["BattleType"],"Arena");
+    assert_eq!(deck["HeroIndex1"],2);assert_eq!(deck["HeroIndex2"],1);
+    assert_eq!(deck["HeroIndex3"],0);assert_eq!(deck["HeroIndex4"],0);
+    assert!(deck["PlayedTime"].is_string());
+    assert_eq!(cached["HeroInfos"]["2"]["Level"],90);
+    assert!(info.get("SessionKey").is_none());
+    // Reading an unranked profile must not create a ranking entry or invent a deck.
+    sqlx::query("DELETE FROM arena_scores WHERE account=?").bind(target).execute(&s.db).await.unwrap();
+    sqlx::query("DELETE FROM arena_runs WHERE account=?").bind(target).execute(&s.db).await.unwrap();
+    let empty=friend::inspect_user(State(s.clone()),form(&a,&format!("TargetAccountId={target}"))).await.unwrap().0;
+    assert_eq!(empty["CachedAccountInfo"]["UserInfo"]["MatchScore"],0);
+    assert_eq!(empty["MatchTierRank"],-1);
+    assert!(empty["CachedAccountInfo"]["DeckInfos"].as_object().unwrap().is_empty());
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM arena_scores WHERE account=?").bind(target).fetch_one(&s.db).await.unwrap(),0);
+}
+
+#[tokio::test]
 async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
     let (s, a, b) = setup().await;
     sqlx::query("UPDATE heroes SET level=37 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();

@@ -276,6 +276,17 @@ async fn ranking_deck(db: &mut SqliteConnection, account: i64, season: i64, kind
 pub(super) async fn battle_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     battle_info_kind(db, s, a, 0).await
 }
+pub(super) async fn inspection_info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    // Inspecting another player must not enroll them in the current season.
+    let season = season(s).0;
+    let rank = ranking_kind(db, s, season, 0).await?.into_iter().find(|v| n(v,"AccountId")==a);
+    let data: Option<String> = sqlx::query_scalar("SELECT data FROM arena_scores WHERE account=? AND kind=0 AND season=?")
+        .bind(a).bind(season).fetch_optional(&mut *db).await?;
+    let data: Value = data.map(|v|parse(&v)).transpose()?.unwrap_or_else(||json!({}));
+    let mut out = rank.unwrap_or_else(||json!({"Rank":-1,"TierIndex":0,"MatchScore":0,"SeasonWin":0,"SeasonLose":0}));
+    out["SuccessiveWin"] = json!(n(&data,"SuccessiveWin"));
+    Ok(out)
+}
 pub(crate) async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<Value> {
     ensure_kind(db, s, a, kind).await?;
     let rank = ranking_kind(db, s, season(s).0, kind)

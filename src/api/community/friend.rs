@@ -49,7 +49,11 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
-    let user = profile_row(&state, &row);
+    let mut user = profile_row(&state, &row);
+    let arena = super::arena::inspection_info(&mut db, &state, target).await?;
+    for key in ["TierIndex","MatchScore","SeasonWin","SeasonLose","SuccessiveWin"] {
+        user[key] = arena[key].clone();
+    }
     let ids: Vec<i64> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=? ORDER BY hero_index")
         .bind(target).fetch_all(&mut *db).await?;
     if ids.is_empty() { return Ok(Json(response("NoCache"))); }
@@ -57,13 +61,29 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     for id in ids {
         heroes.insert(id.to_string(), super::cached_hero(&mut db, target, id).await?);
     }
+    // The native Arena inspector selects DeckInfos[BattleType.Arena], not
+    // ranking-row HeroInfos. Keep the last real Victory team across rollovers,
+    // while the profile statistics above always describe the current season.
+    let saved: Option<(i64,String)> = sqlx::query_as("SELECT started,data FROM arena_runs WHERE account=? AND kind=0 AND status='complete' AND json_extract(data,'$.DuelType') IS NOT 1 AND json_array_length(data,'$.Heroes') BETWEEN 1 AND 4 ORDER BY id DESC LIMIT 1")
+        .bind(target).fetch_optional(&mut *db).await?;
+    let mut decks = json!({});
+    if let Some((started,saved)) = saved {
+        let saved: Value = super::parse(&saved)?;
+        let ids: Vec<i64> = saved["Heroes"].as_array().into_iter().flatten().filter_map(Value::as_i64)
+            .filter(|id|heroes.contains_key(&id.to_string())).take(4).collect();
+        if !ids.is_empty() {
+            let mut deck = json!({"BattleType":"Arena","ChapterIndex":1000,"DungeonIndex":1,"PlayedTime":super::time(started)});
+            for slot in 0..4 { deck[format!("HeroIndex{}",slot+1)] = json!(ids.get(slot).copied().unwrap_or(0)); }
+            decks["Arena"] = deck;
+        }
+    }
     let guild: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
         .bind(target).fetch_optional(&mut *db).await?;
     let guild_info = if let Some(g) = guild { super::guild::state(&mut db, &state, g).await? } else { Value::Null };
     db.commit().await?;
     Ok(Json(json!({"BaseResult":"Success","Result":"Success",
-        "CachedAccountInfo":{"UserInfo":user,"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}},
-        "GuildInfo":guild_info,"MatchTierRank":0,"MatchTotalRank":0})))
+        "CachedAccountInfo":{"UserInfo":user,"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":decks},
+        "GuildInfo":guild_info,"MatchTierRank":arena["Rank"],"MatchTotalRank":arena["Rank"]})))
 }
 
 pub async fn login_data(
