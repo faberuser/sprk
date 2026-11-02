@@ -75,6 +75,8 @@ partial class Program
         VerifyShopTagsFile(clientRoot);
         InstallArtifactSelectors(clientRoot, false);
         VerifyArtifactSelectorsFile(clientRoot);
+        InstallArtifactSourceFilter(clientRoot, false);
+        VerifyArtifactSourceFilterFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
         InstallMissionHistory(clientRoot, false);

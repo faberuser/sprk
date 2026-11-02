@@ -113,6 +113,8 @@ namespace DllPatcher
             if (args.Contains("--self-test-legendary-rune-tickets")) { TestLegendaryRuneTickets(); return; }
             if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
             if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
+            if (args.Contains("--artifact-source-filter-only")) { InstallArtifactSourceFilter(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-artifact-source-filter")) { VerifyArtifactSourceFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-rune-filter-only")) { InstallHeroRuneFilter(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-hero-rune-filter")) { VerifyHeroRuneFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }

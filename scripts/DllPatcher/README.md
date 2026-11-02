@@ -14,6 +14,21 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--artifact-source-filter-only` fills the artifact ticket's right-hand All
+dropdown with source categories available in that ticket: Normal, Event, World
+Boss, Velkazar, Shakmeh, King's Pass and Divine Punishment. Membership comes from
+the native archived artifact reward groups; unrecognized artifacts remain under
+Other. The left dropdown retains All/Owned/Not Owned and combines with the source
+filter. Changing ownership retains the source; reopening a ticket resets both.
+Filtering retains the ticket's pool and original order, resets list scroll,
+clears the selected artifact and disables Acquire until a visible item is chosen.
+Other selector types retain their native filters. Run
+`--verify-artifact-source-filter` for installed hook/eligibility checks. Stage
+this patch and `--automation-only`, then run
+`python scripts/client/verify_artifact_source_filter.py` for isolated native list,
+source/ownership, selection and reopen checks (`--installed` after installation).
+The full release build installs and verifies this patch.
+
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,
 with a separate saved roster and no entry cost. It uses the equipped-hero

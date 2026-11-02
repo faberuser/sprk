@@ -161,6 +161,14 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="artifact-source-filter-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("artifact-filter-"))
+                    throw new InvalidOperationException("Artifact source fixture requires isolated Login and artifact-filter profile");
+                var probe=System.Reflection.Assembly.Load("SprkArtifactSourceFilter").GetType("SprkArtifactSourceFilterProbe");
+                var report=(string)probe.GetMethod("Run").Invoke(null,null);
+                reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
+            }
             if(cmd.action=="hero-rune-filter-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("rune-filter-"))
