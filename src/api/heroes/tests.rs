@@ -175,6 +175,182 @@ async fn login(s: &AppState) -> user::LoginResponse {
 fn form(u: &user::LoginResponse, s: &str) -> Bytes {
     Bytes::from(format!("SessionKey={}&{s}", u.user_info.session_key))
 }
+
+#[tokio::test]
+async fn lobby_selection_retains_normal_hair_and_weapon_after_relogin() {
+    let (s, mut u) = setup().await;
+    let account = u.user_info.account_id;
+    let costume = item::n(&costume(&s), "CostumeIndex");
+    let normal_avatar = 10 + item::n(&get(&s, &u, 1).await, "Star");
+    sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES (?,?)")
+        .bind(account).bind(costume).execute(&s.db).await.unwrap();
+    // Include explicit normal hair/weapon (zero), separate costume cosmetics,
+    // and a normal-body portrait while the in-game body wears a costume.
+    for (body, hair, weapon, hidden) in [
+        (costume, 0, costume, 0), (costume, costume, 0, 1),
+        (costume, 0, 0, 0), (0, costume, costume, 1),
+    ] {
+        let equipped = serde_json::json!({"CostumeIndex":costume,
+            "HairCostumeIndex":hair,"WeaponCostumeIndex":weapon,"HideUniqueWeapon":hidden});
+        hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &equipped).await.unwrap();
+        let avatar_index = if body == 0 { normal_avatar } else { 10000 + body };
+        let selected = hero::change_avatar_hero(State(s.clone()),
+            form(&u, &format!("HeroIndex=1&AvatarHeroIndex={avatar_index}")))
+            .await.unwrap().0;
+        assert_eq!(selected["Result"], "Success", "{selected}");
+        let expected = selected["PlayerAvatarHeroInfo"].clone();
+        assert_eq!(expected["CostumeIndex"], body);
+        assert_eq!(expected["HairCostumeIndex"], hair);
+        assert_eq!(expected["WeaponCostumeIndex"], weapon);
+        let changed = serde_json::json!({"CostumeIndex":0,
+            "HairCostumeIndex":if hair == 0 { costume } else { 0 },
+            "WeaponCostumeIndex":if weapon == 0 { costume } else { 0 },
+            "HideUniqueWeapon":1-hidden});
+        hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &changed).await.unwrap();
+        for _ in 0..2 {
+            u = login(&s).await;
+            assert_eq!(u.player_avatar_hero_info, expected);
+            let live = get(&s, &u, 1).await;
+            for key in ["CostumeIndex", "HairCostumeIndex", "WeaponCostumeIndex", "HideUniqueWeapon"] {
+                assert_eq!(live[key], changed[key], "equipped {key}");
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn lobby_appearance_upgrade_freezes_legacy_state_and_isolates_accounts() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    // Simulate an existing database without the new table, and rerun migration.
+    sqlx::query("DROP TABLE lobby_appearance").execute(&s.db).await.unwrap();
+    database::create_tables(&s.db).await.unwrap();
+    database::create_tables(&s.db).await.unwrap();
+    let original = serde_json::json!({"HairCostumeIndex":123,"WeaponCostumeIndex":456,"HideUniqueWeapon":1});
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &original).await.unwrap();
+    let first = login(&s).await;
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &serde_json::json!({})).await.unwrap();
+    let second = login(&s).await;
+    assert_eq!(second.player_avatar_hero_info, first.player_avatar_hero_info);
+    for key in ["HairCostumeIndex", "WeaponCostumeIndex", "HideUniqueWeapon"] {
+        assert_eq!(second.player_avatar_hero_info[key], original[key]);
+    }
+    let other = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=lobby-other"))
+        .await.unwrap().0;
+    assert_ne!(other.user_info.account_id, account);
+    assert_eq!(other.player_avatar_hero_info["HairCostumeIndex"], 0);
+    assert_eq!(other.player_avatar_hero_info["WeaponCostumeIndex"], 0);
+    let current = login(&s).await;
+    assert_eq!(current.player_avatar_hero_info, first.player_avatar_hero_info);
+    // A rejected avatar selection must not replace either persisted selection.
+    let rejected = hero::change_avatar_hero(State(s.clone()),
+        form(&current, "HeroIndex=1&AvatarHeroIndex=999999"))
+        .await.unwrap().0;
+    assert_ne!(rejected["Result"], "Success");
+    assert_eq!(login(&s).await.player_avatar_hero_info, first.player_avatar_hero_info);
+}
+
+#[tokio::test]
+async fn lobby_snapshot_retains_all_accessory_slots_and_seven_transform_values() {
+    use crate::api::extensions;
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let mut equipped = serde_json::json!({});
+    let mut positions = Vec::new();
+    for slot in 1..=4 {
+        let data = s.tables.extensions.rows("AccessoryCostume").iter()
+            .find(|v| item::n(v, "PartType") == slot).unwrap();
+        let id = item::n(data, "Index");
+        let position = serde_json::json!({"PositionX":"0.1","PositionY":"0.2","PositionZ":"0.3",
+            "RotationX":"10","RotationY":"20","RotationZ":"30","Scale":"1.2"});
+        equipped[format!("AccessoryCostumeIndex{slot}")] = serde_json::json!(id);
+        let ownership = serde_json::json!({"HeroIndex":1,"AccessoryCostumeIndex":id,"PositionInfo":position.to_string()});
+        extensions::put(&mut s.db.acquire().await.unwrap(), account, "accessory", (1_i64 << 32) | id, &ownership)
+            .await.unwrap();
+        positions.push((id, position));
+    }
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &equipped).await.unwrap();
+    let normal_avatar = 10 + item::n(&get(&s, &u, 1).await, "Star");
+    let selected = hero::change_avatar_hero(State(s.clone()),
+        form(&u, &format!("HeroIndex=1&AvatarHeroIndex={normal_avatar}")))
+        .await.unwrap().0;
+    assert_eq!(selected["Result"], "Success");
+    let snapshot = selected["PlayerAvatarHeroInfo"].clone();
+    for (slot, (id, position)) in (1..=4).zip(&positions) {
+        assert_eq!(snapshot[format!("AccessoryCostumeIndex{slot}")], *id);
+        assert_eq!(serde_json::from_str::<Value>(snapshot[format!("PositionInfo{slot}")].as_str().unwrap()).unwrap(), *position);
+        // Edit all seven values in the live inventory, independently per slot.
+        let changed = serde_json::json!({"PositionX":"1","PositionY":"2","PositionZ":"3",
+            "RotationX":"40","RotationY":"50","RotationZ":"60","Scale":"0.8"});
+        let ownership = serde_json::json!({"HeroIndex":1,"AccessoryCostumeIndex":id,"PositionInfo":changed.to_string()});
+        extensions::put(&mut s.db.acquire().await.unwrap(), account, "accessory", (1_i64 << 32) | *id, &ownership)
+            .await.unwrap();
+    }
+    // Unequip every live slot; both same-session reads and repeated logins retain
+    // the chosen accessories and the original transforms in every slot.
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &serde_json::json!({})).await.unwrap();
+    assert_eq!(hero::avatar_info(&mut s.db.acquire().await.unwrap(), &s, account).await.unwrap(), snapshot);
+    for _ in 0..2 {
+        let again = login(&s).await;
+        assert_eq!(again.player_avatar_hero_info, snapshot);
+    }
+}
+
+#[tokio::test]
+async fn lobby_snapshot_migrates_cosmetic_only_rows_without_losing_saved_cosmetics() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let avatar = u.user_info.avatar_hero_index;
+    sqlx::query("DROP TABLE lobby_appearance").execute(&s.db).await.unwrap();
+    sqlx::query("CREATE TABLE lobby_appearance(account_id INTEGER PRIMARY KEY,avatar_hero_index INTEGER NOT NULL,costume_index INTEGER NOT NULL,hair_costume_index INTEGER NOT NULL,weapon_costume_index INTEGER NOT NULL,hide_unique_weapon INTEGER NOT NULL)")
+        .execute(&s.db).await.unwrap();
+    sqlx::query("INSERT INTO lobby_appearance VALUES (?,?,0,123,456,1)")
+        .bind(account).bind(avatar).execute(&s.db).await.unwrap();
+    database::create_tables(&s.db).await.unwrap();
+    database::create_tables(&s.db).await.unwrap();
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1,
+        &serde_json::json!({"HairCostumeIndex":999,"AccessoryCostumeIndex1":3100013})).await.unwrap();
+    let first = login(&s).await;
+    assert_eq!(first.player_avatar_hero_info["HairCostumeIndex"], 123);
+    assert_eq!(first.player_avatar_hero_info["WeaponCostumeIndex"], 456);
+    assert_eq!(first.player_avatar_hero_info["HideUniqueWeapon"], 1);
+    assert_eq!(first.player_avatar_hero_info["AccessoryCostumeIndex1"], 3100013);
+    hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &serde_json::json!({})).await.unwrap();
+    assert_eq!(login(&s).await.player_avatar_hero_info, first.player_avatar_hero_info);
+}
+
+#[tokio::test]
+async fn lobby_snapshot_retains_rank_and_weapon_values_after_gear_changes() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let slot = sqlx::query("INSERT INTO equip_items(account_id,item_index,star) VALUES (?,1001,3)")
+        .bind(account).execute(&s.db).await.unwrap().last_insert_rowid();
+    sqlx::query("UPDATE heroes SET star=3,equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1")
+        .bind(slot).bind(account).execute(&s.db).await.unwrap();
+    crate::api::extensions::put(&mut s.db.acquire().await.unwrap(), account, "soul", slot,
+        &serde_json::json!({"ItemIndex":1001,"EquipItemSlotIndex":slot,"Grade":1,"ReinforceLevel":0})).await.unwrap();
+    let selected = hero::change_avatar_hero(State(s.clone()), form(&u, "HeroIndex=1&AvatarHeroIndex=13"))
+        .await.unwrap().0;
+    assert_eq!(selected["Result"], "Success");
+    let snapshot = selected["PlayerAvatarHeroInfo"].clone();
+    let render = &snapshot["SprkLobbyRenderInfo"];
+    assert_eq!(render["Star"], 3);
+    assert_eq!(render["Equipment"][0]["ItemIndex"], 1001);
+    assert_eq!(render["Equipment"][0]["Star"], 3);
+    assert_eq!(render["Equipment"][0]["SoulWeaponInfo"]["Grade"], 1);
+    sqlx::query("UPDATE heroes SET star=5,equip_item_slot_index_1=0 WHERE account_id=? AND hero_index=1")
+        .bind(account).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE equip_items SET star=5 WHERE account_id=? AND slot_index=?")
+        .bind(account).bind(slot).execute(&s.db).await.unwrap();
+    crate::api::extensions::put(&mut s.db.acquire().await.unwrap(), account, "soul", slot,
+        &serde_json::json!({"ItemIndex":1001,"EquipItemSlotIndex":slot,"Grade":2,"ReinforceLevel":0})).await.unwrap();
+    let again = login(&s).await;
+    assert_eq!(again.player_avatar_hero_info, snapshot);
+    let reselected = hero::change_avatar_hero(State(s.clone()), form(&again, "HeroIndex=1&AvatarHeroIndex=13"))
+        .await.unwrap().0;
+    assert_eq!(reselected["Result"], "Success");
+    assert_eq!(reselected["PlayerAvatarHeroInfo"]["SprkLobbyRenderInfo"], serde_json::json!({"Star":5,"Equipment":[]}));
+}
 async fn count(s: &AppState, u: &user::LoginResponse, id: i32) -> i64 {
     sqlx::query_scalar(
         "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",

@@ -403,6 +403,26 @@ that selection intact. The profile icon and portrait use the selected avatar
 index. Account isolation, readiness checks, accessory instance repair and cloned
 transforms remain in place. Story-forced avatars retain their native behavior.
 
+The server persists the complete `PlayerAvatarHeroInfo` at lobby selection time:
+body, hair, weapon, unique-weapon visibility, all four supported accessory slots
+and their serialized position/rotation/scale transforms. It also saves awakening
+rank and equipped item values, including nested soul-weapon data, in
+`SprkLobbyRenderInfo`. The client captures this optional metadata while parsing
+the native avatar response and supplies the saved rank and equipment explicitly
+to the lobby renderer. Older servers retain native rank/equipment behavior.
+Explicit normal cosmetics
+and empty accessory slots are retained. Later equipment edits, accessory movement,
+replacement, removal and dressing-room resets leave the lobby snapshot unchanged,
+including across logins. Selecting a lobby hero again replaces the snapshot,
+even when its portrait index is unchanged. Existing accounts freeze their first
+post-upgrade appearance; cosmetic-only snapshots retain their saved cosmetics
+and capture accessories once. Earlier choices cannot be recovered, so reselect
+the lobby hero to save the intended look. Deploy the server and signed client
+update together, then restart the client. The focused lobby patch installs and
+verifies the parser, renderer and same-portrait reselection hooks; its native
+JSON fixtures cover independent rank, weapon, soul-weapon data, empty equipment,
+selection isolation and stable/coalesced reloads.
+
 Closed CreatureLoad completion callbacks must return before accessing released
 OpenData. Existing guards are retained; the patch adds the same guard if missing
 from an older input. The account patcher preserves the newer snapshot hook when

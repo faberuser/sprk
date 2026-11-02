@@ -522,26 +522,27 @@ pub(crate) async fn execute(
             out["HeroCostumeResult"] = appearance(&h);
         }
         "change_avatar_hero" => {
-            let avatar = req.number("AvatarHeroIndex", index as i64 * 10 + n(&h, "Star"))?;
-            let avatar_costume = if avatar >= 10000 {
+            let avatar_index = req.number("AvatarHeroIndex", index as i64 * 10 + n(&h, "Star"))?;
+            let avatar_costume = if avatar_index >= 10000 {
                 let id =
-                    i32::try_from(avatar - 10000).map_err(|_| rule("InvalidAvatarHeroIndex"))?;
+                    i32::try_from(avatar_index - 10000).map_err(|_| rule("InvalidAvatarHeroIndex"))?;
                 check_costume(db, state, account, &h, id).await?;
                 id
             } else {
-                if avatar / 10 != index as i64 || avatar % 10 < 1 || avatar % 10 > n(&h, "Star") {
+                if avatar_index / 10 != index as i64 || avatar_index % 10 < 1 || avatar_index % 10 > n(&h, "Star") {
                     return Err(rule("InvalidAvatarHeroIndex"));
                 }
                 0
             };
             sqlx::query("UPDATE user_info SET avatar_hero_index=? WHERE account_id=?")
-                .bind(avatar)
+                .bind(avatar_index)
                 .bind(account)
                 .execute(&mut *db)
                 .await?;
             let mut avatar = avatar_appearance(db, account, &h).await?;
             avatar["CostumeIndex"] = json!(avatar_costume);
             avatar["AccountId"] = json!(account);
+            save_avatar_appearance(db, account, avatar_index, &avatar).await?;
             out["PlayerAvatarHeroInfo"] = avatar;
         }
         "set_hide_hero_unique_weapon" => {
@@ -1143,6 +1144,20 @@ pub(crate) async fn trial(
 
 async fn avatar_appearance(db: &mut SqliteConnection, account: i64, h: &Value) -> Result<Value> {
     let mut out = appearance(h);
+    // RenderFacadeBuilder also uses awakening rank and equipped weapon/soul
+    // effects. Save item values, not inventory IDs that can later be changed.
+    let slots: Vec<i64> = (1..=10).map(|slot| n(h, &format!("EquipItemSlotIndex{slot}"))).collect();
+    let rows = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+        .bind(account).fetch_all(&mut *db).await?;
+    let mut equipment = Vec::new();
+    for slot in slots.into_iter().filter(|slot| *slot > 0) {
+        if let Some(row) = rows.iter().find(|row| row.get::<i64, _>("slot_index") == slot) {
+            let mut item = json!(crate::models::equip::EquipItemInfo::from_row(row));
+            item["SoulWeaponInfo"] = crate::api::extensions::get(db, account, "soul", slot).await?;
+            equipment.push(item);
+        }
+    }
+    out["SprkLobbyRenderInfo"] = json!({"Star":n(h,"Star"),"Equipment":equipment});
     let accessories = crate::api::extensions::list(db, account, "accessory").await?;
     // The native PlayerAvatarHeroInfo carries four slots and serialized transforms.
     for slot in 1..=4 {
@@ -1156,6 +1171,22 @@ async fn avatar_appearance(db: &mut SqliteConnection, account: i64, h: &Value) -
     Ok(out)
 }
 
+async fn save_avatar_appearance(
+    db: &mut SqliteConnection,
+    account: i64,
+    avatar_index: i64,
+    appearance: &Value,
+) -> Result<()> {
+    // Zero is an explicit normal cosmetic, not a fallback to equipped gear.
+    // Store the complete wire appearance, including empty accessory slots and
+    // serialized transforms. Later equipment/position edits never rebuild it.
+    sqlx::query("INSERT INTO lobby_appearance(account_id,avatar_hero_index,costume_index,hair_costume_index,weapon_costume_index,hide_unique_weapon,snapshot) VALUES (?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET avatar_hero_index=excluded.avatar_hero_index,costume_index=excluded.costume_index,hair_costume_index=excluded.hair_costume_index,weapon_costume_index=excluded.weapon_costume_index,hide_unique_weapon=excluded.hide_unique_weapon,snapshot=excluded.snapshot")
+        .bind(account).bind(avatar_index).bind(n(appearance, "CostumeIndex"))
+        .bind(n(appearance, "HairCostumeIndex")).bind(n(appearance, "WeaponCostumeIndex"))
+        .bind(n(appearance, "HideUniqueWeapon")).bind(appearance.to_string()).execute(db).await?;
+    Ok(())
+}
+
 pub(crate) async fn avatar_info(
     db: &mut SqliteConnection,
     state: &AppState,
@@ -1166,6 +1197,16 @@ pub(crate) async fn avatar_info(
             .bind(account)
             .fetch_one(&mut *db)
             .await?;
+    let saved = sqlx::query("SELECT * FROM lobby_appearance WHERE account_id=? AND avatar_hero_index=?")
+        .bind(account).bind(avatar).fetch_optional(&mut *db).await?;
+    let previous: Option<Value> = saved.as_ref().and_then(|row| row.get::<Option<String>, _>("snapshot"))
+        .map(|snapshot| serde_json::from_str(&snapshot)).transpose()
+        .map_err(|e| ServerError::Internal(e.to_string()))?;
+    if let Some(snapshot) = &previous {
+        if snapshot.get("SprkLobbyRenderInfo").is_some() {
+            return Ok(snapshot.clone());
+        }
+    }
     // Modern avatar IDs encode hero/star, or 10000 + costume index.
     let index = if avatar >= 10000 {
         state
@@ -1182,10 +1223,24 @@ pub(crate) async fn avatar_info(
     };
     let h = info(db, account, index).await?;
     let mut out = avatar_appearance(db, account, &h).await?;
-    out["AccountId"] = json!(account);
-    if avatar >= 10000 {
-        out["CostumeIndex"] = json!(avatar - 10000);
+    if let Some(previous) = previous {
+        let render_info = out["SprkLobbyRenderInfo"].take();
+        out = previous;
+        out["SprkLobbyRenderInfo"] = render_info;
     }
+    out["AccountId"] = json!(account);
+    out["CostumeIndex"] = json!(if avatar >= 10000 { avatar - 10000 } else { 0 });
+    if let Some(saved) = saved {
+        for (key, column) in [
+            ("CostumeIndex", "costume_index"), ("HairCostumeIndex", "hair_costume_index"),
+            ("WeaponCostumeIndex", "weapon_costume_index"), ("HideUniqueWeapon", "hide_unique_weapon"),
+        ] {
+            out[key] = json!(saved.get::<i64, _>(column));
+        }
+    }
+    // Freeze first-login accessories for older snapshots while preserving any
+    // previously saved body/hair/weapon values. Earlier accessories are unknown.
+    save_avatar_appearance(db, account, avatar, &out).await?;
     Ok(out)
 }
 pub(crate) async fn bookmarks(db: &mut SqliteConnection, account: i64) -> Result<Value> {

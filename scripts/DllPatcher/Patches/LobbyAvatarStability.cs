@@ -30,6 +30,25 @@ partial class Program {
         var builder=map.Methods.Single(m=>m.Name=="CreateAvatarHeroRenderFacadeBuilder");
         var clone=builder.Body.Instructions.Single(i=>i.Operand is MethodReference r && ((r.DeclaringType.Name=="SprkAccounts" && r.Name=="CreateLobbyAvatarHeroInfo") || (r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Create") || (r.DeclaringType.Name=="Customizing_Extension_Method" && r.Name=="CreatePlayerAvatarHeroInfo")));
         clone.Operand=Hook("Create");clone.OpCode=OpCodes.Call;
+        var build=builder.Body.Instructions.Single(i=>i.Operand is MethodReference r &&
+            (r.DeclaringType.FullName=="NGame2.N3D.RenderFacadeBuilder" && r.Name==".ctor" ||
+             r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Build"));
+        build.OpCode=OpCodes.Call;build.Operand=Hook("Build");
+        var selection=game.GetType("NGame2.NUtil.NCostume.PlayerAvatarInfo").Methods.Single(m=>m.Name=="IsEqualCurrentPlayerAvatarHero");
+        var equal=selection.Body.Instructions.Single(i=>i.Operand is MethodReference r &&
+            (r.Name=="IsEqualCostumeInfo" || r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="IsEqualCostumeAndRender"));
+        equal.Operand=Hook("IsEqualCostumeAndRender");equal.OpCode=OpCodes.Call;
+        var parse=game.GetType("JM_NShared_PlayerAvatarHeroInfo").Methods.Single(m=>m.Name=="Parse" &&
+            m.Parameters.Count==2 && m.Parameters[0].ParameterType.FullName=="System.Collections.IDictionary");
+        if(!parse.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="ReadRenderSnapshot")) {
+            var il=parse.Body.GetILProcessor();
+            foreach(var ret in parse.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Dup;
+                var arg=il.Create(OpCodes.Ldarg_0);il.InsertAfter(ret,arg);
+                var read=il.Create(OpCodes.Call,Hook("ReadRenderSnapshot"));il.InsertAfter(arg,read);
+                il.InsertAfter(read,il.Create(OpCodes.Ret));
+            }
+        }
         var create=map.Methods.Single(m=>m.Name=="CreatePlayerAvatar");
         if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Bind")) {
             var il=create.Body.GetILProcessor();var first=create.Body.Instructions[0];il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));il.InsertBefore(first,il.Create(OpCodes.Call,Hook("Bind")));
@@ -67,6 +86,19 @@ partial class Program {
             VerifyArenaResultStack(method);
         }
         var map=game.GetType("NGame2.NUI.NWorldMap.MapLayout");
+        var parse=game.GetType("JM_NShared_PlayerAvatarHeroInfo").Methods.Single(m=>m.Name=="Parse" &&
+            m.Parameters.Count==2 && m.Parameters[0].ParameterType.FullName=="System.Collections.IDictionary");
+        if(parse.Body.Instructions.Count(i=>i.OpCode==OpCodes.Ret)!=parse.Body.Instructions.Count(i=>
+            i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="ReadRenderSnapshot"))
+            throw new Exception("Every avatar parse exit must capture its render snapshot");
+        VerifyArenaResultStack(parse);
+        var builder=map.Methods.Single(m=>m.Name=="CreateAvatarHeroRenderFacadeBuilder");
+        if(builder.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="Build")!=1)
+            throw new Exception("Lobby render must use saved equipment");
+        var selection=game.GetType("NGame2.NUtil.NCostume.PlayerAvatarInfo").Methods.Single(m=>m.Name=="IsEqualCurrentPlayerAvatarHero");
+        if(selection.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name=="IsEqualCostumeAndRender")!=1)
+            throw new Exception("Lobby reselection must compare saved render equipment and rank");
+        VerifyArenaResultStack(selection);
         foreach(var pair in new[]{("CreateAvatarHeroRenderFacadeBuilder","Create"),("CreatePlayerAvatar","Bind")}) {
             var m=map.Methods.Single(m=>m.Name==pair.Item1);
             if(m.Body.Instructions.Count(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkLobbyAvatar" && r.Name==pair.Item2)!=1)throw new Exception("Missing/duplicated lobby hook "+pair);
@@ -97,6 +129,12 @@ partial class Program {
         foreach(var name in new[]{"get_IsDone","get_IsValid","ChangeCustomizeStock","Clone","TryAssignCustomizeStock","GetCreatureOpenData","GetStock","GetCutomizeItemInstance","Observe","IsAppearanceChange","Invoke"})if(!calls.Any(r=>r.Name==name))throw new Exception("Missing lobby safeguard "+name);
         var create=helper.MainModule.GetType("SprkLobbyAvatar").Methods.Single(m=>m.Name=="Create");
         if(!create.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name=="CreatePlayerAvatarHeroInfo" && i.Previous.OpCode==OpCodes.Ldarg_1))throw new Exception("Lobby appearance must use the selected costume snapshot");
+        foreach(var name in new[]{"Create","CurrentHero"})
+            if(helper.MainModule.GetType("SprkLobbyAvatar").Methods.Single(m=>m.Name==name).Body.Instructions.Count(i=>i.Operand is MethodReference r && r.Name=="ApplyRenderSnapshot")!=1)
+                throw new Exception("Lobby copy must use saved awakening rank: "+name);
+        var build=helper.MainModule.GetType("SprkLobbyAvatar").Methods.Single(m=>m.Name=="Build");
+        if(!build.Body.Instructions.Any(i=>i.Operand is MethodReference r && r.Name==".ctor" && r.DeclaringType.Name=="RenderFacadeBuilder" && r.Parameters.Count==4))
+            throw new Exception("Lobby builder must receive the saved equipment list explicitly");
         var matches=helper.MainModule.GetType("SprkLobbyAccessoryLease").Methods.Single(m=>m.Name=="Matches");
         if(!matches.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ceq || i.Operand is MethodReference r && r.Name=="ReferenceEquals"))throw new Exception("Lobby refresh must compare owner identity");
         if(calls.Any(r=>r.Name=="ReleaseRenderFacade" || r.Name=="CreateRenderFacade"))throw new Exception("Accessory refresh must retain the live hero body");
@@ -128,11 +166,12 @@ partial class Program {
     static void TestLobbyAccessoryReconciliation(string root,byte[] helperBytes) {
         var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));
         var key=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(helperBytes));
-        Assembly? nativeFixture=null;
+        Assembly? nativeFixture=null,helperFixture=null;
         var nativeName="SPRK.LobbyAccessory.Native."+key;
         ResolveEventHandler resolve=(_,e)=>{
             var name=new AssemblyName(e.Name).Name;
             if(name==nativeName)return nativeFixture;
+            if(name=="SPRK.LobbyAccessory.Helper."+key)return helperFixture;
             var p=Path.Combine(managed,name+".dll");return File.Exists(p)?Assembly.LoadFrom(p):null;
         };
         AppDomain.CurrentDomain.AssemblyResolve+=resolve;
@@ -144,6 +183,7 @@ partial class Program {
                 using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
                 using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"),new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
                 using var input=new MemoryStream(helperBytes);using var bridge=AssemblyDefinition.ReadAssembly(input);
+                PatchLobbyAvatarStability(game.MainModule,bridge.MainModule);
                 var helperName="SPRK.LobbyAccessory.Helper."+key;
                 game.Name.Name=nativeName;bridge.Name.Name=helperName;
                 foreach(var module in new[]{game.MainModule,bridge.MainModule})foreach(var reference in module.AssemblyReferences) {
@@ -154,6 +194,7 @@ partial class Program {
                 using var bridgeBytes=new MemoryStream();bridge.Write(bridgeBytes);helper=Assembly.Load(bridgeBytes.ToArray());
                 LobbyReconciliationAssemblies[key]=helper;
             }
+            helperFixture=helper;
             var reconcile=helper.GetType("SprkLobbyAvatar")!.GetMethod("Reconcile")!;
             var native=reconcile.GetParameters()[0].ParameterType.Assembly;
             TestLobbyAppearance(helper,native);
@@ -264,6 +305,52 @@ partial class Program {
         if(Profile(null,17201)!=17201)throw new Exception("Unloaded hero lost the native profile fallback");
         Console.WriteLine("PASS: selected profile icon/portrait survives ordinary and Light costume equip/unequip and live hero replacement.");
         Console.WriteLine("PASS: live body/hair/basic and costume weapon changes, weapon visibility, accessory equip/unequip and all seven transform edits; snapshot isolation, stable no-op and selected-hero notification scope.");
+        TestLobbyRenderSnapshot(helper,native);
+    }
+    static void TestLobbyRenderSnapshot(Assembly helper,Assembly native) {
+        var hooks=helper.GetType("SprkLobbyAvatar")!;
+        var marshal=native.GetType("JM_NShared_PlayerAvatarHeroInfo")!;
+        var parse=marshal.GetMethod("Parse",new[]{typeof(System.Collections.IDictionary)})!;
+        var item=new System.Collections.Hashtable{{"ItemIndex",111L},{"SlotIndex",7L},
+            {"SoulWeaponInfo",new System.Collections.Hashtable{{"Grade",2L}}}};
+        var info=new System.Collections.Hashtable{{"Star",3L},{"Equipment",new System.Collections.ArrayList{item}}};
+        var json=new System.Collections.Hashtable{{"HeroIndex",1L},{"SprkLobbyRenderInfo",info}};
+        var avatar=parse.Invoke(null,new object[]{json})!;
+        var equipment=(System.Collections.IList)hooks.GetMethod("GetRenderEquipment")!.Invoke(null,new[]{avatar})!;
+        if(equipment==null || equipment.Count!=1)throw new Exception("Native avatar parser lost equipment snapshot");
+        var savedItem=equipment[0]!;var itemType=savedItem.GetType();
+        item["ItemIndex"]=999L;info["Star"]=5L;
+        ((System.Collections.IDictionary)item["SoulWeaponInfo"]!)["Grade"]=4L;
+        var soul=itemType.GetProperty("SoulWeaponInfo")!.GetValue(savedItem)!;
+        if((int)itemType.GetProperty("ItemIndex")!.GetValue(savedItem)! !=111 ||
+            Convert.ToInt32(soul.GetType().GetProperty("Grade")!.GetValue(soul))!=2)
+            throw new Exception("Saved weapon/soul appearance retained mutable input references");
+        var hero=Activator.CreateInstance(native.GetType("NShared.CachedHeroInfo")!)!;
+        var heroType=hero.GetType();heroType.GetProperty("HeroIndex")!.SetValue(hero,1);
+        heroType.GetProperty("Star")!.SetValue(hero,(sbyte)5);
+        hooks.GetMethod("ApplyRenderSnapshot")!.Invoke(null,new[]{hero,avatar});
+        if((sbyte)heroType.GetProperty("Star")!.GetValue(hero)! !=3)throw new Exception("Live awakening replaced lobby rank");
+        var appearanceType=helper.GetType("SprkLobbyAppearance")!;
+        var appearance=Activator.CreateInstance(appearanceType)!;
+        int Observe()=>(int)appearanceType.GetMethod("Observe")!.Invoke(appearance,new[]{hero})!;
+        if(Observe()!=0 || Observe()!=0)throw new Exception("Stable render snapshot rebuilt lobby");
+        info["Star"]=3L;
+        var gearChanged=parse.Invoke(null,new object[]{json})!;
+        hooks.GetMethod("ApplyRenderSnapshot")!.Invoke(null,new[]{hero,gearChanged});
+        if(Observe()!=1 || Observe()!=0)throw new Exception("Same-rank weapon reselection did not rebuild exactly once");
+        info["Star"]=5L;
+        var other=parse.Invoke(null,new object[]{json})!;
+        hooks.GetMethod("ApplyRenderSnapshot")!.Invoke(null,new[]{hero,other});
+        if((sbyte)heroType.GetProperty("Star")!.GetValue(hero)! !=5)throw new Exception("New avatar reused the previous render snapshot");
+        hooks.GetMethod("ApplyRenderSnapshot")!.Invoke(null,new[]{hero,avatar});
+        if((sbyte)heroType.GetProperty("Star")!.GetValue(hero)! !=3)throw new Exception("Another selection mutated the saved rank");
+        var legacy=parse.Invoke(null,new object[]{new System.Collections.Hashtable{{"HeroIndex",1L}}})!;
+        if(hooks.GetMethod("GetRenderEquipment")!.Invoke(null,new[]{legacy})!=null)throw new Exception("Legacy avatar lost native compatibility");
+        info["Equipment"]=new System.Collections.ArrayList();
+        var empty=parse.Invoke(null,new object[]{json})!;
+        var emptyEquipment=(System.Collections.IList)hooks.GetMethod("GetRenderEquipment")!.Invoke(null,new[]{empty})!;
+        if(emptyEquipment==null || emptyEquipment.Count!=0)throw new Exception("Explicit empty equipment must not use live gear");
+        Console.WriteLine("PASS: native avatar JSON captures independent awakening, weapon and nested soul-weapon snapshots; selection isolation and legacy fallback.");
     }
     static void InstallLobbyAvatarStability(string root,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));

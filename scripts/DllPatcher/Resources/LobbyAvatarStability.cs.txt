@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using NShared;
 using NGameAsset;
@@ -24,6 +26,7 @@ public sealed class SprkLobbyAccessoryLease {
 }
 public sealed class SprkLobbyAppearance {
     readonly CachedHeroInfo saved=new CachedHeroInfo();
+    object renderSnapshot;
     bool initialized;
     static bool SamePosition(PositionInfo a,PositionInfo b) {
         a=a??PositionInfo.Create();b=b??PositionInfo.Create();
@@ -33,7 +36,9 @@ public sealed class SprkLobbyAppearance {
     // 1 means the body/hair/weapon needs rebuilding; 2 changes accessories only.
     public int Observe(CachedHeroInfo hero) {
         if(hero==null)return 0;
-        int changed=initialized && (saved.HeroIndex!=hero.HeroIndex || saved.CostumeIndex!=hero.CostumeIndex ||
+        var render=SprkLobbyAvatar.GetResolvedSnapshot(hero);
+        int changed=initialized && (!System.Object.ReferenceEquals(renderSnapshot,render) || saved.Star!=hero.Star ||
+            saved.HeroIndex!=hero.HeroIndex || saved.CostumeIndex!=hero.CostumeIndex ||
             saved.HairCostumeIndex!=hero.HairCostumeIndex || saved.WeaponCostumeIndex!=hero.WeaponCostumeIndex ||
             saved.HideUniqueWeapon!=hero.HideUniqueWeapon)?1:0;
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
@@ -44,7 +49,7 @@ public sealed class SprkLobbyAppearance {
         }
         saved.HeroIndex=hero.HeroIndex;saved.CostumeIndex=hero.CostumeIndex;
         saved.HairCostumeIndex=hero.HairCostumeIndex;saved.WeaponCostumeIndex=hero.WeaponCostumeIndex;
-        saved.HideUniqueWeapon=hero.HideUniqueWeapon;initialized=true;return changed;
+        saved.HideUniqueWeapon=hero.HideUniqueWeapon;saved.Star=hero.Star;renderSnapshot=render;initialized=true;return changed;
     }
 }
 public sealed class SprkLobbyAccessoryState : MonoBehaviour {
@@ -103,7 +108,61 @@ public sealed class SprkProfilePortraitState : MonoBehaviour {
         Refresh();
     }
 }
+public sealed class SprkLobbyRenderSnapshot {
+    public sbyte Star;
+    public readonly List<EquipItemInfo> Equipment=new List<EquipItemInfo>();
+}
 public static class SprkLobbyAvatar {
+    static readonly ConditionalWeakTable<PlayerAvatarHeroInfo,SprkLobbyRenderSnapshot> renderSnapshots=
+        new ConditionalWeakTable<PlayerAvatarHeroInfo,SprkLobbyRenderSnapshot>();
+    static readonly ConditionalWeakTable<CachedHeroInfo,SprkLobbyRenderSnapshot> resolvedSnapshots=
+        new ConditionalWeakTable<CachedHeroInfo,SprkLobbyRenderSnapshot>();
+    public static object GetResolvedSnapshot(CachedHeroInfo hero) {
+        SprkLobbyRenderSnapshot snapshot;
+        return hero!=null && resolvedSnapshots.TryGetValue(hero,out snapshot)?snapshot:null;
+    }
+    public static void ReadRenderSnapshot(PlayerAvatarHeroInfo avatar,IDictionary json) {
+        if(avatar==null || json==null)return;
+        renderSnapshots.Remove(avatar);
+        var info=json["SprkLobbyRenderInfo"] as IDictionary;
+        if(info==null)return; // Compatibility with servers predating snapshots.
+        var snapshot=new SprkLobbyRenderSnapshot();
+        snapshot.Star=Convert.ToSByte(info["Star"]);
+        var items=info["Equipment"] as IEnumerable;
+        if(items!=null)foreach(var item in items) {
+            var data=item as IDictionary;
+            if(data!=null)snapshot.Equipment.Add(JsonMarshaler.Parse<EquipItemInfo>(data));
+        }
+        renderSnapshots.Add(avatar,snapshot);
+    }
+    public static IList<EquipItemInfo> GetRenderEquipment(PlayerAvatarHeroInfo avatar) {
+        SprkLobbyRenderSnapshot snapshot;
+        return avatar!=null && renderSnapshots.TryGetValue(avatar,out snapshot)?snapshot.Equipment:null;
+    }
+    public static void ApplyRenderSnapshot(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
+        SprkLobbyRenderSnapshot snapshot;
+        if(hero!=null && avatar!=null && hero.HeroIndex==avatar.HeroIndex && renderSnapshots.TryGetValue(avatar,out snapshot)) {
+            hero.Star=snapshot.Star;
+            resolvedSnapshots.Remove(hero);resolvedSnapshots.Add(hero,snapshot);
+        }
+    }
+    public static bool IsEqualCostumeAndRender(CachedHeroInfo hero,PlayerAvatarHeroInfo avatar) {
+        if(!hero.IsEqualCostumeInfo(avatar))return false;
+        SprkLobbyRenderSnapshot snapshot;
+        if(avatar==null || !renderSnapshots.TryGetValue(avatar,out snapshot))return true;
+        if(hero.Star!=snapshot.Star)return false;
+        var live=hero.GetEquipItemInfoList();
+        if(live.Count!=snapshot.Equipment.Count)return false;
+        for(int i=0;i<live.Count;i++)
+            if(JsonMarshaler.EncodeJsonString(live[i])!=JsonMarshaler.EncodeJsonString(snapshot.Equipment[i]))return false;
+        return true;
+    }
+    public static RenderFacadeBuilder Build(Transform parent,TeamType team,HeroInfo hero) {
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        var avatar=account.UserManager.PlayerAvatarHeroInfo;
+        var equipment=avatar!=null && hero.HeroIndex==avatar.HeroIndex?GetRenderEquipment(avatar):null;
+        return equipment==null?new RenderFacadeBuilder(parent,team,hero):new RenderFacadeBuilder(parent,team,hero,equipment);
+    }
     public static int ProfileAvatarIndex(CachedHeroInfo hero,int fallback) {
         return fallback;
     }
@@ -128,7 +187,10 @@ public static class SprkLobbyAvatar {
         var account=GlobalAutoBehaviour<AccountManager>.instance;
         if(account.HeroManager==null)return null;
         var hero=account.HeroManager.Get(new UIAvatarHelper.AvatarInfo(account.UserManager.AvatarHeroIndex).HeroIndex);
-        return hero==null?null:hero.CreatePlayerAvatarHeroInfo(account.UserManager.PlayerAvatarHeroInfo);
+        if(hero==null)return null;
+        var copy=hero.CreatePlayerAvatarHeroInfo(account.UserManager.PlayerAvatarHeroInfo);
+        ApplyRenderSnapshot(copy,account.UserManager.PlayerAvatarHeroInfo);
+        return copy;
     }
     public static bool IsAppearanceChange(UserHeroManager.ChangeHeroInfo change,int hero) {
         if(change==null || change.HeroIndex!=hero)return false;
@@ -168,6 +230,7 @@ public static class SprkLobbyAvatar {
         if(hero==null)return null;
         var account=GlobalAutoBehaviour<AccountManager>.instance;
         var copy=hero.CreatePlayerAvatarHeroInfo(avatar);
+        ApplyRenderSnapshot(copy,avatar);
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
             int index=copy.GetAccessoryIndex(part);
             if(index!=0 && account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(copy.HeroIndex,index))==null)index=0;
