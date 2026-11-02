@@ -139,15 +139,20 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         } else {
             None
         };
-        if let Some(trial) = hero::trial(
+        let trial=hero::trial(
             s,
             a,
             int(&req, "ChapterIndex")? as i32,
             int(&req, "DungeonIndex")? as i32,
             completed,
         )
-        .await?
-        {
+        .await;
+        let trial=match trial {
+            Ok(value)=>value,
+            Err(ServerError::InvalidRequest(code))=>return Ok(rejected(s,path,a,code)),
+            Err(error)=>return Err(error),
+        };
+        if let Some(trial)=trial {
             let mut out = response(s, path);
             if completed.is_some() {
                 out["ItemResults"] = trial["ItemResults"].clone();
@@ -208,26 +213,19 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
-            tracing::warn!(path, account = a, reason = %code, "Battle request rejected");
-            let c = s
-                .tables
-                .battle
-                .contracts
-                .get(path)
-                .map(|v| &v["Results"])
-                .unwrap_or(&Value::Null);
-            let code = if c.as_array().is_some_and(|v| v.contains(&json!(code))) {
-                code
-            } else {
-                "Fail".into()
-            };
-            Ok(json!({"BaseResult":"Success","Result":code}))
+            Ok(rejected(s,path,a,code))
         }
         Err(e) => {
             tracing::error!(path, account = a, error = %e, "Battle request failed");
             Err(e)
         }
     }
+}
+fn rejected(s:&AppState,path:&str,a:i64,code:String)->Value {
+    tracing::warn!(path,account=a,reason=%code,"Battle request rejected");
+    let supported=s.tables.battle.contracts.get(path).and_then(|v|v["Results"].as_array())
+        .is_some_and(|values|values.contains(&json!(code)));
+    json!({"BaseResult":"Success","Result":if supported{code}else{"Fail".into()}})
 }
 fn response(s: &AppState, path: &str) -> Value {
     let mut out = item::success();
