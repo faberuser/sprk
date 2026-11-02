@@ -35,3 +35,7 @@ python -m unittest discover -s scripts -t . -p 'test_*client*.py'
 
 `start_server.bat` at the repository root calls `server/start_local_server.ps1`.
 Docker and GitHub Actions use the organized paths directly.
+
+Co-op heartbeat persistence and native replay clocks are covered by
+`python scripts/client/verify_coop_timing.py`; see
+[cooperative battle timing](../docs/coop-timing.md).

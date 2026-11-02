@@ -40,6 +40,20 @@ public static class SprkArenaLatencyProbe {
         var raiserField=typeof(BattleFacade).GetField("_battleLogRaiser",flags);var originalRaiser=raiserField.GetValue(facade);
         var host=new GameObject("ArenaAutoFixture");host.SetActive(false);
         try {
+            SprkConquest.Login(new Dictionary<string,object>{{"MatchUid","0"},{"MasterId","123"}});
+            long coopClock=1000;Check(SprkConquest.FilterClock(ref coopClock) && coopClock==1000,"Co-op clock must filter without adding a buffer");
+            coopClock=1000;Check(!SprkConquest.FilterClock(ref coopClock),"Duplicate co-op heartbeat restarted extrapolation");
+            var battle=new BattleInstance();battle.SetCampaignDungeon(1000,1,0,false);
+            battle.GlobalTimer.Set(1000);battle.SetWaveIndex(1,3);battle.OnWaveReadyBattle();
+            Check(battle.GlobalTimer.GetCurrentTimeMs()==1000,"Native WaveReady unexpectedly resets the global clock");
+            battle.GlobalTimer.Set(6000);battle.SetWaveIndex(2,3);battle.OnWaveReadyBattle();
+            Check(battle.GlobalTimer.GetCurrentTimeMs()==6000,"Native wave transition resets the global clock");
+            coopClock=6000;Check(SprkConquest.FilterClock(ref coopClock) && coopClock==6000,"Next wave cannot advance the co-op clock");
+            coopClock=3000;Check(!SprkConquest.FilterClock(ref coopClock),"Old-wave heartbeat rewound the next wave");
+            SprkConquest.Login(new Dictionary<string,object>{{"MasterId","123"}});
+            coopClock=0;Check(SprkConquest.FilterClock(ref coopClock) && coopClock==0,"Co-op reconnect cannot reset its history clock");
+            SprkConquest.Login(new Dictionary<string,object>());
+            coopClock=20;Check(SprkConquest.FilterClock(ref coopClock) && coopClock==20,"Offline clock behavior changed");
             SprkConquest.Login(new Dictionary<string,object>{{"MatchUid","123"}});
             long clock=1000;Check(SprkConquest.FilterClock(ref clock) && clock==900,"Arena login did not enable replay headroom");
             clock=900;Check(!SprkConquest.FilterClock(ref clock),"Older heartbeat replaced a combat clock");
@@ -83,7 +97,7 @@ public static class SprkArenaLatencyProbe {
             int count=raiser.Count;creature.Player.Id=999999;
             select.Invoke(ui,new object[]{creature});
             Check(raiser.Count==count,"Auto selected another player's hero");
-            return "PASS: Victory/Honor native Auto on/off, campaign isolation, x1 eligibility, native automatic skill reservation and ownership.";
+            return "PASS: co-op zero-buffer/stale clocks, native wave continuity and reconnect reset; Victory/Honor Auto on/off, campaign isolation, x1 eligibility, native skill reservation and ownership.";
         } finally {SprkConquest.Login(new Dictionary<string,object>());cacheField.SetValue(context,originalCache);raiserField.SetValue(facade,originalRaiser);UnityEngine.Object.Destroy(host);}
     }
 }

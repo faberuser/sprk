@@ -17,6 +17,12 @@ public static class BattleTransportTests {
         time=0;Check(new SprkReplayClock(100).Accept(ref time) && time==0,"New battle cannot reset to zero");
         time=1000;Check(new SprkReplayClock(999).Accept(ref time) && time==800,"Replay buffer must be bounded");
         time=1000;Check(new SprkReplayClock(-1).Accept(ref time) && time==1000,"Zero buffer diagnostic mode failed");
+        var coop=new SprkReplayClock(0);
+        time=2000;Check(coop.Accept(ref time) && time==2000,"Co-op must add no replay buffer");
+        time=2000;Check(!coop.Accept(ref time),"Duplicate co-op heartbeat restarted clock extrapolation");
+        time=6000;Check(coop.Accept(ref time) && time==6000,"Next-wave global time must advance");
+        time=3000;Check(!coop.Accept(ref time),"Old-wave heartbeat rewound the next wave");
+        time=0;Check(new SprkReplayClock(0).Accept(ref time),"Co-op reconnect/new battle must accept replay history from zero");
 
         var listener=new TcpListener(IPAddress.Loopback,0);listener.Start();
         var socket=new TcpClient();socket.Connect((IPEndPoint)listener.LocalEndpoint);

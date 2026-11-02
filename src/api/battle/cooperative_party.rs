@@ -1190,6 +1190,10 @@ mod tests {
         let mut results=vec![];
         for client in clients { results.push(tokio::time::timeout(std::time::Duration::from_secs(180),client).await.unwrap().unwrap()); }
         assert_eq!(results[0],results[1]); if !dragon {assert_eq!(results[0].0["Win"],true);}
+        for (_,logs) in &results {
+            assert!(logs.windows(2).all(|pair|number(&pair[1],"ServerTimeMs")>=number(&pair[0],"ServerTimeMs")),
+                "Co-op global clocks must remain monotonic across native waves");
+        }
         assert!(number(&results[0].0,"MaxWaveIndex")>=leave_wave);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
         assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
