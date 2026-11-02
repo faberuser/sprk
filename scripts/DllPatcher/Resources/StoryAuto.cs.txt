@@ -35,6 +35,8 @@ public static partial class SprkStoryAuto
     static TutorialData lastTutorialStep;
     static SubStoryEventData lastSubstoryStep;
     static bool caveCompletionRequested;
+    static bool clauseCompletionRequested;
+    static float clauseResumeAfter;
     static int[] storyMainParty, storySubParty;
     static readonly FieldInfo currentSquard = typeof(BattlePartySetting).GetField("_currentSquard", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly FieldInfo autoStarted = typeof(BattlePartySetting).GetField("_isAutoCampaign", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -375,7 +377,12 @@ public static partial class SprkStoryAuto
             !SceneAutoBehaviour<WorldMapManagement>.isValidInstance || !SceneAutoBehaviour<LobbyCampaignDungeon>.isValidInstance) return;
         var world = SceneAutoBehaviour<WorldMapManagement>.instance;
         if (world.IsMapLoading) return;
+        if (SceneAutoBehaviour<LobbyManagement>.isValidInstance) {
+            var recruitment = SceneAutoBehaviour<LobbyManagement>.instance.GetInstance<GetNewHero2>(false);
+            if (recruitment != null && (recruitment.ReservedOpenTask || recruitment.IsOpen())) return;
+        }
         var manager = GlobalAutoBehaviour<AccountManager>.instance.CampaignManager;
+        if (RecoverSkippedClause()) return;
         if ((IsChapter10Finale(pendingNext.Chapter, pendingNext.OriginalDungeon) || pendingNext.Chapter == 50000) &&
             manager.IsCompleted(pendingNext.Chapter, pendingNext.OriginalDungeon)) {
             var next = NextRoute(pendingNext);
@@ -596,6 +603,46 @@ public static partial class SprkStoryAuto
                 if (success) lastProgress = Time.realtimeSinceStartup;
                 else Stop();
             });
+    }
+
+    static bool RecoverSkippedClause()
+    {
+        if (Time.realtimeSinceStartup < clauseResumeAfter) return true;
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        // Tutorial skip disables event 10034 and its 20001 -> 20002 chain.
+        // Login recovery alone leaves the running client's roster stale. Claim
+        // the same server-validated, idempotent receipts before the next entry.
+        if (!account.IsTutorialSkip || !account.CampaignManager.IsCompleted(1, 20) ||
+            account.TutorialManager.IsComplete(20002)) return false;
+        if (clauseCompletionRequested) return true;
+        int index = account.TutorialManager.IsComplete(20001) ? 20002 : 20001;
+        clauseCompletionRequested = true;
+        SingletonUpdater<WebServiceManager>.instance.Requester.Request<NShared.CompleteTutorial.Request, NShared.CompleteTutorial.Response>(
+            new NShared.CompleteTutorial.Request { TutorialIndex = index }, delegate(NShared.CompleteTutorial.Response response) {
+                clauseCompletionRequested = false;
+                if (!GlobalAutoBehaviour<AccountManager>.isValidInstance ||
+                    !object.ReferenceEquals(account, GlobalAutoBehaviour<AccountManager>.instance)) return;
+                if (response == null || response.BaseResult != BaseResultType.Success ||
+                    response.Result != NShared.CompleteTutorial.ResultType.Success || response.Info == null || response.Info.TutorialIndex != index) {
+                    if (Active()) Stop();
+                    return;
+                }
+                // Apply even if the run was stopped while the request was in
+                // flight. The server has already awarded these account rewards.
+                account.TutorialManager.Apply(response.Info);
+                account.UserManager.Apply(response.CurrencyResults);
+                account.CampaignManager.Apply(response.DungeonInfos);
+                account.ItemManager.Apply(response.ItemResults);
+                account.EquipItemManager.Apply(response.EquipItemResults);
+                // LobbyPopupQueue deliberately refuses to open while AutoNext
+                // is enabled. Use the native immediate recruitment queue, then
+                // allow its opening task to run before another party can open.
+                account.ApplyAddHeroForTutorial(response.HeroInfos, response.TeamExpResultInfos, false);
+                account.UserManager.Apply(response.StaminaResultInfos);
+                clauseResumeAfter = Time.realtimeSinceStartup + 0.5f;
+                if (Active()) lastProgress = Time.realtimeSinceStartup;
+            });
+        return true;
     }
 
     // Normal story is the entry difficulty; requiring an Easy clear prevents every first clear.

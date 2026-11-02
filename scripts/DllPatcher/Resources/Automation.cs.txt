@@ -655,6 +655,18 @@ public sealed class SprkAutomation : MonoBehaviour
                     {"chapter",enter==null?0:enter.Chapter},{"dungeon",enter==null?0:enter.OriginalDungeon},
                     {"difficulty",enter==null?"":enter.Difficulty.ToString()},{"scenario",enter!=null && enter.IsScenario},
                     {"tutorial",tutorial.IsProgressing},{"tutorialCommand",tutorial.CurrentTutorialData==null?"":tutorial.CurrentTutorialData.Command}});
+                if(NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.isValidInstance && NGame2.NAccount.AccountManager.IsLogined()) {
+                    var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","storyRecruitment"},{"clauseOwned",account.GetHeroInfo(15)!=null},
+                        {"tutorialSkip",account.IsTutorialSkip},{"unlockComplete",account.TutorialManager.IsComplete(20001)},
+                        {"recruitmentComplete",account.TutorialManager.IsComplete(20002)}});
+                }
+                foreach(var cutscene in UnityEngine.Object.FindObjectsOfType<NGame2.NCutScene.CutSceneManager>()) {
+                    var group=cutscene.CurrentScriptGroup;
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","storyCutscene"},{"path",cutscene.ScriptPath},
+                        {"playing",cutscene.IsPlaying},{"loading",cutscene.IsLoading},{"script",cutscene.CurrentScript},
+                        {"touch",group==null?"":group.TouchType.ToString()},{"skip",group==null?"":group.SkipType.ToString()}});
+                }
                 foreach(var party in UnityEngine.Object.FindObjectsOfType<NGame2.NUI.NWindow.BattlePartySetting>()) {
                     var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
                     var provider=(NGame2.NUI.NWindow.BattlePartySetting.IDataProvider)typeof(NGame2.NUI.NWindow.BattlePartySetting).GetField("_dataProvider",flags).GetValue(party);

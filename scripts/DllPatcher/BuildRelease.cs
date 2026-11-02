@@ -108,6 +108,7 @@ partial class Program
         VerifySoulWeaponCinematicFile(clientRoot, false);
         VerifySoulLiberationCostFile(clientRoot);
         VerifyStoryAutoFile(clientRoot);
+        TestStoryAutoRecovery();
         TestStoryAutoCancellation();
         TestCampaignSurvivors();
         TestMailUpdates();

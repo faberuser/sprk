@@ -342,6 +342,21 @@ Back stack and input-block owners. `click-and-stop-story` clicks a specified
 Continuous Story button and immediately invokes the native Stop action in the
 same update, for reproducible cancellation testing without a battle request.
 
+Continuous Story also recovers Clause's skipped recruitment after a confirmed
+1-20 clear, before entering the next stage. With tutorial skip enabled, it claims
+the native 20001 and 20002 completion receipts in order and applies their rewards
+to the running account. Recruitment uses the native immediate window queue:
+the ordinary lobby popup queue pauses while AutoNextBattle is enabled. Entry
+waits for the recruitment opening task and window to finish. Native tutorials
+remain responsible for recruitment when tutorial skip is disabled.
+
+`--self-test-story-auto-recovery` exercises the shipping recovery method against
+controlled request/account stand-ins, including eligibility, receipt ordering,
+duplicate requests, reward application, announcement routing, cancellation,
+failed responses and account changes. The full release build runs this test.
+`story-auto-probe` reports the local Clause roster/recruitment flags and current
+cutscene path/touch/skip state for real-client checks.
+
 ### Soul Weapon unlock cinematic
 
 `--soul-liberation-cost-only` restores the gold requirement on the initial
