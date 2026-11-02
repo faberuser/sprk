@@ -77,6 +77,23 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
             decks["Arena"] = deck;
         }
     }
+    // Friends/Guild use the native Campaign deck, independently of Victory.
+    // Store it durably because battle_runs is replaced by raids and other modes.
+    let mut campaign = crate::api::battle::get(&mut db,target,"inspection_deck",1).await?;
+    if campaign.is_null() {
+        if let Some((started,entry)) = sqlx::query_as::<_,(i64,String)>("SELECT started,entry FROM battle_runs WHERE account=?")
+            .bind(target).fetch_optional(&mut *db).await? {
+            campaign = crate::api::battle::campaign_inspection_deck(&state,&super::parse(&entry)?,started).unwrap_or(Value::Null);
+        }
+    }
+    if campaign.is_object() {
+        let valid: Vec<i64> = (1..=4).map(|slot|super::n(&campaign,&format!("HeroIndex{slot}")))
+            .filter(|id|heroes.contains_key(&id.to_string())).collect();
+        if !valid.is_empty() {
+            for slot in 0..4 { campaign[format!("HeroIndex{}",slot+1)] = json!(valid.get(slot).copied().unwrap_or(0)); }
+            decks["Campaign"] = campaign;
+        }
+    }
     let guild: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
         .bind(target).fetch_optional(&mut *db).await?;
     let guild_info = if let Some(g) = guild { super::guild::state(&mut db, &state, g).await? } else { Value::Null };

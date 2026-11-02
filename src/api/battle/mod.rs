@@ -332,6 +332,20 @@ pub(crate) async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64)
         .transpose()?
         .unwrap_or(Value::Null))
 }
+pub(crate) fn campaign_inspection_deck(s: &AppState, entry: &Value, played: i64) -> Option<Value> {
+    let chapter = n(entry,"ChapterIndex");
+    let dungeon = n(entry,"DungeonIndex");
+    let definition = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex",chapter),("DungeonIndex",dungeon)])?;
+    if n(definition,"BattleType") != 1 || entry["ScenarioDungeon"] == true ||
+        entry["PresetStoryParty"].is_object() || entry["LoanedHeroIndices"].as_array().is_some_and(|v|!v.is_empty()) {
+        return None;
+    }
+    let ids: Vec<i64> = entry["Heroes"].as_array()?.iter().filter_map(Value::as_i64).filter(|id|*id>0).take(4).collect();
+    if ids.is_empty() { return None; }
+    let mut deck = json!({"BattleType":"Campaign","ChapterIndex":chapter,"DungeonIndex":dungeon,"PlayedTime":time(played)});
+    for slot in 0..4 { deck[format!("HeroIndex{}",slot+1)] = json!(ids.get(slot).copied().unwrap_or(0)); }
+    Some(deck)
+}
 pub(crate) async fn put(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
     sqlx::query("INSERT INTO battle_state(account,kind,idx,data) VALUES(?,?,?,?) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
     Ok(())

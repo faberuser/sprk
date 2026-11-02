@@ -1133,6 +1133,35 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
 }
 
 #[tokio::test]
+async fn hero_info_keeps_campaign_and_victory_squads_separate_for_native_categories() {
+    let (s,a,b)=setup().await;
+    let target=b.user_info.account_id;
+    let played=super::now();
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,90,5)")
+        .bind(target).execute(&s.db).await.unwrap();
+    sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,0,?,'complete',?)")
+        .bind(target).bind(super::now()).bind(json!({"Heroes":[1],"DuelType":0}).to_string()).execute(&s.db).await.unwrap();
+    let entry=json!({"ChapterIndex":1,"DungeonIndex":1,"Heroes":[2],"ScenarioDungeon":false});
+    sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,'legacy-inspect',?,1,?,'{}')")
+        .bind(target).bind(played).bind(entry.to_string()).execute(&s.db).await.unwrap();
+    let inspect=|category:&str|form(&a,&format!("TargetAccountId={target}&Category={category}"));
+    let first=friend::inspect_user(State(s.clone()),inspect("Friend")).await.unwrap().0;
+    let decks=&first["CachedAccountInfo"]["DeckInfos"];
+    assert_eq!(decks["Campaign"]["HeroIndex1"],2,"recover real legacy campaign entry");
+    assert_eq!(decks["Campaign"]["HeroIndex2"],0);
+    assert_eq!(decks["Campaign"]["BattleType"],"Campaign");
+    assert_eq!(decks["Arena"]["HeroIndex1"],1,"campaign must not replace Victory");
+    let deck=crate::api::battle::campaign_inspection_deck(&s,&entry,played).unwrap();
+    crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"inspection_deck",1,&deck).await.unwrap();
+    sqlx::query("UPDATE battle_runs SET entry='{}' WHERE account=?").bind(target).execute(&s.db).await.unwrap();
+    let next=friend::inspect_user(State(s.clone()),inspect("Arena")).await.unwrap().0;
+    assert_eq!(next["CachedAccountInfo"]["DeckInfos"],*decks,"later unrelated battles retain both independent teams");
+    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='inspection_deck'").bind(target).execute(&s.db).await.unwrap();
+    let missing=friend::inspect_user(State(s),inspect("Friend")).await.unwrap().0;
+    assert!(missing["CachedAccountInfo"]["DeckInfos"]["Campaign"].is_null(),"never substitute Victory for missing campaign history");
+}
+
+#[tokio::test]
 async fn hero_info_shows_victory_deck_and_current_stats_without_registering_unranked_players() {
     let (s,a,b) = setup().await;
     let target=b.user_info.account_id;
