@@ -4,6 +4,33 @@ use crate::database;
 use std::sync::Arc;
 
 #[tokio::test]
+async fn inn_greeting_completes_guideline_and_recovers_existing_greetings_once() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
+    let quest=s.tables.progression.sub_quests.iter().find(|q|n(q,"QuestIndex")==10162).unwrap();
+    let greeting=crate::api::heroes::inn::request_new_friendly_hero(State(s.clone()),axum::extract::Form(crate::api::heroes::inn::RequestNewFriendlyHeroRequest {
+        session_id:None,session_key:Some(u.user_info.session_key.clone())
+    })).await.unwrap().0.friendly_info.unwrap();
+    let progress=|s:AppState,quest:Value|async move {
+        View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap().quest(&s,&quest)
+    };
+    assert_eq!(progress(s.clone(),quest.clone()).await,0);
+    let reply=crate::api::heroes::inn::do_hero_friendly(State(s.clone()),axum::extract::Form(crate::api::heroes::inn::DoHeroFriendlyRequest {
+        session_id:None,session_key:Some(u.user_info.session_key.clone()),hero_index:Some(greeting.hero_index.to_string()),action:Some("Greeting".into())
+    })).await.unwrap().0;
+    assert_eq!(reply.result,"Success");assert_eq!(progress(s.clone(),quest.clone()).await,1);
+    // An ordinary read/update of the Inn must not award another greeting.
+    sqlx::query("UPDATE hero_friendly_info SET friendly_point=friendly_point WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    assert_eq!(progress(s.clone(),quest.clone()).await,1);
+    // Simulate a greeting stored before these triggers existed.
+    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='DoHeroFriendly'").bind(account).execute(&s.db).await.unwrap();
+    schema::migrate(&s.db).await.unwrap();schema::migrate(&s.db).await.unwrap();
+    assert_eq!(progress(s.clone(),quest.clone()).await,1);
+    let claim=call(&s,&u,"complete_sub_quest","SubQuestIndices=[10162]").await;
+    assert_eq!(claim["Result"],"Success","{claim}");
+    assert_ne!(call(&s,&u,"complete_sub_quest","SubQuestIndices=[10162]").await["Result"],"Success");
+}
+
+#[tokio::test]
 async fn notification_middleware_skips_reads_and_cosmetics_and_negotiates_unchanged_state() {
     use tower::ServiceExt;
     let (s,u)=setup().await;
