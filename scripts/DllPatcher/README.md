@@ -14,6 +14,18 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--team-exp-refresh-only` applies the battle response's final `ExpResult2` through
+the native UserManager after all other reward snapshots. Stamina-earned team EXP
+and level changes then notify the HUD immediately, including when recruitment
+EXP is also awarded. Battle level-up presentation uses the final result, with
+the original `ExpResult` as fallback. Absolute snapshots are applied directly,
+so a repeated response cannot add EXP twice. `--verify-team-exp-refresh` checks
+the hook ordering and retained native reward paths. Stage this fix and
+`--automation-only`, then run `python scripts/client/verify_team_exp_refresh.py`
+for isolated native JSON parsing, account/observer, profile level-info, rollover,
+recruitment ordering and fallback checks (`--installed` after installation).
+The full release build installs and verifies this patch. Restart the game.
+
 `--artifact-source-filter-only` fills the artifact ticket's right-hand All
 dropdown with source categories available in that ticket: Normal, Event, World
 Boss, Velkazar, Shakmeh, King's Pass and Divine Punishment. Membership comes from

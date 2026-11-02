@@ -78,6 +78,8 @@ partial class Program
         VerifyArtifactSelectorsFile(clientRoot);
         InstallArtifactSourceFilter(clientRoot, false);
         VerifyArtifactSourceFilterFile(clientRoot);
+        InstallTeamExpRefresh(clientRoot, false);
+        VerifyTeamExpRefreshFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
         InstallMissionHistory(clientRoot, false);

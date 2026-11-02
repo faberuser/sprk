@@ -1,0 +1,63 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using NGame2.NAccount;
+using NShared;
+
+public static class SprkTeamExpRefreshProbe {
+    static void Check(bool value,string message){if(!value)throw new Exception("Team EXP refresh: "+message);}
+    sealed class Observer : IUserObserver<UserManager.UserStatInfo> {
+        public int ExpChanges,LevelChanges;
+        public void OnChanged(UserManager.UserStatInfo info) {
+            if(info.UserStatType==UserManager.UserStatType.TeamExp)ExpChanges++;
+            if(info.UserStatType==UserManager.UserStatType.TeamLevel)LevelChanges++;
+        }
+        public bool IsGlobal(){return false;}
+    }
+    public static string Run() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<AccountManager>.instance;
+        var managers=account.GetType().GetProperty("AccountManagers",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(account,null);
+        var field=managers.GetType().GetField("UserManager");var previous=field.GetValue(managers);
+        var user=new UserInfo{TeamLevel=100,TeamExp=20608,Stamina=1000};
+        var manager=new UserManager(account,user,new PlayerMiscInfo(),new PlayerGuildPointInfo());
+        var observer=new Observer();manager.ObserverManager.AddObserver(observer);
+        field.SetValue(managers,manager);
+        try {
+            var response=JM_NShared_EndCampaign_Response.Parse("{\"ExpResult2\":{\"AddValue\":60,\"OldLevel\":100,\"NewLevel\":100,\"NewValue\":20668}}");
+            Check(response.ExpResult==null && response.ExpResult2!=null,"native JSON parser receives settlement EXP");
+            SprkTeamExpRefresh.ApplyFinal(account,response);
+            Check(manager.TeamExp==20668 && manager.TeamLevel==100,"same-level stamina EXP updates immediately");
+            Check(observer.ExpChanges==1,"native team EXP observers notified");
+            var info=NGame2.NAccount.Helper.GetAccountTeamLevelInfo();
+            Check(info.CurExp==20668,"profile/HUD level-info reads updated balance without login");
+            var proxy=new NGame2.NUI.NManager.NBattle.EndCampaignProxy();
+            proxy.OnResponse(new NShared.EndCampaign.Request(),response);
+            Check(Object.ReferenceEquals(proxy.ExpResult,response.ExpResult2),"battle result uses settlement EXP");
+            SprkTeamExpRefresh.ApplyFinal(account,response);
+            Check(manager.TeamExp==20668 && observer.ExpChanges==1,"replaying absolute snapshot does not add EXP twice");
+            // Native rewards apply primary/recruitment snapshots before the
+            // final settlement, including a rollover into the next team level.
+            response.ExpResult=new ExpResultInfo{OldLevel=100,NewLevel=100,NewValue=31790,AddValue=10};
+            response.ExpResultsByGetHero=new[]{new ExpResultInfo{OldLevel=100,NewLevel=100,NewValue=31810,AddValue=20}};
+            response.ExpResult2=new ExpResultInfo{OldLevel=100,NewLevel=101,NewValue=34,AddValue=60};
+            manager.Apply(response.ExpResult);manager.Apply(response.ExpResultsByGetHero);
+            SprkTeamExpRefresh.ApplyFinal(account,response);
+            Check(manager.TeamLevel==101 && manager.TeamExp==34,"rollover and recruitment cannot overwrite final balance");
+            Check(observer.LevelChanges==1,"native level observers notified");
+            proxy.OnResponse(new NShared.EndCampaign.Request(),response);
+            Check(proxy.ExpResult.NewLevel==101,"native battle proxy exposes level-up");
+            var before=manager.TeamExp;
+            response.ExpResult2=null;
+            SprkTeamExpRefresh.ApplyFinal(account,response);
+            Check(manager.TeamExp==before,"no stamina EXP on loss/no settlement is a no-op");
+            proxy.OnResponse(new NShared.EndCampaign.Request(),response);
+            Check(Object.ReferenceEquals(proxy.ExpResult,response.ExpResult),"legacy primary EXP fallback retained");
+            SprkTeamExpRefresh.ApplyFinal(account,null);
+            SprkTeamExpRefresh.ApplyFinal(null,response);
+            Check(SprkTeamExpRefresh.BattleExp(null)==null,"null response safe");
+            return "PASS: native response parsing, same-level EXP, HUD/profile balance, observer notifications, level rollover, recruitment ordering, battle level-up proxy, replay idempotence, missing settlement and primary fallback.";
+        } finally {field.SetValue(managers,previous);}
+    }
+}
