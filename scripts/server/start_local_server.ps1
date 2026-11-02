@@ -61,7 +61,7 @@ try {
     $env:BATTLE_BIND = '127.0.0.1'
     $env:SPRK_WEBSOCKET_ORIGIN = 'ws://127.0.0.1:8080'
     $env:SPRK_GM_BIND = '127.0.0.1:8082'
-    if (-not $env:RUST_LOG) { $env:RUST_LOG = 'info,tower_http=debug' }
+    if (-not $env:RUST_LOG) { $env:RUST_LOG = 'warn' }
     Write-Host 'Game:    http://127.0.0.1:8080'
     Write-Host 'Updates: http://127.0.0.1:8081/updates/stable/manifest.json'
     if ($env:SPRK_GM_KEY) {

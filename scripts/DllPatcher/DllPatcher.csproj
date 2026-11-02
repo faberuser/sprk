@@ -69,6 +69,7 @@
     <EmbeddedResource Include="Resources/Crafting.cs.txt" WithCulture="false" LogicalName="DllPatcher.Crafting.cs.txt" />
     <EmbeddedResource Include="Resources/LegacyData/RestoredCrafting.json" LogicalName="DllPatcher.RestoredCrafting.json" />
     <EmbeddedResource Include="Resources/Conquest.cs.txt" WithCulture="false" LogicalName="DllPatcher.Conquest.cs.txt" />
+    <EmbeddedResource Include="Resources/BattleTransport*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/LegacyData/RestoredSelectors.json" LogicalName="DllPatcher.RestoredSelectors.json" />
     <EmbeddedResource Include="Resources/DispatchTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.DispatchTests.cs.txt" />
     <EmbeddedResource Include="Resources/Dispatch.cs.txt" WithCulture="false" LogicalName="DllPatcher.Dispatch.cs.txt" />

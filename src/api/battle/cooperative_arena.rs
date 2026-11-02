@@ -126,7 +126,7 @@ fn notify_result(s:&AppState,run:&Run,result:&Value)->BTreeSet<i64> {
     let mut delivered=BTreeSet::new();
     for a in &run.members {
         if let Some(peer)=s.conquest.peers.get(a) {
-            if peer.run==run.id && peer.sender.try_send(("BattleResultNot".into(),player_result(run,*a,result))).is_ok() {
+            if peer.run==run.id && s.conquest.deliver(&peer,"BattleResultNot",player_result(run,*a,result)) {
                 delivered.insert(*a);
             }
         }
@@ -328,6 +328,41 @@ pub(super) mod tests {
                 std::fs::write(path,out["Replay"]["Data"].as_str().unwrap()).unwrap();
             }
         }
+    }
+
+    #[tokio::test]
+    async fn arena_skills_clocks_and_logs_continue_while_database_is_busy() {
+        let (s,users,mut worker)=fixture().await;
+        let matched=pair(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
+        let (_server,mut clients)=transport(&s,&users,&matched).await;
+        start(&s,&mut clients,&mut worker,uid).await;
+        // Fixture uses a single-connection pool. Hold it to simulate unrelated
+        // HTTP/database work; the live Arena path must remain entirely in memory.
+        let held=s.db.acquire().await.unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2),async {
+            clients[0].send("ReserveOnSkillReq",json!({"RequestId":"41","CreatureUid":"1","SkillSlotIndex":"5","AutoReserved":"True"})).await;
+            clients[0].recv("BaseCreatureActionRes").await;
+            let (name,action)=worker.recv().await.unwrap();
+            assert_eq!(name,"WorkerCommand");assert_eq!(action["Body"]["AutoReserved"],"True");
+            assert_eq!(number(&action,"AccountId"),number(&users[0]["UserInfo"],"AccountId"));
+            worker_packet(&s,"arena-worker","WorkerPacket",json!({"RunId":format!("arena:{uid}"),"Name":"BattleLogNot","Body":{"ServerTimeMs":1200,"BattleLogs":[]}})).await.unwrap();
+            for client in &mut clients {
+                assert_eq!(client.recv("BattleLogNot").await["ServerTimeMs"],1200);
+                client.send("PingReq",json!({"RequestId":42,"ClientTimeMs":1100})).await;
+                assert_eq!(client.recv("PingRes").await["ServerTimeMs"],1200);
+            }
+        }).await.expect("Live Arena traffic waited for the database");
+        drop(held);
+        call(&s,&users[1],"match/cancel_match","").await;
+        for client in &mut clients {client.recv("BattleResultNot").await;}
+    }
+
+    #[tokio::test]
+    async fn arena_completion_lookup_uses_match_index() {
+        let (s,_,_worker)=fixture().await;
+        let plan:Vec<(i64,i64,i64,String)>=sqlx::query_as("EXPLAIN QUERY PLAN SELECT account,data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
+            .bind(1_i64).fetch_all(&s.db).await.unwrap();
+        assert!(plan.iter().any(|row|row.3.contains("USING INDEX arena_online_match_status")),"{plan:?}");
     }
 
     #[tokio::test]
@@ -723,7 +758,7 @@ pub(super) mod tests {
                         }
                     }
                     if name=="WaveReadyNot" {
-                        writer.write_all(&encode_packet("ReserveOnSkillReq",&json!({"RequestId":request_id,"CreatureUid":side+1,"SkillSlotIndex":1,"ManualTargetUid":0,"AutoReserved":false}))).await.unwrap();request_id+=1;
+                        writer.write_all(&encode_packet("ReserveOnSkillReq",&json!({"RequestId":request_id,"CreatureUid":side+1,"SkillSlotIndex":1,"ManualTargetUid":0,"AutoReserved":true}))).await.unwrap();request_id+=1;
                     }
                     // Arena must receive its result as a notification, without
                     // manufacturing a final heartbeat after replay completion.
@@ -738,6 +773,9 @@ pub(super) mod tests {
             "Native worker must publish advancing time between combat actions");
         let logs=results[0].0.iter().flat_map(|packet|packet["BattleLogs"].as_array().unwrap()).collect::<Vec<_>>();
         let ready:Value=serde_json::from_str(logs.iter().find(|log|log["Type"]=="WaveReady").unwrap()["Data"].as_str().unwrap()).unwrap();
+        let reservations=logs.iter().filter(|log|log["Type"]=="CreatureReserveOnSkill").map(|log|serde_json::from_str::<Value>(log["Data"].as_str().unwrap()).unwrap()).collect::<Vec<_>>();
+        assert_eq!(reservations.len(),2);
+        assert!(reservations.iter().all(|data|data["AutoReserved"]=="True" || data["AutoReserved"]==true),"Worker must preserve native Auto reservations");
         assert_eq!(ready["Difficulty"],"Easy","Native worker and arena replay must use the same ruleset");
         if !forfeit {
             let end:Value=serde_json::from_str(logs.iter().find(|log|log["Type"]=="WaveEnd").unwrap()["Data"].as_str().unwrap()).unwrap();

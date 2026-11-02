@@ -151,6 +151,8 @@ namespace DllPatcher
             if (args.Contains("--raid-social-only")) { InstallRaidSocial(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-social")) { VerifyRaidSocialFile(args[0]); return; }
             if (args.Contains("--verify-conquest-replay")) { VerifyConquestReplay(args[0]); return; }
+            if (args.Contains("--verify-arena-latency")) { VerifyArenaLatency(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--test-battle-transport")) { TestBattleTransport(); return; }
             if (args.Contains("--awaken-delay-only")) { InstallAwakenDelay(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--completion-banners-only")) { InstallCompletionBanners(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }

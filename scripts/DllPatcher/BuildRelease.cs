@@ -29,6 +29,7 @@ partial class Program
         InstallConquest(clientRoot, false);
         VerifyMissionWorker(clientRoot);
         VerifyArcdimWorker(clientRoot);
+        VerifyArenaLatency(clientRoot);
         InstallHonorBuff(clientRoot, false);
         VerifyHonorBuffFile(clientRoot);
         TestHonorBuff();

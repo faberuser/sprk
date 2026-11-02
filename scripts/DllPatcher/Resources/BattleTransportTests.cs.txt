@@ -1,0 +1,53 @@
+using System;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+public static class BattleTransportTests {
+    static void Check(bool ok,string message) {if(!ok)throw new Exception(message);}
+    public static void Test() {
+        var clock=new SprkReplayClock(100);long time=1000;
+        Check(clock.Accept(ref time) && time==900,"One tick replay headroom missing");
+        time=950;Check(!clock.Accept(ref time),"Old heartbeat rewinds playback");
+        time=1000;Check(!clock.Accept(ref time),"Duplicate clock resets extrapolation");
+        time=1100;Check(clock.Accept(ref time) && time==1000,"Advancing clock rejected");
+        time=0;Check(new SprkReplayClock(100).Accept(ref time) && time==0,"New battle cannot reset to zero");
+        time=1000;Check(new SprkReplayClock(999).Accept(ref time) && time==800,"Replay buffer must be bounded");
+        time=1000;Check(new SprkReplayClock(-1).Accept(ref time) && time==1000,"Zero buffer diagnostic mode failed");
+
+        var listener=new TcpListener(IPAddress.Loopback,0);listener.Start();
+        var socket=new TcpClient();socket.Connect((IPEndPoint)listener.LocalEndpoint);
+        using(var remote=listener.AcceptTcpClient()) {
+            var link=new SprkBattleLink(socket,value=>value.ToString(),message=>{});
+            var read=Task.Run(()=> {
+                using(var reader=new StreamReader(remote.GetStream())) {
+                    for(int i=0;i<40;i++) {
+                        var line=reader.ReadLine();
+                        Check(line=="Packet "+Convert.ToBase64String(Encoding.UTF8.GetBytes(i.ToString())),"Ordered delivery changed");
+                    }
+                }
+            });
+            for(int i=0;i<40;i++)link.Send("Packet",i);
+            Check(read.Wait(5000),"Writer did not drain FIFO");link.Close();
+        }
+        // Hold serialization on the sender thread. Enqueue must remain quick;
+        // a full bounded queue must fail the connection instead of losing logs.
+        socket=new TcpClient();socket.Connect((IPEndPoint)listener.LocalEndpoint);
+        using(var remote=listener.AcceptTcpClient())
+        using(var entered=new ManualResetEvent(false))
+        using(var release=new ManualResetEvent(false)) {
+            int warnings=0;
+            var link=new SprkBattleLink(socket,value=>{entered.Set();release.WaitOne(5000);return value.ToString();},message=>Interlocked.Increment(ref warnings),2);
+            try {
+                link.Send("Packet",0);Check(entered.WaitOne(2000),"Serializer not running");
+                var enqueue=Task.Run(()=>{link.Send("Packet",1);link.Send("Packet",2);link.Send("Packet",3);});
+                Check(enqueue.Wait(1000),"Simulation thread blocked on serializer/socket");
+                Check(!link.Connected && warnings==1,"Overflow must fail closed exactly once");
+            } finally {release.Set();link.Close();}
+        }
+        listener.Stop();
+    }
+}

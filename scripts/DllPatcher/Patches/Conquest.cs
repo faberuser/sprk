@@ -4,6 +4,41 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
+    static void TestBattleTransport() {
+        string Resource(string name) {using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!;using var reader=new StreamReader(input);return reader.ReadToEnd();}
+        var compilation=CSharpCompilation.Create("BattleTransportTests-"+Guid.NewGuid().ToString("N"),
+            new[]{CSharpSyntaxTree.ParseText(Resource("BattleTransport.cs.txt")),CSharpSyntaxTree.ParseText(Resource("BattleTransportTests.cs.txt"))},
+            ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p=>MetadataReference.CreateFromFile(p)),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var output=new MemoryStream();var result=compilation.Emit(output);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
+        System.Reflection.Assembly.Load(output.ToArray()).GetType("BattleTransportTests")!.GetMethod("Test")!.Invoke(null,null);
+        Console.WriteLine("PASS: worker FIFO, asynchronous serialization, bounded overflow and replay clock ordering/headroom.");
+    }
+    static void VerifyArenaLatency(string clientRoot,bool staged=false) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"+(staged?".conquest-staged":"")));
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"+(staged?".staged":"")));
+        bool Hook(MethodDefinition method,string name)=>method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest" && m.Name==name);
+        var clock=game.MainModule.GetType("NGame2.NBattleField.BattleFacade").Methods.Single(m=>m.Name=="SetServerTimeMs");
+        if(!Hook(clock,"FilterClock"))throw new InvalidOperationException("Arena heartbeat/log clock filter missing");
+        var playable=game.MainModule.GetType("NGame2.NUI.NManager.NBattle.BattleManagement").Methods.Single(m=>m.Name=="CheckAutoPlayable");
+        if(!Hook(playable,"ArenaAutoPlayable"))throw new InvalidOperationException("Arena Auto eligibility hook missing");
+        foreach(var name in new[]{"SystemButtonAuto","SystemButtonAutoSimple"}) {
+            var getter=game.MainModule.GetType("NGame2.NUI.NWindow.NBattle."+name).Methods.Single(m=>m.Name=="get_SkillReserveAuto");
+            foreach(var ret in getter.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret))
+                if(ret.Previous.Operand is not MethodReference m || m.Name!="ArenaAuto")throw new InvalidOperationException("Arena Auto gate still bypasses displayed toggle");
+            VerifyArenaResultStack(getter);
+        }
+        VerifyArenaResultStack(playable);VerifyArenaResultStack(clock);
+        var worker=helper.MainModule.GetType("SprkConquest");
+        var send=worker.Methods.Single(m=>m.Name=="Send");
+        if(send.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="WriteLine") ||
+            !send.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkBattleLink" && m.Name=="Send"))
+            throw new InvalidOperationException("Worker simulation thread still writes to sockets");
+        if(helper.MainModule.GetType("SprkReplayClock")==null)throw new InvalidOperationException("Replay clock implementation missing");
+        Console.WriteLine("Verified asynchronous worker delivery, Arena clock filtering and Auto toggle hooks.");
+    }
     static void TestMissionWorker() {
         string Resource(string name) {using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!;using var reader=new StreamReader(input);return reader.ReadToEnd();}
         var syntax=CSharpSyntaxTree.ParseText(Resource("Conquest.cs.txt")).GetRoot();
@@ -143,13 +178,18 @@ partial class Program {
     }
     static void InstallConquest(string clientRoot,bool stageOnly) {
         TestMissionWorker();
+        TestBattleTransport();
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");
         using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Conquest.cs.txt")!;
         using var reader=new StreamReader(input);
+        using var transportInput=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.BattleTransport.cs.txt")!;
+        using var transportReader=new StreamReader(transportInput);
+        using var probeInput=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.BattleTransportProbe.cs.txt")!;
+        using var probeReader=new StreamReader(probeInput);
         var refs=Directory.GetFiles(managed,"*.dll").Where(p=>!Path.GetFileName(p).StartsWith("SprkConquest"))
             .Select(p=>MetadataReference.CreateFromFile(p));
-        var compilation=CSharpCompilation.Create("SprkConquest",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd())},refs,
+        var compilation=CSharpCompilation.Create("SprkConquest",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(transportReader.ReadToEnd()),CSharpSyntaxTree.ParseText(probeReader.ReadToEnd())},refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release));
         using var compiled=new MemoryStream();var emitted=compilation.Emit(compiled);
         if(!emitted.Success)throw new InvalidOperationException(string.Join("\n",emitted.Diagnostics));
@@ -159,6 +199,27 @@ partial class Program {
         var module=assembly.MainModule;var worker=helper.MainModule.Types.Single(t=>t.Name=="SprkConquest");
         MethodReference Method(string name)=>module.ImportReference(worker.Methods.Single(m=>m.Name==name));
         bool Hooked(MethodDefinition method,string hook)=>method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkConquest" && m.Name==hook);
+        var setClock=module.GetType("NGame2.NBattleField.BattleFacade").Methods.Single(m=>m.Name=="SetServerTimeMs");
+        if(!Hooked(setClock,"FilterClock")) {
+            var il=setClock.Body.GetILProcessor();var clockFirst=setClock.Body.Instructions[0];
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarga,setClock.Parameters[0]),Instruction.Create(OpCodes.Call,Method("FilterClock")),
+                Instruction.Create(OpCodes.Brtrue,clockFirst),Instruction.Create(OpCodes.Ret)})il.InsertBefore(clockFirst,i);
+        }
+        var battleManagement=module.GetType("NGame2.NUI.NManager.NBattle.BattleManagement");
+        var autoPlayable=battleManagement.Methods.Single(m=>m.Name=="CheckAutoPlayable");
+        if(!Hooked(autoPlayable,"ArenaAutoPlayable")) {
+            var il=autoPlayable.Body.GetILProcessor();var autoFirst=autoPlayable.Body.Instructions[0];
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg,autoPlayable.Parameters[3]),
+                Instruction.Create(OpCodes.Ldarg,autoPlayable.Parameters[5]),Instruction.Create(OpCodes.Ldarg,autoPlayable.Parameters[6]),
+                Instruction.Create(OpCodes.Call,Method("ArenaAutoPlayable")),Instruction.Create(OpCodes.Brfalse,autoFirst),Instruction.Create(OpCodes.Ret)})il.InsertBefore(autoFirst,i);
+        }
+        foreach(var type in new[]{"SystemButtonAuto","SystemButtonAutoSimple"}) {
+            var getter=module.GetType("NGame2.NUI.NWindow.NBattle."+type).Methods.Single(m=>m.Name=="get_SkillReserveAuto");
+            if(!Hooked(getter,"ArenaAuto"))foreach(var ret in getter.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Ldarg_0;var il=getter.Body.GetILProcessor();var call=Instruction.Create(OpCodes.Call,Method("ArenaAuto"));
+                il.InsertAfter(ret,call);il.InsertAfter(call,Instruction.Create(OpCodes.Ret));
+            }
+        }
         // Invitations do not open the board, so guests also seed the server
         // session cache from battle responses before native DTO handling.
         var acceptSessions=module.GetType("RestoredPortal").Methods.Single(m=>m.Name=="AcceptServerConquestSessions");
@@ -211,6 +272,7 @@ partial class Program {
         }
         var staged=dll+".conquest-staged";File.WriteAllBytes(Path.Combine(managed,"SprkConquest.dll.staged"),compiled.ToArray());assembly.Write(staged);
         VerifyMissionWorker(clientRoot,true);
+        VerifyArenaLatency(clientRoot,true);
         if(!stageOnly) {
             if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))
                 throw new InvalidOperationException("Conquest patch staged. Close game clients and shared-asset workers before installation.");
