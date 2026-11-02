@@ -1097,7 +1097,9 @@ pub(crate) async fn trial(
     } else {
         format!("AwakeDungeon{}", n(&h, "Star"))
     };
-    if n(awake, &suffix) != dungeon as i64 || n(&h, "EnterDungeon") != 1 {
+    // The native boss window permits re-entry while this stage is open,
+    // including after a victory. Preserve any existing purification progress.
+    if n(awake, &suffix) != dungeon as i64 || !matches!(n(&h, "EnterDungeon"),1|2) {
         return Err(rule("InvalidDungeon"));
     }
     let mut result = item::success();

@@ -22,12 +22,14 @@ partial class Program
         foreach (var helper in Directory.GetFiles(Path.GetDirectoryName(dll)!, "Sprk*.dll.staged"))
             File.Move(helper, helper[..^7], true);
         File.Copy(staged, dll, true);
+        using(var purify=Mono.Cecil.AssemblyDefinition.ReadAssembly(dll)) VerifyPurifyHudReuse(purify.MainModule);
 
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
         VerifyMissionWorker(clientRoot);
         VerifyArcdimWorker(clientRoot);
+        VerifyArenaLatency(clientRoot);
         InstallHonorBuff(clientRoot, false);
         VerifyHonorBuffFile(clientRoot);
         TestHonorBuff();
@@ -74,6 +76,10 @@ partial class Program
         VerifyShopTagsFile(clientRoot);
         InstallArtifactSelectors(clientRoot, false);
         VerifyArtifactSelectorsFile(clientRoot);
+        InstallArtifactSourceFilter(clientRoot, false);
+        VerifyArtifactSourceFilterFile(clientRoot);
+        InstallTeamExpRefresh(clientRoot, false);
+        VerifyTeamExpRefreshFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
 
         InstallMissionHistory(clientRoot, false);
@@ -84,6 +90,8 @@ partial class Program
         VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
+        InstallHeroRuneFilter(clientRoot, false);
+        VerifyHeroRuneFilterFile(clientRoot);
         RestoreLegendaryRuneTickets(clientRoot, true);
         VerifyWebSocketLifecycle(clientRoot);
         VerifyImageRecoveryFile(clientRoot);

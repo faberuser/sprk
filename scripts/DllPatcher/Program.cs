@@ -113,6 +113,12 @@ namespace DllPatcher
             if (args.Contains("--self-test-legendary-rune-tickets")) { TestLegendaryRuneTickets(); return; }
             if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
             if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
+            if (args.Contains("--team-exp-refresh-only")) { InstallTeamExpRefresh(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-team-exp-refresh")) { VerifyTeamExpRefreshFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--artifact-source-filter-only")) { InstallArtifactSourceFilter(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-artifact-source-filter")) { VerifyArtifactSourceFilterFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--hero-rune-filter-only")) { InstallHeroRuneFilter(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-hero-rune-filter")) { VerifyHeroRuneFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-runes")) { VerifyRuneCategories(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-stats-only")) { InstallHeroStats(args[0], args.Contains("--stage-only")); return; }
@@ -147,6 +153,8 @@ namespace DllPatcher
             if (args.Contains("--raid-social-only")) { InstallRaidSocial(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-social")) { VerifyRaidSocialFile(args[0]); return; }
             if (args.Contains("--verify-conquest-replay")) { VerifyConquestReplay(args[0]); return; }
+            if (args.Contains("--verify-arena-latency")) { VerifyArenaLatency(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--test-battle-transport")) { TestBattleTransport(); return; }
             if (args.Contains("--awaken-delay-only")) { InstallAwakenDelay(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--completion-banners-only")) { InstallCompletionBanners(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--mission-thumbnails-only")) { InstallMissionThumbnails(args[0], args.Contains("--stage-only")); return; }

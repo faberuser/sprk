@@ -14,6 +14,33 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--team-exp-refresh-only` applies the battle response's final `ExpResult2` through
+the native UserManager after all other reward snapshots. Stamina-earned team EXP
+and level changes then notify the HUD immediately, including when recruitment
+EXP is also awarded. Battle level-up presentation uses the final result, with
+the original `ExpResult` as fallback. Absolute snapshots are applied directly,
+so a repeated response cannot add EXP twice. `--verify-team-exp-refresh` checks
+the hook ordering and retained native reward paths. Stage this fix and
+`--automation-only`, then run `python scripts/client/verify_team_exp_refresh.py`
+for isolated native JSON parsing, account/observer, profile level-info, rollover,
+recruitment ordering and fallback checks (`--installed` after installation).
+The full release build installs and verifies this patch. Restart the game.
+
+`--artifact-source-filter-only` fills the artifact ticket's right-hand All
+dropdown with source categories available in that ticket: Normal, Event, World
+Boss, Velkazar, Shakmeh, King's Pass and Divine Punishment. Membership comes from
+the native archived artifact reward groups; unrecognized artifacts remain under
+Other. The left dropdown retains All/Owned/Not Owned and combines with the source
+filter. Changing ownership retains the source; reopening a ticket resets both.
+Filtering retains the ticket's pool and original order, resets list scroll,
+clears the selected artifact and disables Acquire until a visible item is chosen.
+Other selector types retain their native filters. Run
+`--verify-artifact-source-filter` for installed hook/eligibility checks. Stage
+this patch and `--automation-only`, then run
+`python scripts/client/verify_artifact_source_filter.py` for isolated native list,
+source/ownership, selection and reopen checks (`--installed` after installation).
+The full release build installs and verifies this patch.
+
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,
 with a separate saved roster and no entry cost. It uses the equipped-hero
@@ -71,6 +98,19 @@ after installing their respective changes.
 Blasphemy inventory subcategory, retaining the native equipment and grind paths.
 Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
 to validate the original inventory prefab and both category selections in Unity.
+
+`--hero-rune-filter-only` adds Sort Option beside the Heroes rune category
+dropdown. It reuses the ticket's native stat picker: select up to two stats,
+then OK to show runes containing every selected stat. Deselect and OK restores
+the full list. Normal runes and crafted runes' rolled main stats use the native
+stat conversion; category, slot eligibility, equipment actions and existing
+ordering remain in place. The button shows the active selection count. Filters
+persist across category changes while the page is open and reset on close/reopen.
+`--verify-hero-rune-filter` checks hooks, native eligibility and popup lifecycle.
+Stage this patch and `--automation-only`, then run
+`python scripts/client/verify_hero_rune_filter.py` for isolated native prefab,
+ticket matching, Deselect/OK, crafted-stat and close/reopen checks. Use
+`--installed` after installation. The full release build installs and verifies it.
 
 The shared `tables/CostumeTicketRules.json` also opens all 80 archived League of
 Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits.

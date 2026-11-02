@@ -6,9 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       client_release_tag:
-        description: "Reuse a compatible client-<version> release; blank builds a new client release from this commit"
+        description: "Reuse a compatible client-<version> release; blank reuses unchanged client inputs or builds a new release"
         type: string
         required: false
+      force_client_build:
+        description: "Rebuild the client even when its signed input fingerprint matches"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -35,48 +39,45 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Install client patch dependencies
-        run: python -m pip install -r scripts/client/requirements-client.txt
-
       - name: Select an existing release override
         id: reuse
         env:
           INPUT_TAG: ${{ inputs.client_release_tag }}
+          FORCE_CLIENT_BUILD: ${{ inputs.force_client_build || false }}
           GH_TOKEN: ${{ github.token }}
           RELEASE_REPOSITORY: ${{ github.repository }}
         shell: python
         run: |
-          import json, os, re, subprocess, sys, tempfile
-          from pathlib import Path
-          # Actions executes this script from RUNNER_TEMP, outside the checkout.
+          import os, sys
           sys.path.insert(0, os.environ['GITHUB_WORKSPACE'])
-          from scripts.release.client_update_bundle import verified_manifest
-          tag = os.environ.get('INPUT_TAG', '')
-          if tag and (len(tag) > 128 or not re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', tag)):
-              raise SystemExit('Expected a client-<version> release tag')
-          if tag:
-              repo = os.environ['RELEASE_REPOSITORY']
-              release = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases/tags/{tag}']))
-              assets = {asset['name'] for asset in release['assets'] if asset['state'] == 'uploaded'}
-              if release['draft'] or release['prerelease'] or not {'client-update-manifest.json', 'client-update.tar.gz'} <= assets:
-                  raise SystemExit('Expected a complete published client release')
-              with tempfile.TemporaryDirectory() as folder:
-                  subprocess.run(['gh', 'release', 'download', tag, '--repo', repo, '--pattern', 'client-update-manifest.json', '--dir', folder], check=True)
-                  manifest = verified_manifest((Path(folder) / 'client-update-manifest.json').read_bytes(), Path('config/client-update-public.pem'))
-                  if tag != 'client-' + manifest['version']:
-                      raise SystemExit('Tag differs from the signed manifest version')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'tag={tag}\n')
+          from scripts.release.client_release_inputs import main
+          main()
+
+      - name: Set up Python
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/client/requirements-client.txt
+
+      - name: Set up .NET
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Cache NuGet packages
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('scripts/DllPatcher/*.csproj', '**/Directory.Packages.props', '**/NuGet.Config', '**/nuget.config') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Install client patch dependencies
+        if: steps.reuse.outputs.tag == ''
+        run: python -m pip install -r scripts/client/requirements-client.txt
 
       - name: Build, verify, sign and publish client release
         id: build
@@ -93,9 +94,47 @@ jobs:
             --version $version --repo $env:RELEASE_REPOSITORY --publish
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+  compile-server:
+    name: Compile server
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      artifact-id: ${{ steps.binary.outputs.artifact-id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Compile Linux server binary
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: server-binary
+          platforms: linux/amd64
+          outputs: type=local,dest=build-input/server
+          cache-from: type=gha,scope=sprk-server-build
+          cache-to: type=gha,scope=sprk-server-build,mode=max
+
+      - name: Upload server binary
+        id: binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprk-server-${{ github.sha }}
+          path: build-input/server/sprk-server
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+          overwrite: true
+
   build-and-deploy:
     name: Publish image and update Portainer
-    needs: client-release
+    needs: [client-release, compile-server]
     # Pull requests and manual runs on other branches cannot deploy.
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -108,6 +147,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Download server binary from this run
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.compile-server.outputs.artifact-id }}
+          merge-multiple: true
+          path: build-input/server
 
       - name: Resolve image name
         id: image
@@ -136,6 +182,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          target: precompiled-production
           platforms: linux/amd64
           load: true
           push: false

@@ -301,6 +301,29 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn honor_combat_forfeits_retain_replays_for_both_players() {
+        for quit_http in [false,true] {
+            let (s,users,mut worker)=fixture().await;
+            let matched=matched(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
+            let (_server,mut clients)=draft(&s,&users,&matched).await;
+            finish_draft(&s,&mut clients,uid).await;
+            for c in &mut clients {c.send("BattleEnterReq",json!({"RequestId":31})).await;c.recv("BattleEnterRes").await;}
+            assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");
+            for c in &mut clients {c.send("BattleStartReq",json!({"RequestId":32})).await;c.recv("BattleStartRes").await;}
+            assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+            arena::tests::replay_prefix(&s,"honor-worker",uid,&mut clients).await;
+            if quit_http {call(&s,&users[0],"match/cancel_match","").await;} else {
+                clients[0].send("BattleGiveUpReq",json!({"RequestId":33})).await;
+            }
+            assert_eq!(clients[1].recv("BattleResultNot").await["Win"],true);
+            clients[0].recv("BattleResultNot").await;
+            if !quit_http {assert_eq!(clients[0].recv("BattleGiveUpRes").await["Result"],"Success");}
+            worker_packet(&s,"honor-worker","WorkerResult",json!({"RunId":format!("arena:{uid}"),"Win":true,"Winner":"Left","ReplayLogs":"late-result-must-not-replace-prefix","TimeMs":9000})).await.unwrap();
+            arena::tests::assert_forfeit_replay(&s,&users,2,1).await;
+        }
+    }
+
+    #[tokio::test]
     async fn honor_draft_forfeit_and_restart_are_idempotent() {
         let (s,users,_worker)=fixture().await;
         let matched=matched(&s,&users).await;let uid=number(&matched["MatchInfo"],"Uid");
@@ -308,6 +331,8 @@ mod tests {
         let before=balance(&s,&users[0]).await;
         clients[0].send("BattleBanPickGiveUpReq",json!({"RequestId":3})).await;
         assert_eq!(clients[0].recv("BattleBanPickGiveUpRes").await["Result"],"Success");
+        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM service_replays").fetch_one(&s.db).await.unwrap(),0,
+            "Draft forfeits have no combat to replay");
         clients[0].recv("BattleResultNot").await;clients[1].recv("BattleResultNot").await;
         assert_eq!(balance(&s,&users[0]).await,(before.0,before.1-1));
         recover_orphaned(&s).await.unwrap();recover_orphaned(&s).await.unwrap();

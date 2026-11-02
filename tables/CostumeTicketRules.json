@@ -3640,6 +3640,14 @@
     "COSTUME_GROUP_LEAGUEOFHONOR": "League of Honor"
   },
   "CostumeUpdates": [
+    {"CostumeIndex":112,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":214,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":1514,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":415,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":7211,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":7212,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":3514,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
+    {"CostumeIndex":6313,"IsBuy":true,"IsOpen":true,"IsShow":true,"ReqBuyGem":3000},
     {
       "CostumeIndex": 11190,
       "PortraitPath": "Portrait/Monster/Ordeal/DarkValance_5"

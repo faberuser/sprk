@@ -307,6 +307,7 @@ pub(crate) async fn begin_party(
             departed: BTreeSet::new(),
             offline: BTreeSet::new(),
             cancelled: BTreeSet::new(),
+            disconnect_cutoffs: Default::default(),
             logs: vec![],
             pending_actions: vec![],
             result: None,

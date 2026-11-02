@@ -1,0 +1,14 @@
+using NGame2.NAccount;
+using NShared;
+
+public static class SprkTeamExpRefresh {
+    // Victory settlement follows recruitment rewards on the server. Apply its
+    // absolute balance last so an earlier recruitment snapshot cannot undo it.
+    public static void ApplyFinal(AccountManager account,NShared.EndCampaign.Response response) {
+        if(account!=null && response!=null && response.ExpResult2!=null && account.UserManager!=null)
+            account.UserManager.Apply(response.ExpResult2);
+    }
+    public static ExpResultInfo BattleExp(NShared.EndCampaign.Response response) {
+        return response==null?null:response.ExpResult2??response.ExpResult;
+    }
+}

@@ -28,12 +28,13 @@ pub(crate) struct BattleHub {
     worker:RwLock<Option<Worker>>,
     dispatch:Mutex<Option<dispatch_worker::Pending>>,
     peers:DashMap<i64,Peer>,
+    disconnects:DashMap<String,tokio::sync::watch::Sender<bool>>,
     runs:DashMap<String,Arc<Mutex<Run>>>,
     pub port:u16,
     pub address:String,
 }
 impl Default for BattleHub {
-    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),runs:DashMap::new(),
+    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),disconnects:DashMap::new(),runs:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
         address:crate::websocket::public_url("battle")}}
 }
@@ -41,6 +42,7 @@ struct Run {
     id:String,worker:String,master:i64,room:i64,members:Vec<i64>,payload:Value,
     entered:BTreeSet<i64>,ready:BTreeSet<i64>,sent:BTreeSet<i64>,
     departed:BTreeSet<i64>,offline:BTreeSet<i64>,cancelled:BTreeSet<i64>,
+    disconnect_cutoffs:std::collections::BTreeMap<i64,(i64,usize)>,
     logs:Vec<Packet>,pending_actions:Vec<Value>,result:Option<Value>,started:bool,wave_started:bool,prepared:bool,created:i64,time_ms:i64,
 }
 impl BattleHub {
@@ -59,8 +61,16 @@ impl BattleHub {
     }
     fn notify(&self,run:&Run,name:&str,body:Value) {
         for a in &run.members {
-            if let Some(peer)=self.peers.get(a) {if peer.run==run.id {let _=peer.sender.try_send((name.into(),body.clone()));}}
+            if let Some(peer)=self.peers.get(a) {if peer.run==run.id {self.deliver(&peer,name,body.clone());}}
         }
+    }
+    fn deliver(&self,peer:&Peer,name:&str,body:Value)->bool {
+        if peer.sender.try_send((name.into(),body)).is_ok() {return true;}
+        // Never continue a live replay after silently losing an ordered log.
+        // Close only this connection; authenticated reconnect replays its history.
+        tracing::warn!(run=%peer.run, protocol=name, "Battle delivery queue unavailable; reconnect required");
+        if let Some(close)=self.disconnects.get(&peer.id) {let _=close.send(true);}
+        false
     }
 }
 
@@ -196,7 +206,7 @@ pub(super) async fn begin(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)
     room["Status"]=json!(2);room["ConquestRunId"]=json!(id);
     sqlx::query("UPDATE battle_rooms SET data=?,updated=? WHERE id=?").bind(room.to_string()).bind(now()).bind(room_id).execute(&mut *db).await?;
     s.conquest.runs.insert(id.clone(),Arc::new(Mutex::new(Run{id,worker:worker_id,master,room:room_id,members,payload,
-        entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
+        entered:BTreeSet::new(),ready:BTreeSet::new(),sent:BTreeSet::new(),departed:BTreeSet::new(),offline:BTreeSet::new(),cancelled:BTreeSet::new(),disconnect_cutoffs:Default::default(),logs:vec![],pending_actions:vec![],result:None,started:false,wave_started:false,prepared:false,created:now(),time_ms:0})));
     Ok(result)
 }
 fn ensure_ban(s:&AppState,ban:i64,hero:i64)->Result<()> {
@@ -270,11 +280,16 @@ pub(crate) async fn connection_stream<S>(socket:S,s:AppState,allow_worker:bool)-
 where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
     let (mut reader,mut writer)=tokio::io::split(socket);
     let (tx,mut rx)=mpsc::channel::<Packet>(1024);let connection_id=uuid::Uuid::new_v4().to_string();
+    let (close_tx,mut close_rx)=tokio::sync::watch::channel(false);
+    s.conquest.disconnects.insert(connection_id.clone(),close_tx.clone());
     let writer_task=tokio::spawn(async move {
-        while let Some((name,body))=rx.recv().await {if writer.write_all(&encode_packet(&name,&body)).await.is_err() {break;}}
+        while let Some((name,body))=rx.recv().await {
+            if !matches!(tokio::time::timeout(std::time::Duration::from_secs(5),writer.write_all(&encode_packet(&name,&body))).await,Ok(Ok(()))) {break;}
+        }
+        let _=close_tx.send(true);
     });
     let mut buffer=vec![];let mut chunk=[0_u8;16384];let mut account=0;let mut worker=false;let mut battle_run=None;
-    let outcome:Result<()>=async {
+    let outcome=async {
         loop {
             let count=tokio::time::timeout(std::time::Duration::from_secs(90),reader.read(&mut chunk)).await.map_err(|_|rule("SessionExpired"))?.map_err(|_|rule("InvalidValue"))?;
             if count==0 {return Ok(());}
@@ -342,7 +357,11 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                 }
             }
         }
-    }.await;
+    };
+    let outcome:Result<()>=tokio::select! {
+        result=outcome => result,
+        _=close_rx.changed()=>Err(rule("InvalidValue")),
+    };
     if worker {
         let mut current=s.conquest.worker.write().await;
         if current.as_ref().is_some_and(|v|v.id==connection_id) {*current=None;}
@@ -352,6 +371,13 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
     } else if account>0 {
         s.conquest.peers.remove_if(&account,|_,v|v.id==connection_id);
         if let Some(id)=battle_run {
+            if let Some(handle)=s.conquest.runs.get(&id).map(|v|v.value().clone()) {
+                let mut run=handle.lock().await;
+                if run.payload["ArenaMatch"]==true && run.result.is_none() && !s.conquest.peers.contains_key(&account) {
+                    let cutoff=(run.time_ms,run.logs.len());
+                    run.disconnect_cutoffs.insert(account,cutoff);
+                }
+            }
             let s=s.clone();tokio::spawn(async move {
                 // Permit a brief transport reconnect, then release abandoned
                 // entries instead of blocking the next party for 2–20 minutes.
@@ -360,6 +386,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
             });
         }
     }
+    s.conquest.disconnects.remove(&connection_id);
     writer_task.abort();outcome
 }
 #[cfg(test)]
@@ -368,8 +395,11 @@ async fn player_packet(s:&AppState,a:i64,name:&str,body:Value,tx:&Sender)->Resul
     player_packet_for_run(s,a,&id,name,body,tx).await
 }
 async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx:&Sender)->Result<()> {
+    let received=std::time::Instant::now();
     let handle=s.conquest.runs.get(id).ok_or_else(||rule("BattleServerNotFound"))?.clone();let mut run=handle.lock().await;
-    if run.payload["ArenaMatch"]==true && run.result.is_none() {arena::sync_finished(s,&mut run).await?;}
+    tracing::debug!(run=id, protocol=name, lock_wait_us=received.elapsed().as_micros() as u64,"Battle input received");
+    // HTTP cancellations synchronize explicitly after commit. Skills and clock
+    // pulses must not wait on SQLite while holding the live match lock.
     if name.starts_with("BattleBanPick") {return honor::packet(s,&mut run,a,name,&body,tx).await;}
     if matches!(name,"PingReq"|"PingIdleReq") {honor::tick(s,&mut run).await?;}
     let response_name=if matches!(name,"ReserveOnSkillReq"|"ReserveOffSkillReq"|"FireNextSkillReq"|"SetManualTargetReq"|"SetManualMoveReq") {"BaseCreatureActionRes".into()}else{name.strip_suffix("Req").map(|n|format!("{n}Res")).ok_or_else(||rule("InvalidRequest"))?};
@@ -388,6 +418,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             for (name,body) in &run.logs {tx.send((name.clone(),body.clone())).await.map_err(|_|rule("InvalidValue"))?;}
             run.entered.insert(a);
             run.offline.remove(&a);
+            run.disconnect_cutoffs.remove(&a);
             prepare_wave(s,&mut run).await?;
             start_wave(s,&mut run).await?;
             if run.payload["ArenaMatch"]==true {
@@ -428,7 +459,9 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
         }
         "PingReq"|"PingIdleReq"=> {
             reply["ClientTimeMs"]=body["ClientTimeMs"].clone();reply["ServerTimeMs"]=json!(run.time_ms);
-            sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?").bind(now()).bind(a).execute(&s.db).await?;
+            if run.payload["ArenaMatch"]!=true {
+                sqlx::query("UPDATE battle_room_members SET updated=? WHERE account=?").bind(now()).bind(a).execute(&s.db).await?;
+            }
             let replay_wave = body.get("ReplayWaveIndex").is_none()
                 || number(&body,"ReplayWaveIndex") == number(&run.payload,"ReplayWaveIndex");
             if body["BattleStopped"]==true && replay_wave && !run.sent.contains(&a) {
@@ -436,14 +469,14 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             }
         }
         "ReserveOnSkillReq"|"ReserveOffSkillReq"|"FireNextSkillReq"|"SetManualTargetReq"|"SetManualMoveReq" => {
-            if name=="ReserveOnSkillReq" && ![1,2,3,4,10].contains(&number(&body,"SkillSlotIndex")) {return Err(rule("InvalidValue"));}
+            if name=="ReserveOnSkillReq" && ![1,2,3,4,5,10].contains(&number(&body,"SkillSlotIndex")) {return Err(rule("InvalidValue"));}
             // Native clients allow manual reservations during the countdown.
             // Once WaveReady confirms creature creation, apply them while the
             // worker is still paused so the replay can show/cancel the selection.
             // They also replay behind the worker and can send a final action
             // after its result. Neither boundary is a transport failure.
             if run.result.is_none() && !run.departed.contains(&a) && !honor::drafting(&run) {
-                let action=json!({"RunId":id,"AccountId":a,"Name":name,"Body":body});
+                let action=json!({"RunId":id,"AccountId":a,"Name":name,"Body":body,"QueuedAtUnixMs":chrono::Utc::now().timestamp_millis()});
                 if run.started || (run.prepared && run.payload.get("ReplayWaveIndex").is_some()) {
                     s.conquest.send_worker("WorkerCommand",action).await?;
                 }
@@ -697,6 +730,43 @@ async fn cancel_abandoned(s:&AppState,id:&str,disconnected:Option<i64>)->Result<
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn battle_delivery_failure_closes_the_transport_and_removes_its_registration() {
+        use super::*;
+        let s=crate::api::community::tests::setup().await;
+        let (protocol,mut client)=tokio::io::duplex(64);
+        let state=s.clone();let task=tokio::spawn(connection_stream(protocol,state,false));
+        tokio::time::timeout(std::time::Duration::from_secs(2),async {
+            while s.conquest.disconnects.is_empty() {tokio::task::yield_now().await;}
+        }).await.unwrap();
+        let close=s.conquest.disconnects.iter().next().unwrap().value().clone();
+        close.send(true).unwrap();
+        assert!(tokio::time::timeout(std::time::Duration::from_secs(2),task).await.unwrap().unwrap().is_err());
+        assert!(s.conquest.disconnects.is_empty());
+        let mut byte=[0];
+        assert_eq!(tokio::time::timeout(std::time::Duration::from_secs(2),client.read(&mut byte)).await.unwrap().unwrap(),0);
+    }
+
+    #[tokio::test]
+    async fn battle_queue_overflow_disconnects_only_the_slow_peer() {
+        use super::*;
+        let hub=BattleHub::default();
+        let (slow,mut slow_rx)=mpsc::channel(1);
+        let (healthy,mut healthy_rx)=mpsc::channel(4);
+        let (close,close_rx)=tokio::sync::watch::channel(false);
+        hub.disconnects.insert("slow".into(),close);
+        let slow=Peer{id:"slow".into(),run:"match".into(),sender:slow};
+        let healthy=Peer{id:"healthy".into(),run:"match".into(),sender:healthy};
+        assert!(hub.deliver(&slow,"BattleLogNot",json!({"No":1})));
+        assert!(!hub.deliver(&slow,"BattleLogNot",json!({"No":2})));
+        assert!(*close_rx.borrow(),"Overflow must close the stream, never silently continue with a missing log");
+        assert!(hub.deliver(&healthy,"BattleLogNot",json!({"No":1})));
+        assert!(hub.deliver(&healthy,"BattleLogNot",json!({"No":2})));
+        assert_eq!(healthy_rx.recv().await.unwrap().1["No"],1);
+        assert_eq!(healthy_rx.recv().await.unwrap().1["No"],2);
+        assert_eq!(slow_rx.recv().await.unwrap().1["No"],1);
+    }
+
     #[tokio::test]
     async fn readiness_requires_live_worker_and_supported_capabilities() {
         use super::*;

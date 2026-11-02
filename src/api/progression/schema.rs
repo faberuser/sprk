@@ -32,10 +32,17 @@ pub(crate) async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
         ("shop_more","shop_purchase_ledger","UPDATE","NEW.purchased>OLD.purchased","BuyShopItem","NEW.shop_index","NEW.item_index","NEW.purchased-OLD.purchased"),
         ("shop_restock","shop_stock","UPDATE","NEW.restock_count>OLD.restock_count","ResetShop","NEW.shop_index","0","1"),
         ("hero_friendly","hero_friendly_state","UPDATE","NEW.friendly_point>OLD.friendly_point","DoHeroFriendly","NEW.hero_index","0","1"),
+        ("inn_greet","hero_friendly_info","UPDATE","NEW.last_greeting_time IS NOT NULL AND NEW.last_greeting_time IS NOT OLD.last_greeting_time","DoHeroFriendly","NEW.hero_index","0","1"),
+        ("inn_conversation","hero_friendly_info","UPDATE","NEW.last_conversation_time IS NOT NULL AND NEW.last_conversation_time IS NOT OLD.last_conversation_time","DoHeroFriendly","NEW.hero_index","0","1"),
+        ("inn_gift","hero_friendly_info","UPDATE","NEW.last_gift_time IS NOT NULL AND NEW.last_gift_time IS NOT OLD.last_gift_time","DoHeroFriendly","NEW.hero_index","0","1"),
         ("mail_received","mails","UPDATE","NEW.is_received=1 AND OLD.is_received=0","ReceiveMail","0","0","1"),
     ] {
         let sql=format!("CREATE TRIGGER IF NOT EXISTS progression_{name} AFTER {op} ON {table} WHEN {when} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account_id,date('now'),'{kind}',{arg},{arg2},{amount}) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+excluded.value; END");
         sqlx::query(&sql).execute(pool).await?;
     }
+    // Recover already completed greetings from the actual Inn state. Re-running
+    // startup must not add credit again or overwrite a larger existing metric.
+    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account_id,date(last_greeting_time),'DoHeroFriendly',hero_index,0,1 FROM hero_friendly_info WHERE last_greeting_time IS NOT NULL AND date(last_greeting_time) IS NOT NULL ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=MAX(value,excluded.value)")
+        .execute(pool).await?;
     Ok(())
 }

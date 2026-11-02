@@ -23,3 +23,5 @@
 !build-input/
 !build-input/worker/
 !build-input/worker/**
+!build-input/server/
+!build-input/server/sprk-server

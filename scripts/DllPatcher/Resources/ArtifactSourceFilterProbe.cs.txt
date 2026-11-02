@@ -1,0 +1,116 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NNguiExtension;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NComponent2;
+using NShared;
+using UnityEngine;
+
+public static class SprkArtifactSourceFilterProbe {
+    const BindingFlags Private=BindingFlags.Instance|BindingFlags.NonPublic;
+    static void Check(bool value,string message){if(!value)throw new Exception("Artifact source filter: "+message);}
+    public static string Run() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var managers=account.GetType().GetProperty("AccountManagers",Private).GetValue(account,null);
+        var equipField=managers.GetType().GetField("EquipItemManager");
+        var itemManagerField=managers.GetType().GetField("ItemManager");
+        object oldEquipment=equipField.GetValue(managers);
+        object oldItems=itemManagerField.GetValue(managers);
+        var owned=new[]{150001,150043,150900};
+        var equipment=new NGame2.NAccount.UserEquipItemManager();
+        equipment.Reset(owned.Select((id,index)=>new EquipItemInfo{ItemIndex=id,SlotIndex=index+1}).ToArray());
+        equipField.SetValue(managers,equipment);
+        itemManagerField.SetValue(managers,new NGame2.NAccount.UserItemManager());
+        var host=new GameObject("ArtifactSourceFilterFixture");host.SetActive(false);
+        try {
+            var prefab=VespaResource.Load<GameObject>("Resources/"+WeaponUniqueSelect.PrefabPath);
+            Check(prefab!=null,"native ticket prefab");
+            var window=UnityEngine.Object.Instantiate(prefab,host.transform,false).GetComponent<WeaponUniqueSelect>();
+            typeof(WeaponUniqueSelect).GetField("SelectType",Private).SetValue(window,SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT);
+            var filter=(SelectFilter)typeof(WeaponUniqueSelect).GetField("SelectFilter",Private).GetValue(window);
+            var main=(UIComboBox)typeof(SelectFilter).GetField("ComboBoxMain",Private).GetValue(filter);
+            var sub=(UIComboBox)typeof(SelectFilter).GetField("ComboBoxSub",Private).GetValue(filter);
+            var init=typeof(WeaponUniqueSelect).GetMethod("Init",Private);
+            var rebuild=typeof(WeaponUniqueSelect).GetMethod("AddEquipItemByFilter",Private);
+            var listField=typeof(WeaponUniqueSelect).GetField("_shopItemComponent",Private);
+            var itemField=typeof(WeaponUniqueItemComponent).GetField("_itemData",Private);
+            var selected=typeof(WeaponUniqueSelect).GetField("_buyItemData",Private);
+            var report=new List<string>();
+            int cases=0;
+            foreach(int ticketIndex in new[]{2013,3030}) {
+                var ticket=GameRoot.Instance.ItemDataContainer.GetData(ticketIndex);
+                Check((bool)init.Invoke(window,new object[]{ticket}),"ticket initialized "+ticketIndex);
+                int[] pool=ticket.GetSubData<WeaponUniqueSelectItemData>().ItemIndices;
+                filter.InitFilter(SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT,delegate{rebuild.Invoke(window,null);});
+                Check(sub.CurrentKey==0,"ticket starts at All");
+                int[] sources=pool.Select(id=>SprkArtifactSourceFilter.Category(GameRoot.Instance.ItemDataContainer.GetData(id).Code)).Distinct().OrderBy(id=>id).ToArray();
+                Check(sub.GetItemCount()==sources.Length+1,"only available source categories "+ticketIndex);
+                Check(!sources.Contains(108),"every Lua/normal artifact has a known reward source");
+                foreach(int source in new[]{0}.Concat(sources)) {
+                    Check(sub.SelectItem(source),"source choice "+source);
+                    foreach(int ownership in new[]{0,5,4}) {
+                        Check(main.SelectItem(ownership),"ownership choice "+ownership);
+                        Check(sub.CurrentKey==source,"source survives ownership changes");
+                        var actual=((IEnumerable)listField.GetValue(window)).Cast<WeaponUniqueItemComponent>().Select(c=>((ItemData)itemField.GetValue(c)).Index).ToArray();
+                        var expected=pool.Where(id=>(source==0 || SprkArtifactSourceFilter.Category(GameRoot.Instance.ItemDataContainer.GetData(id).Code)==source)
+                            && (ownership==0 || (ownership==5?owned.Contains(id):!owned.Contains(id)))).ToArray();
+                        Check(actual.SequenceEqual(expected),"native visible list/pool/order "+ticketIndex+"/"+source+"/"+ownership);
+                        Check(actual.Distinct().Count()==actual.Length,"no duplicate cards");
+                        cases++;
+                    }
+                }
+                main.SelectFirstItem();sub.SelectFirstItem();
+                var purchase=new PurchaseProbe();
+                typeof(WeaponUniqueSelect).GetField("_listener",Private).SetValue(window,purchase);
+                window.OnSelect(GameRoot.Instance.ItemDataContainer.GetData(pool[0]));
+                Check(window.Button_Buy.isEnabled,"choosing a visible artifact enables Acquire");
+                window.OnClickBuy();
+                Check(purchase.Count==1 && purchase.Ticket==ticketIndex && purchase.Artifact==pool[0],"native Acquire uses selected ticket and artifact");
+                sub.SelectItem(sources.Last());
+                Check(selected.GetValue(window)==null && !window.Button_Buy.isEnabled,"filter clears selection and disables Acquire");
+                window.OnClickBuy();Check(purchase.Count==1,"hidden selection cannot be acquired");
+                init.Invoke(window,new object[]{ticket});
+                filter.InitFilter(SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT,delegate{rebuild.Invoke(window,null);});
+                Check(sub.CurrentKey==0 && main.CurrentKey==0,"reopening ticket resets filters");
+                report.Add("ticket="+ticketIndex+" choices="+pool.Length+" categories="+String.Join(",",sources.Select(s=>s.ToString()).ToArray()));
+            }
+            // Validate the archived source memberships independently of item ID ranges.
+            foreach(var sample in new[]{new[]{1,101},new[]{51,102},new[]{24,103},new[]{43,104},new[]{517,105},new[]{900,106},new[]{1000,107}})
+                Check(SprkArtifactSourceFilter.Category("ARTIFACT_UNIQUE_"+sample[0])==sample[1],"native reward-group mapping "+sample[0]);
+            int restricted=0;
+            foreach(var row in GameRoot.Instance.WeaponUniqueSelectItemDataContainer.GetAllData()) {
+                if(row.ItemCode==null || !row.ItemCode.StartsWith("ARTIFACT_") || row.ItemIndices==null || row.ItemIndices.Length==0)continue;
+                var ticket=GameRoot.Instance.ItemDataContainer.GetDataByCode(row.ItemCode);
+                if(ticket==null)continue;
+                Check((bool)init.Invoke(window,new object[]{ticket}),"restricted ticket initialization");
+                filter.InitFilter(SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT,delegate{});
+                var sources=row.ItemIndices.Select(id=>GameRoot.Instance.ItemDataContainer.GetData(id)).Where(item=>item!=null).Select(item=>SprkArtifactSourceFilter.Category(item.Code)).Distinct().ToArray();
+                Check(sub.GetItemCount()==sources.Length+1,"restricted dropdown contains only ticket sources "+row.ItemCode);
+                foreach(int source in sources)Check(sub.SelectItem(source),"restricted source available");
+                foreach(int source in Enumerable.Range(101,8).Except(sources))Check(!sub.SelectItem(source),"outside-pool source absent");
+                restricted++;
+            }
+            Check(restricted>2,"restricted ticket coverage");
+            Check(SprkArtifactSourceFilter.Category("UNKNOWN_FUTURE_ARTIFACT")==108,"unknown artifacts remain accessible as Other");
+            filter.InitFilter(SelectFilter.SelectType.SELECT_EQUIP_UNIQUE,delegate{});
+            Check(!filter.GetComponent<SprkArtifactSourceState>().Active,"unique weapon filter stays native");
+            Check(SprkArtifactSourceFilter.Matches(filter,new EquipItemData{EquipCode="UNKNOWN"}),"non-artifact filtering unchanged");
+            report.Add("PASS: "+cases+" native source/ownership list comparisons, "+restricted+" artifact ticket dropdowns, source preservation, ticket pool/order, no duplicates, clearing selection, reopen reset, seven reward-group sources and non-artifact isolation.");
+            return String.Join("\n",report.ToArray());
+        } finally {
+            equipField.SetValue(managers,oldEquipment);
+            itemManagerField.SetValue(managers,oldItems);
+            UnityEngine.Object.Destroy(host);
+        }
+    }
+    sealed class PurchaseProbe : WeaponUniqueSelect.Listener {
+        public int Count,Ticket,Artifact;
+        public void OnSelectWeaponUnique(int useItemIndex,int buyItemIndex,Action onSelect) {
+            Count++;Ticket=useItemIndex;Artifact=buyItemIndex;
+        }
+    }
+}

@@ -1,0 +1,89 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NShared;
+using NGame2.NBattleField;
+using NGame2.NUI.NWindow.NBattle;
+using NVespa;
+using NVespa.NSingleton;
+using UnityEngine;
+
+// Opt-in native-runtime check, invoked only by the isolated Login automation
+// profile. Exercises the real UI getters and native skill selector, not stubs.
+public static class SprkArenaLatencyProbe {
+    sealed class Raiser : BattleFacade.IBattleLogRaiser {
+        public int Count,Slot,Uid;public bool Auto;
+        public void ReserveSkill(int uid,int slot,int target,bool auto) {Count++;Uid=uid;Slot=slot;Auto=auto;}
+        public void FireNextSkill(int uid) { }
+        public void SetManualTarget(int uid,int target) { }
+        public void SetManualMove(int uid,Vector3 position) { }
+        public void ReserveDungeonSkill(TeamType team,int slot) { }
+    }
+    static void Check(bool ok,string message) {if(!ok)throw new Exception(message);}
+    public static string Run() {
+        var profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+        Check(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name=="Login" &&
+            profile!=null && profile.StartsWith("arena-latency-"),"Probe requires an isolated arena-latency Login profile");
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        GameRoot.Instance.SetJsonLoader(new NGameAsset.JsonAssetAsyncLoader());
+        GameRoot.Instance.SetAiScriptLoader(new NGameAsset.TextAssetSyncLoader());
+        GameRoot.Instance.InitForClient();GameRoot.Instance.OnDataContainerLoaded(false);
+        var flags=BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public;
+        var account=GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var managers=account.GetType().GetProperty("AccountManagers",flags).GetValue(account,null);
+        managers.GetType().GetField("UserManager").SetValue(managers,new NGame2.NAccount.UserManager(account,
+            new UserInfo{AccountId=123456},new PlayerMiscInfo(),new PlayerGuildPointInfo()));
+        var facade=SingletonAuto<BattleFacade>.instance;
+        var context=typeof(BattleFacade).GetField("_threadContext",flags).GetValue(facade);
+        var cacheField=context.GetType().GetField("BattleCache");var originalCache=cacheField.GetValue(context);
+        var raiserField=typeof(BattleFacade).GetField("_battleLogRaiser",flags);var originalRaiser=raiserField.GetValue(facade);
+        var host=new GameObject("ArenaAutoFixture");host.SetActive(false);
+        try {
+            SprkConquest.Login(new Dictionary<string,object>{{"MatchUid","123"}});
+            long clock=1000;Check(SprkConquest.FilterClock(ref clock) && clock==900,"Arena login did not enable replay headroom");
+            clock=900;Check(!SprkConquest.FilterClock(ref clock),"Older heartbeat replaced a combat clock");
+            SprkConquest.Login(new Dictionary<string,object>{{"MatchUid","124"}});
+            clock=0;Check(SprkConquest.FilterClock(ref clock) && clock==0,"Next Arena match cannot reset its clock");
+            var simple=host.AddComponent<SystemButtonAutoSimple>();
+            var normal=host.AddComponent<SystemButtonAuto>();
+            foreach(var type in new[]{BattleType.Arena,BattleType.ArenaBanPick}) {
+                cacheField.SetValue(context,new BattleFacade.BattleCacheData{ChapterIndex=1000,BattleType=type});
+                // Force the native gate closed while the toggle is lit: this
+                // reproduces the reported display/behavior disagreement.
+                typeof(SystemButtonAutoSimple).GetField("_autoPlayerable",flags).SetValue(simple,false);
+                typeof(SystemButtonAuto).GetField("_autoPlayerable",flags).SetValue(normal,false);
+                simple.ChangeAutoUI(true);normal.ChangeAutoUI(true);
+                Check(simple.SkillReserveAuto && normal.SkillReserveAuto,"Lit Arena Auto did not enable skill selection: "+type);
+                simple.ChangeAutoUI(false);normal.ChangeAutoUI(false);
+                Check(!simple.SkillReserveAuto && !normal.SkillReserveAuto,"Arena Auto cannot be disabled: "+type);
+                bool auto=false,fast=true;
+                Check(SprkConquest.ArenaAutoPlayable(type,ref auto,ref fast) && auto && !fast,"Arena Auto must retain x1 speed");
+            }
+            cacheField.SetValue(context,new BattleFacade.BattleCacheData{ChapterIndex=1,BattleType=BattleType.Arena});
+            simple.ChangeAutoUI(true);
+            Check(!simple.SkillReserveAuto,"Arena override leaked into another chapter");
+            cacheField.SetValue(context,new BattleFacade.BattleCacheData{ChapterIndex=1000,BattleType=BattleType.Arena});
+            var heroIndex=GameRoot.Instance.CreatureDataContainer.GetAllData().First(c=>c.Index>0 && c.Index<10000).Index;
+            var hero=new CachedHeroInfo(new HeroInfo{HeroIndex=heroIndex,Level=90,Star=5,SkillLevel1=20,SkillLevel2=20,SkillLevel3=20,SkillLevel4=20});
+            var creature=new BattleFacade.CreatureCacheData(17){HeroInfo=hero,
+                CreatureData=GameRoot.Instance.CreatureDataContainer.GetData(heroIndex),
+                CreateInfo=BattleCreatureCreateInfo.CreateMyCreatureCreateInfo(hero,true,false,null,null),
+                Player=new BattleFacade.PlayerCacheData{Id=123456}};
+            var ui=SceneAutoBehaviour<NGame2.NUI.NManager.NBattle.BattleManagement>.instance;
+            ui.GetType().GetField("_playerId",flags).SetValue(ui,123456L);
+            var select=ui.GetType().GetMethods(flags).Single(m=>m.Name=="UpdateSkillAutoReserve" && m.GetParameters().Length==1);
+            var raiser=new Raiser();raiserField.SetValue(facade,raiser);
+            select.Invoke(ui,new object[]{creature});
+            var pending=ui.GetType().GetField("_skillAutoReserveDic",flags).GetValue(ui);
+            var entry=pending.GetType().GetMethod("GetValueByIndex").Invoke(pending,new object[]{0});
+            entry.GetType().GetField("ElapsedTime").SetValue(entry,1f);
+            if(simple.SkillReserveAuto)select.Invoke(ui,new object[]{creature});
+            Check(raiser.Count>0 && raiser.Uid==17 && raiser.Slot>=1 && raiser.Slot<=5 && raiser.Auto,"Native Auto selector did not reserve an owned hero skill");
+            int count=raiser.Count;creature.Player.Id=999999;
+            select.Invoke(ui,new object[]{creature});
+            Check(raiser.Count==count,"Auto selected another player's hero");
+            return "PASS: Victory/Honor native Auto on/off, campaign isolation, x1 eligibility, native automatic skill reservation and ownership.";
+        } finally {SprkConquest.Login(new Dictionary<string,object>());cacheField.SetValue(context,originalCache);raiserField.SetValue(facade,originalRaiser);UnityEngine.Object.Destroy(host);}
+    }
+}

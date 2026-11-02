@@ -84,7 +84,13 @@ public static class HeroTicketTests {
  int fallback=0;var icon=new NGame2.NUI.NComponent2.ItemIconComponent();
  var component=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();
  SprkHeroMaterialTickets.Open(component,f,10,0,false,NShared.HeroAwakeType.Awaken,i=>fallback++);
- Check(component.Counts && component.Label_Count.text=="1/10","count label changed or ticket hint restored");component.Listener(icon);
+ Check(!component.Counts && component.Label_Count.text=="1/10","purification status overlaps the material count");
+ foreach(var kind in new[]{NShared.HeroAwakeType.Awaken,NShared.HeroAwakeType.Transcend})foreach(bool ready in new[]{true,false,true}) {
+  var visibility=new NGame2.NUI.NComponent2.HeroAwakeItemComponent();
+  SprkHeroMaterialTickets.Open(visibility,kind==NShared.HeroAwakeType.Awaken?f:e,10,0,ready,kind,i=>fallback++);
+  Check(visibility.Counts==ready && visibility.Listener!=null,"ready/purification visibility or ticket shortcut did not refresh");
+ }
+ component.Listener(icon);
  Check(NGame2.NUI.NWindow.SelectionItemUsePopup.Ticket.Data.Index==20108 && NGame2.NUI.NWindow.SelectionItemUsePopup.Rewards.Single().Data.Index==20001,"fragment selector mismatch");
  var prefilled=new NGame2.NUI.NWindow.SelectionItemUsePopup();
  SprkHeroMaterialTickets.Prefill(prefilled,NGame2.NUI.NWindow.SelectionItemUsePopup.Listener,Choices());

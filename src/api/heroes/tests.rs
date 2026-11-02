@@ -17,6 +17,33 @@ async fn inn_refresh(s: &AppState, u: &user::LoginResponse) -> hero::inn::Reques
 }
 
 #[tokio::test]
+async fn restored_special_costume_sales_match_catalog_and_charge_once() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=100000,pay_gem=0 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    for id in [112,214,1514,415,7211,7212,3514,6313] {
+        let row=&s.tables.hero_shop.costumes[&id];let h=item::n(row,"HeroIndex");
+        assert_eq!(row["Buyable"],true);assert_eq!(row["ReqBuyGem"],3000);
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,COALESCE((SELECT MAX(hero_id)+1 FROM heroes WHERE account_id=?),1),? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(account).bind(account).bind(h).bind(account).bind(h).execute(&s.db).await.unwrap();
+        let before=balance(&s,&u,"gem").await;
+        let args=|price|format!("HeroIndex={h}&CostumeIndex={id}&BuyGem={price}&BuyGold={price}&BuyMileage={price}");
+        let bad=hero::buy_costume(State(s.clone()),form(&u,&args(2999))).await.unwrap().0;
+        assert_ne!(bad["Result"],"Success");assert_eq!(balance(&s,&u,"gem").await,before);
+        let result=hero::buy_costume(State(s.clone()),form(&u,&args(3000))).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","{id}: {result}");assert_eq!(balance(&s,&u,"gem").await,before-3000);
+        assert_eq!(hero::buy_costume(State(s.clone()),form(&u,&args(3000))).await.unwrap().0["Result"],"AlreadyHaveCostume");
+        assert_eq!(balance(&s,&u,"gem").await,before-3000);
+    }
+    // No other open, priced regular outfit may retain the same stale sale flag.
+    for row in s.tables.hero_shop.costumes.values().filter(|r|r["IsOpen"]==true && item::n(r,"ReqBuyGem")>0 && r["IsDefault"]!=true) {
+        if !matches!(row["BodyPrefix"].as_str(),Some("Trans"|"Trans_Hair01"|"Trial")) {
+            assert_eq!(row["Buyable"],true,"Unpurchasable regular costume: {row}");
+        }
+    }
+    for id in [180,190] {assert_ne!(s.tables.hero_shop.costumes[&id]["Buyable"],true);}
+}
+
+#[tokio::test]
 async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
     let (s, u) = setup().await;
     let first = inn_refresh(&s, &u).await.friendly_info.unwrap();
@@ -634,6 +661,48 @@ async fn awakening_requires_challenge_battle_purification_then_consumes_essence_
     assert_eq!(count(&s, &u, essence).await, 0);
     assert_eq!(login(&s).await.heroes[0].star, 2);
 }
+#[tokio::test]
+async fn trial_reentry_preserves_purification_and_rejects_unstarted_or_wrong_stage_rewards() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
+    {let mut db=s.db.acquire().await.unwrap();hero::recruit_at(&mut db,&s,account,82,5,90,0).await.unwrap();}
+    let awake=s.tables.hero_shop.awake.iter().find(|r|r["HeroIndex"]==82).unwrap();
+    let chapter=item::n(awake,"AwakeChapter");let dungeon=item::n(awake,"TranscendDungeon0");
+    let essence=item::n(awake,"TranscendMaterialItemIndex0") as i32;
+    // Reproduce the saved, cleared trial with purification already underway.
+    {
+        let mut db=s.db.acquire().await.unwrap();let mut saved=hero::details(&mut db,account,82).await.unwrap();
+        saved["EnterDungeon"]=serde_json::json!(2);saved["Purified"]=serde_json::json!(350);saved["TrialStarted"]=serde_json::json!(false);
+        hero::save_details(&mut db,account,82,&saved).await.unwrap();
+    }
+    put(&s,&u,essence,1).await;
+    let begin=format!("ChapterIndex={chapter}&DungeonIndex={dungeon}");let end=format!("{begin}&Completed=true");
+    let unstarted=campaign::end_campaign(State(s.clone()),form(&u,&end)).await.unwrap().0;
+    assert_ne!(unstarted["Result"],"Success");
+    for _ in 0..2 {
+        let before=count(&s,&u,essence).await;
+        let started=campaign::begin_campaign(State(s.clone()),form(&u,&begin)).await.unwrap().0;
+        assert_eq!(started["Result"],"Success","{started}");
+        let won=campaign::end_campaign(State(s.clone()),form(&u,&end)).await.unwrap().0;
+        assert_eq!(won["Result"],"Success");assert_eq!(count(&s,&u,essence).await,before+1);
+        assert!(won["HeroInfos"].as_array().is_none_or(|rows|rows.is_empty()));
+        let duplicate=campaign::end_campaign(State(s.clone()),form(&u,&end)).await.unwrap().0;
+        assert_ne!(duplicate["Result"],"Success");assert_eq!(count(&s,&u,essence).await,before+1);
+        let info=hero::info(&mut s.db.acquire().await.unwrap(),account,82).await.unwrap();
+        assert_eq!(info["EnterDungeon"],2);assert_eq!(info["Purified"],350);
+    }
+    let wrong=campaign::begin_campaign(State(s.clone()),form(&u,&format!("ChapterIndex={chapter}&DungeonIndex={}",dungeon+1))).await.unwrap().0;
+    assert_ne!(wrong["Result"],"Success");
+    let before=count(&s,&u,essence).await;
+    let started=campaign::begin_campaign(State(s.clone()),form(&u,&begin)).await.unwrap().0;
+    assert_eq!(started["Result"],"Success");
+    let lost=campaign::end_campaign(State(s.clone()),form(&u,&format!("{begin}&Completed=false"))).await.unwrap().0;
+    assert_eq!(lost["Result"],"Success");assert_eq!(count(&s,&u,essence).await,before);
+    sqlx::query("UPDATE hero_details SET data=json_set(data,'$.EnterDungeon',0) WHERE account_id=? AND hero_index=82")
+        .bind(account).execute(&s.db).await.unwrap();
+    let locked=campaign::begin_campaign(State(s.clone()),form(&u,&begin)).await.unwrap().0;
+    assert_ne!(locked["Result"],"Success");assert_eq!(count(&s,&u,essence).await,before);
+}
+
 #[tokio::test]
 async fn isolet_light_trial_rewards_material_without_acquiring_hero() {
     let (s, u) = setup().await;

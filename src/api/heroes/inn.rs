@@ -1099,6 +1099,11 @@ pub async fn give_reward_hero_inn_roulette(
     State(state): State<AppState>,
     Form(req): Form<GiveRewardHeroInnRouletteRequest>,
 ) -> Result<Json<GiveRewardHeroInnRouletteResponse>> {
+    let section=rand::thread_rng().gen_range(1..=8);
+    spin_roulette(state,req,section).await
+}
+
+async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winning_section:i32)->Result<Json<GiveRewardHeroInnRouletteResponse>> {
     let session_id = req.session_key.or(req.session_id)
         .ok_or_else(|| ServerError::SessionExpired)?;
 
@@ -1110,13 +1115,18 @@ pub async fn give_reward_hero_inn_roulette(
         .and_then(|s| s.parse().ok())
         .unwrap_or(1);
 
+    let mut tx=state.db.begin().await?;
+    // Serialize quota checks and reward credits in the same transaction.
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(account_id).execute(&mut *tx).await?;
+
     // Get today's date for spin tracking
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
     // Calculate max spins: 1 base + number of owned heroes visiting the inn
     let friendly_row = sqlx::query("SELECT selected_hero_indices FROM hero_friendly_info WHERE account_id = ?")
         .bind(account_id)
-        .fetch_optional(&state.db)
+        .fetch_optional(&mut *tx)
         .await?;
 
     let selected_hero_indices: Vec<i32> = friendly_row
@@ -1126,7 +1136,7 @@ pub async fn give_reward_hero_inn_roulette(
 
     let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
         .bind(account_id)
-        .fetch_all(&state.db)
+        .fetch_all(&mut *tx)
         .await?
         .iter()
         .map(|row| row.get("hero_index"))
@@ -1144,14 +1154,14 @@ pub async fn give_reward_hero_inn_roulette(
     )
     .bind(account_id)
     .bind(&today)
-    .fetch_optional(&state.db)
+    .fetch_optional(&mut *tx)
     .await?
     .unwrap_or(0);
 
     if spins_today >= max_spins {
         return Ok(Json(GiveRewardHeroInnRouletteResponse {
             base_result: "Success".to_string(),
-            result: "NoRemainCount".to_string(),
+            result: "NoMoreRoulette".to_string(),
             roulette_info: Some(RouletteInfo {
                 roulette_info_index: roulette_index,
                 remain_count: 0,
@@ -1172,18 +1182,11 @@ pub async fn give_reward_hero_inn_roulette(
     )
     .bind(account_id)
     .bind(&today)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await?;
 
     let new_spins_today = spins_today + 1;
     let remain_count = (max_spins - new_spins_today).max(0);
-
-    // Randomly select a winning section (1-8, 1-based for client)
-    // Note: Generate random before any await points to satisfy Send trait
-    let winning_section: i32 = {
-        let mut rng = rand::thread_rng();
-        rng.gen_range(1..=8)  // 1-based: 1, 2, 3, 4, 5, 6, 7, 8
-    };
 
     // Get the reward for this section (section is 1-based)
     let rewards = get_default_roulette_rewards(roulette_index);
@@ -1193,86 +1196,20 @@ pub async fn give_reward_hero_inn_roulette(
     let mut friendship_point_result: Option<FriendshipPointResultInfo> = None;
 
     if let Some(reward) = winning_reward {
-        let amount = reward.value1 as i64;
-
-        match reward.type1.as_str() {
-            "Gold" => {
-                // Get current gold and update
-                let current_gold: i64 = sqlx::query_scalar::<_, i64>(
-                    "SELECT COALESCE(gold, 0) FROM user_info WHERE account_id = ?"
-                )
-                .bind(account_id)
-                .fetch_optional(&state.db)
-                .await?
-                .unwrap_or(0);
-
-                let new_gold = current_gold + amount;
-                sqlx::query("UPDATE user_info SET gold = ? WHERE account_id = ?")
-                    .bind(new_gold)
-                    .bind(account_id)
-                    .execute(&state.db)
-                    .await?;
-
-                currency_results.push(CurrencyResultInfo3 {
-                    currency_type: "Gold".to_string(),
-                    add_value: amount,
-                    new_value: new_gold,
-                    ..Default::default()
-                });
-            }
-            "Gem" => {
-                // Get current ruby and update
-                let current_ruby: i64 = sqlx::query_scalar::<_, i64>(
-                    "SELECT COALESCE(ruby, 0) FROM user_info WHERE account_id = ?"
-                )
-                .bind(account_id)
-                .fetch_optional(&state.db)
-                .await?
-                .unwrap_or(0);
-
-                let new_ruby = current_ruby + amount;
-                sqlx::query("UPDATE user_info SET ruby = ? WHERE account_id = ?")
-                    .bind(new_ruby)
-                    .bind(account_id)
-                    .execute(&state.db)
-                    .await?;
-
-                currency_results.push(CurrencyResultInfo3 {
-                    currency_type: "Gem".to_string(),
-                    add_value: amount,
-                    new_value: new_ruby,
-                    ..Default::default()
-                });
-            }
-            "FriendshipPoint" => {
-                // Get current friendship points and update
-                let current_fp: i64 = sqlx::query_scalar::<_, i64>(
-                    "SELECT COALESCE(friendship_point, 0) FROM user_info WHERE account_id = ?"
-                )
-                .bind(account_id)
-                .fetch_optional(&state.db)
-                .await?
-                .unwrap_or(0);
-
-                let new_fp = current_fp + amount;
-                sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
-                    .bind(new_fp)
-                    .bind(account_id)
-                    .execute(&state.db)
-                    .await?;
-
-                friendship_point_result = Some(FriendshipPointResultInfo {
-                    add_value: amount,
-                    add_daily_acc_value: 0,
-                    new_value: new_fp,
-                    new_daily_acc_value: 0,
-                });
-            }
-            _ => {
-                tracing::warn!("Unknown reward type: {}", reward.type1);
-            }
+        let amount=reward.value1 as i64;
+        let result=super::currency(&mut tx,account_id,&reward.type1,amount).await?;
+        let value=crate::api::inventory::item::n(&result,"NewValue");
+        if reward.type1=="FriendshipPoint" {
+            friendship_point_result=Some(FriendshipPointResultInfo {
+                add_value:amount,new_value:value,
+                add_daily_acc_value:crate::api::inventory::item::n(&result,"AddDailyAccValue").clamp(0,i32::MAX as i64) as i32,
+                new_daily_acc_value:crate::api::inventory::item::n(&result,"NewDailyAccValue").clamp(0,i32::MAX as i64) as i32,
+            });
+        } else {
+            currency_results.push(CurrencyResultInfo3 {currency_type:reward.type1,add_value:amount,new_value:value,..Default::default()});
         }
     }
+    tx.commit().await?;
 
     let roulette_info = RouletteInfo {
         roulette_info_index: roulette_index,
@@ -1293,3 +1230,7 @@ pub async fn give_reward_hero_inn_roulette(
 
     Ok(Json(response))
 }
+
+#[cfg(test)]
+#[path = "inn_tests.rs"]
+mod tests;
