@@ -102,6 +102,10 @@ partial class Program {
         var calls=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().ToArray();
         foreach(var name in new[]{"GetItemCode","GetTranscendItemCode","SetListener","ShowCountLabel","get_ItemIndices","OpenError","Apply","set_ItemCount","set_SelectItemIndex","get_SessionKey","InitialCount","OnChangeInputSelectCount"})
             if(!calls.Any(m=>m.Name==name))throw new InvalidOperationException("Missing ticket behavior: "+name);
+        var open=helper.MainModule.GetType("SprkHeroMaterialTickets").Methods.Single(m=>m.Name=="Open");
+        var count=open.Body.Instructions.Single(i=>i.Operand is MethodReference m && m.Name=="ShowCountLabel");
+        if(count.Previous.Operand is not ParameterDefinition ready || ready.Name!="canStart")
+            throw new InvalidOperationException("Material counts must preserve native readiness visibility to avoid overlapping purification status.");
         if(calls.Count(m=>m.Name=="Apply")!=4)throw new InvalidOperationException("Hero/crafting ticket consumption/reward application missing");
         Console.WriteLine("Verified hero and Hall material hooks, scoped quantity prefill, fragment/essence gates, native popup/request, session checks and inventory refresh.");
     }

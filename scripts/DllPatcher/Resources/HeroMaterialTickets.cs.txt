@@ -57,7 +57,9 @@ public static class SprkHeroMaterialTickets {
         bool canStart, HeroAwakeType kind, Action<ItemIconComponent> fallback) {
         component.Open(material, required, owned, canStart, kind, fallback);
         if (!IsMaterial(material, kind)) return;
-        component.ShowCountLabel(true);
+        // During purification the native status text occupies the count row.
+        // Keep its visibility rule while retaining clickable ticket shortcuts.
+        component.ShowCountLabel(canStart);
         int indicator = SprkEssenceCraftTickets.Indicator(material.Code, required, owned);
         if (indicator >= 0) UIHelper.EnableGameObject(component.Sprite_New, indicator == 1);
         component.SetListener(TicketClick(material, required, fallback));
