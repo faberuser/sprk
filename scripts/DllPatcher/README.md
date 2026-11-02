@@ -72,6 +72,19 @@ Blasphemy inventory subcategory, retaining the native equipment and grind paths.
 Stage it and automation, then run `python scripts/client/verify_inventory_runes.py`
 to validate the original inventory prefab and both category selections in Unity.
 
+`--hero-rune-filter-only` adds Sort Option beside the Heroes rune category
+dropdown. It reuses the ticket's native stat picker: select up to two stats,
+then OK to show runes containing every selected stat. Deselect and OK restores
+the full list. Normal runes and crafted runes' rolled main stats use the native
+stat conversion; category, slot eligibility, equipment actions and existing
+ordering remain in place. The button shows the active selection count. Filters
+persist across category changes while the page is open and reset on close/reopen.
+`--verify-hero-rune-filter` checks hooks, native eligibility and popup lifecycle.
+Stage this patch and `--automation-only`, then run
+`python scripts/client/verify_hero_rune_filter.py` for isolated native prefab,
+ticket matching, Deselect/OK, crafted-stat and close/reopen checks. Use
+`--installed` after installation. The full release build installs and verifies it.
+
 The shared `tables/CostumeTicketRules.json` also opens all 80 archived League of
 Honor costume variants for direct sale at 10,000 Rubies, matching Legend outfits.
 `--costume-tickets-only` installs their native Costume/CostumeGroup rows and

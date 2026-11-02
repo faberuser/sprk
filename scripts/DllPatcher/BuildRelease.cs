@@ -84,6 +84,8 @@ partial class Program
         VerifyFriendPresenceFile(clientRoot);
         VerifyHonorFile(clientRoot, false);
         VerifyRuneCategories(clientRoot, false);
+        InstallHeroRuneFilter(clientRoot, false);
+        VerifyHeroRuneFilterFile(clientRoot);
         RestoreLegendaryRuneTickets(clientRoot, true);
         VerifyWebSocketLifecycle(clientRoot);
         VerifyImageRecoveryFile(clientRoot);

@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/HeroRuneFilter.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroRuneFilter.cs.txt" />
     <EmbeddedResource Include="Resources/ArenaPractice*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/PresetDisposal*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/SoloRetry*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
