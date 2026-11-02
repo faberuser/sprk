@@ -120,6 +120,13 @@ partial class Program {
                !(bool)CTMember(row,"IsOpen") || !(bool)CTMember(row,"IsShow") || (bool)CTMember(row,"PreviewableWhenOwned"))
                 throw new InvalidOperationException("Ashen costume sale mismatch: "+id);
         }
+        foreach(var id in new[]{112,214,1514,415,7211,7212,3514,6313}) {
+            var row=costumes[id.ToString()];
+            if(Convert.ToInt64(CTMember(row,"ReqBuyGem"))!=3000 || !(bool)CTMember(row,"IsBuy") ||
+               !(bool)CTMember(row,"IsOpen") || !(bool)CTMember(row,"IsShow") ||
+               Convert.ToInt64(CTMember(row,"ReqBuyGold"))!=0 || Convert.ToInt64(CTMember(row,"ReqBuyMileage"))!=0)
+                throw new InvalidOperationException("Restored costume sale mismatch: "+id);
+        }
         var roster=rules["HeroIndices"]!.AsArray().Select(x=>x!.GetValue<int>()).Order().ToArray();
         foreach(var key in new[]{"DarkCostumeIndices","LightCostumeIndices"}) {
             var ids=rules[key]!.AsArray().Select(x=>x!.GetValue<int>()).ToArray();

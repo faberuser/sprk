@@ -17,6 +17,33 @@ async fn inn_refresh(s: &AppState, u: &user::LoginResponse) -> hero::inn::Reques
 }
 
 #[tokio::test]
+async fn restored_special_costume_sales_match_catalog_and_charge_once() {
+    let (s,u)=setup().await;let account=u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gem=100000,pay_gem=0 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    for id in [112,214,1514,415,7211,7212,3514,6313] {
+        let row=&s.tables.hero_shop.costumes[&id];let h=item::n(row,"HeroIndex");
+        assert_eq!(row["Buyable"],true);assert_eq!(row["ReqBuyGem"],3000);
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,COALESCE((SELECT MAX(hero_id)+1 FROM heroes WHERE account_id=?),1),? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(account).bind(account).bind(h).bind(account).bind(h).execute(&s.db).await.unwrap();
+        let before=balance(&s,&u,"gem").await;
+        let args=|price|format!("HeroIndex={h}&CostumeIndex={id}&BuyGem={price}&BuyGold={price}&BuyMileage={price}");
+        let bad=hero::buy_costume(State(s.clone()),form(&u,&args(2999))).await.unwrap().0;
+        assert_ne!(bad["Result"],"Success");assert_eq!(balance(&s,&u,"gem").await,before);
+        let result=hero::buy_costume(State(s.clone()),form(&u,&args(3000))).await.unwrap().0;
+        assert_eq!(result["Result"],"Success","{id}: {result}");assert_eq!(balance(&s,&u,"gem").await,before-3000);
+        assert_eq!(hero::buy_costume(State(s.clone()),form(&u,&args(3000))).await.unwrap().0["Result"],"AlreadyHaveCostume");
+        assert_eq!(balance(&s,&u,"gem").await,before-3000);
+    }
+    // No other open, priced regular outfit may retain the same stale sale flag.
+    for row in s.tables.hero_shop.costumes.values().filter(|r|r["IsOpen"]==true && item::n(r,"ReqBuyGem")>0 && r["IsDefault"]!=true) {
+        if !matches!(row["BodyPrefix"].as_str(),Some("Trans"|"Trans_Hair01"|"Trial")) {
+            assert_eq!(row["Buyable"],true,"Unpurchasable regular costume: {row}");
+        }
+    }
+    for id in [180,190] {assert_ne!(s.tables.hero_shop.costumes[&id]["Buyable"],true);}
+}
+
+#[tokio::test]
 async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
     let (s, u) = setup().await;
     let first = inn_refresh(&s, &u).await.friendly_info.unwrap();
