@@ -217,6 +217,10 @@ public sealed class SprkAutomation : MonoBehaviour
                 UnityEngine.Object.Destroy(parent);
                 reply=Snapshot(cmd.id);reply.materials.Add("PASS: actual friend menu prefab binding and visible-disabled, visible-enabled, nonfriend-hidden duel states.");Write(reply);return;
             }
+            if(cmd.action=="purification-reuse-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Purification probe requires isolated Login");
+                busy=true;StartCoroutine(ProbePurificationReuse(cmd));return;
+            }
             if(cmd.action=="boss-characteristics-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Boss scroll fixture requires isolated Login");
                 busy=true;StartCoroutine(ProbeBossCharacteristics(cmd));return;
@@ -1293,6 +1297,51 @@ public sealed class SprkAutomation : MonoBehaviour
         var result=new Dictionary<string,object>();
         if(data!=null) foreach(var stat in CombatStatTypes()) result[stat.ToString()]=data.GetStat(stat);
         return result;
+    }
+    IEnumerator ProbePurificationReuse(Command cmd) {
+        GameObject host=null;Reply failure=null;MonoBehaviour window=null;UITweener[] tweens=null;
+        var report=new List<object>();
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        System.Reflection.MethodInfo reset=null,animate=null;
+        try {
+            var prefab=VespaResource.Load<GameObject>("Resources/Prefab2/Window/PurifyHero/PurifyHeroRoom");
+            if(prefab==null)throw new Exception("Purification prefab missing");
+            host=new GameObject("PurificationReuseFixture");host.SetActive(false);
+            var ui=UnityEngine.Object.FindObjectOfType<UIRoot>();if(ui!=null)host.transform.SetParent(ui.transform,false);
+            var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+            window=go.GetComponents<MonoBehaviour>().Single(c=>c.GetType().Name=="PurifyHeroRoom");window.enabled=false;
+            var type=window.GetType();reset=type.GetMethod("SprkResetPurifyTween",flags);animate=type.GetMethod("coAwakeHeroAnim",flags);
+            tweens=new[]{"BottomTween","TopTween","HighlightTween"}.Select(n=>(UITweener)type.GetField(n,flags).GetValue(window)).ToArray();
+            var sceneField=type.GetField("_purifyScene",flags);var scene=Activator.CreateInstance(sceneField.FieldType,true);
+            var camera=sceneField.FieldType.GetField("_purifyCamera",flags);camera.SetValue(scene,Activator.CreateInstance(camera.FieldType,true));sceneField.SetValue(window,scene);
+            for(var t=go.transform;t!=null && t!=host.transform;t=t.parent)t.gameObject.SetActive(true);
+            foreach(var tween in tweens) {tween.enabled=false;for(var t=tween.transform;t!=null && t!=host.transform;t=t.parent)t.gameObject.SetActive(true);}
+            host.SetActive(true);
+        } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        if(failure!=null) {if(host!=null)UnityEngine.Object.Destroy(host);busy=false;Write(failure);yield break;}
+        for(int hero=0;hero<3;hero++) {
+            try {
+                foreach(var tween in tweens) {
+                    if(reset==null)tween.ResetToBeginning();else reset.Invoke(null,new object[]{tween});
+                }
+                host.SetActive(true);
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null)break;
+            yield return new WaitForSecondsRealtime(tweens.Max(t=>t.duration+t.delay)+.3f);
+            try {
+                report.Add(new Dictionary<string,object>{{"hero",hero+1},{"tweens",tweens.Select(t=>(object)new Dictionary<string,object>{{"name",t.name},{"enabled",t.enabled},{"factor",t.tweenFactor},{"duration",t.duration}}).ToArray()}});
+                if(tweens.Any(t=>t.enabled || t.tweenFactor>.01f))throw new Exception("Purification HUD faded after reopening hero "+(hero+1));
+                // Execute the real native awakening coroutine's first frame:
+                // start the HUD exit tweens, then return the window to its pool.
+                var co=(IEnumerator)animate.Invoke(window,new object[]{null,null,Enum.ToObject(animate.GetParameters()[2].ParameterType,0),false});
+                if(!co.MoveNext())throw new Exception("Awakening coroutine did not yield");
+            } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            if(failure!=null)break;
+            yield return null;
+            host.SetActive(false);
+        }
+        UnityEngine.Object.Destroy(host);busy=false;
+        if(failure==null)failure=new Reply{id=cmd.id,ok=true};failure.materials.AddRange(report);Write(failure);
     }
     IEnumerator ProbeBossCharacteristics(Command cmd) {
         var report=new List<object>();
