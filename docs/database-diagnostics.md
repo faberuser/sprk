@@ -16,6 +16,15 @@ fix in server code with a regression test.
   matters.
 - Run Python with `-I` and pass paths as arguments. Don't run code from the
   download folder.
+- **Treat `sprk.db`, `sprk.db-wal` and `sprk.db-shm` as one unit.** Never copy
+  a new `sprk.db` over an old one while the old `-wal`/`-shm` files are still
+  beside it, and never move a database without its `-wal`. On the next open,
+  SQLite applies that WAL to the wrong main file and corrupts it ("freelist
+  leaf count too big", code 11 "database disk image is malformed"). This
+  happened to a scratch copy in Nov 2026 after a test process exited without
+  closing its pool. Use a new empty folder for every copy, and run
+  `PRAGMA integrity_check` on a copy before trusting results from it. The same
+  rule applies when restoring backups on the server.
 
 ## 2. Run the report
 
@@ -89,7 +98,29 @@ before a slow request or long hold.
 - Server-only changes need no client release (see `AGENTS.md`). Run
   `cargo test`, then report the before/after numbers from the report.
 
-## 5. Known scaling notes (Nov 2026: 59 accounts, about 2000 targeted)
+## 5. Measuring a request or startup on real data
+
+- To time a handler on production data, write a temporary `#[ignore]` test.
+  Open a scratch copy with `database::open_pool`, run `create_tables`, load
+  `GameTables` from `tables`, and call the handler (for example
+  `user::test_login` with the account's `login_id`). Install a
+  `tracing_subscriber` with the filter `sqlx::query=debug` to get every
+  statement's time.
+  Close the pool before exiting, and delete the harness afterwards.
+- Tests run on a single-threaded runtime. A "held long" warning there can
+  include blocking work that follows a query, because the connection's release
+  task can't run until the thread is free. Confirm startup timings with the
+  release binary instead, run in a scratch folder holding a copy of the
+  database: `RUST_LOG=info PORT=18080 BATTLE_WORKER_EXECUTABLE=does-not-exist
+  GAME_TABLES_PATH=<repo>/tables target/release/sprk-server.exe`. It stops after
+  migrations with "Conquest worker configured without a service key".
+- Startup baseline (Nov 2026, 620 MB database): database setup and
+  migrations about 1.1 s (longest hold 112 ms, since the ClearDungeon baseline
+  backfill skips stages that already have one), `GameTables::load` about 38–42 s
+  (JSON parsing of `tables/`, not the database),
+  login about 260–390 ms (about 500 statements, but only about 25 ms of SQL).
+
+## 6. Known scaling notes (Nov 2026: 59 accounts, about 2000 targeted)
 
 - Estimated peak load at 2000 players: 200–500 online, about 20–100 database
   requests/s. One connection is fine while typical holds stay at a few ms.

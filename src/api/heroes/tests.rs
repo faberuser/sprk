@@ -789,6 +789,45 @@ async fn skill_upgrade_uses_current_level_price_and_extend_uses_class_book() {
     assert_eq!(login(&s).await.heroes[0].details["SkillExtend1"], 1);
 }
 #[tokio::test]
+async fn extend_all_skills_spends_each_slot_book_independently_and_atomically() {
+    let (s, u) = setup().await;
+    let c = &s.tables.hero_shop.heroes[&1];
+    let books: Vec<i32> = (1..=4)
+        .map(|slot| {
+            let b = s.tables.hero_shop.books.iter()
+                .find(|v| v["TagType"] == c["TagType"] && item::n(v, "Grade") == slot)
+                .unwrap();
+            item::n(b, "ItemIndex") as i32
+        })
+        .collect();
+    assert_eq!(books.iter().collect::<std::collections::BTreeSet<_>>().len(), 4, "each slot has its own book");
+    // Tiers cost 20/60/120: 200 -> IV, 79 -> II, 0 -> unchanged, 100 -> III.
+    for (book, owned) in books.iter().zip([200, 79, 0, 100]) {
+        if owned > 0 { put(&s, &u, *book, owned).await; }
+    }
+    let r = hero::extend_hero_skill(State(s.clone()), form(&u, "HeroIndex=1&SkillIndex=0&SkillExtend=-1&ExtendAll=1"))
+        .await.unwrap().0;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let extends: Vec<(i64, i64)> = r["SkillExtends"].as_array().unwrap().iter()
+        .map(|v| (item::n(v, "SkillSlotIndex"), item::n(v, "SkillExtend"))).collect();
+    assert_eq!(extends, vec![(1, 3), (2, 1), (4, 2)]);
+    assert_eq!(r["ItemResults"].as_array().unwrap().len(), 3);
+    assert!(r["ItemResult"].is_object());
+    for (book, left) in books.iter().zip([0, 59, 0, 20]) {
+        assert_eq!(count(&s, &u, *book).await, left);
+    }
+    let details = &login(&s).await.heroes[0].details;
+    assert_eq!((details["SkillExtend1"].clone(), details["SkillExtend2"].clone(), details["SkillExtend4"].clone()), (serde_json::json!(3), serde_json::json!(1), serde_json::json!(2)));
+    // Nothing affordable remains: rejected without spending.
+    let again = hero::extend_hero_skill(State(s.clone()), form(&u, "HeroIndex=1&SkillIndex=0&SkillExtend=-1&ExtendAll=1"))
+        .await.unwrap().0;
+    assert_eq!(again["Result"], "NotEnoughItem", "{again}");
+    for (book, left) in books.iter().zip([0, 59, 0, 20]) {
+        assert_eq!(count(&s, &u, *book).await, left);
+    }
+}
+
+#[tokio::test]
 async fn awakening_requires_challenge_battle_purification_then_consumes_essence_once() {
     let (s, u) = setup().await;
     let c = &s.tables.hero_shop.heroes[&1];

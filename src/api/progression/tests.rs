@@ -1836,3 +1836,31 @@ async fn progression_latency_profile() {
         std::fs::write(output,serde_json::to_vec_pretty(&comparable).unwrap()).unwrap();
     }
 }
+
+#[tokio::test]
+async fn clear_dungeon_baseline_backfill_only_fills_missing_stages() {
+    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+    database::create_tables(&db).await.unwrap();
+    sqlx::query("INSERT INTO accounts(account_id,login_id,login_method,device_id,nick) VALUES(7,'baseline',0,'d','n')").execute(&db).await.unwrap();
+    let baseline = |chapter: i64, dungeon: i64| {
+        let db = db.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT value FROM progression_metrics WHERE account_id=7 AND day='0001-01-01' AND kind='ClearDungeon' AND arg=? AND arg2=?")
+                .bind(chapter).bind(dungeon).fetch_optional(&db).await.unwrap()
+        }
+    };
+    // Legacy save predating the clear triggers: 5 clears, only 2 counted by
+    // daily metrics. Drop the row the trigger writes for this setup insert.
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(7,1,2,5)").execute(&db).await.unwrap();
+    sqlx::query("DELETE FROM progression_metrics WHERE account_id=7 AND kind='ClearDungeon'").execute(&db).await.unwrap();
+    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(7,'2026-11-01','ClearDungeon',1,2,2)").execute(&db).await.unwrap();
+    play_record::migrate(&db).await.unwrap();
+    assert_eq!(baseline(1, 2).await, Some(3));
+    // Later clears are counted live; an existing baseline is never recomputed.
+    sqlx::query("UPDATE campaign_progress SET clear_count=9 WHERE chapter_id=1 AND dungeon_id=2").execute(&db).await.unwrap();
+    // A stage first cleared since the last start (counted live by the trigger)
+    // still receives its zero baseline.
+    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(7,1,3,1)").execute(&db).await.unwrap();
+    play_record::migrate(&db).await.unwrap();
+    assert_eq!((baseline(1, 2).await, baseline(1, 3).await), (Some(3), Some(0)));
+}

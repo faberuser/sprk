@@ -29,6 +29,8 @@ namespace DllPatcher
             if (args.Contains("--technomagic-refresh-only")) { InstallTechnomagicRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-refresh")) { InstallTechnomagicRefresh(args[0],false,true); return; }
             if (args.Contains("--technomagic-awaken-target-only")) { InstallTechnomagicAwakenTarget(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--skill-upgrade-all-only")) { InstallSkillUpgradeAll(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-skill-upgrade-all")) { VerifySkillUpgradeAllFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-awaken-target")) { VerifyTechnomagicAwakenTargetFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }

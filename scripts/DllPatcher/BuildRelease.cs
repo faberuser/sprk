@@ -132,6 +132,7 @@ partial class Program
         VerifyBattleResultFlaskFile(clientRoot);
         // Reads Gold, so it must compile before the Currency64 migration.
         InstallTechnomagicAwakenTarget(clientRoot, false);
+        InstallSkillUpgradeAll(clientRoot, false);
         InstallCurrency64(clientRoot, false);
         InstallGearPresetPortraits(clientRoot, false);
         InstallGearPresetPortraits(clientRoot, true);

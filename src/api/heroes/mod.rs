@@ -19,7 +19,7 @@ use crate::{
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 macro_rules! endpoints {($($name:ident),*)=>{$(pub async fn $name(State(state):State<AppState>,body:Bytes)->Result<Json<Value>> {handle(state,body,stringify!($name)).await})*};}
 endpoints!(
@@ -671,6 +671,9 @@ async fn skills(
         out,
     } = update;
     let table = &state.tables.hero_shop;
+    if action == "extend_hero_skill" && req.number("ExtendAll", 0)? == 1 {
+        return extend_all_skills(db, state, account, c, h, extra, out).await;
+    }
     let ids = if action == "upgrade_hero_skill" {
         array(req, "SkillIndices")?
     } else {
@@ -771,6 +774,78 @@ async fn skills(
     if let Some(book) = book {
         out["ItemResult"] = item::consume(db, account, book, count as i32).await?;
     }
+    Ok(())
+}
+
+/// Patched clients send `ExtendAll=1` with the native extend request to raise
+/// every learned skill's tier (II-IV) as far as its own slot book allows. Each
+/// slot uses a different book, so skills never compete for materials.
+async fn extend_all_skills(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    c: &Value,
+    h: &Value,
+    extra: &mut Value,
+    out: &mut Value,
+) -> Result<()> {
+    let table = &state.tables.hero_shop;
+    let max = table.constant("MaxSkillExtend", 3);
+    let mut available: BTreeMap<i32, i64> = BTreeMap::new();
+    let mut spend: BTreeMap<i32, i64> = BTreeMap::new();
+    let mut extends = vec![];
+    for slot in 1..=4 {
+        let skill = n(c, &format!("SkillIndex{slot}"));
+        let key = format!("SkillExtend{slot}");
+        let current = n(h, &key);
+        if skill <= 0 || n(h, &format!("SkillLevel{slot}")) <= 0 || current >= max {
+            continue;
+        }
+        let Some(book) = table
+            .books
+            .iter()
+            .find(|v| n(v, "TagType") == n(c, "TagType") && n(v, "Grade") == slot)
+        else {
+            continue;
+        };
+        let id = n(book, "ItemIndex") as i32;
+        if !available.contains_key(&id) {
+            let row: Option<(i64, i64)> =
+                sqlx::query_as("SELECT count, locked FROM items WHERE account_id=? AND item_index=?")
+                    .bind(account)
+                    .bind(id)
+                    .fetch_optional(&mut *db)
+                    .await?;
+            let held = crate::api::battle::entry_costs::held(db, account, "Item", id as i64).await?;
+            available.insert(id, match row { Some((count, 0)) => (count - held).max(0), _ => 0 });
+        }
+        let left = available.get_mut(&id).unwrap();
+        let mut next = current;
+        while next < max {
+            let need = table.constant(&format!("ReqItemCountSkillExtend{}", next + 1), 0);
+            if need <= 0 || need > *left {
+                break;
+            }
+            *left -= need;
+            *spend.entry(id).or_default() += need;
+            next += 1;
+        }
+        if next > current {
+            extra[&key] = json!(next);
+            extends.push(json!({"SkillSlotIndex": slot, "SkillIndex": skill, "SkillExtend": next}));
+        }
+    }
+    if extends.is_empty() {
+        return Err(rule("NotEnoughItem"));
+    }
+    let mut results = vec![];
+    for (id, count) in spend {
+        results.push(item::consume(db, account, id, i32::try_from(count).map_err(|_| rule("NotEnoughItem"))?).await?);
+    }
+    // ItemResult keeps the native single-result field populated.
+    out["ItemResult"] = results[0].clone();
+    out["ItemResults"] = json!(results);
+    out["SkillExtends"] = json!(extends);
     Ok(())
 }
 

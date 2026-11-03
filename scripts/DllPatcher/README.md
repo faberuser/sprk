@@ -98,6 +98,25 @@ field is absent. `--verify-technomagic-awaken-target` checks hooks, native
 members and IL. Installation also runs the native request encoder against the
 compiled helper. The full release build installs it before `Currency64`.
 
+`--skill-upgrade-all-only` adds an upgrade-all button (labelled Upgrade) to the
+hero Skills tab's skill-book row. It clones the HeroList window's native All Heroes button as a taller sliced
+button with a larger label. The four book counters get narrower count boxes
+(restored before the pooled components are released) and tighter native-grid
+spacing. The counters and button are then scaled together and centred in the panel. It is hidden for other
+players' heroes and greyed out when no learned skill can gain a tier. Each skill
+slot uses its own book, so every learned skill rises independently through
+II-IV as far as its book allows. The confirmation uses the native skill-tier
+popup and lists each skill, its tier change and its book cost. The button sends
+the native `extend_hero_skill` request with `SkillExtend=-1`, which the encoder
+turns into `ExtendAll=1`. The server applies every tier and book cost in one
+transaction (locked or reserved books are excluded). It returns `ItemResults`
+and `SkillExtends` alongside the native `ItemResult`; a parser hook captures
+them, so all book counts and tiers update through native account managers.
+Native single-tier requests are unchanged. `--verify-skill-upgrade-all` checks
+hooks and IL. Installation also runs the native encoder and response parser
+against the compiled helper. The full release build installs it before
+`Currency64`.
+
 `--legendary-rune-tickets-only` upgrades legacy random ticket 91029 and selector
 94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
 Tenacity and Vitality). It bakes native ItemGroup/SelectItem rows and refreshes
