@@ -129,6 +129,8 @@ partial class Program
         InstallBattleResultFlask(clientRoot, false);
         VerifyBattleResultFlaskFile(clientRoot);
         InstallCurrency64(clientRoot, false);
+        InstallGearPresetPortraits(clientRoot, false);
+        InstallGearPresetPortraits(clientRoot, true);
         InstallPresetDisposal(clientRoot, false);
         InstallPresetDisposal(clientRoot, true);
         InstallAwakeningMaterials(clientRoot, false);

@@ -11,6 +11,8 @@ namespace DllPatcher
         {
             if (args.Contains("--arena-practice-only")) { InstallArenaPractice(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-practice")) { InstallArenaPractice(args[0], args.Contains("--stage-only"), true); return; }
+            if (args.Contains("--gear-preset-portraits-only")) { InstallGearPresetPortraits(args[0], false); return; }
+            if (args.Contains("--verify-gear-preset-portraits")) { InstallGearPresetPortraits(args[0], true); return; }
             if (args.Contains("--preset-disposal-only")) { InstallPresetDisposal(args[0], false); return; }
             if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
             if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }

@@ -432,3 +432,15 @@ Checks cover readiness deferral, event coalescing, stale owner rejection, A-B-A
 switches, cancellation/reactivation, native hook scope, render-body retention,
 closed-load guard and patch idempotence. These validate the identified refresh
 risk; the player's intermittent visual symptom still needs an in-game retest.
+
+## Gear Custom slot wearer portraits
+
+`dotnet run --project scripts/DllPatcher -- <client> --gear-preset-portraits-only`
+installs `SprkGearPresetPortraits.dll` and updates the native slot portrait method.
+`--verify-gear-preset-portraits` checks the installed hook and runs the regression
+fixtures. Both installation and verification also run in `--build-release`.
+The selected hero keeps priority when wearing any saved piece; other slots show
+whichever hero wears the most saved pieces (lowest hero index breaks ties).
+Empty slots, deleted gear, and unequipped/chest gear show no portrait. The helper
+reads current equipment ownership whenever the native panel refreshes, rather
+than remembering who originally saved or applied the slot.

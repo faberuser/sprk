@@ -1,0 +1,49 @@
+using System.Collections.Generic;
+using NGame2;
+using NGame2.NAccount;
+using NGame2.NUI;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NVespa.NSingleton;
+
+public static class SprkGearPresetPortraits
+{
+    public static int FindWearer(EquipPresetInfo preset, int selectedHeroIndex)
+    {
+        if (!GlobalAutoBehaviour<AccountManager>.isValidInstance ||
+            PresetStorageHelper.IsEmptySlotEquipPresetInfo(preset)) return 0;
+        // Preserve the native selected-hero preference when a set is split.
+        if (PresetStorageHelper.IsEquippedItemExist(preset, selectedHeroIndex)) return selectedHeroIndex;
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        var counts = new Dictionary<int, int>();
+        foreach (var part in PresetStorageHelper.SaveEquipParts)
+        {
+            var uid = preset.GetEquipItemUid((int)part);
+            if (string.IsNullOrEmpty(uid)) continue;
+            var item = account.EquipItemManager.GetEquipItemInfoByUid(uid);
+            if (item == null || item.GetInventoryType() == InventoryType.Chest) continue;
+            int hero = item.GetEquippedHeroIndex();
+            if (hero <= 0 || account.GetHeroInfo(hero) == null ||
+                !PresetStorageHelper.IsEquippedItemExist(preset, hero)) continue;
+            int count;
+            counts.TryGetValue(hero, out count);
+            counts[hero] = count + 1;
+        }
+        int wearer = 0, most = 0;
+        foreach (var pair in counts)
+            if (pair.Value > most || (pair.Value == most && pair.Key < wearer))
+            {
+                wearer = pair.Key;
+                most = pair.Value;
+            }
+        return wearer;
+    }
+
+    public static void Update(EquipStorageSlotComponent slot, int selectedHeroIndex)
+    {
+        int wearer = FindWearer(slot.EquipPresetInfo, selectedHeroIndex);
+        // Always clear a previously displayed portrait after unequipping/reset.
+        UIHelper.EnableGameObject(slot.BundleLoader_HeroTexture, wearer > 0, false);
+        if (wearer > 0) slot.SetPortraitTexture(wearer);
+    }
+}
