@@ -129,6 +129,28 @@ magenta effects. The old standalone field-projectile asset repair script is no
 longer included. Asset changes now belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
 
+`python scripts/client/verify_kasel_honor_s2.py` plays Dark Lord Kasel's League
+of Honor S2 through the native effect loader, material pooling and effect timing
+in an isolated client without login. It saves 36 frames under
+`target/kasel-s2-validation` and checks visible casting/projectile pixels, the
+dark helix's alpha blending and absence of magenta. Install the current automation
+helper first with `--automation-only`. The two casting bundle overrides restore
+dedicated GatherHelixBlend materials from the matching original S2 stages with
+costume helix/noise textures and complete preload dependencies. Reusing the
+additive GatherHelix material loses the dark layer. Provenance hashes are in
+`client-overrides/kasel-honor-s2-provenance.json`. The Windows
+`NodeTree/Hero/DarkLordKasel.bjs` also lacked the root link of
+`ReserveOperation_8429_1`, so S2-2's projectile, pivot and camera shake never ran
+for any costume. The override is the byte-identical pre-Doomsday build1558
+script (SHA-256 `c366198d…`); its only logic difference is that restored link.
+The default (non-costume) `Effect_Skill_Hero_Kasel_DarkLord_Skill2-2_Casting`
+bundles in all three specs also lacked the `1.…_Casting_Helix` prefab and
+renumbered the rest, so the whole default S2-2 casting effect failed with
+`Invalid Asset Request`. `python scripts/client/restore_kasel_darklord_s2_helix.py`
+rebuilds them from the same-spec S2-1 Helix with build1558's S2-2 values;
+hashes are in `client-overrides/kasel-darklord-s2-helix-provenance.json`. Run the
+native probe with `target=1` to check the default-costume effects.
+
 The opt-in bridge also accepts `video-probe` through the Python `request` API.
 Without parameters it reports native cinematic state, preparation, playback,
 decoded frame, dimensions and resolved URL. Set `text` to a valid video-table
