@@ -48,6 +48,8 @@ pub(crate) fn cosmetic(path: &str) -> bool {
     )
 }
 
+const SLOW_REQUEST_MS: f64 = 1000.0;
+
 /// Measure application processing without buffering downloads or WebSockets.
 /// Paths exclude query strings; request bodies and credentials are never logged.
 pub(crate) async fn measure(
@@ -57,13 +59,22 @@ pub(crate) async fn measure(
     use axum::body::HttpBody;
     let path = request.uri().path().to_owned();
     let start = std::time::Instant::now();
-    let mut response = next.run(request).await;
+    // Lets the database pool attribute long connection holds to this request.
+    let mut response = crate::database::REQUEST_PATH
+        .scope(std::sync::Arc::from(path.as_str()), next.run(request))
+        .await;
     let ms = start.elapsed().as_secs_f64() * 1000.0;
     response
         .headers_mut()
         .insert("server-timing", format!("app;dur={ms:.3}").parse().unwrap());
-    tracing::debug!(target: "sprk_http", path, status=response.status().as_u16(),
-        app_ms=ms, response_bytes=?response.body().size_hint().exact(), "HTTP request");
+    if ms >= SLOW_REQUEST_MS && !path.starts_with("/ws/") {
+        // Includes time queued for the database; pair with "held long" warnings.
+        tracing::warn!(target: "sprk_http", path, status=response.status().as_u16(),
+            app_ms=ms, "Slow HTTP request");
+    } else {
+        tracing::debug!(target: "sprk_http", path, status=response.status().as_u16(),
+            app_ms=ms, response_bytes=?response.body().size_hint().exact(), "HTTP request");
+    }
     response
 }
 

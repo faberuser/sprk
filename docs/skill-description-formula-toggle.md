@@ -8,7 +8,8 @@ Date: 2026-11-03.
 Add a dedicated button to the **top-left of the hero skill card's title bar**,
 mirroring the circular-arrow linked-skill button at the top-right. The new button
 switches the description between its current calculated values and readable
-formulas derived from the actual SPRK client data.
+formulas derived from the actual SPRK client data. The button style's should match
+with the current game's styling.
 
 Preserve combat behavior, skill balance, server requests, and the native
 calculated-description path. This feature adds UI behavior and an alternate
@@ -113,15 +114,15 @@ claim requires an explicit coverage audit; fallback alone does not complete it.
 Reference source inspected under
 `../kingsraid-table-data/dlls/Assembly-CSharp/Assembly-CSharp/`:
 
-| Reference type | Relevant behavior |
-| --- | --- |
-| `NGame2.NUI.NWindow.HeroSkillDesc` | Owns the card, `Label_SkillDesc`, `ScrollView_SkillDesc`, and `Button_LinkedSkill`. |
-| `HeroSkillDesc.Refresh` | Resolves the current skill with `Helper.GetSkillDetailInfo`, then sets description and controls. |
-| `HeroSkillDesc.SetupCurSkillLevelDesc` | Calls `SkillDescContainer.GetByHeroInfo`, assigns the description, and resets scrolling. |
-| `HeroSkillDesc.OnClickChangeLinkedSkill` | Changes `_linkedIndex` and refreshes the card. |
-| `SkillDescContainer.GetDesc` | Selects costume-specific description data, then the default skill description. |
-| `SkillDesc.GetDescription` | Evaluates a string argument tree using `SkillDescVariable`. |
-| `SkillDescVariable.Open` | Supplies skill/hero context, stats, and equipment-added skill levels. |
+| Reference type                           | Relevant behavior                                                                                |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `NGame2.NUI.NWindow.HeroSkillDesc`       | Owns the card, `Label_SkillDesc`, `ScrollView_SkillDesc`, and `Button_LinkedSkill`.              |
+| `HeroSkillDesc.Refresh`                  | Resolves the current skill with `Helper.GetSkillDetailInfo`, then sets description and controls. |
+| `HeroSkillDesc.SetupCurSkillLevelDesc`   | Calls `SkillDescContainer.GetByHeroInfo`, assigns the description, and resets scrolling.         |
+| `HeroSkillDesc.OnClickChangeLinkedSkill` | Changes `_linkedIndex` and refreshes the card.                                                   |
+| `SkillDescContainer.GetDesc`             | Selects costume-specific description data, then the default skill description.                   |
+| `SkillDesc.GetDescription`               | Evaluates a string argument tree using `SkillDescVariable`.                                      |
+| `SkillDescVariable.Open`                 | Supplies skill/hero context, stats, and equipment-added skill levels.                            |
 
 The reference card prefab path is
 `Resources/Prefab2/Window/Hero/HeroSkillDesc`; the reference description data path
@@ -185,18 +186,18 @@ hashes. Avoid relying on stale decompilation or reference table exports.
 
 ## Validation and acceptance
 
-| Area | Required evidence |
-| --- | --- |
-| Calculated mode | Description matches the pre-feature native output for the same hero context; repeated toggles restore it exactly. |
+| Area             | Required evidence                                                                                                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Calculated mode  | Description matches the pre-feature native output for the same hero context; repeated toggles restore it exactly.                                                                                                                                                 |
 | Formula accuracy | Evaluate supported symbolic expressions with the same input values and rounding rules and compare against the native description evaluator. Separately trace representative coefficients to gameplay data; description parity alone does not prove combat parity. |
-| Context | Test low/high skill levels, awakening states, equipment-added levels, costume descriptions, enhancement changes, and owned/reference heroes where the card supports them. |
-| Skill shapes | Cover direct damage, multiple hits, DoT totals/ticks, healing, shields, stat buffs, target-stat scaling, conditional damage, and passives. |
-| Linked skills | Test the screenshot's initial/follow-up pair and other multi-variant skills in both modes; the two buttons remain independent. |
-| Layout | Verify top-left symmetry, title clearance, native click area, long formulas, scrolling, localized text, and supported resolutions/aspect ratios. |
-| Lifecycle | Reopen/recycle the card, switch heroes/slots repeatedly, change skill context, and restart the client to verify the saved preference; no duplicate buttons or callbacks. |
-| Fallback | Force unsupported expressions and renderer failure; native values/text remain usable and clearly identified. |
-| Isolation | Confirm toggling makes no gameplay requests or mutations; combat-related tables and calculation methods remain unchanged. |
-| Build | Focused patch/verifier and full `--build-release` integration pass; repeated patching is safe and unrelated existing patches survive. |
+| Context          | Test low/high skill levels, awakening states, equipment-added levels, costume descriptions, enhancement changes, and owned/reference heroes where the card supports them.                                                                                         |
+| Skill shapes     | Cover direct damage, multiple hits, DoT totals/ticks, healing, shields, stat buffs, target-stat scaling, conditional damage, and passives.                                                                                                                        |
+| Linked skills    | Test the screenshot's initial/follow-up pair and other multi-variant skills in both modes; the two buttons remain independent.                                                                                                                                    |
+| Layout           | Verify top-left symmetry, title clearance, native click area, long formulas, scrolling, localized text, and supported resolutions/aspect ratios.                                                                                                                  |
+| Lifecycle        | Reopen/recycle the card, switch heroes/slots repeatedly, change skill context, and restart the client to verify the saved preference; no duplicate buttons or callbacks.                                                                                          |
+| Fallback         | Force unsupported expressions and renderer failure; native values/text remain usable and clearly identified.                                                                                                                                                      |
+| Isolation        | Confirm toggling makes no gameplay requests or mutations; combat-related tables and calculation methods remain unchanged.                                                                                                                                         |
+| Build            | Focused patch/verifier and full `--build-release` integration pass; repeated patching is safe and unrelated existing patches survive.                                                                                                                             |
 
 Use a data-driven inventory to report coverage by skill ID, linked variant,
 costume override, and unsupported expression type. Add meaningful renderer and

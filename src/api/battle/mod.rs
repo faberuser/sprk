@@ -47,6 +47,11 @@ mod maze_tests;
 pub(crate) mod bonuses;
 mod loot_booster;
 
+/// Dispatch jobs still awaiting battle simulation. Shared verbatim by the
+/// partial index and the preparation poller: SQLite only uses a partial index
+/// when the query repeats its WHERE terms, so the poller reads just pending rows
+/// instead of parsing every account's battle_state JSON every few seconds.
+pub(crate) const PENDING_DISPATCH_SIMULATION: &str = "kind='dispatch' AND json_extract(data,'$.SimulationVersion') IN (1,2) AND json_extract(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(json_array_length(json_extract(data,'$.SimulationResults')),0)<json_extract(data,'$.RepeatCount')";
 pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     for query in [
         "CREATE TABLE IF NOT EXISTS challenge_results(season INTEGER NOT NULL,challenge INTEGER NOT NULL,account INTEGER NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,current_score INTEGER NOT NULL,current_time INTEGER NOT NULL,PRIMARY KEY(season,challenge,account))",
@@ -74,6 +79,8 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END"))
             .execute(db).await?;
     }
+    sqlx::query(&format!("CREATE INDEX IF NOT EXISTS battle_state_dispatch_pending ON battle_state(account,idx) WHERE {PENDING_DISPATCH_SIMULATION}"))
+        .execute(db).await?;
     seasons::migrate_best_daily(db).await?;
     // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
     sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
