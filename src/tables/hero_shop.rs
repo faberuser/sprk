@@ -7,6 +7,9 @@ use std::{collections::HashMap, path::Path};
 pub struct HeroShopTable {
     pub items: HashMap<i32, Value>,
     pub heroes: HashMap<i32, Value>,
+    /// NeedFriendlyPoint from the archived HeroFriendlyTable, keyed by HeroIndex.
+    #[serde(skip)]
+    pub inn_recruitment_points: HashMap<i32, i32>,
     pub costumes: HashMap<i32, Value>,
     pub preset_slots: HashMap<String, Value>,
     pub growth_items: Vec<Value>,
@@ -33,6 +36,9 @@ pub struct HeroShopTable {
 impl HeroShopTable {
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let mut data: Self = serde_json::from_reader(std::fs::File::open(path)?)?;
+        data.inn_recruitment_points = serde_json::from_reader(std::fs::File::open(
+            path.with_file_name("HeroInnRecruitment.json"),
+        )?)?;
         let catalog = path.with_file_name("ArenaShopCatalog.json");
         let restored: Value = serde_json::from_reader(std::fs::File::open(catalog)?)?;
         data.shop_items.retain(|r| !matches!(r["ShopIndex"].as_i64(), Some(15 | 35)));

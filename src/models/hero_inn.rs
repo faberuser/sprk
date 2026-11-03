@@ -184,9 +184,6 @@ pub fn get_available_inn_hero_indices() -> Vec<i32> {
     ].into_iter().filter(|id| !INN_RECRUITMENT_EXCLUDED_HEROES.contains(id)).collect()
 }
 
-/// Max friendship points needed to recruit a hero
-pub const MAX_FRIENDSHIP_POINTS: i32 = 1000;
-
 /// Points gained per action
 pub const GREETING_POINTS: i32 = 50;
 pub const CONVERSATION_POINTS: i32 = 100;

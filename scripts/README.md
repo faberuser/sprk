@@ -14,7 +14,6 @@ Run commands from the `sprk-server` repository root unless noted otherwise.
 | [DllPatcher/](DllPatcher/) | Reproducible client patches, embedded resources, verifiers and self-tests                | `dotnet run --project scripts/DllPatcher -- ...`                                                                              |
 | [DllDisasm/](DllDisasm/)   | Read-only managed DLL inspection                                                         | `dotnet run --project scripts/DllDisasm -- ...`                                                                               |
 
-The former root scripts now live in these directories; use their new paths.
 Python tools support direct execution, for example:
 
 ```powershell

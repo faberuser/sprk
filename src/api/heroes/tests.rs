@@ -44,6 +44,47 @@ async fn restored_special_costume_sales_match_catalog_and_charge_once() {
 }
 
 #[tokio::test]
+async fn inn_friendship_uses_each_hero_target_and_unblocks_saved_1000_points() {
+    for (index, required) in [(27, 1200), (6, 1200), (5, 1000)] {
+        let (s, u) = setup().await;
+        let account = u.user_info.account_id;
+        inn_refresh(&s, &u).await;
+        let selected = hero::inn::change_recruit_hero(State(s.clone()), axum::extract::Form(hero::inn::ChangeRecruitHeroRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some(index),
+        })).await.unwrap().0;
+        assert_eq!(selected.result, "Success");
+        let recruit = || axum::extract::Form(hero::inn::RecruitHeroRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some(index),
+        });
+        let greet = || axum::extract::Form(hero::inn::DoHeroFriendlyRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()),
+            hero_index: Some(index.to_string()), action: Some("Greeting".to_string()),
+        });
+        // Reproduce a saved relationship stuck at 1000 for a 1200-point hero.
+        sqlx::query("UPDATE hero_friendly_info SET friendly_point=? WHERE account_id=?")
+            .bind(required - 200).bind(account).execute(&s.db).await.unwrap();
+        let early = hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0;
+        assert_eq!(early["Result"], "FriendlyPointMismatch");
+        let action = hero::inn::do_hero_friendly(State(s.clone()), greet()).await.unwrap().0;
+        assert_eq!(action.result, "Success");
+        assert_eq!(action.friendly_info.unwrap().friendly_point, required - 150);
+        assert_eq!(inn_refresh(&s, &u).await.friendly_info.unwrap().friendly_point, required - 150);
+        sqlx::query("UPDATE hero_friendly_info SET friendly_point=? WHERE account_id=?")
+            .bind(required - 1).bind(account).execute(&s.db).await.unwrap();
+        assert_eq!(hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0["Result"], "FriendlyPointMismatch");
+        // An action crossing the target must clamp at that hero's target.
+        let action = hero::inn::do_hero_friendly(State(s.clone()), greet()).await.unwrap().0;
+        assert_eq!(action.friendly_info.unwrap().friendly_point, required);
+        let recruited = hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0;
+        assert_eq!(recruited["Result"], "Success");
+        assert_eq!(recruited["HeroResult"]["HeroInfo"]["HeroIndex"], index);
+        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT friendly_point FROM hero_friendly_info WHERE account_id=?")
+            .bind(account).fetch_one(&s.db).await.unwrap(), 0);
+        assert_eq!(hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0["Result"], "AlreadyRecruited");
+    }
+}
+
+#[tokio::test]
 async fn inn_daily_refresh_acknowledges_reset_and_preserves_recruit_progress() {
     let (s, u) = setup().await;
     let first = inn_refresh(&s, &u).await.friendly_info.unwrap();

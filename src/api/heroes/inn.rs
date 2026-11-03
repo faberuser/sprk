@@ -14,7 +14,7 @@ use crate::{
         hero_inn::{
             PlayerHeroFriendlyInfo,
             FriendlyActionType, CurrencyResultInfo3, FriendshipPointResultInfo,
-            get_available_inn_hero_indices, INN_RECRUITMENT_EXCLUDED_HEROES, MAX_FRIENDSHIP_POINTS,
+            get_available_inn_hero_indices, INN_RECRUITMENT_EXCLUDED_HEROES,
             GREETING_POINTS, CONVERSATION_POINTS, GIFT_POINTS,
             RouletteInfo, RouletteRewardInfo, StaminaResultInfo,
             get_default_roulette_rewards,
@@ -357,6 +357,17 @@ pub async fn do_hero_friendly(
         .await?;
 
     let is_owned = owned_hero.is_some();
+    let recruitment_points = state.tables.hero_shop.inn_recruitment_points.get(&hero_index).copied();
+    if !is_owned && recruitment_points.is_none() {
+        return Ok(Json(DoHeroFriendlyResponse {
+            base_result: "Success".to_string(),
+            result: DoHeroFriendlyResult::CannotRecruit.as_str().to_string(),
+            friendly_info: None,
+            hero_info: None,
+            currency_result: None,
+            friendship_point_result: None,
+        }));
+    }
 
     // Get current friendly info
     let friendly_row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
@@ -548,7 +559,7 @@ pub async fn do_hero_friendly(
         // For owned heroes, we update closeness instead
         current_friendly_point
     } else {
-        (current_friendly_point + points_gained).min(MAX_FRIENDSHIP_POINTS)
+        (current_friendly_point + points_gained).min(recruitment_points.unwrap())
     };
 
     // Update last action time based on action type
@@ -861,7 +872,10 @@ pub async fn recruit_hero(
     let row=sqlx::query("SELECT hero_index,friendly_point FROM hero_friendly_info WHERE account_id=?").bind(account).fetch_optional(&mut *tx).await?;
     let Some(row)=row else {return Ok(fail("HeroNotExist"))};
     if row.get::<i32,_>("hero_index")!=index {return Ok(fail("HeroIndexMismatch"));}
-    if row.get::<i32,_>("friendly_point")<MAX_FRIENDSHIP_POINTS {return Ok(fail("FriendlyPointMismatch"));}
+    let Some(required_points) = state.tables.hero_shop.inn_recruitment_points.get(&index) else {
+        return Ok(fail("HeroIndexMismatch"));
+    };
+    if row.get::<i32,_>("friendly_point") < *required_points {return Ok(fail("FriendlyPointMismatch"));}
     let mut reward=crate::api::heroes::recruit_at(&mut tx,&state,account,index,crate::api::inventory::item::n(c,"StartHeroStar"),crate::api::inventory::item::n(c,"StartHeroLevel"),0).await?;
     sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,selected_time=datetime('now') WHERE account_id=?").bind(account).execute(&mut *tx).await?;
     reward["HeroFriendlyInfo"]=json!({"HeroIndex":0,"SelectedHeroIndex":0,"FriendlyPoint":0,"SelectedTime":state.server_time_str(),"SelectedHeroIndice":""});
