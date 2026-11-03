@@ -130,6 +130,8 @@ partial class Program
         VerifyHeroMaterialTicketsFile(clientRoot);
         InstallBattleResultFlask(clientRoot, false);
         VerifyBattleResultFlaskFile(clientRoot);
+        // Reads Gold, so it must compile before the Currency64 migration.
+        InstallTechnomagicAwakenTarget(clientRoot, false);
         InstallCurrency64(clientRoot, false);
         InstallGearPresetPortraits(clientRoot, false);
         InstallGearPresetPortraits(clientRoot, true);

@@ -83,6 +83,21 @@ native response callback with isolated service traces and checks idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
 
+`--technomagic-awaken-target-only` adds a target-star slider to Technomagic
+Enhancement, so one tap can upgrade several stars. The slider reuses the native
+Settings slider artwork (atlases assigned through its native assigners) beside
+the required-material icon, and its star readout clones the window's material
+count label. On selection it defaults to the highest star the player can afford,
+or the next star if none is affordable. It is hidden when only one star remains.
+The window's native data, labels, red/white colors, Enhance state, result-icon
+stars and stat preview all show the summed cost and stats for the chosen target.
+Enhance sends `TargetStar` (added in `JM_NShared_ValanceAwaken_Request`) only for
+multi-star requests. The server prices each step at its after-star row, charges
+the total in one transaction and keeps the native one-star request when the
+field is absent. `--verify-technomagic-awaken-target` checks hooks, native
+members and IL. Installation also runs the native request encoder against the
+compiled helper. The full release build installs it before `Currency64`.
+
 `--legendary-rune-tickets-only` upgrades legacy random ticket 91029 and selector
 94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
 Tenacity and Vitality). It bakes native ItemGroup/SelectItem rows and refreshes

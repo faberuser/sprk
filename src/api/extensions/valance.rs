@@ -151,30 +151,46 @@ pub(super) async fn execute(
             if eq.star < 0 || eq.star as i64 >= max_star {
                 return Err(rule("CannotAwakenMore"));
             }
-            let r = row(
-                state,
-                "ValanceAwaken",
-                &[
-                    ("Tier", n(data, "Tier")),
-                    ("DetailIndex", n(data, "DetailIndex")),
-                    ("CreatureTagType", data["TagType"][0].as_i64().unwrap_or(0)),
-                    // Native ValanceAwakenWindow uses AfterStar for both stones and gold.
-                    ("Star", eq.star as i64 + 1),
-                ],
-            )?;
-            out["CurrencyResult"] = hero::currency(db, account, "Gold", -n(r, "ReqGold")).await?;
-            out["ItemResults"] = json!([item::consume(
-                db,
-                account,
-                n(r, "ItemIndex1") as i32,
-                n(r, "ItemCount1") as i32
-            )
-            .await?]);
-            eq.star += 1;
+            // The patched client may request several deterministic TM stars at
+            // once; native clients omit TargetStar and upgrade one star.
+            let before = eq.star as i64;
+            let target = req.number("TargetStar", before + 1)?;
+            if target <= before || target > max_star {
+                return Err(rule("CannotAwakenMore"));
+            }
+            let mut gold = 0;
+            let mut materials: std::collections::BTreeMap<i64, i64> = Default::default();
+            for star in before + 1..=target {
+                let r = row(
+                    state,
+                    "ValanceAwaken",
+                    &[
+                        ("Tier", n(data, "Tier")),
+                        ("DetailIndex", n(data, "DetailIndex")),
+                        ("CreatureTagType", data["TagType"][0].as_i64().unwrap_or(0)),
+                        // Native ValanceAwakenWindow uses AfterStar for both stones and gold.
+                        ("Star", star),
+                    ],
+                )?;
+                gold += n(r, "ReqGold");
+                if n(r, "ItemCount1") > 0 {
+                    *materials.entry(n(r, "ItemIndex1")).or_default() += n(r, "ItemCount1");
+                }
+            }
+            out["CurrencyResult"] = hero::currency(db, account, "Gold", -gold).await?;
+            let mut consumed = vec![];
+            for (id, count) in materials {
+                let count = i32::try_from(count).map_err(|_| rule("NotEnoughMaterial"))?;
+                consumed.push(item::consume(db, account, id as i32, count).await?);
+            }
+            out["ItemResults"] = json!(consumed);
+            eq.star = target as i32;
             eq.upgrade_star_fail_bonus = 0;
             out["Success"] = json!(true);
-            super::super::progression::record(db, account, "AwakenGearAttempt", eq.item_index as i64, 0, 1).await?;
-            super::super::progression::record(db, account, "AwakenGear", eq.item_index as i64, eq.star as i64, 1).await?;
+            for star in before + 1..=target {
+                super::super::progression::record(db, account, "AwakenGearAttempt", eq.item_index as i64, 0, 1).await?;
+                super::super::progression::record(db, account, "AwakenGear", eq.item_index as i64, star, 1).await?;
+            }
         }
         "valance_enchant" => {
             let item_id = req.number("ConsumeItemIndex", 0)?;
