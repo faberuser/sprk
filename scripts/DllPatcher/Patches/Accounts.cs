@@ -11,8 +11,12 @@ partial class Program {
         using var reader=new StreamReader(resource);
         using var loginSettingsResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.LoginSettings.cs.txt")!;
         using var loginSettingsReader=new StreamReader(loginSettingsResource);
+        using var loginPresentationResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.LoginPresentation.cs.txt")!;
+        using var loginPresentationReader=new StreamReader(loginPresentationResource);
+        using var recoveredSceneResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RecoveredLoginScene.cs.txt")!;
+        using var recoveredSceneReader=new StreamReader(recoveredSceneResource);
         var references=Directory.GetFiles(managed,"*.dll").Where(p=>Path.GetFileName(p)!="SprkAccounts.dll").Select(p=>MetadataReference.CreateFromFile(p));
-        var compilation=CSharpCompilation.Create("SprkAccounts",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(loginSettingsReader.ReadToEnd())},references,
+        var compilation=CSharpCompilation.Create("SprkAccounts",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(loginSettingsReader.ReadToEnd()),CSharpSyntaxTree.ParseText(loginPresentationReader.ReadToEnd()),CSharpSyntaxTree.ParseText(recoveredSceneReader.ReadToEnd())},references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release));
         using var bytes=new MemoryStream();var result=compilation.Emit(bytes,manifestResources:new[]{"ChatCommon.png","ChatCommon.json"}.Select(name=>new ResourceDescription(name,()=>typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!,true)));
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
@@ -44,6 +48,24 @@ partial class Program {
 
         var bridge=helper.MainModule.Types.Single(t=>t.Name=="SprkAccounts");
         var loginSettings=helper.MainModule.GetType("SprkLoginSettings");
+        var loginPresentation=helper.MainModule.GetType("SprkLoginPresentation");
+        // Some archived looping particles have no phase sequences.
+        var particleType=module.GetType("NGameAsset.NEffect.ParticleInstance");
+        var phase=particleType.Methods.Single(m=>m.Name=="PlayPhase");
+        if(phase.Body.Instructions[0].OpCode!=OpCodes.Ldarg_0 || phase.Body.Instructions[1].Operand is not FieldReference f || f.Name!="SequenceQueue") {
+            var phaseIl=phase.Body.GetILProcessor();var first=phase.Body.Instructions[0];
+            phaseIl.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_0));
+            phaseIl.InsertBefore(first,Instruction.Create(OpCodes.Ldfld,particleType.Fields.Single(f=>f.Name=="SequenceQueue")));
+            phaseIl.InsertBefore(first,Instruction.Create(OpCodes.Brtrue,first));
+            phaseIl.InsertBefore(first,Instruction.Create(OpCodes.Ret));
+        }
+        var playLoginMusic=module.GetType("NGameAsset.BgmManager2").Methods.Single(m=>m.Name=="PlayFromResources");
+        if(!playLoginMusic.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginPresentation" && m.Name=="FilterMusic")) {
+            var processor=playLoginMusic.Body.GetILProcessor();var first=playLoginMusic.Body.Instructions[0];
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Ldarg_1));
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Call,module.ImportReference(loginPresentation.Methods.Single(m=>m.Name=="FilterMusic"))));
+            processor.InsertBefore(first,Instruction.Create(OpCodes.Starg_S,playLoginMusic.Parameters[0]));
+        }
         var settingsOpen=module.GetType("NGame2.NUI.NWindow.GameOptionWindow").Methods.Single(m=>m.Name=="Open" && m.Parameters.Count==3);
         if(!settingsOpen.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name=="PrepareSettings")) {
             var processor=settingsOpen.Body.GetILProcessor();var first=settingsOpen.Body.Instructions[0];

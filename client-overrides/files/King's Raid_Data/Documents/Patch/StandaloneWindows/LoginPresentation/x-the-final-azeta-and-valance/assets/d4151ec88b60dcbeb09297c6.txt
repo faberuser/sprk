@@ -1,0 +1,13 @@
+
+Bg_Bottom_light.png
+size: 1890,361
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Bottom_light
+  rotate: false
+  xy: 0, 0
+  size: 1890, 361
+  orig: 1890, 517
+  offset: 0, 0
+  index: -1

@@ -56,6 +56,8 @@ namespace DllPatcher
             if (args.Contains("--client-storage-only")) { InstallClientStorage(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-client-storage")) { VerifyClientStorage(args[0]); return; }
             if (args.Contains("--verify-login-settings")) { VerifyLoginSettingsFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--remove-login-center-logos")) { RemoveCenterLoginLogos(args[0]); VerifyLoginPresentationAssets(args[0]); return; }
+            if (args.Contains("--verify-login-presentation")) { VerifyLoginSettingsFile(args[0],args.Contains("--stage-only")); VerifyLoginPresentationAssets(args[0]); return; }
             if (args.Contains("--free-camera-only")) { InstallFreeCamera(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-free-camera")) { VerifyFreeCameraFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--graphics-options-only")) { InstallGraphicsOptions(args[0],args.Contains("--stage-only")); return; }

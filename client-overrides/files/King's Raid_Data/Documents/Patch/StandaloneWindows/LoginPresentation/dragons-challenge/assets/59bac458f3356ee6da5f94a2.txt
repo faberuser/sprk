@@ -1,0 +1,58 @@
+
+{
+    "BundleTypeName" : "[Effect]",
+    "VersionCode"    : "20150623",
+    "ExportDateTime" : "6/7/2018 5:57:58 PM",
+    "Base"           : 
+    {
+        "DefaultTimeLength" : 999999.0
+    },
+    "ModelList"      : null,
+    "ParticleList"   : 
+    [
+        {
+            "Name" : "Shine",
+            "BundleFileName" : "Effect_UI_Title_Illust04_Shine.unity3d",
+            "AssetName"      : "0.GameObject.UI_Title_Illust04_Shine",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 0.0,
+                        "y" : -7.0,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        }
+    ],
+    "TrailList"      : null,
+    "SoundFxList"    : null
+}

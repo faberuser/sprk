@@ -1,0 +1,13 @@
+
+Bg_Cloud.png
+size: 1890,1382
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Cloud
+  rotate: false
+  xy: 0, 0
+  size: 1890, 1382
+  orig: 1890, 1382
+  offset: 0, 0
+  index: -1

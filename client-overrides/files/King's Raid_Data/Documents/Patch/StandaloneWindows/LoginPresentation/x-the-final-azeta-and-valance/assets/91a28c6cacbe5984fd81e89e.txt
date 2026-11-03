@@ -1,0 +1,13 @@
+
+Bg_Building_Light_03.png
+size: 1781,662
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Building_Light_03
+  rotate: false
+  xy: 0, 0
+  size: 1781, 662
+  orig: 1781, 662
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,91 @@
+{
+  "BundleTypeName": "[Effect]",
+  "VersionCode": "20150623",
+  "ExportDateTime": "12/13/2016 2:05:01 PM",
+  "Base": {
+    "DefaultTimeLength": 5.0
+  },
+  "ModelList": [
+    {
+      "Name": "Logo002",
+      "BundleFileName": "Effect_UI_Title_Logo002.unity3d",
+      "AssetName": "0.GameObject.Logo002",
+      "Common": {
+        "EnableSpec": {
+          "EnableHigh": true,
+          "EnableMid": true,
+          "EnableLow": true
+        },
+        "BeginTime": 0.0,
+        "EndTime": 999999.0,
+        "AttachMethod": "Pivot",
+        "AttachTarget": "",
+        "TransformSet": {
+          "Position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "RotationEuler": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "Scale": {
+            "x": 0.899999976158142,
+            "y": 0.899999976158142,
+            "z": 0.899999976158142
+          }
+        },
+        "BillboardType": "None"
+      },
+      "PlaySequenceList": [
+        {
+          "PlayType": "Clamp",
+          "PhaseName": "",
+          "TimeLength": 999999.0,
+          "ClipStartFrame": 0.0399999991059303,
+          "ClipEndFrame": 0.0399999991059303,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        },
+        {
+          "PlayType": "Clamp",
+          "PhaseName": "Play",
+          "TimeLength": 1.20000004768372,
+          "ClipStartFrame": 0.0399999991059303,
+          "ClipEndFrame": 0.100000001490116,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        },
+        {
+          "PlayType": "Loop",
+          "PhaseName": "",
+          "TimeLength": 120.0,
+          "ClipStartFrame": 0.100000001490116,
+          "ClipEndFrame": 1.0,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        }
+      ],
+      "EndingDisappear": {
+        "EnableThis": false,
+        "TimeLength": 1.0,
+        "AlphaCurve": {
+          "Version": 20151117,
+          "preWrapMode": 8,
+          "postWrapMode": 8,
+          "inTangentArray": null,
+          "outTangentArray": null,
+          "tangentModeArray": null,
+          "timeArray": null,
+          "valueArray": null
+        }
+      },
+      "RenderExtraList": []
+    }
+  ],
+  "ParticleList": null,
+  "TrailList": null,
+  "SoundFxList": null
+}

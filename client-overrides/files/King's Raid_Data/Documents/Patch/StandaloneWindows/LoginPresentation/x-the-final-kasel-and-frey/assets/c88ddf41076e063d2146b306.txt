@@ -1,0 +1,13 @@
+
+Obj_FX_GlowLight_NR.png
+size: 1800,74
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+FX_GlowLight_NR
+  rotate: false
+  xy: 0, 0
+  size: 1800, 74
+  orig: 1800, 74
+  offset: 0, 0
+  index: -1

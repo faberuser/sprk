@@ -1,0 +1,612 @@
+
+{
+    "BundleTypeName" : "[Effect]",
+    "VersionCode"    : "20150623",
+    "ExportDateTime" : "5/13/2021 11:46:40 AM",
+    "Base"           : 
+    {
+        "DefaultTimeLength" : 999999.0
+    },
+    "ModelList"      : 
+    [
+        {
+            "Name" : "Wind01",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "0.GameObject.Effect_UI_Title_Logo010_Title_Wind01",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : -7.0,
+                        "y" : 1.5,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 90.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 0.5,
+                        "y" : 0.300000011920929,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "PlaySequenceList" : 
+            [
+                {
+                    "PlayType" : "Loop",
+                    "PhaseName" : "",
+                    "TimeLength" : 5.0,
+                    "ClipStartFrame" : 0.0,
+                    "ClipEndFrame"   : 1.0,
+                    "LoopCount"      : 0,
+                    "CompleteLoop"   : false
+                }
+            ],
+            "EndingDisappear"  : 
+            {
+                "EnableThis" : false,
+                "TimeLength" : 1.0,
+                "AlphaCurve" : 
+                {
+                    "Version" : 20151117,
+                    "preWrapMode" : 8,
+                    "postWrapMode" : 8,
+                    "inTangentArray" : null,
+                    "outTangentArray" : null,
+                    "tangentModeArray" : null,
+                    "timeArray"        : null,
+                    "valueArray"       : null
+                }
+            },
+            "RenderExtraList"  : 
+            [
+                {
+                    "RendererPath" : "",
+                    "ColorType"    : "None",
+                    "AlphaCurve"   : 
+                    {
+                        "Version" : 20151117,
+                        "preWrapMode" : 8,
+                        "postWrapMode" : 8,
+                        "inTangentArray" : null,
+                        "outTangentArray" : null,
+                        "tangentModeArray" : null,
+                        "timeArray"        : null,
+                        "valueArray"       : null
+                    }
+                }
+            ]
+        },
+        {
+            "Name" : "Wind02",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "1.GameObject.Effect_UI_Title_Logo010_Title_Wind02",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 1.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 3.0,
+                        "y" : -8.5,
+                        "z" : 0.300000011920929
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : -20.0,
+                        "y" : -90.0,
+                        "z" : -180.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 0.699999988079071,
+                        "y" : 0.5,
+                        "z" : 0.699999988079071
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "PlaySequenceList" : 
+            [
+                {
+                    "PlayType" : "Loop",
+                    "PhaseName" : "",
+                    "TimeLength" : 15.0,
+                    "ClipStartFrame" : 0.0,
+                    "ClipEndFrame"   : 1.0,
+                    "LoopCount"      : 0,
+                    "CompleteLoop"   : false
+                }
+            ],
+            "EndingDisappear"  : 
+            {
+                "EnableThis" : false,
+                "TimeLength" : 1.0,
+                "AlphaCurve" : 
+                {
+                    "Version" : 20151117,
+                    "preWrapMode" : 8,
+                    "postWrapMode" : 8,
+                    "inTangentArray" : null,
+                    "outTangentArray" : null,
+                    "tangentModeArray" : null,
+                    "timeArray"        : null,
+                    "valueArray"       : null
+                }
+            },
+            "RenderExtraList"  : 
+            [
+                {
+                    "RendererPath" : "",
+                    "ColorType"    : "None",
+                    "AlphaCurve"   : 
+                    {
+                        "Version" : 20151117,
+                        "preWrapMode" : 8,
+                        "postWrapMode" : 8,
+                        "inTangentArray" : null,
+                        "outTangentArray" : null,
+                        "tangentModeArray" : null,
+                        "timeArray"        : null,
+                        "valueArray"       : null
+                    }
+                }
+            ]
+        },
+        {
+            "Name" : "Wind03",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "2.GameObject.Effect_UI_Title_Logo010_Title_Wind03",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.5,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 10.0,
+                        "y" : 2.0,
+                        "z" : -0.5
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : -32.0,
+                        "y" : 90.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 0.150000005960464,
+                        "z" : 0.800000011920929
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "PlaySequenceList" : 
+            [
+                {
+                    "PlayType" : "Loop",
+                    "PhaseName" : "",
+                    "TimeLength" : 20.0,
+                    "ClipStartFrame" : 0.0,
+                    "ClipEndFrame"   : 1.0,
+                    "LoopCount"      : 0,
+                    "CompleteLoop"   : false
+                }
+            ],
+            "EndingDisappear"  : 
+            {
+                "EnableThis" : false,
+                "TimeLength" : 1.0,
+                "AlphaCurve" : 
+                {
+                    "Version" : 20151117,
+                    "preWrapMode" : 8,
+                    "postWrapMode" : 8,
+                    "inTangentArray" : null,
+                    "outTangentArray" : null,
+                    "tangentModeArray" : null,
+                    "timeArray"        : null,
+                    "valueArray"       : null
+                }
+            },
+            "RenderExtraList"  : 
+            [
+                {
+                    "RendererPath" : "",
+                    "ColorType"    : "None",
+                    "AlphaCurve"   : 
+                    {
+                        "Version" : 20151117,
+                        "preWrapMode" : 8,
+                        "postWrapMode" : 8,
+                        "inTangentArray" : null,
+                        "outTangentArray" : null,
+                        "tangentModeArray" : null,
+                        "timeArray"        : null,
+                        "valueArray"       : null
+                    }
+                }
+            ]
+        }
+    ],
+    "ParticleList"   : 
+    [
+        {
+            "Name" : "ColorLine",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "3.GameObject.Effect_UI_Title_Logo010_Title_ColorLine",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 3.75,
+                        "y" : -2.25,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "LensFlare01",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "4.GameObject.Effect_UI_Title_Logo010_Title_LensFlare01",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 3.75,
+                        "y" : -2.25,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "Ash01",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "5.GameObject.Effect_UI_Title_Logo010_Title_Ash(Big)",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 0.0,
+                        "y" : -2.0,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "LensFlare02",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "6.GameObject.Effect_UI_Title_Logo010_Title_LensFlare02",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 4.0,
+                        "y" : -2.0,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "Wind04",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "7.GameObject.Effect_UI_Title_Logo010_Title_Wind",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 9999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 0.0,
+                        "y" : -2.0,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 90.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.5,
+                        "y" : 2.0,
+                        "z" : 1.5
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "Ash02",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "8.GameObject.Effect_UI_Title_Logo010_Title_Ash01",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 1.0,
+                        "y" : -1.25,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "Ash03",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "9.GameObject.Effect_UI_Title_Logo010_Title_Ash02",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : -5.5,
+                        "y" : -0.5,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        },
+        {
+            "Name" : "Ash04",
+            "BundleFileName" : "Effect_UI_Title_Logo010_Title.unity3d",
+            "AssetName"      : "10.GameObject.Effect_UI_Title_Logo010_Title_Ash03",
+            "Common"         : 
+            {
+                "EnableSpec" : 
+                {
+                    "EnableHigh" : true,
+                    "EnableMid"  : true,
+                    "EnableLow"  : true
+                },
+                "BeginTime"  : 0.0,
+                "EndTime"    : 999999.0,
+                "AttachMethod" : "Pivot",
+                "AttachTarget" : "",
+                "TransformSet" : 
+                {
+                    "Position" : 
+                    {
+                        "x" : 6.0,
+                        "y" : -2.0,
+                        "z" : 0.0
+                    },
+                    "RotationEuler" : 
+                    {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                    },
+                    "Scale"         : 
+                    {
+                        "x" : 1.0,
+                        "y" : 1.0,
+                        "z" : 1.0
+                    }
+                },
+                "BillboardType" : "None"
+            },
+            "IsDistanceEmit" : false,
+            "SequenceList"   : null
+        }
+    ],
+    "TrailList"      : null,
+    "SoundFxList"    : null
+}

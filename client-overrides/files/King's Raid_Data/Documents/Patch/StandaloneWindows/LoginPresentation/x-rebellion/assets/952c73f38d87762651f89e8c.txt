@@ -1,0 +1,118 @@
+
+Hero_Clause.png
+size: 643,539
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+arm - left
+  rotate: false
+  xy: 536, 73
+  size: 104, 178
+  orig: 104, 178
+  offset: 0, 0
+  index: -1
+arm - right 1
+  rotate: false
+  xy: 272, 405
+  size: 57, 134
+  orig: 57, 134
+  offset: 0, 0
+  index: -1
+arm - right 2
+  rotate: true
+  xy: 520, 9
+  size: 63, 99
+  orig: 63, 99
+  offset: 0, 0
+  index: -1
+bg
+  rotate: false
+  xy: 268, 20
+  size: 251, 183
+  orig: 251, 183
+  offset: 0, 0
+  index: -1
+body
+  rotate: false
+  xy: 492, 252
+  size: 151, 144
+  orig: 151, 144
+  offset: 0, 0
+  index: -1
+cape
+  rotate: true
+  xy: 520, 397
+  size: 142, 120
+  orig: 142, 120
+  offset: 0, 0
+  index: -1
+cape2
+  rotate: true
+  xy: 0, 204
+  size: 335, 271
+  orig: 335, 271
+  offset: 0, 0
+  index: -1
+cloth
+  rotate: false
+  xy: 431, 407
+  size: 49, 55
+  orig: 49, 55
+  offset: 0, 0
+  index: -1
+cloth - back
+  rotate: false
+  xy: 388, 398
+  size: 42, 38
+  orig: 42, 38
+  offset: 0, 0
+  index: -1
+hair
+  rotate: false
+  xy: 330, 397
+  size: 57, 39
+  orig: 57, 39
+  offset: 0, 0
+  index: -1
+hood
+  rotate: true
+  xy: 431, 463
+  size: 76, 77
+  orig: 76, 77
+  offset: 0, 0
+  index: -1
+hood 2
+  rotate: true
+  xy: 481, 429
+  size: 33, 38
+  orig: 33, 38
+  offset: 0, 0
+  index: -1
+leg - back
+  rotate: false
+  xy: 272, 213
+  size: 219, 183
+  orig: 219, 183
+  offset: 0, 0
+  index: -1
+leg - front
+  rotate: false
+  xy: 0, 0
+  size: 267, 203
+  orig: 267, 203
+  offset: 0, 0
+  index: -1
+mask
+  rotate: false
+  xy: 492, 205
+  size: 43, 46
+  orig: 43, 46
+  offset: 0, 0
+  index: -1
+shoulder
+  rotate: true
+  xy: 330, 437
+  size: 102, 91
+  orig: 102, 91
+  offset: 0, 0
+  index: -1

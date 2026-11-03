@@ -1,0 +1,13 @@
+
+Bg_Back_light.png
+size: 1890,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Back_light
+  rotate: false
+  xy: 0, 0
+  size: 1890, 1024
+  orig: 1890, 1044
+  offset: 0, 0
+  index: -1

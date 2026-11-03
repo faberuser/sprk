@@ -99,6 +99,8 @@ partial class Program
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
         VerifyLoginSettingsFile(clientRoot);
+        RemoveCenterLoginLogos(clientRoot);
+        VerifyLoginPresentationAssets(clientRoot);
         VerifyShopPurchaseLimitsFile(clientRoot, false);
         VerifyPetFeedingFile(clientRoot);
         TestPetFeeding(clientRoot);

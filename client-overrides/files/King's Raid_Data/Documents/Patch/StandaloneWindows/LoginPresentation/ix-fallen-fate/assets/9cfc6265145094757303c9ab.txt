@@ -1,0 +1,601 @@
+{
+  "BundleTypeName": "[Effect]",
+  "VersionCode": "20150623",
+  "ExportDateTime": "8/9/2019 4:49:51 PM",
+  "Base": {
+    "DefaultTimeLength": 15.0
+  },
+  "ModelList": [
+    {
+      "Name": "Logo005",
+      "BundleFileName": "Effect_UI_Title_Logo005_2.unity3d",
+      "AssetName": "0.GameObject.UI_Title_Logo005",
+      "Common": {
+        "EnableSpec": {
+          "EnableHigh": true,
+          "EnableMid": true,
+          "EnableLow": true
+        },
+        "BeginTime": 0.0,
+        "EndTime": 999999.0,
+        "AttachMethod": "Pivot",
+        "AttachTarget": "",
+        "TransformSet": {
+          "Position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "RotationEuler": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "Scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          }
+        },
+        "BillboardType": "None"
+      },
+      "PlaySequenceList": [
+        {
+          "PlayType": "Clamp",
+          "PhaseName": "Play",
+          "TimeLength": 1.0,
+          "ClipStartFrame": 0.639999985694885,
+          "ClipEndFrame": 1.0,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        },
+        {
+          "PlayType": "Loop",
+          "PhaseName": "",
+          "TimeLength": 0.0,
+          "ClipStartFrame": 1.0,
+          "ClipEndFrame": 1.0,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        }
+      ],
+      "EndingDisappear": {
+        "EnableThis": false,
+        "TimeLength": 1.0,
+        "AlphaCurve": {
+          "Version": 20151117,
+          "preWrapMode": 8,
+          "postWrapMode": 8,
+          "inTangentArray": null,
+          "outTangentArray": null,
+          "tangentModeArray": null,
+          "timeArray": null,
+          "valueArray": null
+        }
+      },
+      "RenderExtraList": [
+        {
+          "RendererPath": "UI_Title_Logo005_Aura",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              -28800.0,
+              0.0,
+              11.3298559188843,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              11.3298559188843,
+              0.0,
+              -28800.0
+            ],
+            "tangentModeArray": [
+              1,
+              69,
+              69,
+              69
+            ],
+            "timeArray": [
+              0.0,
+              0.828404307365417,
+              0.916666686534882,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "RendererPath": "UI_Title_Logo005_Illust001",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              -28800.0,
+              0.0,
+              5.75999975204468,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              5.75999975204468,
+              0.0,
+              -28800.0
+            ],
+            "tangentModeArray": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "timeArray": [
+              0.0,
+              0.722222208976746,
+              0.916666686534882,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "RendererPath": "UI_Title_Logo005_Illust002",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              -28800.0,
+              0.0,
+              5.75999975204468,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              5.75999975204468,
+              0.0,
+              -28800.0
+            ],
+            "tangentModeArray": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "timeArray": [
+              0.0,
+              0.722222208976746,
+              0.916666686534882,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "RendererPath": "UI_Title_Logo005_Illust003",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              -28800.0,
+              0.0,
+              5.75999975204468,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              5.75999975204468,
+              0.0,
+              -28800.0
+            ],
+            "tangentModeArray": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "timeArray": [
+              0.0,
+              0.722222208976746,
+              0.916666686534882,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Fog",
+      "BundleFileName": "Effect_UI_Title_Logo005_2.unity3d",
+      "AssetName": "1.GameObject.UI_Title_Logo005_Fog",
+      "Common": {
+        "EnableSpec": {
+          "EnableHigh": true,
+          "EnableMid": true,
+          "EnableLow": true
+        },
+        "BeginTime": 0.100000001490116,
+        "EndTime": 0.0,
+        "AttachMethod": "Pivot",
+        "AttachTarget": "",
+        "TransformSet": {
+          "Position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "RotationEuler": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "Scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          }
+        },
+        "BillboardType": "None"
+      },
+      "PlaySequenceList": [
+        {
+          "PlayType": "Clamp",
+          "PhaseName": "",
+          "TimeLength": 1.0,
+          "ClipStartFrame": 0.660000026226044,
+          "ClipEndFrame": 1.0,
+          "LoopCount": 0,
+          "CompleteLoop": false
+        }
+      ],
+      "EndingDisappear": {
+        "EnableThis": false,
+        "TimeLength": 1.0,
+        "AlphaCurve": {
+          "Version": 20151117,
+          "preWrapMode": 8,
+          "postWrapMode": 8,
+          "inTangentArray": null,
+          "outTangentArray": null,
+          "tangentModeArray": null,
+          "timeArray": null,
+          "valueArray": null
+        }
+      },
+      "RenderExtraList": [
+        {
+          "RendererPath": "UI_Title_Logo005_Fog1",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              0.0,
+              0.0,
+              8.55138778686523,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              0.0,
+              8.55138778686523,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "tangentModeArray": [
+              1,
+              1,
+              0,
+              1,
+              1,
+              1
+            ],
+            "timeArray": [
+              0.0,
+              0.610084176063538,
+              0.734283030033112,
+              0.821702778339386,
+              0.90627521276474,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              0.43750411272049,
+              1.0,
+              1.0,
+              0.0
+            ]
+          },
+          "Coordinate": {
+            "CoordinateType": "Curve",
+            "Curve": {
+              "UOffsetCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": [
+                  0.0,
+                  0.0,
+                  -6.02034139633179
+                ],
+                "outTangentArray": [
+                  0.0,
+                  -6.02034139633179,
+                  0.0
+                ],
+                "tangentModeArray": [
+                  1,
+                  69,
+                  69
+                ],
+                "timeArray": [
+                  0.0,
+                  0.667792916297913,
+                  1.0
+                ],
+                "valueArray": [
+                  -5.0,
+                  -5.0,
+                  -7.0
+                ]
+              },
+              "VOffsetCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              },
+              "UTilingCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              },
+              "VTilingCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              }
+            }
+          }
+        },
+        {
+          "RendererPath": "UI_Title_Logo005_Fog2",
+          "ColorType": "None",
+          "AlphaCurve": {
+            "Version": 20151117,
+            "preWrapMode": 8,
+            "postWrapMode": 8,
+            "inTangentArray": [
+              0.0,
+              0.0,
+              8.55138778686523,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "outTangentArray": [
+              0.0,
+              0.0,
+              8.55138778686523,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "tangentModeArray": [
+              1,
+              1,
+              0,
+              1,
+              1,
+              1
+            ],
+            "timeArray": [
+              0.0,
+              0.610084176063538,
+              0.734283030033112,
+              0.821702778339386,
+              0.90627521276474,
+              1.0
+            ],
+            "valueArray": [
+              0.0,
+              0.0,
+              0.43750411272049,
+              1.0,
+              1.0,
+              0.0
+            ]
+          },
+          "Coordinate": {
+            "CoordinateType": "Curve",
+            "Curve": {
+              "UOffsetCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": [
+                  0.0,
+                  0.0,
+                  6.02034139633179
+                ],
+                "outTangentArray": [
+                  0.0,
+                  6.02034139633179,
+                  0.0
+                ],
+                "tangentModeArray": [
+                  1,
+                  69,
+                  69
+                ],
+                "timeArray": [
+                  0.0,
+                  0.667792916297913,
+                  1.0
+                ],
+                "valueArray": [
+                  5.0,
+                  5.0,
+                  7.0
+                ]
+              },
+              "VOffsetCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              },
+              "UTilingCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              },
+              "VTilingCurve": {
+                "Version": 20151117,
+                "preWrapMode": 8,
+                "postWrapMode": 8,
+                "inTangentArray": null,
+                "outTangentArray": null,
+                "tangentModeArray": null,
+                "timeArray": null,
+                "valueArray": null
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "ParticleList": [
+    {
+      "Name": "Illust_Particle(Loop)",
+      "BundleFileName": "Effect_UI_Title_Logo005_2.unity3d",
+      "AssetName": "2.GameObject.UI_Title_Logo005_Particle(Illust)",
+      "Common": {
+        "EnableSpec": {
+          "EnableHigh": true,
+          "EnableMid": true,
+          "EnableLow": true
+        },
+        "BeginTime": 0.0,
+        "EndTime": 999999.0,
+        "AttachMethod": "EffectModel",
+        "AttachTarget": "Point_Effect_001",
+        "TransformSet": {
+          "Position": {
+            "x": 0.0,
+            "y": 3.0,
+            "z": 0.0
+          },
+          "RotationEuler": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "Scale": {
+            "x": 1.0,
+            "y": 2.0,
+            "z": 1.0
+          }
+        },
+        "BillboardType": "None"
+      },
+      "IsDistanceEmit": false,
+      "SequenceList": null
+    },
+    {
+      "Name": "Illust_Dust(Loop)",
+      "BundleFileName": "Effect_UI_Title_Logo005_2.unity3d",
+      "AssetName": "3.GameObject.UI_Title_Logo005_Dust(Illust)",
+      "Common": {
+        "EnableSpec": {
+          "EnableHigh": true,
+          "EnableMid": true,
+          "EnableLow": true
+        },
+        "BeginTime": 0.0,
+        "EndTime": 999999.0,
+        "AttachMethod": "EffectModel",
+        "AttachTarget": "Point_Effect_001",
+        "TransformSet": {
+          "Position": {
+            "x": 0.0,
+            "y": 1.0,
+            "z": -1.75
+          },
+          "RotationEuler": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "Scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          }
+        },
+        "BillboardType": "None"
+      },
+      "IsDistanceEmit": false,
+      "SequenceList": null
+    }
+  ],
+  "TrailList": null,
+  "SoundFxList": null
+}
