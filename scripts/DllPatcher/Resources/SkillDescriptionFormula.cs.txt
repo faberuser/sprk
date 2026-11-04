@@ -17,6 +17,7 @@ using NVespa;
 using NVespa.NGlobal;
 using NVespa.NSingleton;
 using UnityEngine;
+using Vector3 = UnityEngine.Vector3;
 
 // Presentation only. Native expression objects, operation tables and evaluators
 // are read, never changed. Unknown expressions retain their native values.
@@ -24,9 +25,17 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
     const string Preference = "Sprk.SkillDescription.Formula";
     static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     HeroSkillDesc card;
+    ArchiveSkillDesc archive;
     UIButton button;
     UILabel modeLabel;
+    UIWidget descriptionBounds;
     int skillIndex;
+    MonoBehaviour Owner {get{return card!=null?(MonoBehaviour)card:archive;}}
+    HeroInfo Hero {get{return card!=null?card.HeroInfo:archive.HeroInfo;}}
+    UILabel Description {get{return card!=null?card.Label_SkillDesc:archive.LabelDesc;}}
+    UILabel Title {get{return card!=null?card.Label_SkillLevel:archive.LabelName;}}
+    UIButton LinkedButton {get{return card!=null?card.Button_LinkedSkill:archive.Button_LinkedSkill;}}
+    UIScrollView Scroll {get{return card!=null?card.ScrollView_SkillDesc:archive.LabelDesc.GetComponentInParent<UIScrollView>();}}
     static NGame2.NNodeTree.NTypeValue.NOperator.NData.NOperationData.CalcDamage.FuncLinker formulaLinker;
     public static bool Formula { get { return SprkTestPrefs.GetInt(Preference,0)!=0; } set { SprkTestPrefs.SetInt(Preference,value?1:0);PlayerPrefs.Save(); } }
 
@@ -37,10 +46,45 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
         try { state.EnsureButton();state.Display(); }
         catch(Exception e) { Debug.LogWarning("SPRK formula card: "+e.Message); }
     }
+    public static void SetupArchive(ArchiveSkillDesc owner) {
+        if(owner.HeroInfo==null)return;
+        int linked=(int)typeof(ArchiveSkillDesc).GetField("_linkedIndex",Private).GetValue(owner);
+        var info=Helper.GetSkillDetailInfo(owner.HeroInfo,owner.SkillSlotIndex,linked);
+        if(info.BasicInfo.TableData==null)return;
+        var state=owner.GetComponent<SprkSkillDescriptionFormula>();
+        if(state==null)state=owner.gameObject.AddComponent<SprkSkillDescriptionFormula>();
+        state.archive=owner;state.skillIndex=info.BasicInfo.TableIndex;
+        try {state.EnsureButton();state.Display();}
+        catch(Exception e){Debug.LogWarning("SPRK Index formula card: "+e.Message);}
+    }
+    static Transform Header(UILabel title) {
+        for(var current=title.transform.parent;current!=null;current=current.parent) {
+            var widget=current.GetComponent<UIWidget>();
+            if(widget!=null && widget.width>200 && widget.height>=40 && widget.height<=150)return current;
+        }
+        return title.transform.parent;
+    }
     void EnsureButton() {
         if(button!=null)return;
-        var original=card.Button_LinkedSkill;
+        var original=LinkedButton;
         if(original==null)return;
+        if(archive!=null) {
+            // Index originally puts the skill switch on the left. Move it
+            // beside Close and reserve the mirrored Close position for fx.
+            var close=archive.GetComponentsInChildren<UIButton>(true).FirstOrDefault(b=>b.name=="Button_Close");
+            if(close!=null) {
+                var indexParent=original.transform.parent;
+                var closeBounds=NGUIMath.CalculateRelativeWidgetBounds(indexParent,close.transform,true);
+                var switchWidget=original.GetComponent<UIWidget>();
+                float half=switchWidget==null?27:switchWidget.width*.5f;
+                float center=indexParent.InverseTransformPoint(Header(Title).position).x;
+                var indexPosition=original.transform.localPosition;indexPosition.x=closeBounds.min.x-half-10;original.transform.localPosition=indexPosition;
+                var rect=original.GetComponent<UIRect>();
+                if(rect!=null){rect.leftAnchor.target=null;rect.rightAnchor.target=null;rect.topAnchor.target=null;rect.bottomAnchor.target=null;}
+                Title.width=Mathf.Min(Title.width,Mathf.FloorToInt(2*(indexPosition.x-center-half-10)));
+                Title.overflowMethod=UILabel.Overflow.ShrinkContent;Title.maxLineCount=1;
+            }
+        }
         var clone=Instantiate(original.gameObject,original.transform.parent,false);
         clone.name="SPRK Formula Toggle";
         button=clone.GetComponent<UIButton>();
@@ -53,11 +97,18 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             }
         }
         button.onClick.Clear();EventDelegate.Add(button.onClick,Toggle);
-        var title=card.Label_SkillLevel;
+        var title=Title;
         var parent=original.transform.parent;
-        var titlePosition=parent.InverseTransformPoint(title.transform.parent.position);
+        var titlePosition=parent.InverseTransformPoint(Header(title).position);
         var position=original.transform.localPosition;
         position.x=2*titlePosition.x-position.x;
+        if(archive!=null) {
+            var close=archive.GetComponentsInChildren<UIButton>(true).FirstOrDefault(b=>b.name=="Button_Close");
+            if(close!=null) {
+                var closePosition=parent.InverseTransformPoint(close.transform.position);
+                position.x=2*titlePosition.x-closePosition.x;position.y=closePosition.y;
+            }
+        }
         clone.transform.localPosition=position;
         // Anchor positions are absolute in the cloned native widget; mirroring
         // its local transform alone would snap back on the next NGUI update.
@@ -77,14 +128,15 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             if(sprite.type==UIBasicSprite.Type.Sliced)continue;
             sprite.enabled=false;
         }
-        var nativeFrame=card.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Button_Learn" && s.type==UIBasicSprite.Type.Sliced);
+        var nativeFrame=Owner.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Button_Learn" && s.type==UIBasicSprite.Type.Sliced);
         var surface=clone.GetComponent<UISprite>();
-        if(surface!=null && nativeFrame!=null) {
-            surface.atlas=nativeFrame.atlas;surface.type=UIBasicSprite.Type.Sliced;
+        if(surface!=null) {
+            surface.atlas=nativeFrame==null?null:nativeFrame.atlas;surface.type=UIBasicSprite.Type.Sliced;
             surface.spriteName="Mission_Button_Normal";surface.enabled=true;
             button.normalSprite="Mission_Button_Normal";button.hoverSprite="Mission_Button_Normal";
             button.pressedSprite="Mission_Button_Normal";button.disabledSprite="Mission_Button_Disable";
             var assigner=clone.GetComponent<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>();
+            if(assigner==null)assigner=clone.AddComponent<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>();
             if(assigner!=null) {
                 assigner.AtlasName="Common2";assigner.SpriteName="Mission_Button_Normal";assigner.Target=surface;
                 if(surface.atlas==null)assigner.Assign();
@@ -93,23 +145,81 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
         clone.AddComponent<SprkSkillFormulaButtonHelp>();
         clone.SetActive(true);
     }
-    public void Toggle() { Formula=!Formula;Display(); }
+    public void Toggle() {
+        Formula=!Formula;
+        foreach(var state in Resources.FindObjectsOfTypeAll<SprkSkillDescriptionFormula>())
+            if(state.Owner!=null && state.Owner.gameObject.activeInHierarchy)state.Display();
+    }
     void Display() {
         if(modeLabel!=null)modeLabel.text=Formula?"fx":"123";
         if(button!=null)button.gameObject.SetActive(true);
-        string text=SingletonAuto<SkillDescContainer>.instance.GetByHeroInfo(skillIndex,card.HeroInfo);
+        string text=SingletonAuto<SkillDescContainer>.instance.GetByHeroInfo(skillIndex,Hero);
         if(Formula) {
-            try { text=Render(skillIndex,card.HeroInfo,null).Text; }
+            try { text=Render(skillIndex,Hero,null).Text; }
             catch(Exception) { text+="\n\n"+Words("Formula view unavailable for this skill."); }
         }
-        UIHelper.SetLabelText(card.Label_SkillDesc,text,false);
-        if(card.ScrollView_SkillDesc!=null) {card.ScrollView_SkillDesc.InvalidateBounds();card.ScrollView_SkillDesc.ResetPosition();}
+        UIHelper.SetLabelText(Description,text,false);
+        LayoutDescription();
+    }
+
+    internal static Vector3 TextStart(UILabel label,Transform relativeTo) {
+        // Use the first glyph, including the font's bearing, rather than the
+        // label rectangle: its top edge is not the visible top of the text.
+        var vertices=new RenderingList<Vector3>();
+        label.OnFill(vertices,new RenderingList<Vector2>(),new RenderingList<Color32>());
+        if(vertices.size<4)return relativeTo.InverseTransformPoint(label.worldCorners[1]);
+        float left=float.MaxValue,top=float.MinValue;
+        for(int i=0;i<4;i++) {
+            var point=relativeTo.InverseTransformPoint(label.transform.TransformPoint(vertices[i]));
+            left=Mathf.Min(left,point.x);top=Mathf.Max(top,point.y);
+        }
+        return new Vector3(left,top,0);
+    }
+    void LayoutDescription() {
+        var scroll=Scroll;if(scroll==null)return;
+        var backdrop=Owner.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Sprite_DescBack");
+        if(backdrop==null)return;
+        var panel=scroll.GetComponent<UIPanel>();
+        scroll.disableDragIfFits=false;
+        scroll.restrictWithinPanel=true;scroll.iOSDragEmulation=true;
+        scroll.dragEffect=UIScrollView.DragEffect.MomentumAndSpring;
+        scroll.InvalidateBounds();scroll.ResetPosition();
+        var frame=NGUIMath.CalculateRelativeWidgetBounds(scroll.transform,backdrop.transform,true);
+        var start=TextStart(Description,scroll.transform);
+        float padding=start.x-frame.min.x;
+        var delta=scroll.transform.TransformVector(new Vector3(0,frame.max.y-padding-start.y,0));
+        Description.topAnchor.target=null;Description.bottomAnchor.target=null;
+        Description.transform.position+=delta;
+        // A full viewport bound keeps short text at its padded resting position
+        // while the native scroll view supplies drag resistance and spring-back.
+        if(descriptionBounds==null) {
+            var root=new GameObject("SPRK Description Bounds");root.transform.SetParent(scroll.transform,false);
+            descriptionBounds=root.AddComponent<UIWidget>();descriptionBounds.pivot=UIWidget.Pivot.Center;
+        }
+        var clip=panel.finalClipRegion;
+        float softness=panel.clipping==UIDrawCall.Clipping.SoftClip?panel.clipSoftness.y:0;
+        descriptionBounds.width=Mathf.RoundToInt(clip.z);
+        descriptionBounds.height=Mathf.RoundToInt(clip.w-2*softness);
+        descriptionBounds.transform.localPosition=new Vector3(clip.x,clip.y,0);
+        // Index has a transparent hit surface in its content bounds. Match it
+        // to the viewport so it cannot override the padded top when resetting.
+        if(archive!=null) {
+            var hit=scroll.GetComponentsInChildren<UIWidget>(true).FirstOrDefault(w=>w.name=="DragScrollView");
+            if(hit!=null) {
+                hit.topAnchor.target=null;hit.bottomAnchor.target=null;
+                hit.height=descriptionBounds.height;
+                hit.transform.position=descriptionBounds.transform.position;
+                NGUITools.UpdateWidgetCollider(hit.gameObject);
+            }
+        }
+        scroll.InvalidateBounds();scroll.ResetPosition();
     }
 
     public sealed class Result { public string Text;public int Formulas;public readonly HashSet<string> Unsupported=new HashSet<string>();public readonly Dictionary<string,string> Legends=new Dictionary<string,string>(); }
     sealed class Expression : IFormattable {
         public string Text;public decimal Value;public bool Symbolic;public int Priority=3;
-        public Expression(string text,decimal value,bool symbolic){Text=text;Value=value;Symbolic=symbolic;}
+        public string Key;public List<Expression> Addends;
+        public Expression(string text,decimal value,bool symbolic){Text=text;Value=value;Symbolic=symbolic;Key=(symbolic?"symbol:":"constant:")+text+":"+Number(value);}
         public string ToString(string format,IFormatProvider provider){return Symbolic?Text:Value.ToString(format,provider);}
         public override string ToString(){return Text;}
     }
@@ -131,9 +241,48 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
         int priority=(op=="+" || op=="-")?1:2;
         string left=a.Priority<priority?"("+a.Text+")":a.Text;
         string right=b.Priority<priority || ((op=="-" || op=="/") && b.Priority==priority)?"("+b.Text+")":b.Text;
-        var result=Symbol(left+" "+op+" "+right,n);result.Priority=priority;return result;
+        var result=Symbol(left+" "+op+" "+right,n);result.Priority=priority;
+        result.Key=op+"("+a.Key+","+b.Key+")";return result;
     }
-    static Expression Truncate(Expression a) {return a.Symbolic?Symbol("trunc("+a.Text+")",decimal.Truncate(a.Value)):Constant(decimal.Truncate(a.Value));}
+    static Expression Sum(IEnumerable<Expression> expressions) {
+        // Keep each damage component intact. Flatten only sums created here,
+        // never the additions inside a hit or a native rounding boundary.
+        var terms=new List<Expression>();
+        foreach(var expression in expressions) {
+            var items=expression.Addends??new List<Expression>{expression};
+            foreach(var item in items)if(item.Symbolic || item.Value!=0)terms.Add(item);
+        }
+        if(terms.Count==0)return Constant(0);
+        if(terms.Count==1)return terms[0];
+        var ordered=new List<Expression>();var counts=new Dictionary<string,int>(StringComparer.Ordinal);
+        foreach(var term in terms) {
+            string key=term.Key+"|value:"+Number(term.Value);
+            if(counts.ContainsKey(key))counts[key]++;
+            else {counts.Add(key,1);ordered.Add(term);}
+        }
+        var sum=Constant(0);
+        foreach(var term in ordered) {
+            int count=counts[term.Key+"|value:"+Number(term.Value)];
+            sum=Binary(sum,count==1?term:Binary(Constant(count),term,"*"),"+");
+        }
+        sum.Addends=terms;return sum;
+    }
+    // Keep native rounding in the validation value; the player sees the clean
+    // algebraic expression without implementation-level rounding notation.
+    static Expression Truncate(Expression a) {return a.Symbolic?new Expression(a.Text,decimal.Truncate(a.Value),true){Priority=a.Priority,Key="truncate("+a.Key+")"}:Constant(decimal.Truncate(a.Value));}
+    internal static void VerifyRepeatedTermGrouping() {
+        var atk=Binary(Symbol("ATK",100),Constant(10),"+");
+        var hp=Binary(Symbol("HP",100),Constant(10),"+");
+        var repeated=Sum(new[]{atk,atk,atk,atk});
+        if(repeated.Text!="4 * (ATK + 10)" || repeated.Value!=440)throw new Exception("Repeated hit grouping failed");
+        var mixed=Sum(new[]{atk,hp,atk,hp});
+        if(mixed.Text!="2 * (ATK + 10) + 2 * (HP + 10)" || mixed.Value!=440)throw new Exception("Mixed hit grouping failed");
+        var nested=Sum(new[]{Sum(new[]{atk,atk}),atk});
+        if(nested.Text!="3 * (ATK + 10)" || nested.Value!=330)throw new Exception("Nested grouping failed");
+        var rounded=Truncate(Symbol("x",1.25m));var exact=Symbol("x",1);
+        if(Sum(new[]{rounded,exact}).Text!="x + x")throw new Exception("Different rounding boundaries were grouped");
+        if(Sum(new[]{atk,hp}).Text.Contains("2 *"))throw new Exception("Different symbols were grouped by their current values");
+    }
     static int Int(JsonData j,string name){return Convert.ToInt32(j[name].ToString(),CultureInfo.InvariantCulture);}
     static string Str(JsonData j,string name){return j[name].ToString();}
     public static Func<string,string> WordProvider;
@@ -202,7 +351,8 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             if(stat!=StatType.None) {
                 bool caster=readerKey.StartsWith("$Fc.",StringComparison.OrdinalIgnoreCase);
                 string label=stat==StatType.PhysicalAttack?"P.ATK":stat==StatType.MagicalAttack?"M.ATK":stat==StatType.MaxHp?Words("Max HP"):stat==StatType.PhysicalDefense?"P.DEF":stat==StatType.MagicalDefense?"M.DEF":stat.ToString();
-                stack.Push(Symbol((caster?"":Words("Target")+" ")+label,native));continue;
+                var reading=Symbol((caster?"":Words("Target")+" ")+label,native);
+                reading.Key="reader:"+variable+":"+Number(native);stack.Push(reading);continue;
             }
             throw new NotSupportedException("Operation expression reader "+variable);
         }
@@ -230,10 +380,13 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             var power=OperationValue(op,0,c);
             if(type=="GetStateDamageR") {
                 c.Result.Legends[Words("Stacks")]=Words("applicable effect stacks on the target (preview: 0)");
-                power=Binary(power,Binary(OperationValue(op,4,c),Symbol(Words("Stacks"),0),"*"),"+");
+                var stacks=Symbol(Words("Stacks"),0);
+                stacks.Key="stacks:"+c.Operation.GetValueString(3)+":"+c.Operation.GetValueBool(5);
+                power=Binary(power,Binary(OperationValue(op,4,c),stacks,"*"),"+");
             }
             var percentage=Binary(power,Constant(10),"/");
-            var scaled=Symbol("trunc("+(percentage.Symbolic?"("+percentage.Text+")":percentage.Text)+"% "+Words("of")+" "+atk.Text+")",System.Math.Max(decimal.Truncate(atk.Value*power.Value/1000),0));
+            var scaled=Symbol((percentage.Symbolic?"("+percentage.Text+")":percentage.Text)+"% "+Words("of")+" "+atk.Text,System.Math.Max(decimal.Truncate(atk.Value*power.Value/1000),0));
+            scaled.Priority=2;scaled.Key="attack("+percentage.Key+","+atk.Key+")";
             result=Binary(OperationValue(op,1,c),scaled,"+");
         } else if(new[]{"GetDamage","GetPhysicalDamage","GetMagicalDamage","GetHeal","GetDot","GetHot"}.Contains(type))result=OperationValue(op,0,c);
         else throw new NotSupportedException("Operation "+type);
@@ -252,12 +405,13 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
         try {
             var body=node.MakeBodyJson();string path=node.ValuePath;Expression e=null;c.RuntimeValues=false;
             if(path=="Data/OperationData/CalcDamage" || path=="Data/OperationData/CalcDot") {
-                var skill=GameRoot.Instance.SkillDataContainer.GetData(Int(body,"SkillIndex"));e=Constant(0);
+                var skill=GameRoot.Instance.SkillDataContainer.GetData(Int(body,"SkillIndex"));var terms=new List<Expression>();
                 var ids=body["OperationNoList"];
                 for(int i=0;i<ids.Count;i++) {
                     var operation=skill==null?null:skill.GetOperationDataUnsafe(Convert.ToInt32(ids.GetFromArray(i).ToString()));
-                    if(operation!=null && operation.Type!=OperationType.None)e=Binary(e,Damage(operation,skill,c,path.EndsWith("CalcDot")),"+");
+                    if(operation!=null && operation.Type!=OperationType.None)terms.Add(Damage(operation,skill,c,path.EndsWith("CalcDot")));
                 }
+                e=Sum(terms);
             } else if(path=="Data/ValueFromOperationData") {
                 var skill=GameRoot.Instance.SkillDataContainer.GetData(Int(body,"SkillIndex"));var op=skill==null?null:skill.GetOperationDataUnsafe(Int(body,"OperationNo"));
                 string type=Str(body,"ValueType");
@@ -265,7 +419,9 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             } else if(path.StartsWith("Decimal/Calculate/")) {
                 var args=node.GetArgumentContainer();string op=path.Substring(path.LastIndexOf('/')+1);
                 var a=Numeric(args.GetTypeValueBase(0),c);
-                if(new[]{"Add","Sub","Multiply","Divide"}.Contains(op)) {
+                if(op=="Add") {
+                    var terms=new List<Expression>{a};for(int i=1;i<args.HolderList.Count;i++)terms.Add(Numeric(args.GetTypeValueBase(i),c));e=Sum(terms);
+                } else if(new[]{"Sub","Multiply","Divide"}.Contains(op)) {
                     e=a;for(int i=1;i<args.HolderList.Count;i++)e=Binary(e,Numeric(args.GetTypeValueBase(i),c),op=="Add"?"+":op=="Sub"?"-":op=="Multiply"?"*":"/");
                 } else if(op=="Round" || op=="Ceiling") {
                     int digits=args.HolderList.Count>1?(int)Numeric(args.GetTypeValueBase(1),c).Value:0;
@@ -321,11 +477,6 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
             var c=new Context{Hero=hero,Stat=stat,Level=level+StatCalculator.GetEquipOptionAddedSkillLevel(stat,creature.GetSkillSlotByIndex(index,true)),Variable=variable,Localize=localize};
             var argument=(ArgumentSingleGeneric<string>)typeof(SkillDesc).GetField("_skillDesc",Private).GetValue(desc);
             c.Result.Text=Text(argument.GetTypeValue(),c);
-            if(c.Result.Formulas>0) {
-                c.Result.Text+="\n\n"+Words("Skill Level")+" = "+c.Level;
-                foreach(var pair in c.Result.Legends)c.Result.Text+="\n"+pair.Key+" = "+pair.Value;
-                c.Result.Text+="\n"+Words("trunc: discard decimals; P.ATK / M.ATK: caster's physical / magical ATK.");
-            }
             if(c.Result.Unsupported.Count>0)c.Result.Text+="\n\n"+Words("Some values remain calculated.");
             return c.Result;
         } finally { SmallPooling<SkillDescVariable>.ReleaseInstance(variable); }

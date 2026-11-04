@@ -15,12 +15,17 @@ partial class Program {
             throw new InvalidOperationException("Missing or duplicated skill formula card hook");
         if(!method.Body.Instructions.Any(i=>i.Operand is MethodReference{Name:"GetByHeroInfo"}))throw new InvalidOperationException("Native calculated skill description removed");
         VerifyArenaResultStack(method);
+        var archive=game.MainModule.GetType("NGame2.NUI.NWindow.ArchiveSkillDesc").Methods.Single(m=>m.Name=="SetSkillInfo");
+        if(archive.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).Any(i=>i.Previous?.Operand is not MethodReference{Name:"SetupArchive"} call || call.DeclaringType.Name!=FormulaHelper))
+            throw new InvalidOperationException("Missing Index formula hook at skill refresh exit");
+        if(!archive.Body.Instructions.Any(i=>i.Operand is MethodReference{Name:"GetByHeroInfo"}))throw new InvalidOperationException("Native Index description removed");
+        VerifyArenaResultStack(archive);
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,FormulaHelper+".dll"+(staged?".staged":"")),new ReaderParameters{AssemblyResolver=resolver});
         var calls=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().ToArray();
         foreach(var name in new[]{"GetOperationDataUnsafe","GetByHeroInfo","GetObjectValue","ResetPosition"})
             if(!calls.Any(m=>m.Name==name))throw new InvalidOperationException("Incomplete formula helper: "+name);
         if(calls.Any(m=>m.Name=="SetOperationData" || m.Name=="SendRequest"))throw new InvalidOperationException("Formula helper must be presentation-only");
-        Console.WriteLine("PASS: formula toggle hook, native calculated path and IL stacks.");
+        Console.WriteLine("PASS: hero and Index formula hooks, native calculated paths and IL stacks.");
     }
     static void InstallSkillDescriptionFormula(string root,bool stageOnly) {
         var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));
@@ -43,6 +48,15 @@ partial class Program {
             foreach(var ret in method.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
                 ret.OpCode=OpCodes.Ldarg_0;var arg=il.Create(OpCodes.Ldarg_1);il.InsertAfter(ret,arg);
                 var invoke=il.Create(OpCodes.Call,call);il.InsertAfter(arg,invoke);il.InsertAfter(invoke,il.Create(OpCodes.Ret));
+            }
+        }
+        var archive=module.GetType("NGame2.NUI.NWindow.ArchiveSkillDesc").Methods.Single(m=>m.Name=="SetSkillInfo");
+        if(!archive.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==FormulaHelper && m.Name=="SetupArchive")) {
+            var call=module.ImportReference(helper.MainModule.GetType(FormulaHelper).Methods.Single(m=>m.Name=="SetupArchive"));
+            var il=archive.Body.GetILProcessor();
+            foreach(var ret in archive.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Ldarg_0;var invoke=il.Create(OpCodes.Call,call);
+                il.InsertAfter(ret,invoke);il.InsertAfter(invoke,il.Create(OpCodes.Ret));
             }
         }
         game.Write(dll+".skill-formula-staged");File.WriteAllBytes(helperPath+".staged",compiled.ToArray());
