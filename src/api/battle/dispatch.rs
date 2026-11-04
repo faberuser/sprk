@@ -60,6 +60,20 @@ fn result_string(results: &[Value]) -> String {
         .join(",")
 }
 fn advance(info: &mut Value, stamp: i64) {
+    // A deadline is an estimate until every native result has arrived. If the
+    // worker was delayed or restarted, refresh an expired estimate rather than
+    // displaying 0m 0s while more battles are still awaiting simulation.
+    let prepared = info["SimulationResults"].as_array().map_or(0, Vec::len) as i64;
+    if n(info, "SimulationVersion") == 2
+        && !matches!(info["State"].as_str(), Some("Complete" | "Cancel"))
+        && prepared < n(info, "RepeatCount") && stamp >= n(info, "FinishTimestamp")
+    {
+        let total_ms: i64 = info["SimulationResults"].as_array().into_iter().flatten().map(|v| n(v, "TimeMs")).sum();
+        let average_ms = if prepared > 0 { total_ms / prepared } else { 60000 };
+        let remaining = ((average_ms * (n(info, "RepeatCount") - prepared) + 999) / 1000).max(1);
+        info["FinishTimestamp"] = json!(stamp + remaining);
+        info["CompleteTime"] = json!(time(stamp + remaining));
+    }
     let Some(results) = info["SimulationResults"].as_array().cloned() else {
         return;
     };
@@ -406,7 +420,7 @@ pub(super) async fn execute(
     info["WinCount"] = json!(wins);
     info["LoseCount"] = json!(losses);
     info["CompleteTime"] = json!(time(now()));
-    if n(&info, "SimulationVersion") != 1 {
+    if n(&info, "SimulationVersion") < 1 {
         info["ServerResult"] = json!(vec!["1"; count as usize].join(","));
     }
     info["CollectionResponse"] = out.clone();

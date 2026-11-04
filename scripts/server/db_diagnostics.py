@@ -171,6 +171,30 @@ def report_db(path: Path) -> None:
         except sqlite3.Error as error:
             print(f"  {label}: {error}")
 
+    print("\nDispatch preparation (in-progress jobs): simulated fight time prepared vs real time elapsed")
+    print("  BEHIND = the round counter stalls and the deadline keeps moving; healthy jobs stay ok.")
+    try:
+        import json
+        from datetime import datetime, timezone
+        snapshot = db.execute("SELECT MAX(last_login) FROM accounts").fetchone()[0]
+        now = datetime.fromisoformat(snapshot).replace(tzinfo=timezone.utc).timestamp() if snapshot else time.time()
+        print(f"  'now' = newest account login in the file: {snapshot} UTC")
+        for account, slot, raw in db.execute("SELECT account,idx,data FROM battle_state WHERE kind='dispatch'"):
+            job = json.loads(raw)
+            sims = job.get("SimulationResults") or []
+            if job.get("State") != "Battle" or not sims:
+                continue
+            prepared = sum(x.get("TimeMs", 0) for x in sims) / 1000
+            elapsed = now - job.get("StartTimestamp", now)
+            done = len(sims) >= job.get("RepeatCount", 0)
+            speed = prepared / elapsed if elapsed > 0 else 0
+            status = "ok" if done or prepared >= elapsed else f"BEHIND (preparing at {speed:.2f}x real time)"
+            print(f"  acct={account} slot={slot} stage={job.get('ChapterIndex')}-{job.get('DungeonIndex')} "
+                  f"prepared {len(sims)}/{job.get('RepeatCount')} = {prepared / 3600:.2f}h of fights, "
+                  f"elapsed {elapsed / 3600:.2f}h: {status}")
+    except (sqlite3.Error, ValueError, KeyError) as error:
+        print(f"  dispatch check failed: {error}")
+
     try:
         over = db.execute(
             "SELECT COUNT(*) FROM (SELECT ROW_NUMBER() OVER (PARTITION BY chapter,dungeon,difficulty,kind "

@@ -34,6 +34,32 @@ async fn fixture(deferred: bool) -> (AppState, Value) {
 }
 
 #[tokio::test]
+async fn offline_dispatch_overdue_estimate_refreshes_without_fabricating_results() {
+    let (s, u) = fixture(true).await;
+    let job = start(&s, &u, 3).await;
+    let slot = n(&job, "SlotIndex");
+    let a = account(&u);
+    let mut saved = job.clone();
+    saved["SimulationVersion"] = json!(2);
+    saved["StartTimestamp"] = json!(now() - 600);
+    saved["FinishTimestamp"] = json!(now() - 1);
+    saved["SimulationResults"] = json!([{"Outcome":1,"TimeMs":10000},{"Outcome":0,"TimeMs":10000}]);
+    put(&mut s.db.acquire().await.unwrap(), a, "dispatch", slot, &saved).await.unwrap();
+    let list = call(&s, &u, "dispatch/get_dispatch_list", "").await;
+    let info = &list["DispatchBattleInfos"][0];
+    assert!(n(info,"FinishTimestamp") > now());
+    assert_eq!(info["WinCount"], 1);
+    assert_eq!(info["LoseCount"], 1);
+    assert_eq!(info["State"], "Battle");
+    assert_ne!(call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await["Result"], "Success");
+    let done = call(&s, &u, "dispatch/cancel_dispatch", &format!("SlotIndex={slot}")).await;
+    assert_eq!(done["Result"], "Success", "{done}");
+    assert_eq!(done["DispatchBattleInfo"]["ServerResult"], "1,0");
+    assert_eq!(done["DispatchBattleInfo"]["WinCount"], 1);
+    assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 1);
+}
+
+#[tokio::test]
 async fn dispatch_polling_writes_only_when_progress_changes() {
     let (s,u)=fixture(true).await;let a=account(&u);
     let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();

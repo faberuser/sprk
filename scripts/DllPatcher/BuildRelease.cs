@@ -28,6 +28,7 @@ partial class Program
         InstallCrafting(clientRoot, false);
         InstallConquest(clientRoot, false);
         VerifyMissionWorker(clientRoot);
+        VerifyDispatchPacing(clientRoot);
         VerifyArcdimWorker(clientRoot);
         VerifyArenaLatency(clientRoot);
         InstallHonorBuff(clientRoot, false);
