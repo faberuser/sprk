@@ -1059,10 +1059,27 @@ public sealed partial class SprkAutomation : MonoBehaviour
                     {"nativeUpdater",NShader.ShaderVariableUpdater.isValidInstance},
                     {"shaderLOD",Shader.globalMaximumLOD},{"reversedZ",SystemInfo.usesReversedZBuffer},
                     {"graphics",SystemInfo.graphicsDeviceType.ToString()}});
-                foreach(Camera camera in UnityEngine.Object.FindObjectsOfType<Camera>())
+                foreach(Camera camera in UnityEngine.Object.FindObjectsOfType<Camera>()) {
+                    var target=camera.targetTexture;
+                    var layer=camera.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessLayer>();
+                    var volume=camera.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessVolume>();
                     reply.materials.Add(new Dictionary<string,object>{{"kind","camera"},{"path",Hierarchy(camera.transform)},
                         {"mask",camera.cullingMask},{"near",camera.nearClipPlane},{"far",camera.farClipPlane},
-                        {"depth",camera.depth},{"orthographic",camera.orthographic},{"position",camera.transform.position.ToString()}});
+                        {"depth",camera.depth},{"orthographic",camera.orthographic},{"position",camera.transform.position.ToString()},
+                        {"enabled",camera.isActiveAndEnabled},{"clear",camera.clearFlags.ToString()},
+                        {"target",target==null?"screen":target.name+" "+target.width+"x"+target.height+" aa"+target.antiAliasing},
+                        {"postLayer",layer==null?"none":(layer.enabled?layer.antialiasingMode.ToString():"disabled")},
+                        {"postVolume",volume==null?"none":(volume.enabled?(volume.profile==null?"null":volume.profile.name):"disabled")},
+                        {"depthTexture",camera.depthTextureMode.ToString()}});
+                }
+                {
+                    var timings=new FrameTiming[30];FrameTimingManager.CaptureFrameTimings();
+                    uint count=FrameTimingManager.GetLatestTimings((uint)timings.Length,timings);double gpu=0,cpu=0;
+                    for(int i=0;i<count;i++){gpu+=timings[i].gpuFrameTime;cpu+=timings[i].cpuFrameTime;}
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","frame"},{"screen",Screen.width+"x"+Screen.height},
+                        {"targetFps",Application.targetFrameRate},{"vSync",QualitySettings.vSyncCount},{"samples",count},
+                        {"gpuMs",count==0?0:gpu/count},{"cpuMs",count==0?0:cpu/count},{"deltaMs",Time.unscaledDeltaTime*1000}});
+                }
                 foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>()) {
                     if(!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                     foreach(Material material in renderer.sharedMaterials) {

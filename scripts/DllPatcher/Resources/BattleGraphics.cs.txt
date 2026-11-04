@@ -23,6 +23,7 @@ public sealed partial class SprkGraphicsOptions {
     void ResetBattleControls() {
         battleActive=false;battleEffectMask=0;battleDensityFactor=1;effectSettings=-1;nextEffectBudget=0;
         adaptiveBattle.Configure(Scale,0);lastBattleTimestamp=0;nextBattleTiming=lastValidBattleTiming=0;
+        ReleaseRetainedWorlds();
     }
     bool HasBattleCameraStack() {
         if(worldCameras.Count==0 || battleUiMask==0)return false;
@@ -35,6 +36,7 @@ public sealed partial class SprkGraphicsOptions {
         int mask=0;if(active)foreach(var camera in worldCameras)mask|=camera.cullingMask;
         if(mask!=battleEffectMask){battleEffectMask=mask;effectSettings=-1;}
         int target=battleActive?AdaptiveBattleTarget:0;
+        if(target==0 && retainedWorlds.Count>0)ReleaseRetainedWorlds();
         adaptiveBattle.Configure(Scale,target);
         if(target==0 || !Application.isFocused || !FrameTimingManager.IsFeatureEnabled()) {
             adaptiveBattle.Configure(Scale,0);lastBattleTimestamp=0;lastValidBattleTiming=Time.realtimeSinceStartup;return;
@@ -92,6 +94,23 @@ public sealed partial class SprkGraphicsOptions {
         SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",0);LateUpdate();
         routing &= EffectiveWorldScale==200 && model.targetTexture==world && world.width==Screen.width*2 && hud.targetTexture==null;
         report.Add("battleScaleTargetRouting="+routing);
+        // Adaptive steps must reuse the previous world target instead of
+        // reallocating it, and release retained targets when adaptive stops.
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",1);LateUpdate();
+        var full=world;int reusesBefore=RetainedWorldReuses;var timer=new System.Diagnostics.Stopwatch();
+        bool reuse=full!=null && EffectiveWorldScale==200 && full.width==Screen.width*2;
+        for(int i=0;i<6;i++)adaptiveBattle.Submit(30,5);
+        timer.Start();LateUpdate();timer.Stop();double allocateMs=timer.Elapsed.TotalMilliseconds;
+        var reduced=world;
+        reuse &= EffectiveWorldScale==175 && reduced!=null && reduced!=full && reduced.width==Mathf.RoundToInt(Screen.width*1.75f) && retainedWorlds.Contains(full) && model.targetTexture==reduced;
+        yield return new WaitForEndOfFrame();
+        for(int i=0;i<12;i++)adaptiveBattle.Submit(8,4);
+        timer.Reset();timer.Start();LateUpdate();timer.Stop();double reuseMs=timer.Elapsed.TotalMilliseconds;
+        reuse &= EffectiveWorldScale==200 && world==full && full.IsCreated() && RetainedWorldReuses==reusesBefore+1 && retainedWorlds.Contains(reduced) && model.targetTexture==full && hud.targetTexture==null;
+        yield return new WaitForEndOfFrame();
+        SprkTestPrefs.SetInt("Sprk.Graphics.AdaptiveBattleScale",0);LateUpdate();
+        reuse &= retainedWorlds.Count==0 && world==full && model.targetTexture==full;
+        report.Add("adaptiveWorldReuse="+reuse+" allocateSwitchMs="+allocateMs.ToString("F3")+" reuseSwitchMs="+reuseMs.ToString("F3")+" budgetMB="+(RetainedWorldBudget/1048576));
         int readings=0,available=0;double gpu=0,cpu=0;ulong stamp=0;
         for(int i=0;i<24;i++) {
             FrameTimingManager.CaptureFrameTimings();yield return new WaitForEndOfFrame();
@@ -122,6 +141,28 @@ public sealed partial class SprkGraphicsOptions {
         for(int i=0;i<24;i++)controller.Submit(18,2);
         controller.Configure(125,0);resolution &= controller.Current==125;
         report.Add("adaptiveBattleController="+resolution);
+        var swing=new SprkBattleResolution();swing.Configure(200,60);
+        for(int i=0;i<6;i++)swing.Submit(30,5);
+        bool oscillation=swing.Current==175;
+        for(int i=0;i<12;i++)swing.Submit(8,4);
+        oscillation &= swing.Current==200;
+        // Undone raise: the next raise needs twice the stable samples.
+        for(int i=0;i<6;i++)swing.Submit(30,5);
+        oscillation &= swing.Current==175 && swing.RaiseAfter==24;
+        for(int i=0;i<23;i++)swing.Submit(8,4);
+        oscillation &= swing.Current==175;
+        swing.Submit(8,4);oscillation &= swing.Current==200;
+        // A raise that holds for the window restores normal responsiveness.
+        for(int i=0;i<41;i++)swing.Submit(14,4);
+        oscillation &= swing.Current==200 && swing.RaiseAfter==12;
+        // Repeated undone raises are capped.
+        for(int cycle=0;cycle<5;cycle++) {
+            for(int i=0;i<6;i++)swing.Submit(30,5);
+            for(int i=0;i<swing.RaiseAfter;i++)swing.Submit(8,4);
+        }
+        oscillation &= swing.RaiseAfter==96;
+        swing.Restore();oscillation &= swing.RaiseAfter==12 && swing.Current==200;
+        report.Add("adaptiveBattleOscillation="+oscillation);
         int savedTarget=SprkTestPrefs.GetInt("Sprk.Graphics.AdaptiveBattleScale",0);
         bool targets=true;
         foreach(int stored in new[]{0,1,2,3,4}) {
@@ -221,19 +262,35 @@ public sealed partial class SprkGraphicsOptions {
 // Sampled at 4 Hz. Six overloaded GPU samples lower scale by 25 points;
 // twelve samples with headroom recover by 25. Never reacts to CPU-only stalls.
 public sealed class SprkBattleResolution {
-    int maximum=100,target,over,under;
+    // Samples arrive every 0.25 s. Drops stay fast (6 samples). Raising waits
+    // 12 samples, doubling up to 96 (24 s) whenever a raise is undone within
+    // 40 samples, so the scale cannot keep flipping between two sizes.
+    const int BaseRaise=12,MaxRaise=96,OscillationWindow=40;
+    int maximum=100,target,over,under,raiseAfter=BaseRaise,sinceRaise=-1;
     public int Current { get; private set; } =100;
+    public int RaiseAfter { get { return raiseAfter; } }
     public void Configure(int scale,int fps) {
         if(maximum==scale && target==fps)return;
         maximum=scale;target=fps;Restore();
     }
-    public void Restore() { Current=maximum;over=under=0; }
+    public void Restore() { Current=maximum;over=under=0;raiseAfter=BaseRaise;sinceRaise=-1; }
     public void Submit(double gpu,double cpu) {
         if(target==0 || double.IsNaN(gpu) || double.IsInfinity(gpu) || gpu<=0 || gpu>=250 || double.IsNaN(cpu) || double.IsInfinity(cpu)){over=under=0;return;}
         double budget=1000.0/target;
         over=gpu>budget*1.1 && gpu>=cpu*.9?over+1:0;
         under=gpu<budget*.7?under+1:0;
-        if(over>=6){Current=Math.Max(75,Current-25);over=under=0;}
-        else if(under>=12){Current=Math.Min(maximum,Current+25);over=under=0;}
+        if(sinceRaise>=0 && ++sinceRaise>OscillationWindow) {
+            // A raise that held is trusted again; back off one level.
+            sinceRaise=-1;raiseAfter=Math.Max(BaseRaise,raiseAfter/2);
+        }
+        if(over>=6) {
+            if(Current<=75){over=0;return;}
+            if(sinceRaise>=0)raiseAfter=Math.Min(MaxRaise,raiseAfter*2);
+            Current=Current-25;over=under=0;sinceRaise=-1;
+        }
+        else if(under>=raiseAfter) {
+            if(Current>=maximum){under=0;return;}
+            Current=Current+25;over=under=0;sinceRaise=0;
+        }
     }
 }
