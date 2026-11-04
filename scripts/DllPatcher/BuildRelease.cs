@@ -76,6 +76,8 @@ partial class Program
         VerifyShopTagsFile(clientRoot);
         InstallArtifactSelectors(clientRoot, false);
         VerifyArtifactSelectorsFile(clientRoot);
+        InstallSkillDescriptionFormula(clientRoot, false);
+        VerifySkillDescriptionFormulaFile(clientRoot);
         InstallArtifactSourceFilter(clientRoot, false);
         VerifyArtifactSourceFilterFile(clientRoot);
         InstallTeamExpRefresh(clientRoot, false);
@@ -99,6 +101,8 @@ partial class Program
         VerifySettingsPersistenceFile(clientRoot);
         VerifyAccountSession(clientRoot);
         VerifyLoginSettingsFile(clientRoot);
+        RemoveCenterLoginLogos(clientRoot);
+        VerifyLoginPresentationAssets(clientRoot);
         VerifyShopPurchaseLimitsFile(clientRoot, false);
         VerifyPetFeedingFile(clientRoot);
         TestPetFeeding(clientRoot);
@@ -128,7 +132,12 @@ partial class Program
         VerifyHeroMaterialTicketsFile(clientRoot);
         InstallBattleResultFlask(clientRoot, false);
         VerifyBattleResultFlaskFile(clientRoot);
+        // Reads Gold, so it must compile before the Currency64 migration.
+        InstallTechnomagicAwakenTarget(clientRoot, false);
+        InstallSkillUpgradeAll(clientRoot, false);
         InstallCurrency64(clientRoot, false);
+        InstallGearPresetPortraits(clientRoot, false);
+        InstallGearPresetPortraits(clientRoot, true);
         InstallPresetDisposal(clientRoot, false);
         InstallPresetDisposal(clientRoot, true);
         InstallAwakeningMaterials(clientRoot, false);

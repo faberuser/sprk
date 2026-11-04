@@ -257,6 +257,38 @@ pub(super) async fn settle_shards(
     Ok(())
 }
 
+// Snapshot opening-cost EXP, then consume it only on a full raid clear.
+pub(super) fn opening_team_exp(s: &AppState, stamina: i64) -> Result<i64> {
+    stamina.checked_mul(settings(s,"RaiderExpPerStamina",100))
+        .filter(|amount| *amount >= 0).ok_or_else(|| rule("InvalidCost"))
+}
+
+pub(super) async fn grant_clear_team_exp(
+    db: &mut SqliteConnection, s: &AppState, a: i64, gate: &mut Value, grant: &mut Rewards,
+) -> Result<()> {
+    // Openings saved by the previous no-EXP policy have no pending snapshot.
+    // Their current clear count still describes the opening that was paid for.
+    let amount = if gate["PendingClearTeamExp"].is_null() {
+        let kind=n(gate,"DungeonType");
+        let group=row(s,"PunishmentGroup",&[("GroupIndex",n(gate,"GroupIndex")),("PunishmentDungeonType",kind)])?;
+        let mut cost=n(group,"OpenStaminaCount");
+        if kind==2 {
+            let increases=group["StaminaIncreaseCount"].as_array();
+            for i in 0..n(gate,"ClearCount") {
+                let increase=increases.and_then(|v|v.get((i as usize).min(v.len().saturating_sub(1))))
+                    .and_then(Value::as_i64).unwrap_or(n(group,"StaminaIncreaseRate"));
+                cost=cost.checked_add(increase).ok_or_else(||rule("InvalidCost"))?;
+            }
+        }
+        opening_team_exp(s,cost)?
+    } else {n(gate,"PendingClearTeamExp")};
+    if amount > 0 {
+        tutorial::team_exp(db,s,a,amount,grant).await?;
+        gate["PendingClearTeamExp"] = json!(0);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,6 +343,52 @@ mod tests {
             &format!("GroupIndex={group}&Level={level}&DungeonType=2"),
         )
         .await
+    }
+    #[tokio::test]
+    async fn punishment_team_exp_requires_final_boss_and_is_awarded_once() {
+        let (s,u)=fixture().await;let a=account(&u);
+        let team=||async {sqlx::query_as::<_,(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap()};
+        for deferred in [false,true] {
+            put(&mut s.db.acquire().await.unwrap(),a,"entry_policy",0,&json!({"RefundPveDefeats":deferred})).await.unwrap();
+            for group in [101001,101002] {
+                let before=team().await;
+                let opened=open(&s,&u,group,1).await;
+                assert_eq!(opened["Result"],"Success","{opened}");
+                assert_eq!(team().await,before);
+                if deferred {
+                    let mut gate=get(&mut s.db.acquire().await.unwrap(),a,"punishment_open",group).await.unwrap();
+                    gate.as_object_mut().unwrap().remove("PendingClearTeamExp");
+                    put(&mut s.db.acquire().await.unwrap(),a,"punishment_open",group,&gate).await.unwrap();
+                }
+                let node=entry(group,1,1,"");
+                assert_eq!(call(&s,&u,"contents/begin_content",&node).await["Result"],"Success");
+                let won=call(&s,&u,"contents/end_content",&end(group,1,true,1)).await;
+                assert_eq!(won["Result"],"Success","{won}");
+                assert_eq!(team().await,before,"An intermediate victory must not grant opening EXP");
+                let def=s.tables.battle.rows("PunishmentRaid").iter()
+                    .find(|v|n(v,"GroupIndex")==group && n(v,"Boss")==1 && n(v,"RaidLevel")==1).unwrap();
+                let raid=s.tables.battle.rows("Raid").iter()
+                    .find(|v|n(v,"Index")==n(def,"RaidIndex") && n(v,"Level")==1).unwrap();
+                let dungeon=n(raid,"DungeonIndex");
+                // The first dragon was cleared, leaving the other three domains.
+                let affixes=if group==101001 {"&AffixIndices=5002&AffixIndices=5003&AffixIndices=5004"}else{"&AffixIndices=6001"};
+                let boss=entry(group,dungeon,1,affixes);
+                for completed in [false,true] {
+                    let begun=call(&s,&u,"contents/begin_content",&boss).await;
+                    assert_eq!(begun["Result"],"Success","{begun}");
+                    let result=call(&s,&u,"contents/end_content",&end(group,dungeon,completed,1)).await;
+                    assert_eq!(result["Result"],"Success","{result}");
+                    if completed {
+                        let cost=if deferred {9000}else{6000}; // Second daily opening costs more.
+                        assert_eq!(result["ExpResultsByGetHero"][0]["AddValue"],cost*settings(&s,"RaiderExpPerStamina",100),"{result}");
+                        let after=team().await;assert_ne!(after,before);
+                        let _=call(&s,&u,"contents/end_content",&end(group,dungeon,true,1)).await;
+                        assert_eq!(team().await,after);
+                    } else {assert_eq!(team().await,before);}
+                }
+            }
+        }
     }
     #[test]
     fn punishment_automatic_affixes_follow_native_enhancement_thresholds() {

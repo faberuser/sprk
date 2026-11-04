@@ -1,0 +1,167 @@
+
+Hero_Crow.png
+size: 364,517
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+arm - left
+  rotate: false
+  xy: 337, 402
+  size: 26, 115
+  orig: 26, 115
+  offset: 0, 0
+  index: -1
+arm - right
+  rotate: false
+  xy: 218, 129
+  size: 41, 133
+  orig: 41, 133
+  offset: 0, 0
+  index: -1
+body
+  rotate: false
+  xy: 260, 146
+  size: 69, 118
+  orig: 69, 118
+  offset: 0, 0
+  index: -1
+cloth 1 - arm
+  rotate: true
+  xy: 259, 400
+  size: 117, 77
+  orig: 117, 77
+  offset: 0, 0
+  index: -1
+cloth 1 - arm - back
+  rotate: false
+  xy: 330, 166
+  size: 22, 29
+  orig: 22, 29
+  offset: 0, 0
+  index: -1
+cloth 1 A
+  rotate: false
+  xy: 127, 385
+  size: 131, 132
+  orig: 131, 132
+  offset: 0, 0
+  index: -1
+cloth 1 B
+  rotate: false
+  xy: 122, 24
+  size: 111, 77
+  orig: 111, 77
+  offset: 0, 0
+  index: -1
+cloth 1 C
+  rotate: false
+  xy: 302, 85
+  size: 56, 60
+  orig: 56, 60
+  offset: 0, 0
+  index: -1
+cloth 2 A
+  rotate: false
+  xy: 330, 196
+  size: 29, 27
+  orig: 29, 27
+  offset: 0, 0
+  index: -1
+cloth 2 B
+  rotate: false
+  xy: 328, 51
+  size: 20, 33
+  orig: 20, 33
+  offset: 0, 0
+  index: -1
+cloth 3 - back 1
+  rotate: false
+  xy: 253, 265
+  size: 47, 119
+  orig: 47, 119
+  offset: 0, 0
+  index: -1
+cloth 3 - back 2
+  rotate: false
+  xy: 122, 102
+  size: 95, 160
+  orig: 95, 160
+  offset: 0, 0
+  index: -1
+cloth 3 - back 3
+  rotate: true
+  xy: 127, 263
+  size: 121, 125
+  orig: 121, 125
+  offset: 0, 0
+  index: -1
+cloth deco 1
+  rotate: false
+  xy: 301, 306
+  size: 63, 93
+  orig: 63, 93
+  offset: 0, 0
+  index: -1
+cloth deco 2
+  rotate: false
+  xy: 234, 30
+  size: 67, 98
+  orig: 67, 98
+  offset: 0, 0
+  index: -1
+hair 1
+  rotate: true
+  xy: 301, 282
+  size: 23, 28
+  orig: 23, 28
+  offset: 0, 0
+  index: -1
+hair 3
+  rotate: true
+  xy: 0, 0
+  size: 8, 24
+  orig: 8, 24
+  offset: 0, 0
+  index: -1
+hair 4
+  rotate: false
+  xy: 353, 175
+  size: 11, 20
+  orig: 11, 20
+  offset: 0, 0
+  index: -1
+hair2
+  rotate: false
+  xy: 330, 264
+  size: 34, 41
+  orig: 34, 41
+  offset: 0, 0
+  index: -1
+leg
+  rotate: false
+  xy: 0, 265
+  size: 126, 252
+  orig: 126, 252
+  offset: 0, 0
+  index: -1
+mask
+  rotate: false
+  xy: 330, 224
+  size: 34, 39
+  orig: 34, 39
+  offset: 0, 0
+  index: -1
+shoulder
+  rotate: false
+  xy: 302, 47
+  size: 25, 37
+  orig: 25, 37
+  offset: 0, 0
+  index: -1
+weapon
+  rotate: true
+  xy: 0, 9
+  size: 255, 121
+  orig: 255, 121
+  offset: 0, 0
+  index: -1

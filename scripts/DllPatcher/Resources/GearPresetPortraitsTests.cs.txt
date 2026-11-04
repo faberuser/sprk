@@ -1,0 +1,96 @@
+using System;
+using System.Collections.Generic;
+using NGame2.NAccount;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NVespa.NSingleton;
+
+public static class GearPresetPortraitsTests
+{
+    static void Check(bool ok) { if (!ok) throw new Exception("Gear portrait regression"); }
+    public static void Run()
+    {
+        var account = new AccountManager();
+        GlobalAutoBehaviour<AccountManager>.instance = account;
+        GlobalAutoBehaviour<AccountManager>.isValidInstance = true;
+        foreach (int h in new[]{1, 2, 3}) account.Heroes.Add(h);
+        var preset = new EquipPresetInfo { Uids = new[]{"a", "b", "c", "", "deleted"} };
+        account.EquipItemManager.Items["a"] = new EquipItemInfo { Owner = 2 };
+        account.EquipItemManager.Items["b"] = new EquipItemInfo { Owner = 3 };
+        account.EquipItemManager.Items["c"] = new EquipItemInfo { Owner = 3 };
+        Check(SprkGearPresetPortraits.FindWearer(preset, 1) == 3);
+        Check(SprkGearPresetPortraits.FindWearer(preset, 2) == 2);
+        var slot = new EquipStorageSlotComponent { EquipPresetInfo = preset };
+        SprkGearPresetPortraits.Update(slot, 1);
+        Check(slot.Portrait == 3 && slot.BundleLoader_HeroTexture.Enabled);
+        account.EquipItemManager.Items["c"].Owner = -1;
+        Check(SprkGearPresetPortraits.FindWearer(preset, 1) == 2); // stable tie
+        account.EquipItemManager.Items["a"].Owner = 1;
+        Check(SprkGearPresetPortraits.FindWearer(preset, 1) == 1); // live transfer
+        account.EquipItemManager.Items["a"].Chest = true;
+        account.EquipItemManager.Items["b"].Owner = 99; // foreign/stale owner
+        SprkGearPresetPortraits.Update(slot, 1);
+        Check(!slot.BundleLoader_HeroTexture.Enabled);
+        slot.EquipPresetInfo = null;
+        SprkGearPresetPortraits.Update(slot, 1);
+        Check(!slot.BundleLoader_HeroTexture.Enabled);
+        GlobalAutoBehaviour<AccountManager>.isValidInstance = false;
+        Check(SprkGearPresetPortraits.FindWearer(preset, 1) == 0);
+    }
+}
+namespace NVespa.NSingleton {
+    public static class GlobalAutoBehaviour<T> { public static bool isValidInstance; public static T instance; }
+}
+namespace NShared {
+    public enum InventoryType { Normal, Chest }
+    public class EquipItemInfo {
+        public int Owner; public bool Chest;
+        public int GetEquippedHeroIndex() { return Owner; }
+        public InventoryType GetInventoryType() { return Chest ? InventoryType.Chest : InventoryType.Normal; }
+    }
+    public class EquipPresetInfo {
+        public string[] Uids;
+        public string GetEquipItemUid(int part) { return Uids[part - 1]; }
+    }
+}
+namespace NGame2.NAccount {
+    public class ItemManager {
+        public Dictionary<string, EquipItemInfo> Items = new Dictionary<string, EquipItemInfo>();
+        public EquipItemInfo GetEquipItemInfoByUid(string uid) { EquipItemInfo item; return Items.TryGetValue(uid, out item) ? item : null; }
+    }
+    public class AccountManager {
+        public ItemManager EquipItemManager = new ItemManager();
+        public HashSet<int> Heroes = new HashSet<int>();
+        public object GetHeroInfo(int hero) { return Heroes.Contains(hero) ? new object() : null; }
+    }
+}
+namespace NGame2 {
+    public static class PresetStorageHelper {
+        public static int[] SaveEquipParts = new[]{1, 2, 3, 4, 5};
+        public static bool IsEmptySlotEquipPresetInfo(EquipPresetInfo p) { return p == null; }
+        public static bool IsEquippedItemExist(EquipPresetInfo p, int hero) {
+            var a = GlobalAutoBehaviour<AccountManager>.instance;
+            if (hero <= 0 || a.GetHeroInfo(hero) == null) return false;
+            foreach (var uid in p.Uids) {
+                if (string.IsNullOrEmpty(uid)) continue;
+                var item = a.EquipItemManager.GetEquipItemInfoByUid(uid);
+                if (item != null && !item.Chest && item.Owner == hero) return true;
+            }
+            return false;
+        }
+    }
+}
+namespace NGame2.NUI {
+    public static class UIHelper {
+        public static void EnableGameObject(NGame2.NUI.NComponent2.Texture texture, bool enabled, bool ignored) { texture.Enabled = enabled; }
+    }
+}
+namespace NGame2.NUI.NComponent2 {
+    public class Texture { public bool Enabled; }
+    public class EquipStorageSlotComponent {
+        public EquipPresetInfo EquipPresetInfo;
+        public Texture BundleLoader_HeroTexture = new Texture();
+        public int Portrait;
+        public void SetPortraitTexture(int hero) { Portrait = hero; }
+    }
+}

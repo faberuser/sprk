@@ -1,0 +1,649 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NManager;
+using NVespa.NSingleton;
+using UnityEngine.Networking;
+using NGameAsset;
+using NShared;
+using NVespa;
+
+public sealed class SprkLoginPresentation : MonoBehaviour {
+    [Serializable] public sealed class Background {public string id,label,scene,sourceVersion,sourceSha256,logo;}
+    [Serializable] public sealed class Music {public string id,label,file;}
+    [Serializable] public sealed class Catalog {public int schema;public Background[] backgrounds;public Music[] music;}
+    public const string BackgroundKey="Sprk.Login.Background";
+    public const string DefaultBackground="x-the-final-azeta-and-valance";
+    public const string MusicKey="Sprk.Login.Music";
+    // "Promise" is the default for new profiles and replaces the removed
+    // Default Login Music ("native") choice.
+    public const string DefaultMusic="e47c58d47a86adfa0c40";
+    static Catalog catalog;
+    static SprkLoginPresentation activeView;
+    static AudioClip nativeMusic;
+    AudioClip customMusic;
+    string customMusicId;
+    int musicGeneration;
+    public GameObject RecoveredRoot {get{return recovered==null?null:recovered.Root;}}
+    public string LoadedMusicId {get{return customMusicId;}}
+    public AudioClip LoadedMusic {get{return customMusic;}}
+    LoginBackground view;
+    SprkRecoveredLoginScene recovered;
+    string appliedBackground;
+    readonly Dictionary<GameObject,bool> originalVisibility=new Dictionary<GameObject,bool>();
+    public static string ContentRoot {
+        get {
+            var test=Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_CONTENT");
+            if(!String.IsNullOrEmpty(test) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) && !String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")))return test;
+            return Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/LoginPresentation");
+        }
+    }
+    public static Catalog Options {
+        get {
+            if(catalog!=null)return catalog;
+            var json=LitJson.JsonMapper.ToObject(File.ReadAllText(Path.Combine(ContentRoot,"catalog.json")));
+            catalog=new Catalog{schema=json["schema"].valueInt,backgrounds=new Background[json["backgrounds"].Count],music=new Music[json["music"].Count]};
+            for(int i=0;i<catalog.backgrounds.Length;i++){var row=json["backgrounds"].GetFromArray(i);catalog.backgrounds[i]=new Background{id=row["id"].valueStr,label=row["label"].valueStr,scene=row["scene"].valueStr,sourceVersion=row["sourceVersion"].valueStr,sourceSha256=row["sourceSha256"].valueStr,logo=row.Contains("logo")?row["logo"].valueStr:null};}
+            for(int i=0;i<catalog.music.Length;i++){var row=json["music"].GetFromArray(i);catalog.music[i]=new Music{id=row["id"].valueStr,label=row["label"].valueStr,file=row["file"].valueStr};}
+            if(catalog.schema!=1 || catalog.backgrounds.Length==0)throw new InvalidOperationException("The login presentation catalog is invalid.");
+            return catalog;
+        }
+    }
+    public static bool AtLogin {get{return SceneAutoBehaviour<LoginManagement>.isValidInstance && !SceneAutoBehaviour<NGame2.NUI.NManager.NLobby.LobbyManagement>.isValidInstance;}}
+    public static string NormalizeBackgroundId(string id) {
+        switch(id) {
+            // Folder IDs were renamed after the Settings names; older saves keep their choice.
+            case "native":
+            case "13-two-characters":
+            case "13-two-characters-night":return DefaultBackground;
+            case "01-original-party":return "original-heroes";
+            case "02-cathedral-party":return "heroes-of-orvel";
+            case "03-war-table":return "war-council";
+            case "04-fire-dragon":return "dragons-challenge";
+            case "05-hero-ensemble":return "gathered-heroes";
+            case "06-red-sky":
+            case "07-red-sky-layers":return "pandemonium";
+            case "08-light-and-dark":return "soul-weapon-light";
+            case "08-light-and-dark-night":return "soul-weapon-darkness";
+            case "09-fallen-fate-spine":
+            case "09-fallen-fate-spine-night":return "ix-fallen-fate";
+            case "10-ruins-four-heroes":
+            case "10-ruins-four-heroes-night":
+            case "11-day-night":
+            case "11-day-night-night":return "x-rebellion";
+            case "12-kasel-frey":
+            case "12-kasel-frey-night":return "x-the-final-kasel-and-frey";
+            default:return id;
+        }
+    }
+    public static string SelectedBackground {get{string saved=SprkTestPrefs.GetString(BackgroundKey,DefaultBackground);string id=NormalizeBackgroundId(saved);if(!Options.backgrounds.Any(x=>x.id==id))id=DefaultBackground;if(id!=saved){SprkTestPrefs.SetString(BackgroundKey,id);SprkTestPrefs.Save();}return id;}}
+    // Removed choices: Default Login Music ("native") and No Music ("silent"; the
+    // native BGM toggle mutes login music).
+    public static string NormalizeMusicId(string id){return id=="native" || id=="silent"?DefaultMusic:id;}
+    public static string SelectedMusic {get{string saved=SprkTestPrefs.GetString(MusicKey,DefaultMusic);string id=NormalizeMusicId(saved);if(!Options.music.Any(x=>x.id==id))id=DefaultMusic;if(id!=saved){SprkTestPrefs.SetString(MusicKey,id);SprkTestPrefs.Save();}return id;}}
+    public static string BackgroundCaption {get{return Options.backgrounds.First(x=>x.id==SelectedBackground).label;}}
+    public static string MusicCaption {get{string id=SelectedMusic;return Options.music.First(x=>x.id==id).label;}}
+    public static void SelectBackground(string id) {
+        id=NormalizeBackgroundId(id);
+        if(!Options.backgrounds.Any(x=>x.id==id))throw new ArgumentException("Unknown login background");
+        SprkTestPrefs.SetString(BackgroundKey,id);SprkTestPrefs.Save();
+        if(activeView!=null && AtLogin && activeView.gameObject.activeInHierarchy)activeView.ApplyBackground();
+    }
+    public static void SelectMusic(string id) {
+        id=NormalizeMusicId(id);
+        if(!Options.music.Any(x=>x.id==id))throw new ArgumentException("Unknown login music");
+        SprkTestPrefs.SetString(MusicKey,id);SprkTestPrefs.Save();RefreshMusic();
+    }
+    public static void Configure(LoginBackground window) {
+        var bridge=window.GetComponent<SprkLoginPresentation>();if(bridge==null)bridge=window.gameObject.AddComponent<SprkLoginPresentation>();
+        bridge.view=window;activeView=bridge;bridge.ApplyBackground();bridge.ApplyMusic();
+        if(!bridge.restoringLogo)bridge.StartCoroutine(bridge.RestoreLogoWhenReady());
+    }
+    // The corner logo's "X: The Final" subtitle is blanked in the built-in Login
+    // atlas (sharedassets0). The shipped Login atlas bundle still has it: copy that
+    // sprite's pixels into the live atlas texture on the GPU, then unload the bundle.
+    public const string CornerLogoSprite="Logo_Rebellion_White";
+    static Texture restoredLogoTexture;
+    public static bool LogoSubtitleRestored {get{return restoredLogoTexture!=null;}}
+    static RectInt SpriteRect(object atlas,string name) {
+        var data=atlas.GetType().GetMethod("GetSprite",new[]{typeof(string)}).Invoke(atlas,new object[]{name});
+        if(data==null)throw new InvalidOperationException("Logo sprite missing");
+        // Members are fields or properties depending on the NGUI build.
+        const System.Reflection.BindingFlags any=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.IgnoreCase;
+        Func<string,int> get=f=>{
+            var field=data.GetType().GetField(f,any);if(field!=null)return Convert.ToInt32(field.GetValue(data));
+            var property=data.GetType().GetProperty(f,any);if(property!=null)return Convert.ToInt32(property.GetValue(data,null));
+            throw new InvalidOperationException("Sprite data has no "+f+" on "+data.GetType().FullName);
+        };
+        return new RectInt(get("x"),get("y"),get("width"),get("height"));
+    }
+    bool restoringLogo;
+    public static string LogoStatus="not started";
+    // The logo's atlas is assigned asynchronously by the native atlas assigner.
+    IEnumerator RestoreLogoWhenReady() {
+        restoringLogo=true;LogoStatus="waiting";
+        for(int frame=0;frame<600 && view!=null;frame++) {
+            var sprite=FindNativeLogo();
+            var texture=sprite==null || sprite.atlas==null?null:sprite.mainTexture as Texture2D;
+            if(texture!=null) {
+                if(texture!=restoredLogoTexture)
+                    try{RestoreLogoSubtitle(sprite,texture);LogoStatus="restored "+texture.name;}
+                    catch(Exception error){LogoStatus="failed: "+error.ToString().Replace(Environment.NewLine," | ");Debug.LogWarning("SPRK login logo subtitle not restored: "+error.Message);}
+                break;
+            }
+            yield return null;
+        }
+        restoringLogo=false;
+    }
+    static void RestoreLogoSubtitle(UISprite sprite,Texture2D target) {
+        string folder=SystemOptionData.Spec==ESpecType.Low?"LowLargeSpec":"HighAndMidSpec";
+        var bundle=AssetBundle.LoadFromFile(Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle",folder,"NguiAtlas_UI_Prefab_Login.unity3d"));
+        if(bundle==null)throw new InvalidOperationException("Login atlas bundle could not be opened");
+        try {
+            var atlas=bundle.mainAsset as UIAtlas;
+            if(atlas==null)atlas=bundle.LoadAllAssets<GameObject>().Select(g=>g.GetComponent<UIAtlas>()).FirstOrDefault(x=>x!=null);
+            // The bundle material's shader is unresolved before preload; take the texture itself.
+            var source=bundle.LoadAllAssets<Texture2D>().Where(t=>t.width==target.width && t.height==target.height).OrderByDescending(t=>t.name==target.name).FirstOrDefault();
+            if(atlas==null)throw new InvalidOperationException("Login atlas bundle has no atlas");
+            if(source==null)throw new InvalidOperationException("Login atlas bundle has no texture");
+            var from=SpriteRect(atlas,CornerLogoSprite);var to=SpriteRect(sprite.atlas,CornerLogoSprite);
+            if(from.width!=to.width || from.height!=to.height || source.format!=target.format || SystemInfo.copyTextureSupport==UnityEngine.Rendering.CopyTextureSupport.None)
+                throw new InvalidOperationException("Login atlas layouts differ");
+            // NGUI rects are top-left based; textures are bottom-left based.
+            int mips=System.Math.Min(source.mipmapCount,target.mipmapCount);
+            for(int mip=0;mip<mips;mip++) {
+                int scale=1<<mip,w=from.width/scale,h=from.height/scale;if(w<1 || h<1)break;
+                Graphics.CopyTexture(source,0,mip,from.x/scale,(source.height-from.y-from.height)/scale,w,h,target,0,mip,to.x/scale,(target.height-to.y-to.height)/scale);
+            }
+            restoredLogoTexture=target;
+        } finally {bundle.Unload(true);}
+    }
+    static readonly string[] nativeArt={"LoginIllust","LoginIllustForeGround","LoginBackgroundSpineHeros","LoginBackgroundSpineDay","LoginBackgroundSpineNight","LoginEffectBackGround","EffectBI"};
+    void HideNativeObject(GameObject go){if(go==null)return;if(!originalVisibility.ContainsKey(go))originalVisibility.Add(go,go.activeSelf);go.SetActive(false);}
+    void HideNativeArt() {
+        // Use the native window's serialized art references as well as legacy
+        // names; some clients create their illustration underneath these roots.
+        if(view.BackEffectPanelRoot!=null)HideNativeObject(view.BackEffectPanelRoot.gameObject);
+        if(view.WidgetEffect!=null)HideNativeObject(view.WidgetEffect.gameObject);
+        foreach(var tm in view.GetComponentsInChildren<Transform>(true)) {
+            if(!nativeArt.Contains(tm.name) || recovered!=null && (tm==recovered.Root.transform || tm.IsChildOf(recovered.Root.transform)))continue;
+            HideNativeObject(tm.gameObject);
+        }
+    }
+    // Each historical background shows its own era corner logo (Pandemonium,
+    // Soul Weapon, IX: Fallen Fate, ...) in place of the current one.
+    public const string EraLogoName="SPRK Era Logo";
+    UISprite nativeLogo;
+    UITexture eraLogo;
+    Texture2D eraLogoTexture;
+    public UITexture EraLogo {get{return eraLogo!=null && eraLogo.gameObject.activeInHierarchy?eraLogo:null;}}
+    public UISprite NativeLogo {get{return nativeLogo;}}
+    UISprite FindNativeLogo() {
+        if(nativeLogo!=null)return nativeLogo;
+        // Recovered scenes (and their inactive asset banks) carry hidden copies of
+        // this sprite; use the native window's own logo.
+        var found=view.transform.Find("UIPanel/Root/LoignLogo");
+        nativeLogo=found!=null?found.GetComponent<UISprite>():null;
+        if(nativeLogo==null)nativeLogo=view.GetComponentsInChildren<UISprite>(true).FirstOrDefault(x=>x.spriteName==CornerLogoSprite && x.transform.parent!=null && x.transform.parent.parent!=null && x.transform.parent.parent.parent==view.transform);
+        return nativeLogo;
+    }
+    void RemoveEraLogo() {
+        if(eraLogo!=null)Destroy(eraLogo.gameObject);eraLogo=null;
+        if(eraLogoTexture!=null)Destroy(eraLogoTexture);eraLogoTexture=null;
+        if(nativeLogo!=null)nativeLogo.alpha=nativeLogoAlpha;
+    }
+    float nativeLogoAlpha=1;
+    public bool NativeLogoVisible {get{return nativeLogo!=null && nativeLogo.enabled && nativeLogo.alpha>0;}}
+    // The native logo is anchored; keep it enabled (transparent) so it keeps its
+    // anchored place, and keep the era logo centred on it.
+    void LateUpdate() {
+        if(eraLogo==null || nativeLogo==null)return;
+        var corners=nativeLogo.worldCorners;eraLogo.transform.position=(corners[0]+corners[2])*.5f;
+    }
+    void ApplyEraLogo(Background option) {
+        RemoveEraLogo();
+        var native=FindNativeLogo();
+        if(native==null || String.IsNullOrEmpty(option.logo))return;
+        var texture=new Texture2D(2,2,TextureFormat.RGBA32,true){name=option.id+" logo"};
+        if(!ImageConversion.LoadImage(texture,File.ReadAllBytes(Path.Combine(ContentRoot,option.logo)),true)){Destroy(texture);return;}
+        texture.wrapMode=TextureWrapMode.Clamp;texture.filterMode=FilterMode.Trilinear;texture.anisoLevel=2;eraLogoTexture=texture;
+        var go=new GameObject(EraLogoName);go.layer=native.gameObject.layer;go.transform.SetParent(native.transform.parent,false);
+        go.transform.localRotation=native.transform.localRotation;go.transform.localScale=native.transform.localScale;
+        eraLogo=go.AddComponent<UITexture>();eraLogo.shader=Shader.Find("Unlit/Transparent Colored");eraLogo.mainTexture=texture;eraLogo.depth=native.depth;
+        // Fit inside the native logo box, matching its visual weight.
+        float scale=Mathf.Min(native.width*.82f/texture.width,native.height*.80f/texture.height);
+        eraLogo.width=Mathf.Max(2,Mathf.RoundToInt(texture.width*scale));eraLogo.height=Mathf.Max(2,Mathf.RoundToInt(texture.height*scale));
+        // Centre on the native logo's visual centre regardless of its pivot.
+        var corners=native.worldCorners;go.transform.position=(corners[0]+corners[2])*.5f;
+        nativeLogoAlpha=native.alpha>0?native.alpha:1;
+        native.alpha=0;
+    }
+    void RestoreNativeArt(){foreach(var pair in originalVisibility)if(pair.Key!=null)pair.Key.SetActive(pair.Value);originalVisibility.Clear();}
+    public void ApplyBackground() {
+        if(view==null || !AtLogin)return;
+        string selected=SelectedBackground;
+        if(selected==appliedBackground && recovered!=null){HideNativeArt();return;}
+        if(recovered!=null){recovered.Dispose();recovered=null;}RestoreNativeArt();
+        var option=Options.backgrounds.First(x=>x.id==selected);
+        recovered=new SprkRecoveredLoginScene(Path.Combine(ContentRoot,option.scene),view.transform);HideNativeArt();
+        appliedBackground=selected;
+        ApplyEraLogo(option);
+    }
+    public static AudioClip FilterMusic(AudioClip incoming) {
+        if(!AtLogin)return incoming;
+        if(incoming!=null && (activeView==null || incoming!=activeView.customMusic))nativeMusic=incoming;
+        string selected=SelectedMusic;
+        if(activeView!=null && activeView.customMusic!=null && activeView.customMusicId==selected)return activeView.customMusic;
+        return incoming;
+    }
+    public static void RefreshMusic(){if(activeView!=null && AtLogin && activeView.gameObject.activeInHierarchy)activeView.ApplyMusic();}
+    void ApplyMusic() {
+        int generation=++musicGeneration;string selected=SelectedMusic;
+        if(customMusic!=null && customMusicId==selected){SingletonAuto<BgmManager2>.instance.PlayFromResources(customMusic,1f);return;}
+        StartCoroutine(LoadMusic(Options.music.First(x=>x.id==selected),generation));
+    }
+    IEnumerator LoadMusic(Music option,int generation) {
+        string path=Path.Combine(ContentRoot,option.file);
+        using(var request=UnityWebRequestMultimedia.GetAudioClip(new Uri(path).AbsoluteUri,path.EndsWith(".ogg",StringComparison.OrdinalIgnoreCase)?AudioType.OGGVORBIS:AudioType.WAV)) {
+            yield return request.SendWebRequest();
+            if(request.result!=UnityWebRequest.Result.Success)throw new IOException("Login music could not be loaded: "+request.error);
+            var clip=DownloadHandlerAudioClip.GetContent(request);
+            clip.name=option.label;
+            if(generation!=musicGeneration || !AtLogin || SelectedMusic!=option.id){Destroy(clip);yield break;}
+            var previous=customMusic;customMusic=clip;customMusicId=option.id;
+            SingletonAuto<BgmManager2>.instance.PlayFromResources(customMusic,1f);
+            if(previous!=null)Destroy(previous,2f);
+        }
+    }
+    void OnDisable(){musicGeneration++;RemoveEraLogo();if(recovered!=null){recovered.Dispose();recovered=null;appliedBackground=null;RestoreNativeArt();}}
+    void OnDestroy(){musicGeneration++;RemoveEraLogo();if(recovered!=null)recovered.Dispose();if(customMusic!=null)Destroy(customMusic);if(activeView==this)activeView=null;}
+    public static void Setup(GameOptionWindow window) {
+        var others=window.transform.Find("Panel/Root/EtcOption");if(others==null || window.EtcInfo.Button_Coupon==null)return;
+        var menu=others.GetComponent<SprkLoginPresentationMenu>();if(menu==null)menu=others.gameObject.AddComponent<SprkLoginPresentationMenu>();
+        menu.Setup(window);
+    }
+    static bool probeStarted;
+    public static void EnsureProbe() {
+        if(probeStarted || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_TEST")) ||
+           String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")))return;
+        probeStarted=true;var go=new GameObject("SPRK login presentation probe");DontDestroyOnLoad(go);go.AddComponent<SprkLoginPresentationProbe>();
+    }
+}
+
+// Builds the Others controls and choosers from the settings window's own
+// artwork: brown info rows, the blue Copy button and the window frame/title.
+public sealed class SprkLoginPresentationMenu : MonoBehaviour {
+    sealed class Choice {public string id;public UILabel name;public GameObject select,inUse;}
+    static readonly Color Gold=new Color(1f,.84f,.38f,1f);
+    GameOptionWindow window;
+    GameObject picker;
+    bool pickerMusic;
+    readonly List<Choice> choices=new List<Choice>();
+    Transform Part(string path){return window.transform.Find(path);}
+    static void Prepare(GameObject go) {
+        foreach(var loc in go.GetComponentsInChildren<UILocalize>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var loc in go.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true)){loc.enabled=false;UnityEngine.Object.Destroy(loc);}
+        foreach(var rect in go.GetComponentsInChildren<UIRect>(true))rect.SetAnchor((Transform)null);
+        foreach(var listener in go.GetComponentsInChildren<UIEventListener>(true))UnityEngine.Object.Destroy(listener);
+        foreach(var button in go.GetComponentsInChildren<UIButton>(true))button.onClick.Clear();
+    }
+    static UISprite NewSprite(string name,Transform parent,UISprite source,int width,int height,int depth) {
+        var go=new GameObject(name);go.layer=parent.gameObject.layer;go.transform.SetParent(parent,false);
+        var sprite=go.AddComponent<UISprite>();sprite.atlas=source.atlas;sprite.spriteName=source.spriteName;sprite.type=source.type;
+        sprite.color=source.color;sprite.width=width;sprite.height=height;sprite.depth=depth;return sprite;
+    }
+    static void Size(GameObject go,int width,int height) {
+        var widget=go.GetComponent<UIWidget>();if(widget!=null){widget.width=width;widget.height=height;}
+        var collider=go.GetComponent<BoxCollider>();if(collider!=null){collider.size=new Vector3(width,height,1);collider.center=Vector3.zero;}
+    }
+    static void OnClick(UIButton button,Action click){button.onClick.Clear();EventDelegate.Add(button.onClick,delegate{click();});}
+    // An Others row: "Login Background | Azeta and Valance | [Change]".
+    UIButton Row(string rowName,string buttonName,string title,string value,float y,Action click) {
+        var template=Part("Panel/Root/EtcOption/EtcInfoGrid/WidgetAccountId");
+        var found=transform.Find(rowName);GameObject row;
+        if(found!=null)row=found.gameObject;
+        else {
+            row=UnityEngine.Object.Instantiate(template.gameObject,transform,false);row.name=rowName;Prepare(row);
+            foreach(var label in row.GetComponentsInChildren<UILabel>(true))if(label!=null && label.name.EndsWith("Login"))UnityEngine.Object.DestroyImmediate(label.gameObject);
+            row.transform.Find("Sprite_Back/AccountIdCopyButton").name=buttonName;
+        }
+        row.transform.localPosition=new Vector3(0,y,0);
+        var back=row.transform.Find("Sprite_Back");
+        var heading=back.Find("Label_AccountId").GetComponent<UILabel>();heading.text=title;heading.overflowMethod=UILabel.Overflow.ResizeFreely;
+        var shown=back.Find("Label_AccountIdNum").GetComponent<UILabel>();shown.text=value;shown.overflowMethod=UILabel.Overflow.ShrinkContent;shown.width=720;shown.height=40;
+        var change=back.Find(buttonName);change.localPosition=new Vector3(570,0,0);
+        foreach(var label in change.GetComponentsInChildren<UILabel>(true))label.text="Change";
+        var button=change.GetComponent<UIButton>();OnClick(button,click);
+        row.SetActive(true);return button;
+    }
+    public void Setup(GameOptionWindow view) {
+        window=view;
+        if(Part("Panel/Root/EtcOption/EtcInfoGrid/WidgetAccountId")==null)return;
+        // Continue the native 110-unit row rhythm below Game Version/Game ID,
+        // clear of the lobby's account buttons further down.
+        Row("WidgetLoginBackground","Button_LoginBackground","Login Background",SprkLoginPresentation.BackgroundCaption,40,delegate{OpenPicker(false);});
+        Row("WidgetLoginMusic","Button_LoginMusic","Login Music",SprkLoginPresentation.MusicCaption,-68,delegate{OpenPicker(true);});
+    }
+    void ClosePicker(){if(picker!=null)UnityEngine.Object.DestroyImmediate(picker);picker=null;choices.Clear();}
+    void OpenPicker(bool isMusic) {
+        ClosePicker();pickerMusic=isMusic;
+        picker=new GameObject(isMusic?"SPRK Login Music Picker":"SPRK Login Background Picker");picker.layer=gameObject.layer;picker.transform.SetParent(Part("Panel/Root"),false);
+        var panel=picker.AddComponent<UIPanel>();panel.depth=window.GetComponentsInChildren<UIPanel>(true).Max(p=>p.depth)+20;
+        const int width=1140,height=840;
+        // Dim the settings window like the native modal backdrop; clicking it closes.
+        var dimSource=Part("Panel/Outside_ClickClose").GetComponent<UISprite>();
+        var dim=NewSprite("Dim",picker.transform,dimSource,4000,4000,0);dim.color=new Color(0,0,0,.55f);
+        NGUITools.AddWidgetCollider(dim.gameObject);UIEventListener.Get(dim.gameObject).onClick=delegate{ClosePicker();};
+        var body=NewSprite("Body",picker.transform,Part("Panel/Root/Sprite_Frame_a").GetComponent<UISprite>(),width,height,1);NGUITools.AddWidgetCollider(body.gameObject);
+        NewSprite("Frame",picker.transform,Part("Panel/Root/Sprite_Frame").GetComponent<UISprite>(),width,height,40);
+        var title=UnityEngine.Object.Instantiate(Part("Panel/Root/Sprite_Title").gameObject,picker.transform,false);title.name="Title";Prepare(title);
+        title.transform.localPosition=new Vector3(0,height/2-65,0);title.GetComponent<UISprite>().width=width-220;title.GetComponent<UISprite>().depth=41;
+        var caption=title.transform.Find("Label_Title").GetComponent<UILabel>();caption.text=isMusic?"Login Music":"Login Background";caption.depth=42;
+        var close=title.transform.Find("Button_Exit");close.name="Close";close.localPosition=new Vector3((width-220)/2+50,0,0);close.GetComponent<UISprite>().depth=43;
+        OnClick(close.GetComponent<UIButton>(),ClosePicker);
+        var list=new GameObject("Choices");list.layer=gameObject.layer;list.transform.SetParent(picker.transform,false);list.transform.localPosition=new Vector3(0,-60,0);
+        var clip=list.AddComponent<UIPanel>();clip.depth=panel.depth+1;clip.clipping=UIDrawCall.Clipping.SoftClip;clip.baseClipRegion=new Vector4(0,0,width-100,height-250);clip.clipSoftness=new Vector2(0,16);
+        var scroll=list.AddComponent<UIScrollView>();scroll.movement=UIScrollView.Movement.Vertical;scroll.dragEffect=UIScrollView.DragEffect.MomentumAndSpring;
+        var options=new List<KeyValuePair<string,string>>();
+        if(isMusic){options.AddRange(SprkLoginPresentation.Options.music.Select(x=>new KeyValuePair<string,string>(x.id,x.label)));}
+        else options.AddRange(SprkLoginPresentation.Options.backgrounds.Select(x=>new KeyValuePair<string,string>(x.id,x.label)));
+        var rowTemplate=Part("Panel/Root/EtcOption/EtcInfoGrid/WidgetVersion");
+        var buttonTemplate=Part("Panel/Root/EtcOption/EtcInfoGrid/WidgetAccountId/Sprite_Back/AccountIdCopyButton");
+        const int rowWidth=1000,rowHeight=88,step=100;float top=(height-250)/2f-rowHeight/2f-6;
+        for(int i=0;i<options.Count;i++) {
+            var option=options[i];Action pick=delegate{Pick(option.Key);};
+            var row=UnityEngine.Object.Instantiate(rowTemplate.gameObject,list.transform,false);row.name="Choice_"+i;Prepare(row);
+            row.transform.localPosition=new Vector3(0,top-i*step,0);Size(row,rowWidth,rowHeight);
+            var back=row.transform.Find("Sprite_Back");back.localPosition=Vector3.zero;Size(back.gameObject,rowWidth,rowHeight);
+            var name=back.Find("Label_Version").GetComponent<UILabel>();name.name="Label_Name";name.text=option.Value;name.transform.localPosition=new Vector3(-rowWidth/2+36,0,0);
+            name.overflowMethod=UILabel.Overflow.ShrinkContent;name.width=620;name.height=44;
+            back.Find("Label_VersionNum").gameObject.SetActive(false);
+            NGUITools.AddWidgetCollider(row);var rowButton=row.AddComponent<UIButton>();rowButton.tweenTarget=null;OnClick(rowButton,pick);
+            row.AddComponent<UIDragScrollView>().scrollView=scroll;
+            var select=UnityEngine.Object.Instantiate(buttonTemplate.gameObject,back,false);select.name="Select";Prepare(select);
+            select.transform.localPosition=new Vector3(rowWidth/2-150,0,0);Size(select,240,72);
+            foreach(var label in select.GetComponentsInChildren<UILabel>(true))label.text="Select";
+            OnClick(select.GetComponent<UIButton>(),pick);select.AddComponent<UIDragScrollView>().scrollView=scroll;
+            var inUse=UnityEngine.Object.Instantiate(name.gameObject,back,false);inUse.name="Label_InUse";
+            var inUseLabel=inUse.GetComponent<UILabel>();inUseLabel.text="In Use";inUseLabel.pivot=UIWidget.Pivot.Center;inUseLabel.width=240;
+            inUse.transform.localPosition=new Vector3(rowWidth/2-150,0,0);
+            choices.Add(new Choice{id=option.Key,name=name,select=select,inUse=inUse});
+        }
+        RefreshChoices();
+        scroll.ResetPosition();
+        // Start with the current choice in view.
+        int current=choices.FindIndex(c=>c.inUse.activeSelf);
+        int visible=(height-250)/step;
+        if(current>=visible && options.Count>visible)scroll.SetDragAmount(0,Mathf.Clamp01((current-visible/2f+.5f)/(options.Count-visible)),false);
+    }
+    void RefreshChoices() {
+        string selected=pickerMusic?SprkLoginPresentation.SelectedMusic:SprkLoginPresentation.SelectedBackground;
+        foreach(var choice in choices) {
+            bool active=choice.id==selected;
+            choice.select.SetActive(!active);choice.inUse.SetActive(active);
+            choice.name.color=active?Gold:Color.white;choice.inUse.GetComponent<UILabel>().color=Gold;
+        }
+    }
+    // Keep the chooser open so music can be auditioned; the row values update live.
+    void Pick(string id) {
+        if(pickerMusic)SprkLoginPresentation.SelectMusic(id);else SprkLoginPresentation.SelectBackground(id);
+        RefreshChoices();Setup(window);
+    }
+    void OnDisable(){ClosePicker();}
+    void OnDestroy(){ClosePicker();}
+}
+public sealed class SprkLoginPresentationProbe : MonoBehaviour {
+    void FreezeLogin(){var manager=SingletonUpdater<NGame2.NLogin.LoginManager>.instance;foreach(var name in new[]{"_state","_nextState","_subState"})typeof(NGame2.NLogin.LoginManager).GetField(name,System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(manager,null);}
+    void Update(){FreezeLogin();foreach(var label in Resources.FindObjectsOfTypeAll<UILabel>())if(label!=null && label.gameObject.activeInHierarchy && (label.text??"").IndexOf("Cannot read Host",StringComparison.OrdinalIgnoreCase)>=0){var popup=label.GetComponentInParent<BaseWindow>();if(popup!=null)popup.gameObject.SetActive(false);}}
+    static void Check(bool value,string message){if(!value)throw new Exception("Login presentation: "+message);}
+    static void Screenshot(string path){var image=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);image.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0);image.Apply();File.WriteAllBytes(path,image.EncodeToPNG());Destroy(image);}
+    IEnumerator Start() {
+        yield return new WaitForSecondsRealtime(4);
+        FreezeLogin();
+        string output=Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_TEST");Directory.CreateDirectory(output);
+        var report=new List<string>();
+        var manager=SceneAutoBehaviour<LoginManagement>.instance;
+        var background=manager.GetInstance<LoginBackground>();
+        if(background==null){manager.AddInstance<LoginBackground>(LoginBackground.PrefabPath);background=manager.GetInstance<LoginBackground>();}
+        background.Open(null);
+        foreach(var camera in Camera.allCameras)if(camera.name=="BI UI Camera")camera.gameObject.SetActive(false);
+        if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_MENU"))) {
+            SystemOptionData.ShowTitleGameIntroduce=true;
+            background.HideMessage(); // The real login flow hides loading text before TAP TO PLAY.
+            var touch=manager.GetInstance<LoginTouchWait>();touch.Open(null);
+            var menu=manager.GetInstance<LoginAccountInfo>();menu.Open(null,null,null,null,null,null,null);
+            yield return new WaitForSecondsRealtime(1);
+            menu.Refresh_Noraml();menu.Refresh_Noraml();
+            yield return new WaitForSecondsRealtime(1);
+            var dump=new List<string>();
+            foreach(var root in new Component[]{menu,touch})foreach(var t in root.GetComponentsInChildren<Transform>(true)) {
+                string path=t.name;for(var p=t.parent;p!=null && p!=root.transform.parent;p=p.parent)path=p.name+"/"+path;
+                var w=t.GetComponent<UIWidget>();var s=w as UISprite;var l=w as UILabel;
+                dump.Add(path+" active="+t.gameObject.activeSelf+"/"+t.gameObject.activeInHierarchy+" local="+t.localPosition+" world="+t.position+(w==null?"":" "+w.GetType().Name+" "+w.width+"x"+w.height+" pivot="+w.pivot+" anchored="+w.isAnchored)+(s==null?"":" sprite="+s.spriteName)+(l==null?"":" text=\""+l.text+"\"")+(t.GetComponent<UIButton>()!=null?" BUTTON":"")+(t.GetComponent<UIGrid>()!=null?" GRID cell="+t.GetComponent<UIGrid>().cellWidth+"x"+t.GetComponent<UIGrid>().cellHeight+" arr="+t.GetComponent<UIGrid>().arrangement:"")+(t.GetComponent<UITable>()!=null?" TABLE":"")+" scale="+t.localScale+" comps="+String.Join(",",t.GetComponents<Component>().Select(c=>c.GetType().Name).ToArray()));
+            }
+            File.WriteAllLines(Path.Combine(output,"menu-hierarchy.txt"),dump.ToArray());
+            File.WriteAllLines(Path.Combine(output,"menu-labels.txt"),Resources.FindObjectsOfTypeAll<UILabel>().Where(l=>l!=null && l.gameObject.activeInHierarchy && l.gameObject.scene.IsValid()).Select(l=>{string p=l.name;for(var x=l.transform.parent;x!=null;x=x.parent)p=x.name+"/"+p;return p+" text=\""+l.text+"\" world="+l.transform.position+" alpha="+l.finalAlpha;}).ToArray());
+            yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"menu.png"));
+            var settingsRoot=menu.LanguageButtonRoot.transform;var intro=menu.GameIntroduceButtonRoot.transform;
+            Check(!menu.LoginButtonRoot.activeInHierarchy,"Log In button visible");
+            Check(menu.Label_ServerName==null || !menu.Label_ServerName.gameObject.activeInHierarchy,"Server row visible");
+            Check(settingsRoot.gameObject.activeInHierarchy && intro.gameObject.activeInHierarchy,"Settings or Introduction hidden");
+            Check(Vector3.Distance(settingsRoot.position,menu.LoginButtonRoot.transform.position)<.001f,"Settings is not in the Log In slot");
+            var menuRoot=menu.transform.Find("Panel/Root");
+            Func<bool> mirrored=()=>{var a=menuRoot.InverseTransformPoint(intro.position);var b=menuRoot.InverseTransformPoint(settingsRoot.position);return b.x>0 && Mathf.Abs(a.x+b.x)<.5f && Mathf.Abs(a.y-b.y)<.5f;};
+            Check(mirrored(),"Introduction is not bottom-left on the Settings row");
+            Check(intro.GetComponentsInChildren<UILabel>(true).All(l=>l.text=="Introduction"),"Introduction caption");
+            var tapRoot=touch.transform.Find("Panel/Root");var tap=tapRoot.Find("Sprite_backGround").GetComponent<UIWidget>();
+            var captionLabel=settingsRoot.GetComponentInChildren<UILabel>(true);
+            Check(captionLabel.pivot==UIWidget.Pivot.Bottom,"Settings caption pivot changed");
+            float captionY=SprkTapToPlay.CaptionCenterY(captionLabel,tapRoot);
+            Check(touch.GetComponents<SprkTapToPlay>().Length==1 && Mathf.Abs(tap.transform.localScale.x-SprkTapToPlay.Scale)<.001f && Mathf.Abs(tap.transform.localPosition.x)<.01f,"TAP TO PLAY size");
+            Check(Mathf.Abs(tap.transform.localPosition.y-captionY)<.5f && Mathf.Abs(captionY-SprkTapToPlay.FallbackY)<3f,"TAP TO PLAY is not on the Settings row: "+tap.transform.localPosition.y+" vs "+captionY+" fallback "+SprkTapToPlay.FallbackY);
+            Check(intro.GetComponentInChildren<UIButton>(true).onClick.Count>0,"Introduction lost its action");
+            for(int i=0;i<8;i++)menu.Refresh_Noraml();yield return null;
+            Check(mirrored() && Vector3.Distance(settingsRoot.position,menu.LoginButtonRoot.transform.position)<.001f && !menu.LoginButtonRoot.activeInHierarchy,"Layout changed after refresh");
+            Check(settingsRoot.GetComponentInChildren<UIButton>(true).onClick.Count==1,"Duplicate Settings callbacks");
+            var introPos=intro.position;
+            menu.EnableGameIntroduce(true);menu.Refresh_PatchDownloading();yield return null;
+            Check(intro.gameObject.activeInHierarchy && Vector3.Distance(intro.position,introPos)<.001f,"Introduction should stay bottom-left while patching");
+            yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"menu-patching.png"));
+            menu.Refresh_Noraml();yield return null;
+            Check(mirrored(),"Layout not restored after patching");
+            File.WriteAllText(Path.Combine(output,"report.txt"),"menuLayout=True loginHidden=True serverHidden=True introductionBottomLeft=True tapToPlayOnRow=True");
+            Application.Quit();yield break;
+        }
+        var bridge=background.GetComponent<SprkLoginPresentation>();
+        var options=SprkLoginPresentation.Options;
+        string single=Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_SINGLE");
+        if(!String.IsNullOrEmpty(single)) {
+            SprkLoginPresentation.SelectBackground(single);
+            if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_TIMELINE"))) {
+                float start=Time.realtimeSinceStartup;
+                foreach(var at in new[]{.2f,1f,2f,3f,4f,4.5f,5f,5.5f,6f,7f}) {
+                    while(Time.realtimeSinceStartup-start<at)yield return null;
+                    yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"timeline-"+at.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)+".png"));
+                }
+            }
+            yield return new WaitForSecondsRealtime(8);
+            yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"single.png"));
+            if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_CORNER"))) {
+                var lines=new List<string>();
+                foreach(var cam in Camera.allCameras)lines.Add("CAMERA "+cam.name+" depth="+cam.depth+" mask="+cam.cullingMask+" ortho="+cam.orthographic);
+                Func<Transform,string> pathOf=t=>{string p=t.name;for(var x=t.parent;x!=null;x=x.parent)p=x.name+"/"+p;return p;};
+                foreach(var r in Resources.FindObjectsOfTypeAll<Renderer>().Where(r=>r!=null && r.enabled && r.gameObject.activeInHierarchy && r.gameObject.scene.IsValid())) {
+                    var cam=Camera.allCameras.Where(c=>(c.cullingMask&(1<<r.gameObject.layer))!=0).OrderByDescending(c=>c.depth).FirstOrDefault();if(cam==null)continue;
+                    var sp=cam.WorldToViewportPoint(r.bounds.center);if(sp.x<.6f || sp.y<.75f)continue;
+                    lines.Add("RENDERER "+pathOf(r.transform)+" vp="+sp+" size="+r.bounds.size+" mats="+String.Join(",",r.sharedMaterials.Select(m=>m==null?"null":m.name+"/"+m.shader.name+"/"+(m.mainTexture==null?"-":m.mainTexture.name))));
+                }
+                foreach(var w in Resources.FindObjectsOfTypeAll<UIWidget>().Where(w=>w!=null && w.enabled && w.gameObject.activeInHierarchy && w.gameObject.scene.IsValid() && w.isVisible)) {
+                    var cam=NGUITools.FindCameraForLayer(w.gameObject.layer);if(cam==null)continue;
+                    var sp=cam.WorldToViewportPoint(w.transform.TransformPoint(w.localCenter));if(sp.x<.6f || sp.y<.75f)continue;
+                    var s=w as UISprite;var tex=w as UITexture;var l=w as UILabel;
+                    lines.Add("WIDGET "+w.GetType().Name+" "+pathOf(w.transform)+" vp="+sp+" "+w.width+"x"+w.height+" color="+w.color+" alpha="+w.finalAlpha+(s!=null?" sprite="+s.spriteName+"@"+(s.atlas==null?"null":s.atlas.name):"")+(tex!=null?" tex="+(tex.mainTexture==null?"null":tex.mainTexture.name):"")+(l!=null?" text=\""+l.text+"\"":""));
+                }
+                foreach(var s in Resources.FindObjectsOfTypeAll<UISprite>().Where(s=>s!=null && s.gameObject.activeInHierarchy && s.spriteName=="Logo_Rebellion_White")) {
+                    var tex=s.mainTexture;if(tex==null)continue;int dx=398,dy=178,dw=500,dh=222;
+                    var mat=s.material;lines.Add("LOGO tex="+tex.name+" "+tex.width+"x"+tex.height+" mat="+(mat==null?"null":mat.name+"/"+mat.shader.name+" alphaTex="+(mat.HasProperty("_AlphaTex") && mat.GetTexture("_AlphaTex")!=null?mat.GetTexture("_AlphaTex").name:"-")+" kw="+String.Join(",",mat.shaderKeywords)));
+                    var rt=RenderTexture.GetTemporary(tex.width,tex.height,0,RenderTextureFormat.ARGB32);Graphics.Blit(tex,rt);
+                    var prev=RenderTexture.active;RenderTexture.active=rt;var img=new Texture2D(dw,dh,TextureFormat.RGBA32,false);
+                    img.ReadPixels(new Rect(dx,tex.height-dy-dh,dw,dh),0,0);img.Apply();RenderTexture.active=prev;RenderTexture.ReleaseTemporary(rt);
+                    File.WriteAllBytes(Path.Combine(output,"logo-runtime.png"),img.EncodeToPNG());Destroy(img);
+                    for(var t=s.transform;t!=null;t=t.parent)foreach(var c in t.GetComponents<Component>())lines.Add("  COMP "+t.name+" "+c.GetType().FullName);
+                }
+                lines.Add("LOGOSTATUS "+SprkLoginPresentation.LogoStatus);
+                if(bridge.NativeLogo!=null){var c=bridge.NativeLogo.worldCorners;lines.Add("NATIVE pivot="+bridge.NativeLogo.pivot+" local="+bridge.NativeLogo.transform.localPosition+" scale="+bridge.NativeLogo.transform.localScale+" corners="+c[0]+".."+c[2]+" enabled="+bridge.NativeLogo.enabled);}
+                if(bridge.EraLogo!=null){var c=bridge.EraLogo.worldCorners;lines.Add("ERA "+bridge.EraLogo.width+"x"+bridge.EraLogo.height+" corners="+c[0]+".."+c[2]);}
+                File.WriteAllLines(Path.Combine(output,"corner.txt"),lines.ToArray());
+            }
+            if(!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_ISOLATE"))) {
+                var renderers=bridge.RecoveredRoot.GetComponentsInChildren<Renderer>(true).Where(r=>r.enabled && r.gameObject.activeInHierarchy && !(r.sharedMaterial!=null && r.sharedMaterial.shader.name.StartsWith("Spine"))).ToArray();
+                for(int i=0;i<renderers.Length;i++) {
+                    renderers[i].enabled=false;yield return null;yield return new WaitForEndOfFrame();
+                    Screenshot(Path.Combine(output,"isolate-"+i+"-"+String.Concat(renderers[i].name.Where(c=>Char.IsLetterOrDigit(c)||c=='_'))+".png"));renderers[i].enabled=true;
+                }
+            }
+            var shader=Shader.Find("Vespa/Effect2/NormalNoZ");File.WriteAllLines(Path.Combine(output,"shader.txt"),Enumerable.Range(0,shader.GetPropertyCount()).Select(i=>shader.GetPropertyName(i)+" "+shader.GetPropertyType(i)).ToArray());
+            File.WriteAllLines(Path.Combine(output,"single.txt"),bridge.RecoveredRoot.GetComponentsInChildren<Renderer>(true).Select(r=>r.name+" active="+r.gameObject.activeInHierarchy+" enabled="+r.enabled+" bounds="+r.bounds+" scale="+r.transform.lossyScale+" materials="+String.Join(",",r.sharedMaterials.Select(m=>m==null?"null":m.name+"/"+m.shader.name))).ToArray());
+            Application.Quit();yield break;
+        }
+        bool restart=!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_RESTART_TEST"));
+        if(restart) {
+            Check(SprkLoginPresentation.SelectedBackground==options.backgrounds.Last().id,"Background did not survive restart");
+            Check(SprkLoginPresentation.SelectedMusic==options.music.Last().id,"Music did not survive restart");
+            for(int n=0;n<100 && bridge.LoadedMusicId!=SprkLoginPresentation.SelectedMusic;n++)yield return new WaitForSecondsRealtime(.1f);
+            Check(bridge.RecoveredRoot!=null && bridge.LoadedMusicId==SprkLoginPresentation.SelectedMusic,"Restart did not restore scene/audio");
+            File.WriteAllText(Path.Combine(output,"restart.txt"),"PASS: independent background and music preferences survive restart and restore actual assets.");Application.Quit();yield break;
+        }
+        Check(SprkLoginPresentation.SelectedBackground==SprkLoginPresentation.DefaultBackground && bridge.RecoveredRoot!=null,"Fresh profile did not open Azeta and Valance by default");
+        Check(SprkLoginPresentation.SelectedMusic==SprkLoginPresentation.DefaultMusic && SprkLoginPresentation.MusicCaption=="Promise","Fresh profile did not select Promise");
+        for(int n=0;n<100 && bridge.LoadedMusicId!=SprkLoginPresentation.DefaultMusic;n++)yield return new WaitForSecondsRealtime(.1f);
+        Check(bridge.LoadedMusicId==SprkLoginPresentation.DefaultMusic,"Fresh profile did not play Promise");
+        report.Add("defaultMusicPromise=True");
+        report.Add("defaultBackgroundAzetaAndValance=True");
+        Check(SprkLoginPresentation.LogoSubtitleRestored,"Corner logo subtitle was not restored");
+        report.Add("cornerLogoSubtitleRestored=True");
+        Check(background.Label_Version==null || !background.Label_Version.gameObject.activeInHierarchy,"Login version label is still shown");
+        report.Add("versionLabelHidden=True");
+        foreach(var pair in new[]{new[]{"native","x-the-final-azeta-and-valance"},new[]{"13-two-characters","x-the-final-azeta-and-valance"},new[]{"13-two-characters-night","x-the-final-azeta-and-valance"},new[]{"01-original-party","original-heroes"},new[]{"02-cathedral-party","heroes-of-orvel"},new[]{"03-war-table","war-council"},new[]{"04-fire-dragon","dragons-challenge"},new[]{"05-hero-ensemble","gathered-heroes"},new[]{"06-red-sky","pandemonium"},new[]{"07-red-sky-layers","pandemonium"},new[]{"08-light-and-dark","soul-weapon-light"},new[]{"08-light-and-dark-night","soul-weapon-darkness"},new[]{"09-fallen-fate-spine","ix-fallen-fate"},new[]{"09-fallen-fate-spine-night","ix-fallen-fate"},new[]{"10-ruins-four-heroes","x-rebellion"},new[]{"10-ruins-four-heroes-night","x-rebellion"},new[]{"11-day-night","x-rebellion"},new[]{"11-day-night-night","x-rebellion"},new[]{"12-kasel-frey","x-the-final-kasel-and-frey"},new[]{"12-kasel-frey-night","x-the-final-kasel-and-frey"}}) {
+            string musicBefore=SprkLoginPresentation.SelectedMusic;SprkTestPrefs.SetString(SprkLoginPresentation.BackgroundKey,pair[0]);
+            Check(SprkLoginPresentation.SelectedBackground==pair[1] && SprkTestPrefs.GetString(SprkLoginPresentation.BackgroundKey,"")==pair[1],"Removed background preference did not migrate: "+pair[0]);
+            Check(SprkLoginPresentation.SelectedMusic==musicBefore,"Background migration changed music");
+        }
+        report.Add("removedBackgroundPreferencesMigrate=True");
+        SprkTestPrefs.SetString(SprkLoginPresentation.MusicKey,"native");
+        Check(SprkLoginPresentation.SelectedMusic==SprkLoginPresentation.DefaultMusic,"Legacy Default Login Music did not migrate to Promise");
+        report.Add("legacyDefaultMusicMigrates=True");
+        SprkLoginPresentation.SelectBackground("native");
+        Check(SprkLoginPresentation.SelectedBackground==SprkLoginPresentation.DefaultBackground && bridge.RecoveredRoot!=null,"Legacy Current selection did not migrate to Azeta and Valance");
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"default-background.png"));
+        bool uiOnly=!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_PRESENTATION_UI_ONLY"));
+        foreach(var option in uiOnly?new SprkLoginPresentation.Background[0]:options.backgrounds) {
+            string previousMusic=SprkLoginPresentation.SelectedMusic;
+            SprkLoginPresentation.SelectBackground(option.id);
+            Check(SprkLoginPresentation.SelectedMusic==previousMusic,"Background changed music preference");
+            Check(bridge.RecoveredRoot!=null,"Scene missing: "+option.id);
+            if(String.IsNullOrEmpty(option.logo))Check(bridge.EraLogo==null && bridge.NativeLogoVisible,"Native corner logo missing: "+option.id);
+            else {
+                Check(bridge.EraLogo!=null && bridge.EraLogo.mainTexture!=null && bridge.NativeLogo!=null && !bridge.NativeLogoVisible,"Era corner logo missing: "+option.id);
+                var a=bridge.NativeLogo.worldCorners;var b=bridge.EraLogo.worldCorners;Check(Vector3.Distance((a[0]+a[2])*.5f,(b[0]+b[2])*.5f)<.01f,"Era corner logo is not centred on the native logo: "+option.id);}
+            Check(background.BackEffectPanelRoot==null || !background.BackEffectPanelRoot.gameObject.activeInHierarchy,"Native backdrop covers recovered scene");
+            yield return new WaitForSecondsRealtime(option.id.StartsWith("06-") || option.id.StartsWith("07-") || option.id.StartsWith("08-")?8f:1.2f);
+            var spines=bridge.RecoveredRoot.GetComponentsInChildren<Spine.Unity.SkeletonAnimation>(true);
+            foreach(var spine in spines) {
+                if(spine.skeletonDataAsset==null){Check(!spine.gameObject.activeInHierarchy || !spine.enabled,"Active skeleton without data: "+spine.name);continue;}
+                Check(spine.skeletonDataAsset.GetSkeletonData(false)!=null,"Invalid skeleton: "+spine.name);
+                if(spine.gameObject.activeInHierarchy && spine.enabled && !String.IsNullOrEmpty(spine.AnimationName))Check(spine.AnimationState.GetCurrent(0)!=null && spine.AnimationState.GetCurrent(0).TrackTime>0,"Animation is not advancing: "+spine.name);
+            }
+            yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,option.id+".png"));
+            report.Add("background="+option.id+" logo="+(option.logo==null?"native":"era")+" spines="+spines.Length+" components="+bridge.RecoveredRoot.GetComponentsInChildren<Component>(true).Length);
+            File.WriteAllLines(Path.Combine(output,"progress.txt"),report.ToArray());
+        }
+        SprkLoginPresentation.SelectBackground("native");
+        Check(bridge.RecoveredRoot!=null && SprkLoginPresentation.SelectedBackground==SprkLoginPresentation.DefaultBackground,"Legacy Current did not return to the default background");
+        SprkLoginPresentation.SelectBackground(options.backgrounds.Last().id);
+        foreach(var option in uiOnly?new SprkLoginPresentation.Music[0]:options.music) {
+            string previousBackground=SprkLoginPresentation.SelectedBackground;
+            SprkLoginPresentation.SelectMusic(option.id);
+            for(int n=0;n<100 && bridge.LoadedMusicId!=option.id;n++)yield return new WaitForSecondsRealtime(.1f);
+            Check(bridge.LoadedMusicId==option.id && bridge.LoadedMusic!=null && bridge.LoadedMusic.length>30,"Music load failed: "+option.label);
+            Check(SprkLoginPresentation.SelectedBackground==previousBackground,"Music changed background preference");
+            Check(SprkLoginPresentation.FilterMusic(bridge.LoadedMusic)==bridge.LoadedMusic,"Native music filter lost selection");
+            report.Add("music="+option.id+" seconds="+bridge.LoadedMusic.length);
+        }
+        SprkTestPrefs.SetString(SprkLoginPresentation.MusicKey,"silent");Check(SprkLoginPresentation.SelectedMusic==SprkLoginPresentation.DefaultMusic,"Removed No Music choice did not migrate to Promise");
+        SprkLoginPresentation.SelectMusic(options.music.First().id);SprkLoginPresentation.SelectMusic(options.music.Last().id);
+        for(int n=0;n<100 && bridge.LoadedMusicId!=options.music.Last().id;n++)yield return new WaitForSecondsRealtime(.1f);
+        yield return new WaitForSecondsRealtime(.5f);
+        Check(bridge.LoadedMusicId==options.music.Last().id,"Stale audio request replaced latest choice");
+        bool originalBgm=SystemOptionData.Sound_EnableBgm,originalVolatile=VolatileOptionData.Sound_EnableBgm;
+        SystemOptionData.Sound_EnableBgm=true;VolatileOptionData.Sound_EnableBgm=true;SprkLoginPresentation.RefreshMusic();
+        var player=SingletonAuto<NGameAsset.NSound.BgmPlayer>.instance;
+        var current=typeof(NGameAsset.NSound.BgmPlayer).GetField("_currentBgm",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+        yield return new WaitForSecondsRealtime(2);
+        Check(current.GetValue(player)!=null,"Native BGM player did not accept chosen music");
+        Check(Resources.FindObjectsOfTypeAll<AudioSource>().Any(s=>s.clip==bridge.LoadedMusic && s.isPlaying),"Chosen music is not playing through a native AudioSource");
+        SystemOptionData.Sound_EnableBgm=false;yield return new WaitForSecondsRealtime(.3f);
+        Check(current.GetValue(player)==null,"Chosen music ignored native BGM mute");
+        SystemOptionData.Sound_EnableBgm=originalBgm;VolatileOptionData.Sound_EnableBgm=originalVolatile;
+        report.Add("nativeBgmAndMute=True");report.Add("latestMusicRequestWins=True");
+        SprkTestPrefs.SetString(SprkLoginPresentation.BackgroundKey,"invalid-background");SprkTestPrefs.SetString(SprkLoginPresentation.MusicKey,"invalid-music");
+        Check(SprkLoginPresentation.SelectedBackground==SprkLoginPresentation.DefaultBackground && SprkLoginPresentation.SelectedMusic==SprkLoginPresentation.DefaultMusic,"Invalid preference fallback");
+        SprkLoginPresentation.SelectBackground(options.backgrounds.Last().id);SprkLoginPresentation.SelectMusic(options.music.Last().id);
+        var login=manager.GetInstance<LoginAccountInfo>();
+        if(login==null){manager.AddInstance<LoginAccountInfo>(LoginAccountInfo.PrefabPath);login=manager.GetInstance<LoginAccountInfo>();}
+        SprkLoginSettings.Configure(login);login.GetComponent<SprkLoginSettings>().OpenSettings();
+        var settings=manager.GetInstance<GameOptionWindow>();
+        yield return null;
+        settings.MainTabs.Single(t=>t.GameOptionTab==GameOptionTab.Etc).Toggle.Set(true);
+        settings.OnToggleMainTab();
+        yield return new WaitForSecondsRealtime(.5f);
+        for(int i=0;i<8;i++)SprkLoginPresentation.Setup(settings);
+        var others=settings.transform.Find("Panel/Root/EtcOption");
+        var buttons=others.GetComponentsInChildren<UIButton>(true);
+        Check(buttons.Count(b=>b.name=="Button_LoginBackground")==1 && buttons.Count(b=>b.name=="Button_LoginMusic")==1,"Duplicate Others controls");
+        var bgButton=buttons.Single(b=>b.name=="Button_LoginBackground");var musicButton=buttons.Single(b=>b.name=="Button_LoginMusic");
+        File.WriteAllLines(Path.Combine(output,"layout.txt"),new[]{settings.transform,settings.transform.Find("Panel"),settings.transform.Find("Panel/Root"),others,bgButton.transform}.Select(t=>t.name+" local="+t.localPosition+" world="+t.position+" scale="+t.lossyScale+" active="+t.gameObject.activeInHierarchy).ToArray());
+        File.WriteAllLines(Path.Combine(output,"hierarchy.txt"),settings.GetComponentsInChildren<Transform>(true).Where(t=>!new[]{"GameOption","BattleOption","SoundOption","NoticeOption","LinkedGroup"}.Any(n=>{var x=settings.transform.Find("Panel/Root/"+n)??settings.transform.Find("Panel/Root/EtcOption/"+n);return x!=null && t.IsChildOf(x);})).Select(t=>{
+            string path=t.name;for(var p=t.parent;p!=null && p!=settings.transform;p=p.parent)path=p.name+"/"+path;
+            var w=t.GetComponent<UIWidget>();var s=w as UISprite;var l=w as UILabel;
+            return path+" active="+t.gameObject.activeSelf+" local="+t.localPosition+(w==null?"":" "+w.GetType().Name+" "+w.width+"x"+w.height+" depth="+w.depth+" color="+w.color+" pivot="+w.pivot)+(s==null?"":" sprite="+s.spriteName+" atlas="+(s.atlas==null?"null":s.atlas.name)+" type="+s.type)+(l==null?"":" text=\""+l.text+"\" font="+(l.bitmapFont!=null?l.bitmapFont.name:l.trueTypeFont!=null?l.trueTypeFont.name:"null")+" size="+l.fontSize+" effect="+l.effectStyle+" effectColor="+l.effectColor+" grad="+l.applyGradient)+(t.GetComponent<UIButton>()!=null?" BUTTON":"")+(t.GetComponent<UIPanel>()!=null?" PANEL depth="+t.GetComponent<UIPanel>().depth:"");
+        }).ToArray());
+        Check(bgButton.gameObject.activeInHierarchy,"Others button is not visible");
+        Check(bgButton.onClick.Count==1 && musicButton.onClick.Count==1,"Duplicate chooser callbacks");
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"settings-others.png"));
+        // Preview the lobby layout, where account buttons share this tab.
+        var lobbyButtons=new[]{"Button_UseCoupon","Button_ChangePassword","Button_DeleteAccount","Button_SwitchAccount","Button_Logout"}.Select(n=>others.Find(n)).Where(t=>t!=null && !t.gameObject.activeSelf).ToArray();
+        foreach(var t in lobbyButtons)t.gameObject.SetActive(true);
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"settings-others-lobby-layout.png"));
+        foreach(var t in lobbyButtons)t.gameObject.SetActive(false);
+        EventDelegate.Execute(bgButton.onClick);yield return null;
+        var picker=settings.transform.Find("Panel/Root/SPRK Login Background Picker");Check(picker!=null,"Background picker missing");
+        Check(Mathf.Abs(picker.position.x-settings.transform.Find("Panel/Root").position.x)<.01f,"Background picker is off-center");
+        Check(picker.GetComponentsInChildren<UIButton>(true).Count(b=>b.name.StartsWith("Choice_"))==options.backgrounds.Length,"Background list incomplete or still includes Current");
+        Check(!picker.GetComponentsInChildren<UILabel>(true).Any(label=>label.text.Contains("Current Background")),"Current Background remains in chooser");
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"background-picker.png"));
+        var scroll=picker.GetComponentInChildren<UIScrollView>();var before=scroll.transform.localPosition;
+        scroll.SetDragAmount(0,1,false);yield return null;
+        Check(scroll.transform.localPosition!=before,"Background choices do not scroll");
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"background-picker-bottom.png"));
+        EventDelegate.Execute(picker.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="Close").onClick);
+        EventDelegate.Execute(musicButton.onClick);yield return null;
+        picker=settings.transform.Find("Panel/Root/SPRK Login Music Picker");Check(picker!=null,"Music picker missing");
+        Check(picker.GetComponentsInChildren<UIButton>(true).Count(b=>b.name.StartsWith("Choice_"))==options.music.Length,"Music list incomplete");
+        Check(!picker.GetComponentsInChildren<UILabel>(true).Any(label=>label.text=="No Music"),"No Music remains in chooser");
+        Check(!picker.GetComponentsInChildren<UILabel>(true).Any(label=>label.text.Contains("Default Login Music")),"Default Login Music remains in chooser");
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"music-picker.png"));
+        EventDelegate.Execute(picker.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="Choice_0").onClick);
+        yield return new WaitForEndOfFrame();Screenshot(Path.Combine(output,"music-picker-selected.png"));
+        Check(SprkLoginPresentation.SelectedMusic==options.music.First().id && SprkLoginPresentation.SelectedBackground==options.backgrounds.Last().id,"Native picker did not apply independent music choice");
+        SprkLoginPresentation.SelectMusic(options.music.Last().id);settings.Close();yield return null;
+        login.GetComponent<SprkLoginSettings>().OpenSettings();settings.MainTabs.Single(t=>t.GameOptionTab==GameOptionTab.Etc).Toggle.Set(true);yield return null;
+        Check(others.GetComponents<SprkLoginPresentationMenu>().Length==1,"Reopening duplicated menu controller");
+        report.Add("othersControlsAndPickers=True");report.Add("independentPreferences=True");report.Add("invalidPreferenceFallback=True");report.Add("legacyCurrentMigrates=True");report.Add("currentBackgroundChoiceRemoved=True");
+        File.WriteAllLines(Path.Combine(output,"report.txt"),report.ToArray());Application.Quit();
+    }
+}

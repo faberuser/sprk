@@ -176,19 +176,12 @@ public sealed class SprkAccounts : MonoBehaviour {
         pending=null;pendingTokens=null;
     }
     public static void CleanLoginBackground(LoginBackground view) {
+        SprkLoginPresentation.Configure(view);
         HidePatchVersion(view);
         foreach(var label in view.GetComponentsInChildren<UILabel>(true))
             if(label.name=="Label_Company")label.gameObject.SetActive(false);
-        var config=NVespa.SingletonAuto<NGame2.NConfig.Config>.instance.ClientConfig;
-        if(config!=null && view.Label_Version!=null) {
-            // Assign the current version even if the native label contains an older
-            // config/prefab value; exact string replacement can silently miss it.
-            string caption="Ver. "+DisplayVersion(config.Version);
-            int remaining;
-            if(config.GetRemainExpireSecond(out remaining))caption+="."+(remaining/3600);
-            if(!String.IsNullOrEmpty(SingletonUpdater<LoginManager>.instance.BinaryVersionNumber.Value))caption="[FF0000]"+caption+"[-]";
-            view.Label_Version.text=caption;
-        }
+        // The version is shown in Settings > Others (Game Version), not on the login art.
+        if(view.Label_Version!=null)view.Label_Version.gameObject.SetActive(false);
     }
     public static void HidePatchVersion(LoginBackground view) {
         if(view.Label_PatchVersion!=null)view.Label_PatchVersion.gameObject.SetActive(false);
@@ -230,6 +223,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         if(component!=null)component.gameObject.SetActive(false);
     }
     public static void ContinueAccountSwitch(LoginTouchWait view) {
+        SprkLoginSettings.ConfigureTouch(view);
         if(switchingAccount)view.OnTouchScreen();
     }
     static void SwitchAccount() {
@@ -271,6 +265,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         go.SetActive(true);
     }
     public static void CleanSettings(GameOptionWindow view) {
+        SprkLoginPresentation.Setup(view);
         AddSwitchAccount(view);
         AddChangePassword(view);
         AddDeleteAccount(view);

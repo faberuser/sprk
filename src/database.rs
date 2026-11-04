@@ -1,7 +1,31 @@
-use sqlx::{sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions}, Pool, Sqlite};
-use std::path::Path;
+use sqlx::{sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous}, Pool, Sqlite};
+use std::{path::Path, sync::{Arc, Mutex}, time::{Duration, Instant}};
 
 pub type DbPool = Pool<Sqlite>;
+
+tokio::task_local! {
+    /// HTTP path of the request running in this task, for attributing slow holds.
+    pub(crate) static REQUEST_PATH: Arc<str>;
+}
+
+/// Holding the single connection this long delays every queued request.
+const SLOW_HOLD: Duration = Duration::from_millis(250);
+
+/// Tracks who holds the pool's only connection and since when. With one
+/// connection, checkout and release strictly alternate, so one slot is exact.
+#[derive(Clone, Default)]
+struct HoldTracker(Arc<Mutex<Option<(Instant, Arc<str>)>>>);
+
+impl HoldTracker {
+    fn acquired(&self) {
+        let holder = REQUEST_PATH.try_with(Arc::clone).unwrap_or_else(|_| Arc::from("background"));
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), holder));
+    }
+    fn released(&self) -> Option<(Arc<str>, Duration)> {
+        let (since, holder) = self.0.lock().unwrap_or_else(|e| e.into_inner()).take()?;
+        Some((holder, since.elapsed()))
+    }
+}
 
 #[cfg(test)]
 pub(crate) async fn remove_test_database(path: &Path) {
@@ -18,20 +42,58 @@ pub(crate) async fn remove_test_database(path: &Path) {
     }
 }
 
+/// Open the production pool as a single-writer queue.
+///
+/// SQLite permits one writer at a time. With several pooled connections, SQLx's
+/// deferred `BEGIN` lets a transaction read first and fail its later write with
+/// `SQLITE_BUSY`/`SQLITE_BUSY_SNAPSHOT` (no busy-timeout retry applies), and
+/// concurrent writers poll the file lock until `busy_timeout` expires. One
+/// connection makes requests wait in the pool's async acquire queue instead, so
+/// in-process writers can never conflict. Code already runs on single-connection
+/// pools in tests, so nested pool use while holding a transaction is not relied on.
+pub(crate) async fn open_pool(path: &Path) -> anyhow::Result<DbPool> {
+    open_tracked_pool(path, HoldTracker::default()).await
+}
+
+async fn open_tracked_pool(path: &Path, tracker: HoldTracker) -> anyhow::Result<DbPool> {
+    let on_acquire = tracker.clone();
+    Ok(SqlitePoolOptions::new()
+        .max_connections(1)
+        .min_connections(1)
+        // Time spent queued behind other requests' transactions.
+        .acquire_timeout(Duration::from_secs(30))
+        .before_acquire(move |_, _| {
+            on_acquire.acquired();
+            Box::pin(async { Ok(true) })
+        })
+        .after_release(move |_, _| {
+            if let Some((holder, held)) = tracker.released() {
+                if held >= SLOW_HOLD {
+                    tracing::warn!(holder = %holder, held_ms = held.as_millis() as u64,
+                        "Database connection held long; queued requests waited behind it");
+                }
+            }
+            Box::pin(async { Ok(true) })
+        })
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(path)
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Wal)
+                // Safe with WAL: no corruption on crash; only an OS/power loss
+                // can drop the most recent commits. Avoids an fsync per commit.
+                .synchronous(SqliteSynchronous::Normal)
+                // Only external processes (admin tools, backups) can hold the
+                // file lock now; wait for them rather than failing requests.
+                .busy_timeout(Duration::from_secs(30)),
+        )
+        .await?)
+}
+
 /// Initialize the SQLite database with the required tables
 pub async fn init_database() -> anyhow::Result<DbPool> {
-    let db_path = "sprk.db";
-    
-    // Create database file if it doesn't exist
-    if !Path::new(db_path).exists() {
-        std::fs::File::create(db_path)?;
-    }
-    
-    let pool = SqlitePoolOptions::new().max_connections(5)
-        .connect_with(SqliteConnectOptions::new().filename(db_path)
-            .journal_mode(SqliteJournalMode::Wal)
-            .busy_timeout(std::time::Duration::from_secs(5))).await?;
-    
+    let pool = open_pool(Path::new("sprk.db")).await?;
+
     // Run migrations
     create_tables(&pool).await?;
     
@@ -476,4 +538,68 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
     crate::api::system::revisions::migrate(pool).await?;
     crate::currency::migrate(pool).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn hold_tracker_attributes_connection_time_to_the_request_path() {
+        let path = std::env::temp_dir().join(format!("sprk-db-hold-{}.sqlite", uuid::Uuid::new_v4()));
+        let tracker = HoldTracker::default();
+        let pool = open_tracked_pool(&path, tracker.clone()).await.unwrap();
+        // Simulate a slow handler holding the only connection.
+        REQUEST_PATH.scope(Arc::from("/test/slow"), async {
+            let conn = pool.acquire().await.unwrap();
+            let (_, holder) = tracker.0.lock().unwrap().clone().expect("checkout recorded");
+            assert_eq!(&*holder, "/test/slow");
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            drop(conn);
+        }).await;
+        // Release runs on a pool task; it consumes the record. Re-arm a probe:
+        // a fresh checkout from a background task must be labelled as such.
+        let conn = pool.acquire().await.unwrap();
+        let (_, holder) = tracker.0.lock().unwrap().clone().expect("checkout recorded");
+        assert_eq!(&*holder, "background");
+        drop(conn);
+        pool.close().await;
+        // Measured hold duration, on a tracker independent of the pool's
+        // asynchronous release task.
+        let direct = HoldTracker::default();
+        REQUEST_PATH.scope(Arc::from("/test/slow"), async { direct.acquired() }).await;
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        let (holder, held) = direct.released().unwrap();
+        assert_eq!((&*holder, held >= Duration::from_millis(30)), ("/test/slow", true));
+        assert!(direct.released().is_none(), "a release without checkout must not report");
+        remove_test_database(&path).await;
+    }
+
+    // Reproduces the production "database is locked" pattern: deferred
+    // transactions that read, yield to other requests, then write.
+    #[tokio::test]
+    async fn production_pool_queues_concurrent_read_then_write_transactions() {
+        let path = std::env::temp_dir().join(format!("sprk-db-queue-{}.sqlite", uuid::Uuid::new_v4()));
+        let pool = open_pool(&path).await.unwrap();
+        let mode: String = sqlx::query_scalar("PRAGMA journal_mode").fetch_one(&pool).await.unwrap();
+        let sync: i64 = sqlx::query_scalar("PRAGMA synchronous").fetch_one(&pool).await.unwrap();
+        assert_eq!((mode.as_str(), sync), ("wal", 1));
+        sqlx::query("CREATE TABLE counter(id INTEGER PRIMARY KEY, value INTEGER NOT NULL)").execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO counter VALUES (1, 0)").execute(&pool).await.unwrap();
+        let tasks: Vec<_> = (0..40).map(|_| {
+            let pool = pool.clone();
+            tokio::spawn(async move {
+                let mut tx = pool.begin().await?;
+                let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&mut *tx).await?;
+                tokio::time::sleep(Duration::from_millis(2)).await;
+                sqlx::query("UPDATE counter SET value=? WHERE id=1").bind(value + 1).execute(&mut *tx).await?;
+                tx.commit().await
+            })
+        }).collect();
+        for task in tasks { task.await.unwrap().expect("transaction must queue, not fail with SQLITE_BUSY"); }
+        let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&pool).await.unwrap();
+        assert_eq!(value, 40, "queued transactions must not lose updates");
+        pool.close().await;
+        remove_test_database(&path).await;
+    }
 }

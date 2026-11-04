@@ -1,0 +1,24 @@
+{
+  "OriginalSpec": {
+    "input_sha256": "a68ec55e2bb7ac0efde9137009284e3627b09bd7702d409da1ff6e1e60b9082c",
+    "template_sha256": "c79b86edf25ca8c78df8e37573cea90c518566d1be8e6692a108cc3ac6e1adf9",
+    "output_sha256": "65ce56be97aaf0892f82eaf6b387739e31300db34af4c1f6a394981af0ceb5af",
+    "restored_objects": 5,
+    "preserved_objects": 102
+  },
+  "MidSpec": {
+    "input_sha256": "d3222135f3d99ae45ebea2cd8fec2cd2b4d7430fff4c242bfd70ba740f3cd413",
+    "template_sha256": "c84c4c2ae2f6e9873f107bef695e4bc01f6226e190a64a2113a49f7e840df93b",
+    "output_sha256": "b087055cc81d1ec7d8ac8d4450d244ffaf253e58b63f114f78fcd2b17a23e990",
+    "restored_objects": 5,
+    "preserved_objects": 102
+  },
+  "LowSpec": {
+    "input_sha256": "a459bbce2611b3059a22096f102f42399a5433e2b599f3a2d60e9c4a6774a7de",
+    "template_sha256": "617c9da7a024b37aa57fc9f84c3e06a19891295cbb31d168f67d5c6813f28b58",
+    "output_sha256": "c3966853457ccc144b10c38442080f224dade929f3b262ac8bf0abf5118bc6a7",
+    "restored_objects": 5,
+    "preserved_objects": 102
+  },
+  "repair": "Restore the missing default S2-2 casting Helix prefab from the same-spec S2-1 Helix with build1558 S2-2 name/seed/start sizes, restore container indices 0-9 and preload dependencies."
+}

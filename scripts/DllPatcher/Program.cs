@@ -11,6 +11,8 @@ namespace DllPatcher
         {
             if (args.Contains("--arena-practice-only")) { InstallArenaPractice(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-practice")) { InstallArenaPractice(args[0], args.Contains("--stage-only"), true); return; }
+            if (args.Contains("--gear-preset-portraits-only")) { InstallGearPresetPortraits(args[0], false); return; }
+            if (args.Contains("--verify-gear-preset-portraits")) { InstallGearPresetPortraits(args[0], true); return; }
             if (args.Contains("--preset-disposal-only")) { InstallPresetDisposal(args[0], false); return; }
             if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
             if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
@@ -26,6 +28,10 @@ namespace DllPatcher
             if (args.Contains("--verify-player-logging")) { VerifyPlayerLogging(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--technomagic-refresh-only")) { InstallTechnomagicRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-refresh")) { InstallTechnomagicRefresh(args[0],false,true); return; }
+            if (args.Contains("--technomagic-awaken-target-only")) { InstallTechnomagicAwakenTarget(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--skill-upgrade-all-only")) { InstallSkillUpgradeAll(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-skill-upgrade-all")) { VerifySkillUpgradeAllFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-technomagic-awaken-target")) { VerifyTechnomagicAwakenTargetFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--lobby-avatar-stability-only")) { InstallLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--soul-upgrade-playback-only")) { InstallSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
@@ -54,6 +60,8 @@ namespace DllPatcher
             if (args.Contains("--client-storage-only")) { InstallClientStorage(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-client-storage")) { VerifyClientStorage(args[0]); return; }
             if (args.Contains("--verify-login-settings")) { VerifyLoginSettingsFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--remove-login-center-logos")) { RemoveCenterLoginLogos(args[0]); VerifyLoginPresentationAssets(args[0]); return; }
+            if (args.Contains("--verify-login-presentation")) { VerifyLoginSettingsFile(args[0],args.Contains("--stage-only")); VerifyLoginPresentationAssets(args[0]); return; }
             if (args.Contains("--free-camera-only")) { InstallFreeCamera(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-free-camera")) { VerifyFreeCameraFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--graphics-options-only")) { InstallGraphicsOptions(args[0],args.Contains("--stage-only")); return; }
@@ -77,6 +85,8 @@ namespace DllPatcher
             if (args.Contains("--self-test-craft-shortcut")) { TestCraftShortcut(args[0]); return; }
             if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
+            if (args.Contains("--skill-formula-only")) { InstallSkillDescriptionFormula(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-skill-formula")) { VerifySkillDescriptionFormulaFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
             if (args.Contains("--pet-feeding-only")) { InstallPetFeeding(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-pet-feeding")) { VerifyPetFeedingFile(args[0]); return; }

@@ -1160,6 +1160,7 @@ pub(super) async fn finish(
         let group = n(definition, "GroupIndex");
         let mut p = get(db, a, "punishment_open", group).await?;
         if n(definition, "Boss") == 1 {
+            super::punishment::grant_clear_team_exp(db, s, a, &mut p, &mut extra).await?;
             p["ClearLevel"] = json!(n(&p, "ClearLevel").max(level));
             p["ClearCount"] = json!(n(&p, "ClearCount") + 1);
             p["IsOpen"] = json!(0);
@@ -1234,6 +1235,8 @@ pub(super) fn append_rewards(out: &mut Value, v: &Value) {
         "EquipItemResults",
         "EquipItemBoostInfos",
         "HeroInfos",
+        "ExpResultInfos",
+        "ExpResultsByGetHero",
     ] {
         let mut values = out[key].as_array().cloned().unwrap_or_default();
         values.extend(v[key].as_array().into_iter().flatten().cloned());
@@ -1667,6 +1670,7 @@ pub(super) async fn execute(
                         .bind(a).bind(campaign::key(n(definition,"RaidIndex"),n(definition,"RaidLevel"))).execute(&mut *db).await?;
                 }
                 p = json!({"GroupIndex":group,"DungeonType":kind,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":level,"ClearLevel":previous_level,"ClearCount":clears,"Day":day()});
+                p["PendingClearTeamExp"] = json!(super::punishment::opening_team_exp(s, cost)?);
                 super::entry_costs::mark_gate(db,a,&mut p,1,cost).await?;
                 put(db, a, "punishment_open", group, &p).await?;
             }

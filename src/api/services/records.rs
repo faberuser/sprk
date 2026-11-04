@@ -59,7 +59,7 @@ pub(super) async fn execute(
             }
             let mut out = vec![];
             for kind in 0..=1 {
-                let rows=sqlx::query("SELECT data FROM service_decks WHERE chapter=? AND dungeon=? AND difficulty=? AND kind=? ORDER BY metric,account LIMIT 10").bind(c).bind(d).bind(diff).bind(kind).fetch_all(&mut *db).await?;
+                let rows=sqlx::query("SELECT data FROM service_decks WHERE chapter=? AND dungeon=? AND difficulty=? AND kind=? ORDER BY metric,account LIMIT ?").bind(c).bind(d).bind(diff).bind(kind).bind(RECOMMENDED_DECKS).fetch_all(&mut *db).await?;
                 for (i, row) in rows.iter().enumerate() {
                     let mut v: Value =
                         serde_json::from_str(row.get("data")).map_err(|_| rule("Fail"))?;
@@ -166,6 +166,9 @@ pub(crate) async fn snapshot(db: &mut SqliteConnection, a: i64, party: &[i64]) -
     }
     Ok(json!({"AccountId":a.to_string(),"Heroes":hs,"EquipItems":equips}))
 }
+/// Recommended decks served per dungeon, difficulty and ranking kind.
+pub(crate) const RECOMMENDED_DECKS: i64 = 10;
+
 pub(crate) async fn record_clear(
     db: &mut SqliteConnection,
     a: i64,
@@ -184,6 +187,11 @@ pub(crate) async fn record_clear(
     for (kind, metric) in [(0, levels), (1, seconds)] {
         sqlx::query("INSERT INTO service_decks(account,chapter,dungeon,difficulty,kind,metric,data) VALUES(?,?,?,?,?,?,?) ON CONFLICT(account,chapter,dungeon,difficulty,kind) DO UPDATE SET metric=excluded.metric,data=excluded.data WHERE excluded.metric<service_decks.metric")
             .bind(a).bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(metric).bind(v.to_string()).execute(&mut *db).await?;
+        // Only the ranked prefix is ever served. Rows only improve and pruned
+        // rows can never re-enter, so keeping it bounds storage per dungeon
+        // without changing recommendations.
+        sqlx::query("DELETE FROM service_decks WHERE chapter=?1 AND dungeon=?2 AND difficulty=?3 AND kind=?4 AND account NOT IN (SELECT account FROM service_decks WHERE chapter=?1 AND dungeon=?2 AND difficulty=?3 AND kind=?4 ORDER BY metric,account LIMIT ?5)")
+            .bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(RECOMMENDED_DECKS).execute(&mut *db).await?;
     }
     Ok(())
 }

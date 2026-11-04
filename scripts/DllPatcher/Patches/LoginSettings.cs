@@ -3,6 +3,7 @@ using Mono.Cecil.Cil;
 namespace DllPatcher;
 partial class Program {
     static void VerifyLoginSettings(ModuleDefinition game,ModuleDefinition helper) {
+        VerifyLoginPresentation(game,helper);
         var accounts=helper.GetType("SprkAccounts");
         var clean=accounts.Methods.Single(m=>m.Name=="CleanSettings");
         if(clean.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.Name=="ArrangeAccountButtons")!=1)throw new InvalidOperationException("Missing Others account button layout");
@@ -12,13 +13,18 @@ partial class Program {
         if(!layout.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="tweenTarget"))throw new InvalidOperationException("Delete background target missing");
         foreach(var name in new[]{"set_atlas","SetState","set_defaultColor"})
             if(!layout.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Delete background target/atlas/state setup missing: "+name);
-        foreach(var pair in new[]{("CleanLoginInfo","Configure"),("CleanSettings","CleanSettings")})
+        foreach(var pair in new[]{("CleanLoginInfo","Configure"),("CleanSettings","CleanSettings"),("ContinueAccountSwitch","ConfigureTouch")})
             if(!accounts.Methods.Single(m=>m.Name==pair.Item1).Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name==pair.Item2))throw new InvalidOperationException("Missing login settings integration: "+pair.Item1);
         var bridge=helper.GetType("SprkLoginSettings");
+        var tap=helper.GetType("SprkTapToPlay");
+        if(tap==null || !tap.Methods.Single(m=>m.Name=="Start").Body.Instructions.Any(i=>Equals(i.Operand,"Sprite_backGround")) || !tap.Methods.Single(m=>m.Name=="LateUpdate").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="set_localPosition"))throw new InvalidOperationException("TAP TO PLAY must follow the Settings row");
         var configure=bridge.Methods.Single(m=>m.Name=="Configure");
-        foreach(var name in new[]{"PatchValidationRoot","VoiceButtonRoot","LanguageButtonRoot"})
+        foreach(var name in new[]{"PatchValidationRoot","VoiceButtonRoot","LanguageButtonRoot","LoginButtonRoot","GameIntroduceButtonRoot","Label_ServerName"})
             if(!configure.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name==name))throw new InvalidOperationException("Missing login button cleanup: "+name);
         if(!configure.Body.Instructions.Any(i=>Equals(i.Operand,"Settings")))throw new InvalidOperationException("Missing Settings label");
+        foreach(var name in new[]{"Introduction","ServerInfo"})
+            if(!configure.Body.Instructions.Any(i=>Equals(i.Operand,name)))throw new InvalidOperationException("Missing login menu layout: "+name);
+        if(!bridge.Methods.Any(m=>m.Name=="LateUpdate") || !bridge.Methods.Single(m=>m.Name=="PlaceIntroduction").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="set_position"))throw new InvalidOperationException("Introduction must mirror Settings at bottom-left");
         if(!bridge.Methods.Single(m=>m.Name=="OpenSettings").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="Open" && m.DeclaringType.Name=="GameOptionWindow"))throw new InvalidOperationException("Login must open the native settings panel");
         if(!bridge.Methods.Single(m=>m.Name=="OpenSettings").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SetEnableLoadFromPatch"))throw new InvalidOperationException("Login settings must load installed full localization.");
         var atlasLoader=bridge.Methods.Single(m=>m.Name=="TryLoginAtlas");
@@ -35,7 +41,7 @@ partial class Program {
             if(method.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginSettings" && m.Name==name)!=1)throw new InvalidOperationException("Missing or duplicated login callback: "+name);
             VerifyArenaResultStack(method);
         }
-        Console.WriteLine("Verified login Settings button, removed patch/voice buttons and native panel integration.");
+        Console.WriteLine("Verified login Settings button, removed patch/voice/login buttons and server row, Introduction bottom-left, TAP TO PLAY on that row, and native panel integration.");
     }
     static void VerifyLoginSettingsFile(string root,bool staged=false) {
         var managed=Path.Combine(root,"King's Raid_Data","Managed");

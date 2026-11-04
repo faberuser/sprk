@@ -14,6 +14,17 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--skill-formula-only` adds a `123` / `fx` display toggle to the top-left of the
+hero skill card, mirrored against its linked-skill button. It preserves the native
+calculated description and combat data, and renders formulas from current native
+expressions with parity checks and local preference persistence. Run
+`--verify-skill-formula` for hook/IL validation and
+`python scripts/client/verify_skill_formula.py --installed` for isolated native
+coverage, card lifecycle, linked variants, screenshots and process-restart checks.
+The full `--build-release` installs and verifies the patch. See
+[the implementation and mirror workflow](../../docs/skill-description-formula-toggle.md)
+for regenerating `krinfo`'s `table-data/sprk` export. Restart the client.
+
 `--team-exp-refresh-only` applies the battle response's final `ExpResult2` through
 the native UserManager after all other reward snapshots. Stamina-earned team EXP
 and level changes then notify the HUD immediately, including when recruitment
@@ -82,6 +93,40 @@ order, native error paths, and scoped refresh. Installation also executes the
 native response callback with isolated service traces and checks idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
+
+`--technomagic-awaken-target-only` adds a target-star slider to Technomagic
+Enhancement, so one tap can upgrade several stars. The slider reuses the native
+Settings slider artwork (atlases assigned through its native assigners) beside
+the required-material icon, and its star readout clones the window's material
+count label. On selection it defaults to the highest star the player can afford,
+or the next star if none is affordable. It is hidden when only one star remains.
+The window's native data, labels, red/white colors, Enhance state, result-icon
+stars and stat preview all show the summed cost and stats for the chosen target.
+Enhance sends `TargetStar` (added in `JM_NShared_ValanceAwaken_Request`) only for
+multi-star requests. The server prices each step at its after-star row, charges
+the total in one transaction and keeps the native one-star request when the
+field is absent. `--verify-technomagic-awaken-target` checks hooks, native
+members and IL. Installation also runs the native request encoder against the
+compiled helper. The full release build installs it before `Currency64`.
+
+`--skill-upgrade-all-only` adds an upgrade-all button (labelled Upgrade) to the
+hero Skills tab's skill-book row. It clones the HeroList window's native All Heroes button as a taller sliced
+button with a larger label. The four book counters get narrower count boxes
+(restored before the pooled components are released) and tighter native-grid
+spacing. The counters and button are then scaled together and centred in the panel. It is hidden for other
+players' heroes and greyed out when no learned skill can gain a tier. Each skill
+slot uses its own book, so every learned skill rises independently through
+II-IV as far as its book allows. The confirmation uses the native skill-tier
+popup and lists each skill, its tier change and its book cost. The button sends
+the native `extend_hero_skill` request with `SkillExtend=-1`, which the encoder
+turns into `ExtendAll=1`. The server applies every tier and book cost in one
+transaction (locked or reserved books are excluded). It returns `ItemResults`
+and `SkillExtends` alongside the native `ItemResult`; a parser hook captures
+them, so all book counts and tiers update through native account managers.
+Native single-tier requests are unchanged. `--verify-skill-upgrade-all` checks
+hooks and IL. Installation also runs the native encoder and response parser
+against the compiled helper. The full release build installs it before
+`Currency64`.
 
 `--legendary-rune-tickets-only` upgrades legacy random ticket 91029 and selector
 94609 to the archived 2022 pools (24 legendary runes, including Swiftness, Life,
@@ -432,3 +477,15 @@ Checks cover readiness deferral, event coalescing, stale owner rejection, A-B-A
 switches, cancellation/reactivation, native hook scope, render-body retention,
 closed-load guard and patch idempotence. These validate the identified refresh
 risk; the player's intermittent visual symptom still needs an in-game retest.
+
+## Gear Custom slot wearer portraits
+
+`dotnet run --project scripts/DllPatcher -- <client> --gear-preset-portraits-only`
+installs `SprkGearPresetPortraits.dll` and updates the native slot portrait method.
+`--verify-gear-preset-portraits` checks the installed hook and runs the regression
+fixtures. Both installation and verification also run in `--build-release`.
+The selected hero keeps priority when wearing any saved piece; other slots show
+whichever hero wears the most saved pieces (lowest hero index breaks ties).
+Empty slots, deleted gear, and unequipped/chest gear show no portrait. The helper
+reads current equipment ownership whenever the native panel refreshes, rather
+than remembering who originally saved or applied the slot.

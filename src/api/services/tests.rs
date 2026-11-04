@@ -584,3 +584,47 @@ async fn authoritative_cancel_refunds_pve_reservations_once() {
         before
     );
 }
+
+#[tokio::test]
+async fn recommended_decks_keep_only_the_served_ranking_and_use_indexes() {
+    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+    database::create_tables(&db).await.unwrap();
+    let ranked = |kind: i64| {
+        let db = db.clone();
+        async move {
+            sqlx::query_scalar::<_, i64>("SELECT account FROM service_decks WHERE chapter=1 AND dungeon=2 AND difficulty=0 AND kind=? ORDER BY metric,account")
+                .bind(kind).fetch_all(&db).await.unwrap()
+        }
+    };
+    let clear = |account: i64, seconds: i64| {
+        let db = db.clone();
+        async move {
+            let entry = json!({"ChapterIndex":1,"DungeonIndex":2,"DungeonDifficulty":0,"DeckSnapshot":{"Heroes":[{"Level":account}]}});
+            let mut conn = db.acquire().await.unwrap();
+            records::record_clear(&mut conn, account, &entry, seconds).await.unwrap();
+        }
+    };
+    for account in 1..=15 { clear(account, 100 + account).await; }
+    let top: Vec<i64> = (1..=10).collect();
+    assert_eq!((ranked(0).await, ranked(1).await), (top.clone(), top));
+    // A pruned account that later improves enters the ranking and displaces the last entry.
+    clear(15, 1).await;
+    assert_eq!(ranked(1).await, [15, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // Legacy databases held every account's deck; startup migration prunes them.
+    for account in 20..25 {
+        sqlx::query("INSERT INTO service_decks VALUES(?,1,2,0,0,?,'{}')").bind(account).bind(1000 + account).execute(&db).await.unwrap();
+    }
+    migrate(&db).await.unwrap();
+    assert_eq!(ranked(0).await, (1..=10).collect::<Vec<_>>());
+    let plan = |sql: String| {
+        let db = db.clone();
+        async move {
+            sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}")).fetch_all(&db).await.unwrap()
+                .iter().map(|r| r.get::<String, _>("detail")).collect::<Vec<_>>().join("; ")
+        }
+    };
+    let decks = plan("SELECT data FROM service_decks WHERE chapter=1 AND dungeon=2 AND difficulty=0 AND kind=0 ORDER BY metric,account LIMIT 10".into()).await;
+    assert!(decks.contains("service_deck_rank") && !decks.contains("TEMP B-TREE"), "{decks}");
+    let dispatch = plan(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)).await;
+    assert!(dispatch.contains("battle_state_dispatch_pending"), "{dispatch}");
+}

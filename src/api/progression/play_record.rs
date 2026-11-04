@@ -24,7 +24,9 @@ pub(crate) async fn migrate(pool: &crate::database::DbPool) -> anyhow::Result<()
         "INSERT INTO play_record_values SELECT account,'arena_score',0,MAX(COALESCE(json_extract(data,'$.End.MatchResult.NewMatchScore'),0)) FROM arena_runs WHERE kind=0 AND status='complete' AND json_extract(data,'$.End.MatchResult.Win')=1 GROUP BY account ON CONFLICT(account_id,kind,idx) DO UPDATE SET value=MAX(value,excluded.value)",
         "INSERT INTO play_record_values SELECT account,'arena_streak',0,MAX(COALESCE(json_extract(data,'$.End.BattleInfo.SuccessiveWin'),0)) FROM arena_runs WHERE kind=0 AND status='complete' GROUP BY account ON CONFLICT(account_id,kind,idx) DO UPDATE SET value=MAX(value,excluded.value)",
         // One baseline row per stage prevents counting legacy clears twice on restart.
-        "INSERT OR IGNORE INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account_id,'0001-01-01','ClearDungeon',chapter_id,dungeon_id,MAX(0,clear_count-COALESCE((SELECT SUM(value) FROM progression_metrics m WHERE m.account_id=p.account_id AND m.kind='ClearDungeon' AND m.arg=p.chapter_id AND m.arg2=p.dungeon_id),0)) FROM campaign_progress p",
+        // Skip stages that already have one before summing their history: the
+        // insert would be ignored anyway, and the sum dominated startup (~1.3s).
+        "INSERT OR IGNORE INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account_id,'0001-01-01','ClearDungeon',chapter_id,dungeon_id,MAX(0,clear_count-COALESCE((SELECT SUM(value) FROM progression_metrics m WHERE m.account_id=p.account_id AND m.kind='ClearDungeon' AND m.arg=p.chapter_id AND m.arg2=p.dungeon_id),0)) FROM campaign_progress p WHERE NOT EXISTS(SELECT 1 FROM progression_metrics b WHERE b.account_id=p.account_id AND b.day='0001-01-01' AND b.kind='ClearDungeon' AND b.arg=p.chapter_id AND b.arg2=p.dungeon_id)",
     ] { sqlx::query(sql).execute(&mut *tx).await?; }
     for (name, table, event, condition, account, kind, idx, value, accumulate) in [
         (

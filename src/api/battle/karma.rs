@@ -161,9 +161,9 @@ pub(super) async fn opening(
         if p["Day"] == day() && n(&p, "IsOpen") == 1 {
             return Err(rule("AlreadyOpened"));
         }
-        // Opening access consumes stamina without granting team EXP.
         out["StaminaResult"] = dungeons::charge_reserved(db, s, a, 1, n(group, "OpenStaminaCount")).await?;
         p = json!({"GroupIndex":n(group,"GroupIndex"),"DungeonType":1,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":1,"ClearLevel":0,"ClearCount":0,"Day":day()});
+        p["PendingClearTeamExp"] = json!(punishment::opening_team_exp(s, n(group,"OpenStaminaCount"))?);
         put(db, a, "punishment_open", key, &p).await?;
     } else if action == "reset_punishment_raid" {
         if p.is_null() {
@@ -299,6 +299,33 @@ mod reward_tests {
                     inventory
                 );
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn karma_team_exp_requires_completed_clear_and_is_awarded_once() {
+        let (s,u)=setup().await;let a=account(&u);
+        let team=||async {sqlx::query_as::<_,(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap()};
+        for (group,chapter,flask) in [(101001,70101,40236),(101002,70201,40246)] {
+            let before=team().await;
+            begin(&s,&u,group,chapter,flask).await;
+            assert_eq!(team().await,before);
+            let args=ending(&s,group,chapter,5);
+            let partial=ending(&s,group,chapter,0).replace("Completed=false","Completed=true");
+            assert_ne!(call(&s,&u,"contents/end_content",&partial).await["Result"],"Success");
+            assert_eq!(team().await,before);
+            let loss=call(&s,&u,"contents/end_content",&args).await;
+            assert_eq!(loss["Result"],"Success","{loss}");
+            assert_eq!(team().await,before);
+            begin(&s,&u,group,chapter,flask).await;
+            let args=args.replace("Completed=false","Completed=true");
+            let won=call(&s,&u,"contents/end_content",&args).await;
+            assert_eq!(won["Result"],"Success","{won}");
+            assert_eq!(won["ExpResultsByGetHero"][0]["AddValue"],3000*settings(&s,"RaiderExpPerStamina",100),"{won}");
+            let after=team().await;assert_ne!(after,before);
+            let _=call(&s,&u,"contents/end_content",&args).await;
+            assert_eq!(team().await,after);
         }
     }
 
@@ -577,6 +604,7 @@ pub(super) async fn end(
         }
     }
     let clear = int(r, "ClearWave")?;
+    let completed = boolean(r, "Completed", false)?;
     if clear < 0
         || clear > settings(s, "KarmaMaxClearWaves", 100)
         || int(r, "EndWave")? != clear + 1
@@ -600,10 +628,12 @@ pub(super) async fn end(
         &[("Index", int(&request, "FlaskItemIndex")?)],
     )?;
     let mut grant = Rewards::default();
+    let mut filled_flask = false;
     if flask["IsDefault"] != true {
         let count = ((points / n(flask, "FlaskGauge") as f32).floor() as i64)
             .min(n(&entry, "KarmaFlaskCount"));
         if count > 0 {
+            filled_flask = true;
             grant
                 .items
                 .push(item::consume(db, a, n(flask, "Index") as i32, count as i32).await?);
@@ -631,6 +661,11 @@ pub(super) async fn end(
         .find(|v| n(v, "GroupIndex") == n(group, "GroupIndex") && v["IsDefault"] == true)
         .ok_or_else(|| rule("ContentsDisabled"))?;
     let count = (points / n(default, "FlaskGauge") as f32).floor() as i64;
+    // Native PunishmentRaidContext.EndKarma treats a finished run as successful
+    // when AnyFlaskCollected finds a selected or default filled flask.
+    if completed && !filled_flask && count == 0 {
+        return Err(rule("NotCompletedBattle"));
+    }
     if count > settings(s, "KarmaMaxShardsPerRun", 100000) {
         return Err(rule("ModulatedData"));
     }
@@ -678,7 +713,8 @@ pub(super) async fn end(
     let mut p = get(db, a, "punishment_open", state_key(n(group, "GroupIndex"))).await?;
     // A defeat settles this attempt and its earned rewards, but keeps the paid
     // opening available for another attempt until reset or a completed clear.
-    if boolean(r, "Completed", false)? {
+    if completed {
+        punishment::grant_clear_team_exp(db, s, a, &mut p, &mut grant).await?;
         p["IsOpen"] = json!(0);
     }
     p["ClearLevel"] = json!(clear);

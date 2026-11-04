@@ -21,7 +21,7 @@ pub(crate) fn start(s: AppState) {
 
 async fn batch(s: &AppState) -> Result<()> {
     // One repeat per slot per pass bounds engine load and gives every job a turn.
-    let jobs: Vec<(i64,i64)> = sqlx::query_as("SELECT account,idx FROM battle_state WHERE kind='dispatch' AND json_extract(data,'$.SimulationVersion') IN (1,2) AND json_extract(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(json_array_length(json_extract(data,'$.SimulationResults')),0)<json_extract(data,'$.RepeatCount') ORDER BY account,idx")
+    let jobs: Vec<(i64,i64)> = sqlx::query_as(&format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION))
         .fetch_all(&s.db).await?;
     for (a, slot) in jobs {
         if let Err(error) = prepare(s, a, slot).await {

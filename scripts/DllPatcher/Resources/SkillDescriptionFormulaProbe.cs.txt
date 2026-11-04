@@ -1,0 +1,308 @@
+using System;
+using System.IO;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NGame2.NUI.NDescription;
+using NGame2.NUI.NWindow;
+using NGame2.NAccount;
+using NShared;
+using NVespa;
+using UnityEngine;
+
+public static class SprkSkillDescriptionFormulaProbe {
+    static HeroSkillDesc displayedCard;
+    static ArchiveSkillDesc displayedArchive;
+    const BindingFlags Flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+    static object Member(object owner,string name) {
+        for(var type=owner.GetType();type!=null;type=type.BaseType) {
+            var p=type.GetProperty(name,Flags|BindingFlags.DeclaredOnly);if(p!=null)return p.GetValue(owner,null);
+            var f=type.GetField(name,Flags|BindingFlags.DeclaredOnly);if(f!=null)return f.GetValue(owner);
+        }
+        throw new Exception("Missing member "+name);
+    }
+    public static string Init() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        string patch=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows");
+        var installed=new Dictionary<string,AssetInfo>();
+        var entrySetter=typeof(AssetInfo).GetProperty("EntryName").GetSetMethod(true);
+        foreach(string file in Directory.GetFiles(Path.Combine(patch,"Assetbundle"),"*",SearchOption.AllDirectories)) {
+            string relative=file.Substring(patch.Length+1).Replace('\\','/');var asset=new AssetInfo();entrySetter.Invoke(asset,new object[]{relative});installed.Add(relative,asset);
+        }
+        SingletonAuto<NGameAsset.AssetFileManager>.instance.Setup(installed);
+        typeof(NVespa.UnityCache).GetProperty("persistentDataPath").GetSetMethod(true).Invoke(null,new object[]{Application.dataPath});
+        typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{true});
+        JsonBin.JsonRead pack;
+        Check(JsonBin.JsonRead.CreateRoot(File.ReadAllBytes(Path.Combine(patch,"Assetbundle/BundlePack.bin")),out pack),"native bundle pack");
+        SingletonUpdater<NGameAsset.NBundleManager.LoaderPlaying>.instance.InfoContainer.LoadFromJson(pack["BundleFileInfo"]);
+        SingletonAuto<NGameAsset.NNgui.Container>.instance.Load(pack["Ngui"]);
+        SingletonAuto<NGameAsset.NNguiAtlas.AtlasDataContainer>.instance.Load(pack["NguiAtlas"],pack["NguiAsset"]);
+        SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(true);
+        GameRoot.Instance.SetJsonLoader(new NGameAsset.JsonAssetAsyncLoader());
+        GameRoot.Instance.SetAiScriptLoader(new NGameAsset.TextAssetSyncLoader());
+        GameRoot.Instance.InitForClient();GameRoot.Instance.OnDataContainerLoaded(false);
+        SingletonAuto<SkillDescContainer>.instance.Load(SingletonAuto<NGameAsset.LitJsonAssetAsyncLoader>.instance);
+        return "Loading native descriptions";
+    }
+    static void Check(bool ok,string reason){if(!ok)throw new Exception("Skill formula fixture: "+reason);}
+    static CachedHeroInfo MysticHero(){return new CachedHeroInfo(new HeroInfo{HeroIndex=26,Level=100,Star=5,Transcended=5,SkillLevel1=100,SkillLevel2=100,SkillLevel3=100,SkillLevel4=100});}
+    static void CheckDescriptionLayout(MonoBehaviour owner,UILabel label,bool shortText) {
+        var scroll=label.GetComponentInParent<UIScrollView>();var panel=scroll.GetComponent<UIPanel>();
+        var backdrop=owner.GetComponentsInChildren<UISprite>(true).Single(s=>s.name=="Sprite_DescBack");
+        var frame=NGUIMath.CalculateRelativeWidgetBounds(scroll.transform,backdrop.transform,true);
+        var start=SprkSkillDescriptionFormula.TextStart(label,scroll.transform);
+        Check(Mathf.Abs((start.x-frame.min.x)-(frame.max.y-start.y))<.6f,"equal visible top/left padding: "+owner.GetType().Name);
+        Check((bool)Member(scroll,"shouldMove"),"drag enabled for fitting descriptions");
+        Check(scroll.dragEffect==UIScrollView.DragEffect.MomentumAndSpring && scroll.restrictWithinPanel,"native rubber-band configuration");
+        if(shortText) {
+            Check(scroll.bounds.size.y<=panel.finalClipRegion.w+1,"short text fits viewport");
+            var rest=scroll.transform.localPosition;
+            scroll.MoveRelative(new Vector3(0,45,0));
+            Check(scroll.RestrictWithinBounds(false,false,true),"fitting text springs back after drag");
+            var spring=scroll.GetComponent<SpringPanel>();
+            Check(spring!=null && spring.enabled && Vector3.Distance(spring.target,rest)<1,"spring target preserves padded resting position");
+            scroll.DisableSpring();scroll.RestrictWithinBounds(true,false,true);
+            Check(Vector3.Distance(scroll.transform.localPosition,rest)<1,"fitting text returns to rest");
+        } else {
+            float overflow=scroll.bounds.size.y-panel.finalClipRegion.w;
+            if(overflow>2) {
+                var rest=scroll.transform.localPosition;float amount=Mathf.Min(40,overflow*.5f);
+                scroll.MoveRelative(new Vector3(0,amount,0));scroll.RestrictWithinBounds(true,false,true);
+                Check(Mathf.Abs(scroll.transform.localPosition.y-rest.y-amount)<1,"overflowing text remains scrollable");
+                scroll.ResetPosition();
+            }
+        }
+    }
+    public static string Run() {
+        SprkSkillDescriptionFormula.VerifyRepeatedTermGrouping();
+        Check(SingletonAuto<SkillDescContainer>.instance.IsLoaded,"description load complete");
+        string output=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR");
+        var rows=new List<object>();int formulas=0;var unsupported=new Dictionary<string,int>();
+        var roster=(IList)MiniJSON.Json.Deserialize(File.ReadAllText(Path.Combine(output,"fixture-roster.json")));
+        var heroes=roster.Cast<object>().Select(id=>GameRoot.Instance.CreatureDataContainer.GetData(Convert.ToInt32(id))).ToArray();
+        Check(heroes.Length==102 && heroes.All(h=>h!=null && h.Race==CreatureRaceType.Hero),"tracked playable hero roster");
+        var languageFiles=new[]{new[]{"en","English"},new[]{"de","German"},new[]{"fr","French"},new[]{"ja","Japanese"},new[]{"ko","Korean"},new[]{"ru","Russian"},new[]{"zh-Hans","ChineseSimplified"},new[]{"zh-Hant","ChineseTraditional"}};
+        var languages=new Dictionary<string,IDictionary>();
+        string patch=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows");
+        foreach(var language in languageFiles) {
+            string file=Path.Combine(patch,"LocalizationJit/LocalizationAll_"+language[1]+".jit");
+            if(!File.Exists(file))continue;
+            var data=NClientData.NLocalization.BuildTools_for_Localize.Deserialize(File.ReadAllBytes(file));
+            var dic=Member(data,"_dic");dic.GetType().GetMethod("DevOnly_ForceLoadAllRawData",Flags).Invoke(dic,null);
+            languages[language[0]]=(IDictionary)dic.GetType().GetMethod("JsonLoad_Get",Flags).Invoke(dic,null);
+        }
+        foreach(var creature in heroes) {
+            var hero=new CachedHeroInfo(new HeroInfo{HeroIndex=creature.Index,Level=100,Star=5,Transcended=5,SkillLevel1=100,SkillLevel2=100,SkillLevel3=100,SkillLevel4=100});
+            var slots=new Dictionary<string,object>();
+            for(int slot=1;slot<=9;slot++) {
+                var ids=new List<int>();
+                if(slot<=4) {ids.Add(creature.GetSkillIndexBySlot(slot));var linked=creature.GetLinkedSkillIndexBySlot(slot);if(linked!=null)ids.AddRange(linked);}
+                else if(slot==5)ids.Add(creature.SoulWeaponBasicSkillIndex);
+                else if(slot<=7){var perks=creature.GetTranscendSkill(slot==6?3:5);if(perks!=null)ids.AddRange(perks);}
+                else {
+                    var soul=GameRoot.Instance.SoulWeaponSkillDataContainer.GetAllData().FirstOrDefault(s=>s.BasicSkillIndex==creature.SoulWeaponBasicSkillIndex);
+                    if(soul!=null)ids.Add(soul.GetAddSkillIndex(slot-7));
+                }
+                var variants=new List<object>();
+                foreach(int id in ids.Where(i=>i>0).Distinct()) {
+                    var localized=new Dictionary<string,object>();
+                    foreach(var lang in languages) {
+                        Func<string,string> lookup=key=> {
+                            var hashed=NShared.NJit.JitOption.StringToHashCode(key);
+                            return lang.Value.Contains(hashed)?(string)lang.Value[hashed]:lang.Value.Contains(key)?(string)lang.Value[key]:key;
+                        };
+                        try {
+                            SprkSkillDescriptionFormula.WordProvider=text=>SprkSkillFormulaWords.Get(text,lang.Key);
+                            var rendered=SprkSkillDescriptionFormula.Render(id,hero,lookup);
+                            Check(new[]{"trunc(","round(","ceiling("}.All(token=>!rendered.Text.Contains(token)) && !rendered.Text.Contains(" = "),"clean formula presentation "+id+"/"+lang.Key);
+                            localized[lang.Key]=rendered.Text;
+                            if(lang.Key=="en") {
+                                formulas+=rendered.Formulas;
+                                foreach(var reason in rendered.Unsupported){if(!unsupported.ContainsKey(reason))unsupported[reason]=0;unsupported[reason]++;}
+                            }
+                        } catch(Exception e) {localized[lang.Key]="ERROR: "+e.ToString();}
+                        finally {SprkSkillDescriptionFormula.WordProvider=null;}
+                    }
+                    variants.Add(new Dictionary<string,object>{{"index",id},{"name",SkillDescContainer.GetSkillName(hero,GameRoot.Instance.SkillDataContainer.GetData(id))},{"descriptions",localized}});
+                }
+                slots[slot==5?"sw":slot==6?"t3":slot==7?"t5":slot>7?"sw"+(slot-7):slot.ToString()]=variants;
+            }
+            rows.Add(new Dictionary<string,object>{{"index",creature.Index},{"code",creature.CodeName},{"name",creature.Name},{"skills",slots}});
+        }
+        var bosses=new Dictionary<string,object>();
+        var referenceHero=new CachedHeroInfo(new HeroInfo{HeroIndex=1,Level=100,Star=5,Transcended=5,SkillLevel1=100,SkillLevel2=100,SkillLevel3=100,SkillLevel4=100});
+        foreach(string name in new[]{"Lost Self","Wrath of the Matriarch"}) {
+            var candidates=new List<object>();
+            foreach(var skill in GameRoot.Instance.SkillDataContainer.GetAllData().Where(s=>SkillDescContainer.GetSkillName(s)==name)) {
+                var descriptions=new Dictionary<string,object>();
+                foreach(var language in languages) {
+                    Func<string,string> lookup=key=>{var hash=NShared.NJit.JitOption.StringToHashCode(key);return language.Value.Contains(hash)?(string)language.Value[hash]:language.Value.Contains(key)?(string)language.Value[key]:key;};
+                    var result=SprkSkillDescriptionFormula.Render(skill.Index,referenceHero,lookup);
+                    // These two missing boss quantities are fixed table values;
+                    // never apply an unrelated hero's scaling to a boss export.
+                    Check(result.Formulas==0 && result.Unsupported.Count==0,"boss quantity must be context-independent: "+skill.Index);
+                    descriptions[language.Key]=result.Text;
+                }
+                candidates.Add(new Dictionary<string,object>{{"index",skill.Index},{"descriptions",descriptions}});
+            }
+            bosses[name]=candidates;
+        }
+        var levels=new Dictionary<string,object>();
+        for(int type=1;type<=10;type++) {
+            var values=new Dictionary<string,object>();
+            foreach(var row in GameRoot.Instance.SkillLevelFactorDataContainer.GetAllData().OrderBy(r=>r.Level))values[row.Level.ToString()]=row.GetFactor(type)/1000m;
+            levels[type.ToString()]=values;
+        }
+        var awakening=new Dictionary<string,object>();
+        foreach(var hero in heroes) {
+            var stars=new Dictionary<string,object>();
+            for(int star=1;star<=5;star++) {
+                var transcended=new Dictionary<string,object>();
+                for(int stage=0;stage<=5;stage++)transcended[stage.ToString()]=GameRoot.Instance.CreatureStatDataContainer.GetLevelStatFactor(hero.Index,star,stage)/1000m;
+                stars[star.ToString()]=transcended;
+            }
+            awakening[hero.CodeName]=stars;
+        }
+        File.WriteAllText(Path.Combine(output,"formula-export.json"),MiniJSON.Json.Serialize(new Dictionary<string,object>{{"heroes",rows},{"bosses",bosses},{"formulas",formulas},{"unsupported",unsupported},{"level_scaling",levels},{"awakening_coefficients",awakening}}));
+        Check(unsupported.Count==0,"complete native expression coverage");
+        int contextChecks=0;
+        foreach(int id in new[]{1,25,26,29,34,72,85,111})foreach(short level in new short[]{1,40,100})foreach(sbyte star in new sbyte[]{1,5}) {
+            var hero=new CachedHeroInfo(new HeroInfo{HeroIndex=id,Level=100,Star=star,Transcended=(sbyte)(star==5?5:0),SkillLevel1=level,SkillLevel2=level,SkillLevel3=level,SkillLevel4=level});
+            var creature=GameRoot.Instance.CreatureDataContainer.GetData(id);
+            for(int slot=1;slot<=4;slot++) {
+                var result=SprkSkillDescriptionFormula.Render(creature.GetSkillIndexBySlot(slot),hero,null);
+                Check(result.Unsupported.Count==0,"context parity "+id+"/"+slot+"/"+level+"/"+star+": "+String.Join(";",result.Unsupported.ToArray()));contextChecks++;
+                if(id==26 && slot==1) {
+                    Check(result.Text.Contains("4 * (248 +"),"Mystic Barrage groups four identical components");
+                    Check(result.Text.IndexOf("103.5%",StringComparison.Ordinal)==result.Text.LastIndexOf("103.5%",StringComparison.Ordinal),"Mystic Barrage ATK coefficient shown once");
+                    Check(result.Text.IndexOf("Level Scaling",StringComparison.Ordinal)==result.Text.LastIndexOf("Level Scaling",StringComparison.Ordinal),"Mystic Barrage scaling shown once");
+                }
+            }
+        }
+        // Exercise the real card's refresh hook and both distinct button actions.
+        var uiRoot=UnityEngine.Object.FindObjectOfType<UIRoot>();
+        var prefab=VespaResource.Load<GameObject>(HeroSkillDesc.PrefabPath);
+        Check(prefab!=null,"native card prefab");
+        var host=new GameObject("SkillFormulaFixture");if(uiRoot!=null)host.transform.SetParent(uiRoot.transform,false);
+        var window=UnityEngine.Object.Instantiate(prefab,host.transform,false).GetComponent<HeroSkillDesc>();
+        foreach(var assigner in window.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase>(true))assigner.Assign();
+        window.transform.SetParent(NGame2.GlobalUIRoot.instance.ContentsGroup.transform,false);window.UseTaskWhenOpen=false;
+        File.WriteAllText(Path.Combine(output,"card-layout.json"),MiniJSON.Json.Serialize(window.GetComponentsInChildren<UIWidget>(true).Select(w=>(object)new Dictionary<string,object>{{"name",w.name},{"parent",w.transform.parent.name},{"x",w.transform.localPosition.x},{"y",w.transform.localPosition.y},{"width",w.width},{"height",w.height},{"depth",w.depth},{"pivot",w.pivot.ToString()}}).ToList()));
+        var sample=heroes.First(h=>h.CodeName.IndexOf("Annette",StringComparison.OrdinalIgnoreCase)>=0);
+        var sampleHero=new CachedHeroInfo(new HeroInfo{HeroIndex=sample.Index,Level=100,Star=5,Transcended=5,SkillLevel1=100,SkillLevel2=100,SkillLevel3=100,SkillLevel4=100});
+        SprkSkillDescriptionFormula.Formula=false;
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<AccountManager>.instance;
+        var managers=account.GetType().GetProperty("AccountManagers",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(account,null);
+        managers.GetType().GetField("ItemManager").SetValue(managers,new NGame2.NAccount.UserItemManager());
+        window.Open(sampleHero,1,0,null);
+        File.WriteAllText(Path.Combine(output,"card-sprites.json"),MiniJSON.Json.Serialize(window.GetComponentsInChildren<UISprite>(true).Select(w=>(object)new Dictionary<string,object>{{"name",w.name},{"sprite",w.spriteName},{"atlas",w.atlas==null?"":w.atlas.name},{"type",w.type.ToString()}}).ToList()));
+        string calculated=window.Label_SkillDesc.text;
+        var state=window.GetComponent<SprkSkillDescriptionFormula>();Check(state!=null,"card hook");
+        state.Toggle();Check(window.Label_SkillDesc.text!=calculated,"formula description differs");
+        state.Toggle();Check(window.Label_SkillDesc.text==calculated,"native calculated text restored exactly");
+        for(int i=0;i<10;i++)window.Refresh();
+        Check(window.GetComponentsInChildren<UIButton>(true).Count(b=>b.name=="SPRK Formula Toggle")==1,"one button after refresh");
+        var left=window.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="SPRK Formula Toggle");
+        var right=window.Button_LinkedSkill;var parent=right.transform.parent;
+        float center=parent.InverseTransformPoint(window.Label_SkillLevel.transform.parent.position).x;
+        Check(Mathf.Abs(left.transform.localPosition.x+right.transform.localPosition.x-2*center)<.1f,"button mirrored around description title");
+        Check(left.onClick.Count==1,"one toggle callback");
+        window.Open(MysticHero(),1,0,null);CheckDescriptionLayout(window,window.Label_SkillDesc,true);
+        state.Toggle();CheckDescriptionLayout(window,window.Label_SkillDesc,true);
+        for(int i=0;i<10;i++)window.Refresh();
+        CheckDescriptionLayout(window,window.Label_SkillDesc,true);state.Toggle();
+        var linkedHero=new CachedHeroInfo(new HeroInfo{HeroIndex=72,Level=100,Star=5,Transcended=5,SkillLevel1=100,SkillLevel2=100,SkillLevel3=100,SkillLevel4=100});
+        window.Open(linkedHero,1,0,null);state.Toggle();
+        Check(SprkSkillDescriptionFormula.Formula,"formula selected");string primary=window.Label_SkillDesc.text;
+        window.OnClickChangeLinkedSkill();Check(SprkSkillDescriptionFormula.Formula && window.Label_SkillDesc.text!=primary,"linked variant retains formula mode");
+        CheckDescriptionLayout(window,window.Label_SkillDesc,false);
+        displayedCard=window;
+        var archivePrefab=VespaResource.Load<GameObject>(ArchiveSkillDesc.PrefabPath);
+        Check(archivePrefab!=null,"native Index card prefab");
+        var archive=UnityEngine.Object.Instantiate(archivePrefab,NGame2.GlobalUIRoot.instance.ContentsGroup.transform,false).GetComponent<ArchiveSkillDesc>();
+        foreach(var assigner in archive.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase>(true))assigner.Assign();
+        archive.UseTaskWhenOpen=false;
+        SprkSkillDescriptionFormula.Formula=false;archive.Open(null,linkedHero,1,0);
+        string indexCalculated=archive.LabelDesc.text;
+        var indexState=archive.GetComponent<SprkSkillDescriptionFormula>();Check(indexState!=null,"Index refresh hook");
+        indexState.Toggle();string indexFormula=archive.LabelDesc.text;
+        Check(indexFormula!=indexCalculated && indexFormula==SprkSkillDescriptionFormula.Render(GameRoot.Instance.CreatureDataContainer.GetData(72).SkillIndex1,linkedHero,null).Text,"Index formula uses native reference hero");
+        Check(new[]{"trunc(","round(","ceiling("}.All(token=>!indexFormula.Contains(token)) && !indexFormula.Contains(" = "),"Index simplified text");
+        CheckDescriptionLayout(archive,archive.LabelDesc,false);
+        indexState.Toggle();Check(archive.LabelDesc.text==indexCalculated,"Index calculated description restored");
+        for(int i=0;i<10;i++)archive.SetSkillInfo();
+        var indexButton=archive.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="SPRK Formula Toggle");
+        Check(indexButton.isEnabled && indexButton.onClick.Count==1,"one enabled Index toggle callback after refreshes");
+        var indexParent=archive.Button_LinkedSkill.transform.parent;
+        float indexCenter=indexParent.InverseTransformPoint(archive.LabelName.transform.parent.position).x;
+        var close=archive.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="Button_Close");
+        var closePosition=indexParent.InverseTransformPoint(close.transform.position);
+        Check(Mathf.Abs(indexButton.transform.localPosition.x+closePosition.x-2*indexCenter)<.1f && Mathf.Abs(indexButton.transform.localPosition.y-closePosition.y)<.1f,"Index toggle mirrors Close horizontally at the same height");
+        var closeBounds=NGUIMath.CalculateRelativeWidgetBounds(indexParent,close.transform,true);
+        var switchBounds=NGUIMath.CalculateRelativeWidgetBounds(indexParent,archive.Button_LinkedSkill.transform,true);
+        Check(switchBounds.max.x<closeBounds.min.x,"Index linked switch clears Close");
+        Check(archive.LabelDesc.GetComponentInParent<UIScrollView>()!=null,"Index retains native description scrolling");
+        CheckDescriptionLayout(archive,archive.LabelDesc,false);
+        archive.Open(null,MysticHero(),1,0);CheckDescriptionLayout(archive,archive.LabelDesc,true);
+        indexState.Toggle();CheckDescriptionLayout(archive,archive.LabelDesc,true);
+        for(int i=0;i<10;i++)archive.SetSkillInfo();
+        CheckDescriptionLayout(archive,archive.LabelDesc,true);
+        indexState.Toggle();archive.Open(null,linkedHero,1,0);
+        indexState.Toggle();archive.OnClickSwitchLinkedSkill();
+        Check(SprkSkillDescriptionFormula.Formula && archive.LabelDesc.text!=indexFormula,"Index linked skill retains formula mode");
+        archive.OnClickShowTalentSkill();bool talent=archive.WidgetTalentSkill.gameObject.activeSelf;
+        indexState.Toggle();Check(archive.WidgetTalentSkill.gameObject.activeSelf==talent,"Index attributes unaffected by formula toggle");
+        archive.OnClickShowTalentSkill();indexState.Toggle();displayedArchive=archive;
+        File.WriteAllText(Path.Combine(output,"index-layout.json"),MiniJSON.Json.Serialize(archive.GetComponentsInChildren<UIWidget>(true).Select(w=>(object)new Dictionary<string,object>{{"name",w.name},{"parent",w.transform.parent.name},{"x",w.transform.localPosition.x},{"y",w.transform.localPosition.y},{"width",w.width},{"height",w.height},{"depth",w.depth},{"text",w is UILabel?((UILabel)w).text:""},{"overflow",w is UILabel?((UILabel)w).overflowMethod.ToString():""}}).ToList()));
+        File.WriteAllText(Path.Combine(output,"scroll-layout.json"),MiniJSON.Json.Serialize(new[]{window.Label_SkillDesc,archive.LabelDesc}.Select(label=>{
+            var scroll=label.GetComponentInParent<UIScrollView>();var panel=scroll.GetComponent<UIPanel>();
+            return (object)new Dictionary<string,object>{{"owner",label==archive.LabelDesc?"Index":"Heroes"},{"clip",panel.baseClipRegion.ToString()},{"offset",panel.clipOffset.ToString()},{"bounds",scroll.bounds.ToString()},{"disableDragIfFits",scroll.disableDragIfFits},{"effect",scroll.dragEffect.ToString()},{"pivot",label.pivot.ToString()},{"widgets",scroll.GetComponentsInChildren<UIWidget>(true).Select(w=>(object)new Dictionary<string,object>{{"name",w.name},{"pos",w.transform.localPosition.ToString()},{"width",w.width},{"height",w.height},{"colliders",w.GetComponents<Collider>().Length}}).ToList()}};
+        }).ToList()));
+        File.WriteAllText(Path.Combine(output,"formula-report.txt"),"PASS: "+heroes.Length+" heroes; "+formulas+" symbolic nodes; "+contextChecks+" level/awakening cases; grouped Mystic Barrage, mixed/nested sums and rounding-boundary isolation; hero and Index toggles/native restoration/pooling, mirrored placement, clear Close button, equal visible top/left padding, fitting-text spring-back and overflow scrolling, linked variants and skill-attribute isolation. No trunc notation or explanatory footer. Unsupported categories: "+unsupported.Count+".");
+        return "PASS: formula export and native card fixture";
+    }
+    public static string Preference(){Check(SprkSkillDescriptionFormula.Formula,"preference survived process restart");return "PASS: formula preference survived process restart";}
+    public static string View() {
+        Check(displayedCard!=null,"card fixture exists");
+        displayedCard.Open(MysticHero(),1,0,null);
+        // Render the real native card on a dedicated test camera. Login's
+        // loading overlay otherwise covers windows opened without an account.
+        var root=new GameObject("SkillFormulaVisualFixture");root.layer=30;
+        var panel=root.AddComponent<UIPanel>();panel.depth=0;
+        var group=displayedCard.Label_SkillDesc.transform;
+        while(group.parent!=null && group.name!="WidgetCurSkillLevelDesc")group=group.parent;
+        var left=displayedCard.GetComponentsInChildren<UIButton>(true).Single(b=>b.name=="SPRK Formula Toggle");
+        foreach(var item in new[]{group,displayedCard.Button_LinkedSkill.transform,left.transform,displayedCard.SkillIconGrid.transform}) {
+            var position=item.localPosition;var scale=item.localScale;
+            item.SetParent(root.transform,false);item.localPosition=position;item.localScale=scale;item.gameObject.SetActive(true);
+        }
+        foreach(var child in root.GetComponentsInChildren<Transform>(true))child.gameObject.layer=30;
+        foreach(var rect in root.GetComponentsInChildren<UIRect>(true)) {
+            foreach(var anchor in new[]{rect.leftAnchor,rect.rightAnchor,rect.topAnchor,rect.bottomAnchor})
+                if(anchor.target!=null && !anchor.target.IsChildOf(root.transform))anchor.target=null;
+        }
+        foreach(var p in root.GetComponentsInChildren<UIPanel>(true))p.alpha=1;
+        foreach(var widget in root.GetComponentsInChildren<UIWidget>(true)){widget.RemoveFromPanel();widget.CreatePanel();widget.MarkAsChanged();}
+        var cameraObject=new GameObject("SkillFormulaVisualCamera");cameraObject.transform.position=new Vector3(18,-42,-1000);
+        var camera=cameraObject.AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=450;
+        camera.nearClipPlane=.1f;camera.farClipPlane=2000;camera.cullingMask=1<<30;
+        camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.08f,.07f,.05f);camera.depth=3000;
+        camera.rect=new Rect(.275f,0,.45f,1);
+        return "PASS: native skill card visual fixture";
+    }
+    public static string ToggleView(){displayedCard.GetComponent<SprkSkillDescriptionFormula>().Toggle();return "PASS: visual mode toggled";}
+    public static string ViewArchive() {
+        Check(displayedArchive!=null,"Index card fixture exists");displayedArchive.Open(null,MysticHero(),1,0);
+        var root=new GameObject("IndexFormulaVisualFixture");root.layer=29;root.AddComponent<UIPanel>().depth=0;
+        var content=displayedArchive.WindowRoot;content.SetParent(root.transform,false);content.localPosition=Vector3.zero;content.localScale=Vector3.one;content.gameObject.SetActive(true);
+        foreach(var child in root.GetComponentsInChildren<Transform>(true))child.gameObject.layer=29;
+        foreach(var p in root.GetComponentsInChildren<UIPanel>(true))p.alpha=1;
+        foreach(var widget in root.GetComponentsInChildren<UIWidget>(true)){widget.RemoveFromPanel();widget.CreatePanel();widget.MarkAsChanged();}
+        var cameraObject=new GameObject("IndexFormulaVisualCamera");cameraObject.transform.position=new Vector3(0,0,-1000);
+        var camera=cameraObject.AddComponent<Camera>();camera.orthographic=true;camera.orthographicSize=550;
+        camera.nearClipPlane=.1f;camera.farClipPlane=2000;camera.cullingMask=1<<29;
+        camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.08f,.07f,.05f);camera.depth=3001;
+        camera.rect=new Rect(.225f,0,.55f,1);return "PASS: native Index card visual fixture";
+    }
+}

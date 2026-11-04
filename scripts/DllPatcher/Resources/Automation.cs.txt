@@ -161,6 +161,15 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="skill-formula-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("skill-formula-"))
+                    throw new InvalidOperationException("Formula fixture requires isolated Login and skill-formula profile");
+                var probe=System.Reflection.Assembly.Load("SprkSkillDescriptionFormula").GetType("SprkSkillDescriptionFormulaProbe");
+                string method=cmd.text=="init"?"Init":cmd.text=="preference"?"Preference":cmd.text=="view"?"View":cmd.text=="index-view"?"ViewArchive":cmd.text=="toggle"?"ToggleView":"Run";
+                var report=(string)probe.GetMethod(method).Invoke(null,null);
+                reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
+            }
             if(cmd.action=="team-exp-refresh-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("team-exp-"))
@@ -270,6 +279,10 @@ public sealed class SprkAutomation : MonoBehaviour
             if(cmd.action=="boss-characteristics-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Boss scroll fixture requires isolated Login");
                 busy=true;StartCoroutine(ProbeBossCharacteristics(cmd));return;
+            }
+            if(cmd.action=="kasel-native-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Kasel fixture requires isolated Login");
+                busy=true;StartCoroutine(ProbeNativeKasel(cmd));return;
             }
             if(cmd.action=="maria-bird-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Maria fixture requires isolated Login");
@@ -504,6 +517,7 @@ public sealed class SprkAutomation : MonoBehaviour
                     throw new InvalidOperationException("Expected a scroll view and an amount between -10 and 10");
                 scroll.Scroll(amount);
             }
+            else if(cmd.action=="kasel-s2-probe") { }
             else if(cmd.action=="jane-legend-probe" || cmd.action=="maria-legend-probe" || cmd.action=="ui-navigation-probe") { }
             else if(cmd.action=="preview-perk") {
                 // Read-only UI preview, including already learned perks. The
@@ -626,6 +640,7 @@ public sealed class SprkAutomation : MonoBehaviour
                         {"state",window.WindowState.ToString()},{"opening",window.ReservedOpenTask},
                         {"backType",window.BackButtonType.ToString()},{"backRegister",window.BackRegister}});
             }
+            if(cmd.action=="kasel-s2-probe") ProbeKaselS2(cmd,reply);
             if(cmd.action=="jane-legend-probe" || cmd.action=="maria-legend-probe") ProbeJaneLegend(cmd,reply);
             if(cmd.action=="settings-probe")reply.materials.Add(new Dictionary<string,object>{
                 {"kind","settings"},{"fps",(int)NVespa.SystemOptionData.Graphic_FrameControl},
@@ -1486,6 +1501,95 @@ public sealed class SprkAutomation : MonoBehaviour
             if(failure!=null) {failure.materials.AddRange(report);busy=false;Write(failure);yield break;}
         }
         busy=false;var result=Snapshot(cmd.id);result.materials.AddRange(report);result.materials.Add("PASS: native boss prefab overflow remains scrolled after release.");Write(result);
+    }
+    System.Collections.IEnumerator ProbeNativeKasel(Command cmd) {
+        Reply failure=null;var report=new List<object>();GameObject view=null;RenderTexture target=null;
+        try {
+            NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+            string patch=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows");
+            var installed=new Dictionary<string,NShared.AssetInfo>();
+            var setter=typeof(NShared.AssetInfo).GetProperty("EntryName").GetSetMethod(true);
+            foreach(string file in Directory.GetFiles(Path.Combine(patch,"Assetbundle"),"*",SearchOption.AllDirectories)) {
+                string relative=file.Substring(patch.Length+1).Replace('\\','/');var asset=new NShared.AssetInfo();setter.Invoke(asset,new object[]{relative});installed.Add(relative,asset);
+            }
+            NVespa.SingletonAuto<NGameAsset.AssetFileManager>.instance.Setup(installed);
+            typeof(NVespa.UnityCache).GetProperty("persistentDataPath").GetSetMethod(true).Invoke(null,new object[]{Application.dataPath});
+            typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{false});
+            var manager=NVespa.SingletonAuto<NGameAsset.BundleManager>.instance;
+            typeof(NGameAsset.Define).GetProperty("PatchDownloaded").GetSetMethod(true).Invoke(null,new object[]{true});
+            view=new GameObject("NativeKaselS2Camera");var camera=view.AddComponent<Camera>();camera.cullingMask=1<<30;
+            camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.25f,.25f,.25f,1);
+            camera.transform.position=new Vector3(0,3,-12);camera.transform.LookAt(new Vector3(0,1,0));target=new RenderTexture(768,512,24);camera.targetTexture=target;
+        } catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        if(failure==null) {
+            float deadline=Time.realtimeSinceStartup+30;
+            while(!NVespa.SingletonAuto<NGameAsset.BundleManager>.instance.IsReady && Time.realtimeSinceStartup<deadline)yield return null;
+            foreach(string stage in new[]{"2-1.Casting","2-2.Casting","2-2.Projectile"}) {
+                var load=new NGameAsset.NEffect.EffectLoad();
+                try {load.Open("Skill.Hero."+(cmd.target==1?"Kasel.DarkLord":"KaselDarkLordCos22GloryLeague")+".Skill"+stage,30);}
+                catch(Exception e) {failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+                deadline=Time.realtimeSinceStartup+30;
+                while(failure==null && !load.IsDone && Time.realtimeSinceStartup<deadline)yield return null;
+                if(failure==null && (!load.IsDone || !load.IsValid))failure=new Reply{id=cmd.id,ok=false,error=stage+": "+load.LoadMessage};
+                if(failure==null) {
+                    try {load.Value.SetDummyParent(Vector3.zero,Quaternion.identity,Vector3.one);load.Value.SetVisible(true);RestoredPortal.EnsureNativeShaderVariables();}
+                    catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+                    for(int frame=0;failure==null && frame<180;frame++) {
+                        try {
+                            load.Value.Update(1f/60f);
+                            if(frame==90)foreach(var r in UnityEngine.Object.FindObjectsOfType<Renderer>().Where(r=>r.name.IndexOf("Kasel",StringComparison.OrdinalIgnoreCase)>=0))report.Add(new Dictionary<string,object>{{"stage",stage},{"renderer",r.name},{"enabled",r.enabled},{"layer",r.gameObject.layer},{"bounds",r.bounds.ToString()},{"shader",r.sharedMaterial==null?"null":r.sharedMaterial.shader.name}});
+                            if(frame%15==0) {
+                                var camera=view.GetComponent<Camera>();camera.Render();var previous=RenderTexture.active;RenderTexture.active=target;
+                                var picture=new Texture2D(768,512,TextureFormat.RGB24,false);picture.ReadPixels(new Rect(0,0,768,512),0,0);picture.Apply();RenderTexture.active=previous;
+                                int visible=0,magenta=0,dark=0;
+                                foreach(var color in picture.GetPixels32()){if(Mathf.Abs(color.r-64)>15 || Mathf.Abs(color.g-64)>15 || Mathf.Abs(color.b-64)>15)visible++;if(color.r>200 && color.g<50 && color.b>200)magenta++;if(color.r<32 && color.g<32 && color.b<32)dark++;}
+                                string file=cmd.id+"-native-"+stage+"-"+frame+".png";File.WriteAllBytes(Path.Combine(root,file),picture.EncodeToPNG());UnityEngine.Object.DestroyImmediate(picture);
+                                report.Add(new Dictionary<string,object>{{"stage",stage},{"frame",frame},{"visiblePixels",visible},{"magentaPixels",magenta},{"darkPixels",dark},{"file",file}});
+                            }
+                        } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+                        yield return null;
+                    }
+                }
+                load.Close(true);load.Release();
+                if(failure!=null)break;
+            }
+        }
+        if(view!=null)UnityEngine.Object.DestroyImmediate(view);if(target!=null){target.Release();UnityEngine.Object.DestroyImmediate(target);}
+        busy=false;var reply=failure??Snapshot(cmd.id);reply.materials=report;Write(reply);
+    }
+    void ProbeKaselS2(Command cmd,Reply reply) {
+        string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");
+        if(janeProbeShaders==null)janeProbeShaders=AssetBundle.GetAllLoadedAssetBundles().FirstOrDefault(b=>b.name.ToLowerInvariant().Contains("shader"));
+        if(janeProbeShaders==null)janeProbeShaders=AssetBundle.LoadFromFile(Path.Combine(bundles,"Unity_2020/Shader.unity3d"));
+        foreach(string stage in new[]{"2-1_Casting","2-2_Casting","2-2_Projectile"}) {
+            var bundle=AssetBundle.LoadFromFile(Path.Combine(bundles,"Effect_Skill_Hero_KaselDarkLordCos22GloryLeague_Skill"+stage+".unity3d"));
+            if(bundle==null)throw new Exception("Missing Kasel S2 bundle: "+stage);
+            GameObject effect=null,view=null;RenderTexture target=null;
+            try {
+                effect=new GameObject("KaselS2Probe");
+                foreach(string asset in bundle.GetAllAssetNames().Where(n=>String.IsNullOrEmpty(cmd.text) || n.EndsWith(cmd.text,StringComparison.OrdinalIgnoreCase)))UnityEngine.Object.Instantiate(bundle.LoadAsset<GameObject>(asset),effect.transform,false);
+                foreach(var node in effect.GetComponentsInChildren<Transform>(true))node.gameObject.layer=30;
+                foreach(var renderer in effect.GetComponentsInChildren<Renderer>(true)) {
+                    if(!renderer.enabled || !renderer.gameObject.activeInHierarchy)continue;
+                    var material=renderer.sharedMaterial;var shader=material==null?null:material.shader;
+                    reply.materials.Add(new Dictionary<string,object>{{"stage",stage},{"renderer",renderer.name},{"material",material==null?null:material.name},{"shader",shader==null?null:shader.name},{"supported",shader!=null && shader.isSupported}});
+                }
+                view=new GameObject("KaselS2ProbeCamera");var camera=view.AddComponent<Camera>();camera.cullingMask=1<<30;
+                camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.05f,.05f,.05f,1);
+                camera.transform.position=new Vector3(0,3,-12);camera.transform.LookAt(new Vector3(0,1,0));
+                target=new RenderTexture(768,512,24);camera.targetTexture=target;
+                RestoredPortal.EnsureNativeShaderVariables();
+                for(int frame=0;frame<4;frame++) {
+                    foreach(var particle in effect.GetComponentsInChildren<ParticleSystem>())particle.Simulate(.15f+frame*.3f,false,true,true);
+                    camera.Render();var previous=RenderTexture.active;RenderTexture.active=target;
+                    var picture=new Texture2D(768,512,TextureFormat.RGB24,false);picture.ReadPixels(new Rect(0,0,768,512),0,0);picture.Apply();RenderTexture.active=previous;
+                    string file=cmd.id+"-"+stage+"-"+frame+".png";File.WriteAllBytes(Path.Combine(root,file),picture.EncodeToPNG());reply.screenshot=file;UnityEngine.Object.DestroyImmediate(picture);
+                }
+            } finally {
+                if(effect!=null)UnityEngine.Object.DestroyImmediate(effect);if(view!=null)UnityEngine.Object.DestroyImmediate(view);
+                if(target!=null){target.Release();UnityEngine.Object.DestroyImmediate(target);}bundle.Unload(true);
+            }
+        }
     }
     void ProbeMariaBirdFrames(Command cmd,Reply reply) {
         string bundles=Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle");

@@ -29,7 +29,34 @@ public sealed class SprkLoginSettings : MonoBehaviour,GameOptionWindow.Listener,
         foreach(var label in view.LanguageButtonRoot.GetComponentsInChildren<UILabel>(true))label.text="Settings";
         var button=view.LanguageButtonRoot.GetComponentInChildren<UIButton>(true);
         if(button!=null){button.onClick.Clear();EventDelegate.Add(button.onClick,bridge.OpenSettings);}
+        // TAP TO PLAY already opens the account form, so the Log In button is redundant.
+        if(view.LoginButtonRoot!=null)view.LoginButtonRoot.SetActive(false);
+        // The server name is chosen in the account form; hide the bottom-left row.
+        var server=view.Label_ServerName!=null?view.Label_ServerName.transform.parent:null;
+        if(server!=null && server.name=="ServerInfo"){server.gameObject.SetActive(false);if(view.AccountInfoGrid!=null)view.AccountInfoGrid.Reposition();}
+        var intro=view.GameIntroduceButtonRoot;
+        if(intro!=null && view.ButtonGrid!=null) {
+            foreach(var loc in intro.GetComponentsInChildren<UILocalize>(true))loc.enabled=false;
+            foreach(var loc in intro.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true))loc.enabled=false;
+            foreach(var label in intro.GetComponentsInChildren<UILabel>(true))label.text="Introduction";
+            // Introduction sits on the Settings row, to its left, outside the vertical grid.
+            if(intro.transform.parent==view.ButtonGrid.transform)intro.transform.SetParent(view.ButtonGrid.transform.parent,false);
+        }
         if(view.ButtonGrid!=null){view.ButtonGrid.hideInactive=true;view.ButtonGrid.Reposition();}
+        bridge.PlaceIntroduction();
+    }
+    public static void ConfigureTouch(LoginTouchWait view) {
+        if(view!=null && view.GetComponent<SprkTapToPlay>()==null)view.gameObject.AddComponent<SprkTapToPlay>();
+    }
+    void LateUpdate(){PlaceIntroduction();}
+    void PlaceIntroduction() {
+        if(login==null || login.GameIntroduceButtonRoot==null || login.LanguageButtonRoot==null || login.ButtonGrid==null)return;
+        var intro=login.GameIntroduceButtonRoot.transform;var root=login.transform.Find("Panel/Root");
+        if(intro.parent!=login.ButtonGrid.transform.parent || root==null)return;
+        // Bottom-left, where the Server row was: mirror Settings across the screen
+        // so both share one line and the same edge margin.
+        var settings=root.InverseTransformPoint(login.LanguageButtonRoot.transform.position);
+        intro.position=root.TransformPoint(new Vector3(-settings.x,settings.y,settings.z));
     }
     static void PrepareOptions() {
         // Load only the settings table from the installed client. Do not mark
@@ -101,7 +128,7 @@ public sealed class SprkLoginSettings : MonoBehaviour,GameOptionWindow.Listener,
         SystemOptionData.Spec=(ESpecType)Enum.Parse(typeof(ESpecType),value.ToString());SprkTestPrefs.Save();
         return true;
     }
-    public static bool SetPlayBGM(GameOptionBaseComponent row,object value) { return AtLogin; }
+    public static bool SetPlayBGM(GameOptionBaseComponent row,object value) { if(!AtLogin)return false;SprkLoginPresentation.RefreshMusic();return true; }
     public LoginMethodType GetLastLoginMethod(){return LoginData.LastLoginMethod;}
     public CountryData GetCountryData(){return null;}
     public CountryServerData GetCountryServerData(){return null;}
@@ -115,9 +142,39 @@ public sealed class SprkLoginSettings : MonoBehaviour,GameOptionWindow.Listener,
     public void OnOqupieWebView(){}
     static bool probeStarted;
     public static void EnsureProbe() {
+        SprkLoginPresentation.EnsureProbe();
         if(probeStarted || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_LOGIN_SETTINGS_TEST")) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR")) || String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE")))return;
         probeStarted=true;
         var host=new GameObject("LoginSettingsProbe");UnityEngine.Object.DontDestroyOnLoad(host);host.AddComponent<SprkLoginSettingsProbe>();
+    }
+}
+// TAP TO PLAY sits lower and smaller, centered on the Introduction/Settings row.
+public sealed class SprkTapToPlay : MonoBehaviour {
+    public const float Scale=.8f;
+    // Root-space center of the Settings caption on the 1920x1080 login layout.
+    public const float FallbackY=-464f;
+    // Visible text center: the caption box is taller than its bottom-aligned text.
+    public static float CaptionCenterY(UILabel caption,Transform space){var bottom=(caption.worldCorners[0]+caption.worldCorners[3])*.5f;return space.InverseTransformPoint(bottom+caption.transform.TransformVector(new Vector3(0f,caption.printedSize.y*.5f,0f))).y;}
+    UIWidget art;Transform root;LoginAccountInfo menu;float nextSearch;
+    void Start() {
+        root=transform.Find("Panel/Root");
+        var tm=root!=null?root.Find("Sprite_backGround"):null;
+        art=tm!=null?tm.GetComponent<UIWidget>():null;
+        if(art==null)return;
+        art.SetAnchor((Transform)null);
+        art.transform.localScale=new Vector3(Scale,Scale,1f);
+        LateUpdate();
+    }
+    void LateUpdate() {
+        if(art==null)return;
+        if(menu==null && Time.unscaledTime>=nextSearch){nextSearch=Time.unscaledTime+.5f;menu=FindObjectOfType<LoginAccountInfo>();}
+        float y=FallbackY;
+        UILabel caption=menu!=null && menu.LanguageButtonRoot!=null?menu.LanguageButtonRoot.GetComponentInChildren<UILabel>(true):null;
+        if(caption!=null && caption.gameObject.activeInHierarchy) {
+            y=CaptionCenterY(caption,root);
+        }
+        var position=art.transform.localPosition;
+        if(Mathf.Abs(position.x)>.01f || Mathf.Abs(position.y-y)>.01f)art.transform.localPosition=new Vector3(0f,y,position.z);
     }
 }
 public sealed class SprkLoginSettingsProbe : MonoBehaviour {
