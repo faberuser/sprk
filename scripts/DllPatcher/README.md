@@ -14,6 +14,17 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--skill-formula-only` adds a `123` / `fx` display toggle to the top-left of the
+hero skill card, mirrored against its linked-skill button. It preserves the native
+calculated description and combat data, and renders formulas from current native
+expressions with parity checks and local preference persistence. Run
+`--verify-skill-formula` for hook/IL validation and
+`python scripts/client/verify_skill_formula.py --installed` for isolated native
+coverage, card lifecycle, linked variants, screenshots and process-restart checks.
+The full `--build-release` installs and verifies the patch. See
+[the implementation and mirror workflow](../../docs/skill-description-formula-toggle.md)
+for regenerating `krinfo`'s `table-data/sprk` export. Restart the client.
+
 `--team-exp-refresh-only` applies the battle response's final `ExpResult2` through
 the native UserManager after all other reward snapshots. Stamina-earned team EXP
 and level changes then notify the HUD immediately, including when recruitment

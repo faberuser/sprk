@@ -76,6 +76,8 @@ partial class Program
         VerifyShopTagsFile(clientRoot);
         InstallArtifactSelectors(clientRoot, false);
         VerifyArtifactSelectorsFile(clientRoot);
+        InstallSkillDescriptionFormula(clientRoot, false);
+        VerifySkillDescriptionFormulaFile(clientRoot);
         InstallArtifactSourceFilter(clientRoot, false);
         VerifyArtifactSourceFilterFile(clientRoot);
         InstallTeamExpRefresh(clientRoot, false);

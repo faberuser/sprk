@@ -1,0 +1,343 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using LitJson;
+using NGame2.NAccount;
+using NGame2.NNodeTree;
+using NGame2.NNodeTree.NTypeValue;
+using NGame2.NUI;
+using NGame2.NUI.NDescription;
+using NGame2.NUI.NWindow;
+using NShared;
+using NShared.NOperationRuntime;
+using NShared.NUtil;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+
+// Presentation only. Native expression objects, operation tables and evaluators
+// are read, never changed. Unknown expressions retain their native values.
+public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
+    const string Preference = "Sprk.SkillDescription.Formula";
+    static readonly BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+    HeroSkillDesc card;
+    UIButton button;
+    UILabel modeLabel;
+    int skillIndex;
+    static NGame2.NNodeTree.NTypeValue.NOperator.NData.NOperationData.CalcDamage.FuncLinker formulaLinker;
+    public static bool Formula { get { return SprkTestPrefs.GetInt(Preference,0)!=0; } set { SprkTestPrefs.SetInt(Preference,value?1:0);PlayerPrefs.Save(); } }
+
+    public static void Setup(HeroSkillDesc owner, Helper.SkillDetailInfo info) {
+        var state=owner.GetComponent<SprkSkillDescriptionFormula>();
+        if(state==null)state=owner.gameObject.AddComponent<SprkSkillDescriptionFormula>();
+        state.card=owner;state.skillIndex=info.BasicInfo.TableIndex;
+        try { state.EnsureButton();state.Display(); }
+        catch(Exception e) { Debug.LogWarning("SPRK formula card: "+e.Message); }
+    }
+    void EnsureButton() {
+        if(button!=null)return;
+        var original=card.Button_LinkedSkill;
+        if(original==null)return;
+        var clone=Instantiate(original.gameObject,original.transform.parent,false);
+        clone.name="SPRK Formula Toggle";
+        button=clone.GetComponent<UIButton>();
+        // The native UIEvent component uses method names on the owning window.
+        // Remove all inherited event receivers before assigning our own delegate.
+        foreach(var component in clone.GetComponentsInChildren<MonoBehaviour>(true)) {
+            string name=component.GetType().Name;
+            if(name=="UIEvent" || name=="UIButtonMessage" || name=="UIEventListener" || name=="UIPlayAnimation" || name=="UIPlayTween") {
+                component.enabled=false;Destroy(component);
+            }
+        }
+        button.onClick.Clear();EventDelegate.Add(button.onClick,Toggle);
+        var title=card.Label_SkillLevel;
+        var parent=original.transform.parent;
+        var titlePosition=parent.InverseTransformPoint(title.transform.parent.position);
+        var position=original.transform.localPosition;
+        position.x=2*titlePosition.x-position.x;
+        clone.transform.localPosition=position;
+        // Anchor positions are absolute in the cloned native widget; mirroring
+        // its local transform alone would snap back on the next NGUI update.
+        foreach(var rect in clone.GetComponentsInChildren<UIRect>(true)) {
+            rect.leftAnchor.target=null;rect.rightAnchor.target=null;
+            rect.topAnchor.target=null;rect.bottomAnchor.target=null;
+        }
+        var labelRoot=new GameObject("Label_Mode");labelRoot.transform.SetParent(clone.transform,false);
+        modeLabel=labelRoot.AddComponent<UILabel>();
+        modeLabel.bitmapFont=title.bitmapFont;modeLabel.trueTypeFont=title.trueTypeFont;
+        modeLabel.fontSize=Mathf.Max(14,Mathf.RoundToInt(title.fontSize*.68f));
+        modeLabel.color=title.color;modeLabel.effectStyle=title.effectStyle;modeLabel.effectColor=title.effectColor;
+        modeLabel.width=52;modeLabel.height=40;modeLabel.depth=original.GetComponentsInChildren<UIWidget>(true).Max(w=>w.depth)+2;
+        modeLabel.overflowMethod=UILabel.Overflow.ShrinkContent;
+        // Keep the native frame/background, hide the circular-arrow glyph.
+        foreach(var sprite in clone.GetComponentsInChildren<UISprite>(true)) {
+            if(sprite.type==UIBasicSprite.Type.Sliced)continue;
+            sprite.enabled=false;
+        }
+        var nativeFrame=card.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Button_Learn" && s.type==UIBasicSprite.Type.Sliced);
+        var surface=clone.GetComponent<UISprite>();
+        if(surface!=null && nativeFrame!=null) {
+            surface.atlas=nativeFrame.atlas;surface.type=UIBasicSprite.Type.Sliced;
+            surface.spriteName="Mission_Button_Normal";surface.enabled=true;
+            button.normalSprite="Mission_Button_Normal";button.hoverSprite="Mission_Button_Normal";
+            button.pressedSprite="Mission_Button_Normal";button.disabledSprite="Mission_Button_Disable";
+            var assigner=clone.GetComponent<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>();
+            if(assigner!=null) {
+                assigner.AtlasName="Common2";assigner.SpriteName="Mission_Button_Normal";assigner.Target=surface;
+                if(surface.atlas==null)assigner.Assign();
+            }
+        }
+        clone.AddComponent<SprkSkillFormulaButtonHelp>();
+        clone.SetActive(true);
+    }
+    public void Toggle() { Formula=!Formula;Display(); }
+    void Display() {
+        if(modeLabel!=null)modeLabel.text=Formula?"fx":"123";
+        if(button!=null)button.gameObject.SetActive(true);
+        string text=SingletonAuto<SkillDescContainer>.instance.GetByHeroInfo(skillIndex,card.HeroInfo);
+        if(Formula) {
+            try { text=Render(skillIndex,card.HeroInfo,null).Text; }
+            catch(Exception) { text+="\n\n"+Words("Formula view unavailable for this skill."); }
+        }
+        UIHelper.SetLabelText(card.Label_SkillDesc,text,false);
+        if(card.ScrollView_SkillDesc!=null) {card.ScrollView_SkillDesc.InvalidateBounds();card.ScrollView_SkillDesc.ResetPosition();}
+    }
+
+    public sealed class Result { public string Text;public int Formulas;public readonly HashSet<string> Unsupported=new HashSet<string>();public readonly Dictionary<string,string> Legends=new Dictionary<string,string>(); }
+    sealed class Expression : IFormattable {
+        public string Text;public decimal Value;public bool Symbolic;public int Priority=3;
+        public Expression(string text,decimal value,bool symbolic){Text=text;Value=value;Symbolic=symbolic;}
+        public string ToString(string format,IFormatProvider provider){return Symbolic?Text:Value.ToString(format,provider);}
+        public override string ToString(){return Text;}
+    }
+    sealed class Context {
+        public HeroInfo Hero;public StatData Stat;public StatController FormulaStats;public OperationInfo Operation;public bool RuntimeValues;public int Level;public SkillDescVariable Variable;
+        public Result Result=new Result();public Func<string,string> Localize;
+    }
+    static string Number(decimal n){return n.ToString("0.############################",CultureInfo.InvariantCulture);}
+    static Expression Constant(decimal n){return new Expression(Number(n),n,false);}
+    static Expression Symbol(string s,decimal n){return new Expression(s,n,true);}
+    static Expression Binary(Expression a,Expression b,string op) {
+        // The native decimal node returns its numerator on division by zero.
+        if(op=="/" && b.Value==0)return a;
+        decimal n=op=="+"?a.Value+b.Value:op=="-"?a.Value-b.Value:op=="*"?a.Value*b.Value:a.Value/b.Value;
+        if(!a.Symbolic && !b.Symbolic)return Constant(n);
+        if(op=="+" && b.Value==0 && !b.Symbolic)return a;
+        if(op=="+" && a.Value==0 && !a.Symbolic)return b;
+        if((op=="*" || op=="/") && b.Value==1 && !b.Symbolic)return a;
+        int priority=(op=="+" || op=="-")?1:2;
+        string left=a.Priority<priority?"("+a.Text+")":a.Text;
+        string right=b.Priority<priority || ((op=="-" || op=="/") && b.Priority==priority)?"("+b.Text+")":b.Text;
+        var result=Symbol(left+" "+op+" "+right,n);result.Priority=priority;return result;
+    }
+    static Expression Truncate(Expression a) {return a.Symbolic?Symbol("trunc("+a.Text+")",decimal.Truncate(a.Value)):Constant(decimal.Truncate(a.Value));}
+    static int Int(JsonData j,string name){return Convert.ToInt32(j[name].ToString(),CultureInfo.InvariantCulture);}
+    static string Str(JsonData j,string name){return j[name].ToString();}
+    public static Func<string,string> WordProvider;
+    static string Words(string text){return WordProvider==null?SprkSkillFormulaWords.Get(text,SprkSkillFormulaWords.Locale):WordProvider(text);}
+    static Expression LevelFactor(int type,Context c) {
+        var table=GameRoot.Instance.SkillLevelFactorDataContainer;
+        int value=table.GetLevelFactor(type,c.Level);
+        if(type==9999)return Symbol(Words("Skill Level"),c.Level);
+        // Infer only a fully verified affine lookup across the supported levels.
+        int first=table.GetLevelFactor(type,1),delta=table.GetLevelFactor(type,2)-first;
+        bool affine=true;for(int l=1;l<=100;l++)if(table.GetLevelFactor(type,l)!=first+(l-1)*delta){affine=false;break;}
+        if(affine)return Binary(Constant((first-delta)/1000m),Binary(Constant(delta/1000m),Symbol(Words("Skill Level"),c.Level),"*"),"+");
+        string name=Words("Level Scaling")+(type==5?"":" "+type);
+        c.Result.Legends[name+"("+c.Level+")"]=Number(value/1000m);
+        return Symbol(name+"("+Words("Skill Level")+")",value/1000m);
+    }
+    static Expression LevelValue(int[] factors,int at,Context c,bool awakening) {
+        if(factors==null || at+1>=factors.Length || factors[at+1]==0)return Constant(0);
+        var e=Truncate(Binary(Constant(factors[at+1]),LevelFactor(factors[at],c),"*"));
+        if(awakening) {
+            var hero=c.RuntimeValues?c.Operation.FiredCreature.CreateInfo.HeroInfo:c.Hero;
+            int creatureIndex=c.RuntimeValues?c.Operation.FiredCreature.CreatureIndex:hero.HeroIndex;
+            decimal factor=GameRoot.Instance.CreatureStatDataContainer.GetLevelStatFactor(creatureIndex,(int)hero.Star,(int)hero.Transcended)/1000m;
+            c.Result.Legends[Words("Awakening Coefficient")]=Number(factor);
+            e=Truncate(Binary(e,Symbol(Words("Awakening Coefficient"),factor),"*"));
+        }
+        return e;
+    }
+    static Expression OperationValue(OperationData op,int index,Context c) {
+        decimal value=0;
+        // These native nodes call GetOperationValueInt: non-integer strings,
+        // including '$' expressions, parse to the native default zero here.
+        var values=c.RuntimeValues?c.Operation.GetValues():op.Values;
+        string raw=values!=null && index<values.Length?values[index]:"0";
+        Expression result;
+        if(c.RuntimeValues && raw!=null && raw.StartsWith("$"))result=OperationExpression(raw,c);
+        else {int parsed=0;int.TryParse(raw,NumberStyles.Integer,CultureInfo.InvariantCulture,out parsed);value=parsed;result=Constant(value);}
+        return Binary(result,LevelValue(op.ValueFactors,index*2,c,true),"+");
+    }
+    static Expression OperationExpression(string raw,Context c) {
+        var expression=OperationValueExpression.Create(raw);
+        if(expression==null)throw new NotSupportedException("Missing operation expression");
+        var match=OperationValueExpression.GetMatches(raw)[0];
+        var arguments=match.Groups["ARGUMENT"].Value.Split(new[]{',',';'});
+        var stack=new Stack<Expression>();
+        foreach(var token in expression.RpnTokens) {
+            if(token is OperatorInfo) {
+                var b=stack.Pop();var a=stack.Count>0?stack.Pop():Constant(0);
+                string op=token.Token;
+                if(op=="/" && b.Value==0)stack.Push(Constant(0));
+                else if(new[]{"+","-","*","/"}.Contains(op))stack.Push(op=="/"?Truncate(Binary(a,b,op)):Binary(a,b,op));
+                else throw new NotSupportedException("Operation expression operator "+op);
+                continue;
+            }
+            var constant=token as ConstantInfo;if(constant!=null){stack.Push(Constant(constant.Value));continue;}
+            string variable=token.Token;int arg;
+            if(variable.StartsWith("$") && int.TryParse(variable.Substring(1),out arg) && arg>0 && arg<=arguments.Length)variable=arguments[arg-1].Trim();
+            long number;if(long.TryParse(variable,out number)){stack.Push(Constant(number));continue;}
+            decimal native=expression.VariableFunc(c.Operation,token.Token);
+            if(variable=="$SkillLevel"){stack.Push(Symbol(Words("Skill Level"),native));continue;}
+            if(variable=="$Fc.DistanceMm") {
+                c.Result.Legends[Words("Distance")]=Words("caster-to-target distance in game units (preview: 0)");
+                stack.Push(Symbol(Words("Distance"),native));continue;
+            }
+            string readerKey=variable.Split('(')[0];var stat=OperationValueReaderFactory.GetReadingStatType(readerKey);
+            if(stat!=StatType.None) {
+                bool caster=readerKey.StartsWith("$Fc.",StringComparison.OrdinalIgnoreCase);
+                string label=stat==StatType.PhysicalAttack?"P.ATK":stat==StatType.MagicalAttack?"M.ATK":stat==StatType.MaxHp?Words("Max HP"):stat==StatType.PhysicalDefense?"P.DEF":stat==StatType.MagicalDefense?"M.DEF":stat.ToString();
+                stack.Push(Symbol((caster?"":Words("Target")+" ")+label,native));continue;
+            }
+            throw new NotSupportedException("Operation expression reader "+variable);
+        }
+        if(stack.Count!=1)throw new NotSupportedException("Operation expression shape");
+        return stack.Pop();
+    }
+    static Expression Timing(OperationData op,bool tick,Context c) {
+        return Binary(Constant(tick?op.TickTimeMs:op.DurationMs),LevelValue(tick?op.TickTimeFactors:op.DurationFactors,0,c,false),"+");
+    }
+    static Expression Damage(OperationData op,SkillData skill,Context c,bool dot) {
+        if(formulaLinker==null)formulaLinker=new NGame2.NNodeTree.NTypeValue.NOperator.NData.NOperationData.CalcDamage.FuncLinker(value=>value is GetDamage || value is GetHeal || value is GetDot || value is GetHot);
+        var linker=formulaLinker;
+        linker.InitCreature(GameRoot.Instance.CreatureDataContainer.GetData(c.Hero.HeroIndex),(int)c.Hero.Star,c.Stat);
+        var runtime=(BaseOperationRuntime)linker.InitRuntime(skill,c.Level,op);
+        if(runtime==null)return Constant(0);
+        c.Operation=runtime.OperationInfo;c.RuntimeValues=true;c.FormulaStats=c.Operation.FiredCreature.StatController;
+        string type=op.Type.ToString();
+        bool heal=type=="GetHealR" || type=="GetHotR";
+        bool ratio=heal || new[]{"GetDamageR","GetStateDamageR","GetPhysicalDamageR","GetMagicalDamageR","GetDotR","GetPhysicalDotR","GetMagicalDotR"}.Contains(type);
+        Expression result;
+        if(ratio) {
+            var stat=heal || type.Contains("Magical")?StatType.MagicalAttack:type.Contains("Physical")?StatType.PhysicalAttack:
+                skill.AttrType==SkillAttrType.Physical?StatType.PhysicalAttack:StatType.MagicalAttack;
+            var atk=Symbol(stat==StatType.PhysicalAttack?"P.ATK":"M.ATK",c.FormulaStats==null?c.Stat.GetStat(stat):c.FormulaStats.GetFinalStat(stat));
+            var power=OperationValue(op,0,c);
+            if(type=="GetStateDamageR") {
+                c.Result.Legends[Words("Stacks")]=Words("applicable effect stacks on the target (preview: 0)");
+                power=Binary(power,Binary(OperationValue(op,4,c),Symbol(Words("Stacks"),0),"*"),"+");
+            }
+            var percentage=Binary(power,Constant(10),"/");
+            var scaled=Symbol("trunc("+(percentage.Symbolic?"("+percentage.Text+")":percentage.Text)+"% "+Words("of")+" "+atk.Text+")",System.Math.Max(decimal.Truncate(atk.Value*power.Value/1000),0));
+            result=Binary(OperationValue(op,1,c),scaled,"+");
+        } else if(new[]{"GetDamage","GetPhysicalDamage","GetMagicalDamage","GetHeal","GetDot","GetHot"}.Contains(type))result=OperationValue(op,0,c);
+        else throw new NotSupportedException("Operation "+type);
+        if(dot) {
+            var ticks=Truncate(Binary(Timing(op,false,c),Timing(op,true,c),"/"));
+            result=Binary(result,ticks,"*");
+        }
+        if(!dot && runtime is GetDamage) {
+            long amount;DamageFlag flag;((GetDamage)runtime).GetInstantDamageInfo(out amount,out flag);
+            if(result.Value!=amount)throw new InvalidOperationException("Operation parity "+skill.Index+"/"+op.OperationNo+" "+type+" values="+String.Join(",",op.Values)+" runtime="+String.Join(",",c.Operation.GetValues())+" native1="+c.Operation.GetValueInt(1)+" symbolic1="+OperationValue(op,1,c).Value+" expected="+amount+" got="+result.Value);
+        }
+        return result;
+    }
+    static Expression Numeric(ITypeValueBase node,Context c) {
+        decimal native=Convert.ToDecimal(node.GetObjectValue(c.Variable),CultureInfo.InvariantCulture);
+        try {
+            var body=node.MakeBodyJson();string path=node.ValuePath;Expression e=null;c.RuntimeValues=false;
+            if(path=="Data/OperationData/CalcDamage" || path=="Data/OperationData/CalcDot") {
+                var skill=GameRoot.Instance.SkillDataContainer.GetData(Int(body,"SkillIndex"));e=Constant(0);
+                var ids=body["OperationNoList"];
+                for(int i=0;i<ids.Count;i++) {
+                    var operation=skill==null?null:skill.GetOperationDataUnsafe(Convert.ToInt32(ids.GetFromArray(i).ToString()));
+                    if(operation!=null && operation.Type!=OperationType.None)e=Binary(e,Damage(operation,skill,c,path.EndsWith("CalcDot")),"+");
+                }
+            } else if(path=="Data/ValueFromOperationData") {
+                var skill=GameRoot.Instance.SkillDataContainer.GetData(Int(body,"SkillIndex"));var op=skill==null?null:skill.GetOperationDataUnsafe(Int(body,"OperationNo"));
+                string type=Str(body,"ValueType");
+                e=op==null?Constant(0):type=="Value"?OperationValue(op,Int(body,"ValueIndex"),c):type=="Duration"?Timing(op,false,c):type=="TickTime"?Timing(op,true,c):Constant(native);
+            } else if(path.StartsWith("Decimal/Calculate/")) {
+                var args=node.GetArgumentContainer();string op=path.Substring(path.LastIndexOf('/')+1);
+                var a=Numeric(args.GetTypeValueBase(0),c);
+                if(new[]{"Add","Sub","Multiply","Divide"}.Contains(op)) {
+                    e=a;for(int i=1;i<args.HolderList.Count;i++)e=Binary(e,Numeric(args.GetTypeValueBase(i),c),op=="Add"?"+":op=="Sub"?"-":op=="Multiply"?"*":"/");
+                } else if(op=="Round" || op=="Ceiling") {
+                    int digits=args.HolderList.Count>1?(int)Numeric(args.GetTypeValueBase(1),c).Value:0;
+                    decimal n=op=="Ceiling"?decimal.Ceiling(a.Value):decimal.Round(a.Value,digits);
+                    e=a.Symbolic?Symbol(op.ToLowerInvariant()+"("+a.Text+(digits==0?"":", "+digits)+")",n):Constant(n);
+                }
+            } else if(path=="Data/ValueFromStatData") {
+                string name=Str(body,"StatType");e=Symbol(name=="PhysicalAttack"?"P.ATK":name=="MagicalAttack"?"M.ATK":name=="MaxHp"?Words("Max HP"):name,native);
+            } else if(path=="Decimal/Convert/ToFloat")e=Numeric(node.GetArgumentContainer().GetTypeValueBase(0),c);
+            else if(path.EndsWith("/Constant") || path=="Data/ValueFromSkillData" || path=="Data/SkillData/OperationFireCount")e=Constant(native);
+            if(e==null)throw new NotSupportedException(path);
+            // Guard each symbolic quantity against the actual native evaluator.
+            if(e.Value!=native)throw new InvalidOperationException("Native parity: "+path+" expected "+native+" got "+e.Value);
+            if(e.Symbolic)c.Result.Formulas++;
+            return e;
+        } catch(Exception e) { c.Result.Unsupported.Add(node.ValuePath+": "+e.Message);return Constant(native); }
+    }
+    static string Text(ITypeValueBase node,Context c) {
+        if(node.ValuePath!="String/Localize")return Convert.ToString(node.GetObjectValue(c.Variable),CultureInfo.CurrentCulture);
+        var json=node.MakeBodyJson();string key=Str(json["LocalizeLink"],"Key");
+        var args=node.GetArgumentContainer();var values=new List<object>();
+        if(args!=null && args.HolderList!=null)foreach(var holder in args.HolderList) {
+            var child=holder.Value;
+            values.Add(child.GetValueType()==typeof(string)?(object)Text(child,c):Numeric(child,c));
+        }
+        if(c.Localize==null)return LocalizationManager.GetStringDirect(key,values.ToArray());
+        // The game uses one-based replacement tokens, not String.Format.
+        string template=c.Localize(key);
+        for(int i=0;i<values.Count;i++)template=template.Replace("{"+(i+1)+"}",Convert.ToString(values[i],CultureInfo.CurrentCulture));
+        for(int i=0;i<10 && template.Contains("{@");i++)
+            template=System.Text.RegularExpressions.Regex.Replace(template,@"\{@([^}]+)\}",m=>c.Localize(m.Groups[1].Value));
+        return template;
+    }
+    public static Result Render(int index,HeroInfo hero,Func<string,string> localize) {
+        var container=SingletonAuto<SkillDescContainer>.instance;
+        var desc=container.SkillDescDic.GETVALUE(new SkillDescContainer.DescKey(index,hero.CostumeIndex),null)
+            ??container.SkillDescDic.GETVALUE(new SkillDescContainer.DescKey(index,0),null);
+        if(desc==null) {
+            var skill=GameRoot.Instance.SkillDataContainer.GetData(index);
+            if(skill==null)throw new NotSupportedException("Missing skill");
+            if(localize==null)return new Result{Text=skill.Description};
+            string template=localize("SKILL_DESC_"+index);
+            if(skill.DescParam!=null)for(int i=0;i<skill.DescParam.Length;i++)template=template.Replace("{"+(i+1)+"}",skill.DescParam[i]);
+            for(int i=0;i<10 && template.Contains("{@");i++)template=System.Text.RegularExpressions.Regex.Replace(template,@"\{@([^}]+)\}",m=>localize(m.Groups[1].Value));
+            return new Result{Text=template};
+        }
+        var variable=SmallPooling<SkillDescVariable>.CreateInstance();
+        try {
+            var creature=GameRoot.Instance.CreatureDataContainer.GetData(hero.HeroIndex);
+            int level=hero.GetSkillLevelBySkillIndex(creature,index,true,false);
+            var stat=hero is CachedHeroInfo?SceneAutoBehaviour<StatDataCache>.instance.GetCachedHeroStat((CachedHeroInfo)hero,StatCalculator.HeroStatCalculationFlag.All):SceneAutoBehaviour<StatDataCache>.instance.GetHeroStat(hero);
+            variable.Open(stat,hero.HeroIndex,(int)hero.Star,(int)hero.Transcended,index,level);
+            var c=new Context{Hero=hero,Stat=stat,Level=level+StatCalculator.GetEquipOptionAddedSkillLevel(stat,creature.GetSkillSlotByIndex(index,true)),Variable=variable,Localize=localize};
+            var argument=(ArgumentSingleGeneric<string>)typeof(SkillDesc).GetField("_skillDesc",Private).GetValue(desc);
+            c.Result.Text=Text(argument.GetTypeValue(),c);
+            if(c.Result.Formulas>0) {
+                c.Result.Text+="\n\n"+Words("Skill Level")+" = "+c.Level;
+                foreach(var pair in c.Result.Legends)c.Result.Text+="\n"+pair.Key+" = "+pair.Value;
+                c.Result.Text+="\n"+Words("trunc: discard decimals; P.ATK / M.ATK: caster's physical / magical ATK.");
+            }
+            if(c.Result.Unsupported.Count>0)c.Result.Text+="\n\n"+Words("Some values remain calculated.");
+            return c.Result;
+        } finally { SmallPooling<SkillDescVariable>.ReleaseInstance(variable); }
+    }
+}
+
+public sealed class SprkSkillFormulaButtonHelp : MonoBehaviour {
+    void OnTooltip(bool show) {
+        var widget=GetComponent<UIWidget>();if(widget==null)return;
+        if(!show){GameOptionTooltip.Hide(widget);return;}
+        string label=SprkSkillFormulaWords.Get(SprkSkillDescriptionFormula.Formula?"Show calculated values":"Show formulas",SprkSkillFormulaWords.Locale);
+        GameOptionTooltip.Open(widget,new TooltipTextInfo{Name=new NGame2.NUtil.StringProxy{Value=label},Desc=new NGame2.NUtil.StringProxy{Value=label}});
+    }
+    void OnDisable(){var widget=GetComponent<UIWidget>();if(widget!=null)GameOptionTooltip.Hide(widget);}
+}

@@ -161,6 +161,15 @@ public sealed class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="skill-formula-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("skill-formula-"))
+                    throw new InvalidOperationException("Formula fixture requires isolated Login and skill-formula profile");
+                var probe=System.Reflection.Assembly.Load("SprkSkillDescriptionFormula").GetType("SprkSkillDescriptionFormulaProbe");
+                string method=cmd.text=="init"?"Init":cmd.text=="preference"?"Preference":cmd.text=="view"?"View":cmd.text=="toggle"?"ToggleView":"Run";
+                var report=(string)probe.GetMethod(method).Invoke(null,null);
+                reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
+            }
             if(cmd.action=="team-exp-refresh-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("team-exp-"))

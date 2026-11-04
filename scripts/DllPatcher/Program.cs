@@ -85,6 +85,8 @@ namespace DllPatcher
             if (args.Contains("--self-test-craft-shortcut")) { TestCraftShortcut(args[0]); return; }
             if (args.Contains("--soul-liberation-cost-only")) { InstallSoulLiberationCost(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-liberation-cost")) { VerifySoulLiberationCostFile(args[0]); return; }
+            if (args.Contains("--skill-formula-only")) { InstallSkillDescriptionFormula(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-skill-formula")) { VerifySkillDescriptionFormulaFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--build-release")) { BuildClientRelease(args[0]); return; }
             if (args.Contains("--pet-feeding-only")) { InstallPetFeeding(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-pet-feeding")) { VerifyPetFeedingFile(args[0]); return; }
