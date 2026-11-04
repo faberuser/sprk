@@ -159,6 +159,8 @@ partial class Program
         InstallLegacyBannerRemoval(clientRoot, false);
         InstallBatchGrind(clientRoot, false);
         InstallBatchGrind(clientRoot, false, true);
+        InstallHeroInnPresentation(clientRoot, false);
+        InstallHeroInnPresentation(clientRoot, false, true);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);

@@ -19,6 +19,7 @@ pub struct HeroInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unique_weapon_id: Option<i64>,
     pub is_bookmarked: bool,
+    #[serde(rename = "ClosenessPoint", alias = "Closeness")]
     pub closeness: i32,
     pub transcend_skill_point: i32,
     #[serde(flatten, default)]

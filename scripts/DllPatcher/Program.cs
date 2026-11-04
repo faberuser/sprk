@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--inn-presentation-only")) { InstallHeroInnPresentation(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-inn-presentation")) { InstallHeroInnPresentation(args[0], false, true); return; }
             if (args.Contains("--batch-grind-only")) { InstallBatchGrind(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-batch-grind")) { InstallBatchGrind(args[0], false, true); return; }
             if (args.Contains("--legacy-banners-only")) { InstallLegacyBannerRemoval(args[0], false); return; }
@@ -410,9 +412,9 @@ namespace DllPatcher
 
             // Print summary
             Console.WriteLine("\n=== PATCH SUMMARY ===");
-            Console.WriteLine("1. HeroInnView.InitUIBtnGroup: Changed None -> Friendly (always show recruiting buttons)");
+            Console.WriteLine("1. HeroInnView.InitUIBtnGroup: Restored pre-doomsday owned/selected button groups");
             Console.WriteLine("2. HeroInnView.InitHeroPortraits: Added bounds check to prevent IndexOutOfRangeException");
-            Console.WriteLine("3. HeroInnViewButtonGroup: Added HideUnsupportedButtons (fix ActionTypes, hide extra buttons)");
+            Console.WriteLine("3. HeroInnViewButtonGroup: Preserved native prefab action types and visibility");
             Console.WriteLine("4. StateBase_InAppBilling: Skip payment error popup (Steam initialization)");
             Console.WriteLine("5. SoulWeaponLimitBreak: Disabled Limit Break stars 6-15 (TryGetMaxStar, GetAfterDataByCurrent, GetDataByResultStar patched)");
             Console.WriteLine("6. Hero/Costume visibility: Hero OpenType None->Opened only for index 1..102 and 111 (Valance), costume visibility and priced purchases enabled, native ownership checks preserved");

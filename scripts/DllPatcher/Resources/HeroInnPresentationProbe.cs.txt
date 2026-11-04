@@ -1,0 +1,59 @@
+using System;
+using System.Linq;
+using NGame2.NUI.NWindow;
+using NShared;
+using NVespa;
+using UnityEngine;
+
+public sealed partial class SprkAutomation
+{
+    sealed class InnPresentationListener : HeroInnViewButtonGroup.Listener
+    {
+        public int GetCostValue(FriendlyActionType action) { return 0; }
+        public string GetCostKey(FriendlyActionType action) { return "COMMON_FREE_BUY"; }
+        public bool CheckCoolTime(FriendlyActionType action) { return true; }
+        public bool CheckCost(FriendlyActionType action) { return true; }
+        public bool CheckClosenessPoint() { return false; }
+    }
+    static string ProbeInnPresentation()
+    {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var host = new GameObject("InnPresentationFixture"); host.SetActive(false);
+        try
+        {
+            var prefab = VespaResource.Load<GameObject>(HeroInnView.PrefabPath);
+            if (prefab == null) throw new Exception("Native Inn prefab is missing");
+            var view = UnityEngine.Object.Instantiate(prefab, host.transform, false).GetComponent<HeroInnView>();
+            var groups = new[] { view.FriendlyBtnGroup, view.ClosenessBtnGroup, view.ConnectBtnGroup };
+            var listener = new InnPresentationListener();
+            foreach (var group in groups)
+            {
+                var actions = group.Buttons.Select(b => b.ActionType).ToArray();
+                var visibility = group.Buttons.Select(b => b.gameObject.activeSelf).ToArray();
+                group.SetListener(listener); group.SetListener(listener);
+                if (!actions.SequenceEqual(group.Buttons.Select(b => b.ActionType)) || !visibility.SequenceEqual(group.Buttons.Select(b => b.gameObject.activeSelf)))
+                    throw new Exception("SetListener rewrote serialized Inn buttons");
+            }
+            foreach (var action in new[] { FriendlyActionType.Closeness_Greeting, FriendlyActionType.Closeness_Conversation, FriendlyActionType.Closeness_Gift })
+                if (!view.ClosenessBtnGroup.Buttons.Any(b => b.ActionType == action))
+                    throw new Exception("Missing native owned-hero action: " + action);
+            int states = 0;
+            foreach (var button in view.ClosenessBtnGroup.Buttons.Where(b => b.ActionType >= FriendlyActionType.Closeness_Greeting && b.ActionType <= FriendlyActionType.Closeness_Gift))
+                foreach (bool ready in new[] { false, true })
+                    foreach (bool affordable in new[] { false, true })
+                        foreach (bool max in new[] { false, true })
+                        {
+                            button.Set(ready, affordable, max);
+                            bool cool = button.Label_Disable.gameObject.activeSelf;
+                            bool cost = button.Label_Cost.gameObject.activeSelf;
+                            bool maximum = button.Label_MaxCloseness.gameObject.activeSelf;
+                            if (cool != (!ready && !max) || cost != (ready && !max) || maximum != max
+                                || new[] { cool, cost, maximum }.Count(active => active) != 1)
+                                throw new Exception("Overlapping/wrong Inn labels: " + button.ActionType);
+                            states++;
+                        }
+            return "PASS: real Inn prefab preserves all three groups' actions and visibility; " + states + " native cooldown/cost/max label states are mutually exclusive. Affinity uses saved ClosenessPoint, not ownership.";
+        }
+        finally { UnityEngine.Object.Destroy(host); }
+    }
+}

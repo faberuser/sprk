@@ -64,7 +64,7 @@ public static class SprkTestPrefs {
 }
 
 // Local, opt-in test instrumentation. No listener, arbitrary eval, or gameplay overrides.
-public sealed class SprkAutomation : MonoBehaviour
+public sealed partial class SprkAutomation : MonoBehaviour
 {
     static SprkAutomation instance;
     string root;
@@ -185,6 +185,12 @@ public sealed class SprkAutomation : MonoBehaviour
                 var probe=System.Reflection.Assembly.Load("SprkArtifactSourceFilter").GetType("SprkArtifactSourceFilterProbe");
                 var report=(string)probe.GetMethod("Run").Invoke(null,null);
                 reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
+            }
+            if(cmd.action=="inn-presentation-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("inn-presentation-"))
+                    throw new InvalidOperationException("Inn presentation fixture requires isolated Login and inn-presentation profile");
+                reply=Snapshot(cmd.id);reply.materials.Add(ProbeInnPresentation());Write(reply);return;
             }
             if(cmd.action=="hero-rune-filter-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");

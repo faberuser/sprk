@@ -511,3 +511,26 @@ remain native. `--stage-only` stages the DLLs without installing them.
 `--verify-batch-grind` checks installed hooks/helper code and executes mode,
 filter and reward summary checks. The full `--build-release` installs and
 verifies this patch. Restart the game after installation.
+
+# Hero's Inn presentation
+
+`--inn-presentation-only` restores the September 2022 button group policy:
+owned heroes use Closeness, the active recruit uses Friendly, and unselected
+recruits use None. `SetListener` only stores its listener; each prefab retains
+its own action types, click handlers and visibility. This removes the old
+`HideUnsupportedButtons` override that assigned recruitment actions to every
+group and caused overlapping cooldown, cost and max-Affinity labels.
+
+The pre-doomsday x86 `InitUIBtnGroup` at `0x11B16D9` and
+`ClosenessButtonSet` at `0x11B3B52` establish these behaviors. Its
+`SetClosenessGauge` at `0x11B0A35` reads the saved `ClosenessPoint` and displays
+MAX only when the hero-specific threshold is reached. Owning a hero does not
+automatically fill this gauge. Server HeroInfo responses use `ClosenessPoint`
+as well, including responses to greetings.
+
+`--verify-inn-presentation` checks installed code. Run
+`python scripts/client/verify_inn_presentation.py` to check the real prefab's
+actions and all 24 owned-button label states in an isolated Unity Login.
+`--unpatched` provides the negative control and `--installed` checks a copy of
+the installed DLL. No login or account mutation occurs. The full
+`--build-release` installs and verifies this patch. Restart the game afterward.
