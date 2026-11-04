@@ -270,6 +270,10 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
     // Keep native rounding in the validation value; the player sees the clean
     // algebraic expression without implementation-level rounding notation.
     static Expression Truncate(Expression a) {return a.Symbolic?new Expression(a.Text,decimal.Truncate(a.Value),true){Priority=a.Priority,Key="truncate("+a.Key+")"}:Constant(decimal.Truncate(a.Value));}
+    static Expression Rounded(Expression a,string operation,int digits) {
+        decimal value=operation=="Ceiling"?decimal.Ceiling(a.Value):decimal.Round(a.Value,digits);
+        return a.Symbolic?new Expression(a.Text,value,true){Priority=a.Priority,Key=operation+":"+digits+"("+a.Key+")"}:Constant(value);
+    }
     internal static void VerifyRepeatedTermGrouping() {
         var atk=Binary(Symbol("ATK",100),Constant(10),"+");
         var hp=Binary(Symbol("HP",100),Constant(10),"+");
@@ -281,6 +285,14 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
         if(nested.Text!="3 * (ATK + 10)" || nested.Value!=330)throw new Exception("Nested grouping failed");
         var rounded=Truncate(Symbol("x",1.25m));var exact=Symbol("x",1);
         if(Sum(new[]{rounded,exact}).Text!="x + x")throw new Exception("Different rounding boundaries were grouped");
+        var addition=Binary(Symbol("ATK",100.45m),Constant(10),"+");
+        var roundedAddition=Rounded(addition,"Round",0);
+        if(roundedAddition.Text!="ATK + 10" || roundedAddition.Value!=110 || Binary(roundedAddition,Constant(2),"*").Text!="(ATK + 10) * 2")throw new Exception("Hidden rounding lost value or precedence");
+        var precision=Rounded(Symbol("x",1.25m),"Round",1);
+        var ceiling=Rounded(Symbol("x",1.25m),"Ceiling",0);
+        if(precision.Text!="x" || precision.Value!=1.2m || ceiling.Text!="x" || ceiling.Value!=2)throw new Exception("Hidden round/ceiling value mismatch");
+        if(Sum(new[]{Rounded(Symbol("x",1),"Round",0),Rounded(Symbol("x",1),"Round",1)}).Text!="x + x")throw new Exception("Different rounding precision was grouped");
+        if(Sum(new[]{ceiling,Symbol("x",2)}).Text!="x + x")throw new Exception("Ceiling boundary was grouped with an unrounded value");
         if(Sum(new[]{atk,hp}).Text.Contains("2 *"))throw new Exception("Different symbols were grouped by their current values");
     }
     static int Int(JsonData j,string name){return Convert.ToInt32(j[name].ToString(),CultureInfo.InvariantCulture);}
@@ -425,8 +437,7 @@ public sealed class SprkSkillDescriptionFormula : MonoBehaviour {
                     e=a;for(int i=1;i<args.HolderList.Count;i++)e=Binary(e,Numeric(args.GetTypeValueBase(i),c),op=="Add"?"+":op=="Sub"?"-":op=="Multiply"?"*":"/");
                 } else if(op=="Round" || op=="Ceiling") {
                     int digits=args.HolderList.Count>1?(int)Numeric(args.GetTypeValueBase(1),c).Value:0;
-                    decimal n=op=="Ceiling"?decimal.Ceiling(a.Value):decimal.Round(a.Value,digits);
-                    e=a.Symbolic?Symbol(op.ToLowerInvariant()+"("+a.Text+(digits==0?"":", "+digits)+")",n):Constant(n);
+                    e=Rounded(a,op,digits);
                 }
             } else if(path=="Data/ValueFromStatData") {
                 string name=Str(body,"StatType");e=Symbol(name=="PhysicalAttack"?"P.ATK":name=="MagicalAttack"?"M.ATK":name=="MaxHp"?Words("Max HP"):name,native);

@@ -115,7 +115,7 @@ public static class SprkSkillDescriptionFormulaProbe {
                         try {
                             SprkSkillDescriptionFormula.WordProvider=text=>SprkSkillFormulaWords.Get(text,lang.Key);
                             var rendered=SprkSkillDescriptionFormula.Render(id,hero,lookup);
-                            Check(!rendered.Text.Contains("trunc(") && !rendered.Text.Contains(" = "),"clean formula presentation "+id+"/"+lang.Key);
+                            Check(new[]{"trunc(","round(","ceiling("}.All(token=>!rendered.Text.Contains(token)) && !rendered.Text.Contains(" = "),"clean formula presentation "+id+"/"+lang.Key);
                             localized[lang.Key]=rendered.Text;
                             if(lang.Key=="en") {
                                 formulas+=rendered.Formulas;
@@ -228,7 +228,7 @@ public static class SprkSkillDescriptionFormulaProbe {
         var indexState=archive.GetComponent<SprkSkillDescriptionFormula>();Check(indexState!=null,"Index refresh hook");
         indexState.Toggle();string indexFormula=archive.LabelDesc.text;
         Check(indexFormula!=indexCalculated && indexFormula==SprkSkillDescriptionFormula.Render(GameRoot.Instance.CreatureDataContainer.GetData(72).SkillIndex1,linkedHero,null).Text,"Index formula uses native reference hero");
-        Check(!indexFormula.Contains("trunc(") && !indexFormula.Contains(" = "),"Index simplified text");
+        Check(new[]{"trunc(","round(","ceiling("}.All(token=>!indexFormula.Contains(token)) && !indexFormula.Contains(" = "),"Index simplified text");
         CheckDescriptionLayout(archive,archive.LabelDesc,false);
         indexState.Toggle();Check(archive.LabelDesc.text==indexCalculated,"Index calculated description restored");
         for(int i=0;i<10;i++)archive.SetSkillInfo();
