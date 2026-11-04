@@ -16,6 +16,8 @@ public static class SprkFreeCamera {
         public Vector3 Pan;
         public Vector2 Last;
         public int Button=-1;
+        public object ShadowModel;
+        public ShadowBounds[] Shadows;
         public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
     }
     static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
@@ -30,7 +32,13 @@ public static class SprkFreeCamera {
         var panel=left.target.GetComponent<UIPanel>();
         return left.target.GetComponent<Camera>()!=null || panel!=null && panel.clipping==UIDrawCall.Clipping.None;
     }
-    public static void InvalidateLayout(BaseWindow window) { if(window!=null)layouts.Remove(window); }
+    public static void InvalidateLayout(BaseWindow window) {
+        if(window==null)return;
+        layouts.Remove(window);
+        State state;
+        var preview=window as HeroFullSceneViewBase;
+        if(preview!=null && states.TryGetValue(preview,out state))RestoreShadows(state);
+    }
     public static Transform LayoutRoot(BaseWindow window) {
         // Lobby menus anchor their children directly to panels/cameras and do
         // not all have a stretchable Panel/Root widget.
@@ -67,7 +75,7 @@ public static class SprkFreeCamera {
     }
     static State Get(HeroFullSceneViewBase window) {
         var state=states.GetOrCreateValue(window);
-        if(!ReferenceEquals(state.Controller,window.CameraController)){state.Reset();state.Controller=window.CameraController;state.AnchorModel=null;state.Head=null;}
+        if(!ReferenceEquals(state.Controller,window.CameraController)){RestoreShadows(state);state.Reset();state.Controller=window.CameraController;state.AnchorModel=null;state.Head=null;}
         return state;
     }
     static float ReadSensitivity(string key) { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics."+key,SprkTestPrefs.GetInt("Sprk.Graphics.CameraSensitivity",100)),50,150)/100f; }
@@ -81,7 +89,11 @@ public static class SprkFreeCamera {
     public static float ScaleLobbyZoom(float delta) {
         return Application.isMobilePlatform || Input.touchCount>0?delta:delta*LobbySensitivity;
     }
-    public static void Reset(HeroFullSceneViewBase window) { if(window!=null){states.Remove(window);layouts.Remove(window);} }
+    public static void Reset(HeroFullSceneViewBase window) {
+        if(window==null)return;
+        State state;if(states.TryGetValue(window,out state))RestoreShadows(state);
+        states.Remove(window);layouts.Remove(window);
+    }
     public static bool InputCamera(HeroFullSceneViewBase window) {
         if(!Eligible(window)||Application.isMobilePlatform||Input.touchCount>0)return false;
         var state=Get(window);
@@ -371,6 +383,21 @@ public static class SprkFreeCamera {
         if(cinema.CinemaCamera==null || window.CameraController==null)return;
         var info=cinema.CinemaCamera.CameraInfo;
         var facade=((MotionSequence.IDataProvider)window).GetRenderFacade();
+        if(facade!=null && facade.AssetCreatureAsync.ISDONE() && facade.Pivot!=null) {
+            if(!ReferenceEquals(state.ShadowModel,facade.Pivot)) {
+                RestoreShadows(state);
+                state.ShadowModel=facade.Pivot;
+                var entries=new System.Collections.Generic.List<ShadowBounds>();
+                foreach(var renderer in facade.GetComponentsInChildren<Renderer>(true)) {
+                    var entry=ShadowBounds.Create(renderer);
+                    if(entry!=null)entries.Add(entry);
+                }
+                state.Shadows=entries.ToArray();
+            }
+            var shadow=Shader.GetGlobalVector("_ShadowDirection");
+            if(state.Shadows!=null && Mathf.Abs(shadow.y)>.001f)
+                foreach(var entry in state.Shadows)entry.Apply(facade.transform.position.y,new Vector3(shadow.x,shadow.y,shadow.z));
+        }
         // ShapeBounds is the stable body volume, not animated mesh/weapon bounds.
         // Do not use the UI-shifted native target as the orbit center.
         var pivot=facade!=null && facade.ShapeBounds.size.y>.01f
@@ -407,6 +434,188 @@ public static class SprkFreeCamera {
         info.LookDir=direction;
         info.TargetDistance=distance;
         camera.ChainUpdate();
+    }
+
+    // Planar shadows are drawn by the character's own shader pass. Unity culls
+    // that entire renderer using its unprojected bounds, including its shadow.
+    // Preview-only bounds must contain both the model and its floor projection.
+    sealed class ShadowBounds {
+        public SkinnedMeshRenderer Skin;
+        public MeshFilter Filter;
+        public Mesh Original,Copy;
+        public Bounds Source,Applied;
+        public bool HasApplied;
+        public bool UpdateWhenOffscreen;
+        public Transform[] Bones;
+        public Matrix4x4[] Bindposes;
+        public Bounds MeshBounds;
+        public static ShadowBounds Create(Renderer renderer) {
+            var skin=renderer as SkinnedMeshRenderer;
+            if(skin!=null)return new ShadowBounds{Skin=skin,Source=skin.localBounds,UpdateWhenOffscreen=skin.updateWhenOffscreen,
+                Bones=skin.bones,Bindposes=skin.sharedMesh!=null?skin.sharedMesh.bindposes:null,MeshBounds=skin.sharedMesh!=null?skin.sharedMesh.bounds:skin.localBounds};
+            var mesh=renderer as MeshRenderer;
+            var filter=mesh!=null?mesh.GetComponent<MeshFilter>():null;
+            if(filter==null || filter.sharedMesh==null)return null;
+            return new ShadowBounds{Filter=filter,Original=filter.sharedMesh,Source=filter.sharedMesh.bounds};
+        }
+        public void Apply(float floor,Vector3 direction) {
+            Matrix4x4 matrix;
+            if(Skin!=null) {
+                Skin.updateWhenOffscreen=false;
+                var current=Skin.localBounds;
+                if(!HasApplied || !Same(current,Applied))Source=current;
+                matrix=Skin.rootBone!=null?Skin.rootBone.localToWorldMatrix:Skin.localToWorldMatrix;
+            } else {
+                if(Filter==null || Original==null || (Filter.sharedMesh!=Original && Filter.sharedMesh!=Copy))return;
+                matrix=Filter.transform.localToWorldMatrix;
+            }
+            var posed=Source;
+            // Unity otherwise replaces localBounds during skinning/culling.
+            // Bound the current bone transforms conservatively without baking
+            // vertices on the CPU. Each weighted vertex lies in the union of
+            // its bones' transformed bind-pose mesh bounds.
+            if(Skin!=null && Bones!=null && Bindposes!=null && Bones.Length==Bindposes.Length) {
+                var inverse=matrix.inverse;
+                for(int i=0;i<Bones.Length;i++)if(Bones[i]!=null) {
+                    var pose=inverse*Bones[i].localToWorldMatrix*Bindposes[i];
+                    for(int j=0;j<8;j++)posed.Encapsulate(pose.MultiplyPoint3x4(Corner(MeshBounds,j)));
+                }
+            }
+            var expanded=ProjectedBounds(posed,matrix,floor,direction);
+            if(Skin!=null)Skin.localBounds=expanded;
+            else {
+                if(Copy==null){Copy=UnityEngine.Object.Instantiate(Original);Copy.name=Original.name+" (preview shadow bounds)";Filter.sharedMesh=Copy;}
+                Copy.bounds=expanded;
+            }
+            Applied=expanded;HasApplied=true;
+        }
+        public void Restore() {
+            if(Skin!=null && HasApplied && Same(Skin.localBounds,Applied))Skin.localBounds=Source;
+            if(Skin!=null)Skin.updateWhenOffscreen=UpdateWhenOffscreen;
+            if(Filter!=null && Filter.sharedMesh==Copy)Filter.sharedMesh=Original;
+            if(Copy!=null)UnityEngine.Object.Destroy(Copy);
+            Copy=null;HasApplied=false;
+        }
+        static bool Same(Bounds a,Bounds b) {return (a.center-b.center).sqrMagnitude<1e-10f && (a.size-b.size).sqrMagnitude<1e-10f;}
+    }
+    static Bounds ProjectedBounds(Bounds source,Matrix4x4 matrix,float floor,Vector3 direction) {
+        var inverse=matrix.inverse;
+        var expanded=source;
+        for(int i=0;i<8;i++) {
+            var corner=Corner(source,i);
+            var world=matrix.MultiplyPoint3x4(corner);
+            world-=direction*((world.y-floor)/direction.y);
+            expanded.Encapsulate(inverse.MultiplyPoint3x4(world));
+        }
+        expanded.Expand(.05f);
+        return expanded;
+    }
+    static Vector3 Corner(Bounds bounds,int i) {
+        return bounds.center+Vector3.Scale(bounds.extents,new Vector3((i&1)==0?-1:1,(i&2)==0?-1:1,(i&4)==0?-1:1));
+    }
+    static void RestoreShadows(State state) {
+        if(state.Shadows!=null)foreach(var entry in state.Shadows)entry.Restore();
+        state.Shadows=null;state.ShadowModel=null;
+    }
+
+    static int ProbeIsaiahShadowBounds() {
+        var path=System.IO.Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle/OriginalSpec/Creature_Hero_Isaiah_Star5.unity3d");
+        var bundle=AssetBundle.LoadFromFile(path);
+        if(bundle==null)throw new Exception("Native Isaiah model bundle unavailable");
+        var host=new GameObject("IsaiahBoundsFixture");host.SetActive(false);
+        int count=0;
+        try {
+            foreach(var prefab in bundle.LoadAllAssets<GameObject>()) {
+                var model=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+                foreach(var renderer in model.GetComponentsInChildren<Renderer>(true)) {
+                    var entry=ShadowBounds.Create(renderer);
+                    if(entry==null)continue;
+                    try {
+                        entry.Apply(0,new Vector3(-.3f,-1,.4f));
+                        var bounds=renderer.bounds;
+                        if(float.IsNaN(bounds.size.x) || float.IsInfinity(bounds.size.y))throw new Exception("Invalid Isaiah shadow bounds");
+                        for(int i=0;i<5;i++)entry.Apply(0,new Vector3(-.3f,-1,.4f));
+                        if((renderer.bounds.size-bounds.size).sqrMagnitude>.000001f)throw new Exception("Isaiah bounds accumulated across frames");
+                        count++;
+                    } finally {entry.Restore();}
+                }
+            }
+            if(count==0)throw new Exception("Isaiah model contained no renderers");
+            return count;
+        } finally {UnityEngine.Object.DestroyImmediate(host);bundle.Unload(true);}
+    }
+
+    public static string ProbePreviewShadows() {
+        RestoredPortal.EnsureNativeShaderVariables();
+        var shader=Shader.Find("Vespa/ToonColor2/Shadow");
+        if(shader==null || !shader.isSupported)throw new Exception("Native planar shadow shader unavailable");
+        var oldDirection=Shader.GetGlobalVector("_ShadowDirection");
+        var cameraObject=new GameObject("PreviewShadowProbeCamera");
+        var cube=GameObject.CreatePrimitive(PrimitiveType.Cube);cube.name="OffscreenShadowCaster";cube.layer=30;
+        var material=new Material(shader);material.SetTexture("_AlphaTex",Texture2D.whiteTexture);
+        material.SetColor("_Color",new Color(0,0,0,.5f));material.EnableKeyword("EXTRARENDERFX_OFF");
+        cube.GetComponent<Renderer>().sharedMaterial=material;cube.transform.position=new Vector3(0,3,0);
+        var camera=cameraObject.AddComponent<Camera>();camera.cullingMask=1<<30;camera.orthographic=true;camera.orthographicSize=.65f;
+        camera.transform.position=new Vector3(0,2,-4);camera.transform.LookAt(Vector3.zero);camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.white;
+        var target=new RenderTexture(160,160,24);camera.targetTexture=target;
+        var picture=new Texture2D(160,160,TextureFormat.RGB24,false);
+        var entry=ShadowBounds.Create(cube.GetComponent<Renderer>());
+        var original=cube.GetComponent<MeshFilter>().sharedMesh;
+        try {
+            Shader.SetGlobalVector("_ShadowDirection",new Vector4(0,-1,0,0));
+            if(GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera),cube.GetComponent<Renderer>().bounds))throw new Exception("Fixture caster must be offscreen");
+            Func<int> pixels=()=>{
+                camera.Render();var previous=RenderTexture.active;RenderTexture.active=target;
+                picture.ReadPixels(new Rect(0,0,160,160),0,0);picture.Apply();RenderTexture.active=previous;
+                int count=0;foreach(var pixel in picture.GetPixels32())if(pixel.r<240 || pixel.g<240 || pixel.b<240)count++;
+                return count;
+            };
+            int before=pixels();entry.Apply(0,Vector3.down);int after=pixels();
+            if(before!=0 || after<100)throw new Exception("Native shadow reproduction failed: before="+before+", after="+after);
+            var bounds=entry.Copy.bounds;
+            for(int i=0;i<50;i++)entry.Apply(0,Vector3.down);
+            if((entry.Copy.bounds.size-bounds.size).sqrMagnitude>.000001f)throw new Exception("Preview shadow bounds grew between frames");
+            entry.Restore();
+            if(cube.GetComponent<MeshFilter>().sharedMesh!=original || pixels()!=before)throw new Exception("Preview shadow mesh/bounds were not restored");
+            // Exercise the character path too, including an offset root bone.
+            cube.GetComponent<Renderer>().enabled=false;
+            var skinObject=new GameObject("SkinnedOffscreenShadowCaster");skinObject.layer=30;skinObject.transform.position=cube.transform.position;
+            var bone=new GameObject("OffsetRootBone");bone.transform.SetParent(skinObject.transform,false);bone.transform.localPosition=new Vector3(0,.25f,0);
+            var skin=skinObject.AddComponent<SkinnedMeshRenderer>();
+            var mesh=UnityEngine.Object.Instantiate(original);
+            try {
+                var weights=new BoneWeight[mesh.vertexCount];
+                for(int i=0;i<weights.Length;i++)weights[i]=new BoneWeight{boneIndex0=0,weight0=1};
+                mesh.boneWeights=weights;mesh.bindposes=new[]{bone.transform.worldToLocalMatrix*skinObject.transform.localToWorldMatrix};
+                skin.sharedMesh=mesh;skin.bones=new[]{bone.transform};skin.rootBone=bone.transform;skin.sharedMaterial=material;skin.updateWhenOffscreen=true;
+                skin.localBounds=new Bounds(new Vector3(0,-.25f,0),Vector3.one);
+                if((skin.bounds.center-cube.transform.position).sqrMagnitude>.0001f)throw new Exception("Skinned bounds must use root bone space");
+                var skinned=ShadowBounds.Create(skin);
+                try {
+                    if(pixels()!=0)throw new Exception("Fixture skinned caster must be offscreen");
+                    skinned.Apply(0,Vector3.down);int skinnedPixels=pixels();
+                    if(skinnedPixels<100)throw new Exception("Skinned preview shadow was still culled: "+skinnedPixels);
+                    var applied=skin.localBounds;
+                    for(int i=0;i<50;i++)skinned.Apply(0,Vector3.down);
+                    if((skin.localBounds.size-applied.size).sqrMagnitude>.000001f)throw new Exception("Skinned bounds grew between frames");
+                    // Simulate the animator replacing its bounds for a new pose.
+                    skin.localBounds=new Bounds(new Vector3(.1f,-.25f,0),Vector3.one);
+                    skinned.Apply(0,Vector3.down);
+                    if((skinned.Source.center-new Vector3(.1f,-.25f,0)).sqrMagnitude>.000001f)throw new Exception("Animated bounds were not preserved");
+                    bone.transform.localPosition+=new Vector3(.2f,0,0);
+                    skinned.Apply(0,Vector3.down);
+                    if(pixels()<100)throw new Exception("Moving bone lost its projected shadow");
+                    skinned.Restore();
+                    if(!skin.updateWhenOffscreen)throw new Exception("Native offscreen skinning flag was not restored");
+                    if(pixels()!=0)throw new Exception("Skinned preview bounds did not restore");
+                    int isaiah=ProbeIsaiahShadowBounds();
+                    return "PASS: native shader shadow disappears with offscreen caster bounds ("+before+" pixels), remains visible with projection bounds (static="+after+", skinned="+skinnedPixels+" pixels); offset root bone, 50 stable updates, latest animated pose and cleanup verified; "+isaiah+" real Isaiah model renderers validated.";
+                } finally {skinned.Restore();}
+            } finally {UnityEngine.Object.Destroy(skinObject);UnityEngine.Object.Destroy(mesh);}
+        } finally {
+            entry.Restore();Shader.SetGlobalVector("_ShadowDirection",oldDirection);UnityEngine.Object.Destroy(cube);UnityEngine.Object.Destroy(cameraObject);
+            UnityEngine.Object.Destroy(material);UnityEngine.Object.Destroy(picture);target.Release();UnityEngine.Object.Destroy(target);
+        }
     }
 }
 

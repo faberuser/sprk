@@ -161,6 +161,13 @@ public sealed partial class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="preview-shadow-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("preview-shadow-"))
+                    throw new InvalidOperationException("Preview shadow fixture requires isolated Login and preview-shadow profile");
+                var probe=System.Reflection.Assembly.Load("SprkFreeCamera").GetType("SprkFreeCamera");
+                reply=Snapshot(cmd.id);reply.materials.Add((string)probe.GetMethod("ProbePreviewShadows").Invoke(null,null));Write(reply);return;
+            }
             if(cmd.action=="line-pet-index-probe" || cmd.action=="line-pet-currency-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("line-pets-"))

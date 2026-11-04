@@ -564,3 +564,23 @@ fields. `--verify-line-pet-currency` checks prices, permanence and integrity;
 the full `--build-release` installs and verifies this transformation.
 `python scripts/client/verify_line_pets.py --currency` validates the loaded
 native table in isolation (`--unpatched` for the negative control).
+
+### Preview shadow culling
+
+`--free-camera-only` also preserves planar shadows when a caster leaves the
+camera frustum in See Motions, Dressing Room and the hero model preview. The
+preview bounds contain both the model and its projection along the native
+`_ShadowDirection`. Animated bounds use the current bones and bind-pose mesh
+bounds without baking vertices. Automatic offscreen bounds replacement is
+temporarily disabled; reset, window disable and model replacement restore the
+native settings. Static meshes use private copies whose bounds are restored on
+release. Combat rendering is outside this window scope.
+
+`--verify-free-camera` checks the projection hook and cleanup paths, including
+through the existing full `--build-release` workflow.
+`python scripts/client/verify_preview_shadows.py` reproduces the lost shadow
+with the native shader, verifies static/skinned projection bounds, moving and
+offset bones, stable repeated updates, cleanup, and the actual Isaiah model.
+`--installed` checks the installed helper in isolation. `--camera-controls`
+runs the existing native preview camera/layout regression checks. Neither test
+logs in or changes an account.
