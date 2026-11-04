@@ -1,0 +1,66 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NGame2.NUI.NWindow.NPet;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NVespa;
+using UnityEngine;
+
+public sealed partial class SprkAutomation
+{
+    static string ProbeLinePetCurrency()
+    {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        foreach (var id in new[] { 26, 27, 29, 30 })
+        {
+            var data = GameRoot.Instance.NewEquipGachaDataContainer.GetData(id);
+            var standard = GameRoot.Instance.NewEquipGachaDataContainer.GetData(id == 26 || id == 27 ? 25 : 28);
+            if (data.OpenGem != standard.OpenGem * 2 || data.OpenGem <= 0 || data.TicketOnly)
+                throw new Exception("Incorrect LINE ruby price/payment type: " + id);
+            if (data.Durational != 0 || !String.IsNullOrEmpty(data.BeginTime) || !String.IsNullOrEmpty(data.EndTime))
+                throw new Exception("LINE summon still has a period: " + id);
+        }
+        return "PASS: native LINE summon tables load 500-ruby singles / 5,000-ruby 10+1 draws, with ruby payment and no event period.";
+    }
+    static string ProbeLinePetIndex()
+    {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var account = NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var managers = account.GetType().GetProperty("AccountManagers", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(account, null);
+        var petField = managers.GetType().GetField("PetManager");
+        var previousPets = petField.GetValue(managers);
+        var pets = new NGame2.NAccount.UserPetManager();
+        pets.Reset(new PetInfo[0]);
+        petField.SetValue(managers, pets);
+        var host = new GameObject("LinePetIndexFixture"); host.SetActive(false);
+        try
+        {
+            var all = GameRoot.Instance.CreatureDataContainer.GetAllData().Where(d => d.Race == CreatureRaceType.Pet).ToArray();
+            var line = all.Where(d => d.IsLinePet).ToArray();
+            if (line.Length != 16) throw new Exception("Expected all 16 archived LINE pet definitions, found " + line.Length);
+            var prefab = VespaResource.Load<GameObject>(PetListBook.PrefabPath);
+            if (prefab == null) throw new Exception("Pet index prefab missing");
+            var book = UnityEngine.Object.Instantiate(prefab, host.transform, false).GetComponent<PetListBook>();
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            typeof(PetListBook).GetMethod("SetupPetList", flags).Invoke(book, null);
+            var setup = typeof(PetListBook).GetMethod("SetupPetPortraitComponent", flags);
+            var field = typeof(PetListBook).GetField("_petPortraitComponentList", flags);
+            int checkedRows = 0;
+            foreach (var grade in new[] { CreatureGrade.None }.Concat(line.Select(d => d.CreatureGrade).Distinct()))
+            {
+                setup.Invoke(book, new object[] { grade });
+                var portraits = (List<PetPortraitComponent>)field.GetValue(book);
+                var expected = all.Where(d => grade == CreatureGrade.None || d.CreatureGrade == grade).Select(d => d.Index).OrderBy(i => i).ToArray();
+                var actual = portraits.Select(p => p.CreatureData.Index).OrderBy(i => i).ToArray();
+                if (!expected.SequenceEqual(actual)) throw new Exception("Pet index missing rows for " + grade + ": expected " + expected.Length + ", found " + actual.Length);
+                checkedRows += actual.Length;
+                foreach (var pet in line.Where(d => grade == CreatureGrade.None || d.CreatureGrade == grade))
+                    if (!actual.Contains(pet.Index)) throw new Exception("LINE pet hidden: " + pet.Index);
+            }
+            return "PASS: all 16 LINE pets appear in the real pet index and matching rarity tabs; " + checkedRows + " native portrait rows checked.";
+        }
+        finally { petField.SetValue(managers, previousPets); UnityEngine.Object.Destroy(host); }
+    }
+}

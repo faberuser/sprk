@@ -534,3 +534,33 @@ actions and all 24 owned-button label states in an isolated Unity Login.
 `--unpatched` provides the negative control and `--installed` checks a copy of
 the installed DLL. No login or account mutation occurs. The full
 `--build-release` installs and verifies this patch. Restart the game afterward.
+# LINE pet index and summons
+
+`--line-pets-only` restores the pre-doomsday pet index by removing only the
+`IsLinePet` exclusion from `PetListBook.SetupPetPortraitComponent`. The native
+rarity filter, owned/unowned portraits and LINE-specific care/adventure rules
+remain intact. `--verify-line-pets` checks installed code; `--stage-only` stages
+the game DLL. The full `--build-release` installs and verifies the patch.
+
+`python scripts/client/verify_line_pets.py` tests the real Unity index in an
+isolated Login, including all 16 LINE entries and both rarity tabs. It never
+logs in or changes an account. `--unpatched` is the negative control;
+`--installed` checks a copy of the installed DLL.
+
+`LiveRules.json` routes first-set banners 27/30 to archived `GACHA_PET_2_GROUP`
+and second-set banners 26/29 to `GACHA_PET_3_GROUP`, including their bonus draws.
+The existing 100-draw pity uses the corresponding LINE Legendary group. Event
+pool weights match the September 2022 `ItemGroupTable2`; ordinary pets and pet
+food remain possible. Native mileage rewards and ordinary banners are unchanged.
+Run `cargo test --locked pet_ -- --test-threads=1` for summon/ownership regression
+checks. Restart the game and server after installing the DLL/rules.
+
+`--line-pet-currency-only` makes banners 26/27/29/30 permanent ruby purchases
+at twice the matching normal banner price (5,000 rubies for 10+1 and 500 for a
+single). It edits only their duration/date/payment/price fields in native
+`NewEquipGachaTable.jit` and updates `SPRK-NativeData.json`. Existing tickets
+remain usable, like normal summons. Server `LiveSupport.json` matches these
+fields. `--verify-line-pet-currency` checks prices, permanence and integrity;
+the full `--build-release` installs and verifies this transformation.
+`python scripts/client/verify_line_pets.py --currency` validates the loaded
+native table in isolation (`--unpatched` for the negative control).

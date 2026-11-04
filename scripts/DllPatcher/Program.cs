@@ -9,6 +9,10 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--line-pet-currency-only")) { RestoreLinePetCurrency(args[0], false); return; }
+            if (args.Contains("--verify-line-pet-currency")) { RestoreLinePetCurrency(args[0], true); return; }
+            if (args.Contains("--line-pets-only")) { InstallLinePets(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-line-pets")) { InstallLinePets(args[0], false, true); return; }
             if (args.Contains("--inn-presentation-only")) { InstallHeroInnPresentation(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-inn-presentation")) { InstallHeroInnPresentation(args[0], false, true); return; }
             if (args.Contains("--batch-grind-only")) { InstallBatchGrind(args[0], args.Contains("--stage-only")); return; }
