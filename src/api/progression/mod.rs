@@ -395,15 +395,24 @@ async fn execute(
             for (id, last_step) in ids.into_iter().zip(steps) {
                 // Native GetStepArray sends AchievementInfo.LastStep, not the
                 // next reward step. Match it against saved state before advancing.
-                let step = last_step.checked_add(1).filter(|_| last_step >= 0)
+                let mut step = last_step.checked_add(1).filter(|_| last_step >= 0)
                     .ok_or_else(|| rule("InvalidStep"))?;
-                let row = table
+                let mut first = true;
+                // Hero achievements (Type 4, e.g. every 10 hero levels) claim
+                // every completed step at once; the first step keeps the
+                // native errors and later steps stop at the first unmet one.
+                loop {
+                let row = match table
                     .achievements
                     .iter()
                     .find(|r| n(r, "Index") == id && n(r, "Step") == step)
-                    .ok_or_else(|| rule("InvalidAchievementIndex"))?;
+                {
+                    Some(row) => row,
+                    None if first => return Err(rule("InvalidAchievementIndex")),
+                    None => break,
+                };
                 let p = period(row);
-                if view.last("achievement", id, &p) != last_step {
+                if first && view.last("achievement", id, &p) != last_step {
                     return Err(rule("InvalidStep"));
                 }
                 let (value, target) = view.achievement(state, row);
@@ -420,15 +429,21 @@ async fn execute(
                 if (matches!(n(row, "Type"), 3 | 7 | 8 | 9) && !state::daily_hot_time(row))
                     || (!view.condition(&row["OpenCondition"]) && !battle_access)
                 {
+                    if !first { break; }
                     return Err(rule("RewardTimeEnded"));
                 }
                 if value < target {
+                    if !first { break; }
                     return Err(rule("AchievementNotCleared"));
                 }
                 claim(db, account, "achievement", id, step, &p).await?;
                 stamina.extend(
                     achievement_reward(db, state, account, row, &mut rewards, &mut booster).await?,
                 );
+                if n(row, "Type") != 4 { break; }
+                first = false;
+                step += 1;
+                }
             }
             if !rewards.heroes.is_empty() {
                 return Err(rule("InvalidRewardData"));
