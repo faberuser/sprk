@@ -489,3 +489,12 @@ whichever hero wears the most saved pieces (lowest hero index breaks ties).
 Empty slots, deleted gear, and unequipped/chest gear show no portrait. The helper
 reads current equipment ownership whenever the native panel refreshes, rather
 than remembering who originally saved or applied the slot.
+# Legacy banner downloads
+
+`--legacy-banners-only` disables remote shop and product-offer banner downloads,
+returns an empty board URL, and clears the retired endpoint from the native
+`ConstantTable.jit` and its compiled preload copy. It preserves other table
+entries and updates `SPRK-NativeData.json` integrity metadata. Use
+`--verify-legacy-banners` to check the installed methods, preload array size,
+empty constants, hostname removal and table hash. The full `--build-release`
+applies and verifies this cleanup too. Restart the game after installation.

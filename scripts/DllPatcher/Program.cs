@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--legacy-banners-only")) { InstallLegacyBannerRemoval(args[0], false); return; }
+            if (args.Contains("--verify-legacy-banners")) { InstallLegacyBannerRemoval(args[0], true); return; }
             if (args.Contains("--arena-practice-only")) { InstallArenaPractice(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-arena-practice")) { InstallArenaPractice(args[0], args.Contains("--stage-only"), true); return; }
             if (args.Contains("--gear-preset-portraits-only")) { InstallGearPresetPortraits(args[0], false); return; }
@@ -292,6 +294,7 @@ namespace DllPatcher
                 PatchInventoryRuneCategory(module);
                 PatchDealerTicketPopup(module);
                 PatchAppReviewPopup(module);
+                PatchLegacyBannerDownloads(module);
                 PatchOrvelVisuals(module);
                 PatchArenaRematchPrompt(module);
                 PatchArenaResponsiveness(module);
