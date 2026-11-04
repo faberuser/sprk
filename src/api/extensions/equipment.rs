@@ -345,17 +345,40 @@ pub(super) async fn execute(
                 ],
             )?;
             if req.number("MaterialItemIndex", 0)? != n(price, "MaterialItemIndex") {
-                return Err(rule("InvalidMaterial"));
+                return Err(rule("MaterialItemIndexMismatch"));
+            }
+            // Both native buttons send the cost of ONE step, even when the
+            // max-upgrade confirmation displays the total batch cost.
+            let material_cost = n(price, "MaterialItemCount");
+            let gold_cost = n(price, "ReqGold");
+            if req.number("MaterialItemCount", 0)? != material_cost {
+                return Err(rule("MaterialItemCountMismatch"));
+            }
+            if material_cost <= 0 || gold_cost <= 0 {
+                return Err(rule("InvalidReqGold"));
+            }
+            let owned: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=? AND locked=0")
+                .bind(account).bind(n(price, "MaterialItemIndex"))
+                .fetch_optional(&mut *db).await?.unwrap_or(0);
+            let gold: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+                .bind(account).fetch_one(&mut *db).await?;
+            let owned = owned - crate::api::battle::entry_costs::held(db, account, "Item", n(price, "MaterialItemIndex")).await?;
+            let gold = gold - crate::api::battle::entry_costs::held(db, account, "Currency", 3).await?;
+            if owned < material_cost {
+                return Err(rule("NotEnoughMaterialItem"));
+            }
+            if gold < gold_cost {
+                return Err(rule("NotEnoughGold"));
             }
             let max = if action == "max_upgrade_equip_option" {
-                1000
+                (owned / material_cost).min(gold / gold_cost)
             } else {
                 1
             };
             let mut v = json!(eq);
             let mut steps = 0;
             for _ in 0..max {
-                let available: Vec<usize> = (1..=4)
+                let available: Vec<usize> = (1..=5)
                     .filter(|i| {
                         state
                             .tables
@@ -374,12 +397,9 @@ pub(super) async fn execute(
                 steps += 1;
             }
             if steps == 0 {
-                return Err(rule("MaxLevel"));
+                return Err(rule("NoUpgradableOptionSlot"));
             }
-            let count = n(price, "MaterialItemCount") * steps;
-            if req.number("MaterialItemCount", 0)? < count {
-                return Err(rule("NotEnoughMaterial"));
-            }
+            let count = material_cost * steps;
             out["ItemResult"] = item::consume(
                 db,
                 account,
@@ -388,7 +408,7 @@ pub(super) async fn execute(
             )
             .await?;
             out["CurrencyResult"] =
-                hero::currency(db, account, "Gold", -n(price, "ReqGold") * steps).await?;
+                hero::currency(db, account, "Gold", -gold_cost * steps).await?;
             eq = serde_json::from_value(v).map_err(|_| rule("InvalidOption"))?;
             super::super::progression::record(db, account, "UpgradeEquipOption", eq.item_index as i64, 0, steps)
                 .await?;
