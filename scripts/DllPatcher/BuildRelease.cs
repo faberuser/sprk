@@ -157,6 +157,8 @@ partial class Program
         InstallMariaLegendBird(clientRoot);
         InstallMariaLegendBird(clientRoot,true);
         InstallLegacyBannerRemoval(clientRoot, false);
+        InstallBatchGrind(clientRoot, false);
+        InstallBatchGrind(clientRoot, false, true);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);

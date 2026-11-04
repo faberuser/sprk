@@ -9,6 +9,8 @@ namespace DllPatcher
     {
         static void Main(string[] args)
         {
+            if (args.Contains("--batch-grind-only")) { InstallBatchGrind(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-batch-grind")) { InstallBatchGrind(args[0], false, true); return; }
             if (args.Contains("--legacy-banners-only")) { InstallLegacyBannerRemoval(args[0], false); return; }
             if (args.Contains("--verify-legacy-banners")) { InstallLegacyBannerRemoval(args[0], true); return; }
             if (args.Contains("--arena-practice-only")) { InstallArenaPractice(args[0], args.Contains("--stage-only")); return; }

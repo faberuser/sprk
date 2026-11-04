@@ -1,0 +1,78 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using NShared;
+
+public static class SprkBatchGrind
+{
+    public static string Summary(string original, IEnumerable<EquipItemInfo> items)
+    {
+        int total = 0, weapons = 0, treasures = 0;
+        var rewards = new SortedDictionary<string, long[]>();
+        bool missing = false;
+        foreach (var item in items)
+        {
+            if (item == null) continue;
+            total++;
+            if (!item.IsUniqueWeapon && !item.IsUniqueTreasure) continue;
+            if (item.IsUniqueWeapon) weapons++;
+            else treasures++;
+            var data = GameRoot.Instance.ItemDataContainer.GetData(item.ItemIndex);
+            var equip = data.GetSubData<EquipItemData>();
+            var row = GameRoot.Instance.EquipItemBreakDataContainer.GetData(equip.Tier, equip.DetailIndex, data.Code, item.Star, equip.SetIndex);
+            if (row == null) { missing = true; continue; }
+            Add(rewards, row.ItemCode1, row.MinItemCount1, row.MaxItemCount1, row.ItemCount1_1, row.ItemRate1_1, row.ItemCount1_2, row.ItemRate1_2);
+            Add(rewards, row.ItemCode2, row.MinItemCount2, row.MaxItemCount2, row.ItemCount2_1, row.ItemRate2_1, row.ItemCount2_2, row.ItemRate2_2);
+            Add(rewards, row.ItemCode3, row.MinItemCount3, row.MaxItemCount3, row.ItemCount3_1, row.ItemRate3_1, row.ItemCount3_2, row.ItemRate3_2);
+            Add(rewards, row.ItemCode4, row.MinItemCount4, row.MaxItemCount4, row.ItemCount4_1, row.ItemRate4_1, row.ItemCount4_2, row.ItemRate4_2);
+            Add(rewards, row.ItemCode5, row.MinItemCount5, row.MaxItemCount5, row.ItemCount5_1, row.ItemRate5_1, row.ItemCount5_2, row.ItemRate5_2);
+        }
+        if (weapons + treasures == 0) return original;
+        var named = new SortedDictionary<string, long[]>();
+        foreach (var pair in rewards)
+        {
+            var data = GameRoot.Instance.ItemDataContainer.GetDataByCode(pair.Key);
+            var name = data == null ? pair.Key : data.Name;
+            long[] counts;
+            if (!named.TryGetValue(name, out counts)) named[name] = counts = new long[2];
+            counts[0] += pair.Value[0]; counts[1] += pair.Value[1];
+        }
+        return Format(original, total, weapons, treasures, named, missing);
+    }
+
+    public static void Add(SortedDictionary<string, long[]> totals, string code, int min, int max,
+        int bonus1, int rate1, int bonus2, int rate2)
+    {
+        if (String.IsNullOrEmpty(code)) return;
+        long low = max > 0 ? min : 0, high = Math.Max(0, max);
+        if (rate1 >= 1000) low += bonus1;
+        if (rate2 >= 1000) low += bonus2;
+        if (rate1 > 0) high += bonus1;
+        if (rate2 > 0) high += bonus2;
+        if (high <= 0) return;
+        long[] count;
+        if (!totals.TryGetValue(code, out count)) totals[code] = count = new long[2];
+        count[0] += low; count[1] += high;
+    }
+
+    public static string Format(string original, int total, int weapons, int treasures,
+        SortedDictionary<string, long[]> rewards, bool missing)
+    {
+        if (weapons + treasures == 0) return original;
+        var text = new StringBuilder();
+        text.Append("Grind ").Append(total).Append(" selected items?\n");
+        if (weapons > 0) text.Append("Unique Weapons: ").Append(weapons).Append('\n');
+        if (treasures > 0) text.Append("Unique Treasures: ").Append(treasures).Append('\n');
+        if (total > weapons + treasures) text.Append("Other gear: ").Append(total - weapons - treasures).Append('\n');
+        text.Append("\nUnique item rewards:\n");
+        foreach (var pair in rewards)
+        {
+            text.Append(pair.Key).Append(": ").Append(pair.Value[0].ToString("N0"));
+            if (pair.Value[0] != pair.Value[1]) text.Append(" - ").Append(pair.Value[1].ToString("N0"));
+            text.Append('\n');
+        }
+        if (missing) text.Append("Some rewards cannot be previewed.\n");
+        text.Append("\nAll selected items will be permanently destroyed.\nThis cannot be undone.");
+        return text.ToString();
+    }
+}
