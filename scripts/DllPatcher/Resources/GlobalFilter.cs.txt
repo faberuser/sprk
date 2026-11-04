@@ -1,0 +1,301 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NComponent2;
+using NShared;
+using NGame2.NUI;
+using NVespa.NGlobal;
+
+// Global Filter: per-preset colour grading applied on top of the game's own
+// post-processing. The world stack and model previews each get a companion
+// camera that renders no geometry and runs an isolated PPv2 stack over the
+// anchor camera's finished target. Native volumes never see these profiles.
+public sealed partial class SprkGraphicsOptions {
+    public sealed class FilterValues {
+        public int X,Y,Temperature,Sharpness,Brightness,Contrast,Saturation,Grayscale,Shadows,Bloom,Vignette,Grain,Intensity;
+        public FilterValues Clone() { return (FilterValues)MemberwiseClone(); }
+        public int[] ToArray() { return new[]{X,Y,Temperature,Sharpness,Brightness,Contrast,Saturation,Grayscale,Shadows,Bloom,Vignette,Grain,Intensity}; }
+        public static FilterValues FromArray(int[] a) {
+            return new FilterValues{X=a[0],Y=a[1],Temperature=a[2],Sharpness=a[3],Brightness=a[4],Contrast=a[5],Saturation=a[6],Grayscale=a[7],Shadows=a[8],Bloom=a[9],Vignette=a[10],Grain=a[11],Intensity=a[12]};
+        }
+        public string Serialize() { return string.Join(",",ToArray().Select(v=>v.ToString(CultureInfo.InvariantCulture)).ToArray()); }
+        public static FilterValues Parse(string text,FilterValues fallback) {
+            if(string.IsNullOrEmpty(text))return fallback.Clone();
+            var parts=text.Split(',');
+            if(parts.Length!=FilterFields.Length)return fallback.Clone();
+            var values=new int[parts.Length];
+            for(int i=0;i<parts.Length;i++) {
+                int value;
+                if(!int.TryParse(parts[i],NumberStyles.Integer,CultureInfo.InvariantCulture,out value))return fallback.Clone();
+                values[i]=Mathf.Clamp(value,FilterFields[i].Min,FilterFields[i].Max);
+            }
+            return FromArray(values);
+        }
+        // No player adjustment on top of the preset look.
+        public bool Neutral { get { return ToArray().Take(FilterFieldIntensity).All(v=>v==0); } }
+        public bool SameAs(FilterValues other) { return other!=null && ToArray().SequenceEqual(other.ToArray()); }
+        public int Get(int field) { return ToArray()[field]; }
+        public FilterValues With(int field,int value) {
+            var a=ToArray();a[field]=Mathf.Clamp(value,FilterFields[field].Min,FilterFields[field].Max);return FromArray(a);
+        }
+    }
+    public sealed class FilterField {
+        public readonly string Name,Unit;public readonly int Min,Max;
+        public FilterField(string name,int min,int max,string unit=""){Name=name;Min=min;Max=max;Unit=unit;}
+    }
+    // Index order matches FilterValues.ToArray(). Entries 2..11 are the Advanced
+    // sliders, in display order.
+    public static readonly FilterField[] FilterFields={
+        new FilterField("Palette X",-5,5),new FilterField("Palette Y",-5,5),
+        new FilterField("Color Temperature",-50,50,"K"),new FilterField("Sharpness",0,50),
+        new FilterField("Brightness",-50,50),new FilterField("Contrast",-50,50),
+        new FilterField("Saturation",-50,50),new FilterField("Grayscale",-50,50),
+        new FilterField("Shadows",-50,50),new FilterField("Bloom",-50,50),
+        new FilterField("Vignette",0,50),new FilterField("Film Grain",0,50),
+        new FilterField("Filter Intensity",0,100)};
+    public const int FilterFieldIntensity=12;
+    public static readonly string[] FilterPresetNames={"Default","Vivid","Soft","Film","Dystopian","Noir","Warm","Cool"};
+    // Each preset's built-in look. The palette and Advanced values a player edits are
+    // adjustments on top of it (all 0 by default); Filter Intensity scales the look,
+    // and 50 (the default) gives exactly this table. The last column is the blend
+    // strength (%) each look was tuned at.
+    // X, Y, Temperature, Sharpness, Brightness, Contrast, Saturation, Grayscale, Shadows, Bloom, Vignette, Grain, Strength
+    static readonly int[][] filterPresetLooks={
+        new[]{0,0,  0, 0,  0,  0,  0,  0,  0,  0,  0,  0,100},
+        new[]{0,0,  0,10,  0, 30, 40,-15,-20,  0,  0,  0, 60},
+        new[]{0,1,  5, 0, 10,-20,-10,  0, 15, 20,  5,  0, 70},
+        new[]{0,0, 10, 0,  0, 15,-15,  0, 10,  0, 20, 25, 80},
+        new[]{-2,-2,-25,10, 0, 25,-30,  0,-15,  0, 25,  5, 80},
+        new[]{0,0,  0,15,  0, 40,  0, 50,-25,  0, 35, 15,100},
+        new[]{1,1, 30, 0,  5,  5, 10,  0,  0, 10,  0,  0, 70},
+        new[]{0,0,-30, 0,  0, 10,  5,  0,  0,  0,  0,  0, 70}};
+    public const int DefaultFilterIntensity=50;
+    public static FilterValues FilterPresetDefaults(int preset) {
+        var values=new int[FilterFields.Length];
+        values[FilterFieldIntensity]=Mathf.Clamp(preset,0,FilterPresetNames.Length-1)==0?100:DefaultFilterIntensity;
+        return FilterValues.FromArray(values);
+    }
+    // Effective amounts: the preset look scaled by intensity, plus the player adjustments.
+    public static float[] EffectiveFilter(int preset,FilterValues v) {
+        preset=Mathf.Clamp(preset,0,FilterPresetNames.Length-1);
+        var look=filterPresetLooks[preset];
+        float scale=preset==0?0f:v.Intensity/(float)DefaultFilterIntensity*look[FilterFieldIntensity]/100f;
+        var result=new float[FilterFieldIntensity];
+        for(int i=0;i<result.Length;i++)result[i]=Mathf.Clamp(look[i]*scale+v.Get(i),FilterFields[i].Min*2f,FilterFields[i].Max*2f);
+        return result;
+    }
+    public static bool FilterHasEffect(int preset,FilterValues v) { return EffectiveFilter(preset,v).Any(e=>Mathf.Abs(e)>.001f); }
+    // v2 stores adjustments on top of the preset look (v1 stored absolute values).
+    static string FilterKey(int preset) { return "Sprk.Graphics.Filter.v2."+FilterPresetNames[preset]; }
+    static string LegacyFilterKey(int preset) { return "Sprk.Graphics.Filter."+FilterPresetNames[preset]; }
+    public static int FilterPreset {
+        get { return Mathf.Clamp(SprkTestPrefs.GetInt("Sprk.Graphics.Filter.Preset",0),0,FilterPresetNames.Length-1); }
+        set { SprkTestPrefs.SetInt("Sprk.Graphics.Filter.Preset",Mathf.Clamp(value,0,FilterPresetNames.Length-1));SprkTestPrefs.Save(); }
+    }
+    public static FilterValues SavedFilter(int preset) {
+        preset=Mathf.Clamp(preset,0,FilterPresetNames.Length-1);
+        var defaults=FilterPresetDefaults(preset);
+        var values=FilterValues.Parse(SprkTestPrefs.GetString(FilterKey(preset),""),defaults);
+        // Default has no intensity control; its tweaks always apply in full.
+        return preset==0?values.With(FilterFieldIntensity,100):values;
+    }
+    public static void SaveFilter(int preset,FilterValues values) {
+        if(preset<0 || preset>=FilterPresetNames.Length)return;
+        if(preset==0)values=values.With(FilterFieldIntensity,100);
+        if(values.SameAs(FilterPresetDefaults(preset)))SprkTestPrefs.DeleteKey(FilterKey(preset));
+        else SprkTestPrefs.SetString(FilterKey(preset),values.Serialize());
+        SprkTestPrefs.Save();
+    }
+    public static void ResetFilter(int preset) { if(preset>=0 && preset<FilterPresetNames.Length){SprkTestPrefs.DeleteKey(FilterKey(preset));SprkTestPrefs.Save();} }
+    public static void RestoreDefaultFilters() {
+        for(int i=0;i<FilterPresetNames.Length;i++){SprkTestPrefs.DeleteKey(FilterKey(i));SprkTestPrefs.DeleteKey(LegacyFilterKey(i));}
+        SprkTestPrefs.DeleteKey("Sprk.Graphics.Filter.Preset");SprkTestPrefs.Save();
+    }
+    // Live preview from the settings panel; it is never persisted.
+    static int previewFilterPreset=-1;
+    static FilterValues previewFilterValues;
+    public static void PreviewFilter(int preset,FilterValues values) { previewFilterPreset=Mathf.Clamp(preset,0,FilterPresetNames.Length-1);previewFilterValues=values==null?null:values.Clone(); }
+    public static void EndFilterPreview() { previewFilterPreset=-1;previewFilterValues=null; }
+    public static int ActiveFilterPreset { get { return previewFilterPreset>=0?previewFilterPreset:FilterPreset; } }
+    public static FilterValues ActiveFilterValues { get { return previewFilterPreset>=0 && previewFilterValues!=null?previewFilterValues:SavedFilter(ActiveFilterPreset); } }
+    public static bool GlobalFilterActive { get { return FilterPanelOpen || FilterHasEffect(ActiveFilterPreset,ActiveFilterValues); } }
+    public static string FilterValueLabel(int field,int value) {
+        if(field==2)return (value>0?"+":"")+(value*40).ToString(CultureInfo.InvariantCulture)+"K";
+        return value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    // ---- Rendering --------------------------------------------------------
+    sealed class FilterStack {
+        public GameObject host;public PostProcessProfile profile;public PostProcessVolume volume;
+        public ColorGrading grading;public Bloom bloom;public Vignette vignette;public Grain grain;public NTEC.PPU.Sharpen sharpen;
+    }
+    static int worldFilterLayer=-1,previewFilterLayer=-1;
+    FilterStack worldFilter,previewFilter;
+    readonly Dictionary<Camera,Camera> filterCameras=new Dictionary<Camera,Camera>();
+    readonly HashSet<Camera> filterCameraSet=new HashSet<Camera>();
+    readonly Dictionary<Camera,bool> filterAnchors=new Dictionary<Camera,bool>();
+    readonly Dictionary<RenderTexture,Camera> previewAnchors=new Dictionary<RenderTexture,Camera>();
+    readonly List<Camera> removeFilterCameras=new List<Camera>();
+    string appliedFilter;
+    public static string FilterStatus { get { return instance==null?"Not initialized":instance.filterStatus; } }
+    string filterStatus="Inactive";
+    public static bool IsFilterCamera(Camera camera) { return instance!=null && camera!=null && instance.filterCameraSet.Contains(camera); }
+    public static int FilterCameraCount { get { return instance==null?0:instance.filterCameras.Count(p=>p.Value!=null && p.Value.enabled); } }
+    public static int WorldFilterMask { get { return worldFilterLayer<0?0:1<<worldFilterLayer; } }
+    public static int PreviewFilterMask { get { return previewFilterLayer<0?0:1<<previewFilterLayer; } }
+    static bool EnsureFilterLayers() {
+        if(worldFilterLayer>=0 && previewFilterLayer>=0 && thumbFilterLayer>=0)return true;
+        var free=new List<int>();
+        // Volumes only need a layer no native post-process layer listens to.
+        // This client names most layers; unnamed ones (31, 7, 6, 3) are unused.
+        for(int i=31;i>=3 && free.Count<3;i--)if(string.IsNullOrEmpty(LayerMask.LayerToName(i)))free.Add(i);
+        if(free.Count<3){Debug.LogWarning("SPRK global filter: no free volume layers");return false;}
+        worldFilterLayer=free[0];previewFilterLayer=free[1];thumbFilterLayer=free[2];
+        Debug.Log("SPRK global filter: volume layers world="+worldFilterLayer+" preview="+previewFilterLayer+" thumbnail="+thumbFilterLayer);
+        return true;
+    }
+    static T AddEffect<T>(PostProcessProfile profile) where T:PostProcessEffectSettings {
+        var effect=ScriptableObject.CreateInstance<T>();effect.hideFlags=HideFlags.DontSave;
+        effect.enabled.Override(false);profile.AddSettings(effect);return effect;
+    }
+    FilterStack CreateFilterStack(string name,int layer,bool world) {
+        var stack=new FilterStack();
+        stack.host=new GameObject(name);stack.host.layer=layer;stack.host.transform.SetParent(transform,false);
+        stack.profile=ScriptableObject.CreateInstance<PostProcessProfile>();stack.profile.hideFlags=HideFlags.DontSave;stack.profile.name=name;
+        stack.grading=AddEffect<ColorGrading>(stack.profile);
+        stack.grading.gradingMode.Override(GradingMode.LowDefinitionRange);
+        if(world) {
+            stack.bloom=AddEffect<Bloom>(stack.profile);
+            stack.bloom.threshold.Override(.8f);stack.bloom.softKnee.Override(.5f);stack.bloom.diffusion.Override(7f);
+            stack.vignette=AddEffect<Vignette>(stack.profile);
+            stack.vignette.mode.Override(VignetteMode.Classic);stack.vignette.color.Override(Color.black);stack.vignette.smoothness.Override(.4f);stack.vignette.roundness.Override(1f);stack.vignette.rounded.Override(false);
+            stack.grain=AddEffect<Grain>(stack.profile);
+            stack.grain.colored.Override(false);stack.grain.size.Override(1f);stack.grain.lumContrib.Override(.8f);
+            stack.sharpen=AddEffect<NTEC.PPU.Sharpen>(stack.profile);
+        }
+        stack.volume=stack.host.AddComponent<PostProcessVolume>();
+        stack.volume.isGlobal=true;stack.volume.priority=1000;stack.volume.sharedProfile=stack.profile;stack.volume.weight=0;
+        return stack;
+    }
+    static float PaletteSaturation(float x) { return x>0?x*4f:x*8f; }
+    static void ApplyFilterValues(FilterStack stack,int preset,FilterValues values) {
+        if(stack==null)return;
+        var e=EffectiveFilter(preset,values);
+        float X=e[0],Y=e[1],temperature=e[2],sharpness=e[3],brightness=e[4],contrast=e[5],sat=e[6],grayscale=e[7],shadows=e[8],bloom=e[9],vignette=e[10],grain=e[11];
+        stack.volume.weight=1f;
+        var g=stack.grading;g.enabled.Override(true);
+        g.temperature.Override(Mathf.Clamp(temperature*1.2f,-100f,100f));
+        g.brightness.Override(Mathf.Clamp(brightness,-100f,100f));
+        g.contrast.Override(Mathf.Clamp(contrast,-100f,100f));
+        float saturation=sat*1.2f+PaletteSaturation(X);
+        if(grayscale<0)saturation+=-grayscale*.8f;
+        saturation=Mathf.Clamp(saturation,-100f,100f);
+        if(grayscale>0)saturation=Mathf.Lerp(saturation,-100f,grayscale/50f);
+        g.saturation.Override(saturation);
+        g.lift.Override(new Vector4(0,0,0,shadows/50f*.3f+Y*.05f));
+        g.gamma.Override(new Vector4(0,0,0,Y*.04f));
+        g.gain.Override(new Vector4(0,0,0,bloom<0?bloom/50f*.25f:0f));
+        if(stack.bloom!=null){stack.bloom.enabled.Override(bloom>0);stack.bloom.intensity.Override(Mathf.Max(0,bloom)/50f*4f);}
+        if(stack.vignette!=null){stack.vignette.enabled.Override(vignette>0);stack.vignette.intensity.Override(Mathf.Min(1f,vignette/50f*.45f));}
+        if(stack.grain!=null){stack.grain.enabled.Override(grain>0);stack.grain.intensity.Override(Mathf.Min(1f,grain/50f*.6f));}
+        if(stack.sharpen!=null){stack.sharpen.enabled.Override(sharpness>0);stack.sharpen.Intensity.Override(sharpness/50f);}
+    }
+    Camera CreateFilterCamera(Camera anchor,bool world) {
+        var host=new GameObject("SPRK Filter Camera ("+anchor.name+")");host.transform.SetParent(transform,false);
+        host.SetActive(false);
+        var camera=host.AddComponent<Camera>();
+        camera.clearFlags=CameraClearFlags.Nothing;camera.cullingMask=0;camera.orthographic=true;camera.orthographicSize=1;
+        camera.nearClipPlane=.01f;camera.farClipPlane=1;camera.useOcclusionCulling=false;camera.allowHDR=false;camera.allowDynamicResolution=false;
+        var layer=host.AddComponent<PostProcessLayer>();
+        layer.Init(resources);layer.volumeTrigger=host.transform;layer.volumeLayer=world?WorldFilterMask:PreviewFilterMask;
+        layer.antialiasingMode=PostProcessLayer.Antialiasing.None;layer.fog.enabled=false;layer.stopNaNPropagation=false;
+        if(world)camera.AddCommandBuffer(UnityEngine.Rendering.CameraEvent.AfterImageEffects,OpaqueAlphaCommand());
+        filterCameraSet.Add(camera);
+        host.SetActive(true);
+        return camera;
+    }
+    // Some shipped effects (NTEC sharpen) write zero alpha. The world image is
+    // opaque, so restore alpha=1 to keep captures and later blends unchanged.
+    PropertySheet discardAlpha,copySheet;
+    UnityEngine.Rendering.CommandBuffer opaqueAlpha;
+    UnityEngine.Rendering.CommandBuffer OpaqueAlphaCommand() {
+        if(opaqueAlpha!=null)return opaqueAlpha;
+        var sheets=new PropertySheetFactory();
+        if(discardAlpha==null)discardAlpha=sheets.Get(resources.shaders.discardAlpha);
+        if(copySheet==null)copySheet=sheets.Get(resources.shaders.copy);
+        opaqueAlpha=new UnityEngine.Rendering.CommandBuffer{name="SPRK Global Filter opaque alpha"};
+        int temp=Shader.PropertyToID("_SprkGlobalFilterAlpha");
+        opaqueAlpha.GetTemporaryRT(temp,-1,-1,0,FilterMode.Point,RenderTextureFormat.ARGB32);
+        RuntimeUtilities.BlitFullscreenTriangle(opaqueAlpha,UnityEngine.Rendering.BuiltinRenderTextureType.CameraTarget,temp,discardAlpha,0);
+        RuntimeUtilities.BlitFullscreenTriangle(opaqueAlpha,temp,UnityEngine.Rendering.BuiltinRenderTextureType.CameraTarget,copySheet,0);
+        opaqueAlpha.ReleaseTemporaryRT(temp);
+        return opaqueAlpha;
+    }
+    void DestroyFilterCamera(Camera camera) {
+        if(camera==null)return;
+        filterCameraSet.Remove(camera);
+        camera.targetTexture=null;camera.gameObject.SetActive(false);Destroy(camera.gameObject);
+    }
+    public static void ReleaseGlobalFilterThumbnails() { if(instance!=null)instance.ReleaseFilterThumbnails(); }
+    void ReleaseFilterCameras() {
+        ReleaseFilterThumbnails();
+        foreach(var pair in filterCameras)DestroyFilterCamera(pair.Value);
+        filterCameras.Clear();filterCameraSet.RemoveWhere(c=>c==null);
+    }
+    void SetFilterCamerasEnabled(bool enabled) {
+        foreach(var pair in filterCameras)if(pair.Value!=null && pair.Value.enabled!=enabled)pair.Value.enabled=enabled;
+    }
+    float NextCameraDepth(float depth) {
+        float next=float.PositiveInfinity;
+        foreach(var camera in cameras)if(camera.depth>depth && camera.depth<next)next=camera.depth;
+        return float.IsPositiveInfinity(next)?depth+1f:(depth+next)*.5f;
+    }
+    void StripFilterLayers(Camera camera) {
+        int mask=WorldFilterMask|PreviewFilterMask|ThumbFilterMask;
+        var layer=camera.GetComponent<PostProcessLayer>();
+        if(layer!=null && (layer.volumeLayer.value&mask)!=0)layer.volumeLayer=layer.volumeLayer.value&~mask;
+    }
+    // Called after the anti-aliasing/scale pass, which has already collected
+    // this frame's cameras and routed the world stack into the world target.
+    void UpdateGlobalFilter(bool collected) {
+        if(!GlobalFilterActive){SetFilterCamerasEnabled(false);ReleaseFilterSnapshotCommand();filterStatus="Inactive";return;}
+        if(!FindResources()){SetFilterCamerasEnabled(false);filterStatus="Post-processing resources unavailable";return;}
+        if(!EnsureFilterLayers()){SetFilterCamerasEnabled(false);filterStatus="No free volume layers";return;}
+        if(worldFilter==null)worldFilter=CreateFilterStack("SPRK Global Filter (World)",worldFilterLayer,true);
+        if(previewFilter==null)previewFilter=CreateFilterStack("SPRK Global Filter (Preview)",previewFilterLayer,false);
+        var values=ActiveFilterValues;string signature=ActiveFilterPreset+":"+values.Serialize();
+        if(appliedFilter!=signature){ApplyFilterValues(worldFilter,ActiveFilterPreset,values);ApplyFilterValues(previewFilter,ActiveFilterPreset,values);appliedFilter=signature;}
+        if(!collected)CollectCameras();
+        filterAnchors.Clear();previewAnchors.Clear();
+        if(world!=null && lastWorld!=null && lastWorld.targetTexture==world && lastWorld.isActiveAndEnabled)filterAnchors[lastWorld]=true;
+        foreach(var camera in cameras) {
+            StripFilterLayers(camera);
+            var target=camera.targetTexture;TargetSize size;
+            if(target==null || target==world || camera.cullingMask==0 || IsUI(camera) || !ownedTargets.TryGetValue(target,out size) || size.world)continue;
+            Camera existing;
+            if(!previewAnchors.TryGetValue(target,out existing) || existing.depth<=camera.depth)previewAnchors[target]=camera;
+        }
+        foreach(var camera in previewAnchors.Values)filterAnchors[camera]=false;
+        removeFilterCameras.Clear();
+        foreach(var pair in filterCameras)if(pair.Key==null || pair.Value==null || !filterAnchors.ContainsKey(pair.Key) || filterAnchors[pair.Key]!=(pair.Value.GetComponent<PostProcessLayer>().volumeLayer.value==WorldFilterMask))removeFilterCameras.Add(pair.Key);
+        foreach(var anchor in removeFilterCameras){DestroyFilterCamera(filterCameras[anchor]);filterCameras.Remove(anchor);}
+        int world_=0,preview_=0;Camera worldCompanion=null;
+        foreach(var pair in filterAnchors) {
+            Camera companion;
+            if(!filterCameras.TryGetValue(pair.Key,out companion)){companion=CreateFilterCamera(pair.Key,pair.Value);filterCameras[pair.Key]=companion;}
+            var target=pair.Key.targetTexture;
+            if(companion.targetTexture!=target)companion.targetTexture=target;
+            float depth=NextCameraDepth(pair.Key.depth);
+            if(companion.depth!=depth)companion.depth=depth;
+            companion.allowMSAA=target!=null && target.antiAliasing>1;
+            if(!companion.enabled)companion.enabled=true;
+            if(pair.Value){world_++;worldCompanion=companion;}else preview_++;
+        }
+        UpdateFilterSnapshot(worldCompanion);
+        filterStatus="Active "+FilterPresetNames[ActiveFilterPreset]+" world="+world_+" previews="+preview_;
+    }
+}
