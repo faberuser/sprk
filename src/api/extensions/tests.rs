@@ -45,6 +45,91 @@ async fn call(s: &AppState, u: &user::LoginResponse, action: &str, args: &str) -
 }
 
 #[tokio::test]
+async fn option_enhancement_accepts_native_per_step_cost_and_limits_batches() {
+    // T8 legendary gear: the native request sends 1,152 dust even when the
+    // confirmation popup quotes the total for many steps.
+    for (action, dust_steps, gold_steps, expected_steps) in [
+        ("max_upgrade_equip_option", 50, 50, 40),
+        ("max_upgrade_equip_option", 3, 50, 3),
+        ("max_upgrade_equip_option", 50, 2, 2),
+        ("upgrade_equip_option", 50, 50, 1),
+    ] {
+        let (s, u) = setup().await;
+        let a = u.user_info.account_id;
+        let eq = give(&s, a, 810009, 1).await.equipment.remove(0);
+        give(&s, a, 43055, 1152 * dust_steps).await;
+        // Replace any initial inventory dust when imposing the material limit.
+        sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+            .bind(1152 * dust_steps + 7).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?")
+            .bind(768000 * gold_steps + 11).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE equip_items SET option_index_1=101,option_index_2=101,option_index_3=101,option_index_4=101,option_index_5=0,option_step_1=0,option_step_2=0,option_step_3=0,option_step_4=0 WHERE slot_index=?")
+            .bind(eq.slot_index).execute(&s.db).await.unwrap();
+        let out = call(&s, &u, action, &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
+        assert_eq!(out["Result"], "Success", "{out}");
+        let result = &out["ResultEquipItem"];
+        assert_eq!((1..=4).map(|i| n(result, &format!("OptionStep{i}"))).sum::<i64>(), expected_steps);
+        for i in 1..=4 { assert!(n(result, &format!("OptionStep{i}")) <= 10); }
+        assert_eq!(gold(&s).await, 768000 * (gold_steps as i64 - expected_steps) + 11);
+        assert_eq!(out["CurrencyResult"]["AddValue"], -768000 * expected_steps);
+        assert_eq!(out["ItemResult"]["AddCount"], -1152 * expected_steps);
+        let dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        assert_eq!(dust, 1152 * (dust_steps as i64 - expected_steps) + 7);
+        let persisted: i64 = sqlx::query_scalar("SELECT option_step_1+option_step_2+option_step_3+option_step_4 FROM equip_items WHERE slot_index=?")
+            .bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
+        assert_eq!(persisted, expected_steps);
+    }
+}
+
+#[tokio::test]
+async fn option_enhancement_errors_are_native_and_preserve_inventory() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let eq = give(&s, a, 810009, 1).await.equipment.remove(0);
+    give(&s, a, 43055, 10000).await;
+    sqlx::query("UPDATE equip_items SET option_index_1=101,option_step_1=9,option_index_2=0,option_index_3=0,option_index_4=0,option_index_5=101,option_step_5=9 WHERE slot_index=?")
+        .bind(eq.slot_index).execute(&s.db).await.unwrap();
+    let before_gold = gold(&s).await;
+    let before_dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    for (slot, material, count, expected) in [
+        (eq.slot_index, 43055, 2304, "MaterialItemCountMismatch"),
+        (eq.slot_index, 43056, 1152, "MaterialItemIndexMismatch"),
+        (i32::MAX, 43055, 1152, "EquipNotOwned"),
+    ] {
+        let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={slot}&MaterialItemIndex={material}&MaterialItemCount={count}")).await;
+        assert_eq!(out["Result"], expected, "{out}");
+    }
+    assert_eq!(gold(&s).await, before_gold);
+    // Failed resource checks must leave both option slots and balances intact.
+    for (gold, dust, expected) in [(0, before_dust, "NotEnoughGold"), (before_gold, 0, "NotEnoughMaterialItem")] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?")
+            .bind(gold).bind(a).execute(&s.db).await.unwrap();
+        sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+            .bind(dust).bind(a).execute(&s.db).await.unwrap();
+        let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
+        assert_eq!(out["Result"], expected, "{out}");
+        let unchanged: (i64, i64) = sqlx::query_as("SELECT option_step_1,option_step_5 FROM equip_items WHERE slot_index=?")
+            .bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
+        assert_eq!(unchanged, (9, 9));
+    }
+    sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+        .bind(before_dust).bind(a).execute(&s.db).await.unwrap();
+    let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
+    assert_eq!(out["Result"], "Success", "{out}");
+    assert_eq!(out["ResultEquipItem"]["OptionStep1"], 10);
+    assert_eq!(out["ResultEquipItem"]["OptionStep5"], 10);
+    assert_eq!(gold(&s).await, before_gold - 2 * 768000);
+    let dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(dust, before_dust - 2 * 1152);
+    let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
+    assert_eq!(out["Result"], "NoUpgradableOptionSlot", "{out}");
+    assert_eq!(gold(&s).await, before_gold - 2 * 768000);
+}
+
+#[tokio::test]
 async fn public_awakening_stones_obey_equipment_type() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;

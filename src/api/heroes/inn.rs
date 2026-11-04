@@ -30,6 +30,20 @@ fn select_random_heroes(available: &[i32], count: usize) -> Vec<i32> {
     available.choose_multiple(&mut rng, count.min(available.len())).cloned().collect()
 }
 
+// Recruitment and visiting are separate: owned heroes can fill the remaining
+// seats, including heroes at maximum closeness. Keep an active recruit first.
+fn select_inn_visitors(available: &[i32], owned_visitors: &[i32], active: i32) -> Vec<i32> {
+    let mut selected = if available.contains(&active) { vec![active] } else { Vec::new() };
+    let candidates: Vec<i32> = available.iter().copied().filter(|id| *id != active).collect();
+    selected.extend(select_random_heroes(&candidates, 6 - selected.len()));
+    selected.extend(select_random_heroes(owned_visitors, 6 - selected.len()));
+    selected
+}
+
+fn owned_inn_visitors(state: &AppState, owned: &[i32]) -> Vec<i32> {
+    owned.iter().copied().filter(|id| state.tables.hero_shop.inn_recruitment_points.contains_key(id)).collect()
+}
+
 // ============================================================================
 // Request New Friendly Hero - Called when opening Hero Inn
 // ============================================================================
@@ -91,7 +105,7 @@ pub async fn request_new_friendly_hero(
     let current_time = state.server_time_str();
     let mut tx = state.db.begin().await?;
 
-    // Get player's owned heroes to exclude from inn
+    // Ownership excludes recruitment, not social visits.
     let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
         .bind(account_id)
         .fetch_all(&mut *tx)
@@ -105,6 +119,7 @@ pub async fn request_new_friendly_hero(
         .into_iter()
         .filter(|h| !owned_heroes.contains(h))
         .collect();
+    let owned_visitors = owned_inn_visitors(&state, &owned_heroes);
 
     // Check if there's an existing friendly info for this account
     let existing = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
@@ -126,7 +141,7 @@ pub async fn request_new_friendly_hero(
         }
     } else {
         // Create new info with random heroes (6 heroes displayed in the inn)
-        let selected_heroes = select_random_heroes(&available_heroes, 6);
+        let selected_heroes = select_inn_visitors(&available_heroes, &owned_visitors, 0);
 
         let selected_hero_indices_str = selected_heroes
             .iter()
@@ -134,7 +149,9 @@ pub async fn request_new_friendly_hero(
             .collect::<Vec<_>>()
             .join(",");
 
-        let first_hero = selected_heroes.first().copied().unwrap_or(0);
+        // HeroIndex tracks recruitment. An owned visitor belongs only in the
+        // portrait list, otherwise the native client continually requests resets.
+        let first_hero = selected_heroes.iter().copied().find(|id| available_heroes.contains(id)).unwrap_or(0);
 
         // Insert new record
         sqlx::query(
@@ -170,8 +187,9 @@ pub async fn request_new_friendly_hero(
         .is_none_or(|time| time.date() < today);
     let visitors: Vec<i32> = friendly_info.selected_hero_indice.as_deref().unwrap_or("")
         .split(',').filter_map(|id| id.parse().ok()).collect();
-    let invalid_visitors = visitors.is_empty()
-        || visitors.iter().any(|id| !available_heroes.contains(id));
+    let invalid_visitors = visitors.len() != 6.min(available_heroes.len() + owned_visitors.len())
+        || visitors.iter().collect::<std::collections::HashSet<_>>().len() != visitors.len()
+        || visitors.iter().any(|id| !available_heroes.contains(id) && !owned_visitors.contains(id));
     let recruited = friendly_info.hero_index != 0 && owned_heroes.contains(&friendly_info.hero_index);
     let excluded_recruit = INN_RECRUITMENT_EXCLUDED_HEROES.contains(&friendly_info.hero_index)
         || INN_RECRUITMENT_EXCLUDED_HEROES.contains(&friendly_info.selected_hero_index);
@@ -186,12 +204,7 @@ pub async fn request_new_friendly_hero(
         }
         // Keep the hero being befriended, their progress, and action cooldowns.
         // Refresh only the other visitors and acknowledge this reset.
-        let active = friendly_info.hero_index;
-        let mut selected = if active != 0 && available_heroes.contains(&active) {
-            vec![active]
-        } else { Vec::new() };
-        let candidates: Vec<i32> = available_heroes.iter().copied().filter(|id| *id != active).collect();
-        selected.extend(select_random_heroes(&candidates, 6 - selected.len()));
+        let selected = select_inn_visitors(&available_heroes, &owned_visitors, friendly_info.hero_index);
         friendly_info.selected_hero_indice = Some(selected.iter().map(i32::to_string).collect::<Vec<_>>().join(","));
         friendly_info.selected_time = Some(current_time.clone());
         sqlx::query("UPDATE hero_friendly_info SET hero_index=?,selected_hero_index=?,friendly_point=?,last_greeting_time=?,last_conversation_time=?,last_gift_time=?,selected_time=?,selected_hero_indices=? WHERE account_id=?")
@@ -216,7 +229,7 @@ pub async fn request_new_friendly_hero(
 
     let response = RequestNewFriendlyHeroResponse {
         base_result: "Success".to_string(),
-        result: if available_heroes.is_empty() {
+        result: if available_heroes.is_empty() && owned_visitors.is_empty() {
             RequestNewFriendlyHeroResult::CannotRecruitHero
         } else {
             RequestNewFriendlyHeroResult::Success
@@ -324,338 +337,100 @@ pub async fn do_hero_friendly(
     State(state): State<AppState>,
     Form(req): Form<DoHeroFriendlyRequest>,
 ) -> Result<Json<DoHeroFriendlyResponse>> {
-    let session_id = req.session_key.or(req.session_id)
-        .ok_or_else(|| ServerError::SessionExpired)?;
-
-    let session = state.get_session(&session_id)
-        .ok_or(ServerError::SessionExpired)?;
-
-    let account_id = session.account_id;
-    let hero_index: i32 = req.hero_index.as_ref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let action = req.action.as_ref()
-        .map(|s| parse_action_string(s))
-        .unwrap_or(FriendlyActionType::None);
-
-    if hero_index == 0 {
-        return Ok(Json(DoHeroFriendlyResponse {
-            base_result: "Success".to_string(),
-            result: DoHeroFriendlyResult::HeroIndexMismatch.as_str().to_string(),
-            friendly_info: None,
-            hero_info: None,
-            currency_result: None,
-            friendship_point_result: None,
-        }));
-    }
-
-    // Check if hero is already owned
-    let owned_hero = sqlx::query("SELECT * FROM heroes WHERE account_id = ? AND hero_index = ?")
-        .bind(account_id)
-        .bind(hero_index)
-        .fetch_optional(&state.db)
-        .await?;
-
-    let is_owned = owned_hero.is_some();
-    let recruitment_points = state.tables.hero_shop.inn_recruitment_points.get(&hero_index).copied();
-    if !is_owned && recruitment_points.is_none() {
-        return Ok(Json(DoHeroFriendlyResponse {
-            base_result: "Success".to_string(),
-            result: DoHeroFriendlyResult::CannotRecruit.as_str().to_string(),
-            friendly_info: None,
-            hero_info: None,
-            currency_result: None,
-            friendship_point_result: None,
-        }));
-    }
-
-    // Get current friendly info
-    let friendly_row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_optional(&state.db)
-        .await?;
-
-    let friendly_row = match friendly_row {
-        Some(row) => row,
-        None => {
-            return Ok(Json(DoHeroFriendlyResponse {
-                base_result: "Success".to_string(),
-                result: DoHeroFriendlyResult::HeroNotExistInFriendlyTable.as_str().to_string(),
-                friendly_info: None,
-                hero_info: None,
-                currency_result: None,
-                friendship_point_result: None,
-            }));
-        }
+    let session_id = req.session_key.or(req.session_id).ok_or(ServerError::SessionExpired)?;
+    let account_id = state.get_session(&session_id).ok_or(ServerError::SessionExpired)?.account_id;
+    let hero_index = req.hero_index.as_deref().and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
+    let action = req.action.as_deref().map(parse_action_string).unwrap_or(FriendlyActionType::None);
+    let failure = |result: DoHeroFriendlyResult| Json(DoHeroFriendlyResponse {
+        base_result: "Success".into(), result: result.as_str().into(), friendly_info: None,
+        hero_info: None, currency_result: None, friendship_point_result: None,
+    });
+    if hero_index == 0 { return Ok(failure(DoHeroFriendlyResult::HeroIndexMismatch)); }
+    let (column, wire_time, points, gold_cost, friendship_cost, closeness_action) = match action {
+        FriendlyActionType::Greeting => ("last_greeting_time", "LastGreetingTime", GREETING_POINTS, 0, 0, false),
+        FriendlyActionType::Conversation => ("last_conversation_time", "LastConversationTime", CONVERSATION_POINTS, 0, 160, false),
+        FriendlyActionType::Gift => ("last_gift_time", "LastGiftTime", GIFT_POINTS, 40000, 0, false),
+        FriendlyActionType::ClosenessGreeting => ("last_greeting_time", "LastGreetingTime", 25, 0, 0, true),
+        FriendlyActionType::ClosenessConversation => ("last_conversation_time", "LastConversationTime", 50, 0, 50, true),
+        FriendlyActionType::ClosenessGift => ("last_gift_time", "LastGiftTime", 100, 25000, 0, true),
+        _ => return Ok(failure(DoHeroFriendlyResult::ActionNotExist)),
     };
-
-    let current_friendly_point: i32 = friendly_row.get("friendly_point");
+    // Serialize the cooldown check, costs, timestamp and Affinity update. A
+    // concurrent click must not pay or earn points a second time.
+    let mut tx = state.db.begin().await?;
+    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+        .bind(account_id).execute(&mut *tx).await?;
+    let owned = sqlx::query("SELECT closeness FROM heroes WHERE account_id=? AND hero_index=?")
+        .bind(account_id).bind(hero_index).fetch_optional(&mut *tx).await?;
+    let is_owned = owned.is_some();
+    let target = state.tables.hero_shop.inn_recruitment_points.get(&hero_index).copied();
+    if !is_owned && target.is_none() { return Ok(failure(DoHeroFriendlyResult::CannotRecruit)); }
+    if is_owned != closeness_action { return Ok(failure(DoHeroFriendlyResult::ActionNotExist)); }
+    let Some(friendly) = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id=?")
+        .bind(account_id).fetch_optional(&mut *tx).await? else {
+        return Ok(failure(DoHeroFriendlyResult::HeroNotExistInFriendlyTable));
+    };
+    if !is_owned && friendly.get::<i32, _>("hero_index") != hero_index {
+        return Ok(failure(DoHeroFriendlyResult::HeroIndexMismatch));
+    }
     let current_time = state.server_time_str();
-
-    // Calculate points based on action
-    let points_gained = match action {
-        FriendlyActionType::Greeting => GREETING_POINTS,
-        FriendlyActionType::Conversation => CONVERSATION_POINTS,
-        FriendlyActionType::Gift => GIFT_POINTS,
-        FriendlyActionType::ClosenessGreeting => 25,
-        FriendlyActionType::ClosenessConversation => 50,
-        FriendlyActionType::ClosenessGift => 100,
-        _ => 0,
-    };
-
-    // Cost handling based on action type
-    // ActionCostType: 0 = Free, 1 = Gold, 7 = Friendship Points
-    let mut friendship_point_result = None;
-    let mut currency_result = None;
-
-    // Conversation costs Friendship Points (ActionCostType=7, ActionCostValue=160)
-    if action == FriendlyActionType::Conversation {
-        let user_row = sqlx::query("SELECT friendship_point FROM user_info WHERE account_id = ?")
-            .bind(account_id)
-            .fetch_one(&state.db)
-            .await?;
-
-        let current_friendship: i64 = user_row.get("friendship_point");
-        let conversation_cost: i64 = 160; // From table: ActionCostValue2
-
-        if current_friendship < conversation_cost {
-            return Ok(Json(DoHeroFriendlyResponse {
-                base_result: "Success".to_string(),
-                result: DoHeroFriendlyResult::CostMismatch.as_str().to_string(),
-                friendly_info: None,
-                hero_info: None,
-                currency_result: None,
-                friendship_point_result: None,
-            }));
-        }
-
-        // Deduct friendship points
-        let new_friendship = current_friendship - conversation_cost;
-        sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
-            .bind(new_friendship)
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-
-        friendship_point_result = Some(FriendshipPointResultInfo {
-            add_value: -conversation_cost,
-            add_daily_acc_value: 0,
-            new_value: new_friendship,
-            new_daily_acc_value: 0,
-        });
+    let today = chrono::NaiveDateTime::parse_from_str(&current_time, "%Y-%m-%d %H:%M:%S")
+        .map_err(|e| ServerError::Internal(e.to_string()))?.date();
+    let mut details = if is_owned { super::details(&mut tx, account_id, hero_index).await? } else { serde_json::json!({}) };
+    let last_time: Option<String> = if is_owned {
+        details.get(wire_time).and_then(|v| v.as_str()).map(str::to_owned)
+    } else { friendly.get(column) };
+    if last_time.as_deref().and_then(|t| chrono::NaiveDateTime::parse_from_str(t, "%Y-%m-%d %H:%M:%S").ok())
+        .is_some_and(|t| t.date() >= today) {
+        return Ok(failure(DoHeroFriendlyResult::ActionNotReady));
     }
-
-    // Gift costs Gold (ActionCostType=1, ActionCostValue=40000)
-    if action == FriendlyActionType::Gift {
-        let user_row = sqlx::query("SELECT gold FROM user_info WHERE account_id = ?")
-            .bind(account_id)
-            .fetch_one(&state.db)
-            .await?;
-
-        let current_gold: i64 = user_row.get("gold");
-        let gift_gold_cost: i64 = 40000; // From table: ActionCostValue3
-
-        if current_gold < gift_gold_cost {
-            return Ok(Json(DoHeroFriendlyResponse {
-                base_result: "Success".to_string(),
-                result: DoHeroFriendlyResult::CostMismatch.as_str().to_string(),
-                friendly_info: None,
-                hero_info: None,
-                currency_result: None,
-                friendship_point_result: None,
-            }));
-        }
-
-        // Deduct gold
-        let new_gold = current_gold - gift_gold_cost;
-        sqlx::query("UPDATE user_info SET gold = ? WHERE account_id = ?")
-            .bind(new_gold)
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-
-        currency_result = Some(CurrencyResultInfo3 {
-            currency_type: "Gold".to_string(),
-            add_value: -gift_gold_cost,
-            new_value: new_gold,
-            ..Default::default()
-        });
-    }
-
-    // Closeness Conversation costs Friendship Points (ActionCostType=7, ActionCostValue=50)
-    if action == FriendlyActionType::ClosenessConversation {
-        let user_row = sqlx::query("SELECT friendship_point FROM user_info WHERE account_id = ?")
-            .bind(account_id)
-            .fetch_one(&state.db)
-            .await?;
-
-        let current_friendship: i64 = user_row.get("friendship_point");
-        let conversation_cost: i64 = 50; // From table: ActionCostValue5
-
-        if current_friendship < conversation_cost {
-            return Ok(Json(DoHeroFriendlyResponse {
-                base_result: "Success".to_string(),
-                result: DoHeroFriendlyResult::CostMismatch.as_str().to_string(),
-                friendly_info: None,
-                hero_info: None,
-                currency_result: None,
-                friendship_point_result: None,
-            }));
-        }
-
-        let new_friendship = current_friendship - conversation_cost;
-        sqlx::query("UPDATE user_info SET friendship_point = ? WHERE account_id = ?")
-            .bind(new_friendship)
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-
-        friendship_point_result = Some(FriendshipPointResultInfo {
-            add_value: -conversation_cost,
-            add_daily_acc_value: 0,
-            new_value: new_friendship,
-            new_daily_acc_value: 0,
-        });
-    }
-
-    // Closeness Gift costs Gold (ActionCostType=1, ActionCostValue=25000)
-    if action == FriendlyActionType::ClosenessGift {
-        let user_row = sqlx::query("SELECT gold FROM user_info WHERE account_id = ?")
-            .bind(account_id)
-            .fetch_one(&state.db)
-            .await?;
-
-        let current_gold: i64 = user_row.get("gold");
-        let gift_gold_cost: i64 = 25000; // From table: ActionCostValue6
-
-        if current_gold < gift_gold_cost {
-            return Ok(Json(DoHeroFriendlyResponse {
-                base_result: "Success".to_string(),
-                result: DoHeroFriendlyResult::CostMismatch.as_str().to_string(),
-                friendly_info: None,
-                hero_info: None,
-                currency_result: None,
-                friendship_point_result: None,
-            }));
-        }
-
-        let new_gold = current_gold - gift_gold_cost;
-        sqlx::query("UPDATE user_info SET gold = ? WHERE account_id = ?")
-            .bind(new_gold)
-            .bind(account_id)
-            .execute(&state.db)
-            .await?;
-
-        currency_result = Some(CurrencyResultInfo3 {
-            currency_type: "Gold".to_string(),
-            add_value: -gift_gold_cost,
-            new_value: new_gold,
-            ..Default::default()
-        });
-    }
-
-    // Update friendly points
-    let new_friendly_point = if is_owned {
-        // For owned heroes, we update closeness instead
-        current_friendly_point
-    } else {
-        (current_friendly_point + points_gained).min(recruitment_points.unwrap())
+    let user = sqlx::query("SELECT gold,friendship_point FROM user_info WHERE account_id=?")
+        .bind(account_id).fetch_one(&mut *tx).await?;
+    let gold: i64 = user.get("gold");
+    let friendship: i64 = user.get("friendship_point");
+    if gold < gold_cost || friendship < friendship_cost { return Ok(failure(DoHeroFriendlyResult::CostMismatch)); }
+    let currency_result = if gold_cost > 0 {
+        sqlx::query("UPDATE user_info SET gold=gold-? WHERE account_id=?")
+            .bind(gold_cost).bind(account_id).execute(&mut *tx).await?;
+        Some(CurrencyResultInfo3 { currency_type: "Gold".into(), add_value: -gold_cost,
+            new_value: gold-gold_cost, ..Default::default() })
+    } else { None };
+    let friendship_point_result = if friendship_cost > 0 {
+        sqlx::query("UPDATE user_info SET friendship_point=friendship_point-? WHERE account_id=?")
+            .bind(friendship_cost).bind(account_id).execute(&mut *tx).await?;
+        Some(FriendshipPointResultInfo { add_value: -friendship_cost, add_daily_acc_value: 0,
+            new_value: friendship-friendship_cost, new_daily_acc_value: 0 })
+    } else { None };
+    let current_point: i32 = friendly.get("friendly_point");
+    let new_point = if is_owned { current_point } else { (current_point + points).min(target.unwrap()) };
+    // Retain the Inn's action timestamps for recruitment and progression hooks.
+    // Owned-hero cooldown decisions use only that hero's persisted timestamps.
+    sqlx::query(&format!("UPDATE hero_friendly_info SET friendly_point=?, {column}=? WHERE account_id=?"))
+        .bind(new_point).bind(&current_time).bind(account_id).execute(&mut *tx).await?;
+    let hero_info = if let Some(owned) = owned {
+        sqlx::query("UPDATE heroes SET closeness=? WHERE account_id=? AND hero_index=?")
+            .bind((owned.get::<i32, _>("closeness") + points).min(1000))
+            .bind(account_id).bind(hero_index).execute(&mut *tx).await?;
+        if !details.is_object() { return Err(ServerError::Internal("Invalid hero details".into())); }
+        details[wire_time] = serde_json::json!(current_time);
+        super::save_details(&mut tx, account_id, hero_index, &details).await?;
+        // Return the native LastGreetingTime/LastConversationTime/LastGiftTime
+        // fields immediately and retain them in future login/lobby snapshots.
+        Some(serde_json::from_value(super::info(&mut tx, account_id, hero_index).await?)
+            .map_err(|e| ServerError::Internal(e.to_string()))?)
+    } else { None };
+    let row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id=?")
+        .bind(account_id).fetch_one(&mut *tx).await?;
+    let friendly_info = PlayerHeroFriendlyInfo {
+        hero_index: row.get("hero_index"), selected_hero_index: row.get("selected_hero_index"),
+        friendly_point: row.get("friendly_point"), last_greeting_time: row.get("last_greeting_time"),
+        last_conversation_time: row.get("last_conversation_time"), last_gift_time: row.get("last_gift_time"),
+        selected_time: row.get("selected_time"), selected_hero_indice: row.get("selected_hero_indices"),
+        last_roulette_time: row.get("last_roulette_time"),
     };
-
-    // Update last action time based on action type
-    let time_column = match action {
-        FriendlyActionType::Greeting | FriendlyActionType::ClosenessGreeting => "last_greeting_time",
-        FriendlyActionType::Conversation | FriendlyActionType::ClosenessConversation => "last_conversation_time",
-        FriendlyActionType::Gift | FriendlyActionType::ClosenessGift => "last_gift_time",
-        _ => "last_greeting_time",
-    };
-
-    // Update friendly info
-    let query = format!(
-        "UPDATE hero_friendly_info SET friendly_point = ?, {} = ? WHERE account_id = ?",
-        time_column
-    );
-    sqlx::query(&query)
-        .bind(new_friendly_point)
-        .bind(&current_time)
-        .bind(account_id)
-        .execute(&state.db)
-        .await?;
-
-    // If hero is owned, update closeness on the hero
-    let hero_info = if is_owned {
-        let hero_row = owned_hero.unwrap();
-        let current_closeness: i32 = hero_row.get("closeness");
-        let new_closeness = (current_closeness + points_gained).min(1000);
-
-        sqlx::query("UPDATE heroes SET closeness = ? WHERE account_id = ? AND hero_index = ?")
-            .bind(new_closeness)
-            .bind(account_id)
-            .bind(hero_index)
-            .execute(&state.db)
-            .await?;
-
-        Some(HeroInfo {
-            hero_id: hero_row.get("hero_id"),
-            hero_index,
-            star: hero_row.get("star"),
-            level: hero_row.get("level"),
-            exp: hero_row.get("exp"),
-            transcend: hero_row.get("transcend"),
-            awakened: hero_row.get("awakened"),
-            skill_level_1: hero_row.get("skill_level_1"),
-            skill_level_2: hero_row.get("skill_level_2"),
-            skill_level_3: hero_row.get("skill_level_3"),
-            skill_level_4: hero_row.get("skill_level_4"),
-            unique_weapon_id: hero_row.get("unique_weapon_id"),
-            is_bookmarked: hero_row.get::<i32, _>("is_bookmarked") != 0,
-            closeness: new_closeness,
-            ..Default::default()
-        })
-    } else {
-        None
-    };
-
-    // Get updated friendly info from hero_friendly_info table
-    let updated_row = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
-        .bind(account_id)
-        .fetch_optional(&state.db)
-        .await?;
-
-    let friendly_info = if let Some(row) = updated_row {
-        PlayerHeroFriendlyInfo {
-            hero_index: row.get("hero_index"),
-            selected_hero_index: row.get("selected_hero_index"),
-            friendly_point: row.get("friendly_point"),
-            last_greeting_time: row.get("last_greeting_time"),
-            last_conversation_time: row.get("last_conversation_time"),
-            last_gift_time: row.get("last_gift_time"),
-            selected_time: row.get("selected_time"),
-            selected_hero_indice: row.get("selected_hero_indices"),
-            last_roulette_time: row.get("last_roulette_time"),
-        }
-    } else {
-        PlayerHeroFriendlyInfo {
-            hero_index,
-            selected_hero_index: hero_index,
-            friendly_point: new_friendly_point,
-            last_greeting_time: None,
-            last_conversation_time: None,
-            last_gift_time: None,
-            selected_time: None,
-            selected_hero_indice: None,
-            last_roulette_time: None,
-        }
-    };
-
-    Ok(Json(DoHeroFriendlyResponse {
-        base_result: "Success".to_string(),
-        result: DoHeroFriendlyResult::Success.as_str().to_string(),
-        friendly_info: Some(friendly_info),
-        hero_info,
-        currency_result,
-        friendship_point_result,
-    }))
+    tx.commit().await?;
+    Ok(Json(DoHeroFriendlyResponse { base_result: "Success".into(), result: "Success".into(),
+        friendly_info: Some(friendly_info), hero_info, currency_result, friendship_point_result }))
 }
 
 // ============================================================================
@@ -717,63 +492,27 @@ pub async fn change_recruit_hero(
     let account_id = session.account_id;
     let hero_index = req.hero_index.unwrap_or(0);
 
-    // If hero_index is 0, reset and get new heroes
+    // Zero ends the current relationship. The native "change and start"
+    // flow sends a separate nonzero request afterward when explicitly chosen.
+    // Preserve the day's visitors and reset schedule; cancellation is not a
+    // visitor refresh and must never select a replacement recruit.
     if hero_index == 0 {
-        // Get player's owned heroes
-        let owned_heroes: Vec<i32> = sqlx::query("SELECT hero_index FROM heroes WHERE account_id = ?")
-            .bind(account_id)
-            .fetch_all(&state.db)
-            .await?
-            .iter()
-            .map(|row| row.get("hero_index"))
-            .collect();
-
-        // Get available heroes
-        let available_heroes: Vec<i32> = get_available_inn_hero_indices()
-            .into_iter()
-            .filter(|h| !owned_heroes.contains(h))
-            .collect();
-
-        // Select random heroes (6 heroes displayed in the inn)
-        let selected_heroes = select_random_heroes(&available_heroes, 6);
-
-        let selected_hero_indices_str = selected_heroes
-            .iter()
-            .map(|h| h.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-
-        let first_hero = selected_heroes.first().copied().unwrap_or(0);
-        let current_time = state.server_time_str();
-
-        // Update the friendly info
-        sqlx::query(
-            "UPDATE hero_friendly_info SET hero_index = ?, selected_hero_index = ?, friendly_point = 0, selected_time = ?, selected_hero_indices = ?, last_greeting_time = NULL, last_conversation_time = NULL, last_gift_time = NULL WHERE account_id = ?"
-        )
-        .bind(first_hero)
-        .bind(first_hero)
-        .bind(&current_time)
-        .bind(&selected_hero_indices_str)
-        .bind(account_id)
-        .execute(&state.db)
-        .await?;
-
-        let friendly_info = PlayerHeroFriendlyInfo {
-            hero_index: first_hero,
-            selected_hero_index: first_hero,
-            friendly_point: 0,
-            last_greeting_time: None,
-            last_conversation_time: None,
-            last_gift_time: None,
-            selected_time: Some(current_time),
-            selected_hero_indice: Some(selected_hero_indices_str),
-            last_roulette_time: None,
+        let row = sqlx::query("UPDATE hero_friendly_info SET hero_index=0,selected_hero_index=0,friendly_point=0,last_greeting_time=NULL,last_conversation_time=NULL,last_gift_time=NULL WHERE account_id=? RETURNING *")
+            .bind(account_id).fetch_optional(&state.db).await?;
+        let Some(row) = row else {
+            return Ok(Json(ChangeRecruitHeroResponse {
+                base_result: "Success".into(), result: ChangeRecruitHeroResult::HeroNotExist.as_str().into(), friendly_info: None,
+            }));
         };
-
+        let friendly_info = PlayerHeroFriendlyInfo {
+            hero_index: row.get("hero_index"), selected_hero_index: row.get("selected_hero_index"),
+            friendly_point: row.get("friendly_point"), last_greeting_time: row.get("last_greeting_time"),
+            last_conversation_time: row.get("last_conversation_time"), last_gift_time: row.get("last_gift_time"),
+            selected_time: row.get("selected_time"), selected_hero_indice: row.get("selected_hero_indices"),
+            last_roulette_time: row.get("last_roulette_time"),
+        };
         return Ok(Json(ChangeRecruitHeroResponse {
-            base_result: "Success".to_string(),
-            result: ChangeRecruitHeroResult::Success.as_str().to_string(),
-            friendly_info: Some(friendly_info),
+            base_result: "Success".into(), result: ChangeRecruitHeroResult::Success.as_str().into(), friendly_info: Some(friendly_info),
         }));
     }
 

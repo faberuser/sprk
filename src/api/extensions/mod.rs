@@ -132,7 +132,14 @@ pub async fn handle(
             if action == "upgrade_equip_tier" {
                 tracing::warn!(account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment tier upgrade/restoration rejected");
             }
-            let code = if action == "upgrade_equip_tier" {
+            let code = if matches!(action, "upgrade_equip_option" | "max_upgrade_equip_option") {
+                tracing::warn!(action, account, slot = req.text("EquipItemSlotIndex"), reason = %code, "Equipment option enhancement rejected");
+                match code.as_str() {
+                    "EquipItemNotFound" => "EquipNotOwned",
+                    "ItemNotOwned" | "NotEnoughItem" => "NotEnoughMaterialItem",
+                    other => other,
+                }
+            } else if action == "upgrade_equip_tier" {
                 // These native result names have localized messages. Falling
                 // back to Fail makes the client misleadingly report a network issue.
                 match code.as_str() {

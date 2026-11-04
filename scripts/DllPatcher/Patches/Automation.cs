@@ -16,11 +16,13 @@ partial class Program
         using var reader = new StreamReader(stream);
         using var migrationStream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.StorageMigration.cs.txt")!;
         using var migrationReader=new StreamReader(migrationStream);
+        using var innStream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.HeroInnPresentationProbe.cs.txt")!;
+        using var innReader=new StreamReader(innStream);
         var references = Directory.GetFiles(managed, "*.dll")
             .Where(p => Path.GetFileName(p) != "SprkAutomation.dll")
             .Select(p => MetadataReference.CreateFromFile(p));
         var compilation = CSharpCompilation.Create("SprkAutomation",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(migrationReader.ReadToEnd()) }, references,
+            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(migrationReader.ReadToEnd()), CSharpSyntaxTree.ParseText(innReader.ReadToEnd()) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
         var emitted = compilation.Emit(compiled);

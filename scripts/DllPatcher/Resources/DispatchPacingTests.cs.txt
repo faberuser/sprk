@@ -1,0 +1,23 @@
+using System;
+using System.Collections.Generic;
+/* PACING */
+public static class DispatchPacingTests {
+    public static void Test() {
+        var order=new List<int>();
+        var ticks=new int[3];
+        // Offline fights advance repeatedly without any wall-clock credit.
+        // The fake CPU budget expires after six ticks, with equal turns.
+        SprkDispatchPacing.Pump(new[]{0,1,2},i=>{ticks[i]++;order.Add(i);return true;},()=>order.Count<6,1);
+        if(String.Join(",",order)!="1,2,0,1,2,0")throw new Exception("Dispatch scheduling must be fair and respect its CPU budget");
+        if(ticks[0]!=2 || ticks[1]!=2 || ticks[2]!=2)throw new Exception("Offline ticks must run ahead without real-time debt");
+        int calls=0;
+        SprkDispatchPacing.Pump(new[]{0},i=>{calls++;return false;},()=>true,0);
+        if(calls!=1)throw new Exception("Finished dispatches must stop pumping");
+        calls=0;
+        SprkDispatchPacing.Pump(new int[0],i=>{calls++;return true;},()=>true,0);
+        SprkDispatchPacing.Pump(new[]{0},i=>{calls++;return true;},()=>false,0);
+        if(calls!=0)throw new Exception("Empty/expired slices must not tick");
+        SprkDispatchPacing.Pump(new[]{0},i=>{calls++;return true;},()=>true,0);
+        if(calls!=256)throw new Exception("A frame needs a hard tick limit even with a coarse clock");
+    }
+}

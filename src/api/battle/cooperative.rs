@@ -26,7 +26,7 @@ struct Worker {id:String,sender:Sender,arena_version:i64,challenge_version:i64,d
 struct Peer {id:String,run:String,sender:Sender}
 pub(crate) struct BattleHub {
     worker:RwLock<Option<Worker>>,
-    dispatch:Mutex<Option<dispatch_worker::Pending>>,
+    dispatch:Mutex<std::collections::HashMap<String,dispatch_worker::Pending>>,
     peers:DashMap<i64,Peer>,
     disconnects:DashMap<String,tokio::sync::watch::Sender<bool>>,
     heartbeats:DashMap<i64,(i64,i64)>, // account -> (room, latest observed time)
@@ -35,7 +35,7 @@ pub(crate) struct BattleHub {
     pub address:String,
 }
 impl Default for BattleHub {
-    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(None),peers:DashMap::new(),disconnects:DashMap::new(),heartbeats:DashMap::new(),runs:DashMap::new(),
+    fn default()->Self {Self{worker:RwLock::new(None),dispatch:Mutex::new(std::collections::HashMap::new()),peers:DashMap::new(),disconnects:DashMap::new(),heartbeats:DashMap::new(),runs:DashMap::new(),
         port:std::env::var("BATTLE_PORT").ok().and_then(|v|v.parse().ok()).unwrap_or(9002),
         address:crate::websocket::public_url("battle")}}
 }

@@ -177,7 +177,7 @@ public sealed class SprkConquest : MonoBehaviour {
             if(log.Type==BattleLogType.WaveReady && dispatch) {
                 foreach(long player in players)updater.BattleInstance.BattleLogContainer.AddLog(new CreatureSetAiBattleLog{PlayerId=player,SetAi=true});
             }
-            if(log.Type==BattleLogType.WaveReady && !arena) {
+            if(log.Type==BattleLogType.WaveReady && !arena && !dispatch) {
                 var data=MiniJSON.Json.Deserialize(log.Data) as IDictionary;
                 var ready=JM_NShared_WaveReadyBattleLog.Parse(data);
                 var initial=new List<object>();
@@ -188,7 +188,9 @@ public sealed class SprkConquest : MonoBehaviour {
                 }
                 data["ConquestInitialCreatures"]=initial;log.BaseBattleLog.Data=MiniJSON.Json.Serialize(data);
             }
-            logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
+            // Offline dispatch has no replay consumer. Only send wave control
+            // and the final authoritative result, not thousands of action logs.
+            if(!dispatch)logs.Add(JM_NShared_BaseBattleLog.EncodeJsonObject(log.BaseBattleLog));
             if(log.Type==BattleLogType.WaveReady || log.Type==BattleLogType.WaveEnd) {
                 if(log.Type==BattleLogType.WaveEnd)CaptureDefeats();
                 var wave=new Dictionary<string,object>{{"WaveIndex",updater.WaveIndex},{"TotalWaveIndex",updater.TotalWaveIndex}};
@@ -198,6 +200,7 @@ public sealed class SprkConquest : MonoBehaviour {
             }
         }
         public void Flush() {
+            if(dispatch)return;
             long clock=updater.BattleInstance.GlobalTimer.GetCurrentTimeMs();
             // Publish advancing time even when no action logs were generated.
             // Otherwise PingRes repeats an old time and slows the native replay.
@@ -272,19 +275,30 @@ public sealed class SprkConquest : MonoBehaviour {
             }
             double elapsed=(stamp-lastStep)*1000.0/System.Diagnostics.Stopwatch.Frequency;lastStep=stamp;
             var active=runs.Values.ToArray();
-            foreach(var run in active)run.budget+=elapsed;
+            foreach(var run in active)if(!run.dispatch)run.budget+=elapsed;
             // Fair round-robin catch-up, at most five native ticks per run in a
             // frame. Preserve elapsed time as debt rather than discarding it.
             // Flush every tick so one busy run cannot batch away clock updates.
             for(int round=0;round<5;round++) {
                 for(int i=0;i<active.Length;i++) {
                     var run=active[(firstRun+i)%active.Length];
-                    if(run.ended || run.budget<100)continue;
+                    if(run.dispatch || run.ended || run.budget<100)continue;
                     run.budget-=100;run.updater.Update();run.updater.BattleInstance.UpdateTick(false);SnapshotObjectPoolContainer.FlushPendingRelease();
                     run.Flush();
                     if(run.updater.IsBattleEnd())Finish(run);
                 }
             }
+            // Dispatch is offline native simulation, not a live replay. Keep
+            // the same fixed combat ticks but compute ahead in a bounded slice
+            // after servicing every live run. Never accumulate wall-clock debt.
+            var offline=active.Where(r=>r.dispatch && !r.ended).ToArray();
+            long sliceStart=System.Diagnostics.Stopwatch.GetTimestamp();
+            SprkDispatchPacing.Pump(offline,run=> {
+                if(run.ended)return false;
+                run.updater.Update();run.updater.BattleInstance.UpdateTick(false);SnapshotObjectPoolContainer.FlushPendingRelease();
+                if(run.updater.IsBattleEnd())Finish(run);
+                return true;
+            },()=> (System.Diagnostics.Stopwatch.GetTimestamp()-sliceStart)*1000.0/System.Diagnostics.Stopwatch.Frequency<8,firstRun);
             if(active.Length>0)firstRun=(firstRun+1)%active.Length;
             if(trace && elapsed>150)Trace("worker frameGapMs="+elapsed+" runs="+active.Length+" maxDebtMs="+(active.Length==0?0:active.Max(r=>r.budget)));
         } catch(Exception e) {Debug.LogError("SPRK conquest service: "+e);if(link!=null)link.Close();}
@@ -379,4 +393,18 @@ public sealed class SprkConquest : MonoBehaviour {
         runs.Remove(run.id);
     }
     void OnApplicationQuit() {if(link!=null)link.Close();}
+}
+
+// Independent of Unity so the exact production scheduling loop can be tested.
+public static class SprkDispatchPacing {
+    public static void Pump<T>(IList<T> runs,Func<T,bool> tick,Func<bool> hasBudget,int first) {
+        for(int round=0;round<256;round++) {
+            bool progressed=false;
+            for(int i=0;i<runs.Count;i++) {
+                if(!hasBudget())return;
+                if(tick(runs[(first+i)%runs.Count]))progressed=true;
+            }
+            if(!progressed)return;
+        }
+    }
 }

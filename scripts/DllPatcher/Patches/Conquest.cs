@@ -56,6 +56,30 @@ partial class Program {
         System.Reflection.Assembly.Load(output.ToArray()).GetType("MissionWorkerFixture")!.GetMethod("Test")!.Invoke(null,null);
         Console.WriteLine("PASS: actual worker capture excludes live/friendly/arena actors and counts each enemy once per wave.");
     }
+    static void TestDispatchPacing() {
+        string Resource(string name) {using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name)!;using var reader=new StreamReader(input);return reader.ReadToEnd();}
+        var syntax=CSharpSyntaxTree.ParseText(Resource("Conquest.cs.txt")).GetRoot();
+        var pacing=syntax.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>().Single(c=>c.Identifier.Text=="SprkDispatchPacing");
+        var fixture=Resource("DispatchPacingTests.cs.txt").Replace("/* PACING */",pacing.ToFullString());
+        var compilation=CSharpCompilation.Create("DispatchPacingTests-"+Guid.NewGuid().ToString("N"),new[]{CSharpSyntaxTree.ParseText(fixture)},
+            ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p=>MetadataReference.CreateFromFile(p)),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var output=new MemoryStream();var result=compilation.Emit(output);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
+        System.Reflection.Assembly.Load(output.ToArray()).GetType("DispatchPacingTests")!.GetMethod("Test")!.Invoke(null,null);
+        Console.WriteLine("PASS: offline dispatch runs ahead fairly with bounded CPU/ticks and stops when finished.");
+    }
+    static void VerifyDispatchPacing(string clientRoot,bool staged=false) {
+        var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
+        using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"+(staged?".staged":"")));
+        var worker=helper.MainModule.GetType("SprkConquest");
+        if(!worker.Methods.Single(m=>m.Name=="Step").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatchPacing" && m.Name=="Pump"))
+            throw new InvalidOperationException("Offline dispatch must use the bounded accelerated tick scheduler.");
+        var flush=worker.NestedTypes.Single(t=>t.Name=="Run").Methods.Single(m=>m.Name=="Flush").Body.Instructions;
+        if(!flush.Take(5).Any(i=>i.Operand is FieldReference f && f.Name=="dispatch") || !flush.Take(5).Any(i=>i.OpCode==OpCodes.Ret))
+            throw new InvalidOperationException("Offline dispatch must suppress live replay traffic.");
+        Console.WriteLine("Verified offline dispatch pacing and replay suppression.");
+    }
     static void VerifyMissionWorker(string clientRoot, bool staged=false) {
         var managed=Path.Combine(clientRoot,"King's Raid_Data","Managed");
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"SprkConquest.dll"+(staged?".staged":"")));
@@ -181,6 +205,7 @@ partial class Program {
     }
     static void InstallConquest(string clientRoot,bool stageOnly) {
         TestMissionWorker();
+        TestDispatchPacing();
         TestBattleTransport();
         var managed=Path.GetFullPath(Path.Combine(clientRoot,"King's Raid_Data","Managed"));
         var dll=Path.Combine(managed,"Assembly-CSharp.dll");
@@ -275,6 +300,7 @@ partial class Program {
         }
         var staged=dll+".conquest-staged";File.WriteAllBytes(Path.Combine(managed,"SprkConquest.dll.staged"),compiled.ToArray());assembly.Write(staged);
         VerifyMissionWorker(clientRoot,true);
+        VerifyDispatchPacing(clientRoot,true);
         VerifyArenaLatency(clientRoot,true);
         if(!stageOnly) {
             if(System.Diagnostics.Process.GetProcesses().Any(p=>UsesClientFiles(p,clientRoot)))
@@ -282,6 +308,7 @@ partial class Program {
             File.Copy(dll,dll+".before-conquest-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));assembly.Dispose();
             File.Move(staged,dll,true);File.Move(Path.Combine(managed,"SprkConquest.dll.staged"),Path.Combine(managed,"SprkConquest.dll"),true);
             VerifyMissionWorker(clientRoot);
+            VerifyDispatchPacing(clientRoot);
         }
         Console.WriteLine(stageOnly?"Staged Conquest native combat worker and multiplayer hooks":"Installed Conquest native combat worker and multiplayer hooks");
     }

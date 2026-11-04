@@ -125,9 +125,36 @@ before a slow request or long hold.
 - Estimated peak load at 2000 players: 200–500 online, about 20–100 database
   requests/s. One connection is fine while typical holds stay at a few ms.
   Watch the "held long" totals.
-- Dispatch simulations run one at a time (`BattleHub.dispatch:
-  Mutex<Option<Pending>>`) on a single battle worker. They will back up with many
-  players. Not yet measured.
+- Dispatch preparation admits up to four simulations at once on the battle
+  worker (`CONCURRENCY` in `cooperative_dispatch.rs`). Each pending job has
+  its own task that takes a slot, prepares one repeat, saves it and queues
+  again. Slots are first-in-first-out, so jobs take turns, and a long fight
+  holds only its own slot (there is no shared pass). A scan every 3 s starts
+  tasks for new jobs; a task ends when it saves nothing (no worker, finished,
+  cancelled, error) and the next scan restarts it. Pending replies are keyed
+  by run ID.
+- Only the first `SAMPLE_FIGHTS` (20) fights of a dispatch are simulated
+  natively. When a save reaches 20 results and more repeats remain, the rest
+  are drawn from those samples as whole (outcome, time) pairs, with a seed
+  from `SimulationJobId`. The job stores `SampledFights`, leaves the
+  preparation queue, and gets a fixed deadline equal to the start time plus
+  every fight's time. Rounds are still revealed by the usual clock, and
+  rewards follow the final win count. Dispatches of 20 or fewer fights
+  simulate every fight. Jobs already past 20 when this shipped were filled on
+  their next save. Offline fights compute fixed native ticks ahead in an 8 ms CPU slice per
+  frame after live battles are serviced; they do not wait for wall-clock tick
+  credit or publish live replay logs. Completion still follows the simulated
+  fight durations. Measure queue delay and CPU before increasing concurrency.
+  The report's "Dispatch preparation" section is the check: an in-progress job
+  is BEHIND when its prepared simulated fight time is less than the real time
+  elapsed since it started. The client only reveals rounds whose cumulative
+  simulated time has elapsed, so a BEHIND job stalls its round counter and its
+  deadline keeps moving. Before the concurrency change (Nov 3 database), jobs
+  were prepared at 0.12–0.27x real time, so 165 fights showed as 18h52m.
+  Simulated fight lengths themselves were within about ±20% of the same
+  players' best real clears. Don't use `FinishTimestamp - StartTimestamp`
+  against simulated totals: the server sets that span from the simulated
+  average, so it always matches.
 - `arena_runs` and `mails` have rows up to about 0.8 MB and 0.2 MB. Watch them
   in the largest-tables section.
 - There is a single process and database file. Automated backups (the SQLite

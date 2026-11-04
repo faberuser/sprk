@@ -46,7 +46,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
     }
     public static string Status { get { return instance==null?"Not initialized":instance.status; } }
     void OnEnable() { Camera.onPreRender+=BeforeUI;SceneManager.activeSceneChanged+=SceneChanged; }
-    void OnDisable() { Camera.onPreRender-=BeforeUI;SceneManager.activeSceneChanged-=SceneChanged;RestoreTargets();ReleaseWorld();RestoreFinalBlits();
+    void OnDisable() { Camera.onPreRender-=BeforeUI;SceneManager.activeSceneChanged-=SceneChanged;ReleaseFilterCameras();RestoreTargets();ReleaseWorld();RestoreFinalBlits();
         ResetBattleControls();foreach(var budget in particleBudgets)if(budget!=null)budget.Apply(1,0);
         foreach(var pair in layers)if(pair.Key!=null && pair.Value!=null)UpdateTemporalResources(pair.Key,pair.Value,0);
         foreach(var layer in helperLayers)if(layer!=null)layer.enabled=false;
@@ -256,6 +256,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
             Add(tab,"Adaptive Battle Scale","AdaptiveBattleScale",new[]{"Off","30 FPS","60 FPS","120 FPS","144 FPS"});
             Add(tab,"Lobby Camera Sensitivity","LobbyCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
             Add(tab,"Model Camera Sensitivity","ModelCameraSensitivity",new[]{"50%","75%","100%","125%","150%"});
+            AddGlobalFilterRow(tab);
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle4Component>(true))ConfigureFrameRow(row);
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionToggle3Component>(true))CenterTextureChoices(row);
             foreach(var row in tab.GameOptionGrid.GetComponentsInChildren<GameOptionBaseComponent>(true))ConfigureGraphicsHelp(row);
@@ -407,7 +408,8 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         foreach(var title in new[]{"World Scale","Preview Scale","Particle Density","Battle Effects","Effect Coverage","Adaptive Battle Scale"}) {
             var extra=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(extra!=null)inserted.Add(extra.transform);
         }
-        foreach(var title in new[]{"Lobby Camera Sensitivity","Model Camera Sensitivity"}) {
+        // Global Filter follows the camera sensitivities, directly above the native Sleep row.
+        foreach(var title in new[]{"Lobby Camera Sensitivity","Model Camera Sensitivity","Global Filter"}) {
             var sensitivity=rows.FirstOrDefault(r=>r.name=="SPRK "+title);if(sensitivity!=null)inserted.Add(sensitivity.transform);
         }
         foreach(var row in inserted)order.Remove(row);
@@ -640,6 +642,13 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
             System.IO.File.WriteAllText(System.IO.Path.Combine(root,"fullscreen.txt"),"PASS: desktop fullscreen "+width+"x"+height+" retained across all five resolution setters and repeated native settings callbacks; windowed HD and fullscreen round trip preserved.");
             Application.Quit();yield break;
         }
+        if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_FILTER_ONLY")=="1") {
+            var filterReport=new List<string>();
+            yield return StartCoroutine(GlobalFilterPanelProbe(filterReport,root));
+            yield return StartCoroutine(GlobalFilterProbe(filterReport,root));
+            System.IO.File.WriteAllLines(System.IO.Path.Combine(root,"filter.txt"),filterReport.ToArray());
+            Application.Quit();yield break;
+        }
         if(Environment.GetEnvironmentVariable("SPRK_GRAPHICS_CUSTOM_WINDOW_ONLY")=="1") {
             yield return StartCoroutine(CustomWindowProbe(root));Application.Quit();yield break;
         }
@@ -723,7 +732,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         }
         report.Add("cameraSensitivityChoices="+cameraSettings);
         var duplicate=UIHelper.AddGridItem<GameOptionButtonComponent>(wrapper,GameOptionButtonComponent.PrefabAuto);duplicate.name="SPRK Anti-Aliasing";Setup(window);
-        allChoices &= wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK "))==14;
+        allChoices &= wrapper.GetComponentsInChildren<GameOptionBaseComponent>(true).Count(r=>r.name.StartsWith("SPRK "))==15; // 14 choice rows plus the Global Filter button row
         bool performanceChoices=true;
         foreach(string title in new[]{"Preview Scale","Particle Density","Battle Effects","Effect Coverage","Adaptive Battle Scale"}) {
             var performanceRow=rows.Single(r=>r.name=="SPRK "+title);
@@ -779,7 +788,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
             var visible=layoutGrid.GetChildList();
             var expected=new List<string>{"Screen","Resolution","SPRK Anti-Aliasing"};
             if(method>0)expected.Add("SPRK "+adjustmentNames[method-1]);
-            expected.Add("SPRK Render Scale");expected.Add("SPRK World Scale");expected.Add("SPRK Preview Scale");expected.Add("SPRK Particle Density");expected.Add("SPRK Battle Effects");expected.Add("SPRK Effect Coverage");expected.Add("SPRK Adaptive Battle Scale");expected.Add("SPRK Lobby Camera Sensitivity");expected.Add("SPRK Model Camera Sensitivity");expected.Add("ZZAfter");
+            expected.Add("SPRK Render Scale");expected.Add("SPRK World Scale");expected.Add("SPRK Preview Scale");expected.Add("SPRK Particle Density");expected.Add("SPRK Battle Effects");expected.Add("SPRK Effect Coverage");expected.Add("SPRK Adaptive Battle Scale");expected.Add("SPRK Lobby Camera Sensitivity");expected.Add("SPRK Model Camera Sensitivity");expected.Add("SPRK Global Filter");expected.Add("ZZAfter");
             compact &= visible.Select(t=>t.name).SequenceEqual(expected);
             for(int i=1;i<visible.Count;i++)compact &= Mathf.Abs(visible[i].localPosition.y-visible[i-1].localPosition.y+110)<0.1f;
         }
@@ -1164,7 +1173,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         if(cameraBuffer.Length<count)Array.Resize(ref cameraBuffer,Mathf.NextPowerOfTwo(count));
         count=Camera.GetAllCameras(cameraBuffer);
         cameras.Clear();onscreen.Clear();worldCameras.Clear();
-        for(int i=0;i<count;i++)if(cameraBuffer[i]!=null && cameraBuffer[i].isActiveAndEnabled)cameras.Add(cameraBuffer[i]);
+        for(int i=0;i<count;i++)if(cameraBuffer[i]!=null && cameraBuffer[i].isActiveAndEnabled && !filterCameraSet.Contains(cameraBuffer[i]))cameras.Add(cameraBuffer[i]);
         Array.Clear(cameraBuffer,0,cameraBuffer.Length);
         // Camera stacks are small. Stable insertion sorting also preserves
         // Unity's order for equal-depth cameras without allocating a comparer.
@@ -1202,13 +1211,14 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         foreach(var pair in finalBlitDefaults)if(pair.Key!=null)pair.Key.finalBlitToCameraTarget=pair.Value;
         finalBlitDefaults.Clear();
     }
-    void LateUpdate() {
+    void LateUpdate() { UpdateGlobalFilter(LateUpdateGraphics()); }
+    bool LateUpdateGraphics() {
         UpdateCustomWindow();
         presentationFrame=-1;
         int mode=ReadIndex("PostAA"),quality=ReadIndex("SMAAQuality"),fxaa=ReadIndex("FXAAQuality"),sharpness=ReadIndex("TAASharpness");
         int samples=Samples;
         bool configured=SprkTestPrefs.HasKey("Sprk.Graphics.PostAA")||SprkTestPrefs.HasKey("Sprk.Graphics.MSAA")||SprkTestPrefs.HasKey("Sprk.Graphics.RenderScale")||SprkTestPrefs.HasKey("Sprk.Graphics.Scale")||SprkTestPrefs.HasKey("Sprk.Graphics.ParticleDensity")||SprkTestPrefs.HasKey("Sprk.Graphics.BattleEffects")||SprkTestPrefs.HasKey("Sprk.Graphics.EffectCoverage")||SprkTestPrefs.HasKey("Sprk.Graphics.AdaptiveBattleScale");
-        if(!configured)return;
+        if(!configured && !GlobalFilterActive)return false;
         // This Unity player requires global MSAA enabled for multisampled
         // camera rendering, even with an explicit RenderTexture sample count.
         // UI cameras opt out individually below.
@@ -1221,7 +1231,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         // Native Bottom3DUI contains map labels after the final model camera.
         // Keep that overlay on the display, outside the post-processed target.
         bool fullRect=true;foreach(var camera in onscreen)if(camera.rect!=new Rect(0,0,1,1)){fullRect=false;break;}
-        bool useWorld=worldCameras.Count>0 && fullRect && (scale!=100 || mode!=0 || samples>1);
+        bool useWorld=worldCameras.Count>0 && fullRect && (scale!=100 || mode!=0 || samples>1 || GlobalFilterActive);
         // Restore only cameras leaving the stack. Stable frames retain their
         // targets instead of binding null and the world target again.
         removeCameras.Clear();
@@ -1304,6 +1314,7 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
             if(helperLayers.Contains(pair.Value))pair.Value.enabled=false;
         }
         if(Time.frameCount%120==0)PruneCaches();
+        return true;
     }
 }
 

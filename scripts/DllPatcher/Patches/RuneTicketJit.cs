@@ -77,6 +77,20 @@ partial class Program
             return stream.ToArray();
         }
 
+        public void ClearString(string value)
+        {
+            var strings = Containers(containers[^1], 0);
+            for (var i = 0; i < Strings.Length; i++)
+                if (Strings[i] == value) { Strings[i] = ""; strings[i] = new byte[] { 0xa0 }; }
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            writer.Write(strings.Length);
+            var offset = 0;
+            foreach (var item in strings) { writer.Write(offset); offset += item.Length; }
+            foreach (var item in strings) writer.Write(item);
+            containers[^1] = stream.ToArray();
+        }
+
         static bool IsArray(byte tag) => (tag & 0xf0) == 0x90 || tag is 0xdc or 0xdd;
         static uint Unsigned(BinaryReader reader, int count)
         {

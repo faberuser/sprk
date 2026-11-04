@@ -148,6 +148,7 @@ partial class Program {
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing battle graphics control: "+required);
         foreach(var required in new[]{"RenderScale","World Scale","Custom"})
             if(!setup.Body.Instructions.Any(i=>Equals(i.Operand,required)))throw new InvalidOperationException("Missing render scale hierarchy: "+required);
+        VerifyGlobalFilter(helper.MainModule,bridge,setup);
         var poll=bridge.Methods.Single(m=>m.Name=="PollComparisonKeys");
         if(poll.Body.Instructions.Any(i=>i.OpCode!=OpCodes.Ret && i.OpCode!=OpCodes.Nop))
             throw new InvalidOperationException("Temporary AA comparison hook must be inert.");
@@ -196,7 +197,7 @@ partial class Program {
         using var helpReader=new StreamReader(helpResource);
         using var scaleResource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RenderScaleSettings.cs.txt")!;
         using var scaleReader=new StreamReader(scaleResource);
-        var compilation=CSharpCompilation.Create("SprkGraphicsOptions",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(battleReader.ReadToEnd()),CSharpSyntaxTree.ParseText(helpReader.ReadToEnd()),CSharpSyntaxTree.ParseText(scaleReader.ReadToEnd())},refs,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
+        var compilation=CSharpCompilation.Create("SprkGraphicsOptions",new[]{CSharpSyntaxTree.ParseText(reader.ReadToEnd()),CSharpSyntaxTree.ParseText(battleReader.ReadToEnd()),CSharpSyntaxTree.ParseText(helpReader.ReadToEnd()),CSharpSyntaxTree.ParseText(scaleReader.ReadToEnd())}.Concat(GlobalFilterSources().Select(text=>CSharpSyntaxTree.ParseText(text))),refs,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,optimizationLevel:OptimizationLevel.Release,deterministic:true));
         using var compiled=new MemoryStream();
         var result=compilation.Emit(compiled);
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics.Where(d=>d.Severity==DiagnosticSeverity.Error)));
@@ -300,6 +301,41 @@ partial class Program {
         File.Copy(settings,settings+".before-graphics-options-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss"));
         File.Move(settings+".graphics-options-staged",settings,true);
         VerifyGraphicsOptionsFile(root);
+    }
+    static void VerifyGlobalFilter(ModuleDefinition helper,TypeDefinition bridge,MethodDefinition setup) {
+        if(!setup.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="AddGlobalFilterRow"))
+            throw new InvalidOperationException("Global Filter settings row is not registered.");
+        var update=bridge.Methods.Single(m=>m.Name=="LateUpdate");
+        if(!update.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="UpdateGlobalFilter"))
+            throw new InvalidOperationException("Global Filter is not updated after camera routing.");
+        var routing=bridge.Methods.Single(m=>m.Name=="LateUpdateGraphics");
+        if(!routing.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_GlobalFilterActive"))
+            throw new InvalidOperationException("Global Filter must route the world stack through the world target.");
+        var collect=bridge.Methods.Single(m=>m.Name=="CollectCameras");
+        if(!collect.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="filterCameraSet"))
+            throw new InvalidOperationException("Global Filter companion cameras must be excluded from camera routing.");
+        if(!bridge.Fields.Any(f=>f.Name=="FilterPresetNames"))throw new InvalidOperationException("Missing Global Filter presets.");
+        var cctor=bridge.Methods.Single(m=>m.Name==".cctor");
+        foreach(var preset in new[]{"Default","Vivid","Soft","Film","Dystopian","Noir","Warm","Cool"})
+            if(!cctor.Body.Instructions.Any(i=>Equals(i.Operand,preset)))throw new InvalidOperationException("Missing Global Filter preset: "+preset);
+        foreach(var field in new[]{"Color Temperature","Sharpness","Brightness","Contrast","Saturation","Grayscale","Shadows","Bloom","Vignette","Film Grain","Filter Intensity"})
+            if(!cctor.Body.Instructions.Any(i=>Equals(i.Operand,field)))throw new InvalidOperationException("Missing Global Filter control: "+field);
+        var panel=helper.GetType("SprkGlobalFilterPanel")??throw new InvalidOperationException("Missing Global Filter panel.");
+        foreach(var method in new[]{"Open","Select","Step","SetField","SetPalette","Apply","ResetSelected","RestoreDefaults","Close","ToggleUi"})
+            if(!panel.Methods.Any(m=>m.Name==method))throw new InvalidOperationException("Global Filter panel is missing "+method+".");
+        // Effects must come from shaders already shipped in the client.
+        var references=bridge.Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MemberReference>().Select(r=>r.FullName).ToArray();
+        foreach(var effect in new[]{"UnityEngine.Rendering.PostProcessing.ColorGrading","UnityEngine.Rendering.PostProcessing.Bloom","UnityEngine.Rendering.PostProcessing.Vignette","UnityEngine.Rendering.PostProcessing.Grain","NTEC.PPU.Sharpen"})
+            if(!references.Any(r=>r.Contains(effect)))throw new InvalidOperationException("Global Filter effect is not wired: "+effect);
+    }
+    // Global Filter runtime and settings panel sources, compiled into SprkGraphicsOptions.
+    static readonly string[] GlobalFilterResources={"DllPatcher.GlobalFilter.cs.txt","DllPatcher.GlobalFilterPanel.cs.txt","DllPatcher.GlobalFilterProbe.cs.txt"};
+    static IEnumerable<string> GlobalFilterSources() {
+        foreach(var name in GlobalFilterResources) {
+            using var stream=typeof(Program).Assembly.GetManifestResourceStream(name)??throw new InvalidOperationException("Missing embedded resource "+name);
+            using var text=new StreamReader(stream);
+            yield return text.ReadToEnd();
+        }
     }
     static bool UsesClientFiles(System.Diagnostics.Process process,string root) {
         if(process.ProcessName!="King's Raid" && !process.ProcessName.StartsWith("SprkTest-"))return false;

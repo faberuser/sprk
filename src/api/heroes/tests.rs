@@ -16,6 +16,223 @@ async fn inn_refresh(s: &AppState, u: &user::LoginResponse) -> hero::inn::Reques
     })).await.unwrap().0
 }
 
+async fn inn_action(s: &AppState, u: &user::LoginResponse, hero_index: i32, action: &str) -> hero::inn::DoHeroFriendlyResponse {
+    hero::inn::do_hero_friendly(State(s.clone()), axum::extract::Form(hero::inn::DoHeroFriendlyRequest {
+        session_id: None, session_key: Some(u.user_info.session_key.clone()),
+        hero_index: Some(hero_index.to_string()), action: Some(action.into()),
+    })).await.unwrap().0
+}
+
+#[tokio::test]
+async fn inn_end_relationship_preserves_visitors_and_waits_for_explicit_selection() {
+    let (s, u) = setup().await; let account = u.user_info.account_id;
+    let first = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    let visitors: Vec<i32> = first.selected_hero_indice.as_ref().unwrap().split(',').map(|v| v.parse().unwrap()).collect();
+    assert_eq!(visitors[0], first.hero_index);
+    assert_eq!(inn_action(&s, &u, first.hero_index, "Greeting").await.result, "Success");
+    sqlx::query("UPDATE hero_friendly_info SET last_roulette_time='2026-11-04 00:00:01' WHERE account_id=?")
+        .bind(account).execute(&s.db).await.unwrap();
+    let change = |id| axum::extract::Form(hero::inn::ChangeRecruitHeroRequest {
+        session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some(id),
+    });
+    for _ in 0..2 {
+        let ended = hero::inn::change_recruit_hero(State(s.clone()), change(0)).await.unwrap().0;
+        assert_eq!(ended.result, "Success");
+        let info = ended.friendly_info.unwrap();
+        assert_eq!((info.hero_index, info.selected_hero_index, info.friendly_point), (0, 0, 0));
+        assert_eq!(info.selected_hero_indice, first.selected_hero_indice);
+        assert_eq!(info.selected_time, first.selected_time);
+        assert_eq!(info.last_roulette_time.as_deref(), Some("2026-11-04 00:00:01"));
+        assert!(info.last_greeting_time.is_none() && info.last_conversation_time.is_none() && info.last_gift_time.is_none());
+        let reopened = inn_refresh(&s, &u).await.friendly_info.unwrap();
+        assert_eq!(serde_json::to_value(reopened).unwrap(), serde_json::to_value(info).unwrap());
+        // The old hero can neither gain recruitment points nor be recruited
+        // again until the player deliberately starts a relationship.
+        assert_eq!(inn_action(&s, &u, first.hero_index, "Greeting").await.result, "HeroIndexMismatch");
+    }
+    let next = visitors[1];
+    let started = hero::inn::change_recruit_hero(State(s.clone()), change(next)).await.unwrap().0;
+    assert_eq!(started.result, "Success");
+    let info = started.friendly_info.unwrap();
+    assert_eq!((info.hero_index, info.selected_hero_index, info.friendly_point), (next, next, 0));
+    assert_eq!(info.selected_hero_indice, first.selected_hero_indice);
+    assert_eq!(inn_action(&s, &u, next, "Greeting").await.result, "Success");
+    // A daily visitor rotation must not silently undo an ended relationship.
+    let _ = hero::inn::change_recruit_hero(State(s.clone()), change(0)).await.unwrap();
+    sqlx::query("UPDATE hero_friendly_info SET selected_time='2000-01-01 00:00:00' WHERE account_id=?")
+        .bind(account).execute(&s.db).await.unwrap();
+    let rotated = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!((rotated.hero_index, rotated.selected_hero_index, rotated.friendly_point), (0, 0, 0));
+    assert_eq!(rotated.selected_hero_indice.as_ref().unwrap().split(',').count(), 6);
+    assert_eq!(&rotated.selected_time.as_ref().unwrap()[..10], s.server_date());
+    let reopened = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!(serde_json::to_value(reopened).unwrap(), serde_json::to_value(rotated).unwrap());
+}
+
+#[tokio::test]
+async fn inn_owned_cooldowns_are_per_hero_action_persist_and_reset_daily() {
+    let (s, u) = setup().await; let account = u.user_info.account_id;
+    inn_refresh(&s, &u).await;
+    sqlx::query("UPDATE user_info SET friendship_point=1000 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    for id in [1, 2] {
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(account).bind(100000 + id).bind(id).bind(account).bind(id).execute(&s.db).await.unwrap();
+    }
+    for (action, wire) in [("Closeness_Greeting", "LastGreetingTime"), ("Closeness_Conversation", "LastConversationTime"), ("Closeness_Gift", "LastGiftTime")] {
+        let first = inn_action(&s, &u, 1, action).await;
+        assert_eq!(first.result, "Success");
+        let hero = serde_json::to_value(first.hero_info.unwrap()).unwrap();
+        assert_eq!(&hero[wire].as_str().unwrap()[..10], s.server_date());
+        let before: (i64, i64, i32) = sqlx::query_as("SELECT u.gold,u.friendship_point,h.closeness FROM user_info u JOIN heroes h ON h.account_id=u.account_id WHERE u.account_id=? AND h.hero_index=1")
+            .bind(account).fetch_one(&s.db).await.unwrap();
+        let repeat = inn_action(&s, &u, 1, action).await;
+        assert_eq!(repeat.result, "ActionNotReady");
+        assert!(repeat.hero_info.is_none() && repeat.currency_result.is_none() && repeat.friendship_point_result.is_none());
+        let after: (i64, i64, i32) = sqlx::query_as("SELECT u.gold,u.friendship_point,h.closeness FROM user_info u JOIN heroes h ON h.account_id=u.account_id WHERE u.account_id=? AND h.hero_index=1")
+            .bind(account).fetch_one(&s.db).await.unwrap();
+        assert_eq!(before, after);
+        // A different hero has an independent cooldown for this same action.
+        assert_eq!(inn_action(&s, &u, 2, action).await.result, "Success");
+        let snapshots = hero::snapshot(&mut s.db.acquire().await.unwrap(), account).await.unwrap();
+        let restored = serde_json::to_value(snapshots.iter().find(|h| h.hero_index==1).unwrap()).unwrap();
+        assert_eq!(restored[wire], hero[wire]);
+        let mut details = hero::details(&mut s.db.acquire().await.unwrap(), account, 1).await.unwrap();
+        details[wire] = serde_json::json!("2000-01-01 00:00:00");
+        hero::save_details(&mut s.db.acquire().await.unwrap(), account, 1, &details).await.unwrap();
+        assert_eq!(inn_action(&s, &u, 1, action).await.result, "Success");
+    }
+    // Using recruitment action names cannot bypass an owned hero's cooldowns.
+    assert_eq!(inn_action(&s, &u, 1, "Greeting").await.result, "ActionNotExist");
+}
+
+#[tokio::test]
+async fn inn_recruitment_actions_have_independent_daily_cooldowns() {
+    let (s, u) = setup().await; let account = u.user_info.account_id;
+    let recruit = inn_refresh(&s, &u).await.friendly_info.unwrap().hero_index;
+    sqlx::query("UPDATE user_info SET friendship_point=1000 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    for (action, column) in [("Greeting", "last_greeting_time"), ("Conversation", "last_conversation_time"), ("Gift", "last_gift_time")] {
+        assert_eq!(inn_action(&s, &u, recruit, action).await.result, "Success");
+        let before: (i64, i64, i32) = sqlx::query_as("SELECT u.gold,u.friendship_point,i.friendly_point FROM user_info u JOIN hero_friendly_info i ON i.account_id=u.account_id WHERE u.account_id=?")
+            .bind(account).fetch_one(&s.db).await.unwrap();
+        assert_eq!(inn_action(&s, &u, recruit, action).await.result, "ActionNotReady");
+        let after: (i64, i64, i32) = sqlx::query_as("SELECT u.gold,u.friendship_point,i.friendly_point FROM user_info u JOIN hero_friendly_info i ON i.account_id=u.account_id WHERE u.account_id=?")
+            .bind(account).fetch_one(&s.db).await.unwrap();
+        assert_eq!(before, after);
+        sqlx::query(&format!("UPDATE hero_friendly_info SET {column}='2000-01-01 00:00:00' WHERE account_id=?"))
+            .bind(account).execute(&s.db).await.unwrap();
+        assert_eq!(inn_action(&s, &u, recruit, action).await.result, "Success");
+    }
+}
+
+#[tokio::test]
+async fn inn_concurrent_gifts_charge_once_and_failed_updates_roll_back() {
+    let (s, u) = setup().await; let account = u.user_info.account_id;
+    inn_refresh(&s, &u).await;
+    sqlx::query("UPDATE user_info SET gold=100000 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    // Simulate a failure after charging currency, before persisting the cooldown.
+    sqlx::query("CREATE TRIGGER fail_inn_details BEFORE INSERT ON hero_details BEGIN SELECT RAISE(ABORT,'fixture detail failure'); END")
+        .execute(&s.db).await.unwrap();
+    let request = || axum::extract::Form(hero::inn::DoHeroFriendlyRequest {
+        session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some("1".into()), action: Some("Closeness_Gift".into()),
+    });
+    assert!(hero::inn::do_hero_friendly(State(s.clone()), request()).await.is_err());
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap(), 100000);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT closeness FROM heroes WHERE account_id=? AND hero_index=1").bind(account).fetch_one(&s.db).await.unwrap(), 0);
+    sqlx::query("DROP TRIGGER fail_inn_details").execute(&s.db).await.unwrap();
+    let (left, right) = tokio::join!(inn_action(&s, &u, 1, "Closeness_Gift"), inn_action(&s, &u, 1, "Closeness_Gift"));
+    assert_eq!([&left.result, &right.result].iter().filter(|r| r.as_str()=="Success").count(), 1);
+    assert_eq!([&left.result, &right.result].iter().filter(|r| r.as_str()=="ActionNotReady").count(), 1);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap(), 75000);
+    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT closeness FROM heroes WHERE account_id=? AND hero_index=1").bind(account).fetch_one(&s.db).await.unwrap(), 100);
+}
+
+#[tokio::test]
+async fn inn_all_owned_max_closeness_keeps_visits_greetings_and_roulette() {
+    for fresh in [false, true] {
+        let (s, u) = setup().await;
+        let account = u.user_info.account_id;
+        if !fresh { inn_refresh(&s, &u).await; }
+        // Include the whole supported roster, not only the smaller recruit pool.
+        for id in s.tables.hero_shop.inn_recruitment_points.keys() {
+            sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+                .bind(account).bind(100000 + id).bind(id).bind(account).bind(id).execute(&s.db).await.unwrap();
+        }
+        sqlx::query("UPDATE heroes SET closeness=1000 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+        let response = inn_refresh(&s, &u).await;
+        assert_eq!(response.result, "Success");
+        let info = response.friendly_info.unwrap();
+        assert_eq!((info.hero_index, info.selected_hero_index, info.friendly_point), (0, 0, 0));
+        let visitors: Vec<i32> = info.selected_hero_indice.as_ref().unwrap().split(',').map(|id| id.parse().unwrap()).collect();
+        assert_eq!(visitors.len(), 6);
+        assert_eq!(visitors.iter().collect::<std::collections::HashSet<_>>().len(), 6);
+        for id in &visitors {
+            assert!(s.tables.hero_shop.inn_recruitment_points.contains_key(id));
+            let greet = hero::inn::do_hero_friendly(State(s.clone()), axum::extract::Form(hero::inn::DoHeroFriendlyRequest {
+                session_id: None, session_key: Some(u.user_info.session_key.clone()),
+                hero_index: Some(id.to_string()), action: Some("Closeness_Greeting".into()),
+            })).await.unwrap().0;
+            assert_eq!(greet.result, "Success");
+            let wire = serde_json::to_value(greet.hero_info.unwrap()).unwrap();
+            assert_eq!(wire["ClosenessPoint"], 1000);
+            assert!(wire.get("Closeness").is_none());
+        }
+        // Reopening must not reshuffle visitors, reset the day, or mark an owned
+        // hero as an active recruit (which causes native request/scene loops).
+        let again = inn_refresh(&s, &u).await.friendly_info.unwrap();
+        assert_eq!(again.selected_hero_indice, info.selected_hero_indice);
+        assert_eq!(again.selected_time, info.selected_time);
+        assert_eq!(again.hero_index, 0);
+        let roulette = hero::inn::request_hero_inn_roulette(State(s.clone()), axum::extract::Form(hero::inn::RequestHeroInnRouletteRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), roulette_index: Some("1".into()),
+        })).await.unwrap().0.roulette_info.unwrap();
+        assert_eq!((roulette.max_count, roulette.remain_count), (7, 7));
+        for remaining in (0..7).rev() {
+            let spin = hero::inn::give_reward_hero_inn_roulette(State(s.clone()), axum::extract::Form(hero::inn::GiveRewardHeroInnRouletteRequest {
+                session_id: None, session_key: Some(u.user_info.session_key.clone()), roulette_index: Some("1".into()),
+            })).await.unwrap().0;
+            assert_eq!(spin.result, "Success");
+            assert_eq!(spin.roulette_info.unwrap().remain_count, remaining);
+        }
+        let reset = hero::inn::change_recruit_hero(State(s.clone()), axum::extract::Form(hero::inn::ChangeRecruitHeroRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some(0),
+        })).await.unwrap().0;
+        assert_eq!(reset.result, "Success");
+        assert_eq!(reset.friendly_info.unwrap().hero_index, 0);
+        assert_eq!(inn_refresh(&s, &u).await.result, "Success");
+        let exhausted = hero::inn::give_reward_hero_inn_roulette(State(s.clone()), axum::extract::Form(hero::inn::GiveRewardHeroInnRouletteRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), roulette_index: Some("1".into()),
+        })).await.unwrap().0;
+        assert_eq!(exhausted.result, "NoMoreRoulette");
+        let recruit = hero::inn::recruit_hero(State(s.clone()), axum::extract::Form(hero::inn::RecruitHeroRequest {
+            session_id: None, session_key: Some(u.user_info.session_key.clone()), hero_index: Some(visitors[0]),
+        })).await.unwrap().0;
+        assert_eq!(recruit["Result"], "AlreadyRecruited");
+    }
+}
+
+#[tokio::test]
+async fn inn_last_recruit_keeps_progress_and_fills_empty_seats_with_owned_visitors() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    for id in crate::models::hero_inn::get_available_inn_hero_indices().into_iter().filter(|id| *id != 5) {
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)")
+            .bind(account).bind(100000 + id).bind(id).bind(account).bind(id).execute(&s.db).await.unwrap();
+    }
+    let first = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!(first.hero_index, 5);
+    sqlx::query("UPDATE hero_friendly_info SET friendly_point=350,selected_time='2000-01-01 00:00:00' WHERE account_id=?")
+        .bind(account).execute(&s.db).await.unwrap();
+    let refreshed = inn_refresh(&s, &u).await.friendly_info.unwrap();
+    assert_eq!((refreshed.hero_index, refreshed.friendly_point), (5, 350));
+    let visitors: Vec<i32> = refreshed.selected_hero_indice.unwrap().split(',').map(|id| id.parse().unwrap()).collect();
+    assert_eq!(visitors.len(), 6);
+    assert_eq!(visitors[0], 5);
+    for id in &visitors[1..] {
+        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=?")
+            .bind(account).bind(id).fetch_one(&s.db).await.unwrap(), 1);
+    }
+}
+
 #[tokio::test]
 async fn restored_special_costume_sales_match_catalog_and_charge_once() {
     let (s,u)=setup().await;let account=u.user_info.account_id;
@@ -72,7 +289,10 @@ async fn inn_friendship_uses_each_hero_target_and_unblocks_saved_1000_points() {
         sqlx::query("UPDATE hero_friendly_info SET friendly_point=? WHERE account_id=?")
             .bind(required - 1).bind(account).execute(&s.db).await.unwrap();
         assert_eq!(hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0["Result"], "FriendlyPointMismatch");
-        // An action crossing the target must clamp at that hero's target.
+        assert_eq!(hero::inn::do_hero_friendly(State(s.clone()), greet()).await.unwrap().0.result, "ActionNotReady");
+        sqlx::query("UPDATE hero_friendly_info SET last_greeting_time='2000-01-01 00:00:00' WHERE account_id=?")
+            .bind(account).execute(&s.db).await.unwrap();
+        // A new day's action crossing the target must clamp at that hero's target.
         let action = hero::inn::do_hero_friendly(State(s.clone()), greet()).await.unwrap().0;
         assert_eq!(action.friendly_info.unwrap().friendly_point, required);
         let recruited = hero::inn::recruit_hero(State(s.clone()), recruit()).await.unwrap().0;
