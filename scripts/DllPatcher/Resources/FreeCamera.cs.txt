@@ -16,9 +16,16 @@ public static class SprkFreeCamera {
         public Vector3 Pan;
         public Vector2 Last;
         public int Button=-1;
+        public bool TouchBlocked;
+        public float ViewYaw,ViewPitch;
+        public Vector3 ViewPan;
+        public int TouchCount,FingerA=-1,FingerB=-1;
+        public Vector2 LastB;
+        public float SuppressMouseUntil;
         public object ShadowModel;
         public ShadowBounds[] Shadows;
-        public void Reset(){Zoom=1;Yaw=0;Pitch=0;Pan=Vector3.zero;Button=-1;}
+        public void CancelInput(){Button=-1;TouchCount=0;FingerA=FingerB=-1;TouchBlocked=false;}
+        public void Reset(){Zoom=1;Yaw=ViewYaw=0;Pitch=ViewPitch=0;Pan=ViewPan=Vector3.zero;CancelInput();}
     }
     static readonly ConditionalWeakTable<HeroFullSceneViewBase,State> states=new ConditionalWeakTable<HeroFullSceneViewBase,State>();
     sealed class LayoutState { public int Width,Height,RefreshThrough; public Transform Root,Parent; public Camera Camera; }
@@ -82,7 +89,9 @@ public static class SprkFreeCamera {
     static float Sensitivity { get { return ReadSensitivity("ModelCameraSensitivity"); } }
     static float LobbySensitivity { get { return ReadSensitivity("LobbyCameraSensitivity"); } }
     static Vector2 ScaleDrag(Vector2 delta) { return delta*Sensitivity; }
-    static void ZoomStep(State state,float wheel) { state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Exp(-wheel*.15f*Sensitivity),.02f,8); }
+    // krinfo's OrbitControls uses a 0.95 dolly factor and 0.05 damping.
+    // Keep fractional wheel deltas for precision touchpads rather than rounding.
+    static void ZoomStep(State state,float wheel) { state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Pow(.95f,wheel*Sensitivity),.02f,8); }
     public static Vector2 ScaleLobbyDrag(Vector2 delta) {
         return Application.isMobilePlatform || Input.touchCount>0?delta:delta*LobbySensitivity;
     }
@@ -95,29 +104,40 @@ public static class SprkFreeCamera {
         states.Remove(window);layouts.Remove(window);
     }
     public static bool InputCamera(HeroFullSceneViewBase window) {
-        if(!Eligible(window)||Application.isMobilePlatform||Input.touchCount>0)return false;
+        if(!Eligible(window)||Application.isMobilePlatform)return false;
         var state=Get(window);
-        if(window.CameraController==null || !Application.isFocused || UICamera.inputHasFocus){state.Button=-1;return true;}
+        if(window.CameraController==null || !Application.isFocused || UICamera.inputHasFocus){state.CancelInput();return true;}
         var texture=window.Hero3DTexture;
-        var hovered=UICamera.hoveredObject;
-        bool over=OwnsPointer(texture,hovered);
+        var viewport=PreviewRect(texture);
+        var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
+        if(cinema==null || cinema.CinemaCamera==null){state.CancelInput();return true;}
+        var info=cinema.CinemaCamera.CameraInfo;
+        if(Input.touchCount>0) {
+            state.Button=-1;state.SuppressMouseUntil=Time.unscaledTime+.2f;
+            var touches=new TouchSample[Input.touchCount];
+            for(int i=0;i<touches.Length;i++) {
+                var touch=Input.GetTouch(i);
+                touches[i]=new TouchSample {Id=touch.fingerId,Position=touch.position,Phase=touch.phase,
+                    Allowed=touch.phase==TouchPhase.Began && OwnsPosition(texture,touch.position)};
+            }
+            TouchInput(state,touches,info.TargetDistance,info.FieldOfView,viewport.height,info.LookDir);
+            return true;
+        }
+        state.TouchCount=0;state.FingerA=state.FingerB=-1;state.TouchBlocked=false;
+        // Windows can synthesize a left mouse drag from touchscreen gestures.
+        if(Time.unscaledTime<state.SuppressMouseUntil){state.Button=-1;return true;}
         Vector2 mouse=Input.mousePosition;
+        bool over=OwnsPosition(texture,mouse);
         if(state.Button>=0 && !Input.GetMouseButton(state.Button))state.Button=-1;
         if(state.Button<0 && over) {
             for(int button=0;button<3;button++)if(Input.GetMouseButtonDown(button)){state.Button=button;state.Last=mouse;break;}
         }
         if(state.Button>=0) {
             Vector2 delta=ScaleDrag(mouse-state.Last);state.Last=mouse;
-            if(state.Button==0 && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift)) {
-                Orbit(state,delta);
+            if(!MousePans(state.Button,Input.GetKey(KeyCode.LeftShift)||Input.GetKey(KeyCode.RightShift)||Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl))) {
+                Orbit(state,delta,viewport.height);
             } else {
-                var cinema=cinemaField.GetValue(window) as RenderTargetCinema;
-                if(cinema!=null && cinema.CinemaCamera!=null) {
-                    var info=cinema.CinemaCamera.CameraInfo;
-                    var rotation=Quaternion.LookRotation(info.LookDir);
-                    float units=2*Mathf.Max(.15f,info.TargetDistance)*Mathf.Tan(info.FieldOfView*Mathf.Deg2Rad*.5f)/Mathf.Max(1,Screen.height);
-                    state.Pan=Vector3.ClampMagnitude(state.Pan-rotation*new Vector3(delta.x,delta.y,0)*units,40);
-                }
+                PanStep(state,delta,info.TargetDistance,info.FieldOfView,viewport.height,info.LookDir);
             }
         }
         if(over) {
@@ -126,12 +146,66 @@ public static class SprkFreeCamera {
         }
         return true;
     }
+    static bool MousePans(int button,bool modifier) {return button!=0 || modifier;}
+    static void PanStep(State state,Vector2 delta,float distance,float fov,float height,Vector3 direction) {
+        var rotation=Quaternion.LookRotation(direction.sqrMagnitude<.0001f?Vector3.forward:direction);
+        float units=2*Mathf.Max(.15f,distance)*Mathf.Tan(fov*Mathf.Deg2Rad*.5f)/Mathf.Max(1,height);
+        state.Pan=Vector3.ClampMagnitude(state.Pan-rotation*new Vector3(delta.x,delta.y,0)*units,40);
+    }
+    struct TouchSample {public int Id;public Vector2 Position;public TouchPhase Phase;public bool Allowed;}
+    static void TouchInput(State state,TouchSample[] samples,float distance,float fov,float height,Vector3 direction) {
+        TouchSample a=default(TouchSample),b=default(TouchSample);int count=0;
+        foreach(var sample in samples)if(sample.Phase!=TouchPhase.Ended && sample.Phase!=TouchPhase.Canceled) {
+            if(count==0)a=sample;else if(count==1)b=sample;count++;
+        }
+        if(count==0){state.TouchCount=0;state.FingerA=state.FingerB=-1;state.TouchBlocked=false;return;}
+        if(count>2){state.TouchBlocked=true;state.TouchCount=0;return;}
+        if(state.TouchBlocked)return;
+        if(count==2 && b.Id<a.Id){var swap=a;a=b;b=swap;}
+        foreach(var sample in count==1?new[]{a}:new[]{a,b}) {
+            bool captured=state.TouchCount>0 && (sample.Id==state.FingerA || sample.Id==state.FingerB);
+            if(!captured && (sample.Phase!=TouchPhase.Began || !sample.Allowed)) {state.TouchBlocked=true;state.TouchCount=0;return;}
+        }
+        if(state.TouchCount!=count || state.FingerA!=a.Id || count==2 && state.FingerB!=b.Id) {
+            state.TouchCount=count;state.FingerA=a.Id;state.FingerB=count==2?b.Id:-1;
+            state.Last=a.Position;state.LastB=b.Position;return;
+        }
+        if(count==1) {
+            var delta=ScaleDrag(a.Position-state.Last);
+            Orbit(state,delta,height);
+        } else {
+            var delta=ScaleDrag((a.Position+b.Position-state.Last-state.LastB)*.5f);
+            PanStep(state,delta,distance,fov,height,direction);
+            float before=Vector2.Distance(state.Last,state.LastB),after=Vector2.Distance(a.Position,b.Position);
+            if(before>=10 && after>=10)state.Zoom=Mathf.Clamp(state.Zoom*Mathf.Pow(before/after,Sensitivity),.02f,8);
+        }
+        state.Last=a.Position;state.LastB=b.Position;
+    }
+    public static Rect PreviewRect(UITexture texture) {
+        if(texture==null)return new Rect();var camera=NGUITools.FindCameraForLayer(texture.gameObject.layer);if(camera==null)return new Rect();
+        var corners=texture.worldCorners;var min=new Vector2(float.MaxValue,float.MaxValue);var max=new Vector2(float.MinValue,float.MinValue);
+        foreach(var corner in corners){Vector2 point=camera.WorldToScreenPoint(corner);min=Vector2.Min(min,point);max=Vector2.Max(max,point);}
+        return Rect.MinMaxRect(min.x,min.y,max.x,max.y);
+    }
+    static bool OwnsPosition(UITexture texture,Vector2 position) {
+        if(!PreviewRect(texture).Contains(position))return false;
+        var hovered=UICamera.hoveredObject;var hit=UICamera.lastHit;var world=UICamera.lastWorldPosition;var camera=UICamera.currentCamera;
+        try {return UICamera.Raycast(position) && OwnsPointer(texture,UICamera.hoveredObject);}
+        finally {UICamera.hoveredObject=hovered;UICamera.lastHit=hit;UICamera.lastWorldPosition=world;UICamera.currentCamera=camera;}
+    }
     public static bool OwnsPointer(UITexture texture,GameObject hovered) {
         return texture!=null && hovered!=null && (hovered==texture.gameObject || (hovered.transform.IsChildOf(texture.transform) && hovered.GetComponentInParent<UIButton>()==null && hovered.GetComponentInParent<UIInput>()==null));
     }
-    static void Orbit(State state,Vector2 delta) {
-        state.Yaw=Mathf.Repeat(state.Yaw+delta.x*.3f+180,360)-180;
-        state.Pitch=Mathf.Clamp(state.Pitch-delta.y*.3f,-85,85);
+    static void Orbit(State state,Vector2 delta,float height) {
+        float degrees=360/Mathf.Max(1,height);
+        state.Yaw=Mathf.Repeat(state.Yaw+delta.x*degrees+180,360)-180;
+        state.Pitch=Mathf.Clamp(state.Pitch-delta.y*degrees,-85,85);
+    }
+    static void SmoothView(State state,float seconds) {
+        float alpha=1-Mathf.Pow(.95f,Mathf.Clamp(seconds,0,.25f)*60);
+        state.ViewYaw=Mathf.Repeat(state.ViewYaw+Mathf.DeltaAngle(state.ViewYaw,state.Yaw)*alpha+180,360)-180;
+        state.ViewPitch=Mathf.Lerp(state.ViewPitch,state.Pitch,alpha);
+        state.ViewPan=Vector3.Lerp(state.ViewPan,state.Pan,alpha);
     }
     public static void EnsureProbe() {
         string root=Environment.GetEnvironmentVariable("SPRK_FREE_CAMERA_TEST");
@@ -162,7 +236,7 @@ public static class SprkFreeCamera {
                     detailTab.SetValue(detail,Enum.Parse(detailTab.FieldType,tab));
                     var current=Get(detail);
                     check(ReferenceEquals(current,carried) && current.Yaw==65 && current.Pitch==-20 && current.Zoom==.4f && current.Pan==new Vector3(1,2,3) && current.AnchorPivot==new Vector3(2,1,0),"Camera state retained across tab: "+tab);
-                    Orbit(current,new Vector2(10,5));
+                    Orbit(current,new Vector2(10,5),1200);
                     check(current.Yaw==68 && current.Pitch==-21.5f,"Camera controls available after tab: "+tab);
                     current.Yaw=65;current.Pitch=-20;
                 }
@@ -205,8 +279,61 @@ public static class SprkFreeCamera {
         check(!IsScreenLayout(popup.transform),"Fixed-width popup is excluded");UnityEngine.Object.Destroy(popup);
         UnityEngine.Object.Destroy(host);UnityEngine.Object.Destroy(cameraHost);
     }
+    static void RunGestureProbe(Action<bool,string> check) {
+        TouchSample Finger(int id,float x,float y,TouchPhase phase=TouchPhase.Moved,bool allowed=true) {
+            return new TouchSample {Id=id,Position=new Vector2(x,y),Phase=phase,Allowed=allowed};
+        }
+        void Feed(State state,params TouchSample[] samples) {TouchInput(state,samples,5,45,900,Vector3.forward);}
+        float sensitivity=Sensitivity;
+        check(!MousePans(0,false) && MousePans(0,true) && MousePans(1,false) && MousePans(2,false),"Mouse and touchpad modifier pan bindings");
+        var state=new State();Feed(state,Finger(7,100,100,TouchPhase.Began));
+        Feed(state,Finger(7,150,120));
+        check(Mathf.Abs(state.Yaw-20*sensitivity)<.001f && Mathf.Abs(state.Pitch+8*sensitivity)<.001f,"Single finger rotates using viewport height");
+        float yaw=state.Yaw,pitch=state.Pitch;
+        Feed(state,Finger(7,150,120),Finger(9,200,120,TouchPhase.Began));
+        check(state.Pan==Vector3.zero && state.Zoom==1 && state.Yaw==yaw,"Second finger rebases without jumping");
+        Feed(state,Finger(9,230,135),Finger(7,180,135));
+        var expected=-new Vector3(30,15,0)*sensitivity*(10*Mathf.Tan(22.5f*Mathf.Deg2Rad)/900);
+        check(Vector3.Distance(state.Pan,expected)<.0001f && state.Yaw==yaw && state.Pitch==pitch && state.Zoom==1,"Two fingers pan; reversed touch enumeration is stable");
+        var pan=state.Pan;
+        Feed(state,Finger(7,155,135),Finger(9,255,135));
+        check(Mathf.Abs(state.Zoom-Mathf.Pow(.5f,sensitivity))<.0001f && state.Pan==pan,"Pinch spread zooms in without spurious pan");
+        Feed(state,Finger(7,180,135),Finger(9,230,135));
+        check(Mathf.Abs(state.Zoom-1)<.0001f,"Pinch contraction zooms out proportionally");
+        Feed(state,Finger(7,180,135),Finger(9,230,135,TouchPhase.Ended));
+        check(state.Yaw==yaw && state.Pan==pan,"Finger lift rebases without orbit jump");
+        Feed(state,Finger(7,200,135));check(Mathf.Abs(state.Yaw-yaw-8*sensitivity)<.001f,"Remaining finger resumes rotation");
+        Feed(state,Finger(7,200,135,TouchPhase.Canceled));check(state.TouchCount==0 && !state.TouchBlocked,"Canceled gesture releases capture");
+        state.Reset();Feed(state,Finger(1,100,100,TouchPhase.Began,false));Feed(state,Finger(1,300,300));
+        check(state.TouchBlocked && state.Yaw==0 && state.Pan==Vector3.zero,"Gesture beginning over UI cannot be stolen by camera");
+        Feed(state);Feed(state,Finger(1,100,100,TouchPhase.Began));
+        Feed(state,Finger(1,100,100),Finger(2,200,100,TouchPhase.Began,false));
+        check(state.TouchBlocked && state.Pan==Vector3.zero,"Second finger over UI suspends camera gesture");
+        Feed(state);Feed(state,Finger(1,100,100,TouchPhase.Began));state.CancelInput();Feed(state,Finger(1,300,300));
+        check(state.TouchBlocked && state.Yaw==0,"Focus loss does not recapture an already-held finger");
+        Feed(state);Feed(state,Finger(1,100,100,TouchPhase.Began),Finger(2,200,100,TouchPhase.Began),Finger(3,300,100,TouchPhase.Began));
+        check(state.TouchBlocked && state.Pan==Vector3.zero,"Three-finger system gestures ignored");
+        Feed(state);Feed(state,Finger(1,100,100,TouchPhase.Began),Finger(2,105,100,TouchPhase.Began));
+        Feed(state,Finger(1,100,100),Finger(2,150,100));check(state.Zoom==1,"Overlapping pinch contacts do not cause zoom spikes");
+        var small=new State();var large=new State();Orbit(small,new Vector2(100,40),1000);Orbit(large,new Vector2(200,80),2000);
+        check(Mathf.Abs(small.Yaw-large.Yaw)<.001f && Mathf.Abs(small.Pitch-large.Pitch)<.001f,"Viewport-normalized rotation matches across display sizes");
+        var wheel=new State();var fractional=new State();ZoomStep(wheel,1);for(int i=0;i<4;i++)ZoomStep(fractional,.25f);
+        check(Mathf.Abs(wheel.Zoom-fractional.Zoom)<.00001f,"Fractional touchpad scrolling is retained");
+        State Target(){return new State{Yaw=90,Pitch=30,Pan=new Vector3(1,2,3)};}
+        var eased=Target();SmoothView(eased,1f/60);
+        check(Mathf.Abs(eased.ViewYaw-4.5f)<.001f && Mathf.Abs(eased.ViewPitch-1.5f)<.001f && Vector3.Distance(eased.ViewPan,new Vector3(.05f,.1f,.15f))<.001f,"OrbitControls 0.05 damping at 60 Hz");
+        var baseline=Target();for(int i=0;i<60;i++)SmoothView(baseline,1f/60);
+        foreach(int fps in new[]{30,90,144}) {
+            var smooth=Target();for(int i=0;i<fps;i++)SmoothView(smooth,1f/fps);
+            check(Mathf.Abs(smooth.ViewYaw-baseline.ViewYaw)<.002f && Vector3.Distance(smooth.ViewPan,baseline.ViewPan)<.001f,"Damping remains consistent at "+fps+" Hz");
+        }
+        var wrapped=new State{Yaw=-179,ViewYaw=179};SmoothView(wrapped,1f/60);
+        check(Mathf.Abs(Mathf.DeltaAngle(179,wrapped.ViewYaw)-.1f)<.001f,"Eased orbit crosses yaw wrap by the shortest path");
+        eased.Reset();check(eased.ViewPan==Vector3.zero && eased.ViewYaw==0 && eased.ViewPitch==0 && eased.TouchCount==0 && !eased.TouchBlocked,"Reset clears gesture state and remaining camera motion");
+    }
     public static void RunProbe() {
         Action<bool,string> check=(ok,message)=>{if(!ok)throw new Exception(message);};
+        RunGestureProbe(check);
         RunLayoutProbe(check);
         check(SupportsWindow(typeof(HeroDetailView)) && SupportsWindow(typeof(HeroCostumeView)) && SupportsWindow(typeof(HeroModelView)) && !SupportsWindow(typeof(HeroFullSceneViewBase)),"Preview window scope");
         string[] sensitivityKeys={"Sprk.Graphics.CameraSensitivity","Sprk.Graphics.LobbyCameraSensitivity","Sprk.Graphics.ModelCameraSensitivity"};
@@ -221,11 +348,11 @@ public static class SprkFreeCamera {
         SprkTestPrefs.SetInt("Sprk.Graphics.LobbyCameraSensitivity",50);
         foreach(int percent in new[]{50,75,100,125,150}) {
             SprkTestPrefs.SetInt("Sprk.Graphics.ModelCameraSensitivity",percent);
-            var sample=new State();var drag=ScaleDrag(new Vector2(100,40));Orbit(sample,drag);
+            var sample=new State();var drag=ScaleDrag(new Vector2(100,40));Orbit(sample,drag,1200);
             check(Mathf.Abs(sample.Yaw-30*percent/100f)<.001f && Mathf.Abs(sample.Pitch+12*percent/100f)<.001f,"Scaled orbit sensitivity");
             check(Vector2.Distance(drag,new Vector2(percent,percent*.4f))<.001f,"Scaled pan input");
             check(LobbySensitivity==.5f,"Model setting does not change lobby");
-            ZoomStep(sample,1);check(Mathf.Abs(sample.Zoom-Mathf.Exp(-.15f*percent/100f))<.001f,"Scaled wheel sensitivity");
+            ZoomStep(sample,1);check(Mathf.Abs(sample.Zoom-Mathf.Pow(.95f,percent/100f))<.001f,"Scaled wheel sensitivity");
             sample.Reset();check(Sensitivity==percent/100f,"Reset preserves selected sensitivity");
         }
         // Invoke the native lobby camera methods so scaling is verified at
@@ -259,9 +386,9 @@ public static class SprkFreeCamera {
             if(hadKeys[i])SprkTestPrefs.SetInt(sensitivityKeys[i],oldValues[i]);else SprkTestPrefs.DeleteKey(sensitivityKeys[i]);
         }
         SprkTestPrefs.Save();
-        var state=new State();Orbit(state,new Vector2(200,100));
+        var state=new State();Orbit(state,new Vector2(200,100),1200);
         check(Mathf.Abs(state.Yaw-60)<.001f && Mathf.Abs(state.Pitch+30)<.001f,"Orbit axes");
-        Orbit(state,new Vector2(10000,10000));check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==-85,"Orbit bounds");
+        Orbit(state,new Vector2(10000,10000),1200);check(Mathf.Abs(state.Yaw)<=180 && state.Pitch==-85,"Orbit bounds");
         var initial=Quaternion.Euler(20,30,0)*Vector3.forward;
         check(Vector3.Distance(Direction(initial,0,0),initial)<.001f,"Native view preservation");
         for(int yaw=-720;yaw<=720;yaw+=30)for(int pitch=-180;pitch<=180;pitch+=15) {
@@ -407,7 +534,8 @@ public static class SprkFreeCamera {
             var head=ReferenceEquals(state.AnchorModel,facade) && state.Head!=null?state.Head:facade.Pivot.FindTransform("Bip001 Head");
             pivot=StabilizeOrbit(state,facade,pivot,head,info,window.CameraController.ZoomOutRate);
         }
-        ApplyCamera(cinema.CinemaCamera,state.Pan,state.Yaw,state.Pitch,state.Zoom,pivot);
+        SmoothView(state,Time.unscaledDeltaTime);
+        ApplyCamera(cinema.CinemaCamera,state.ViewPan,state.ViewYaw,state.ViewPitch,state.Zoom,pivot);
     }
     static Vector3 StabilizeOrbit(State state,object model,Vector3 pivot,Transform head,NGame2.NUI.NRender3D.NRenderTargetCinema.CinemaCamera.CameraInfoData info,float zoomOutRate) {
         if(!ReferenceEquals(state.AnchorModel,model) || state.Head!=head) {

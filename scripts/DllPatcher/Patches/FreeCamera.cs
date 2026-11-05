@@ -36,6 +36,15 @@ partial class Program {
         VerifyFreeCamera(game.MainModule);
         using var helper=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","SprkFreeCamera.dll"+(staged?".staged":"")));
         var eligible=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Eligible");
+        var input=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="InputCamera");
+        foreach(var name in new[]{"TouchInput","MousePans","PanStep","OwnsPosition","GetTouch"})
+            if(!input.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==name))throw new InvalidOperationException("Missing preview touch/touchpad input: "+name);
+        var probe=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="RunProbe");
+        if(!probe.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="RunGestureProbe"))throw new InvalidOperationException("Missing native gesture regression checks");
+        if(helper.MainModule.GetType("SprkPreviewCameraControls")!=null || helper.MainModule.GetType("SprkFreeCamera").Methods.Any(m=>m.Name=="DrawControls"))
+            throw new InvalidOperationException("Preview camera must not add a button bar");
+        if(!helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Apply").Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="SmoothView"))
+            throw new InvalidOperationException("Missing OrbitControls-style camera damping");
         if(eligible.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="detailTab"))throw new InvalidOperationException("Free camera must remain enabled on all hero preview tabs.");
         var scope=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="SupportsWindow");
         foreach(var name in new[]{"HeroDetailView","HeroCostumeView","HeroModelView"})
