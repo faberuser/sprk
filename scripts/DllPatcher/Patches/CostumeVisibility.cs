@@ -12,6 +12,7 @@ partial class Program
         // Preserve the original ownership checks so the shop can offer unowned costumes.
         PatchCostumeBuying(module);
         PatchHeroCostumeViewMotionButton(module);
+        PatchCutsceneCostumes(module);
 
         // Costume IsOpen flags
         PatchBooleanGetter(module, "NShared.CostumeData", "get_IsOpen", true);

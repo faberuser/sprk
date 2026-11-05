@@ -160,6 +160,8 @@ namespace DllPatcher
             if (args.Contains("--prepare-loading-background-probe")) { PrepareLoadingBackgroundProbe(args[0]); return; }
             if (args.Contains("--image-recovery-only")) { InstallImageRecovery(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-image-recovery")) { VerifyImageRecoveryFile(args[0]); return; }
+            if (args.Contains("--cutscene-costumes-only")) { InstallCutsceneCostumes(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-cutscene-costumes")) { VerifyCutsceneCostumesFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--cinematic-skip-only")) { InstallCinematicSkip(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-cinematic-skip")) { VerifyCinematicSkipFile(args[0]); return; }
             if (args.Contains("--raid-coop-limits-only")) { InstallRaidCoopLimits(args[0], args.Contains("--stage-only")); return; }

@@ -23,6 +23,7 @@ partial class Program
             File.Move(helper, helper[..^7], true);
         File.Copy(staged, dll, true);
         using(var purify=Mono.Cecil.AssemblyDefinition.ReadAssembly(dll)) VerifyPurifyHudReuse(purify.MainModule);
+        VerifyCutsceneCostumesFile(clientRoot);
 
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
