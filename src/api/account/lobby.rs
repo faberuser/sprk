@@ -260,7 +260,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT COUNT(*) FROM mails WHERE account_id = ? AND is_received = 0"
     )
     .bind(account_id)
-    .fetch_one(&state.db)
+    .fetch_one(&state.reads)
     .await?;
 
     // Count friend requests
@@ -268,7 +268,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT COUNT(*) FROM friends WHERE friend_account_id = ? AND status = 0"
     )
     .bind(account_id)
-    .fetch_one(&state.db)
+    .fetch_one(&state.reads)
     .await?;
 
     // Fetch campaign progress for dungeon infos
@@ -276,7 +276,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? ORDER BY chapter_id, dungeon_id"
     )
     .bind(account_id)
-    .fetch_all(&state.db)
+    .fetch_all(&state.reads)
     .await
     .unwrap_or_default();
 
@@ -318,7 +318,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     // Fetch Hero Inn friendly info if exists
     let friendly_info = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
         .bind(account_id)
-        .fetch_optional(&state.db)
+        .fetch_optional(&state.reads)
         .await?
         .map(|row| PlayerHeroFriendlyInfo {
             hero_index: row.get("hero_index"),

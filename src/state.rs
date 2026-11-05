@@ -26,7 +26,12 @@ pub struct SessionInfo {
 /// Application state shared across all handlers
 #[derive(Clone)]
 pub struct AppState {
+    /// The single writer. Anything that may write, or must read inside a
+    /// write transaction, uses this pool.
     pub db: DbPool,
+    /// Read-only connections for standalone reads that never write. Tests and
+    /// tools default this to `db`; production opens a separate reader pool.
+    pub(crate) reads: DbPool,
     pub(crate) battle_service_key: Arc<Option<String>>,
     pub chat: Arc<crate::api::community::chat::ChatHub>,
     pub conquest: Arc<crate::api::battle::cooperative::BattleHub>,
@@ -40,6 +45,7 @@ pub struct AppState {
 impl AppState {
     pub fn new(db: DbPool, tables: GameTables) -> Self {
         Self {
+            reads: db.clone(),
             db,
             battle_service_key: Arc::new(std::env::var("BATTLE_SERVICE_KEY").ok().or_else(||
                 std::fs::read_to_string(std::env::var("BATTLE_SERVICE_KEY_FILE").unwrap_or_else(|_|"conquest-service.key".into())).ok().map(|v|v.trim().to_owned())
@@ -51,6 +57,12 @@ impl AppState {
             server_start_time: chrono::Utc::now(),
             tables: Arc::new(tables),
         }
+    }
+
+    /// Serve standalone reads from `reads` instead of queuing on the writer.
+    pub(crate) fn with_reads(mut self, reads: DbPool) -> Self {
+        self.reads = reads;
+        self
     }
 
     /// Get session by session key

@@ -179,14 +179,40 @@ fn wire_product_with(s: &AppState, mut product: Value, configured: Option<&Value
     Ok(product)
 }
 
-pub(super) async fn lobby_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
-    let mut out = Vec::new();
-    for data in products(s) {
-        // Selection-shop offers are delivered by their native popup request.
-        // Their cached rows still need the same enum-name conversion there.
-        if data["SelectionCategory"].is_null() {
-            out.push(configured_product(db, s, a, data).await?);
+/// Lobby products converted to wire form once per loaded table set. Only the
+/// discounted price is account/time dependent; it is applied per request.
+type WiredCatalog = (std::sync::Arc<crate::tables::GameTables>, std::sync::Arc<Vec<(Value, bool)>>);
+static LOBBY_CATALOG: std::sync::Mutex<Option<WiredCatalog>> = std::sync::Mutex::new(None);
+
+fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Vec<(Value, bool)>>> {
+    let mut cache = LOBBY_CATALOG.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((tables, wired)) = cache.as_ref() {
+        if std::sync::Arc::ptr_eq(tables, &s.tables) {
+            return Ok(wired.clone());
         }
+    }
+    // Selection-shop offers are delivered by their native popup request.
+    // Their cached rows still need the same enum-name conversion there.
+    let wired = std::sync::Arc::new(products(s)
+        .filter(|data| data["SelectionCategory"].is_null())
+        .map(|data| Ok((wire_product_with(s, data.clone(), Some(data))?, n(data, "DiscountLimit") > 0)))
+        .collect::<Result<Vec<_>>>()?);
+    *cache = Some((s.tables.clone(), wired.clone()));
+    Ok(wired)
+}
+
+/// Read-only: safe on a reader connection (no selection-shop rolls).
+pub(super) async fn lobby_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    let wired = wired_lobby_catalog(s)?;
+    let mut out = Vec::with_capacity(wired.len());
+    for (product, discounted) in wired.iter() {
+        let mut product = product.clone();
+        if *discounted {
+            // Wire conversion never touches Price; same result as pricing first.
+            let (p, _) = price(db, a, &product).await?;
+            product["Price"] = json!(p);
+        }
+        out.push(product);
     }
     Ok(json!({"PayShopProductInfos":out,"PlayerProductPurchaseInfos":purchases(db,s,a).await?}))
 }

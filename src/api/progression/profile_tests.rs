@@ -90,3 +90,28 @@ async fn profile_login_payloads() {
     shared.sort_by(|a, b| b.0.cmp(&a.0));
     println!("identical in login and first lobby (>1KB): {shared:?}");
 }
+
+#[tokio::test]
+#[ignore]
+async fn profile_lobby_parts() {
+    let Ok(path) = std::env::var("SPRK_PROFILE_DB") else { return; };
+    let account: i64 = std::env::var("SPRK_PROFILE_ACCOUNT").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    let db = crate::database::open_pool(std::path::Path::new(&path)).await.unwrap();
+    crate::database::create_tables(&db).await.unwrap();
+    let tables = crate::tables::GameTables::load(std::path::Path::new("tables")).unwrap();
+    let state = AppState::new(db, tables);
+    for round in 0..3 {
+        let t = Instant::now();
+        let shop = crate::api::live::shop_snapshot(&state, account).await.unwrap();
+        let build = t.elapsed();
+        let t = Instant::now();
+        let bytes = serde_json::to_vec(&shop).unwrap();
+        let encode = t.elapsed();
+        let t = Instant::now();
+        let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        std::io::Write::write_all(&mut gz, &bytes).unwrap();
+        let packed = gz.finish().unwrap();
+        let gzip = t.elapsed();
+        println!("round {round}: catalog build={build:?} serialize={encode:?} ({} B) gzip={gzip:?} ({} B)", bytes.len(), packed.len());
+    }
+}

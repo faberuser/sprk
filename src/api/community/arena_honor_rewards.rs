@@ -49,10 +49,15 @@ async fn send(db: &mut SqliteConnection, s: &AppState, account: i64, period: i64
     Ok(())
 }
 
+/// Whether settle() has anything to deliver. Read-only, so it can run on a
+/// reader connection before deciding to take the writer.
+pub(crate) async fn pending(db: &mut SqliteConnection, s: &AppState, account: i64) -> Result<bool> {
+    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM community_state r WHERE owner=? AND kind='honor_week' AND idx<? AND NOT EXISTS(SELECT 1 FROM community_claims c WHERE c.account=r.owner AND c.kind='honor_weekly_reward' AND c.period=CAST(r.idx AS TEXT))) OR EXISTS(SELECT 1 FROM arena_scores r WHERE account=? AND kind=1 AND season<? AND wins+losses>0 AND NOT EXISTS(SELECT 1 FROM community_claims c WHERE c.account=r.account AND c.kind='honor_season_reward' AND c.period=CAST(r.season AS TEXT)))")
+        .bind(account).bind(week(now())).bind(account).bind(season(s).0).fetch_one(&mut *db).await?)
+}
+
 pub(crate) async fn settle(db: &mut SqliteConnection, s: &AppState, account: i64) -> Result<()> {
-    let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM community_state r WHERE owner=? AND kind='honor_week' AND idx<? AND NOT EXISTS(SELECT 1 FROM community_claims c WHERE c.account=r.owner AND c.kind='honor_weekly_reward' AND c.period=CAST(r.idx AS TEXT))) OR EXISTS(SELECT 1 FROM arena_scores r WHERE account=? AND kind=1 AND season<? AND wins+losses>0 AND NOT EXISTS(SELECT 1 FROM community_claims c WHERE c.account=r.account AND c.kind='honor_season_reward' AND c.period=CAST(r.season AS TEXT)))")
-        .bind(account).bind(week(now())).bind(account).bind(season(s).0).fetch_one(&mut *db).await?;
-    if !pending {return Ok(());}
+    if !pending(db, s, account).await? {return Ok(());}
     // ROW_NUMBER freezes deterministic ties across all eligible participants;
     // there is no leaderboard pagination limit on reward settlement.
     let weeks: Vec<(i64,i64)> = sqlx::query_as(

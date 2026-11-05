@@ -17,7 +17,8 @@ pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Re
         return login(state, account).await;
     };
     let mut cache = session.progression_cache.lock().await;
-    let mut tx = state.db.begin().await?;
+    // Hit check reads only committed state; a miss rebuilds under the writer.
+    let mut tx = state.reads.begin().await?;
     let revision = crate::api::system::revisions::get(&mut tx, "progression", 0).await?;
     let now = state.server_time();
     let day = state.server_date();

@@ -47,8 +47,12 @@ async fn private_admin_requires_key_and_targets_offline_accounts() {
     }
     assert_eq!(call(admin.clone(),"/cheat/currency",Some(key),"AccountId=999").await.0,StatusCode::NOT_FOUND);
     assert_eq!(call(admin.clone(),"/cheat/currency",Some(key),"SessionId=player-session&Gold=5").await.0,StatusCode::OK);
-    let (status,players)=call(admin,"/cheat/players",Some(key),"Query=raider2").await;
+    let (status,players)=call(admin.clone(),"/cheat/players",Some(key),"Query=raider2").await;
     assert_eq!(status,StatusCode::OK);assert_eq!(players["Players"].as_array().unwrap().len(),1);
     assert_eq!(players["Players"][0]["AccountId"],2);
     assert!(players["Players"][0].get("SessionId").is_none());
+    assert_eq!(players["Players"][0]["Online"],false,"{players}");
+    // Account 1 holds the active game session "player-session".
+    let (_,all)=call(admin,"/cheat/players",Some(key),"").await;
+    assert_eq!(all["Players"][0]["AccountId"],1);assert_eq!(all["Players"][0]["Online"],true,"{all}");
 }

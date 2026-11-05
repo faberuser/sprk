@@ -16,7 +16,8 @@ spec.loader.exec_module(gm)
 
 class GmTests(unittest.TestCase):
     def test_export_all_pages_prompts_once_without_selected_account(self):
-        rows = [{"AccountId": i, "Username": f"user{i}", "Nickname": "ชื่อ, \"Hero\"\nTwo"}
+        rows = [{"AccountId": i, "Username": f"user{i}", "Nickname": "ชื่อ, \"Hero\"\nTwo",
+                 "Online": i % 2 == 1, "LastOnlineTime": None if i == 2 else "2026-11-05 01:02:03"}
                 for i in range(1, 102)]
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "players.csv"
@@ -36,10 +37,12 @@ class GmTests(unittest.TestCase):
             with output.open(encoding="utf-8", newline="") as stream:
                 exported = list(csv.DictReader(stream))
             self.assertEqual(len(exported), 101)
-            self.assertEqual(exported[-1], {**rows[-1], "AccountId": "101"})
+            self.assertEqual(exported[-1], {**rows[-1], "AccountId": "101", "Online": "True"})
+            self.assertEqual((exported[1]["Online"], exported[1]["LastOnlineTime"]), ("False", ""))
 
     def test_export_json_empty_and_exact_page_boundary(self):
-        rows = [{"AccountId": i, "Username": None, "Nickname": "英雄"} for i in range(1, 101)]
+        rows = [{"AccountId": i, "Username": None, "Nickname": "英雄", "Online": False, "LastOnlineTime": None}
+                for i in range(1, 101)]
         for initial in ([], rows):
             with self.subTest(count=len(initial)), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory) / "players.json"
@@ -51,8 +54,11 @@ class GmTests(unittest.TestCase):
                 self.assertEqual(json.loads(output.read_text(encoding="utf-8")), initial)
 
     def test_export_failure_does_not_write_partial_results(self):
-        first = {"Players": [{"AccountId": 100, "Username": "user", "Nickname": None}], "NextAfter": 100}
-        for failed_page in ({}, {"Players": [], "NextAfter": 100}, first):
+        player = {"AccountId": 100, "Username": "user", "Nickname": None, "Online": True, "LastOnlineTime": None}
+        first = {"Players": [player], "NextAfter": 100}
+        # An older server without online status must not produce a partial export.
+        legacy = {"Players": [{"AccountId": 101, "Username": "u", "Nickname": None}], "NextAfter": None}
+        for failed_page in ({}, {"Players": [], "NextAfter": 100}, first, legacy):
             with self.subTest(page=failed_page), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory) / "players.csv"
                 with patch.dict(os.environ, {"SPRK_GM_KEY": "test-key"}), \

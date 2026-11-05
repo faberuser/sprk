@@ -85,7 +85,43 @@ async fn open_tracked_pool(path: &Path, tracker: HoldTracker) -> anyhow::Result<
                 .synchronous(SqliteSynchronous::Normal)
                 // Only external processes (admin tools, backups) can hold the
                 // file lock now; wait for them rather than failing requests.
-                .busy_timeout(Duration::from_secs(30)),
+                .busy_timeout(Duration::from_secs(30))
+                .pragma("cache_size", WRITER_CACHE_KIB)
+                .pragma("mmap_size", MMAP_BYTES)
+                .pragma("temp_store", "MEMORY"),
+        )
+        .await?)
+}
+
+/// Page cache for the writer (negative = KiB): the hot working set stays in
+/// memory across transactions instead of being re-read from the OS cache.
+const WRITER_CACHE_KIB: &str = "-65536";
+/// Reader connections are numerous; they rely mostly on the shared mapping.
+const READER_CACHE_KIB: &str = "-16384";
+/// Map the database file so reads copy no pages through SQLite's VFS. Pages
+/// are shared OS cache across all connections; the WAL is never mapped.
+const MMAP_BYTES: &str = "268435456";
+/// Matches the client's in-flight read cap (SprkNetworkPerformance.MaxParallelReads).
+pub(crate) const READER_CONNECTIONS: u32 = 4;
+
+/// Open read-only connections beside the single writer. In WAL mode readers
+/// never block the writer or each other, and each statement or transaction
+/// sees the latest committed state. SQLite rejects any write on these with
+/// SQLITE_READONLY, so a misrouted mutation fails loudly instead of racing.
+/// Must be opened after the writer pool (which sets WAL and creates -shm).
+pub(crate) async fn open_read_pool(path: &Path) -> anyhow::Result<DbPool> {
+    Ok(SqlitePoolOptions::new()
+        .max_connections(READER_CONNECTIONS)
+        .min_connections(1)
+        .acquire_timeout(Duration::from_secs(30))
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(path)
+                .read_only(true)
+                .busy_timeout(Duration::from_secs(30))
+                .pragma("cache_size", READER_CACHE_KIB)
+                .pragma("mmap_size", MMAP_BYTES)
+                .pragma("temp_store", "MEMORY"),
         )
         .await?)
 }
