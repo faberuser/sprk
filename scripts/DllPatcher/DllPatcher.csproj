@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/Accessories.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accessories.cs.txt" />
     <EmbeddedResource Include="Resources/FixLavrilCircle.py" LogicalName="DllPatcher.FixLavrilCircle.py" />
     <EmbeddedResource Include="Resources/LinePetProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.LinePetProbe.cs.txt" />
     <EmbeddedResource Include="Resources/HeroInnPresentationProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroInnPresentationProbe.cs.txt" />

@@ -165,12 +165,17 @@ partial class Program {
     }
     static void TestLobbyAccessoryReconciliation(string root,byte[] helperBytes) {
         var managed=Path.GetFullPath(Path.Combine(root,"King's Raid_Data","Managed"));
-        var key=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(helperBytes));
-        Assembly? nativeFixture=null,helperFixture=null;
+        var accessoryPath=Path.Combine(managed,"SprkAccessories.dll");
+        using var sourceGame=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"));
+        bool multiple=sourceGame.MainModule.GetType("NGameAsset.CreatureStock").Methods.Single(m=>m.Name=="SetCustomizeStock").Body.Instructions.Any(i=>i.Operand is MethodReference r && r.DeclaringType.Name=="SprkAccessories");
+        var key=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(multiple?helperBytes.Concat(File.ReadAllBytes(accessoryPath)).ToArray():helperBytes));
+        Assembly? nativeFixture=null,helperFixture=null,accessoryFixture=null;
         var nativeName="SPRK.LobbyAccessory.Native."+key;
+        var accessoryName="SPRK.LobbyAccessory.Layers."+key;
         ResolveEventHandler resolve=(_,e)=>{
             var name=new AssemblyName(e.Name).Name;
             if(name==nativeName)return nativeFixture;
+            if(name==accessoryName)return accessoryFixture;
             if(name=="SPRK.LobbyAccessory.Helper."+key)return helperFixture;
             var p=Path.Combine(managed,name+".dll");return File.Exists(p)?Assembly.LoadFrom(p):null;
         };
@@ -183,14 +188,20 @@ partial class Program {
                 using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
                 using var game=AssemblyDefinition.ReadAssembly(Path.Combine(managed,"Assembly-CSharp.dll"),new ReaderParameters{AssemblyResolver=resolver,InMemory=true});
                 using var input=new MemoryStream(helperBytes);using var bridge=AssemblyDefinition.ReadAssembly(input);
+                using var layers=multiple?AssemblyDefinition.ReadAssembly(accessoryPath,new ReaderParameters{AssemblyResolver=resolver}):null;
                 PatchLobbyAvatarStability(game.MainModule,bridge.MainModule);
                 var helperName="SPRK.LobbyAccessory.Helper."+key;
                 game.Name.Name=nativeName;bridge.Name.Name=helperName;
-                foreach(var module in new[]{game.MainModule,bridge.MainModule})foreach(var reference in module.AssemblyReferences) {
+                if(layers!=null)layers.Name.Name=accessoryName;
+                foreach(var module in new[]{game.MainModule,bridge.MainModule,layers?.MainModule}.OfType<ModuleDefinition>())foreach(var reference in module.AssemblyReferences) {
                     if(reference.Name=="Assembly-CSharp")reference.Name=nativeName;
                     if(reference.Name=="SprkLobbyAvatarStability")reference.Name=helperName;
+                    if(reference.Name=="SprkAccessories")reference.Name=accessoryName;
                 }
+                if(layers!=null)foreach(var instruction in bridge.MainModule.GetType("SprkLobbyAvatar").Methods.SelectMany(m=>m.HasBody?m.Body.Instructions:Enumerable.Empty<Instruction>()))
+                    if(Equals(instruction.Operand,"SprkAccessories, SprkAccessories"))instruction.Operand="SprkAccessories, "+accessoryName;
                 using var gameBytes=new MemoryStream();game.Write(gameBytes);nativeFixture=Assembly.Load(gameBytes.ToArray());
+                if(layers!=null) {using var layerBytes=new MemoryStream();layers.Write(layerBytes);accessoryFixture=Assembly.Load(layerBytes.ToArray());}
                 using var bridgeBytes=new MemoryStream();bridge.Write(bridgeBytes);helper=Assembly.Load(bridgeBytes.ToArray());
                 LobbyReconciliationAssemblies[key]=helper;
             }
@@ -242,9 +253,10 @@ partial class Program {
                 if(!Apply(original)||changes!=1||!instancePresent)throw new Exception("Initial lobby accessory was lost: "+hero+"/"+weaponPrefix);
                 if(!Apply(original)||changes!=1)throw new Exception("Stable lobby accessory was reapplied");
                 instancePresent=false;if(!Apply(original)||changes!=2)throw new Exception("Missing rendered accessory instance was not repaired");
-                var replacement=Accessory(102);if(!Apply(replacement)||changes!=3||!Apply(replacement)||changes!=3)
+                int replaced=multiple?4:3;int cleared=multiple?5:4;
+                var replacement=Accessory(102);if(!Apply(replacement)||changes!=replaced||!Apply(replacement)||changes!=replaced)
                     throw new Exception("Live accessory stock was confused with the original load request");
-                var empty=Accessory(0);if(!Apply(empty)||changes!=4||instancePresent||!Apply(empty)||changes!=4)throw new Exception("Accessory unequip did not converge");
+                var empty=Accessory(0);if(!Apply(empty)||changes!=cleared||instancePresent||!Apply(empty)||changes!=cleared)throw new Exception("Accessory unequip did not converge");
                 foreach(var s in new[]{requested,live}) {
                     var weapon=creatureStockType.GetField("WeaponStock")!.GetValue(s)!;
                     if((string)creatureStockType.GetField("BodyPrefix")!.GetValue(s)! !="CostumeA" ||

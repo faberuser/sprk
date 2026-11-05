@@ -11,6 +11,7 @@ pub(super) async fn execute(
     let h = hero::info(db, account, hero_id).await?;
     let mut details = hero::details(db, account, hero_id).await?;
     let mut appearance = hero::appearance(&h);
+    let mut accessories = equipped_accessories(db, account, &h).await?;
     let mut out = item::success();
     if action == "reset_all_customizing_costumes" {
         for (key, v) in appearance.as_object_mut().unwrap() {
@@ -18,6 +19,7 @@ pub(super) async fn execute(
                 *v = json!(0);
             }
         }
+        appearance["SprkAccessories"] = json!([]);
         for (key, v) in appearance.as_object().unwrap() {
             if key != "HeroIndex" {
                 details[key] = v.clone();
@@ -122,6 +124,7 @@ pub(super) async fn execute(
             appearance[key] = json!(id);
         }
         let unset = ids(req, "UnsetAccessoryCostumeIndices")?;
+        accessories.retain(|v| !unset.contains(&n(v, "Index")));
         for id in &unset {
             for slot in 1..=6 {
                 let key = format!("AccessoryCostumeIndex{slot}");
@@ -139,7 +142,7 @@ pub(super) async fn execute(
         let data = row(state, "AccessoryCostume", &[("Index", id)])?;
         let part = n(data, "PartType");
         if !(1..=6).contains(&part)
-            || !parts.insert(part)
+            || (!(1..=4).contains(&part) && !parts.insert(part))
             || data["UnableHero"]
                 .as_array()
                 .is_some_and(|v| v.contains(&json!(hero_id)))
@@ -162,8 +165,20 @@ pub(super) async fn execute(
         owned["PositionInfo"] = json!(position.to_string());
         put(db, account, "accessory", ownership_key, &owned).await?;
         result.push(owned);
+        if action == "edit_accessory_costume_position"
+            && !accessories.iter().any(|v| n(v, "Index") == id)
+        {
+            return Err(rule("InvalidCostume"));
+        }
+        equip_accessory(&mut accessories, id, part, &position.to_string());
         appearance[format!("AccessoryCostumeIndex{part}")] = json!(id);
     }
+    // Native scalar fields retain the last accessory in each part for older consumers.
+    for part in 1..=6 {
+        appearance[format!("AccessoryCostumeIndex{part}")] = json!(accessories.iter()
+            .rev().find(|v| n(v, "Part") == part).map_or(0, |v| n(v, "Index")));
+    }
+    appearance["SprkAccessories"] = json!(accessories);
     if action == "buy_customizing_costumes" {
         if req.number("BuyGold", 0)? != gold || req.number("BuyGem", 0)? != gem {
             return Err(rule("InvalidPrice"));
@@ -191,6 +206,29 @@ pub(super) async fn execute(
     hero::save_details(db, account, hero_id, &details).await?;
     Ok(out)
 }
+pub(crate) fn equip_accessory(accessories: &mut Vec<Value>, id: i64, part: i64, position: &str) {
+    accessories.retain(|v| n(v, "Index") != id && ((1..=4).contains(&part) || n(v, "Part") != part));
+    accessories.push(json!({"Index":id,"Part":part,"PositionInfo":position}));
+}
+
+pub(crate) async fn equipped_accessories(db: &mut SqliteConnection, account: i64, h: &Value) -> Result<Vec<Value>> {
+    if let Some(values) = h["SprkAccessories"].as_array() {
+        return Ok(values.clone());
+    }
+    // Migrate existing single-slot appearances lazily without changing ownership.
+    let owned = super::list(db, account, "accessory").await?;
+    let mut result = Vec::new();
+    for part in 1..=6 {
+        let id = n(h, &format!("AccessoryCostumeIndex{part}"));
+        if id > 0 {
+            let position = owned.iter().find(|v| n(v,"HeroIndex") == n(h,"HeroIndex") && n(v,"AccessoryCostumeIndex") == id)
+                .and_then(|v| v["PositionInfo"].as_str()).unwrap_or("");
+            equip_accessory(&mut result, id, part, position);
+        }
+    }
+    Ok(result)
+}
+
 // The native accessory key contains both the hero and accessory IDs.
 pub(super) fn accessory_key(hero_id: i32, accessory: i64) -> Result<i64> {
     if hero_id <= 0 || !(1..=i32::MAX as i64).contains(&accessory) {

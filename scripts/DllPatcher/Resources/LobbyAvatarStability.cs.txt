@@ -28,6 +28,7 @@ public sealed class SprkLobbyAppearance {
     readonly CachedHeroInfo saved=new CachedHeroInfo();
     object renderSnapshot;
     bool initialized;
+    string accessoryFingerprint;
     static bool SamePosition(PositionInfo a,PositionInfo b) {
         a=a??PositionInfo.Create();b=b??PositionInfo.Create();
         return a.PositionX==b.PositionX && a.PositionY==b.PositionY && a.PositionZ==b.PositionZ &&
@@ -36,11 +37,14 @@ public sealed class SprkLobbyAppearance {
     // 1 means the body/hair/weapon needs rebuilding; 2 changes accessories only.
     public int Observe(CachedHeroInfo hero) {
         if(hero==null)return 0;
+        var fingerprint=SprkLobbyAvatar.Multi("Fingerprint",hero) as string;
         var render=SprkLobbyAvatar.GetResolvedSnapshot(hero);
         int changed=initialized && (!System.Object.ReferenceEquals(renderSnapshot,render) || saved.Star!=hero.Star ||
             saved.HeroIndex!=hero.HeroIndex || saved.CostumeIndex!=hero.CostumeIndex ||
             saved.HairCostumeIndex!=hero.HairCostumeIndex || saved.WeaponCostumeIndex!=hero.WeaponCostumeIndex ||
             saved.HideUniqueWeapon!=hero.HideUniqueWeapon)?1:0;
+        if(initialized && fingerprint!=accessoryFingerprint)changed|=2;
+        accessoryFingerprint=fingerprint;
         foreach(var part in AccessoryPartTypeHelper.PartTypes()) {
             var position=hero.GetAccessoryPositionInfo(part);
             if(initialized && (saved.GetAccessoryIndex(part)!=hero.GetAccessoryIndex(part) ||
@@ -113,6 +117,14 @@ public sealed class SprkLobbyRenderSnapshot {
     public readonly List<EquipItemInfo> Equipment=new List<EquipItemInfo>();
 }
 public static class SprkLobbyAvatar {
+    // Optional bridge keeps baseline compilation independent of install order.
+    public static object Multi(string name,params object[] args) {
+        var type=Type.GetType("SprkAccessories, SprkAccessories");if(type==null)return null;
+        var method=type.GetMethod(name);if(method==null)return null;
+        var parameters=method.GetParameters();
+        for(int i=0;i<args.Length;i++)if(args[i]!=null && !parameters[i].ParameterType.IsInstanceOfType(args[i]))return null;
+        return method.Invoke(null,args);
+    }
     static readonly ConditionalWeakTable<PlayerAvatarHeroInfo,SprkLobbyRenderSnapshot> renderSnapshots=
         new ConditionalWeakTable<PlayerAvatarHeroInfo,SprkLobbyRenderSnapshot>();
     static readonly ConditionalWeakTable<CachedHeroInfo,SprkLobbyRenderSnapshot> resolvedSnapshots=
@@ -269,9 +281,15 @@ public static class SprkLobbyAvatar {
             }
             desired.Add(stock);
         }
+        var multiple=Multi("Stocks",hero) as CustomizeStock[];
+        if(multiple!=null) {
+            foreach(var item in multiple)if(account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(heroIndex,item.AccessoryIndex))==null)return false;
+            desired=new List<CustomizeStock>(multiple);
+        }
         return Reconcile(load,desired.ToArray());
     }
     public static bool Reconcile(ICreatureLoad load,CustomizeStock[] desired) {
+        var multiple=Multi("Reconcile",load,desired);if(multiple is bool)return (bool)multiple;
         if(load==null || !load.IsDone || !load.IsValid || load.Value==null || desired==null)return false;
         var creature=load.Value;
         var open=creature.GetCreatureOpenData();

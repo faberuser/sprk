@@ -199,6 +199,13 @@ public sealed partial class SprkAutomation : MonoBehaviour
                 var report=(string)probe.GetMethod("Run").Invoke(null,null);
                 reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
             }
+            if(cmd.action=="accessories-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("accessories-"))
+                    throw new InvalidOperationException("Accessory fixture requires isolated Login and accessories profile");
+                var probe=System.Reflection.Assembly.Load("SprkAccessories").GetType("SprkAccessoriesProbe");
+                reply=Snapshot(cmd.id);reply.materials.Add((string)probe.GetMethod("Run").Invoke(null,null));Write(reply);return;
+            }
             if(cmd.action=="inn-presentation-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("inn-presentation-"))

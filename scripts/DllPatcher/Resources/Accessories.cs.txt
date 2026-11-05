@@ -1,0 +1,377 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using NShared;
+using NGame2;
+using NGame2.N3D;
+using NGame2.NAccount;
+using NGame2.NUtil.NCostume;
+using NGame2.NUI.NWindow;
+using NGame2.NUI.NWindow.NCustomizing;
+using NGame2.NUI.NComponent2.NCostume;
+using NGameAsset;
+using NVespa.NSingleton;
+using UnityEngine;
+
+public sealed class SprkAccessoryEntry {
+    public int Index;
+    public AccessoryPartType Part;
+    public PositionInfo Position;
+    public SprkAccessoryEntry Clone() { return new SprkAccessoryEntry {Index=Index,Part=Part,Position=Position==null?PositionInfo.Create():Position.Clone()}; }
+}
+public static class SprkAccessories {
+    public const string WireKey="SprkAccessories";
+    static readonly ConditionalWeakTable<object,List<SprkAccessoryEntry>> states=new ConditionalWeakTable<object,List<SprkAccessoryEntry>>();
+    static readonly FieldInfo backing=typeof(CachedHeroInfo).GetField("_heroInfo",BindingFlags.Instance|BindingFlags.NonPublic);
+    static object Key(object value) { while(value is CachedHeroInfo)value=backing.GetValue(value);return value; }
+    public static bool Has(object value) {List<SprkAccessoryEntry> list;return value!=null && states.TryGetValue(Key(value),out list);}
+    static int Scalar(object value,int part) {
+        var property=value.GetType().GetProperty("AccessoryCostumeIndex"+part);
+        return property==null?0:Convert.ToInt32(property.GetValue(value,null));
+    }
+    public static List<SprkAccessoryEntry> Entries(object value) {
+        var result=new List<SprkAccessoryEntry>();if(value==null)return result;
+        List<SprkAccessoryEntry> saved;
+        if(states.TryGetValue(Key(value),out saved)) {foreach(var item in saved)result.Add(item.Clone());return result;}
+        for(int part=1;part<=6;part++) {
+            int id=Scalar(value,part);if(id<=0)continue;
+            PositionInfo pos=null;var cached=value as CachedHeroInfo;
+            if(cached!=null)pos=cached.GetAccessoryPositionInfo((AccessoryPartType)part);
+            else {
+                var prop=value.GetType().GetProperty("PositionInfo"+part);
+                if(prop!=null)pos=PositionInfo.Create().TryAssign(prop.GetValue(value,null) as string);
+            }
+            // Plain HeroInfo acquires its transforms from per-hero ownership.
+            var hero=value as HeroInfo;
+            if(pos==null && hero!=null && GlobalAutoBehaviour<AccountManager>.isValidInstance) {
+                var owned=GlobalAutoBehaviour<AccountManager>.instance.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(hero.HeroIndex,id));
+                if(owned!=null)pos=PositionInfo.Create().TryAssign(owned.PositionInfo);
+            }
+            result.Add(new SprkAccessoryEntry {Index=id,Part=(AccessoryPartType)part,Position=pos??PositionInfo.Create()});
+        }
+        return result;
+    }
+    public static void Store(object value,List<SprkAccessoryEntry> list) {
+        if(value==null)return;var key=Key(value);states.Remove(key);states.Add(key,list);
+    }
+    public static void Copy(object target,object source) {if(target!=null && source!=null)Store(target,Entries(source));}
+    public static void Read(object value,IDictionary json) {
+        if(value==null || json==null)return;
+        states.Remove(Key(value));
+        var data=json[WireKey] as IEnumerable;if(data==null)return;
+        var list=new List<SprkAccessoryEntry>();var ids=new HashSet<int>();
+        foreach(var item in data) {
+            var entry=item as IDictionary;if(entry==null)continue;
+            int id=Convert.ToInt32(entry["Index"]);int part=Convert.ToInt32(entry["Part"]);
+            if(id<=0 || part<1 || part>6 || !ids.Add(id))continue;
+            list.Add(new SprkAccessoryEntry {Index=id,Part=(AccessoryPartType)part,Position=PositionInfo.Create().TryAssign(entry["PositionInfo"] as string)});
+        }
+        Store(value,list);
+    }
+    public static void Write(IDictionary json,object value) {
+        if(json==null || !Has(value))return;
+        var data=new List<object>();foreach(var item in Entries(value))data.Add(new Dictionary<string,object> {
+            {"Index",item.Index},{"Part",(int)item.Part},{"PositionInfo",JsonMarshaler.EncodeJsonString(item.Position??PositionInfo.Create())}});
+        json[WireKey]=data;
+    }
+    public static string Fingerprint(object value) {
+        var json=new Dictionary<string,object>();Write(json,value);return MiniJSON.Json.Serialize(json);
+    }
+    public static bool Equal(bool equal,object a,object b) {return equal && Fingerprint(a)==Fingerprint(b);}
+    public static bool Contains(HeroInfo hero,int id) {foreach(var entry in Entries(hero))if(entry.Index==id)return true;return false;}
+    public static PositionInfo Position(HeroInfo hero,int id) {foreach(var entry in Entries(hero))if(entry.Index==id)return entry.Position;return PositionInfo.Create();}
+    public static void Put(List<SprkAccessoryEntry> list,int id,AccessoryPartType part,PositionInfo position) {
+        list.RemoveAll(e=>e.Index==id || ((int)part>4 && e.Part==part));
+        list.Add(new SprkAccessoryEntry {Index=id,Part=part,Position=position==null?PositionInfo.Create():position.Clone()});
+    }
+    // Dictionary keys identify individual accessories; their real Part remains
+    // intact in the stock for pivots, animation visibility and instance lookup.
+    public static void SetStock(ref Dictionary<AccessoryPartType,CustomizeStock> map,CustomizeStock stock) {
+        if(map==null)map=new Dictionary<AccessoryPartType,CustomizeStock>();
+        if(stock.IsEmptyPart()) {
+            if((int)stock.Part<0) {map.Remove(stock.Part);return;}
+            var remove=new List<AccessoryPartType>();foreach(var pair in map)if(pair.Value.Part==stock.Part)remove.Add(pair.Key);
+            foreach(var key in remove)map.Remove(key);return;
+        }
+        if((int)stock.Part>4) {
+            var remove=new List<AccessoryPartType>();foreach(var pair in map)if(pair.Value.Part==stock.Part)remove.Add(pair.Key);
+            foreach(var key in remove)map.Remove(key);
+        }
+        map[(AccessoryPartType)(-stock.AccessoryIndex)]=stock;
+    }
+    public static CustomizeStock[] Stocks(HeroInfo hero) {
+        var result=new List<CustomizeStock>();foreach(var item in Entries(hero)) {
+            var data=GameRoot.Instance.AccessoryCostumeDataContainer.GetData(item.Index);CustomizeStock stock=default(CustomizeStock);
+            if(data!=null && RenderFacadeBuilder.TryAssignCustomizeStock(ref stock,hero.HeroIndex,data,item.Position))result.Add(stock);
+        }
+        return result.ToArray();
+    }
+    public static void Build(HeroInfo hero,ref CreatureStock stock) {if(hero==null)return;stock.ClearCustomizeStock();foreach(var item in Stocks(hero))stock.SetCustomizeStock(item);}
+    public static bool Reconcile(ICreatureLoad load,CustomizeStock[] desired) {
+        if(load==null || !load.IsDone || !load.IsValid || load.Value==null || desired==null)return false;
+        var creature=load.Value;var open=creature.GetCreatureOpenData();if(open==null)return false;
+        var values=open.GetStock().CustomizeStockValues();var old=values==null?new List<CustomizeStock>():new List<CustomizeStock>(values);
+        foreach(var item in old) {
+            bool keep=false;foreach(var target in desired)if(!target.IsEmptyPart() && item.IsEqualItem(target))keep=true;
+            if(!keep)load.ChangeCustomizeStock(CustomizeStock.CreateEmptyPart((AccessoryPartType)(-item.AccessoryIndex)));
+        }
+        foreach(var item in desired) {
+            if(item.IsEmptyPart())continue;
+            bool same=false;foreach(var previous in old)if(previous.IsEqualItem(item) && previous.IsEqualTransform(item))same=true;
+            if(!same || creature.GetCutomizeItemInstance(item)==null)load.ChangeCustomizeStock(item);
+        }
+        foreach(var item in desired)if(!item.IsEmptyPart() && creature.GetCutomizeItemInstance(item)==null)return false;
+        return true;
+    }
+    public static void ApplyResult(HeroCostumeResultInfo result) {
+        if(result==null || !GlobalAutoBehaviour<AccountManager>.isValidInstance)return;
+        var hero=GlobalAutoBehaviour<AccountManager>.instance.HeroManager.Get(result.HeroIndex);
+        if(hero!=null)Copy(hero,result);
+    }
+    public static CostumeState State(HeroInfo hero,AccessoryCostumeData data,bool checkHeroOwn) {
+        if(hero==null || data==null)return CostumeState.None;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        if(checkHeroOwn && account.HeroManager.Get(hero.HeroIndex)==null)return CostumeState.NeedHero;
+        if(Contains(hero,data.Index))return CostumeState.Equipped;
+        if(account.AccessoryCostumeManager.Get(new PlayerAccessoryCostumeInfoKey(hero.HeroIndex,data.Index))!=null)return CostumeState.Owned;
+        return data.IsBuy?CostumeState.Buyable:CostumeState.CannotBuy;
+    }
+    public static CollectResult Collect(ref CustomizingCostumesStock stock,HeroCustomizingDataGetter getter) {
+        var result=default(CollectResult);var hero=getter.HeroInfoGetter();var unset=new List<int>();
+        if(getter.AccessoryCostumeOpenDataGetterList!=null)foreach(var get in getter.AccessoryCostumeOpenDataGetterList) {
+            var open=get();if(!open.IsValid())continue;
+            if(open.ComponentType==AccessoryCostumeComponent.ComponentType.SelectUnset) {
+                foreach(var item in Entries(hero))if(item.Part==open.AccessoryPartType && !unset.Contains(item.Index))unset.Add(item.Index);
+                continue;
+            }
+            var data=open.AccessoryCostumeData;if(data==null)continue;
+            var state=State(hero,data,true);
+            if(state!=CostumeState.Owned && state!=CostumeState.Equipped && state!=CostumeState.Buyable)continue;
+            var position=getter.AccessoryPositionInfoGetter==null?Position(hero,data.Index):getter.AccessoryPositionInfoGetter(data);
+            if(stock.AccessoryPositionPairs==null)stock.AccessoryPositionPairs=new Dictionary<int,PositionInfo>();
+            if(!stock.AccessoryPositionPairs.ContainsKey(data.Index) && state==CostumeState.Buyable) {
+                var price=CustomizingHelper.AccessoryCostumeCalculrater(data);stock.BuyReqGem+=price.Item1;stock.Mileage+=price.Item2;
+            }
+            stock.AccessoryPositionPairs[data.Index]=position??PositionInfo.Create();
+        }
+        if(stock.AccessoryPositionPairs!=null && stock.AccessoryPositionPairs.Count>0) {
+            var json=new Dictionary<string,object>();foreach(var pair in stock.AccessoryPositionPairs)json[pair.Key.ToString()]=JsonMarshaler.EncodeJsonObject(pair.Value);
+            stock.AccessoryCostumePositionInfo=MiniJSON.Json.Serialize(json);result.CostumeNeedUpdate=true;
+        }
+        if(unset.Count>0) {stock.UnsetAccessoryCostumeIndices=unset.ToArray();result.CostumeNeedUpdate=true;}
+        return result;
+    }
+    public static void Preview(AccessoryCostumeViewWidget widget) {
+        var controller=(IRenderFacadeController)typeof(WidgetBase).GetField("_renderFacadeController",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(widget);
+        if(controller==null || widget.HeroInfo==null)return;
+        var local=controller.GetLocalHeroInfo();var list=Entries(local);var data=widget.CurrentComponentAccesoryCostumeData;
+        var part=widget.GetUnsetOpenData().AccessoryPartType;
+        list.RemoveAll(e=>e.Part==part);
+        if(data!=null)foreach(var equipped in Entries(widget.HeroInfo))if(equipped.Part==part)list.Add(equipped);
+        if(data!=null)Put(list,data.Index,data.PartType,local.GetAccessoryPositionInfo(data.PartType));
+        else list.RemoveAll(e=>e.Part==widget.GetUnsetOpenData().AccessoryPartType);
+        Store(local,list);controller.ChangeRenderFacadeOnly(local);
+    }
+    public static void EditPosition(AccessoryCostumeViewWidget widget,PositionInfo position) {
+        var controller=(IRenderFacadeController)typeof(WidgetBase).GetField("_renderFacadeController",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(widget);
+        var data=widget.CurrentComponentAccesoryCostumeData;if(controller==null || data==null)return;
+        var local=controller.GetLocalHeroInfo();var list=Entries(local);Put(list,data.Index,data.PartType,position);Store(local,list);
+    }
+    public static void ShowEquipped(AccessoryCostumeViewWidget widget) {
+        var controller=(IRenderFacadeController)typeof(WidgetBase).GetField("_renderFacadeController",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(widget);
+        if(controller==null || widget.HeroInfo==null)return;
+        var local=controller.GetLocalHeroInfo();var list=Entries(local);var part=widget.GetUnsetOpenData().AccessoryPartType;
+        list.RemoveAll(e=>e.Part==part);
+        foreach(var equipped in Entries(widget.HeroInfo))if(equipped.Part==part)list.Add(equipped);
+        Store(local,list);controller.ChangeRenderFacadeOnly(local);
+    }
+    public static HeroCustomizingDataGetter Getter(HeroCustomizingDataGetter getter,AccessoryCostumeViewWidget widget) {
+        var original=getter.AccessoryPositionInfoGetter;
+        getter.AccessoryPositionInfoGetter=data=> {
+            var cache=(Dictionary<int,PositionInfo>)typeof(AccessoryCostumeViewWidget).GetField("_cachedAccesssoryIndexPositionInfoPair",BindingFlags.NonPublic|BindingFlags.Instance).GetValue(widget);
+            PositionInfo pos;if(cache.TryGetValue(data.Index,out pos))return pos.Clone();
+            if(Contains(widget.HeroInfo,data.Index))return Position(widget.HeroInfo,data.Index);
+            return original==null?PositionInfo.Create():original(data);
+        };return getter;
+    }
+    public static void UpdateButtons(AccessoryCostumeViewWidget widget) {
+        var view=widget.GetComponentInParent<HeroCostumeView>();if(view==null)return;
+        var controls=view.GetComponent<SprkAccessoryControls>();if(controls==null)controls=view.gameObject.AddComponent<SprkAccessoryControls>();
+        controls.View=view;controls.Current=widget;
+        var buttons=(HeroCostumeView.CostumeButtonInfo[])typeof(WidgetBase).GetProperty("ButtonInfos",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(widget,null);
+        foreach(var info in buttons)if(info.Button!=null && info.Button.gameObject.activeSelf && (info.State==CostumeState.Equipped || info.State==CostumeState.Owned)) {
+            controls.ApplyLabels(info.Button);
+            // Equipped accessories can still apply edited transforms.
+            info.Button.isEnabled=true;
+        }
+        controls.Refresh();
+    }
+    public static void AfterResponse() {
+        foreach(var widget in UnityEngine.Object.FindObjectsOfType<AccessoryCostumeViewWidget>())if(widget.gameObject.activeInHierarchy) {
+            widget.UpdateCostumeListState();widget.UpdateButtonState();Preview(widget);
+        }
+    }
+}
+
+public sealed class SprkAccessoryControls : MonoBehaviour {
+    public HeroCostumeView View;
+    public AccessoryCostumeViewWidget Current;
+    UIButton remove;
+    UILabel[] removeLabels;
+    bool pending;
+    readonly Dictionary<UILabel,string> originalLabels=new Dictionary<UILabel,string>();
+    public void ApplyLabels(UIButton button) {
+        foreach(var label in button.GetComponentsInChildren<UILabel>(true)) {
+            if(!originalLabels.ContainsKey(label))originalLabels.Add(label,label.text);
+            label.text="Apply";
+        }
+    }
+    void RestoreLabels() {foreach(var pair in originalLabels)if(pair.Key!=null)pair.Key.text=pair.Value;originalLabels.Clear();}
+    public void Refresh() {
+        if(View==null || View.ButtonResetCostumes==null)return;
+        if(remove==null) {
+            var source=View.ButtonResetCostumes;
+            var clone=(GameObject)UnityEngine.Object.Instantiate(source.gameObject);clone.name="SprkRemoveViewedAccessory";
+            clone.transform.SetParent(source.transform.parent,false);clone.transform.localPosition=source.transform.localPosition;
+            clone.transform.localScale=source.transform.localScale;clone.transform.localRotation=source.transform.localRotation;
+            remove=clone.GetComponent<UIButton>();remove.onClick.Clear();EventDelegate.Add(remove.onClick,Remove);
+            var rootWidget=clone.GetComponent<UIWidget>();
+            if(rootWidget!=null) {rootWidget.leftAnchor.target=null;rootWidget.rightAnchor.target=null;rootWidget.topAnchor.target=null;rootWidget.bottomAnchor.target=null;}
+            foreach(var localize in clone.GetComponentsInChildren<UILocalize>(true)) {localize.enabled=false;UnityEngine.Object.Destroy(localize);}
+            foreach(var localize in clone.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true)) {localize.enabled=false;UnityEngine.Object.Destroy(localize);}
+            removeLabels=clone.GetComponentsInChildren<UILabel>(true);
+            foreach(var tween in clone.GetComponentsInChildren<UITweener>(true))tween.enabled=false;
+        }
+        bool visible=Current!=null && Current.gameObject.activeInHierarchy && Current.CurrentComponentAccesoryCostumeData!=null;
+        remove.gameObject.SetActive(visible);
+        remove.isEnabled=visible && !pending && SprkAccessories.Contains(Current.HeroInfo,Current.CurrentComponentAccesoryCostumeData.Index);
+        // Activation and language reloads can rewrite inherited label text.
+        // Assign after activation, and keep the cloned button's own wording.
+        foreach(var label in removeLabels)if(label!=null && label.text!="Remove")label.text="Remove";
+        AlignRemoveButton();
+        if(!visible)RestoreLabels();
+    }
+    void AlignRemoveButton() {
+        if(remove==null || View.ButtonBuyCostumes==null)return;
+        var source=View.ButtonResetCostumes.transform;var parent=source.parent;
+        var sourceBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,source,true);
+        var allBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,View.ButtonBuyCostumes.transform,true);
+        var position=remove.transform.localPosition;position.y=source.localPosition.y;position.z=source.localPosition.z;
+        remove.transform.localPosition=position;
+        var removeBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,remove.transform,true);
+        float gap=allBounds.min.x-sourceBounds.max.x;
+        position.x+=sourceBounds.min.x-gap-removeBounds.max.x;
+        remove.transform.localPosition=position;
+    }
+    void LateUpdate() {Refresh();}
+    void OnDisable() {if(remove!=null)remove.gameObject.SetActive(false);RestoreLabels();}
+    void OnDestroy() {if(remove!=null)UnityEngine.Object.Destroy(remove.gameObject);}
+    void Remove() {
+        if(pending || Current==null || Current.CurrentComponentAccesoryCostumeData==null)return;
+        int id=Current.CurrentComponentAccesoryCostumeData.Index;var hero=Current.HeroInfo;var viewed=Current;
+        var account=GlobalAutoBehaviour<AccountManager>.instance;
+        if(!SprkAccessories.Contains(hero,id))return;
+        var request=new NShared.BuyCustomizingCostumes.Request {
+            HeroIndex=hero.HeroIndex,CostumeIndex=hero.CostumeIndex,HairCostumeIndex=hero.HairCostumeIndex,
+            WeaponCostumeIndex=hero.WeaponCostumeIndex,HideUniqueWeapon=hero.HideUniqueWeapon,
+            UnsetAccessoryCostumeIndices=new[]{id},BuyGem=0,BuyGold=0
+        };
+        pending=true;remove.isEnabled=false;
+        NVespa.SingletonUpdater<NVespa.NGlobal.WebServiceManager>.instance.Requester.Request(request,(NShared.BuyCustomizingCostumes.Response response)=> {
+            pending=false;
+            if(!GlobalAutoBehaviour<AccountManager>.isValidInstance || !System.Object.ReferenceEquals(account,GlobalAutoBehaviour<AccountManager>.instance))return;
+            if(response.Result!=NShared.BuyCustomizingCostumes.ResultType.Success) {MessagePopup.OpenError(response.Result);Refresh();return;}
+            CustomizingHelper.OnResponse(default(CustomizingCostumesStock),request,response);
+            // Keep the selection available for Apply, but remove its preview
+            // model after explicit removal so the remaining layers are visible.
+            if(viewed!=null && Current==viewed && viewed.HeroInfo!=null && viewed.HeroInfo.HeroIndex==hero.HeroIndex &&
+                viewed.CurrentComponentAccesoryCostumeData!=null && viewed.CurrentComponentAccesoryCostumeData.Index==id)
+                SprkAccessories.ShowEquipped(viewed);
+        });
+    }
+}
+
+public static class SprkAccessoriesProbe {
+    sealed class ResetListener : HeroCostumeView.Listener {
+        public int Calls;
+        public int Hero;
+        public void OnOpen() {}
+        public void OnClose() {}
+        public void OnClickPlusGold() {}
+        public void OnClickPlusGem() {}
+        public void OnClickViewMotion(HeroCostumeView caller) {}
+        public void ProcessSelectedCustomizingCostumes(HeroCustomizingDataGetter getter,Action complete) {}
+        public void OpenLegendCostumeReservationPooup(int index) {}
+        public void ResetHeroCostumes(int hero,Action complete) {Calls++;Hero=hero;}
+    }
+    public static string Run() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        var host=new GameObject("SprkAccessoriesFixture");host.SetActive(false);
+        try {
+            var prefab=VespaResource.Load<GameObject>(HeroCostumeView.PrefabPath);
+            if(prefab==null)throw new Exception("Dressing room prefab missing");
+            var view=UnityEngine.Object.Instantiate(prefab,host.transform,false).GetComponent<HeroCostumeView>();
+            var resetDelegates=new List<EventDelegate>(view.ButtonResetCostumes.onClick);
+            var controls=view.gameObject.AddComponent<SprkAccessoryControls>();controls.View=view;
+            var widget=view.AccessoryCostumeViewWidget[0];controls.Current=widget;
+            var list=new List<SprkAccessoryEntry>();
+            for(int part=1;part<=4;part++) {
+                int count=0;
+                foreach(var data in GameRoot.Instance.AccessoryCostumeDataContainer.GetAllData()) {
+                    if((int)data.PartType!=part)continue;
+                    CustomizeStock candidate=default(CustomizeStock);
+                    if(!RenderFacadeBuilder.TryAssignCustomizeStock(ref candidate,1,data,PositionInfo.Create()))continue;
+                    list.Add(new SprkAccessoryEntry {Index=data.Index,Part=data.PartType,Position=PositionInfo.Create()});
+                    if(part==1 && count==0)typeof(AccessoryCostumeViewWidget).GetProperty("CurrentComponentOpenData").SetValue(widget,AccessoryCostumeComponent.OpenData.CreateCostumeType(data),null);
+                    if(++count==2)break;
+                }
+                if(count!=2)throw new Exception("Missing renderable accessories for part "+part);
+            }
+            var hero=new CachedHeroInfo();hero.HeroIndex=1;SprkAccessories.Store(hero,list);
+            foreach(var item in list)hero.SetAccessoryCostume(item.Part,item.Index,item.Position);
+            var appearance=hero.GetCostumeStock();
+            if(appearance.IsDefaultCostume() || !hero.IsEqualCostumeStock(appearance))throw new Exception("Native Remove All eligibility/equality failed");
+            var stocks=SprkAccessories.Stocks(hero);if(stocks.Length!=8)throw new Exception("Native stock builder lost layers");
+            var stock=default(CreatureStock);SprkAccessories.Build(hero,ref stock);
+            if(stock.CustomizeStockValues().Count!=8)throw new Exception("Native creature stock lost layers");
+            var clone=JsonMarshaler.Clone(hero);
+            if(SprkAccessories.Fingerprint(hero)!=SprkAccessories.Fingerprint(clone))throw new Exception("Native CachedHeroInfo clone lost accessory positions");
+            controls.Refresh();
+            var remove=view.ButtonResetCostumes.transform.parent.Find("SprkRemoveViewedAccessory");
+            if(remove==null || remove.GetComponent<UIButton>().onClick.Count!=1)throw new Exception("Remove button missing or inherited Remove All action");
+            if(remove.localPosition.x>=view.ButtonResetCostumes.transform.localPosition.x)throw new Exception("Remove must be left of Remove All");
+            foreach(var label in remove.GetComponentsInChildren<UILabel>(true))if(label.text!="Remove")throw new Exception("Remove label was localized incorrectly");
+            foreach(var localize in remove.GetComponentsInChildren<NVespa.NNGUIExtension.UILocalizeEx>(true))if(localize.enabled)throw new Exception("Remove inherited active Remove All localization");
+            var parent=remove.parent;
+            for(int layout=0;layout<3;layout++) {
+                if(layout==1)parent.localScale=new Vector3(1.3f,0.8f,1f);
+                if(layout==2)view.ButtonBuyCostumes.transform.localPosition+=new Vector3(37f,0,0);
+                remove.gameObject.SetActive(true);
+                remove.gameObject.BroadcastMessage("OnReloadLocalization",SendMessageOptions.DontRequireReceiver);
+                controls.Refresh();
+                foreach(var label in remove.GetComponentsInChildren<UILabel>(true))if(label.text!="Remove")throw new Exception("Remove label did not survive localization reload");
+                var sourceBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,view.ButtonResetCostumes.transform,true);
+                var allBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,view.ButtonBuyCostumes.transform,true);
+                var removeBounds=NGUIMath.CalculateRelativeWidgetBounds(parent,remove,true);
+                float existingGap=allBounds.min.x-sourceBounds.max.x;
+                float newGap=sourceBounds.min.x-removeBounds.max.x;
+                if(Mathf.Abs(existingGap-newGap)>0.05f)throw new Exception("Unequal footer button gaps: "+newGap+" vs "+existingGap);
+            }
+            if(resetDelegates.Count==0 || view.ButtonResetCostumes.onClick.Count!=resetDelegates.Count)throw new Exception("Remove All click binding was lost");
+            for(int i=0;i<resetDelegates.Count;i++)if(!System.Object.ReferenceEquals(resetDelegates[i],view.ButtonResetCostumes.onClick[i]))throw new Exception("Remove All click binding was replaced");
+            var listener=new ResetListener();
+            typeof(HeroFullSceneViewBase).GetProperty("HeroInfo").SetValue(view,hero,null);
+            typeof(HeroCostumeView).GetField("_listener",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.DeclaredOnly).SetValue(view,listener);
+            var existing=new HashSet<int>();foreach(var popup in UnityEngine.Object.FindObjectsOfType<MessagePopup>())existing.Add(popup.GetInstanceID());
+            EventDelegate.Execute(view.ButtonResetCostumes.onClick);
+            MessagePopup confirmation=null;foreach(var popup in UnityEngine.Object.FindObjectsOfType<MessagePopup>())if(!existing.Contains(popup.GetInstanceID()))confirmation=popup;
+            if(confirmation==null)throw new Exception("Remove All click did not open native confirmation");
+            if(listener.Calls!=0)throw new Exception("Remove All bypassed confirmation");
+            confirmation.OnClickYes();
+            if(listener.Calls!=1 || listener.Hero!=1)throw new Exception("Confirmed Remove All did not request the selected hero reset exactly once");
+            return "PASS: native Remove All serialized click, confirmation and selected-hero reset request; Remove label/localization, equal footer gaps, eight accessory stocks and independent clone transforms.";
+        } finally {UnityEngine.Object.Destroy(host);}
+    }
+}

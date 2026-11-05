@@ -16,7 +16,7 @@ use sqlx::{Row, SqliteConnection};
 use std::collections::BTreeSet;
 pub(crate) mod buffs;
 pub(crate) mod consumables;
-mod cosmetics;
+pub(crate) mod cosmetics;
 mod equipment;
 mod npc;
 pub(crate) async fn npc_friendly_snapshot(db: &mut SqliteConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
