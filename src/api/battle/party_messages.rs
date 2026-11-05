@@ -639,13 +639,16 @@ pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
 
 /// A full game login creates a fresh PartyManager. JoinPartyNotice can update
 /// an existing room, but cannot initialize that manager or open its window.
-/// Leave idle membership here; a chat reconnect with the same session retains it.
+/// Leave the room here, even during its battle: a restarted client (for
+/// example after a crash) cannot rejoin that party, and a retained membership
+/// would hide invites and block creating rooms. The leave routes through the
+/// battle departure, so AI keeps the heroes and the others settle normally.
+/// A chat reconnect with the same session retains the room.
 pub(crate) async fn new_login(s: &AppState, a: i64) -> Result<()> {
     let mut db = s.db.begin().await?;
     sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
         .bind(a).execute(&mut *db).await?;
-    let Ok((id, family, room)) = membership(&mut db, a).await else { return Ok(()); };
-    if n(&room, "Status") == 2 { return Ok(()); }
+    let Ok((id, family, _room)) = membership(&mut db, a).await else { return Ok(()); };
     rooms::remove_account(&mut db, a).await?;
     db.commit().await?;
     let req = Request([("RoomNo".into(), id.to_string())].into_iter().collect());

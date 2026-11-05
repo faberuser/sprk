@@ -1,0 +1,105 @@
+using System;
+
+// Pure Party Retry policy: no Unity or game UI. Unit-tested with stubs.
+public static class SprkPartyRetryPolicy
+{
+    public const string Prefix = "sprk-retry:";
+    public const string MessageType = "SprkRetry";
+
+    // Cooperative PvE room battles. Guild Conquest (26), Conquest (31),
+    // arenas, World Boss and Eclipse are competitive or solo and excluded.
+    public static bool Eligible(bool multiplay, int battleType)
+    {
+        if (!multiplay) return false;
+        switch (battleType)
+        {
+            case 1: case 10: // Story party dungeons
+            case 12: case 29: // Dragon Raid Normal / Hard
+            case 30: // Challenge Raid
+            case 33: // Field Raid
+            case 40: case 41: case 42: // Technomagic
+            case 45: case 46: // ARCDIM / ARCDIM X
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static string Propose() { return Prefix + "propose"; }
+    public static string Answer(int vote, bool yes) { return Prefix + (yes ? "yes:" : "no:") + vote; }
+
+    public enum Kind { None, Vote, Cancel, Restart }
+
+    public struct Notice
+    {
+        public Kind Kind;
+        public int Vote;
+        public long Proposer;
+        public int Seconds;
+        public string Reason;
+        public string Who;
+        public string Start;
+    }
+
+    // Server notices: Vote|id|proposer|seconds|nick, Cancel|id|reason|who,
+    // Restart|id|PartyBattleStart JSON. Names are always the final field.
+    public static Notice Parse(string type, string content)
+    {
+        var none = new Notice { Kind = Kind.None };
+        if (type != MessageType || string.IsNullOrEmpty(content)) return none;
+        var head = content.Split(new[] { '|' }, 2);
+        try
+        {
+            switch (head[0])
+            {
+                case "Vote":
+                {
+                    var p = content.Split(new[] { '|' }, 5);
+                    if (p.Length < 5) return none;
+                    return new Notice { Kind = Kind.Vote, Vote = int.Parse(p[1]), Proposer = long.Parse(p[2]), Seconds = int.Parse(p[3]), Who = p[4] };
+                }
+                case "Cancel":
+                {
+                    var p = content.Split(new[] { '|' }, 4);
+                    if (p.Length < 4) return none;
+                    return new Notice { Kind = Kind.Cancel, Vote = int.Parse(p[1]), Reason = p[2], Who = p[3] };
+                }
+                case "Restart":
+                {
+                    var p = content.Split(new[] { '|' }, 3);
+                    if (p.Length < 3 || !p[2].StartsWith("{")) return none;
+                    return new Notice { Kind = Kind.Restart, Vote = int.Parse(p[1]), Start = p[2] };
+                }
+            }
+        }
+        catch (FormatException) { }
+        catch (OverflowException) { }
+        return none;
+    }
+
+    // `text(key, fallback)` returns the game's localized string when present.
+    // `failure(code)` returns the native wording for a BeginCampaign result.
+    public static string CancelMessage(Notice notice, Func<string, string, string> text, Func<string, string> failure)
+    {
+        switch (notice.Reason)
+        {
+            case "Declined":
+                return notice.Who + " declined the retry.";
+            case "Timeout":
+                return string.IsNullOrEmpty(notice.Who) ? "The retry vote timed out."
+                    : "Retry cancelled. No answer from " + notice.Who + ".";
+            case "Left":
+                return text("RAID_USER_OUT_CENTER_MSG", notice.Who + " has left.") + "\nRetry cancelled.";
+            case "Ended":
+                return "The battle has ended. Retry cancelled.";
+            case "Failed":
+                var reason = failure(notice.Who);
+                return "Retry could not start. The battle continues."
+                    + (string.IsNullOrEmpty(reason) ? "" : "\n" + reason);
+            case "Busy":
+                return "A retry vote is already in progress.";
+            default:
+                return "Retry is not available right now.";
+        }
+    }
+}

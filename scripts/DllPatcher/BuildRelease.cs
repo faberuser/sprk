@@ -157,6 +157,8 @@ partial class Program
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallSoloRetry(clientRoot, false);
         InstallSoloRetry(clientRoot, false, true);
+        InstallPartyRetry(clientRoot, false);
+        InstallPartyRetry(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);

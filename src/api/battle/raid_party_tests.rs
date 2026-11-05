@@ -634,3 +634,208 @@ async fn native_field_and_technomagic_coop_wave_and_settlement() {
         server.abort();
     }
 }
+
+type RetryPeer = (Sender, mpsc::Receiver<Packet>);
+
+/// Start a 3-player Field Raid run and enter every player into combat.
+async fn retry_fixture() -> (AppState, Vec<Value>, Vec<String>, mpsc::Receiver<Packet>, Vec<RetryPeer>, String) {
+    let (s,users,args)=fixture(31,1).await;let worker=fake_worker(&s).await;
+    for (i,user) in users.iter().enumerate() {
+        let begun=call(&s,user,"campaign/begin_campaign",&args[i]).await;assert_eq!(begun["Result"],"Success","{begun}");
+    }
+    let id=s.conquest.runs.iter().next().unwrap().key().clone();let mut peers=vec![];
+    for user in &users {
+        let a=account(user);let (tx,rx)=mpsc::channel(100);
+        s.conquest.peers.insert(a,Peer{id:a.to_string(),run:id.clone(),sender:tx.clone()});
+        player_packet(&s,a,"BattleEnterReq",json!({"RequestId":1}),&tx).await.unwrap();
+        player_packet(&s,a,"BattleStartReq",json!({"RequestId":2}),&tx).await.unwrap();
+        peers.push((tx,rx));
+    }
+    assert!(s.conquest.runs.get(&id).unwrap().lock().await.started);
+    (s,users,args,worker,peers,id)
+}
+
+async fn retry_say(s: &AppState, user: &Value, peer: &RetryPeer, message: &str) {
+    let a=account(user);let id=s.conquest.peers.get(&a).unwrap().run.clone();
+    player_packet_for_run(s,a,&id,"BattleMessageReq",json!({"RequestId":9,"Message":message}),&peer.0).await.unwrap();
+}
+
+/// Party Retry notices and BattleMessageRes results received so far.
+fn retry_inbox(peer: &mut RetryPeer) -> (Vec<String>, Vec<Value>) {
+    let (mut notices,mut replies)=(vec![],vec![]);
+    while let Ok((name,body))=peer.1.try_recv() {
+        if name=="BattleMessageNot" && body["Type"]=="SprkRetry" {notices.push(body["Content"].as_str().unwrap().to_owned());}
+        if name=="BattleMessageRes" {replies.push(body["Result"].clone());}
+    }
+    (notices,replies)
+}
+
+async fn retry_holds(s: &AppState) -> Vec<(i64,i64)> {
+    sqlx::query_as("SELECT account,SUM(amount) FROM battle_entry_holds GROUP BY account ORDER BY account").fetch_all(&s.db).await.unwrap()
+}
+
+#[tokio::test]
+async fn party_retry_unanimous_vote_restarts_the_room_without_charging_costs() {
+    let (s,users,args,mut worker,mut peers,old)=retry_fixture().await;
+    let stamina:Vec<i64>=sqlx::query_scalar("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+    let held=retry_holds(&s).await;
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:propose").await;
+    for (i,peer) in peers.iter_mut().enumerate() {
+        let (notices,_)=retry_inbox(peer);
+        assert_eq!(notices.len(),1,"player {i}: {notices:?}");
+        assert!(notices[0].starts_with(&format!("Vote|1|{}|15|",account(&users[1]))),"{notices:?}");
+    }
+    // A Yes for a stale vote is ignored, and one guest's Yes alone is not enough.
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:yes:7").await;
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:yes:1").await;
+    assert!(s.conquest.runs.contains_key(&old));
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:yes:1").await;
+    assert!(!s.conquest.runs.contains_key(&old),"an accepted retry retires the old run");
+    let next=s.conquest.runs.iter().next().unwrap().key().clone();assert_ne!(next,old);
+    let mut cancelled=false;
+    while let Ok((name,body))=worker.try_recv() {if name=="WorkerCancel" && body["RunId"]==old {cancelled=true;}}
+    assert!(cancelled,"the native worker stops simulating the abandoned battle");
+    let deck=n(row(&s,"Raid",&[("Index",31),("Level",1)]).unwrap(),"DeckCount") as usize;
+    for peer in peers.iter_mut() {
+        let (notices,_)=retry_inbox(peer);
+        let restart=notices.iter().find(|v|v.starts_with("Restart|1|")).expect("restart notice");
+        let start:Value=serde_json::from_str(restart.splitn(3,'|').nth(2).unwrap()).unwrap();
+        assert_eq!(start["RaidIndex"],31);assert_eq!(start["HeroIndices"].as_array().unwrap().len(),deck);
+    }
+    let room:String=sqlx::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    assert_eq!(read_json::<Value>(&room).unwrap()["CoopRunId"],next);
+    // Guests' old holds are released; like a native start, each guest's new
+    // hold is placed when that client confirms through begin_campaign.
+    assert_eq!(retry_holds(&s).await,held[..1].to_vec());
+    // Every client follows the native PartyBattleStart path into the new run.
+    for (i,user) in users.iter().enumerate() {
+        let begun=call(&s,user,"campaign/begin_campaign",&args[i]).await;assert_eq!(begun["Result"],"Success","{begun}");
+        let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=? AND completed=0").bind(account(user)).fetch_one(&s.db).await.unwrap();
+        assert_eq!(read_json::<Value>(&raw).unwrap()["CoopRunId"],next);
+    }
+    // Nothing was charged for the abandoned attempt: same holds, same stamina.
+    assert_eq!(retry_holds(&s).await,held);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),stamina);
+}
+
+#[tokio::test]
+async fn party_retry_single_no_or_departure_cancels_for_everyone() {
+    let (s,users,_,_worker,mut peers,old)=retry_fixture().await;
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:yes:1").await;
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:no:1").await;
+    for peer in peers.iter_mut() {
+        let (notices,_)=retry_inbox(peer);
+        assert!(notices.last().unwrap().starts_with("Cancel|1|Declined|"),"{notices:?}");
+    }
+    assert!(s.conquest.runs.get(&old).unwrap().lock().await.payload["RetryVote"].is_null());
+    // Late answers to a closed vote change nothing.
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:yes:1").await;
+    assert!(s.conquest.runs.contains_key(&old));
+    // A second vote is numbered separately, a duplicate proposal is refused,
+    // and a departure cancels the open vote.
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:propose").await;
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:propose").await;
+    let (notices,_)=retry_inbox(&mut peers[2]);
+    assert!(notices.iter().any(|v|v.starts_with("Vote|2|")) && notices.iter().any(|v|v=="Cancel|0|Busy|"),"{notices:?}");
+    let a=account(&users[1]);player_packet(&s,a,"WithdrawBattleReq",json!({"RequestId":5}),&peers[1].0).await.unwrap();
+    let (notices,_)=retry_inbox(&mut peers[0]);
+    assert!(notices.last().unwrap().starts_with("Cancel|2|Left|"),"{notices:?}");
+    assert!(s.conquest.runs.contains_key(&old));
+}
+
+#[tokio::test]
+async fn party_retry_timeout_and_failed_restart_keep_the_current_battle() {
+    let (s,users,_,_worker,mut peers,old)=retry_fixture().await;
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:yes:1").await;
+    retry::expire(&s,&old,1).await.unwrap();
+    let (notices,_)=retry_inbox(&mut peers[0]);
+    let guest=retry::nick(&*s.conquest.runs.get(&old).unwrap().lock().await,account(&users[2]));
+    assert_eq!(notices.last().unwrap(),&format!("Cancel|1|Timeout|{guest}"));
+    // An expiry for an older vote never closes a newer one.
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    retry::expire(&s,&old,1).await.unwrap();
+    assert!(!s.conquest.runs.get(&old).unwrap().lock().await.payload["RetryVote"].is_null());
+    // Nobody can afford the entry any more: the restart rolls back entirely.
+    let held=retry_holds(&s).await;
+    let room:String=sqlx::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    sqlx::query("UPDATE user_info SET stamina=0").execute(&s.db).await.unwrap();
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:yes:2").await;
+    retry_say(&s,&users[2],&peers[2],"sprk-retry:yes:2").await;
+    let (notices,_)=retry_inbox(&mut peers[1]);
+    assert!(notices.last().unwrap().starts_with("Cancel|2|Failed|"),"{notices:?}");
+    assert!(s.conquest.runs.contains_key(&old) && s.conquest.runs.len()==1,"no orphaned replacement run");
+    assert_eq!(retry_holds(&s).await,held);
+    assert_eq!(sqlx::query_scalar::<_,String>("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap(),room);
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),3);
+}
+
+#[tokio::test]
+async fn party_retry_restarts_only_players_still_in_battle_and_needs_the_master() {
+    let (s,users,args,_worker,mut peers,old)=retry_fixture().await;
+    let (host,stayed,exited)=(account(&users[0]),account(&users[1]),account(&users[2]));
+    // Exiting withdraws from the battle but keeps the party room membership.
+    player_packet(&s,exited,"WithdrawBattleReq",json!({"RequestId":5}),&peers[2].0).await.unwrap();
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:propose").await;
+    assert!(retry_inbox(&mut peers[0]).0.iter().any(|v|v.starts_with("Vote|1|")));
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:yes:1").await;
+    assert!(!s.conquest.runs.contains_key(&old),"the exited player's answer is not needed");
+    let handle=s.conquest.runs.iter().next().unwrap().value().clone();
+    assert_eq!(handle.lock().await.members,vec![host,stayed]);
+    let (notices,_)=retry_inbox(&mut peers[0]);
+    let start:Value=serde_json::from_str(notices.iter().find(|v|v.starts_with("Restart|1|")).unwrap().splitn(3,'|').nth(2).unwrap()).unwrap();
+    assert!(start["AccountIds"].as_array().unwrap().iter().all(|v|*v!=json!(exited)),"{start}");
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members").fetch_one(&s.db).await.unwrap(),3);
+    let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(exited).fetch_one(&s.db).await.unwrap();
+    assert_ne!(read_json::<Value>(&raw).unwrap()["CoopRunId"],handle.lock().await.id);
+    for i in 0..2 {assert_eq!(call(&s,&users[i],"campaign/begin_campaign",&args[i]).await["Result"],"Success");}
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?").bind(exited).fetch_one(&s.db).await.unwrap(),0);
+
+    // When the room master has exited, nobody can restart the master's start.
+    let (s,users,_,_worker,mut peers,_)=retry_fixture().await;
+    player_packet(&s,account(&users[0]),"WithdrawBattleReq",json!({"RequestId":5}),&peers[0].0).await.unwrap();
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:propose").await;
+    assert_eq!(retry_inbox(&mut peers[1]).0,vec!["Cancel|0|Unavailable|".to_owned()]);
+}
+
+#[tokio::test]
+async fn crashed_player_relogin_mid_battle_leaves_room_and_battle_continues() {
+    let (s,users,_,_worker,mut peers,old)=retry_fixture().await;
+    let crashed=account(&users[2]);
+    // The crashed client's sockets are gone; it comes back with a full login.
+    s.conquest.peers.remove(&crashed);
+    super::super::party_messages::new_login(&s,crashed).await.unwrap();
+    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=?").bind(crashed).fetch_one(&s.db).await.unwrap(),0);
+    {
+        let run=s.conquest.runs.get(&old).unwrap().clone();let run=run.lock().await;
+        assert!(run.departed.contains(&crashed),"AI keeps the crashed player's heroes");
+        assert!(run.result.is_none(),"the others keep playing");
+    }
+    // Not a member any more: invites reach it and it can create its own room.
+    let room:i64=sqlx::query_scalar("SELECT id FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    let created=call(&s,&users[2],"raid/create_raid_room","RaidIndex=31&RaidLevel=1&Opened=1").await;
+    assert_eq!(created["Result"],"Success","{created}");
+    assert_ne!(n(&created,"RoomNo"),room);
+    // The players still fighting can retry without the crashed player.
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    retry_say(&s,&users[1],&peers[1],"sprk-retry:yes:1").await;
+    assert!(!s.conquest.runs.contains_key(&old));
+    let next=s.conquest.runs.iter().next().unwrap().value().clone();
+    assert_eq!(next.lock().await.members,vec![account(&users[0]),account(&users[1])]);
+    let _=retry_inbox(&mut peers[0]);
+}
+
+#[tokio::test]
+async fn party_retry_is_unavailable_outside_live_party_campaigns() {
+    let (s,users,_,_worker,mut peers,old)=retry_fixture().await;
+    // Guild Conquest and arena runs are never PartyCampaign runs.
+    s.conquest.runs.get(&old).unwrap().lock().await.payload["PartyCampaign"]=json!(false);
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    let (notices,replies)=retry_inbox(&mut peers[0]);
+    assert_eq!(notices,vec!["Cancel|0|Unavailable|".to_owned()]);assert_eq!(replies.last().unwrap(),"Fail");
+    s.conquest.runs.get(&old).unwrap().lock().await.payload["PartyCampaign"]=json!(true);
+    s.conquest.runs.get(&old).unwrap().lock().await.result=Some(json!({"Win":false}));
+    retry_say(&s,&users[0],&peers[0],"sprk-retry:propose").await;
+    assert_eq!(retry_inbox(&mut peers[0]).0,vec!["Cancel|0|Unavailable|".to_owned()]);
+}
