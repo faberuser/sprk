@@ -229,6 +229,44 @@ pub(crate) async fn equipped_accessories(db: &mut SqliteConnection, account: i64
     Ok(result)
 }
 
+const IDENTITY_TRANSFORM: [(&str, f64); 7] = [("PositionX", 0.0), ("PositionY", 0.0), ("PositionZ", 0.0),
+    ("RotationX", 0.0), ("RotationY", 0.0), ("RotationZ", 0.0), ("Scale", 1.0)];
+
+// A stored native transform string as a PositionInfo object. Missing or
+// unusable values become the identity transform, never a zero scale.
+fn transform(raw: &str) -> Value {
+    let parsed = position_json(raw).ok().filter(Value::is_object);
+    let mut out = serde_json::Map::new();
+    for (field, default) in IDENTITY_TRANSFORM {
+        let value = parsed.as_ref().map(|v| &v[field])
+            .and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok())))
+            .filter(|v| v.is_finite() && (field != "Scale" || *v > 0.0))
+            .unwrap_or(default);
+        // Native PositionInfo JSON encodes floats as strings.
+        out.insert(field.into(), json!(value.to_string()));
+    }
+    Value::Object(out)
+}
+
+// Hero snapshots shown to other clients or replayed by the native battle
+// worker. The worker re-encodes absent native transforms as `{}`, which
+// clients parse as scale 0 and render invisibly, so send the complete
+// accessory list and explicit transforms for every occupied native slot.
+pub(crate) async fn complete_snapshot_appearance(db: &mut SqliteConnection, account: i64, h: &mut Value) -> Result<()> {
+    let accessories = equipped_accessories(db, account, h).await?;
+    for part in 1..=6 {
+        let id = n(h, &format!("AccessoryCostumeIndex{part}"));
+        if id <= 0 {
+            continue;
+        }
+        let raw = accessories.iter().find(|v| n(v, "Index") == id)
+            .and_then(|v| v["PositionInfo"].as_str()).unwrap_or("");
+        h[format!("AccessoryPositionInfo{part}")] = transform(raw);
+    }
+    h["SprkAccessories"] = json!(accessories);
+    Ok(())
+}
+
 // The native accessory key contains both the hero and accessory IDs.
 pub(super) fn accessory_key(hero_id: i32, accessory: i64) -> Result<i64> {
     if hero_id <= 0 || !(1..=i32::MAX as i64).contains(&accessory) {
@@ -332,5 +370,17 @@ mod tests {
                 assert!(positions(&json!({"3100013":bad}).to_string()).is_err());
             }
         }
+    }
+
+    #[test]
+    fn snapshot_transforms_never_have_zero_scale() {
+        // `{}` is what a native re-encode of an absent transform looks like.
+        for raw in ["", "{}", "garbage", r#"{"Scale":"0"}"#, r#"{"Scale":-1}"#] {
+            assert_eq!(transform(raw)["Scale"], "1", "{raw}");
+            assert_eq!(transform(raw)["PositionX"], "0", "{raw}");
+        }
+        let custom = transform(r#"{"PositionX":"0.25","PositionY":-1,"PositionZ":"0","RotationX":"0","RotationY":"90","RotationZ":"0","Scale":"1.5"}"#);
+        assert_eq!(custom, json!({"PositionX":"0.25","PositionY":"-1","PositionZ":"0",
+            "RotationX":"0","RotationY":"90","RotationZ":"0","Scale":"1.5"}));
     }
 }

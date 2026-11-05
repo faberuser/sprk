@@ -330,6 +330,7 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
         }
     }
     h["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &h).await?;
+    crate::api::extensions::cosmetics::complete_snapshot_appearance(db, a, &mut h).await?;
     Ok(h)
 }
 async fn user(db: &mut SqliteConnection, a: i64) -> Result<Value> {

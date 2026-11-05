@@ -2564,3 +2564,33 @@ async fn technomagic_restoration_preserves_equipped_hero_for_locked_and_unlocked
         assert_eq!(result["ResultEquipItem"]["Locked"], locked);
     }
 }
+
+#[tokio::test]
+async fn multiplayer_hero_snapshots_carry_visible_accessories() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut db = s.db.acquire().await.unwrap();
+    // A legacy single-slot appearance has no SprkAccessories list and no
+    // native transforms. The battle worker used to re-encode those as `{}`.
+    crate::api::heroes::save_details(&mut db, a, 1,
+        &json!({"AccessoryCostumeIndex1":3100013,"AccessoryCostumeIndex4":3110025})).await.unwrap();
+    let custom = json!({"PositionX":"0.25","PositionY":"0","PositionZ":"0",
+        "RotationX":"0","RotationY":"90","RotationZ":"0","Scale":"1.5"});
+    put(&mut db, a, "accessory", cosmetics::accessory_key(1, 3110025).unwrap(),
+        &json!({"HeroIndex":1,"AccessoryCostumeIndex":3110025,"PositionInfo":custom.to_string()})).await.unwrap();
+    let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+    assert_eq!(cached["AccessoryPositionInfo1"]["Scale"], "1");
+    assert_eq!(cached["AccessoryPositionInfo4"], custom);
+    assert!(cached["AccessoryPositionInfo2"].is_null());
+    let list: Vec<_> = cached["SprkAccessories"].as_array().unwrap().iter()
+        .map(|v| (n(v, "Index"), n(v, "Part"))).collect();
+    assert_eq!(list, vec![(3100013, 1), (3110025, 4)]);
+    assert_eq!(cached["SprkAccessories"][1]["PositionInfo"], custom.to_string());
+    // An explicit multi-accessory list is authoritative and kept intact.
+    let stacked = json!([{"Index":3100013,"Part":1,"PositionInfo":""},{"Index":3100201,"Part":1,"PositionInfo":custom.to_string()}]);
+    crate::api::heroes::save_details(&mut db, a, 1,
+        &json!({"AccessoryCostumeIndex1":3100201,"SprkAccessories":stacked})).await.unwrap();
+    let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+    assert_eq!(cached["SprkAccessories"], stacked);
+    assert_eq!(cached["AccessoryPositionInfo1"], custom);
+}

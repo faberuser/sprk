@@ -144,6 +144,7 @@ pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> R
         }
     }
     hero["PunishmentRuneOptionInfos"] = crate::api::extensions::punishment::options(db, a, &hero).await?;
+    crate::api::extensions::cosmetics::complete_snapshot_appearance(db, a, &mut hero).await?;
     Ok(hero)
 }
 pub(super) async fn opponent(db: &mut SqliteConnection, a: i64, exclude: i64) -> Result<Value> {
