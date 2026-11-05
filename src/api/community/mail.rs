@@ -71,15 +71,15 @@ pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
 
 // Materialize a global announcement once per account. The delivery ledger survives claims.
 async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
-    // Native mailbox polling also delivers newly closed Honor periods while a
+    // Native mailbox polling also delivers newly closed Arena periods while a
     // player stays logged in. Reward claims and messages commit together.
     // Most checks have nothing to deliver: probe on a reader and only queue for
     // the writer when needed. Both paths recheck under the writer transaction.
-    let honor_pending = super::arena::honor_rewards::pending(&mut *state.reads.acquire().await?, state, account).await?;
-    if honor_pending {
-        let mut honor = state.db.begin().await?;
-        super::arena::honor_rewards::settle(&mut honor, state, account).await?;
-        honor.commit().await?;
+    let arena_pending = super::arena::pending(&mut *state.reads.acquire().await?, state, account).await?;
+    if arena_pending {
+        let mut arena = state.db.begin().await?;
+        super::arena::settle(&mut arena, state, account).await?;
+        arena.commit().await?;
     }
     let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id))")
         .bind(account).fetch_one(&state.reads).await?;
