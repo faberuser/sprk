@@ -96,8 +96,12 @@ isolated client.
 `--technomagic-refresh-only` applies TM tier-upgrade account state before UI
 notification, then rebuilds the open awakening window's hero/inventory icons and
 clears the old 5-star target. `--verify-technomagic-refresh` verifies the response
-order, native error paths, and scoped refresh. Installation also executes the
-native response callback with isolated service traces and checks idempotence.
+order, native error paths, and scoped refresh. After restoration replaces an item,
+it also rebuilds Hero Info's equipped icons and inventory, discards the old
+equipped-item details/menu and refreshes treasure slots. Returning with Back then
+uses the restored item and its Enhancement eligibility without switching heroes.
+Installation executes the native response callback with isolated service traces,
+the Hero Info refresh across 16 hero/panel presence cases and patch idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
 
