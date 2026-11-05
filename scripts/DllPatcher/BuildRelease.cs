@@ -167,6 +167,8 @@ partial class Program
         InstallLinePets(clientRoot, false, true);
         RestoreLinePetCurrency(clientRoot, false);
         RestoreLinePetCurrency(clientRoot, true);
+        InstallHeroDeathVoices(clientRoot, false);
+        InstallHeroDeathVoices(clientRoot, false, true);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);

@@ -46,6 +46,8 @@ namespace DllPatcher
             if (args.Contains("--verify-lobby-avatar-stability")) { VerifyLobbyAvatarStabilityFile(args[0],args.Contains("--stage-only")); TestLobbyAvatarStability(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--soul-upgrade-playback-only")) { InstallSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soul-upgrade-playback")) { VerifySoulUpgradePlaybackFile(args[0],args.Contains("--stage-only")); TestSoulUpgradePlayback(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--hero-death-voices-only")) { InstallHeroDeathVoices(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-hero-death-voices")) { InstallHeroDeathVoices(args[0],false,true); return; }
             if (args.Contains("--lavril-circle-only")) { InstallLavrilCircle(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-lavril-circle")) { InstallLavrilCircle(args[0],args.Contains("--stage-only"),true); return; }
             if (args.Contains("--soulstone-ownership-only")) { InstallSoulstoneOwnership(args[0],args.Contains("--stage-only")); return; }

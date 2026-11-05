@@ -14,6 +14,16 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--hero-death-voices-only` corrects the battle creature's case-sensitive
+Dead/Damage/Down sound prefixes and retains the dot when a costume voice falls
+back to its hero's base voice. The original uppercase DEAD lookup cannot find
+the installed or archived `Dead.Hero.*` definitions. Native death detection,
+timers, voice language, audio settings and animation-sound fallback stay in use.
+`--verify-hero-death-voices` checks the death path and executes the native sound
+code builder against the installed catalogue, including missing costume voices,
+plus native English/Korean/Japanese death sound loading. The full release build
+installs and verifies this patch. Restart the game after installation.
+
 `--lavril-circle-only` aligns Lavril S3's normal and Glory League ground circles
 and impact flourish with the stationary damaging field, six metres in front of
 the caster. The old tree used the self-targeted projectile-creation operation's
