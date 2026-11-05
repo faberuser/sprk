@@ -14,6 +14,16 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--lavril-circle-only` aligns Lavril S3's normal and Glory League ground circles
+and impact flourish with the stationary damaging field, six metres in front of
+the caster. The old tree used the self-targeted projectile-creation operation's
+target (Lavril) for the circle. Combat tables, damage, stacks and targeting are
+unchanged. `--verify-lavril-circle` checks the installed node tree against the
+native projectile data and tests native radius boundaries with multiple enemy
+positions for both facing directions. Only three visual position records change;
+the complete tree is read back and checked for unrelated changes and idempotence.
+The full `--build-release` installs and verifies this fix. Restart the game.
+
 `--soulstone-ownership-only` makes the Soulstone Ticket's Owned and Not Owned
 filters use the hero roster instead of unique-weapon inventory. The native class
 filter and ticket pool remain in use. `--verify-soulstone-ownership` checks the

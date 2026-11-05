@@ -171,6 +171,8 @@ partial class Program
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
+        InstallLavrilCircle(clientRoot, false);
+        InstallLavrilCircle(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }
