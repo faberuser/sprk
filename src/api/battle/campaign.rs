@@ -720,7 +720,13 @@ async fn complete_inner(
                 flask_items.extend(items);
             }
         }
-        hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":base_exp,"AddBoosterValue":exp-base_exp,"AddTeamLevelValue":0}));
+        // The result card shows TotalExp(NewLevel, NewValue) minus
+        // TotalExp(OldLevel, NewValue - AddValue), matching the client's own
+        // tutorial result builder. AddValue is therefore the local-EXP delta
+        // (negative after level-ups), not the base gain; otherwise level-ups
+        // inflate the label and the booster share is never shown.
+        let (add_value, booster) = if old >= cap { (0, 0) } else { (new_exp - n(&h, "Exp"), exp - base_exp) };
+        hero_exp.push(json!({"HeroIndex":id,"OldLevel":old,"NewLevel":level,"NewValue":new_exp,"AddValue":add_value,"AddBoosterValue":booster,"AddTeamLevelValue":0}));
     }
     p["MaxStar"] = json!(n(&p, "MaxStar").max(diff * 10 + star));
     p["FirstRewardedDiff"] = json!(n(&p, "FirstRewardedDiff") | (1 << diff));
