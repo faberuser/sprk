@@ -1,0 +1,683 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using NGame2.NUI;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+using NNguiExtension;
+using NVespa.NNGUIExtension;
+using NShared;
+using UnityEngine;
+
+// Name search for selector-ticket windows. The native lists keep building
+// themselves; the hooks only reject entries that do not match the query.
+public sealed class SprkTicketSearchBox : MonoBehaviour {
+    public const string NodeName="SprkTicketSearch";
+    public UIInput input;
+    public UILabel label;
+    public GameObject clear;
+    public GameObject content;
+    public Action rebuild;
+    public Func<bool> visible;
+    public string[] terms=new string[0];
+    public string text="";
+    // Typo-tolerant matching is used only when no entry in the ticket matches exactly.
+    public bool fuzzy;
+    public Func<IEnumerable<string>> pool;
+    // The native dropdown background whose look the field copies, when present.
+    public UISprite styleSource;
+    float pending=-1f;
+    bool silent;
+    // Native combo geometry captured once per window instance, so relayout is idempotent.
+    public readonly Dictionary<Transform,SprkTicketSearch.Geometry> original=new Dictionary<Transform,SprkTicketSearch.Geometry>();
+
+    public bool Active { get { return terms.Length>0; } }
+    public bool Accepts(string haystack) {
+        return terms.Length==0 || (fuzzy?SprkTicketSearch.FuzzyMatches(terms,haystack):SprkTicketSearch.Matches(terms,haystack));
+    }
+
+    public void OnChanged() {
+        if(silent || input==null)return;
+        string value=input.value??"";
+        if(value==text)return;
+        text=value;terms=SprkTicketSearch.Terms(value);
+        RefreshClear();
+        pending=Time.unscaledTime+.18f;
+    }
+    public void OnSubmitted() {
+        if(silent)return;
+        OnChanged();
+        if(pending>=0f){pending=-1f;Apply();}
+    }
+    public void Clear() {
+        ResetSilently();
+        Apply();
+    }
+    // Opening a ticket starts from the full native list without an extra rebuild.
+    public void ResetSilently() {
+        pending=-1f;text="";terms=new string[0];fuzzy=false;
+        if(input!=null) {
+            silent=true;
+            try { input.value=""; } finally { silent=false; }
+        }
+        RefreshClear();
+    }
+    void RefreshClear() { if(clear!=null)clear.SetActive(text.Length>0); }
+    public void Apply() {
+        pending=-1f;
+        fuzzy=false;
+        if(terms.Length>0 && pool!=null) {
+            try { fuzzy=!pool().Any(text=>SprkTicketSearch.Matches(terms,text)); }
+            catch(Exception e) { Debug.LogException(e); }
+        }
+        if(rebuild==null)return;
+        try { rebuild(); } catch(Exception e) { Debug.LogException(e); }
+    }
+    // Lobby atlases may be assigned after the field is built; follow the dropdown's look.
+    void MatchStyle() {
+        if(styleSource==null || styleSource.atlas==null || input==null)return;
+        var frame=input.GetComponent<UISprite>();
+        if(frame==null || (frame.atlas==styleSource.atlas && frame.spriteName==styleSource.spriteName && frame.height==styleSource.height))return;
+        frame.atlas=styleSource.atlas;frame.spriteName=styleSource.spriteName;frame.type=styleSource.type;
+        frame.height=styleSource.height;
+        var collider=input.GetComponent<BoxCollider>();
+        if(collider!=null)collider.size=new Vector3(collider.size.x,styleSource.height,1f);
+    }
+    void Update() {
+        MatchStyle();
+        if(content!=null && visible!=null) {
+            bool show=visible();
+            if(content.activeSelf!=show)content.SetActive(show);
+        }
+        if(pending>=0f && Time.unscaledTime>=pending)Apply();
+    }
+}
+
+public static class SprkTicketSearch {
+    public struct Geometry {
+        public Vector3 position;public int width;public Vector3 collider;
+        public Dictionary<Transform,Vector3> childPositions;public Dictionary<UIWidget,int> childWidths;
+    }
+
+    const BindingFlags Any=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+    const string BoxSprite="Common_Box_2",ClearSprite="Common_Close";
+    const int RowHeight=62;
+    static readonly Color TextColor=new Color(1f,1f,1f,1f);
+    static readonly Color PlaceholderColor=new Color(.953f,.925f,.855f,.55f);
+
+    static readonly Dictionary<string,string> equipText=new Dictionary<string,string>(StringComparer.Ordinal);
+    static readonly Dictionary<int,string> heroText=new Dictionary<int,string>();
+    static readonly Dictionary<int,string> itemText=new Dictionary<int,string>();
+    static readonly Dictionary<int,string> costumeText=new Dictionary<int,string>();
+
+    static T Field<T>(object owner,string name) where T:class {
+        for(var type=owner.GetType();type!=null;type=type.BaseType) {
+            var field=type.GetField(name,Any|BindingFlags.DeclaredOnly);
+            if(field!=null)return field.GetValue(owner) as T;
+        }
+        return null;
+    }
+    static object Call(object owner,string name,params object[] args) {
+        for(var type=owner.GetType();type!=null;type=type.BaseType) {
+            var method=type.GetMethods(Any|BindingFlags.DeclaredOnly).FirstOrDefault(m=>m.Name==name && m.GetParameters().Length==args.Length);
+            if(method!=null)return method.Invoke(owner,args);
+        }
+        throw new MissingMethodException(owner.GetType().Name,name);
+    }
+
+    // ---- Matching --------------------------------------------------------
+    public static string Fold(string value) {
+        if(String.IsNullOrEmpty(value))return "";
+        value=NGUIText.StripSymbols(value).Normalize(NormalizationForm.FormD);
+        var sb=new StringBuilder(value.Length);
+        foreach(char ch in value) {
+            var category=CharUnicodeInfo.GetUnicodeCategory(ch);
+            if(category==UnicodeCategory.NonSpacingMark || category==UnicodeCategory.SpacingCombiningMark || category==UnicodeCategory.EnclosingMark)continue;
+            if(Char.IsLetterOrDigit(ch))sb.Append(Char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+    public static string[] Terms(string query) {
+        if(String.IsNullOrEmpty(query))return new string[0];
+        return query.Split((char[])null,StringSplitOptions.RemoveEmptyEntries).Select(Fold).Where(t=>t.Length>0).Distinct().ToArray();
+    }
+    // "|name|name|#initials#": exact matching reads only the names part.
+    static string Join(IEnumerable<string> names) {
+        var list=names.Where(n=>!String.IsNullOrEmpty(n)).ToList();
+        var folded=list.Select(Fold).Where(n=>n.Length>0).Distinct().ToArray();
+        var initials=list.Select(Initials).Where(n=>n.Length>=2).Distinct().ToArray();
+        return "|"+String.Join("|",folded)+"|#"+String.Join("#",initials)+"#";
+    }
+    static string Initials(string name) {
+        var sb=new StringBuilder();
+        foreach(var word in NGUIText.StripSymbols(name).Split(new[]{' ','-',',','.','\'','\u2019','(',')'},StringSplitOptions.RemoveEmptyEntries)) {
+            var folded=Fold(word);
+            if(folded.Length>0)sb.Append(folded[0]);
+        }
+        return sb.ToString();
+    }
+    static string NamesPart(string haystack) {
+        int split=haystack.IndexOf('#');
+        return split<0?haystack:haystack.Substring(0,split);
+    }
+    public static bool Matches(string[] terms,string haystack) {
+        if(terms==null || terms.Length==0)return true;
+        if(String.IsNullOrEmpty(haystack))return false;
+        var names=NamesPart(haystack);
+        foreach(var term in terms)if(names.IndexOf(term,StringComparison.Ordinal)<0)return false;
+        return true;
+    }
+    // Allowed typos per word: none below 4 letters, then 1, 2 and 3.
+    public static int Tolerance(string term) {
+        return term.Length<4?0:term.Length<=5?1:term.Length<=8?2:3;
+    }
+    public static bool FuzzyMatches(string[] terms,string haystack) {
+        if(terms==null || terms.Length==0)return true;
+        if(String.IsNullOrEmpty(haystack))return false;
+        var names=NamesPart(haystack);
+        var parts=names.Split(new[]{'|'},StringSplitOptions.RemoveEmptyEntries);
+        var initials=haystack.Substring(names.Length).Split(new[]{'#'},StringSplitOptions.RemoveEmptyEntries);
+        foreach(var term in terms) {
+            if(names.IndexOf(term,StringComparison.Ordinal)>=0)continue;
+            if(term.Length>=2 && initials.Any(i=>i.StartsWith(term,StringComparison.Ordinal)))continue;
+            int k=Tolerance(term);
+            if(k==0 || !parts.Any(part=>Distance(term,part,k)<=k))return false;
+        }
+        return true;
+    }
+    // Smallest edit distance between the term and any substring of the text
+    // (Sellers' algorithm with adjacent transpositions counted as one edit).
+    public static int Distance(string term,string text,int limit=int.MaxValue) {
+        int m=term.Length,n=text.Length;
+        if(m==0)return 0;
+        var d=new int[m+1,n+1];
+        for(int i=0;i<=m;i++)d[i,0]=i;
+        for(int j=0;j<=n;j++)d[0,j]=0;
+        for(int i=1;i<=m;i++)for(int j=1;j<=n;j++) {
+            int cost=term[i-1]==text[j-1]?0:1;
+            int v=Math.Min(Math.Min(d[i-1,j]+1,d[i,j-1]+1),d[i-1,j-1]+cost);
+            if(i>1 && j>1 && term[i-1]==text[j-2] && term[i-2]==text[j-1])v=Math.Min(v,d[i-2,j-2]+1);
+            d[i,j]=v;
+        }
+        int best=m;
+        for(int j=0;j<=n;j++)best=Math.Min(best,d[m,j]);
+        return best;
+    }
+    static IEnumerable<string> HeroNames(int index) {
+        var hero=GameRoot.Instance.CreatureDataContainer.GetData(index);
+        if(hero==null)yield break;
+        string name=null,title=null,code=null;
+        try{name=hero.Name;}catch{}
+        try{title=hero.Title;}catch{}
+        try{code=hero.CodeName;}catch{}
+        if(!String.IsNullOrEmpty(name))yield return name;
+        if(!String.IsNullOrEmpty(title))yield return title;
+        if(!String.IsNullOrEmpty(code))yield return code;
+    }
+    public static string HeroText(int index) {
+        string text;
+        if(!heroText.TryGetValue(index,out text))heroText[index]=text=Join(HeroNames(index));
+        return text;
+    }
+    static IEnumerable<string> ItemNames(ItemData item) {
+        if(item==null)yield break;
+        string name=null,built=null;
+        try{name=item.Name;}catch{}
+        try{built=NGame2.NUtil.NStringProxy.ItemNameBuilder.GetItemName(item,null,true);}catch{}
+        if(!String.IsNullOrEmpty(name))yield return name;
+        if(!String.IsNullOrEmpty(built))yield return built;
+    }
+    public static string EquipText(EquipItemData equip) {
+        if(equip==null)return "";
+        string key=equip.EquipCode??"",text;
+        if(equipText.TryGetValue(key,out text))return text;
+        var names=new List<string>(ItemNames(GameRoot.Instance.ItemDataContainer.GetDataByCode(key)));
+        if(equip.CreatureIndex!=null)foreach(int hero in equip.CreatureIndex)names.AddRange(HeroNames(hero));
+        return equipText[key]=Join(names);
+    }
+    public static string SoulStoneText(ItemData item) {
+        if(item==null)return "";
+        string text;
+        if(itemText.TryGetValue(item.Index,out text))return text;
+        var names=new List<string>(ItemNames(item));
+        int hero=0;try{hero=item.GetValueInt(0);}catch{}
+        if(hero>0)names.AddRange(HeroNames(hero));
+        return itemText[item.Index]=Join(names);
+    }
+    public static string CostumeText(int index) {
+        string text;
+        if(costumeText.TryGetValue(index,out text))return text;
+        var names=new List<string>();
+        var costume=GameRoot.Instance.CostumeDataContainer.GetData(index);
+        if(costume!=null) {
+            try{if(!String.IsNullOrEmpty(costume.CostumeName))names.Add(costume.CostumeName);}catch{}
+            names.AddRange(HeroNames(costume.HeroIndex));
+        }
+        return costumeText[index]=Join(names);
+    }
+    static void ClearCaches() { equipText.Clear();heroText.Clear();itemText.Clear();costumeText.Clear(); }
+
+    static SprkTicketSearchBox Box(Component window) {
+        return window==null?null:window.GetComponent<SprkTicketSearchBox>();
+    }
+
+    // IL hooks: return false to skip a native list entry.
+    public static bool MatchEquip(WeaponUniqueSelect window,EquipItemData equip) {
+        var box=Box(window);
+        return box==null || !box.Active || box.Accepts(EquipText(equip));
+    }
+    public static bool MatchSoulStone(SoulStoneSelect window,ItemData item) {
+        var box=Box(window);
+        return box==null || !box.Active || box.Accepts(SoulStoneText(item));
+    }
+    public static bool MatchHero(Component window,int heroIndex) {
+        var box=Box(window);
+        return box==null || !box.Active || box.Accepts(HeroText(heroIndex));
+    }
+    public static bool MatchHeroInfo(InvenUseAttrTypeHeroSelect window,EmptyHeroPortraitSmallComponent.HeroInfo info) {
+        return info==null || MatchHero(window,info.HeroIndex);
+    }
+    public static bool MatchCostume(InvenUseHeroCostumeSelect window,int costumeIndex) {
+        var box=Box(window);
+        return box==null || !box.Active || box.Accepts(CostumeText(costumeIndex));
+    }
+
+    // ---- Window integration ----------------------------------------------
+    enum Kind { None, Equipment, SoulWeapon, Hero, Costume }
+
+    static Kind KindOf(SelectFilter filter,out BaseWindow window) {
+        // SelectFilter is itself a BaseWindow; the ticket window is an ancestor.
+        var parent=filter==null?null:filter.transform.parent;
+        window=parent==null?null:parent.GetComponentInParent<BaseWindow>(true);
+        if(window==null)return Kind.None;
+        var type=window.GetType();
+        if(type==typeof(WeaponUniqueSelect))return Kind.Equipment;
+        if(type==typeof(SoulStoneSelect))return Kind.SoulWeapon;
+        if(type==typeof(InvenUseHeroSelect))return Kind.Hero;
+        if(type==typeof(InvenUseHeroCostumeSelect))return Kind.Costume;
+        return Kind.None;
+    }
+
+    // Start of SelectFilter.InitFilter: every ticket opens with an empty query.
+    public static void BeforeFilter(SelectFilter filter) {
+        BaseWindow window;
+        if(KindOf(filter,out window)==Kind.None)return;
+        ClearCaches();
+        var box=Box(window);
+        if(box!=null)box.ResetSilently();
+    }
+
+    // End of SelectFilter.InitFilter: place the field beside the native dropdowns.
+    public static void AfterFilter(SelectFilter filter) {
+        BaseWindow window;
+        var kind=KindOf(filter,out window);
+        if(kind==Kind.None)return;
+        try {
+            var box=Ensure(window,filter.transform,Placeholder(kind,filter));
+            box.rebuild=Rebuilder(kind,window,filter);
+            box.visible=Visibility(kind,window);
+            box.pool=Pool(kind,window);
+            LayoutFilterRow(box,filter);
+            box.ResetSilently();
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+
+    static string Placeholder(Kind kind,SelectFilter filter) {
+        if(kind==Kind.Costume)return "Search hero";
+        if(kind==Kind.Hero || kind==Kind.SoulWeapon)return "Search hero";
+        object type=null;
+        try{type=typeof(SelectFilter).GetField("_selectType",Any).GetValue(filter);}catch{}
+        if(type!=null && (SelectFilter.SelectType)type==SelectFilter.SelectType.SELECT_EQUIP_ARTIFACT)return "Search artifact";
+        return "Search hero or item";
+    }
+
+    // Every candidate's search text, independent of the native dropdown filters.
+    static Func<IEnumerable<string>> Pool(Kind kind,BaseWindow window) {
+        switch(kind) {
+            case Kind.Equipment:
+            case Kind.SoulWeapon:
+                return delegate {
+                    var ticket=Field<ItemData>(window,"_useItemData");
+                    var data=ticket==null?null:Call(window,"GetSelectItemData",ticket) as WeaponUniqueSelectItemData;
+                    if(data==null || data.ItemIndices==null)return new string[0];
+                    return data.ItemIndices.Select(i=>GameRoot.Instance.ItemDataContainer.GetData(i)).Where(i=>i!=null)
+                        .Select(i=>kind==Kind.SoulWeapon?SoulStoneText(i):EquipText(GameRoot.Instance.EquipItemDataContainer.GetData(i.Code))).ToList();
+                };
+            case Kind.Hero:
+                return delegate {
+                    var data=Call(window,"get_HeroSelectItemData") as HeroSelectItemData;
+                    return data==null || data.HeroIndices==null?new string[0]:data.HeroIndices.Select(HeroText).ToList();
+                };
+            case Kind.Costume:
+                return delegate {
+                    var ticket=Call(window,"get_ItemData") as ItemData<CostumeSelectItemData>;
+                    var data=ticket==null?null:ticket.SubData;
+                    var indices=new List<int>();
+                    if(data!=null && data.CostumeIndices!=null)indices.AddRange(data.CostumeIndices);
+                    if(data!=null && data.CostumeCategories!=null)
+                        foreach(var group in data.CostumeCategories)
+                            foreach(var costume in GameRoot.Instance.CostumeDataContainer.GetDataByGroup(group)??new List<CostumeData>())indices.Add(costume.CostumeIndex);
+                    return indices.Distinct().Select(CostumeText).ToList();
+                };
+        }
+        return null;
+    }
+
+    static Func<bool> Visibility(Kind kind,BaseWindow window) {
+        if(kind==Kind.Hero) {
+            var grid=Field<UIScrollGrid>(window,"HeroListGrid");
+            return ()=>grid==null || grid.gameObject.activeSelf;
+        }
+        if(kind==Kind.Costume) {
+            var grid=Field<UIScrollGrid>(window,"HeroListGrid");
+            return ()=>grid==null || grid.gameObject.activeSelf;
+        }
+        return ()=>true;
+    }
+
+    static void ResetScroll(UIScrollGrid grid) {
+        if(grid==null || grid.ScrollView==null)return;
+        var scroll=grid.ScrollView;
+        scroll.DisableSpring();scroll.currentMomentum=Vector3.zero;scroll.ResetPosition();
+    }
+
+    static Action Rebuilder(Kind kind,BaseWindow window,SelectFilter filter) {
+        switch(kind) {
+            case Kind.Equipment:
+            case Kind.SoulWeapon:
+                return delegate {
+                    var callback=Field<SelectFilter.Callback>(filter,"_callback");
+                    if(callback!=null)callback();
+                    var ticket=(WeaponUniqueSelect)window;
+                    DropHiddenSelection(ticket);
+                    ResetScroll(ticket.ItemGrid);
+                };
+            case Kind.Hero:
+                return delegate {
+                    var selected=SelectedHero(window);
+                    Call(window,"CreateHeroPortraitList",new object[]{null});
+                    if(selected!=null)Call(window,"SelectHero",selected,false);
+                    ResetScroll(Field<UIScrollGrid>(window,"HeroListGrid"));
+                };
+            case Kind.Costume:
+                return delegate {
+                    var callback=Field<SelectFilter.Callback>(filter,"_callback");
+                    if(callback!=null)callback();
+                    ResetScroll(Field<UIScrollGrid>(window,"HeroListGrid"));
+                };
+        }
+        return null;
+    }
+
+    static CreatureData SelectedHero(Component window) {
+        var portrait=Field<HeroPortraitComponent>(window,"_selectedHeroPortrait");
+        if(portrait==null || !portrait.gameObject.activeInHierarchy)return null;
+        try { return portrait.CreatureData; } catch { return null; }
+    }
+
+    // A hidden choice cannot be acquired: match the artifact filter's behavior.
+    static void DropHiddenSelection(WeaponUniqueSelect window) {
+        var selected=Field<ItemData>(window,"_buyItemData");
+        if(selected==null)return;
+        var list=Field<IList>(window,"_shopItemComponent");
+        if(list!=null)foreach(var component in list) {
+            var item=component==null?null:Field<ItemData>(component,"_itemData");
+            if(item!=null && item.Index==selected.Index)return;
+        }
+        typeof(WeaponUniqueSelect).GetField("_buyItemData",Any).SetValue(window,null);
+        Call(window,"SetItemDescription",new object[]{null});
+        UIHelper.EnableButton(window.Button_Buy,false,true,false);
+    }
+
+    // Start of InvenUseAttrTypeHeroSelect.Init (it builds the list itself).
+    public static void BeforeAttr(InvenUseAttrTypeHeroSelect window) {
+        ClearCaches();
+        var box=Box(window);
+        if(box!=null)box.ResetSilently();
+    }
+
+    // End of InvenUseAttrTypeHeroSelect.Init.
+    public static void AfterAttr(InvenUseAttrTypeHeroSelect window) {
+        try {
+            var listRoot=Field<Transform>(window,"HeroListRootTranform");
+            var physical=Field<UIScrollGrid>(window,"PhysicalHeroScrollGrid");
+            var magical=Field<UIScrollGrid>(window,"MagicalHeroScollGrid");
+            if(physical==null || magical==null)return;
+            var frame=physical.transform.parent;
+            var box=Ensure(window,frame,"Search hero");
+            box.visible=()=>listRoot==null || listRoot.gameObject.activeInHierarchy;
+            box.pool=delegate {
+                var list=Call(window,"get_HeroIndexList") as List<int>;
+                return list==null?new string[0]:list.Select(HeroText).ToList();
+            };
+            box.rebuild=delegate {
+                var selected=SelectedHero(window);
+                Call(window,"SetHeroList",new object[]{null});
+                if(selected!=null)Call(window,"SelectHero",selected,false);
+                ResetScroll(physical);ResetScroll(magical);
+            };
+            LayoutAttrRow(box,window,frame,physical,magical);
+            box.ResetSilently();
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+
+    // ---- Native-style widgets ---------------------------------------------
+    static UIAtlas FindAtlas(Component window,string sprite) {
+        foreach(var s in window.GetComponentsInChildren<UISprite>(true))
+            if(s.atlas!=null && s.atlas.GetSprite(sprite)!=null)return s.atlas;
+        return null;
+    }
+    static UILabel FontSource(Component window) {
+        UILabel best=null;
+        foreach(var l in window.GetComponentsInChildren<UILabel>(true)) {
+            if(l.bitmapFont==null && l.trueTypeFont==null)continue;
+            if(l.GetComponentInParent<UIComboBox>(true)!=null)return l;
+            if(best==null)best=l;
+        }
+        return best;
+    }
+
+    static SprkTicketSearchBox Ensure(BaseWindow window,Transform parent,string placeholder) {
+        var box=window.GetComponent<SprkTicketSearchBox>();
+        if(box==null)box=window.gameObject.AddComponent<SprkTicketSearchBox>();
+        if(box.content==null) {
+            var go=new GameObject(SprkTicketSearchBox.NodeName);
+            go.layer=parent.gameObject.layer;
+            go.transform.SetParent(parent,false);
+            box.content=go;
+            BuildField(box,window,go.transform);
+        }
+        if(box.input!=null)box.input.defaultText=placeholder;
+        return box;
+    }
+
+    static void BuildField(SprkTicketSearchBox box,BaseWindow window,Transform root) {
+        var atlas=FindAtlas(window,BoxSprite);
+        var font=FontSource(window);
+        int depth=30;
+        foreach(var w in window.GetComponentsInChildren<UIWidget>(true))
+            if(w.panel==null || w.panel==root.GetComponentInParent<UIPanel>())depth=Math.Max(depth,w.depth+1);
+        depth=Math.Min(depth,60);
+
+        var frameGo=new GameObject("Input");frameGo.layer=root.gameObject.layer;
+        frameGo.transform.SetParent(root,false);
+        var frame=frameGo.AddComponent<UISprite>();
+        frame.atlas=atlas;frame.spriteName=BoxSprite;frame.type=UIBasicSprite.Type.Sliced;
+        frame.width=360;frame.height=RowHeight;frame.depth=depth;
+        frameGo.AddComponent<BoxCollider>();
+
+        var labelGo=new GameObject("Label_Search");labelGo.layer=root.gameObject.layer;
+        labelGo.transform.SetParent(frameGo.transform,false);
+        var label=labelGo.AddComponent<UILabel>();
+        if(font!=null){label.bitmapFont=font.bitmapFont;if(font.bitmapFont==null)label.trueTypeFont=font.trueTypeFont;}
+        label.fontSize=30;label.pivot=UIWidget.Pivot.Left;label.alignment=NGUIText.Alignment.Left;
+        label.overflowMethod=UILabel.Overflow.ClampContent;label.supportEncoding=false;
+        label.effectStyle=UILabel.Effect.None;label.color=PlaceholderColor;label.depth=depth+1;
+        label.height=46;
+
+        var input=frameGo.AddComponent<UIInput>();
+        input.label=label;input.characterLimit=24;
+        input.inputType=UIInput.InputType.Standard;input.validation=UIInput.Validation.None;
+        input.onReturnKey=UIInput.OnReturnKey.Submit;input.selectAllTextOnFocus=false;
+        input.activeTextColor=TextColor;input.caretColor=new Color(.953f,.925f,.855f,1f);
+        input.selectionColor=new Color(.85f,.68f,.36f,.45f);
+        EventDelegate.Add(input.onChange,box.OnChanged);
+        EventDelegate.Add(input.onSubmit,box.OnSubmitted);
+
+        var clearGo=new GameObject("Button_Clear");clearGo.layer=root.gameObject.layer;
+        clearGo.transform.SetParent(frameGo.transform,false);
+        var clearSprite=clearGo.AddComponent<UISprite>();
+        clearSprite.atlas=FindAtlas(window,ClearSprite)??atlas;clearSprite.spriteName=ClearSprite;
+        clearSprite.type=UIBasicSprite.Type.Simple;clearSprite.width=34;clearSprite.height=30;clearSprite.depth=depth+2;
+        var clearCollider=clearGo.AddComponent<BoxCollider>();clearCollider.size=new Vector3(58,58,1);
+        var clearButton=clearGo.AddComponent<UIButton>();
+        clearButton.tweenTarget=clearGo;clearButton.hover=new Color(1f,.92f,.75f,1f);clearButton.pressed=new Color(.75f,.68f,.55f,1f);
+        EventDelegate.Add(clearButton.onClick,box.Clear);
+        clearGo.SetActive(false);
+
+        box.input=input;box.label=label;box.clear=clearGo;
+    }
+
+    static void SizeField(SprkTicketSearchBox box,Vector3 center,int width) {
+        var frame=box.input.GetComponent<UISprite>();
+        box.input.transform.localPosition=Vector3.zero;
+        box.content.transform.localPosition=center;
+        frame.width=width;frame.height=RowHeight;
+        var collider=box.input.GetComponent<BoxCollider>();
+        collider.center=Vector3.zero;collider.size=new Vector3(width,RowHeight,1);
+        // Inset past the pill's end caps (also fine for the plain box).
+        box.label.transform.localPosition=new Vector3(-width*.5f+46f,0f,0f);
+        box.label.width=Math.Max(60,width-46-66);
+        box.clear.transform.localPosition=new Vector3(width*.5f-50f,0f,0f);
+    }
+
+    // ---- Layout -------------------------------------------------------------
+    static Geometry Capture(Transform combo) {
+        var g=new Geometry{position=combo.localPosition,childPositions=new Dictionary<Transform,Vector3>(),childWidths=new Dictionary<UIWidget,int>()};
+        var widget=combo.GetComponent<UIWidget>();g.width=widget!=null?widget.width:0;
+        var collider=combo.GetComponent<BoxCollider>();g.collider=collider!=null?collider.size:Vector3.zero;
+        foreach(Transform child in combo) {
+            if(child.GetComponent<UIPopupRoot>()!=null)continue;
+            g.childPositions[child]=child.localPosition;
+            var w=child.GetComponent<UIWidget>();
+            if(w!=null && (w is UISprite || w is UILabel) && w.width>60)g.childWidths[w]=w.width;
+        }
+        return g;
+    }
+
+    static void LayoutFilterRow(SprkTicketSearchBox box,SelectFilter filter) {
+        var combos=new List<Transform>();
+        foreach(var name in new[]{"ComboBoxMain","ComboBoxSecondaryMain","ComboBoxSub"}) {
+            var combo=Field<Component>(filter,name);
+            if(combo!=null && combo.transform.parent==filter.transform && !combos.Contains(combo.transform))combos.Add(combo.transform);
+        }
+        foreach(var combo in combos)if(!box.original.ContainsKey(combo))box.original[combo]=Capture(combo);
+        // Natively stacked dropdowns (e.g. costume Main/SecondaryMain) share one slot.
+        var groups=combos.Where(c=>box.original[c].width>0).GroupBy(c=>Mathf.RoundToInt(box.original[c].position.x))
+            .Where(g=>g.Any(c=>c.gameObject.activeSelf)).OrderBy(g=>g.Key).Select(g=>g.ToList()).ToList();
+        if(groups.Count==0)groups=combos.Where(c=>box.original[c].width>0).GroupBy(c=>Mathf.RoundToInt(box.original[c].position.x)).OrderBy(g=>g.Key).Select(g=>g.ToList()).ToList();
+        float left=float.MaxValue,right=float.MinValue,y=0f;
+        foreach(var combo in combos) {
+            var g=box.original[combo];
+            if(g.width<=0)continue;
+            left=Math.Min(left,g.position.x-g.width*.5f);right=Math.Max(right,g.position.x+g.width*.5f);y=g.position.y;
+        }
+        // Restore every native combo first; only the visible slots are compacted.
+        foreach(var combo in combos)Apply(combo,box.original[combo],box.original[combo].position.x,box.original[combo].width);
+        int slots=groups.Count+1;
+        float slot=(right-left)/slots;
+        for(int i=0;i<groups.Count;i++)foreach(var combo in groups[i]) {
+            var g=box.original[combo];
+            Apply(combo,g,left+slot*(i+.5f),(int)Math.Min(g.width,slot-16f));
+        }
+        var active=groups.Select(g=>g.FirstOrDefault(c=>c.gameObject.activeSelf)??g[0]).ToList();
+        float labelY=0f;
+        box.styleSource=null;
+        if(active.Count>0) {
+            var g0=box.original[active[0]];
+            UISprite widest=null;int widestWidth=0;
+            foreach(var pair in g0.childWidths){var sprite=pair.Key as UISprite;if(sprite!=null && pair.Value>widestWidth){widest=sprite;widestWidth=pair.Value;}}
+            box.styleSource=widest;
+        }
+        if(active.Count>0) {
+            var title=active[0].GetComponentsInChildren<UILabel>(true).FirstOrDefault(l=>l.GetComponentInParent<UIPopupRoot>()==null);
+            if(title!=null)labelY=title.transform.localPosition.y;
+        }
+        SizeField(box,new Vector3(left+slot*(active.Count+.5f)-14f,y+labelY,0f),(int)Math.Min(500f,slot-34f));
+    }
+
+    static void Apply(Transform combo,Geometry g,float x,int width) {
+        combo.localPosition=new Vector3(x,g.position.y,g.position.z);
+        float ratio=g.width>0?width/(float)g.width:1f;
+        var widget=combo.GetComponent<UIWidget>();if(widget!=null)widget.width=width;
+        var collider=combo.GetComponent<BoxCollider>();
+        if(collider!=null)collider.size=new Vector3(g.collider.x*ratio,g.collider.y,g.collider.z);
+        // The widest sprite is the dropdown's background. Stretched parts scale with it;
+        // small icons keep their native inset from its nearest edge.
+        UIWidget back=null;int backWidth=0;
+        foreach(var pair in g.childWidths)if(pair.Key is UISprite && pair.Value>backWidth){back=pair.Key;backWidth=pair.Value;}
+        var stretched=new HashSet<Transform>(g.childWidths.Keys.Where(w=>w!=null).Select(w=>w.transform));
+        float backX=back!=null && g.childPositions.ContainsKey(back.transform)?g.childPositions[back.transform].x:0f;
+        float newBack=Math.Max(40,(int)Math.Round(backWidth*ratio));
+        foreach(var pair in g.childPositions) {
+            if(pair.Key==null)continue;
+            float childX=pair.Value.x*ratio;
+            if(back!=null && !stretched.Contains(pair.Key)) {
+                float left=backX-backWidth*.5f,right=backX+backWidth*.5f,center=backX*ratio;
+                childX=pair.Value.x<=backX?center-newBack*.5f+(pair.Value.x-left):center+newBack*.5f-(right-pair.Value.x);
+            }
+            pair.Key.localPosition=new Vector3(childX,pair.Value.y,pair.Value.z);
+        }
+        foreach(var pair in g.childWidths) {
+            if(pair.Key==null)continue;
+            pair.Key.width=Math.Max(40,(int)Math.Round(pair.Value*ratio));
+            var label=pair.Key as UILabel;
+            if(label!=null && label.overflowMethod==UILabel.Overflow.ResizeFreely)label.overflowMethod=UILabel.Overflow.ShrinkContent;
+        }
+    }
+
+    // Physical/Magical ticket: a search row above the two column headings.
+    static void LayoutAttrRow(SprkTicketSearchBox box,InvenUseAttrTypeHeroSelect window,Transform frame,UIScrollGrid physical,UIScrollGrid magical) {
+        var marker=frame.Find(SprkTicketSearchBox.NodeName+"Layout");
+        var frameWidget=frame.GetComponent<UIWidget>();
+        float top=frameWidget!=null?frameWidget.height*.5f:353f;
+        float width=frameWidget!=null?frameWidget.width:1060f;
+        if(marker==null) {
+            var go=new GameObject(SprkTicketSearchBox.NodeName+"Layout");go.transform.SetParent(frame,false);
+            // Shift the headings down and trim the top of both lists once per instance.
+            const float shift=-58f;
+            var heading=frame.GetComponentsInChildren<UIComboBox>(true).Select(c=>c.transform).FirstOrDefault(t=>t.parent==frame);
+            if(heading!=null) {
+                foreach(Transform child in heading) {
+                    var label=child.GetComponent<UILabel>();
+                    if(label!=null)child.localPosition+=new Vector3(0f,shift,0f);
+                }
+                // The heading's native hit area moves with its labels, clear of the field.
+                var hit=heading.GetComponent<BoxCollider>();
+                if(hit!=null){hit.center+=new Vector3(0f,shift,0f);hit.size=new Vector3(hit.size.x,Math.Min(hit.size.y,80f),hit.size.z);}
+            }
+            // Move each list down by the trim; its clip and drag area keep the same bottom edge.
+            const float trim=46f;
+            foreach(var grid in new[]{physical,magical}) {
+                grid.transform.localPosition+=new Vector3(0f,-trim,0f);
+                var clip=grid.ClippingPanel;
+                if(clip!=null) {
+                    var region=clip.baseClipRegion;
+                    clip.baseClipRegion=new Vector4(region.x,region.y+trim*.5f,region.z,region.w-trim);
+                }
+                if(grid.DragScrollView!=null) {
+                    var drag=grid.DragScrollView.GetComponent<BoxCollider>();
+                    var dragWidget=grid.DragScrollView.GetComponent<UIWidget>();
+                    if(dragWidget!=null)dragWidget.height=Math.Max(40,dragWidget.height-(int)trim);
+                    if(drag!=null)drag.size=new Vector3(drag.size.x,Math.Max(40f,drag.size.y-trim),drag.size.z);
+                    grid.DragScrollView.transform.localPosition+=new Vector3(0f,trim*.5f,0f);
+                }
+            }
+        }
+        SizeField(box,new Vector3(0f,top-12f-RowHeight*.5f,0f),(int)Math.Min(620f,width-120f));
+    }
+}

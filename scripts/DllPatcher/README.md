@@ -79,6 +79,36 @@ this patch and `--automation-only`, then run
 source/ownership, selection and reopen checks (`--installed` after installation).
 The full release build installs and verifies this patch.
 
+`--ticket-search-only` adds a name search field to selector tickets: unique
+weapon/treasure and "all unique" tickets, artifact tickets, soulstone (soul
+weapon) tickets, hero tickets (both the single list and the Physical/Magical
+layout) and costume tickets. In windows with the native filter bar, the field
+takes the last slot beside the existing dropdowns and copies their pill sprite.
+Natively stacked dropdowns share one slot. Narrowed dropdowns keep their arrow's
+native inset from the pill edge. The Physical/Magical ticket gets a row above its
+column headings using the native `Common_Box_2` input box. Both use the window's
+font and the `Common_Close` clear button. Matching ignores case, spaces,
+punctuation and accents. Every word must match the localized hero name or title,
+the hero's internal English code name, or the item/costume name. When no entry in
+the ticket matches exactly, matching becomes typo-tolerant. Words of 4-5 letters
+allow 1 edit, 6-8 letters 2 edits, and longer words 3 edits. Adjacent swaps count
+as one edit. Name initials also match (for example `dlk` for Dark Lord Kasel).
+Typing filters after a short pause (Enter applies immediately). The native lists, their order, ownership
+and class filters and empty-state labels are retained. Only non-matching
+entries are skipped. Reopening a ticket clears the query. A unique/soulstone
+selection hidden by the search is cleared and Acquire is disabled. Hero tickets
+keep the chosen hero in the left panel. Hero tickets with two hero slots
+(`InvenUseMultipleHeroSelect`) page through heroes without a list and are
+unchanged. `--verify-ticket-search` checks the installed hooks. With this patch
+and `--automation-only` installed, launch an isolated client with a
+`ticket-search-*` profile and send the `ticket-search-probe` request with text
+`test`. It opens every ticket type on the Login scene and checks exact and typo
+matches, empty results, clearing, selection, native filter rebuilds and reopening.
+The fixture loads lobby atlases from the `HighAndMidSpec` bundle folder.
+`open:<weapon|treasure|artifact|soul|hero|attr|costume>` and `type:<query>`
+leave a fixture on screen for screenshots. The full release build installs and
+verifies this patch.
+
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,
 with a separate saved roster and no entry cost. It uses the equipped-hero

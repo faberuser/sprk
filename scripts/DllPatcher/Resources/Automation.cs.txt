@@ -212,6 +212,14 @@ public sealed partial class SprkAutomation : MonoBehaviour
                     throw new InvalidOperationException("Inn presentation fixture requires isolated Login and inn-presentation profile");
                 reply=Snapshot(cmd.id);reply.materials.Add(ProbeInnPresentation());Write(reply);return;
             }
+            if(cmd.action=="ticket-search-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("ticket-search-"))
+                    throw new InvalidOperationException("Ticket search fixture requires isolated Login and ticket-search profile");
+                var probe=System.Reflection.Assembly.Load("SprkTicketSearch").GetType("SprkTicketSearchProbe");
+                var report=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
+            }
             if(cmd.action=="hero-rune-filter-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("rune-filter-"))
