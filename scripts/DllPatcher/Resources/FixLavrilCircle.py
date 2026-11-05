@@ -92,7 +92,14 @@ def patch(data):
         assert contents['type'] == 'Effect/CreateAssetEffect' and contents['Code'] == code
         old = contents['TransformModifier']['Position']
         if node_id != 129:
-            assert old == expected_position or old == {
+            myself = {'ValuePath': 'Uid/Variable', 'Body': {'Name': 'Myself', 'ArgumentContainer': None}}
+            # Build1558 (restored node tree): caster origin + facing * 5m.
+            build1558 = {'ValuePath': 'Vector3/Calculate/Add', 'Body': [
+                {'ValuePath': 'Vector3/Operation/GetPosition', 'Body': [myself]},
+                {'ValuePath': 'Vector3/Calculate/Multiply', 'Body': [
+                    {'ValuePath': 'Vector3/Operation/GetDirection', 'Body': [myself]},
+                    {'ValuePath': 'Float/Constant', 'Body': {'Derived': 5.0, 'ArgumentContainer': None}}]}]}
+            assert old == expected_position or old == build1558 or old == {
                 'ValuePath': 'Vector3/Operation/GetPosition',
                 'Body': [{'ValuePath': 'Uid/Variable', 'Body': {'Name': 'Target', 'ArgumentContainer': None}}]}
         path = prefix + (index, 'Contents', 'TransformModifier', 'Position')

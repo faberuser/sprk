@@ -27,7 +27,9 @@ installs and verifies this patch. Restart the game after installation.
 `--lavril-circle-only` aligns Lavril S3's normal and Glory League ground circles
 and impact flourish with the stationary damaging field, six metres in front of
 the caster. The old tree used the self-targeted projectile-creation operation's
-target (Lavril) for the circle. Combat tables, damage, stacks and targeting are
+target (Lavril) for the circle. The restored build1558 tree (tracked override)
+places them at caster origin + facing * 5m; both forms are accepted and rewritten
+to the same 6m position. Combat tables, damage, stacks and targeting are
 unchanged. `--verify-lavril-circle` checks the installed node tree against the
 native projectile data and tests native radius boundaries with multiple enemy
 positions for both facing directions. Only three visual position records change;
