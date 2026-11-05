@@ -668,6 +668,16 @@ for an isolated Unity gzip/native-state proof. See
 [network responsiveness](../../docs/network-performance.md) for cache invalidation,
 trace fields, measurement commands and compatibility behavior.
 
+The same helper replaces the serial native request queue. Requests in its
+`parallelReads` list (each must be a server `observation()` path; a Rust test
+enforces this) run up to four at a time; every other request is exclusive and
+FIFO, starts only when nothing is in flight and is never overtaken, and the
+next request starts in the frame its predecessor ends. `query_market_url` is
+answered locally with the server's generic success (store popups are replaced
+by the launcher), duplicate queued/in-flight `mail/check_new_mail` calls are
+skipped, and the unimplemented background-download `client_log/add_log`
+telemetry is removed.
+
 ### Solo battle Retry
 
 `--solo-retry-only` installs pause-menu and defeat Retry for solo story,

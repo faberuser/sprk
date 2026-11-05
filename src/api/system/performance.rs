@@ -24,6 +24,10 @@ pub(crate) fn observation(path: &str) -> bool {
             | "/chat/info"
             | "/chat/recent"
             | "/query/session"
+            // Guild display reads only normalize daily/default state in place
+            // (idempotent), never progress missions or spend resources.
+            | "/guild/get_guildbasicinfo"
+            | "/guild/get_all_guild_member_info"
     )
 }
 
@@ -88,8 +92,13 @@ mod tests {
             "/dispatch/get_dispatch_list",
             "/friend/list",
             "/mail/check_new_mail",
+            "/guild/get_guildbasicinfo",
+            "/guild/get_all_guild_member_info",
         ] {
             assert!(observation(path));
+        }
+        for path in ["/world_boss/get_world_boss_info", "/treasure_house/get_treasure_house_info", "/guild/get_guild_attendance"] {
+            assert!(!observation(path), "{path} settles or grants state and must stay serialized");
         }
         for path in ["/hero/bookmark_hero", "/equip/set_lock_equip_item"] {
             assert!(cosmetic(path));
@@ -104,6 +113,20 @@ mod tests {
             "/hero/new_future_mutation",
         ] {
             assert!(!observation(path) && !cosmetic(path), "{path}");
+        }
+    }
+
+    /// The client runs these requests concurrently with each other. Each must
+    /// be a server read path so it carries no ordered progression snapshot.
+    #[test]
+    fn client_parallel_reads_are_server_observations() {
+        let source = include_str!("../../../scripts/DllPatcher/Resources/NetworkPerformance.cs.txt");
+        let start = source.find("parallelReads=new HashSet<string>").expect("client parallel read list");
+        let block = &source[start..start + source[start..].find("};").unwrap()];
+        let paths: Vec<&str> = block.split('"').skip(1).step_by(2).collect();
+        assert!(paths.len() >= 10, "{paths:?}");
+        for path in paths {
+            assert!(observation(&format!("/{path}")), "client parallelizes non-observation path {path}");
         }
     }
 }

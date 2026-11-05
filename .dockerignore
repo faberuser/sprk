@@ -18,6 +18,7 @@
 !scripts/DllPatcher/prepare_illustration_runtime.py
 !scripts/DllPatcher/Resources/
 !scripts/DllPatcher/Resources/ArtifactSelectorPools.json
+!scripts/DllPatcher/Resources/NetworkPerformance.cs.txt
 !scripts/DllPatcher/Resources/LegacyData/
 !scripts/DllPatcher/Resources/LegacyData/RestoredCrafting.json
 !build-input/

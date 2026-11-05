@@ -73,9 +73,69 @@ public static class NetworkPerformanceTestRunner {
         Check(manager.Items[1][0].Purchased==2 && manager.Items[1][0].Sold==1,"Restock counters not reused");
         Check(manager.Items[2][0].ListNo==5,"Restock crossed shops");
         SprkNetworkPerformance.ShopListApplied(null);
+        Scheduling();
+        MarketAnswer();
+    }
+    static WebServiceRequest Q(string service) {return new WebServiceRequest{ServiceName=service};}
+    static void Scheduling() {
+        // Verified reads overlap; the first mutation waits for them.
+        var mailA=Q("mail/check_new_mail");var guild=Q("/guild/get_guildbasicinfo");var buy=Q("shop/buy");var mailB=Q("dispatch/get_dispatch_list");
+        var list=new List<WebServiceRequest>{mailA,guild,buy,mailB};
+        SprkNetworkPerformance.Pump(list);
+        Check(mailA.Started && guild.Started,"Verified reads did not start together");
+        Check(!buy.Started,"Mutation overlapped in-flight reads");
+        Check(!mailB.Started,"Read overtook a queued mutation");
+        Check(SprkNetworkPerformance.SkipMailCheck(),"In-flight mail check not detected");
+        mailA.Finish();SprkNetworkPerformance.Pump(list);
+        Check(!buy.Started,"Mutation started while a read was still in flight");
+        guild.Finish();SprkNetworkPerformance.Pump(list);
+        Check(buy.Started && list.Count==2,"Mutation did not start in the frame its predecessors ended");
+        Check(!mailB.Started,"Read overlapped an in-flight mutation");
+        Check(!SprkNetworkPerformance.SkipMailCheck(),"Finished mail check still reported pending");
+        buy.Finish();SprkNetworkPerformance.Pump(list);
+        Check(mailB.Started && list.Count==1,"Read did not follow the finished mutation immediately");
+        mailB.Finish();SprkNetworkPerformance.Pump(list);Check(list.Count==0,"Finished request retained");
+        // Consecutive mutations remain strictly sequential and FIFO.
+        var first=Q("hero/upgrade_hero_star");var second=Q("hero/purify_hero");
+        list.Add(first);list.Add(second);SprkNetworkPerformance.Pump(list);
+        Check(first.Started && !second.Started,"Mutations overlapped");
+        first.Finish();SprkNetworkPerformance.Pump(list);Check(second.Started,"Next mutation waited an extra frame");
+        second.Finish();SprkNetworkPerformance.Pump(list);
+        // Reads are capped and resume as slots free up.
+        for(int i=0;i<6;i++)list.Add(Q("friend/list"));
+        SprkNetworkPerformance.Pump(list);
+        int started=0;foreach(var r in list)if(r.Started)started++;
+        Check(started==SprkNetworkPerformance.MaxParallelReads,"Parallel read cap exceeded");
+        list[0].Finish();SprkNetworkPerformance.Pump(list);
+        started=0;foreach(var r in list)if(r.Started)started++;
+        Check(started==SprkNetworkPerformance.MaxParallelReads && list.Count==5,"Freed read slot not reused");
+        // Expired requests are dropped exactly like the native timeout path.
+        list.Clear();var stuck=Q("shop/buy");list.Add(stuck);list.Add(Q("shop/buy"));
+        SprkNetworkPerformance.Pump(list);stuck.RequestedTime=DateTime.UtcNow.AddSeconds(-WebServiceRequest.GetTimeout()-6);
+        SprkNetworkPerformance.Pump(list);Check(list.Count==1 && list[0].Started,"Expired request blocked the queue");
+        // A queued (not yet started) mail check also suppresses duplicates.
+        list.Clear();list.Add(Q("shop/buy"));list.Add(Q("mail/check_new_mail"));SprkNetworkPerformance.Pump(list);
+        Check(SprkNetworkPerformance.SkipMailCheck(),"Queued mail check not detected");
+        Check(!SprkNetworkPerformance.ParallelRead(Q("world_boss/get_world_boss_info")) && !SprkNetworkPerformance.ParallelRead(Q("shop/get_shop_list")),"Unverified read marked parallel");
+    }
+    static void MarketAnswer() {
+        var query=new NGame2.NUtil.QueryMarketInfo();bool done=false;
+        Check(SprkNetworkPerformance.AnswerMarketQuery(query,()=>done=true),"Market query not answered locally");
+        Check(query.IsDone && query.Response.BaseResult==NShared.BaseResultType.Success && query.Response.Result==NShared.QueryMarketUrl.ResultType.Success && query.Response.MarketUrl==null,"Local market answer differs from server fallback");
+        Check(!done,"Market callback ran synchronously");
+        NVespa.SingletonUpdater<NVespa.NUtil.Executer>.instance.Flush();Check(done,"Market callback not delivered on the next frame");
+        Check(SprkNetworkPerformance.AnswerMarketQuery(new NGame2.NUtil.QueryMarketInfo(),null),"Null callback rejected");
     }
 }
-namespace NVespa.NWeb {public class WebServiceRequest {public string Host,ServiceName;public Dictionary<string,string> Headers;}}
+namespace NVespa.NWeb {public class WebServiceRequest {public string Host,ServiceName;public Dictionary<string,string> Headers;
+    bool inFlight;public bool Started;public bool Ended {get{return !inFlight;}}public DateTime RequestedTime;
+    public void Start(){Started=true;inFlight=true;RequestedTime=DateTime.UtcNow;}public void Finish(){inFlight=false;}
+    public static float GetTimeout(){return 30f;}}}
+namespace NGame2.NUtil {public class QueryMarketInfo {public bool IsDone {get;private set;}public NShared.QueryMarketUrl.Response Response {get;private set;}}}
+namespace NShared {public enum BaseResultType {None,Success}}
+namespace NShared.QueryMarketUrl {public enum ResultType {Fail,Success}public class Response {public NShared.BaseResultType BaseResult {get;set;}public ResultType Result {get;set;}public string MarketUrl {get;set;}}}
+namespace NVespa {public class SingletonUpdater<T> where T:new() {public static readonly T instance=new T();}}
+namespace NVespa.NUtil {public class Executer {readonly List<Action> pending=new List<Action>();public void NextRun(Action action){pending.Add(action);}public void Flush(){foreach(var a in pending.ToArray())a();pending.Clear();}}}
 namespace NShared {public class ShopListItemInfo {public int ShopIndex,ListNo,Purchased;public byte Sold;}public class ShopItemInfo {public int ShopIndex,ListNo,Purchased;public byte Sold;}}
 namespace NGame2.NUI.NManager {public class ShopManagement {public Dictionary<int,NShared.ShopItemInfo[]> Items=new Dictionary<int,NShared.ShopItemInfo[]>();public void SetShopItemInfos(int shop,NShared.ShopItemInfo[] items){Items[shop]=items;}}}
 namespace NVespa.NSingleton {public class SceneAutoBehaviour<T> {public static T instance;public static bool isValidInstance {get{return instance!=null;}}}}

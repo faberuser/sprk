@@ -585,6 +585,7 @@ pub async fn login(
     let progression = crate::api::progression::login(&state, account_id).await?;
     // Login sends the full list via SubQuestInfos, without completion popups.
     crate::api::progression::notifications::subquest_updates(&state, &session_key, &progression["SubQuestInfos"]);
+    crate::api::progression::notifications::remember_login_sections(&state, &session_key, &progression["AchievementInfos"]);
     let mut soul_weapon_infos = crate::api::extensions::list(&mut *state.db.acquire().await?, account_id, "soul").await?;
     crate::api::extensions::refresh_soul_weapon_stats(&state,&mut soul_weapon_infos)?;
     let npc_friendly_infos = crate::api::extensions::npc_friendly_snapshot(&mut *state.db.acquire().await?, &state, account_id).await?;

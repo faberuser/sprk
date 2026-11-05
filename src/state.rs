@@ -11,6 +11,9 @@ pub struct SessionInfo {
     pub(crate) delivered_sub_quests: Arc<std::sync::Mutex<std::collections::BTreeMap<i64, serde_json::Value>>>,
     pub(crate) progression_cache: Arc<tokio::sync::Mutex<Option<crate::api::progression::cache::Snapshot>>>,
     pub(crate) equipment_revision: Arc<std::sync::Mutex<Option<(i64, usize)>>>,
+    /// Section tokens for snapshots the login reply already delivered. Used
+    /// only until the client acknowledges or receives that section again.
+    pub(crate) login_sections: Arc<std::sync::Mutex<std::collections::BTreeMap<String, String>>>,
     #[allow(dead_code)]
     pub session_key: String,
     #[allow(dead_code)]
@@ -63,6 +66,7 @@ impl AppState {
             delivered_sub_quests: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             progression_cache: Arc::new(tokio::sync::Mutex::new(None)),
             equipment_revision: Arc::new(std::sync::Mutex::new(None)),
+            login_sections: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             session_key: session_key.clone(),
             aes_key,
             login_time: now,

@@ -160,13 +160,14 @@ pub async fn enter_lobby_http(
 ) -> Result<Json<serde_json::Value>> {
     let compact=headers.get("x-sprk-compact-lobby").is_some_and(|v|v=="1");
     let session=req.session_key.as_deref().or(req.session_id.as_deref()).unwrap_or("").to_owned();
-    let mut response=enter_lobby_inner(state, req, compact).await?;
+    let mut response=enter_lobby_inner(state.clone(), req, compact).await?;
     if compact {
         conditional_catalog(&mut response.0.battle, &session,
             headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
     }
     let mut value=serde_json::to_value(response.0).map_err(|e|ServerError::Internal(e.to_string()))?;
-    crate::api::progression::notifications::conditional_sections(&mut value, &session, &headers);
+    let login = state.get_session(&session).map(|s| s.login_sections.clone());
+    crate::api::progression::notifications::conditional_sections_after_login(&mut value, &session, &headers, login.as_deref());
     Ok(Json(value))
 }
 

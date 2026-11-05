@@ -34,6 +34,35 @@ impl BattleLookup {
     }
 }
 
+/// Mission-category membership and sub-quest final steps, indexed once per
+/// snapshot. MissionClear rows previously rescanned every table per member.
+#[derive(Default)]
+struct MissionLookup {
+    /// RewardQuestIndex -> (MainCategoryIndex, SubCategoryIndex); first row wins.
+    categories: BTreeMap<i64, (i64, i64)>,
+    /// Category -> SubQuest members as (QuestIndex, MainStep), in table order.
+    members: BTreeMap<(i64, i64), Vec<(i64, i64)>>,
+    /// QuestIndex -> highest Step defined for that sub-quest.
+    final_steps: BTreeMap<i64, i64>,
+}
+impl MissionLookup {
+    fn new(progression: &crate::tables::ProgressionTable) -> Self {
+        let mut out = Self::default();
+        for c in &progression.mission_categories {
+            out.categories.entry(n(c, "RewardQuestIndex")).or_insert((n(c, "MainCategoryIndex"), n(c, "SubCategoryIndex")));
+        }
+        for v in progression.mission_visuals.iter().filter(|v| v["QuestType"] == "SubQuest") {
+            out.members.entry((n(v, "MainCategoryIndex"), n(v, "SubCategoryIndex"))).or_default()
+                .push((n(v, "QuestIndex"), n(v, "MainStep")));
+        }
+        for q in &progression.sub_quests {
+            let step = out.final_steps.entry(n(q, "QuestIndex")).or_insert(i64::MIN);
+            *step = (*step).max(n(q, "Step"));
+        }
+        out
+    }
+}
+
 pub(super) fn daily_hot_time(row: &Value) -> bool {
     // These native daily missions share Limited with retired event milestones,
     // but have no event window. Only their three defined daily steps are active.
@@ -71,6 +100,9 @@ pub(super) struct View {
     pub history: super::mission_history::History,
     battle_lookup: OnceLock<BattleLookup>,
     equipment_lookup: OnceLock<BTreeMap<i64,(i64,i64,i64)>>,
+    mission_lookup: OnceLock<MissionLookup>,
+    /// Metric row positions grouped by kind; metric() sums one kind at a time.
+    metric_kinds: OnceLock<std::collections::HashMap<String, Vec<usize>>>,
     pub heroes: Vec<Value>,
     pub equipment: Vec<Value>,
     pub equipped_slots: BTreeSet<i64>,
@@ -101,6 +133,8 @@ impl View {
             history: super::mission_history::History::load(db, account).await?,
             battle_lookup: OnceLock::new(),
             equipment_lookup: OnceLock::new(),
+            mission_lookup: OnceLock::new(),
+            metric_kinds: OnceLock::new(),
             equipped_slots: heroes.iter().flat_map(|h|(1..=10).map(move |part|n(h,&format!("EquipItemSlotIndex{part}"))))
                 .filter(|slot|*slot>0).collect(),
             heroes,
@@ -173,11 +207,15 @@ impl View {
             })
     }
     pub fn metric(&self, kind: &str, p: &str, a: Option<i64>, b: Option<i64>) -> i64 {
-        self.metrics
-            .iter()
+        let kinds = self.metric_kinds.get_or_init(|| {
+            let mut kinds = std::collections::HashMap::<String, Vec<usize>>::new();
+            for (i, v) in self.metrics.iter().enumerate() { kinds.entry(v.1.clone()).or_default().push(i); }
+            kinds
+        });
+        kinds.get(kind).into_iter().flatten()
+            .map(|&i| &self.metrics[i])
             .filter(|v| {
                 (p == "all" || v.0.as_str() >= p)
-                    && v.1 == kind
                     && a.is_none_or(|a| a == v.2)
                     && b.is_none_or(|b| b == v.3)
             })
@@ -317,51 +355,23 @@ impl View {
                 })
                 .sum(),
             "MissionClear" | "StepMissionClear" => {
-                let Some(category) = state
-                    .tables
-                    .progression
-                    .mission_categories
-                    .iter()
-                    .find(|c| n(c, "RewardQuestIndex") == n(row, "QuestIndex"))
-                else {
+                let lookup = self.mission_lookup.get_or_init(|| MissionLookup::new(&state.tables.progression));
+                let Some(category) = lookup.categories.get(&n(row, "QuestIndex")) else {
                     return None;
                 };
-                let members: Vec<&Value> = state
-                    .tables
-                    .progression
-                    .mission_visuals
-                    .iter()
-                    .filter(|v| {
-                        n(v, "MainCategoryIndex") == n(category, "MainCategoryIndex")
-                            && n(v, "SubCategoryIndex") == n(category, "SubCategoryIndex")
-                            // ProgressionSupport exports this enum by name.
-                            && v["QuestType"] == "SubQuest"
-                    })
-                    .collect();
-                let done = |v: &Value| {
-                    self.last("subquest", n(v, "QuestIndex"), "all")
-                        >= state
-                            .tables
-                            .progression
-                            .sub_quests
-                            .iter()
-                            .filter(|q| n(q, "QuestIndex") == n(v, "QuestIndex"))
-                            .map(|q| n(q, "Step"))
-                            .max()
-                            .unwrap_or(i64::MAX)
+                let members = lookup.members.get(category).map(Vec::as_slice).unwrap_or(&[]);
+                // A sub-quest without table rows can never be complete.
+                let done = |quest: i64| {
+                    self.last("subquest", quest, "all")
+                        >= lookup.final_steps.get(&quest).copied().unwrap_or(i64::MAX)
                 };
                 if row["Kind"] == "MissionClear" {
-                    members.iter().filter(|v| done(v)).count() as i64
+                    members.iter().filter(|(quest, _)| done(*quest)).count() as i64
                 } else {
-                    let steps: BTreeSet<i64> = members.iter().map(|v| n(v, "MainStep")).collect();
+                    let steps: BTreeSet<i64> = members.iter().map(|(_, step)| *step).collect();
                     steps
                         .iter()
-                        .filter(|s| {
-                            members
-                                .iter()
-                                .filter(|v| n(v, "MainStep") == **s)
-                                .all(|v| done(v))
-                        })
+                        .filter(|s| members.iter().filter(|(_, step)| step == *s).all(|(quest, _)| done(*quest)))
                         .count() as i64
                 }
             }

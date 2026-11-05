@@ -19,6 +19,31 @@ pub(super) struct History {
     pub world_rank: Option<i64>,
 }
 
+/// Mission-relevant fields of a completed arena run. Triggers keep
+/// `mission_summary` equal to this expression for completed runs, and a
+/// partial covering index stores it, so snapshots never re-parse each run's
+/// full battle record (several MB per active arena player).
+pub(crate) const ARENA_MISSION_SUMMARY: &str = "json_object('CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin'))))";
+pub(crate) async fn migrate_arena_history(db: &sqlx::SqlitePool) -> Result<()> {
+    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
+    if !columns.iter().any(|c| c == "mission_summary") {
+        sqlx::query("ALTER TABLE arena_runs ADD COLUMN mission_summary TEXT").execute(db).await?;
+    }
+    let summary = ARENA_MISSION_SUMMARY.replace("data", "NEW.data");
+    for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF status,data")] {
+        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={summary} WHERE id=NEW.id; END"))
+            .execute(db).await?;
+    }
+    sqlx::query(&format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND mission_summary IS NULL"))
+        .execute(db).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS arena_mission_history ON arena_runs(account,status,id,kind,started,mission_summary) WHERE status='complete'")
+        .execute(db).await?;
+    Ok(())
+}
+pub(crate) fn arena_history_query() -> &'static str {
+    "SELECT kind,started,mission_summary FROM arena_runs WHERE account=? AND status='complete' ORDER BY id"
+}
+
 impl History {
     pub async fn load(db: &mut SqliteConnection, account: i64) -> Result<Self> {
         fn parse(raw: String) -> Result<Value> {
@@ -26,8 +51,7 @@ impl History {
                 .map_err(|e| ServerError::Internal(format!("Invalid mission history: {e}")))
         }
         let mut out = Self::default();
-        for (kind, at, raw) in sqlx::query_as::<_, (i64,i64,String)>(
-            "SELECT kind,started,json_object('CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin')))) FROM arena_runs WHERE account=? AND status='complete' ORDER BY id")
+        for (kind, at, raw) in sqlx::query_as::<_, (i64,i64,String)>(arena_history_query())
             .bind(account).fetch_all(&mut *db).await? {
             let data = parse(raw)?;
             if data["End"]["MatchResult"]["Canceled"] != true && data["End"]["MatchResult"].is_object() {

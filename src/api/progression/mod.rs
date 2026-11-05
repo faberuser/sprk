@@ -20,11 +20,13 @@ pub(crate) mod schema;
 pub(crate) mod play_record;
 mod state;
 mod quest_scopes;
-mod mission_history;
+pub(crate) mod mission_history;
 pub(crate) mod mission_history_sync;
 pub(crate) use mission_history::worker_defeats;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod profile_tests;
 #[cfg(test)]
 mod mission_rule_tests;
 #[cfg(test)]

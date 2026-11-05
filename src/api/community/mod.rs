@@ -69,6 +69,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS friendly_duels(group_id INTEGER PRIMARY KEY,requester INTEGER NOT NULL,opponent INTEGER NOT NULL,status TEXT NOT NULL,expires INTEGER NOT NULL)",
         "CREATE TABLE IF NOT EXISTS guild_arena_records(id INTEGER PRIMARY KEY AUTOINCREMENT,guild_id INTEGER NOT NULL,enemy_guild INTEGER NOT NULL,account INTEGER NOT NULL,enemy INTEGER NOT NULL,season INTEGER NOT NULL,win INTEGER NOT NULL,data TEXT NOT NULL)",
     ] {sqlx::query(q).execute(db).await?;}
+    crate::api::progression::mission_history::migrate_arena_history(db).await?;
     Ok(())
 }
 pub fn routes(t: &crate::tables::BattleTable) -> axum::Router<AppState> {

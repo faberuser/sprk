@@ -464,3 +464,25 @@ async fn mission_history_restores_guild_story_ordeal_and_monster_records() {
         &json!({"Kind":"JoinMatchBanPickWeekly","OpenCondition":["UnknownPaidService"]})
     ));
 }
+
+#[tokio::test]
+async fn arena_history_reads_its_summary_from_the_covering_index() {
+    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+    crate::database::create_tables(&db).await.unwrap();
+    let big = "x".repeat(200_000);
+    for (status, result) in [("complete", r#"{"Win":true}"#), ("battle", r#"{"Win":true}"#), ("complete", r#"{"Canceled":true}"#)] {
+        let data = format!(r#"{{"CompletedAt":5,"Log":"{big}","End":{{"MatchResult":{result},"BattleInfo":{{"SuccessiveWin":3}}}}}}"#);
+        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,1,4,?,?)").bind(status).bind(data).execute(&db).await.unwrap();
+    }
+    // Updates (e.g. a battle finishing) recompute the stored summary too.
+    sqlx::query(r#"UPDATE arena_runs SET status='complete',data='{"CompletedAt":9,"End":{"MatchResult":{"Win":false}}}' WHERE status='battle'"#).execute(&db).await.unwrap();
+    let plan: Vec<String> = sqlx::query(&format!("EXPLAIN QUERY PLAN {}", super::mission_history::arena_history_query()))
+        .bind(7).fetch_all(&db).await.unwrap().iter().map(|r| sqlx::Row::get::<String, _>(r, "detail")).collect();
+    assert!(plan.iter().any(|p| p.contains("COVERING INDEX arena_mission_history")), "{plan:?}");
+    let indexed: Vec<(i64, i64, String)> = sqlx::query_as(super::mission_history::arena_history_query()).bind(7).fetch_all(&db).await.unwrap();
+    let scanned: Vec<(i64, i64, String)> = sqlx::query_as(&format!("SELECT kind,started,{} FROM arena_runs NOT INDEXED WHERE account=? AND status='complete' ORDER BY id", super::mission_history::ARENA_MISSION_SUMMARY))
+        .bind(7).fetch_all(&db).await.unwrap();
+    assert_eq!(indexed.len(), 3);
+    assert_eq!(indexed, scanned);
+    assert!(indexed.iter().all(|row| !row.2.contains("xxxx")), "summary must not carry the battle log");
+}
