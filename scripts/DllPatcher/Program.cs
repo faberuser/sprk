@@ -40,6 +40,8 @@ namespace DllPatcher
             if (args.Contains("--verify-player-logging")) { VerifyPlayerLogging(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--technomagic-refresh-only")) { InstallTechnomagicRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-refresh")) { InstallTechnomagicRefresh(args[0],false,true); return; }
+            if (args.Contains("--technomagic-enchant-refresh-only")) { InstallTechnomagicEnchantRefresh(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-technomagic-enchant-refresh")) { InstallTechnomagicEnchantRefresh(args[0],false,true); return; }
             if (args.Contains("--technomagic-awaken-target-only")) { InstallTechnomagicAwakenTarget(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--skill-upgrade-all-only")) { InstallSkillUpgradeAll(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-skill-upgrade-all")) { VerifySkillUpgradeAllFile(args[0],args.Contains("--stage-only")); return; }

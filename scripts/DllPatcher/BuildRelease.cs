@@ -151,6 +151,8 @@ partial class Program
         VerifyAwakeningMaterialsFile(clientRoot);
         InstallTechnomagicRefresh(clientRoot, false);
         InstallTechnomagicRefresh(clientRoot, false, true);
+        InstallTechnomagicEnchantRefresh(clientRoot, false);
+        InstallTechnomagicEnchantRefresh(clientRoot, false, true);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallSoloRetry(clientRoot, false);
