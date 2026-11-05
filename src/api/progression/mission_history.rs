@@ -25,21 +25,25 @@ pub(super) struct History {
 /// `mission_summary` equal to this expression for completed runs, and a
 /// partial covering index stores it, so snapshots never re-parse each run's
 /// full battle record (several MB per active arena player).
-pub(crate) const ARENA_MISSION_SUMMARY: &str = "json_object('CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin'))))";
+pub(crate) const ARENA_MISSION_SUMMARY: &str = "json_object('DuelType',COALESCE(json_extract(data,'$.DuelType'),0),'CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin'))))";
 pub(crate) async fn migrate_arena_history(db: &sqlx::SqlitePool) -> Result<()> {
-    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
+    let mut tx = db.begin().await?;
+    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(&mut *tx).await?;
     if !columns.iter().any(|c| c == "mission_summary") {
-        sqlx::query("ALTER TABLE arena_runs ADD COLUMN mission_summary TEXT").execute(db).await?;
+        sqlx::query("ALTER TABLE arena_runs ADD COLUMN mission_summary TEXT").execute(&mut *tx).await?;
     }
     let summary = ARENA_MISSION_SUMMARY.replace("data", "NEW.data");
     for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF status,data")] {
+        // Replace old trigger definitions as well as backfilling old summaries.
+        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_mission_summary_{name}")).execute(&mut *tx).await?;
         sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={summary} WHERE id=NEW.id; END"))
-            .execute(db).await?;
+            .execute(&mut *tx).await?;
     }
-    sqlx::query(&format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND mission_summary IS NULL"))
-        .execute(db).await?;
+    sqlx::query(&format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND (mission_summary IS NULL OR json_type(mission_summary,'$.DuelType') IS NULL)"))
+        .execute(&mut *tx).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS arena_mission_history ON arena_runs(account,status,id,kind,started,mission_summary) WHERE status='complete'")
-        .execute(db).await?;
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
     Ok(())
 }
 /// Finished arena runs kept per account and arena kind. Older runs are
@@ -78,7 +82,7 @@ fn arena_prune_statements(account: &str) -> [String; 2] {
         SUM(COALESCE(json_extract(mission_summary,'$.End.MatchResult.Win'),0)=1),\
         MAX(COALESCE(json_extract(mission_summary,CASE kind WHEN 1 THEN '$.End.BattleBanPickInfo.SuccessiveWin' ELSE '$.End.BattleInfo.SuccessiveWin' END),0)),\
         MAX(COALESCE(json_extract(mission_summary,'$.End.MatchResult.NewTierIndex'),0)) \
-        FROM arena_runs WHERE id IN ({doomed}) AND status='complete' \n        AND json_type(mission_summary,'$.End.MatchResult')='object' AND COALESCE(json_extract(mission_summary,'$.End.MatchResult.Canceled'),0)!=1 \n        GROUP BY account,kind,day \
+        FROM arena_runs WHERE id IN ({doomed}) AND status='complete' \n        AND COALESCE(json_extract(mission_summary,'$.DuelType'),0)!=1 AND json_type(mission_summary,'$.End.MatchResult')='object' AND COALESCE(json_extract(mission_summary,'$.End.MatchResult.Canceled'),0)!=1 \n        GROUP BY account,kind,day \
         ON CONFLICT(account,kind,day) DO UPDATE SET matches=matches+excluded.matches,wins=wins+excluded.wins,\
         best_streak=MAX(best_streak,excluded.best_streak),best_tier=MAX(best_tier,excluded.best_tier)"),
      format!("DELETE FROM arena_runs WHERE id IN ({doomed})")]
@@ -105,13 +109,16 @@ pub(crate) async fn migrate_arena_retention(db: &sqlx::SqlitePool) -> Result<()>
     sqlx::query("CREATE INDEX IF NOT EXISTS arena_retention ON arena_runs(account,kind,id,status,season,nonduel,squad)")
         .execute(db).await?;
     let [archive, delete] = arena_prune_statements("NEW.account");
+    let mut trigger_tx = db.begin().await?;
     for (name, event, condition) in [
         ("finish", "UPDATE OF status", "OLD.status IN ('waiting','battle') AND NEW.status NOT IN ('waiting','battle')"),
         ("insert", "INSERT", "NEW.status NOT IN ('waiting','battle')"),
     ] {
+        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_retention_{name}")).execute(&mut *trigger_tx).await?;
         sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_retention_{name} AFTER {event} ON arena_runs WHEN {condition} BEGIN {archive}; {delete}; END"))
-            .execute(db).await?;
+            .execute(&mut *trigger_tx).await?;
     }
+    trigger_tx.commit().await?;
     // Existing histories: one transaction per account over the limit.
     let accounts: Vec<i64> = sqlx::query_scalar(&format!(
         "SELECT DISTINCT account FROM (SELECT account FROM arena_runs WHERE status NOT IN ('waiting','battle') GROUP BY account,kind HAVING COUNT(*)>{ARENA_RUNS_KEPT})"))
@@ -144,7 +151,9 @@ impl History {
         for (kind, at, raw) in sqlx::query_as::<_, (i64,i64,String)>(arena_history_query())
             .bind(account).fetch_all(&mut *db).await? {
             let data = parse(raw)?;
-            if data["End"]["MatchResult"]["Canceled"] != true && data["End"]["MatchResult"].is_object() {
+            // All Arena missions (participation, wins, tiers and streaks) share
+            // this history. Friendly duels never qualify as ranked play.
+            if n(&data,"DuelType") != 1 && data["End"]["MatchResult"]["Canceled"] != true && data["End"]["MatchResult"].is_object() {
                 out.arena.push((kind, n(&data,"CompletedAt").max(at), data));
             }
         }
