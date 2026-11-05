@@ -14,6 +14,13 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--soulstone-ownership-only` makes the Soulstone Ticket's Owned and Not Owned
+filters use the hero roster instead of unique-weapon inventory. The native class
+filter and ticket pool remain in use. `--verify-soulstone-ownership` checks the
+installed lookup and executes all twelve ownership/class combinations through
+the installed method's control flow, plus patch idempotence. The full
+`--build-release` installs and verifies this fix. Restart the game after installing.
+
 `--skill-formula-only` adds a `123` / `fx` display toggle to the top-left of the
 hero skill card, mirrored against its linked-skill button. It preserves the native
 calculated description and combat data, and renders formulas from current native
