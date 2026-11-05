@@ -194,6 +194,7 @@ namespace DllPatcher
             if (args.Contains("--story-auto-only")) { InstallStoryAuto(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-story-auto-cancel")) { TestStoryAutoCancellation(); return; }
             if (args.Contains("--self-test-story-auto-recovery")) { TestStoryAutoRecovery(); return; }
+            if (args.Contains("--self-test-story-auto-skills")) { TestStoryAutoSkills(); return; }
             if (args.Contains("--verify-story-auto")) { VerifyStoryAutoFile(args[0]); return; }
             if (args.Contains("--remove-app-review-only")) { InstallAppReviewRemoval(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--background-chat-only")) { InstallBackgroundChat(args[0], args.Contains("--stage-only")); return; }

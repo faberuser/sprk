@@ -117,6 +117,7 @@ partial class Program
         VerifyStoryAutoFile(clientRoot);
         TestStoryAutoRecovery();
         TestStoryAutoCancellation();
+        TestStoryAutoSkills();
         TestCampaignSurvivors();
         TestMailUpdates();
         InstallLobbyAvatarStability(clientRoot, false);
