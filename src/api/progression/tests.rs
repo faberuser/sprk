@@ -971,6 +971,43 @@ async fn hero_achievement_claims_every_completed_step_at_once() {
 }
 
 #[tokio::test]
+async fn general_achievement_claims_every_completed_step_at_once() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    // "Own N heroes" (General, Type 1): one step per extra hero.
+    let rows: Vec<&Value> = s.tables.progression.achievements.iter()
+        .filter(|r| n(r, "Type") == 1 && r["Kind"] == "TotalHero").collect();
+    let id = n(rows[0], "Index");
+    let need = |step: i64| rows.iter().find(|r| n(r, "Index") == id && n(r, "Step") == step)
+        .and_then(|r| r["ReqValue"].as_str()?.parse::<i64>().ok()).unwrap();
+    let owned = || async {
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM heroes WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    // Own exactly enough heroes for step 3 but not step 4.
+    let mut hero = 900;
+    while owned().await < need(3) {
+        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,1,1)")
+            .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
+        hero += 1;
+    }
+    assert!(owned().await < need(4));
+    let gold = || async {
+        sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap()
+    };
+    let reward: i64 = rows.iter().filter(|r| n(r, "Index") == id && n(r, "Step") <= 3 && r["RewardKind"] == "Gold")
+        .map(|r| n(r, "RewardValue")).sum();
+    let before = gold().await;
+    let r = call(&s, &u, "reward_achievement", &format!("AchievementIndices=[{id}]&Steps=[0]")).await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let infos = call(&s, &u, "get_achievements", "").await;
+    let last = infos["AchievementInfos"].as_array().unwrap().iter()
+        .find(|r| r["AchievementIndex"] == id).map(|r| n(r, "LastStep")).unwrap();
+    assert_eq!(last, 3, "steps 1-3 claimed together and step 4 left for later");
+    assert_eq!(gold().await - before, reward);
+    assert_eq!(call(&s, &u, "reward_achievement", &format!("AchievementIndices=[{id}]&Steps=[3]")).await["Result"], "AchievementNotCleared");
+}
+
+#[tokio::test]
 async fn daily_hot_time_claims_activate_boosters_once_per_step_and_reset_daily() {
     let (s, u) = setup().await;
     let account = u.user_info.account_id;
