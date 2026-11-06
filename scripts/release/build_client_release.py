@@ -18,7 +18,7 @@ import time
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.release.publish_client_update import IDENTIFIER, ignored, publish, safe_path
+from scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, publish, safe_path
 from scripts.release.client_update_bundle import package, verified_manifest
 from scripts.release.client_baseline import BASELINE
 from scripts.release.client_release_inputs import fingerprint
@@ -133,8 +133,22 @@ def previous_release(repo: str, destination: Path, public_key: Path) -> bytes | 
     return raw
 
 
+def throwaway_key(folder: Path) -> tuple[Path, Path]:
+    """Create a one-off signing pair so pull requests never need the release key."""
+    private, public = folder / "check-signing.pem", folder / "check-public.pem"
+    openssl = find_openssl()
+    subprocess.run([openssl, "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048",
+                    "-out", str(private)], check=True, capture_output=True)
+    subprocess.run([openssl, "pkey", "-pubout", "-in", str(private), "-out", str(public)],
+                   check=True, capture_output=True)
+    return private, public
+
+
 def build(baseline: Path, work: Path, version: str, signing_key: Path,
-          public_key: Path, previous: bytes | None = None) -> tuple[Path, Path]:
+          public_key: Path, previous: bytes | None = None,
+          output_public_key: Path | None = None) -> tuple[Path, Path]:
+    # public_key authenticates the baseline and previous release;
+    # output_public_key (default: the same key) matches signing_key.
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch("client-" + version):
         raise ValueError("Invalid client release version")
     if work.exists():
@@ -172,7 +186,7 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
         raise ValueError("Published manifests do not match")
     print(f"Verified new managed snapshot: {len(manifest['files'])} files; {len(manifest['deleted_files'])} deletion paths")
     with phase("Verify and compress release bundle"):
-        return package(output, version, public_key, work / "assets")
+        return package(output, version, output_public_key or public_key, work / "assets")
 
 
 def main():
@@ -184,13 +198,20 @@ def main():
     parser.add_argument("--public-key", type=Path, default=REPO / "config/client-update-public.pem")
     parser.add_argument("--repo", default="faberuser/sprk")
     parser.add_argument("--publish", action="store_true")
+    parser.add_argument("--check-only", action="store_true",
+                        help="Build and verify everything with a throwaway signing key (pull requests); cannot publish")
     args = parser.parse_args()
+    if args.check_only and (args.publish or args.signing_key):
+        parser.error("--check-only cannot be combined with --publish or --signing-key")
     # Do not propagate the private key's environment value to patcher processes.
     secret = os.environ.pop("CLIENT_UPDATE_SIGNING_KEY", None)
     with tempfile.TemporaryDirectory(prefix="sprk-client-ci-") as temporary:
         temporary = Path(temporary)
         key = args.signing_key
-        if key is None:
+        output_public_key = None
+        if args.check_only:
+            key, output_public_key = throwaway_key(temporary)
+        elif key is None:
             if not secret:
                 parser.error("Provide --signing-key or the CLIENT_UPDATE_SIGNING_KEY environment secret")
             key = temporary / "signing.pem"
@@ -205,7 +226,8 @@ def main():
             baseline = temporary / pin["asset"]
         previous = previous_release(args.repo, temporary / "previous", args.public_key) if args.publish else None
         archive, manifest = build(baseline.resolve(strict=True), args.work.resolve(), args.version,
-                                  key.resolve(strict=True), args.public_key.resolve(strict=True), previous)
+                                  key.resolve(strict=True), args.public_key.resolve(strict=True), previous,
+                                  output_public_key)
         tag = "client-" + args.version
         if args.publish:
             with phase("Upload and publish release"):
@@ -216,6 +238,9 @@ def main():
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as output:
                 output.write(f"tag={tag}\n")
+        if args.check_only:
+            print(f"Client release check passed (throwaway signature, not publishable): {tag}")
+            return
         print(f"Client release: {tag}")
 
 

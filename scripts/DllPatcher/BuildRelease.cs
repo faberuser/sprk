@@ -177,13 +177,14 @@ partial class Program
         RestoreLinePetCurrency(clientRoot, true);
         RestoreConquestDungeonIcons(clientRoot, false);
         RestoreConquestDungeonIcons(clientRoot, true);
-        InstallConquestRoundLabel(clientRoot, false);
         InstallHeroDeathVoices(clientRoot, false);
         InstallHeroDeathVoices(clientRoot, false, true);
         InstallAccessories(clientRoot, false);
         InstallAccessories(clientRoot, false, true);
-        // Raid table validation loads the game assembly into this process and
-        // keeps it locked on Windows. Finish all DLL replacements first.
+        // Conquest label and raid table validation load the game assembly into
+        // this process and keep it locked on Windows. Finish all DLL
+        // replacements first.
+        InstallConquestRoundLabel(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
         InstallLavrilCircle(clientRoot, false);
