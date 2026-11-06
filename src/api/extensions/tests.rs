@@ -699,6 +699,70 @@ async fn accessory_sale_charges_existing_price_and_persists_without_double_charg
 }
 
 #[tokio::test]
+async fn multiple_accessories_persist_remove_individually_and_reset_together() {
+    let (s, u) = setup().await;
+    let account = u.user_info.account_id;
+    let mut selected = Vec::new();
+    for part in 1..=4 {
+        let compatible: Vec<_> = s.tables.extensions.rows("AccessoryCostume").iter()
+            .filter(|v| n(v,"PartType")==part && v["IsBuy"]==true
+                && !v["UnableHero"].as_array().is_some_and(|v| v.contains(&json!(1))))
+            .take(2).cloned().collect();
+        assert_eq!(compatible.len(),2,"Missing accessories for part {part}");
+        selected.extend(compatible);
+    }
+    let mut total = 0;
+    for (index, data) in selected.iter().enumerate() {
+        let id=n(data,"Index");
+        let position=json!({id.to_string():{"PositionX":(index as f64/10.0).to_string(),"PositionY":"0","PositionZ":"0",
+            "RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1"}});
+        let price=n(data,"ReqBuyGem");total+=price;
+        let response=call(&s,&u,"hero/buy_customizing_costumes",&format!(
+            "HeroIndex=1&BuyGold=0&BuyGem={price}&AccessoryCostumePositionInfo={}",urlencoding::encode(&position.to_string()))).await;
+        assert_eq!(response["Result"],"Success","{response}");
+        assert_eq!(response["HeroCostumeResultInfo"]["SprkAccessories"].as_array().unwrap().len(),index+1);
+        if index == 0 {
+            // Simulate an existing installation with only the native scalar slot.
+            let mut legacy=hero::details(&mut s.db.acquire().await.unwrap(),account,1).await.unwrap();
+            legacy.as_object_mut().unwrap().remove("SprkAccessories");
+            hero::save_details(&mut s.db.acquire().await.unwrap(),account,1,&legacy).await.unwrap();
+        }
+    }
+    // A single request may contain multiple accessories for the same part.
+    let mut batch=json!({});
+    for data in &selected[..2] {batch[n(data,"Index").to_string()]=json!({"PositionX":"0.3","PositionY":"0","PositionZ":"0",
+        "RotationX":"0","RotationY":"0","RotationZ":"0","Scale":"1.2"});}
+    let reapplied=call(&s,&u,"hero/buy_customizing_costumes",&format!("HeroIndex=1&BuyGold=0&BuyGem=0&AccessoryCostumePositionInfo={}",urlencoding::encode(&batch.to_string()))).await;
+    assert_eq!(reapplied["Result"],"Success","{reapplied}");
+    assert_eq!(reapplied["HeroCostumeResultInfo"]["SprkAccessories"].as_array().unwrap().len(),8);
+    let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
+    assert_eq!(login.user_info.gem,100000-total);
+    let saved=hero::info(&mut s.db.acquire().await.unwrap(),account,1).await.unwrap();
+    let hero_login=serde_json::to_value(login.heroes.iter().find(|v| v.hero_index==1).unwrap()).unwrap();
+    assert_eq!(hero_login["SprkAccessories"],saved["SprkAccessories"]);
+    let head=saved["SprkAccessories"].as_array().unwrap().iter().find(|v| n(v,"Index")==n(&selected[0],"Index")).unwrap();
+    assert_eq!(serde_json::from_str::<Value>(head["PositionInfo"].as_str().unwrap()).unwrap()["Scale"],"1.2");
+    let avatar=hero::change_avatar_hero(State(s.clone()),Bytes::from(format!(
+        "SessionKey={}&HeroIndex=1&AvatarHeroIndex=11",u.user_info.session_key))).await.unwrap().0;
+    assert_eq!(avatar["PlayerAvatarHeroInfo"]["SprkAccessories"],saved["SprkAccessories"]);
+    // Remove the earlier head item; its sibling and every other part survive.
+    let id=n(&selected[0],"Index");
+    let removed=call(&s,&u,"hero/buy_customizing_costumes",&format!("HeroIndex=1&BuyGold=0&BuyGem=0&UnsetAccessoryCostumeIndices={id}")).await;
+    let remaining=removed["HeroCostumeResultInfo"]["SprkAccessories"].as_array().unwrap();
+    assert_eq!(remaining.len(),7);
+    assert!(!remaining.iter().any(|v| n(v,"Index")==id));
+    assert_eq!(removed["HeroCostumeResultInfo"]["AccessoryCostumeIndex1"],selected[1]["Index"]);
+    assert_eq!(hero::avatar_info(&mut s.db.acquire().await.unwrap(),&s,account).await.unwrap(),avatar["PlayerAvatarHeroInfo"]);
+    let reset=call(&s,&u,"hero/reset_all_customizing_costumes","HeroIndex=1").await;
+    assert_eq!(reset["Result"],"Success");
+    assert_eq!(reset["HeroCostumeResult"]["SprkAccessories"],json!([]));
+    let cleared=hero::info(&mut s.db.acquire().await.unwrap(),account,1).await.unwrap();
+    assert_eq!(cleared["SprkAccessories"],json!([]));
+    for part in 1..=6 {assert_eq!(cleared[format!("AccessoryCostumeIndex{part}")],0);}
+    assert_eq!(list(&mut s.db.acquire().await.unwrap(),account,"accessory").await.unwrap().len(),8);
+}
+
+#[tokio::test]
 async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
@@ -2499,4 +2563,34 @@ async fn technomagic_restoration_preserves_equipped_hero_for_locked_and_unlocked
         assert_eq!(hero.equip_item_slot_index_2, eq.slot_index);
         assert_eq!(result["ResultEquipItem"]["Locked"], locked);
     }
+}
+
+#[tokio::test]
+async fn multiplayer_hero_snapshots_carry_visible_accessories() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut db = s.db.acquire().await.unwrap();
+    // A legacy single-slot appearance has no SprkAccessories list and no
+    // native transforms. The battle worker used to re-encode those as `{}`.
+    crate::api::heroes::save_details(&mut db, a, 1,
+        &json!({"AccessoryCostumeIndex1":3100013,"AccessoryCostumeIndex4":3110025})).await.unwrap();
+    let custom = json!({"PositionX":"0.25","PositionY":"0","PositionZ":"0",
+        "RotationX":"0","RotationY":"90","RotationZ":"0","Scale":"1.5"});
+    put(&mut db, a, "accessory", cosmetics::accessory_key(1, 3110025).unwrap(),
+        &json!({"HeroIndex":1,"AccessoryCostumeIndex":3110025,"PositionInfo":custom.to_string()})).await.unwrap();
+    let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+    assert_eq!(cached["AccessoryPositionInfo1"]["Scale"], "1");
+    assert_eq!(cached["AccessoryPositionInfo4"], custom);
+    assert!(cached["AccessoryPositionInfo2"].is_null());
+    let list: Vec<_> = cached["SprkAccessories"].as_array().unwrap().iter()
+        .map(|v| (n(v, "Index"), n(v, "Part"))).collect();
+    assert_eq!(list, vec![(3100013, 1), (3110025, 4)]);
+    assert_eq!(cached["SprkAccessories"][1]["PositionInfo"], custom.to_string());
+    // An explicit multi-accessory list is authoritative and kept intact.
+    let stacked = json!([{"Index":3100013,"Part":1,"PositionInfo":""},{"Index":3100201,"Part":1,"PositionInfo":custom.to_string()}]);
+    crate::api::heroes::save_details(&mut db, a, 1,
+        &json!({"AccessoryCostumeIndex1":3100201,"SprkAccessories":stacked})).await.unwrap();
+    let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
+    assert_eq!(cached["SprkAccessories"], stacked);
+    assert_eq!(cached["AccessoryPositionInfo1"], custom);
 }

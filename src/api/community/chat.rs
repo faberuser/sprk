@@ -278,7 +278,7 @@ async fn guild(state: &AppState, account: i64) -> Result<i64> {
     Ok(
         sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id = ?")
             .bind(account)
-            .fetch_optional(&state.db)
+            .fetch_optional(&state.reads)
             .await?
             .unwrap_or(0),
     )
@@ -448,7 +448,7 @@ async fn send_chat(
 async fn history(state: &AppState, account: i64, channel: i32, limit: i64) -> Result<Value> {
     let guild_id = guild(state, account).await?;
     let rows = sqlx::query("SELECT * FROM (SELECT * FROM chat_messages WHERE group_type = 'World' OR (group_type = 'Channel' AND channel = ?) OR (group_type = 'Guild' AND guild_id = ? AND guild_id > 0) OR (protocol = 'WhisperChat' AND (sender_id = ? OR receiver_id = ?)) ORDER BY message_id DESC LIMIT ?) ORDER BY message_id")
-        .bind(channel).bind(guild_id).bind(account).bind(account).bind(limit.clamp(1,100)).fetch_all(&state.db).await?;
+        .bind(channel).bind(guild_id).bind(account).bind(account).bind(limit.clamp(1,100)).fetch_all(&state.reads).await?;
     let mut result = json!({"BaseResult": "Success", "Result": "Success", "WorldChats": [], "GuildChats": [], "WhisperChats": []});
     for row in rows {
         let group: String = row.get("group_type");

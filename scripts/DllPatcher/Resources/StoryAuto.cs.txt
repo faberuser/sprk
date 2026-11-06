@@ -48,7 +48,19 @@ public static partial class SprkStoryAuto
     static readonly FieldInfo rewardCallback = typeof(BaseRewardPopup).GetField("_onClose", BindingFlags.Instance | BindingFlags.NonPublic);
     static readonly FieldInfo rewardData = typeof(NGame2.NUI.NWindow.NSelectRewardPopup.BaseSelectRewardPopup).GetField("_selectRewardData", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    public static bool AutoSkills(bool enabled) { return enabled || Active(); }
+    // Continuous Story advances stages; skill automation remains the player's
+    // native AUTO choice, just as it does in Continuous Battle.
+    public static bool AutoSkills(bool enabled) { return enabled; }
+
+    static bool ScriptedAutoSkills()
+    {
+        var ui = SceneAutoBehaviour<BattleManagement>.instance;
+        if (ui == null) return false;
+        if (ui.IsOpened<SystemButtonAuto>()) return ui.GetInstance<SystemButtonAuto>().SkillReserveAuto;
+        if (ui.IsOpened<SystemButtonAutoFastContinue>()) return ui.GetInstance<SystemButtonAutoFastContinue>().SkillReserveAuto;
+        if (ui.IsOpened<SystemButtonAutoSimple>()) return ui.GetInstance<SystemButtonAutoSimple>().SkillReserveAuto;
+        return false;
+    }
 
     public static BattleType ContinueType(BattleType type)
     {
@@ -807,6 +819,7 @@ public static partial class SprkStoryAuto
 
     static void PlayScriptedParty()
     {
+        if (!ScriptedAutoSkills()) return;
         var enter = SingletonAuto<CampaignContext>.instance.EnterDungeon;
         if (enter == null || enter.Chapter != 10 || enter.LinkedDungeonData == null ||
             !SingletonAuto<BattleFacade>.isValidInstance || Time.realtimeSinceStartup < nextScriptedSkill) return;

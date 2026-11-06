@@ -41,6 +41,9 @@ partial class Program {
         foreach(var name in new[]{"HeroDetailView","HeroCostumeView","HeroModelView"})
             if(!scope.Body.Instructions.Any(i=>i.Operand is TypeReference t && t.Name==name))throw new InvalidOperationException("Missing preview window scope: "+name);
         var apply=helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name=="Apply");
+        if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="ShadowBounds" && m.Name=="Apply"))throw new InvalidOperationException("Missing preview projected-shadow bounds correction.");
+        foreach(var methodName in new[]{"Reset","InvalidateLayout","Get"})
+            if(!helper.MainModule.GetType("SprkFreeCamera").Methods.Single(m=>m.Name==methodName).Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="RestoreShadows"))throw new InvalidOperationException("Missing preview shadow cleanup: "+methodName);
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="StabilizeOrbit"))throw new InvalidOperationException("Preview orbit must not follow animated head motion.");
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="get_ShapeBounds"))throw new InvalidOperationException("Free camera must use the hero's body bounds as its orbit pivot.");
         if(!apply.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="FitPreviewAspect"))throw new InvalidOperationException("Missing displayed preview aspect correction.");

@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Default)]
 pub(super) struct History {
     pub arena: Vec<(i64, i64, Value)>,
+    /// Runs deleted by retention: (kind, UTC day, matches, wins, best streak, best tier).
+    pub arena_archive: Vec<(i64, String, i64, i64, i64, i64)>,
     pub battle: BTreeMap<String, Value>,
     pub equipment: BTreeSet<i64>,
     pub facts: Vec<(String, i64, i64)>,
@@ -19,6 +21,126 @@ pub(super) struct History {
     pub world_rank: Option<i64>,
 }
 
+/// Mission-relevant fields of a completed arena run. Triggers keep
+/// `mission_summary` equal to this expression for completed runs, and a
+/// partial covering index stores it, so snapshots never re-parse each run's
+/// full battle record (several MB per active arena player).
+pub(crate) const ARENA_MISSION_SUMMARY: &str = "json_object('DuelType',COALESCE(json_extract(data,'$.DuelType'),0),'CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin'))))";
+pub(crate) async fn migrate_arena_history(db: &sqlx::SqlitePool) -> Result<()> {
+    let mut tx = db.begin().await?;
+    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(&mut *tx).await?;
+    if !columns.iter().any(|c| c == "mission_summary") {
+        sqlx::query("ALTER TABLE arena_runs ADD COLUMN mission_summary TEXT").execute(&mut *tx).await?;
+    }
+    let summary = ARENA_MISSION_SUMMARY.replace("data", "NEW.data");
+    for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF status,data")] {
+        // Replace old trigger definitions as well as backfilling old summaries.
+        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_mission_summary_{name}")).execute(&mut *tx).await?;
+        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={summary} WHERE id=NEW.id; END"))
+            .execute(&mut *tx).await?;
+    }
+    sqlx::query(&format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND (mission_summary IS NULL OR json_type(mission_summary,'$.DuelType') IS NULL)"))
+        .execute(&mut *tx).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS arena_mission_history ON arena_runs(account,status,id,kind,started,mission_summary) WHERE status='complete'")
+        .execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(())
+}
+/// Finished arena runs kept per account and arena kind. Older runs are
+/// deleted once their mission-relevant facts are folded into
+/// `arena_history_archive` (per UTC day), so mission progress is unchanged.
+pub(crate) const ARENA_RUNS_KEPT: i64 = 20;
+
+/// Small keys that decide which older runs remain readable, maintained by
+/// triggers so retention never re-parses large run payloads.
+const ARENA_RETENTION_KEYS: &str = "season=json_extract(data,'$.Season'),nonduel=(json_extract(data,'$.DuelType') IS NOT 1),squad=(json_extract(data,'$.DuelType') IS NOT 1 AND COALESCE(json_array_length(data,'$.Heroes') BETWEEN 1 AND 4,0))";
+
+/// Finished runs of `account` that may be deleted. Besides the newest
+/// ARENA_RUNS_KEPT per kind, these readers' rows always survive:
+/// the newest complete run per (kind, season) (ranking decks), the newest
+/// complete non-friendly run with a 1-4 hero squad per (kind, season)
+/// (squad lookups, profile inspection), and the newest non-friendly run per
+/// kind (defense team).
+fn arena_prunable(account: &str) -> String {
+    format!("SELECT id FROM (SELECT id,status,squad,nonduel,\
+        ROW_NUMBER() OVER (PARTITION BY kind ORDER BY id DESC) AS recent,\
+        ROW_NUMBER() OVER (PARTITION BY kind,season,status='complete' ORDER BY id DESC) AS season_last,\
+        ROW_NUMBER() OVER (PARTITION BY kind,season,status='complete' AND squad ORDER BY id DESC) AS squad_last,\
+        ROW_NUMBER() OVER (PARTITION BY kind,nonduel ORDER BY id DESC) AS defense_last \
+        FROM arena_runs WHERE account={account} AND status NOT IN ('waiting','battle')) \
+        WHERE recent>{ARENA_RUNS_KEPT} \
+        AND NOT (status='complete' AND season_last=1) \
+        AND NOT (status='complete' AND squad AND squad_last=1) \
+        AND NOT (nonduel AND defense_last=1)")
+}
+
+/// Archive then delete prunable runs of `account` (an SQL expression).
+fn arena_prune_statements(account: &str) -> [String; 2] {
+    let doomed = arena_prunable(account);
+    [format!("INSERT INTO arena_history_archive(account,kind,day,matches,wins,best_streak,best_tier) \
+        SELECT account,kind,date(MAX(COALESCE(json_extract(mission_summary,'$.CompletedAt'),0),started),'unixepoch') AS day,COUNT(*),\
+        SUM(COALESCE(json_extract(mission_summary,'$.End.MatchResult.Win'),0)=1),\
+        MAX(COALESCE(json_extract(mission_summary,CASE kind WHEN 1 THEN '$.End.BattleBanPickInfo.SuccessiveWin' ELSE '$.End.BattleInfo.SuccessiveWin' END),0)),\
+        MAX(COALESCE(json_extract(mission_summary,'$.End.MatchResult.NewTierIndex'),0)) \
+        FROM arena_runs WHERE id IN ({doomed}) AND status='complete' \n        AND COALESCE(json_extract(mission_summary,'$.DuelType'),0)!=1 AND json_type(mission_summary,'$.End.MatchResult')='object' AND COALESCE(json_extract(mission_summary,'$.End.MatchResult.Canceled'),0)!=1 \n        GROUP BY account,kind,day \
+        ON CONFLICT(account,kind,day) DO UPDATE SET matches=matches+excluded.matches,wins=wins+excluded.wins,\
+        best_streak=MAX(best_streak,excluded.best_streak),best_tier=MAX(best_tier,excluded.best_tier)"),
+     format!("DELETE FROM arena_runs WHERE id IN ({doomed})")]
+}
+
+/// Bound arena history per player. Runs inside the statement that finishes a
+/// run, so every completion path (local, online, expiry, cancel) is covered.
+/// Requires `migrate_arena_history` first (mission summaries of old runs).
+pub(crate) async fn migrate_arena_retention(db: &sqlx::SqlitePool) -> Result<()> {
+    sqlx::query("CREATE TABLE IF NOT EXISTS arena_history_archive(account INTEGER NOT NULL,kind INTEGER NOT NULL,day TEXT NOT NULL,matches INTEGER NOT NULL,wins INTEGER NOT NULL,best_streak INTEGER NOT NULL,best_tier INTEGER NOT NULL,PRIMARY KEY(account,kind,day)) WITHOUT ROWID")
+        .execute(db).await?;
+    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
+    for column in ["season", "nonduel", "squad"] {
+        if !columns.iter().any(|c| c == column) {
+            sqlx::query(&format!("ALTER TABLE arena_runs ADD COLUMN {column} INTEGER")).execute(db).await?;
+        }
+    }
+    let keys = ARENA_RETENTION_KEYS.replace("data", "NEW.data");
+    for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF data")] {
+        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_retention_keys_{name} AFTER {event} ON arena_runs BEGIN UPDATE arena_runs SET {keys} WHERE id=NEW.id; END"))
+            .execute(db).await?;
+    }
+    sqlx::query(&format!("UPDATE arena_runs SET {ARENA_RETENTION_KEYS} WHERE nonduel IS NULL")).execute(db).await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS arena_retention ON arena_runs(account,kind,id,status,season,nonduel,squad)")
+        .execute(db).await?;
+    let [archive, delete] = arena_prune_statements("NEW.account");
+    let mut trigger_tx = db.begin().await?;
+    for (name, event, condition) in [
+        ("finish", "UPDATE OF status", "OLD.status IN ('waiting','battle') AND NEW.status NOT IN ('waiting','battle')"),
+        ("insert", "INSERT", "NEW.status NOT IN ('waiting','battle')"),
+    ] {
+        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_retention_{name}")).execute(&mut *trigger_tx).await?;
+        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_retention_{name} AFTER {event} ON arena_runs WHEN {condition} BEGIN {archive}; {delete}; END"))
+            .execute(&mut *trigger_tx).await?;
+    }
+    trigger_tx.commit().await?;
+    // Existing histories: one transaction per account over the limit.
+    let accounts: Vec<i64> = sqlx::query_scalar(&format!(
+        "SELECT DISTINCT account FROM (SELECT account FROM arena_runs WHERE status NOT IN ('waiting','battle') GROUP BY account,kind HAVING COUNT(*)>{ARENA_RUNS_KEPT})"))
+        .fetch_all(db).await?;
+    let mut pruned = 0u64;
+    for account in accounts {
+        let [archive, delete] = arena_prune_statements("?");
+        let mut tx = db.begin().await?;
+        sqlx::query(&archive).bind(account).execute(&mut *tx).await?;
+        pruned += sqlx::query(&delete).bind(account).execute(&mut *tx).await?.rows_affected();
+        tx.commit().await?;
+    }
+    if pruned > 0 {
+        tracing::info!(pruned, "Archived and deleted old arena runs; run VACUUM while the server is stopped to return the space to disk");
+    }
+    Ok(())
+}
+
+pub(crate) fn arena_history_query() -> &'static str {
+    "SELECT kind,started,mission_summary FROM arena_runs WHERE account=? AND status='complete' ORDER BY id"
+}
+
 impl History {
     pub async fn load(db: &mut SqliteConnection, account: i64) -> Result<Self> {
         fn parse(raw: String) -> Result<Value> {
@@ -26,14 +148,17 @@ impl History {
                 .map_err(|e| ServerError::Internal(format!("Invalid mission history: {e}")))
         }
         let mut out = Self::default();
-        for (kind, at, raw) in sqlx::query_as::<_, (i64,i64,String)>(
-            "SELECT kind,started,json_object('CompletedAt',json_extract(data,'$.CompletedAt'),'End',json_object('MatchResult',json_extract(data,'$.End.MatchResult'),'BattleInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleInfo.SuccessiveWin')),'BattleBanPickInfo',json_object('SuccessiveWin',json_extract(data,'$.End.BattleBanPickInfo.SuccessiveWin')))) FROM arena_runs WHERE account=? AND status='complete' ORDER BY id")
+        for (kind, at, raw) in sqlx::query_as::<_, (i64,i64,String)>(arena_history_query())
             .bind(account).fetch_all(&mut *db).await? {
             let data = parse(raw)?;
-            if data["End"]["MatchResult"]["Canceled"] != true && data["End"]["MatchResult"].is_object() {
+            // All Arena missions (participation, wins, tiers and streaks) share
+            // this history. Friendly duels never qualify as ranked play.
+            if n(&data,"DuelType") != 1 && data["End"]["MatchResult"]["Canceled"] != true && data["End"]["MatchResult"].is_object() {
                 out.arena.push((kind, n(&data,"CompletedAt").max(at), data));
             }
         }
+        out.arena_archive = sqlx::query_as("SELECT kind,day,matches,wins,best_streak,best_tier FROM arena_history_archive WHERE account=?")
+            .bind(account).fetch_all(&mut *db).await?;
         for (kind, raw) in sqlx::query_as::<_,(String,String)>(
             "SELECT kind,data FROM battle_state WHERE account=? AND kind IN ('eclipse_record','eclipse','ordeal') AND idx=0")
             .bind(account).fetch_all(&mut *db).await? { out.battle.insert(kind, parse(raw)?); }
@@ -78,8 +203,12 @@ impl History {
         Ok(out)
     }
 
-    fn arena_count(&self, kind: i64, period: &str, win: bool) -> i64 {
-        self.arena
+    pub(super) fn arena_count(&self, kind: i64, period: &str, win: bool) -> i64 {
+        let archived: i64 = self.arena_archive.iter()
+            .filter(|(k, day, ..)| *k == kind && (period == "all" || day.as_str() >= period))
+            .map(|(_, _, matches, wins, ..)| if win { *wins } else { *matches })
+            .sum();
+        archived + self.arena
             .iter()
             .filter(|(k, at, data)| {
                 *k == kind
@@ -91,11 +220,16 @@ impl History {
             .count() as i64
     }
 
-    fn arena_best(&self, kind: i64, field: &str) -> i64 {
+    pub(super) fn arena_best(&self, kind: i64, field: &str) -> i64 {
         let key = if kind == 1 {
             "BattleBanPickInfo"
         } else {
             "BattleInfo"
+        };
+        let archived = if field == "SuccessiveWin" {
+            self.arena_archive.iter().filter(|(k, ..)| *k == kind).map(|a| a.4).max().unwrap_or(0)
+        } else {
+            0
         };
         self.arena
             .iter()
@@ -103,15 +237,17 @@ impl History {
             .map(|(_, _, d)| n(&d["End"][key], field))
             .max()
             .unwrap_or(0)
+            .max(archived)
     }
 
-    fn best_tier(&self, kind: i64) -> i64 {
+    pub(super) fn best_tier(&self, kind: i64) -> i64 {
         self.arena
             .iter()
             .filter(|(k, _, _)| *k == kind)
             .map(|(_, _, d)| n(&d["End"]["MatchResult"], "NewTierIndex"))
             .max()
             .unwrap_or(0)
+            .max(self.arena_archive.iter().filter(|(k, ..)| *k == kind).map(|a| a.5).max().unwrap_or(0))
     }
 }
 

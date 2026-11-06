@@ -102,7 +102,8 @@ pub async fn notify(State(state): State<AppState>, request: HttpRequest, next: N
             // can replace just one section independently of that combined state.
             if headers.get("x-sprk-sections").is_some_and(|v| v == "1") {
                 for (wire, field) in SNAPSHOT_FIELDS { value[wire] = updates[field].clone(); }
-                conditional_sections(&mut value, &session_key, &headers);
+                let login = state.get_session(&session_key).map(|s| s.login_sections.clone());
+                conditional_sections_after_login(&mut value, &session_key, &headers, login.as_deref());
             } else {
                 append_snapshots(&mut value, &updates, &session_key, &acknowledged);
             }
@@ -143,8 +144,35 @@ fn normalized(mut value: Value, play_records: bool) -> Value {
 
 /// Omission preserves native state; explicit empty lists retain native semantics.
 /// Tokens are acknowledged after OnBaseResponse has applied the exact reply.
+#[cfg(test)]
 pub(crate) fn conditional_sections(value: &mut Value, session: &str, headers: &axum::http::HeaderMap) {
+    conditional_sections_after_login(value, session, headers, None)
+}
+
+pub(crate) fn section_token(session: &str, wire: &str, snapshot: &Value) -> String {
     use sha2::{Digest, Sha256};
+    let mut digest = Sha256::new();
+    digest.update(session.as_bytes());
+    digest.update(wire.as_bytes());
+    digest.update(serde_json::to_vec(&normalized(snapshot.clone(), wire == "ReservedPlayRecordInfos")).unwrap());
+    hex::encode(digest.finalize())
+}
+
+/// Record that the login reply carried this session's full achievement list,
+/// so the first follow-up replies need not resend it (~100 KB per login).
+pub(crate) fn remember_login_sections(state: &AppState, session: &str, achievements: &Value) {
+    if let Some(info) = state.sessions.get(session) {
+        let token = section_token(session, "AchievementInfos", achievements);
+        info.login_sections.lock().unwrap_or_else(|e| e.into_inner()).insert("AchievementInfos".into(), token);
+    }
+}
+
+/// `login` holds tokens delivered by this session's login reply. A client
+/// without its own token for a section is treated as holding that baseline,
+/// until the section is acknowledged or sent in full again (a full resend may
+/// be lost, so after it only the client's acknowledgement counts).
+pub(crate) fn conditional_sections_after_login(value: &mut Value, session: &str, headers: &axum::http::HeaderMap,
+    login: Option<&std::sync::Mutex<std::collections::BTreeMap<String, String>>>) {
     if !headers.get("x-sprk-sections").is_some_and(|v| v == "1") { return; }
     for (wire, name, header) in [
         ("AchievementInfos", "SprkAchievementToken", "x-sprk-achievements"),
@@ -153,14 +181,19 @@ pub(crate) fn conditional_sections(value: &mut Value, session: &str, headers: &a
         ("ReservedPlayRecordInfos", "SprkPlayRecordToken", "x-sprk-play-records"),
     ] {
         let Some(snapshot) = value.get(wire) else { continue; };
-        let mut digest = Sha256::new();
-        digest.update(session.as_bytes());
-        digest.update(wire.as_bytes());
-        digest.update(serde_json::to_vec(&normalized(snapshot.clone(), wire == "ReservedPlayRecordInfos")).unwrap());
-        let token = hex::encode(digest.finalize());
-        if headers.get(header).and_then(|h| h.to_str().ok()) == Some(&token) {
+        let token = section_token(session, wire, snapshot);
+        let acknowledged = headers.get(header).and_then(|h| h.to_str().ok());
+        let mut baseline = login.map(|m| m.lock().unwrap_or_else(|e| e.into_inner()));
+        let delivered = baseline.as_ref().and_then(|b| b.get(wire)).is_some_and(|t| *t == token);
+        if acknowledged.is_some() { if let Some(b) = baseline.as_mut() { b.remove(wire); } }
+        if acknowledged == Some(token.as_str()) {
             value.as_object_mut().unwrap().remove(wire);
+        } else if acknowledged.is_none() && delivered {
+            // Keep the token so the client acknowledges the login baseline.
+            value.as_object_mut().unwrap().remove(wire);
+            value[name] = json!(token);
         } else {
+            if let Some(b) = baseline.as_mut() { b.remove(wire); }
             value[name] = json!(token);
         }
     }
@@ -186,6 +219,43 @@ fn append_snapshots(value: &mut Value, updates: &Value, session: &str, acknowled
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn login_baseline_omits_resend_until_acknowledged_or_replaced() {
+        let achievements = json!([{"AchievementIndex":1,"LastStep":2}]);
+        let token = section_token("session", "AchievementInfos", &achievements);
+        let login = std::sync::Mutex::new(std::collections::BTreeMap::from([("AchievementInfos".to_string(), token.clone())]));
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("x-sprk-sections", "1".parse().unwrap());
+        // First reply after login: no client token, unchanged snapshot.
+        let mut first = json!({"AchievementInfos":achievements.clone()});
+        conditional_sections_after_login(&mut first, "session", &headers, Some(&login));
+        assert!(first.get("AchievementInfos").is_none());
+        assert_eq!(first["SprkAchievementToken"], json!(token));
+        // Another session never uses this baseline.
+        let mut foreign = json!({"AchievementInfos":achievements.clone()});
+        conditional_sections_after_login(&mut foreign, "other", &headers, Some(&login));
+        assert_eq!(foreign["AchievementInfos"], achievements);
+        // Legacy clients without section support always receive full data.
+        let mut legacy = json!({"AchievementInfos":achievements.clone()});
+        conditional_sections_after_login(&mut legacy, "session", &axum::http::HeaderMap::new(), Some(&login));
+        assert_eq!(legacy["AchievementInfos"], achievements);
+        // A changed snapshot is sent in full and ends the baseline, so a lost
+        // reply cannot leave the client relying on stale login data.
+        let changed = json!([{"AchievementIndex":1,"LastStep":3}]);
+        let mut full = json!({"AchievementInfos":changed.clone()});
+        conditional_sections_after_login(&mut full, "session", &headers, Some(&login));
+        assert_eq!(full["AchievementInfos"], changed);
+        let mut reverted = json!({"AchievementInfos":achievements.clone()});
+        conditional_sections_after_login(&mut reverted, "session", &headers, Some(&login));
+        assert_eq!(reverted["AchievementInfos"], achievements, "baseline must not survive a full resend");
+        // Acknowledgement also retires the baseline; the token path continues.
+        let login = std::sync::Mutex::new(std::collections::BTreeMap::from([("AchievementInfos".to_string(), token.clone())]));
+        headers.insert("x-sprk-achievements", token.parse().unwrap());
+        let mut acked = json!({"AchievementInfos":achievements.clone()});
+        conditional_sections_after_login(&mut acked, "session", &headers, Some(&login));
+        assert!(acked.get("AchievementInfos").is_none());
+        assert!(login.lock().unwrap().is_empty());
+    }
     #[test]
     fn section_acknowledgements_isolate_changes_and_recover_missing_empty_and_foreign_state() {
         let original = json!({"AchievementInfos":[{"Index":1}],"ReservedMainQuestInfo":{"Step":1},"ReservedClearMissionInfos":[],"ReservedPlayRecordInfos":[{"RecordIndex":1,"RecordValue":"1","UpdatedTime":"first"}]});

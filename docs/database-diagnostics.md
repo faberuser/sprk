@@ -64,12 +64,21 @@ before a slow request or long hold.
   checkout. `performance::measure` sets the `REQUEST_PATH` task-local, so
   holds are attributed to HTTP paths. Work in a `tokio::spawn` from a handler
   shows as `background`.
-- **No read-only pool, deliberately.** The most frequent requests (`/ping`,
-  `/ping/idle`, `/query/session`) never touch the database. Many "get" endpoints
-  write lazily (mail `deliver_globals`, dispatch normalization, shop stock
-  setup), and reads inside a request's open transaction must see its uncommitted
-  writes. Add a reader pool only if holds show reads waiting behind writes, and
-  then only for endpoints verified to do no writes.
+- **Read-only pool beside the writer.** `database::open_read_pool` opens
+  `READER_CONNECTIONS` (4) connections with `read_only(true)`, exposed as
+  `AppState.reads` (tests and tools default it to `db`). Only standalone reads
+  verified to never write use it: friend list/search, chat history, mail
+  list/count and the honor/global-mail "pending?" probes, lobby counts, the
+  lobby shop catalog, and the unchanged-revision checks in the progression and
+  hero-level notifiers. Many "get" endpoints write lazily (dispatch
+  normalization, shop stock setup), and reads inside an open writer
+  transaction must see its uncommitted writes, so those stay on `db`. A
+  misrouted write fails with SQLITE_READONLY; `database_tests.rs` runs every
+  routed endpoint against a real reader pool.
+- **Memory pragmas.** Writer `cache_size` 64 MB, each reader 16 MB,
+  `mmap_size` 256 MB (shared OS page cache), `temp_store=MEMORY`. These are
+  caps, not reservations; at most about 130 MB of SQLite cache plus the
+  mapped pages, which the kernel can reclaim.
 - **Indexes for periodic work.** `battle_state_dispatch_pending` is a partial
   index whose `WHERE` is `battle::PENDING_DISPATCH_SIMULATION`. The dispatch
   poller must repeat that exact condition, or SQLite falls back to a full scan.
@@ -88,7 +97,8 @@ before a slow request or long hold.
   errors. `database::tests::production_pool_queues_concurrent_read_then_write_transactions`
   fails with `code: 5` under the old 5-connection settings.
 - Code must not acquire a second pool connection while holding a transaction
-  or connection. With one connection that waits for the full acquire timeout.
+  or connection, including a reader while holding the writer (readers can all
+  be held by requests queued for the writer). With one connection that waits for the full acquire timeout.
   Most tests use single-connection pools, which catches this in tested paths.
 - Fix long holds by moving work out of the transaction: battle worker calls,
   network I/O, sleeps, heavy JSON building. Shrink rewritten JSON blobs, or add
@@ -155,7 +165,17 @@ before a slow request or long hold.
   players' best real clears. Don't use `FinishTimestamp - StartTimestamp`
   against simulated totals: the server sets that span from the simulated
   average, so it always matches.
-- `arena_runs` and `mails` have rows up to about 0.8 MB and 0.2 MB. Watch them
-  in the largest-tables section.
+- `arena_runs` rows are up to about 0.8 MB (full matchmaking payloads). Each
+  player keeps only the newest `ARENA_RUNS_KEPT` (20) finished runs per arena
+  kind, plus the newest complete run per season, the newest squad run per
+  season and the newest non-friendly run (read by ranking decks, squad and
+  profile lookups, and the defense team). The `arena_retention_*` triggers
+  prune inside the statement that finishes a run. Deleted runs are first
+  folded into `arena_history_archive` (per account, kind and UTC day:
+  matches, wins, best streak, best tier), which mission history adds back, so
+  arena missions are unaffected. Startup prunes histories recorded before the
+  triggers existed. Freed space is reused; run `VACUUM` once while stopped
+  to shrink the file.
+- `mails` rows are up to about 0.2 MB. Watch it in the largest-tables section.
 - There is a single process and database file. Automated backups (the SQLite
   backup API or Litestream) are still to do.

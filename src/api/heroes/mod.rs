@@ -246,6 +246,9 @@ pub(crate) fn appearance(hero: &Value) -> Value {
     ] {
         r[k] = json!(n(hero, k));
     }
+    if let Some(accessories) = hero.get("SprkAccessories") {
+        r["SprkAccessories"] = accessories.clone();
+    }
     r
 }
 fn star(state: &AppState, s: i64, t: i64) -> Result<&Value> {
@@ -1219,6 +1222,7 @@ pub(crate) async fn trial(
 
 async fn avatar_appearance(db: &mut SqliteConnection, account: i64, h: &Value) -> Result<Value> {
     let mut out = appearance(h);
+    out["SprkAccessories"] = json!(crate::api::extensions::cosmetics::equipped_accessories(db, account, h).await?);
     // RenderFacadeBuilder also uses awakening rank and equipped weapon/soul
     // effects. Save item values, not inventory IDs that can later be changed.
     let slots: Vec<i64> = (1..=10).map(|slot| n(h, &format!("EquipItemSlotIndex{slot}"))).collect();

@@ -1,0 +1,416 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using NGame2.NUI;
+using NGame2.NUI.NWindow;
+using NShared;
+using UnityEngine;
+
+// Automation-only fixture for selector-ticket search. It runs on the isolated
+// Login scene and never sends network requests.
+public static class SprkTicketSearchProbe {
+    static string Output { get { return Environment.GetEnvironmentVariable("SPRK_AUTOMATION_DIR"); } }
+
+    static bool localized;
+    static void Prepare() {
+        NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);
+        if(!localized) {
+            localized=true;
+            var loader=NVespa.SingletonAuto<NClientData.LocalizationLoader>.instance;
+            loader.SetEnableLoadFromPatch(true);
+            loader.ChangeLanguage(SystemLanguage.English);
+        }
+    }
+
+    static string Describe(Transform t,Transform root) {
+        var sb=new StringBuilder();
+        string path=t.name;for(var p=t.parent;p!=null && p!=root.parent;p=p.parent)path=p.name+"/"+path;
+        sb.Append(path).Append(t.gameObject.activeSelf?"":" [off]");
+        sb.Append(" pos=").Append(t.localPosition.x.ToString("0")).Append(",").Append(t.localPosition.y.ToString("0"));
+        if(t.localScale!=Vector3.one)sb.Append(" scale=").Append(t.localScale.x.ToString("0.##"));
+        foreach(var c in t.GetComponents<Component>()) {
+            if(c==null || c is Transform)continue;
+            sb.Append(" | ").Append(c.GetType().Name);
+            var w=c as UIWidget;
+            if(w!=null)sb.Append("(").Append(w.width).Append("x").Append(w.height).Append(" d").Append(w.depth).Append(" pivot=").Append(w.pivot).Append(")");
+            var s=c as UISprite;
+            var assigner=c as NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner;
+            if(assigner!=null)sb.Append(" atlasName=").Append(assigner.AtlasName);
+            if(s!=null)sb.Append(" sprite=").Append(s.atlas!=null?s.atlas.name:"?").Append(":").Append(s.spriteName).Append(" type=").Append(s.type).Append(" color=").Append(ColorUtility.ToHtmlStringRGBA(s.color));
+            var l=c as UILabel;
+            if(l!=null)sb.Append(" font=").Append(l.bitmapFont!=null?l.bitmapFont.name:(l.trueTypeFont!=null?l.trueTypeFont.name:"?")).Append(" size=").Append(l.fontSize)
+                .Append(" color=").Append(ColorUtility.ToHtmlStringRGBA(l.color)).Append(" effect=").Append(l.effectStyle).Append(" text=\"").Append((l.text??"").Replace("\n","\\n")).Append("\"");
+            var tex=c as UITexture;
+            if(tex!=null)sb.Append(" tex=").Append(tex.mainTexture!=null?tex.mainTexture.name:"null");
+            var panel=c as UIPanel;
+            if(panel!=null)sb.Append(" depth=").Append(panel.depth).Append(" clip=").Append(panel.clipping).Append(" region=").Append(panel.baseClipRegion);
+            var input=c as UIInput;
+            if(input!=null)sb.Append(" label=").Append(input.label!=null?input.label.name:"null").Append(" default=\"").Append(input.defaultText).Append("\" limit=").Append(input.characterLimit);
+            var box=c as BoxCollider;
+            if(box!=null)sb.Append(" size=").Append(box.size.x.ToString("0")).Append("x").Append(box.size.y.ToString("0"));
+            var button=c as UIButton;
+            if(button!=null)sb.Append(" normal=").Append(button.normalSprite).Append(" hover=").Append(button.hoverSprite).Append(" pressed=").Append(button.pressedSprite);
+        }
+        return sb.ToString();
+    }
+
+    static void DumpPrefab(string name,string path,StringBuilder summary) {
+        var prefab=VespaResource.Load<GameObject>(path);
+        if(prefab==null){summary.AppendLine(name+": prefab missing "+path);return;}
+        var host=new GameObject("TicketSearchDump");host.SetActive(false);
+        try {
+            var go=UnityEngine.Object.Instantiate(prefab,host.transform,false);
+            var lines=go.GetComponentsInChildren<Transform>(true).Select(t=>Describe(t,go.transform)).ToArray();
+            System.IO.File.WriteAllLines(System.IO.Path.Combine(Output,"dump-"+name+".txt"),lines);
+            var atlases=go.GetComponentsInChildren<UISprite>(true).Where(s=>s.atlas!=null).Select(s=>s.atlas).Distinct().ToArray();
+            foreach(var atlas in atlases) {
+                var names=atlas.GetListOfSprites();
+                System.IO.File.WriteAllText(System.IO.Path.Combine(Output,"atlas-"+atlas.name+".txt"),String.Join("\n",names.ToArray()));
+            }
+            summary.AppendLine(name+": nodes="+lines.Length+" atlases="+String.Join(",",atlases.Select(a=>a.name).ToArray()));
+        } finally {UnityEngine.Object.DestroyImmediate(host);}
+    }
+
+    // Lobby atlases live in the graphics-spec folder chosen after login; load them
+    // directly so the fixture renders like the real game.
+    static readonly Dictionary<string,List<UIAtlas>> specAtlases=new Dictionary<string,List<UIAtlas>>();
+    static void LoadSpecAtlases(GameObject root) {
+        var names=new HashSet<string>();
+        foreach(var a in root.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.UISpriteAtlasAssigner>(true))
+            if(!String.IsNullOrEmpty(a.AtlasName) && (a.Target==null || a.Target.atlas==null))names.Add(a.AtlasName);
+        foreach(var name in names) {
+            if(specAtlases.ContainsKey(name))continue;
+            var list=new List<UIAtlas>();specAtlases[name]=list;
+            var path=System.IO.Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/Assetbundle/HighAndMidSpec/NguiAtlas_UI_Prefab_"+name+".unity3d");
+            if(!System.IO.File.Exists(path))continue;
+            var bundle=AssetBundle.LoadFromFile(path);
+            if(bundle==null)continue;
+            foreach(var go in bundle.LoadAllAssets<GameObject>()){var atlas=go.GetComponent<UIAtlas>();if(atlas!=null)list.Add(atlas);}
+            foreach(var atlas in bundle.LoadAllAssets<UIAtlas>())if(!list.Contains(atlas))list.Add(atlas);
+        }
+        var all=specAtlases.Values.SelectMany(l=>l).ToList();
+        foreach(var sprite in root.GetComponentsInChildren<UISprite>(true)) {
+            if(sprite.atlas!=null || String.IsNullOrEmpty(sprite.spriteName))continue;
+            var atlas=all.FirstOrDefault(a=>a.GetSprite(sprite.spriteName)!=null);
+            if(atlas!=null){var name=sprite.spriteName;sprite.atlas=atlas;sprite.spriteName=name;}
+        }
+    }
+
+    static GameObject shown;
+    static string Show(string name) {
+        if(shown!=null)UnityEngine.Object.DestroyImmediate(shown);
+        string path=null;
+        foreach(var t in typeof(BaseWindow).Assembly.GetTypes())
+            if(t.Name==name && typeof(BaseWindow).IsAssignableFrom(t)) {
+                var f=t.GetField("PrefabPath",BindingFlags.Public|BindingFlags.Static);
+                if(f!=null)path=(string)f.GetValue(null);
+            }
+        if(path==null)return "unknown window "+name;
+        var root=UnityEngine.Object.FindObjectOfType<UIRoot>();
+        var prefab=VespaResource.Load<GameObject>(path);
+        shown=UnityEngine.Object.Instantiate(prefab,root.transform,false);
+        shown.name="TicketSearchShow_"+name;
+        foreach(var p in shown.GetComponentsInChildren<UIPanel>(true))p.depth+=500;
+        shown.SetActive(true);
+        bool patched=NGameAsset.Define.PatchDownloaded;
+        // Fixture only: lobby atlases are installed locally but gated until login.
+        NGameAsset.Define.PatchDownloaded=true;
+        try { foreach(var a in shown.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase>(true))a.Assign(); }
+        finally { NGameAsset.Define.PatchDownloaded=patched; }
+        LoadSpecAtlases(shown);
+        var missing=shown.GetComponentsInChildren<UISprite>(true).Where(s=>s.atlas==null && !String.IsNullOrEmpty(s.spriteName)).Select(s=>s.spriteName).Distinct().ToArray();
+        return "shown "+name+" patchDownloaded="+patched+" unresolved="+String.Join(",",missing);
+    }
+
+
+    // ---- Live fixture ------------------------------------------------------
+    const BindingFlags Any=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+    static void Check(bool value,string message){if(!value)throw new Exception("Ticket search: "+message);}
+    static T Field<T>(object owner,string name) where T:class {
+        for(var type=owner.GetType();type!=null;type=type.BaseType) {
+            var field=type.GetField(name,Any|BindingFlags.DeclaredOnly);
+            if(field!=null)return field.GetValue(owner) as T;
+        }
+        return null;
+    }
+    static MethodInfo Method(Type type,string name,int count) {
+        for(;type!=null;type=type.BaseType) {
+            var m=type.GetMethods(Any|BindingFlags.DeclaredOnly).FirstOrDefault(x=>x.Name==name && x.GetParameters().Length==count);
+            if(m!=null)return m;
+        }
+        return null;
+    }
+
+    static ItemData Ticket(string family) {
+        ItemData best=null;int size=-1;
+        foreach(var item in GameRoot.Instance.ItemDataContainer.GetAllData()) {
+            int count=-1;
+            try {
+                if(family=="hero") {
+                    var sub=item.GetSubData<HeroSelectItemData>();
+                    if(sub!=null && sub.HeroIndices!=null)count=sub.HeroIndices.Length;
+                } else if(family=="costume") {
+                    var sub=item.GetSubData<CostumeSelectItemData>();
+                    if(sub!=null && sub.CostumeIndices!=null)count=sub.CostumeIndices.Length;
+                } else if(family=="soul") {
+                    // SoulStoneSelect resolves its pool by the ticket's own item code.
+                    var sub=item.Code==null?null:GameRoot.Instance.WeaponUniqueSelectItemDataContainer.GetData(item.Code);
+                    if(sub!=null && sub.ItemIndices!=null && item.Code.StartsWith("SOULSTONE_SELECT"))count=sub.ItemIndices.Length;
+                } else {
+                    var sub=item.GetSubData<WeaponUniqueSelectItemData>();
+                    if(sub==null || sub.ItemIndices==null || sub.ItemCode==null)continue;
+                    string code=sub.ItemCode;
+                    bool ok=family=="weapon"?code.StartsWith("WEAPON_UNIQUE_SELECT"):family=="treasure"?code.StartsWith("TREASURE_UNIQUE_SELECT")
+                        :family=="artifact"?code.StartsWith("ARTIFACT_SELECT"):family=="soul"?code.StartsWith("SOULSTONE_SELECT"):false;
+                    if(ok)count=sub.ItemIndices.Length;
+                }
+            } catch {}
+            if(count>size){size=count;best=item;}
+        }
+        return best;
+    }
+
+    static string WindowFor(string family) {
+        switch(family) {
+            case "soul": return "SoulStoneSelect";
+            case "hero": return "InvenUseHeroSelect";
+            case "attr": return "InvenUseAttrTypeHeroSelect";
+            case "costume": return "InvenUseHeroCostumeSelect";
+        }
+        return "WeaponUniqueSelect";
+    }
+
+    static BaseWindow window;
+    static string family;
+
+    // Isolated Login fixture: empty account state means nothing is owned.
+    static string EnsureAccount() {
+        var account=NVespa.NSingleton.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance;
+        var property=account.GetType().GetProperty("AccountManagers",Any);
+        var managers=property.GetValue(account,null);
+        var report=new List<string>();
+        if(managers==null){managers=Activator.CreateInstance(property.PropertyType,true);report.Add("created");}
+        foreach(var field in managers.GetType().GetFields(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)) {
+            if(field.GetValue(managers)!=null || field.FieldType.IsAbstract || field.FieldType.IsValueType)continue;
+            try { field.SetValue(managers,Activator.CreateInstance(field.FieldType,true));report.Add(field.Name); }
+            catch(Exception e){report.Add(field.Name+"!"+(e.InnerException??e).GetType().Name);}
+        }
+        property.SetValue(account,managers,null);
+        return String.Join(",",report.ToArray());
+    }
+
+    static string Open(string kind) {
+        string accountReport=EnsureAccount();
+        Show(WindowFor(kind));
+        family=kind;
+        window=shown.GetComponentInChildren<BaseWindow>(true);
+        var ticket=Ticket(kind=="attr"?"hero":kind);
+        Check(ticket!=null,"ticket for "+kind);
+        var open=window.GetType().GetMethods(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.DeclaredOnly).First(m=>m.Name=="Open");
+        var args=open.GetParameters().Select(p=>p.ParameterType==typeof(ItemData)?(object)ticket:p.ParameterType==typeof(int)?(object)ticket.Index:null).ToArray();
+        try { open.Invoke(window,args); }
+        catch(Exception e) { throw new Exception("account="+accountReport,e); }
+        NGameAsset.Define.PatchDownloaded=true;
+        try { foreach(var a in shown.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase>(true))a.Assign(); }
+        finally { NGameAsset.Define.PatchDownloaded=false; }
+        LoadSpecAtlases(shown);
+        return "account="+accountReport+" opened "+kind+" ticket="+ticket.Index+" "+ticket.Code+" "+State();
+    }
+
+    static IEnumerable<string> Visible() {
+        if(window is WeaponUniqueSelect) {
+            var list=Field<IList>(window,"_shopItemComponent");
+            foreach(var c in list){var item=Field<ItemData>(c,"_itemData");yield return item==null?"?":item.Index.ToString();}
+        } else if(window is InvenUseAttrTypeHeroSelect) {
+            foreach(var name in new[]{"_physicalHeroPortraitCompList","_magicalHeroPortraitCompList"})
+                foreach(Component c in Field<IList>(window,name)) {
+                    var hero=c.GetComponentInChildren<NGame2.NUI.NComponent2.HeroPortraitComponent>(true);
+                    if(hero!=null && hero.CreatureData!=null)yield return "h"+hero.CreatureData.Index;
+                }
+        } else {
+            foreach(NGame2.NUI.NComponent2.HeroPortraitComponent c in Field<IList>(window,"_heroPortraitList"))
+                yield return c.CreatureData!=null?"h"+c.CreatureData.Index:"?";
+        }
+    }
+
+    static string State() {
+        var box=window.GetComponent<SprkTicketSearchBox>();
+        var visible=Visible().ToArray();
+        return "visible="+visible.Length+" box="+(box!=null && box.content!=null)+" query=\""+(box==null?"":box.text)+"\"";
+    }
+
+    static string Type(string text) {
+        var box=window.GetComponent<SprkTicketSearchBox>();
+        Check(box!=null && box.input!=null,"search field");
+        box.input.value=text;
+        box.OnSubmitted();
+        return State()+" first="+String.Join(",",Visible().Take(8).ToArray());
+    }
+
+    static string TextOf(string id) {
+        if(id.StartsWith("h"))return SprkTicketSearch.HeroText(int.Parse(id.Substring(1)));
+        var item=GameRoot.Instance.ItemDataContainer.GetData(int.Parse(id));
+        if(window is SoulStoneSelect)return SprkTicketSearch.SoulStoneText(item);
+        return SprkTicketSearch.EquipText(GameRoot.Instance.EquipItemDataContainer.GetData(item.Code));
+    }
+    static string FirstName(string id) {
+        if(id.StartsWith("h"))return GameRoot.Instance.CreatureDataContainer.GetData(int.Parse(id.Substring(1))).Name;
+        var item=GameRoot.Instance.ItemDataContainer.GetData(int.Parse(id));
+        if(family=="artifact")return item.Name;
+        if(window is SoulStoneSelect)return GameRoot.Instance.CreatureDataContainer.GetData(item.GetValueInt(0)).Name;
+        var equip=GameRoot.Instance.EquipItemDataContainer.GetData(item.Code);
+        return GameRoot.Instance.CreatureDataContainer.GetData(equip.CreatureIndex[0]).Name;
+    }
+    static bool NoneLabelShown() {
+        foreach(var name in new[]{"LbDescriptionNoneEquip","_lbNoneHero","_lbNoneCostume"}) {
+            var label=Field<UILabel>(window,name);
+            if(label!=null)return label.gameObject.activeSelf;
+        }
+        return true; // The Physical/Magical ticket shows its empty native slots instead.
+    }
+    static Bounds ColliderBounds(Component c,Transform space) {
+        var box=c.GetComponent<BoxCollider>();
+        var b=new Bounds(space.InverseTransformPoint(box.transform.TransformPoint(box.center-box.size*.5f)),Vector3.zero);
+        b.Encapsulate(space.InverseTransformPoint(box.transform.TransformPoint(box.center+box.size*.5f)));
+        return b;
+    }
+
+    static string TestFamily(string kind,List<string> lines) {
+        Open(kind);
+        var box=window.GetComponent<SprkTicketSearchBox>();
+        Check(box!=null && box.content!=null && box.content.activeInHierarchy,kind+": search field visible");
+        Check(box.input.GetComponent<UISprite>().atlas!=null,kind+": native box sprite resolved");
+        var all=Visible().ToArray();
+        Check(all.Length>0,kind+": native list populated");
+        Check(all.Distinct().Count()==all.Length || kind=="costume",kind+": no duplicate entries");
+
+        // Hit areas: the field must not overlap a native dropdown.
+        var space=window.transform;
+        var field=ColliderBounds(box.input,space);
+        foreach(var combo in window.GetComponentsInChildren<NNguiExtension.UIComboBox>(true).Where(c=>c.gameObject.activeInHierarchy && c.GetComponent<BoxCollider>()!=null)) {
+            var other=ColliderBounds(combo,space);
+            Check(!(field.min.x<other.max.x-1 && field.max.x>other.min.x+1 && field.min.y<other.max.y-1 && field.max.y>other.min.y+1),kind+": field overlaps dropdown "+combo.name);
+        }
+
+        string name=FirstName(all[0]);
+        Type(name.ToUpperInvariant());
+        var hits=Visible().ToArray();
+        Check(hits.Length>0 && hits.Contains(all[0]),kind+": query for "+name+" keeps the first entry");
+        var terms=SprkTicketSearch.Terms(name);
+        if(kind!="costume") {
+            var expected=all.Where(id=>SprkTicketSearch.Matches(terms,TextOf(id))).ToArray();
+            Check(hits.SequenceEqual(expected),kind+": exact native-order subset for "+name+" ("+hits.Length+" vs "+expected.Length+")");
+        } else {
+            Check(hits.All(id=>SprkTicketSearch.Matches(terms,TextOf(id))),kind+": costume heroes match "+name);
+        }
+        Check(hits.Length<all.Length,kind+": query narrows the list");
+        Check(!box.fuzzy,kind+": exact hits keep typo matching off");
+
+        // Typo: swap two letters inside the longest word of the name.
+        var word=name.Split(' ').Select(SprkTicketSearch.Fold).OrderByDescending(w=>w.Length).First();
+        if(word.Length>=5) {
+            var typo=word.Substring(0,1)+word[2]+word[1]+word.Substring(3);
+            Type(typo);
+            var fuzzyHits=Visible().ToArray();
+            if(box.fuzzy) {
+                Check(fuzzyHits.Contains(all[0]),kind+": typo \""+typo+"\" still finds "+name);
+                if(kind!="costume")Check(fuzzyHits.All(id=>SprkTicketSearch.FuzzyMatches(new[]{typo},TextOf(id))),kind+": typo results all match within tolerance");
+            } else {
+                Check(fuzzyHits.All(id=>kind=="costume" || SprkTicketSearch.Matches(new[]{typo},TextOf(id))),kind+": typo had exact hits elsewhere");
+            }
+            lines.Add(kind+" typo=\""+typo+"\" fuzzy="+box.fuzzy+" hits="+fuzzyHits.Length);
+        }
+
+        Type("zzqxv");
+        Check(Visible().Count()==0,kind+": unmatched query empties the list");
+        Check(NoneLabelShown(),kind+": native empty-state label shown");
+        Check(box.clear.activeSelf,kind+": clear button shown for text");
+
+        box.Clear();
+        Check(Visible().SequenceEqual(all),kind+": clear restores the full native list and order");
+        Check(!box.clear.activeSelf && box.input.value=="",kind+": clear empties the field");
+
+        if(window is WeaponUniqueSelect) {
+            var ticket=(WeaponUniqueSelect)window;
+            var keep=GameRoot.Instance.ItemDataContainer.GetData(int.Parse(hits[0]));
+            ticket.OnSelect(keep);
+            Check(Field<ItemData>(ticket,"_buyItemData")==keep && ticket.Button_Buy.isEnabled,kind+": native selection enables Acquire");
+            Type(name);
+            // The artifact source filter clears the choice on every rebuild by design.
+            if(kind=="artifact")Check(Field<ItemData>(ticket,"_buyItemData")==null && !ticket.Button_Buy.isEnabled,kind+": artifact rebuild clears choice like its source filter");
+            else Check(Field<ItemData>(ticket,"_buyItemData")==keep && ticket.Button_Buy.isEnabled,kind+": visible selection is kept");
+            Type("zzqxv");
+            Check(Field<ItemData>(ticket,"_buyItemData")==null && !ticket.Button_Buy.isEnabled,kind+": hidden selection cannot be acquired");
+            box.Clear();
+        }
+
+        // A native dropdown rebuild keeps the typed query applied.
+        Type(name);
+        var filter=window.GetComponentsInChildren<SelectFilter>(true).FirstOrDefault();
+        if(filter!=null) {
+            var callback=Field<SelectFilter.Callback>(filter,"_callback");
+            if(callback!=null)callback();
+            Check(Visible().All(id=>kind=="costume" || SprkTicketSearch.Matches(terms,TextOf(id))) && Visible().Count()==hits.Length,kind+": native filter rebuild keeps the query");
+        }
+        // Reopening starts unfiltered without duplicating the field.
+        Open(kind);
+        box=window.GetComponent<SprkTicketSearchBox>();
+        Check(box.input.value=="" && !box.Active && Visible().SequenceEqual(all),kind+": reopening starts unfiltered");
+        Check(window.GetComponentsInChildren<Transform>(true).Count(t=>t.name==SprkTicketSearchBox.NodeName)==1,kind+": one field after reopen");
+        var line=kind+" all="+all.Length+" query=\""+name+"\" hits="+hits.Length;
+        lines.Add(line);
+        return line;
+    }
+
+    static string Test() {
+        var lines=new List<string>();
+        foreach(var kind in new[]{"weapon","treasure","artifact","soul","hero","attr","costume"})TestFamily(kind,lines);
+        Check(SprkTicketSearch.Fold("Dark Lord Kasel")=="darklordkasel","fold spaces and case");
+        Check(SprkTicketSearch.Fold("Lua's Tear")=="luastear","fold punctuation");
+        Check(SprkTicketSearch.Fold("Éclair")=="eclair","fold accents");
+        Check(SprkTicketSearch.Matches(SprkTicketSearch.Terms("lord kas"),"|darklordkasel|"),"multi-term AND");
+        Check(!SprkTicketSearch.Matches(SprkTicketSearch.Terms("lord frey"),"|darklordkasel|"),"multi-term rejects");
+        Check(SprkTicketSearch.Matches(SprkTicketSearch.Terms("  "),"|x|"),"blank query matches all");
+        // Fuzzy tier.
+        Check(SprkTicketSearch.Distance("kasle","kasel")==1,"transposition is one edit");
+        Check(SprkTicketSearch.Distance("frey","freya")==0,"substring distance");
+        Check(SprkTicketSearch.Distance("kasl","darklordkasel")==1,"deletion inside a longer name");
+        Check(!SprkTicketSearch.Matches(SprkTicketSearch.Terms("kasle"),"|darklordkasel|#dlk#"),"exact tier rejects typo");
+        Check(SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("kasle"),"|darklordkasel|#dlk#"),"fuzzy tier accepts typo");
+        Check(SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("dlk"),"|darklordkasel|#dlk#"),"initials");
+        Check(!SprkTicketSearch.Matches(SprkTicketSearch.Terms("dlk"),"|darklordkasel|#dlk#"),"initials only in fuzzy tier");
+        Check(!SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("fry"),"|frey|#f#"),"no typo tolerance under 4 letters");
+        Check(!SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("kxyzl"),"|kasel|#k#"),"tolerance is bounded");
+        Check(SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("lord kasle"),"|darklordkasel|#dlk#"),"multi-word fuzzy");
+        return "PASS: "+String.Join("; ",lines.ToArray());
+    }
+    public static string Run(string mode) {
+        Prepare();
+        if(mode!=null && mode.StartsWith("show:"))return Show(mode.Substring(5));
+        if(mode!=null && mode.StartsWith("dumpshown:") && shown!=null) {
+            var under=shown.transform.Find(mode.Substring(10));
+            if(under==null)return "missing "+mode;
+            return String.Join("\n",under.GetComponentsInChildren<Transform>(true).Select(t=>Describe(t,under)).ToArray());
+        }
+        if(mode!=null && mode.StartsWith("open:"))return Open(mode.Substring(5));
+        if(mode!=null && mode.StartsWith("type:"))return Type(mode.Substring(5));
+        if(mode=="focus"){var b=window.GetComponent<SprkTicketSearchBox>();b.input.isSelected=true;return State();}
+        if(mode=="state")return State();
+        if(mode=="test")return Test();
+        if(mode=="hide"){if(shown!=null)UnityEngine.Object.DestroyImmediate(shown);return "hidden";}
+        var summary=new StringBuilder();
+        foreach(var pair in new[]{
+            new KeyValuePair<string,string>("WeaponUniqueSelect",WeaponUniqueSelect.PrefabPath),
+            new KeyValuePair<string,string>("SoulStoneSelect",SoulStoneSelect.PrefabPath),
+            new KeyValuePair<string,string>("InvenUseHeroSelect",InvenUseHeroSelect.PrefabPath),
+            new KeyValuePair<string,string>("InvenUseAttrTypeHeroSelect",InvenUseAttrTypeHeroSelect.PrefabPath),
+            new KeyValuePair<string,string>("InvenUseHeroCostumeSelect",InvenUseHeroCostumeSelect.PrefabPath),
+            new KeyValuePair<string,string>("FriendSearch",FriendSearch.PrefabPath),
+            new KeyValuePair<string,string>("GuildList2",GuildList2.PrefabPath)})
+            DumpPrefab(pair.Key,pair.Value,summary);
+        return summary.ToString();
+    }
+}

@@ -545,3 +545,22 @@ async fn progressive_dispatch_prefixes_resume_retry_and_cannot_rewrite_saved_res
     assert_eq!(stamina(&s, &u).await, 1000 - n(&job, "Cost") / 2);
     assert_ne!(call(&s, &u, "dispatch/request_complete_dispatch", &format!("SlotIndex={slot}")).await["Result"], "Success");
 }
+#[tokio::test]
+async fn legend_costumes_discount_dispatch_stamina_like_the_native_window() {
+    let (s, u) = fixture(false).await;
+    let a = account(&u);
+    let d = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", 1), ("DungeonIndex", 1)]).unwrap();
+    let per_run = campaign::stamina_cost(d, 1);
+    // Five Legend costumes save 2% each; an ordinary costume and a Legend
+    // costume without the booster add nothing.
+    for costume in [1212, 4515, 10010, 2519, 1112, 2520, 6808] {
+        sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES(?,?)").bind(a).bind(costume).execute(&s.db).await.unwrap();
+    }
+    assert_eq!(bonuses::dispatch_stamina_discount(&mut s.db.acquire().await.unwrap(), &s, a).await.unwrap(), 10);
+    let job = start(&s, &u, 10).await;
+    let charged = per_run * 90 / 100 * 10;
+    assert!(charged < per_run * 10, "the stage must be expensive enough to show the discount");
+    assert_eq!(n(&job, "StaminaDiscountRate"), 10);
+    assert_eq!(n(&job, "Cost"), charged);
+    assert_eq!(stamina(&s, &u).await, 1000 - charged);
+}

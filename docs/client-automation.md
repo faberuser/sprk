@@ -71,7 +71,12 @@ ambiguous matches fail. `wait-ui` checks active enabled elements by substring,
 not rendered visibility. Database assertions use read-only SQLite connections:
 
 ```json
-{"action":"assert-db","query":"SELECT count(*) FROM battle_room_members WHERE room=?","params":[1],"expected":[[2]]}
+{
+    "action": "assert-db",
+    "query": "SELECT count(*) FROM battle_room_members WHERE room=?",
+    "params": [1],
+    "expected": [[2]]
+}
 ```
 
 Each run retains client/server logs, command requests, observations, PNGs, and
@@ -103,7 +108,7 @@ Final installed-patch validation on 2026-09-30:
 - Login-to-lobby passed for the existing progressed account.
 - An initial Portal open/close test passed. The final fresh-login Portal run
   failed on `GetPrevWorldBossSeason failed: prevWorldBossIndex is null.
-  currentWorldBossIndex=1`. Its error checkpoint captured a real client error;
+currentWorldBossIndex=1`. Its error checkpoint captured a real client error;
   do not treat the earlier pass as evidence that this issue is fixed.
 - Failure report and screenshot are retained in
   `target/client-automation/20260930-154523-313b0a/report-cfd87151fdd94e77a755edc39a5cef4c.json`
@@ -120,7 +125,6 @@ For a complete removal, close all clients and restore the earliest pre-automatio
 DLL backup from this installation, then remove SprkAutomation.dll. A full normal
 DLL repatch may remove the hooks; reapply `--automation-only` afterward.
 
-
 Read-only material diagnosis: `python scripts/automation/client_automation.py renderers`
 adds active renderer hierarchy, material name, shader name, support and visibility
 to the reply. Reinstall `--automation-only` after updating the bridge. This command
@@ -128,28 +132,6 @@ does not change materials or gameplay. Null slots on visible renderers can ident
 magenta effects. The old standalone field-projectile asset repair script is no
 longer included. Asset changes now belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
-
-`python scripts/client/verify_kasel_honor_s2.py` plays Dark Lord Kasel's League
-of Honor S2 through the native effect loader, material pooling and effect timing
-in an isolated client without login. It saves 36 frames under
-`target/kasel-s2-validation` and checks visible casting/projectile pixels, the
-dark helix's alpha blending and absence of magenta. Install the current automation
-helper first with `--automation-only`. The two casting bundle overrides restore
-dedicated GatherHelixBlend materials from the matching original S2 stages with
-costume helix/noise textures and complete preload dependencies. Reusing the
-additive GatherHelix material loses the dark layer. Provenance hashes are in
-`client-overrides/kasel-honor-s2-provenance.json`. The Windows
-`NodeTree/Hero/DarkLordKasel.bjs` also lacked the root link of
-`ReserveOperation_8429_1`, so S2-2's projectile, pivot and camera shake never ran
-for any costume. The override is the byte-identical pre-Doomsday build1558
-script (SHA-256 `c366198d…`); its only logic difference is that restored link.
-The default (non-costume) `Effect_Skill_Hero_Kasel_DarkLord_Skill2-2_Casting`
-bundles in all three specs also lacked the `1.…_Casting_Helix` prefab and
-renumbered the rest, so the whole default S2-2 casting effect failed with
-`Invalid Asset Request`. `python scripts/client/restore_kasel_darklord_s2_helix.py`
-rebuilds them from the same-spec S2-1 Helix with build1558's S2-2 values;
-hashes are in `client-overrides/kasel-darklord-s2-helix-provenance.json`. Run the
-native probe with `target=1` to check the default-costume effects.
 
 The opt-in bridge also accepts `video-probe` through the Python `request` API.
 Without parameters it reports native cinematic state, preparation, playback,

@@ -71,15 +71,18 @@ pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
 
 // Materialize a global announcement once per account. The delivery ledger survives claims.
 async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
-    // Native mailbox polling also delivers newly closed Honor periods while a
+    // Native mailbox polling also delivers newly closed Arena periods while a
     // player stays logged in. Reward claims and messages commit together.
-    let mut honor = state.db.begin().await?;
-    super::arena::honor_rewards::settle(&mut honor, state, account).await?;
-    honor.commit().await?;
-    // Most checks have nothing to deliver. Avoid acquiring SQLite's writer
-    // lock for this common path; recheck under the existing transaction below.
+    // Most checks have nothing to deliver: probe on a reader and only queue for
+    // the writer when needed. Both paths recheck under the writer transaction.
+    let arena_pending = super::arena::pending(&mut *state.reads.acquire().await?, state, account).await?;
+    if arena_pending {
+        let mut arena = state.db.begin().await?;
+        super::arena::settle(&mut arena, state, account).await?;
+        arena.commit().await?;
+    }
     let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id))")
-        .bind(account).fetch_one(&state.db).await?;
+        .bind(account).fetch_one(&state.reads).await?;
     if !pending { return Ok(()); }
     let mut tx = state.db.begin().await?;
     sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
@@ -130,7 +133,7 @@ pub async fn check_new_mail(State(state): State<AppState>, body: Bytes) -> Resul
     let account = req.account(&state)?;
     deliver_globals(&state, account).await?;
     let row=sqlx::query("SELECT COUNT(*) AS total, COALESCE(MAX(mail_id),0) AS latest FROM mails WHERE account_id=? AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now'))")
-        .bind(account).fetch_one(&state.db).await?;
+        .bind(account).fetch_one(&state.reads).await?;
     let latest: i64 = row.get("latest");
     Ok(Json(
         json!({"BaseResult":"Success","Result":"Success","NewMailArrived":latest>req.number("TopmostMailIndex",0)?,"TotalMailCount":row.get::<i64,_>("total"),"LastCheckedMailIndex":latest,"OpenedMailIndices":[]}),
@@ -173,12 +176,12 @@ async fn list(state: AppState, body: Bytes, paged: bool, global: bool) -> Result
     };
     let filter="account_id=? AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND ((?=1 AND global_id IS NOT NULL) OR (?=0 AND global_id IS NULL))";
     let rows=sqlx::query(&format!("SELECT * FROM mails WHERE {filter} AND (?=0 OR mail_id<?) ORDER BY mail_id DESC LIMIT ? OFFSET ?"))
-        .bind(account).bind(global).bind(global).bind(cursor).bind(cursor).bind(max).bind(offset).fetch_all(&state.db).await?;
+        .bind(account).bind(global).bind(global).bind(cursor).bind(cursor).bind(max).bind(offset).fetch_all(&state.reads).await?;
     let total: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM mails WHERE {filter}"))
         .bind(account)
         .bind(global)
         .bind(global)
-        .fetch_one(&state.db)
+        .fetch_one(&state.reads)
         .await?;
     let infos = rows.iter().map(mail_info).collect::<Result<Vec<_>>>()?;
     Ok(Json(

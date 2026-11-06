@@ -13,6 +13,8 @@ mod arena;
 mod honor;
 #[path = "cooperative_dispatch.rs"]
 mod dispatch_worker;
+#[path = "cooperative_retry.rs"]
+mod retry;
 pub(crate) use dispatch_worker::start as start_dispatch_preparation;
 #[cfg(test)]
 #[path = "raid_party_tests.rs"]
@@ -242,6 +244,8 @@ pub(crate) async fn party_start(db:&mut SqliteConnection,s:&AppState,a:i64,room:
     for member in &members {
         let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(member).fetch_one(&mut *db).await?;
         let entry:Value=read_json(&raw)?;
+        // A member who exited to the room is not part of a retried run.
+        if entry["CoopRunId"]!=json!(id) {continue;}
         for hero in entry["Heroes"].as_array().unwrap() {heroes.push(hero.clone());owners.push(json!(member));}
     }
     Ok(json!({"BattleServerAddress":s.conquest.address,"BattleServerPort":s.conquest.port,"MasterServerAddress":s.conquest.address,"MasterServerPort":s.conquest.port,
@@ -465,6 +469,11 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
             if honor::drafting(&run) {reply["Result"]=json!("Fail");}
             else {s.conquest.send_worker("WorkerResume",json!({"RunId":id})).await?;}
         }
+        "BattleMessageReq" if body["Message"].as_str().is_some_and(|v|v.starts_with(retry::PREFIX)) => {
+            // Party Retry votes share the native battle message transport.
+            let text=body["Message"].as_str().unwrap_or_default().to_owned();
+            if text.len()>64 || !retry::message(s,&mut run,a,&text).await? {reply["Result"]=json!("Fail");}
+        }
         "BattleMessageReq" => {
             // Arena emotes are presentation messages, not combat commands. The
             // native client displays its own emote from the notification too.
@@ -591,6 +600,7 @@ async fn depart_player(s:&AppState,run:&mut Run,a:i64)->Result<()> {
         return arena::depart(s,run,a).await;
     }
     if run.result.is_none() && !run.departed.contains(&a) {
+        let who=retry::nick(run,a);retry::cancel_vote(s,run,"Left",&who);
         // The existing native worker hands this player's heroes to AI.
         if run.prepared {s.conquest.send_worker("WorkerWithdraw",json!({"RunId":run.id,"AccountId":a})).await?;}
         run.departed.insert(a);
@@ -655,6 +665,7 @@ async fn worker_packet(s:&AppState,worker:&str,name:&str,body:Value)->Result<()>
         if run.payload["ArenaMatch"] == true {
             return arena::finish(s,&mut run,&body,None).await;
         }
+        retry::cancel_vote(s,&mut run,"Ended","");
         #[cfg(test)]
         if let Some(path)=s.tables.arena_guild.rules["NativeConquestCapturePath"].as_str() {std::fs::write(path,body.to_string()).unwrap();}
         settle(s,&run,&body).await?;

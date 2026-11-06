@@ -161,6 +161,19 @@ public sealed partial class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="preview-shadow-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("preview-shadow-"))
+                    throw new InvalidOperationException("Preview shadow fixture requires isolated Login and preview-shadow profile");
+                var probe=System.Reflection.Assembly.Load("SprkFreeCamera").GetType("SprkFreeCamera");
+                reply=Snapshot(cmd.id);reply.materials.Add((string)probe.GetMethod("ProbePreviewShadows").Invoke(null,null));Write(reply);return;
+            }
+            if(cmd.action=="line-pet-index-probe" || cmd.action=="line-pet-currency-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("line-pets-"))
+                    throw new InvalidOperationException("LINE pet fixture requires isolated Login and line-pets profile");
+                reply=Snapshot(cmd.id);reply.materials.Add(cmd.action=="line-pet-currency-probe" ? ProbeLinePetCurrency() : ProbeLinePetIndex());Write(reply);return;
+            }
             if(cmd.action=="skill-formula-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("skill-formula-"))
@@ -186,11 +199,26 @@ public sealed partial class SprkAutomation : MonoBehaviour
                 var report=(string)probe.GetMethod("Run").Invoke(null,null);
                 reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
             }
+            if(cmd.action=="accessories-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("accessories-"))
+                    throw new InvalidOperationException("Accessory fixture requires isolated Login and accessories profile");
+                var probe=System.Reflection.Assembly.Load("SprkAccessories").GetType("SprkAccessoriesProbe");
+                reply=Snapshot(cmd.id);reply.materials.Add((string)probe.GetMethod("Run").Invoke(null,null));Write(reply);return;
+            }
             if(cmd.action=="inn-presentation-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("inn-presentation-"))
                     throw new InvalidOperationException("Inn presentation fixture requires isolated Login and inn-presentation profile");
                 reply=Snapshot(cmd.id);reply.materials.Add(ProbeInnPresentation());Write(reply);return;
+            }
+            if(cmd.action=="ticket-search-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("ticket-search-"))
+                    throw new InvalidOperationException("Ticket search fixture requires isolated Login and ticket-search profile");
+                var probe=System.Reflection.Assembly.Load("SprkTicketSearch").GetType("SprkTicketSearchProbe");
+                var report=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(report);Write(reply);return;
             }
             if(cmd.action=="hero-rune-filter-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
@@ -1046,10 +1074,27 @@ public sealed partial class SprkAutomation : MonoBehaviour
                     {"nativeUpdater",NShader.ShaderVariableUpdater.isValidInstance},
                     {"shaderLOD",Shader.globalMaximumLOD},{"reversedZ",SystemInfo.usesReversedZBuffer},
                     {"graphics",SystemInfo.graphicsDeviceType.ToString()}});
-                foreach(Camera camera in UnityEngine.Object.FindObjectsOfType<Camera>())
+                foreach(Camera camera in UnityEngine.Object.FindObjectsOfType<Camera>()) {
+                    var target=camera.targetTexture;
+                    var layer=camera.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessLayer>();
+                    var volume=camera.GetComponent<UnityEngine.Rendering.PostProcessing.PostProcessVolume>();
                     reply.materials.Add(new Dictionary<string,object>{{"kind","camera"},{"path",Hierarchy(camera.transform)},
                         {"mask",camera.cullingMask},{"near",camera.nearClipPlane},{"far",camera.farClipPlane},
-                        {"depth",camera.depth},{"orthographic",camera.orthographic},{"position",camera.transform.position.ToString()}});
+                        {"depth",camera.depth},{"orthographic",camera.orthographic},{"position",camera.transform.position.ToString()},
+                        {"enabled",camera.isActiveAndEnabled},{"clear",camera.clearFlags.ToString()},
+                        {"target",target==null?"screen":target.name+" "+target.width+"x"+target.height+" aa"+target.antiAliasing},
+                        {"postLayer",layer==null?"none":(layer.enabled?layer.antialiasingMode.ToString():"disabled")},
+                        {"postVolume",volume==null?"none":(volume.enabled?(volume.profile==null?"null":volume.profile.name):"disabled")},
+                        {"depthTexture",camera.depthTextureMode.ToString()}});
+                }
+                {
+                    var timings=new FrameTiming[30];FrameTimingManager.CaptureFrameTimings();
+                    uint count=FrameTimingManager.GetLatestTimings((uint)timings.Length,timings);double gpu=0,cpu=0;
+                    for(int i=0;i<count;i++){gpu+=timings[i].gpuFrameTime;cpu+=timings[i].cpuFrameTime;}
+                    reply.materials.Add(new Dictionary<string,object>{{"kind","frame"},{"screen",Screen.width+"x"+Screen.height},
+                        {"targetFps",Application.targetFrameRate},{"vSync",QualitySettings.vSyncCount},{"samples",count},
+                        {"gpuMs",count==0?0:gpu/count},{"cpuMs",count==0?0:cpu/count},{"deltaMs",Time.unscaledDeltaTime*1000}});
+                }
                 foreach(Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>()) {
                     if(!renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                     foreach(Material material in renderer.sharedMaterials) {

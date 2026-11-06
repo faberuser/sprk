@@ -20,11 +20,13 @@ pub(crate) mod schema;
 pub(crate) mod play_record;
 mod state;
 mod quest_scopes;
-mod mission_history;
+pub(crate) mod mission_history;
 pub(crate) mod mission_history_sync;
 pub(crate) use mission_history::worker_defeats;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod profile_tests;
 #[cfg(test)]
 mod mission_rule_tests;
 #[cfg(test)]
@@ -398,9 +400,10 @@ async fn execute(
                 let mut step = last_step.checked_add(1).filter(|_| last_step >= 0)
                     .ok_or_else(|| rule("InvalidStep"))?;
                 let mut first = true;
-                // Hero achievements (Type 4, e.g. every 10 hero levels) claim
-                // every completed step at once; the first step keeps the
-                // native errors and later steps stop at the first unmet one.
+                // General (Type 1, Normal Achievements) and Hero (Type 4, e.g.
+                // every 10 hero levels) achievements claim every completed
+                // step at once; the first step keeps the native errors and
+                // later steps stop at the first unmet one.
                 loop {
                 let row = match table
                     .achievements
@@ -440,7 +443,7 @@ async fn execute(
                 stamina.extend(
                     achievement_reward(db, state, account, row, &mut rewards, &mut booster).await?,
                 );
-                if n(row, "Type") != 4 { break; }
+                if !matches!(n(row, "Type"), 1 | 4) { break; }
                 first = false;
                 step += 1;
                 }

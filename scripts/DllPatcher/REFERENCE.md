@@ -668,6 +668,16 @@ for an isolated Unity gzip/native-state proof. See
 [network responsiveness](../../docs/network-performance.md) for cache invalidation,
 trace fields, measurement commands and compatibility behavior.
 
+The same helper replaces the serial native request queue. Requests in its
+`parallelReads` list (each must be a server `observation()` path; a Rust test
+enforces this) run up to four at a time; every other request is exclusive and
+FIFO, starts only when nothing is in flight and is never overtaken, and the
+next request starts in the frame its predecessor ends. `query_market_url` is
+answered locally with the server's generic success (store popups are replaced
+by the launcher), duplicate queued/in-flight `mail/check_new_mail` calls are
+skipped, and the unimplemented background-download `client_log/add_log`
+telemetry is removed.
+
 ### Solo battle Retry
 
 `--solo-retry-only` installs pause-menu and defeat Retry for solo story,
@@ -684,3 +694,42 @@ selection. Installation also checks idempotence and the serialized DLL.
 `BuildRelease.cs` installs and verifies this patch before RaidCoopLimits loads
 the game assembly for native table verification (which locks the file on Windows).
 The companion DLL is included by the normal complete signed client snapshot.
+
+### Party Exit and vote Retry
+
+`--party-retry-only` adds the native party exit button to cooperative room
+battles: story party dungeons, Dragon Raid Normal/Hard, Challenge Raid, Field
+Raid, Technomagic and ARCDIM/ARCDIM X (BattleType 1, 10, 12, 29, 30, 33,
+40–42, 45, 46, multiplayer only). Guild Conquest, Conquest, arenas, World Boss
+and Eclipse keep the native menus. The button opens the native battle popup
+with Retry and Exit. After a native battle confirmation, Exit withdraws from
+the battle (`WithdrawBattleReq`, so AI keeps playing the player's heroes) and
+returns to the lobby without leaving the party. The room return state recorded
+at battle start reopens the raid or party room, as after a finished battle.
+
+Retry sends `sprk-retry:propose` through the native `BattleMessageReq`. The
+server (`cooperative_retry.rs`) broadcasts a `BattleMessageNot` of type
+`SprkRetry`, and every other player sees a Yes/No battle popup with the native
+countdown (15 s). The vote popup cannot be dismissed by Back
+(`MessagePopup3Button.OnClickClose` is guarded for that popup only) or by an
+outside tap. The battle prefab's full-screen `Outside_ClickClose` layer (dim,
+collider and close trigger) is hidden while the vote is open, so outside taps
+reach the battle UI and players can keep using skills. The layer is shown
+again when the popup closes. The countdown still closes it. Players who exited to the party room are not asked
+and stay in the room while the others restart. Retry is unavailable once the
+room master has exited. One No, a timeout, a departure or the battle ending cancels
+the vote, and all players get a `CenterMessage` naming who declined or left.
+When everyone accepts, the server releases the current run as a defeat
+(victory-only entry holds are returned) and replays the master's original
+start in the same transaction. A failed restart (for example stamina) rolls
+back and the current battle continues. Each client then follows the native
+`PartyManager` `PartyBattleStart` path into the new run.
+
+`SprkPartyRetry` hooks every `CampaignContext.GetBattleMenuType` return. It
+also prefixes `BattleManagement`'s party exit listener,
+`OnlineBattleCallback.OnPacket(BattleMessageNot)` and
+`MessagePopup3Button.OnClickClose`, each with a native fallback.
+`--verify-party-retry` checks the hooks and the private native members used by
+reflection. `--self-test-party-retry` tests mode eligibility, competitive
+exclusions, the wire format and notice text. Installation also checks
+idempotence and the serialized DLL.

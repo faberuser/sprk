@@ -7,6 +7,40 @@ namespace DllPatcher;
 
 partial class Program
 {
+    static void TestStoryAutoSkills()
+    {
+        string Read(string name) {
+            using var input=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name+".cs.txt")!;
+            using var reader=new StreamReader(input);return reader.ReadToEnd();
+        }
+        var source=CSharpSyntaxTree.ParseText(Read("StoryAuto")).GetRoot();
+        var methods=source.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+            .Where(m=>m.Identifier.Text is "AutoSkills" or "ScriptedAutoSkills");
+        var shipping="using NVespa; using NGame2.NUI.NManager.NBattle; using NGame2.NUI.NWindow.NBattle; public static partial class SprkStoryAuto {"+string.Join("\n",methods)+"}";
+        var refs=((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(p=>MetadataReference.CreateFromFile(p));
+        var compilation=CSharpCompilation.Create("StoryAutoSkillsTests",new[]{CSharpSyntaxTree.ParseText(shipping),CSharpSyntaxTree.ParseText(Read("StoryAutoSkillsTests"))},refs,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        using var bytes=new MemoryStream();var result=compilation.Emit(bytes);
+        if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
+        System.Reflection.Assembly.Load(bytes.ToArray()).GetType("SprkStoryAuto")!.GetMethod("RunTests")!.Invoke(null,null);
+    }
+
+    static void VerifyStoryAutoSkills(ModuleDefinition helper)
+    {
+        var worker=helper.GetType("SprkStoryAuto");
+        var auto=worker.Methods.Single(m=>m.Name=="AutoSkills").Body.Instructions.Where(i=>i.OpCode!=OpCodes.Nop).ToArray();
+        if(auto.Length!=2 || auto[0].OpCode!=OpCodes.Ldarg_0 || auto[1].OpCode!=OpCodes.Ret)
+            throw new InvalidOperationException("Continuous Story must not override the native skill AUTO selection.");
+        var script=worker.Methods.Single(m=>m.Name=="PlayScriptedParty").Body.Instructions;
+        if(script[0].Operand is not MethodReference {Name:"ScriptedAutoSkills"} || script[1].OpCode.FlowControl!=FlowControl.Cond_Branch || script[2].OpCode!=OpCodes.Ret)
+            throw new InvalidOperationException("Scripted skill clicks must be gated by the current AUTO button.");
+        var enabled=worker.Methods.Single(m=>m.Name=="ScriptedAutoSkills");
+        foreach(var type in new[]{"SystemButtonAuto","SystemButtonAutoFastContinue","SystemButtonAutoSimple"})
+            if(enabled.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name==type && m.Name=="get_SkillReserveAuto")!=1)
+                throw new InvalidOperationException("Missing native scripted AUTO selection: "+type);
+        Console.WriteLine("Verified native AUTO selection and scripted skill guards for all three battle controls.");
+    }
+
     static void TestStoryAutoRecovery()
     {
         string Read(string name) {
@@ -50,6 +84,7 @@ partial class Program
         using var assembly = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "Assembly-CSharp.dll"));
         VerifyStoryAuto(assembly.MainModule);
         using var helper = AssemblyDefinition.ReadAssembly(Path.Combine(managed, "SprkStoryAuto.dll"));
+        VerifyStoryAutoSkills(helper.MainModule);
         var tick = helper.MainModule.GetType("SprkStoryAuto").Methods.Single(m => m.Name == "Tick");
         if (tick.Body.Instructions[0].Operand is not MethodReference { Name: "FinishPendingStop" })
             throw new InvalidOperationException("Pending Stop cleanup must run before the active-mode and clock guards.");
@@ -65,6 +100,7 @@ partial class Program
 
     static void InstallStoryAuto(string clientRoot, bool stageOnly, string? sourcePath = null)
     {
+        TestStoryAutoSkills();
         var managed = Path.GetFullPath(Path.Combine(clientRoot, "King's Raid_Data", "Managed"));
         var dll = Path.Combine(managed, "Assembly-CSharp.dll");
         var helperPath = Path.Combine(managed, "SprkStoryAuto.dll");
@@ -81,6 +117,7 @@ partial class Program
         if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics));
         compiled.Position = 0;
         using var helper = AssemblyDefinition.ReadAssembly(compiled);
+        VerifyStoryAutoSkills(helper.MainModule);
         using var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(managed);
         using var assembly = AssemblyDefinition.ReadAssembly(sourcePath ?? dll, new ReaderParameters { AssemblyResolver = resolver });
@@ -268,6 +305,12 @@ partial class Program
 
     static void VerifyStoryAuto(ModuleDefinition module)
     {
+        foreach(var type in new[]{"SystemButtonAuto","SystemButtonAutoFastContinue","SystemButtonAutoSimple"}) {
+            var getter=module.GetType("NGame2.NUI.NWindow.NBattle."+type).Methods.Single(m=>m.Name=="get_SkillReserveAuto");
+            if(getter.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkStoryAuto" && m.Name=="AutoSkills")!=1 ||
+               !getter.Body.Instructions.Any(i=>i.Operand is FieldReference f && f.Name=="_autoType"))
+                throw new InvalidOperationException("Missing native AUTO button state or duplicate skill hook: "+type);
+        }
         foreach (var name in new[] { "ShowChoice", "ChooseForParty", "BeforeStart", "TrackEntryOption", "EventRaised", "EntryChecked", "CanNext", "Advance", "LowerDifficultyCleared", "NextDifficulty", "Tick", "ContinueType", "SaveStoryPosition", "PrepareStoryRequest", "StoryProvider" }) {
             var calls = module.GetTypes().SelectMany(t => t.Methods).Where(m => m.HasBody)
                 .SelectMany(m => m.Body.Instructions).Count(i => i.Operand is MethodReference r && r.DeclaringType.Name == "SprkStoryAuto" && r.Name == name);

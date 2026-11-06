@@ -4147,3 +4147,31 @@ async fn central_neighborhood_exception_does_not_bypass_other_chapter_difficulty
     dungeon["NoDifficulty"]=json!(false);
     assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"InvalidDiff");
 }
+
+#[tokio::test]
+async fn campaign_hero_exp_result_matches_client_display_contract() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    // Three 3% costume EXP bonuses; level 1 with 10 local EXP levels up on 1-1.
+    for costume in [6808, 6810, 4108] {
+        sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES(?,?)").bind(a).bind(costume).execute(&s.db).await.unwrap();
+    }
+    sqlx::query("UPDATE heroes SET level=1,exp=10 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    let (_, boost) = super::bonuses::calculate(&mut s.db.acquire().await.unwrap(), &s, a, 1).await.unwrap();
+    assert_eq!(boost, 9);
+    assert_eq!(call(&s, &u, "campaign/begin_campaign", ENTRY).await["Result"], "Success");
+    let result = call(&s, &u, "campaign/end_campaign", END).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    let r = &result["HeroExpResults"][0];
+    let d = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex", 1), ("DungeonIndex", 1)]).unwrap();
+    let base = campaign::field(d, "CreatureExp", 1);
+    let gained = base + base * boost / 100;
+    assert!(gained > base, "Bonus must be visible in this scenario");
+    assert!(n(r, "NewLevel") > n(r, "OldLevel"), "Scenario must cross a level: {r}");
+    assert_eq!(n(r, "AddBoosterValue"), gained - base);
+    // HeroInRewardComponent.InitHeroLevelExp: NewValue-AddValue is the old local EXP.
+    assert_eq!(n(r, "NewValue") - n(r, "AddValue"), 10);
+    let levels = &s.tables.tutorials.support.hero_levels;
+    let total = |level: i64, local: i64| (1..level).map(|lv| levels.iter().find(|l| l.level as i64 == lv).unwrap().local_exp).sum::<i64>() + local;
+    assert_eq!(total(n(r, "NewLevel"), n(r, "NewValue")) - total(n(r, "OldLevel"), n(r, "NewValue") - n(r, "AddValue")), gained);
+}

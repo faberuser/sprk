@@ -81,3 +81,68 @@ async fn conquest_invalid_requests_do_not_spend_or_score() {
 fn conquest_calendar_matches_archived_weekly_boundaries() {
     assert_eq!(super::conquest::calendar_for_test(1767628800),vec![(10000,"Apply"),(10000,"ApplyEnded"),(10000,"Battle"),(10000,"Ended"),(10001,"Apply")]);
 }
+// The first season week is 41 weeks after the calendar epoch (session 10041).
+const SEASON_ONE:i64=41*7*86400;
+#[tokio::test]
+async fn conquest_seasons_group_eight_weeks_and_rotate_archived_bans() {
+    let mut s=setup().await;clock(&mut s,SEASON_ONE+2*7*86400+3600);
+    let u=login(&s,"conquest-seasons").await;create(&s,&u,"CqSeason",1).await;
+    // The third season week is Season 1, Round 3.
+    let info=call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
+    assert_eq!(info["GuildSuppressBanInfo"],json!({"SeasonIndex":1,"SessionIndex":10043}));
+    assert_eq!(info["GuildSuppressSeasonInfo"]["SeasonIndex"],1);
+    // Season 0 (weeks before the first season) is also sent as the previous week's season.
+    let definitions:Vec<Value>=info["SPRKConquestSessionDefinitions"].as_array().unwrap().iter()
+        .filter(|v|v["SeasonIndex"]==1).cloned().collect();
+    // The ban list shows one row per week of the season, each with its own bans.
+    assert_eq!(definitions.len(),8);
+    let mut bans=BTreeSet::new();
+    for (week,definition) in definitions.iter().enumerate() {
+        assert_eq!(definition["SessionIndex"],10041+week as i64);assert_eq!(definition["SeasonIndex"],1);
+        assert_eq!(definition["ViewSession"],week as i64+1);assert_eq!(definition["PortalViewSession"],week as i64+1);
+        for dungeon in definition["SuppressDungeonIndex"].as_array().unwrap() {
+            let dungeon=s.tables.arena_guild.find("GuildSuppressDungeon",&[("Index",dungeon.as_i64().unwrap())]).unwrap();
+            assert!(s.tables.arena_guild.find("BanRule",&[("Index",n(dungeon,"BanIndex"))]).is_some());
+            bans.insert(n(dungeon,"BanIndex"));
+        }
+    }
+    // Archived season 3 had seven weeks; season 4 opened with week one's bans again.
+    assert_eq!(bans.len(),21);
+    // Round 1 replays the first archived three-boss week.
+    let rotation=s.tables.arena_guild.rows("GuildSuppressRotation").to_vec();
+    assert_eq!(rotation.len(),247);assert_eq!(rotation[0]["SourceSeasonIndex"],3);
+    assert_eq!(definitions[0]["SuppressDungeonIndex"],rotation[0]["SuppressDungeonIndex"]);
+    assert_eq!(definitions[7]["GlobalBattleEnd"],json!(time(1767628800+SEASON_ONE+8*7*86400-3600-1)));
+    // Week nine starts season 2; the previous season stays available for history.
+    clock(&mut s,SEASON_ONE+8*7*86400+3600);
+    let next=call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
+    assert_eq!(next["GuildSuppressBanInfo"],json!({"SeasonIndex":2,"SessionIndex":10049}));
+    let sessions:Vec<i64>=next["SPRKConquestSessionDefinitions"].as_array().unwrap().iter().map(|v|n(v,"SessionIndex")).collect();
+    assert_eq!(sessions,(10041..10057).collect::<Vec<_>>());
+    // The archived rotation repeats after its last week.
+    clock(&mut s,SEASON_ONE+247*7*86400+3600);
+    let wrapped=call(&s,&u,"guild_suppress/get_guild_suppress_session_info","").await;
+    let week=wrapped["SPRKConquestSessionDefinitions"].as_array().unwrap().iter().find(|v|v["SessionIndex"]==10041+247).unwrap().clone();
+    assert_eq!(week["SuppressDungeonIndex"],definitions[0]["SuppressDungeonIndex"]);
+}
+#[tokio::test]
+async fn conquest_entry_enforces_the_current_weeks_bans() {
+    let mut s=setup().await;
+    let code=s.tables.battle.find("BattleHero",&[("Index",1)]).unwrap()["CodeName"].as_str().unwrap().to_string();
+    let rotation=s.tables.arena_guild.rows("GuildSuppressRotation").to_vec();
+    let banned=|week:usize,level:usize| {
+        let dungeon=s.tables.arena_guild.find("GuildSuppressDungeon",&[("Index",rotation[week]["SuppressDungeonIndex"][level-1].as_i64().unwrap())]).unwrap();
+        let rule=s.tables.arena_guild.find("BanRule",&[("Index",n(dungeon,"BanIndex"))]).unwrap();
+        rule["BanValue2"].as_str().unwrap().split(',').any(|v|v==code)
+    };
+    let (week,level)=(0..rotation.len()).flat_map(|w|(1..=3).map(move|l|(w,l))).find(|&(w,l)|banned(w,l)).expect("Hero 1 is banned in some archived week");
+    let allowed=(0..rotation.len()).find(|&w|w!=week && !banned(w,level)).unwrap();
+    let u=login(&s,"conquest-bans").await;create(&s,&u,"CqBans",1).await;
+    for (target,expected) in [(week,false),(allowed,true)] {
+        clock(&mut s,SEASON_ONE+target as i64*7*86400+3600);
+        assert_eq!(call(&s,&u,"guild_suppress/apply_guild_suppress","").await["Result"],"Success");
+        clock(&mut s,SEASON_ONE+target as i64*7*86400+50*3600);
+        let start=battle(&s,&u,"campaign/begin_campaign",&begin(100+level as i64)).await;
+        assert_eq!(start["Result"]=="Success",expected,"week {target}, boss {level}: {start}");
+    }
+}

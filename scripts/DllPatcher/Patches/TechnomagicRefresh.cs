@@ -50,6 +50,7 @@ partial class Program {
         body.Emit(OpCodes.Ldloc_0);body.Emit(OpCodes.Callvirt,window.Methods.Single(m=>m.Name=="Refresh"));
         body.Append(result);body.Emit(OpCodes.Ldarg_1);body.Emit(OpCodes.Ldarg_2);
         body.Emit(OpCodes.Call,management.Methods.Single(m=>m.Name=="OpenTierUpgradeResult"));body.Emit(OpCodes.Ret);
+        PatchTechnomagicHeroRefresh(module);
         VerifyTechnomagicRefresh(module);
     }
 
@@ -72,6 +73,7 @@ partial class Program {
            !refresh.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="Refresh" && m.DeclaringType.Name=="ValanceEnhanceBase"))
             throw new InvalidOperationException("Native TM target/list refresh missing");
         VerifyArenaResultStack(callback);VerifyArenaResultStack(listener);
+        VerifyTechnomagicHeroRefresh(module);
         Console.WriteLine("Verified TM tier account updates before UI notification, open-window icon rebuild, stale-target clearing and native error/result paths.");
     }
 
@@ -85,6 +87,7 @@ partial class Program {
         PatchTechnomagicRefresh(game.MainModule);
         if(count!=TechnomagicTierCallback(game.MainModule).Body.Instructions.Count)throw new InvalidOperationException("TM refresh patch is not idempotent");
         TestTechnomagicTierCallback(game,managed);
+        TestTechnomagicHeroRebuild(game,managed);
         var staged=dll+".technomagic-refresh-staged";game.Write(staged);
         using(var check=AssemblyDefinition.ReadAssembly(staged))VerifyTechnomagicRefresh(check.MainModule);
         if(stageOnly)return;
@@ -125,6 +128,9 @@ partial class Program {
                 "UserEquipPresetStorageManager"=>"Presets;",_=>"Error;"};
             Sink(method,tag);
         }
+        // The Hero Info refresh is tested separately below; here assert that it
+        // happens after replacement/preset application and before notification.
+        Sink(module.GetType("NGame2.NUI.NManager.ValanceWebManager").Methods.Single(m=>m.Name=="SprkRefreshTechnomagicHero"),"HeroUI;");
         using var output=new MemoryStream();fixture.Write(output);
         ResolveEventHandler resolve=(_,e)=>{var path=Path.Combine(managed,new AssemblyName(e.Name).Name+".dll");return File.Exists(path)?Assembly.LoadFrom(path):null;};
         AppDomain.CurrentDomain.AssemblyResolve+=resolve;
@@ -150,7 +156,7 @@ partial class Program {
             var proxy=DispatchProxy.Create(assembly.GetType("NGame2.NUI.NManager.ValanceWebManager+IListener")!,typeof(TechnomagicTierProbe));
             int notifications=0;
             ((TechnomagicTierProbe)proxy).Notify=args=>{
-                if((string?)log.GetValue(null)!="Currency;Items;Remove;Equip;Presets;" || args==null || !ReferenceEquals(args[0],old) || !ReferenceEquals(args[1],updated))
+                if((string?)log.GetValue(null)!="Currency;Items;Remove;Equip;Presets;HeroUI;" || args==null || !ReferenceEquals(args[0],old) || !ReferenceEquals(args[1],updated))
                     throw new InvalidOperationException("TM UI observed stale account state or incorrect before/after gear");
                 notifications++;
             };

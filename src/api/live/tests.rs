@@ -477,6 +477,90 @@ async fn daily_single_summon_resets_at_midnight_for_every_class_and_shares_one_a
     }
 }
 #[tokio::test]
+async fn line_pet_summons_are_permanent_and_charge_double_normal_rubies() {
+    let (s, u) = setup().await; let a = account(&u);
+    sqlx::query("UPDATE user_info SET pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for id in [26, 27, 29, 30] {
+        let data = s.tables.live.find("NewEquipGacha", &[("Index", id)]).unwrap();
+        let normal = s.tables.live.find("NewEquipGacha", &[("Index", if id==26 || id==27 {25} else {28})]).unwrap();
+        let expected = if id==26 || id==27 {5000} else {500};
+        assert_eq!(n(data,"OpenGem"), expected);
+        assert_eq!(n(data,"OpenGem"), n(normal,"OpenGem")*2);
+        assert_eq!(data["TicketOnly"], false);
+        assert_eq!(n(data,"Durational"), 0);
+        assert_eq!(data["BeginTime"], ""); assert_eq!(data["EndTime"], "");
+        let before = balance(&s,&u,"gem").await;
+        let result = call(&s,&u,"pet/exec_pet_gacha",&format!("GachaIndex={id}")).await;
+        ok(&result);
+        assert_eq!(balance(&s,&u,"gem").await, before-expected);
+        assert_eq!(result["GachaItemResults"].as_array().unwrap().len(), if id==26 || id==27 {11} else {1});
+    }
+    sqlx::query("UPDATE user_info SET gem=499 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    for id in [26,27,29,30] {
+        let before = snapshot(&s,a).await.unwrap();
+        let counter = get(&mut s.db.acquire().await.unwrap(),a,"summon",id).await.unwrap();
+        let result = call(&s,&u,"pet/exec_pet_gacha",&format!("GachaIndex={id}")).await;
+        assert_ne!(result["Result"], "Success");
+        assert_eq!(balance(&s,&u,"gem").await,499);
+        assert_eq!(get(&mut s.db.acquire().await.unwrap(),a,"summon",id).await.unwrap(),counter);
+        assert_eq!(snapshot(&s,a).await.unwrap()["PetInfos"],before["PetInfos"]);
+    }
+    assert_eq!(n(s.tables.live.find("NewEquipGacha", &[("Index",25)]).unwrap(),"OpenGem"),2500);
+    assert_eq!(n(s.tables.live.find("NewEquipGacha", &[("Index",28)]).unwrap(),"OpenGem"),250);
+}
+
+#[tokio::test]
+async fn line_pet_summons_use_archived_sets_and_grant_matching_line_pity() {
+    let (s, u) = setup().await; let a = account(&u);
+    fn leaves(s: &AppState, code: &str, depth: usize) -> std::collections::BTreeSet<i32> {
+        assert!(depth < 20, "cyclic summon groups");
+        if let Some(group) = s.tables.item_groups.entries.get(code) {
+            group.sub_data_list.iter().filter(|r| r.rate > 0)
+                .flat_map(|r| leaves(s, &r.item_code, depth + 1)).collect()
+        } else { s.tables.get_item_index(code).into_iter().collect() }
+    }
+    let all_line: std::collections::BTreeSet<_> = (7300010..=7300017).chain(7400010..=7400017).collect();
+    for (id, ticket, pool, stage, first) in [(27, 200021, "GACHA_PET_2_GROUP", "1ST", 10), (30, 200019, "GACHA_PET_2_GROUP", "1ST", 10),
+        (26, 200022, "GACHA_PET_3_GROUP", "2ND", 14), (29, 200020, "GACHA_PET_3_GROUP", "2ND", 14)] {
+        let cfg = &s.tables.live.rules["Summons"][id.to_string()];
+        let expected: std::collections::BTreeSet<_> = (7300000 + first..=7300000 + first + 3)
+            .chain(7400000 + first..=7400000 + first + 3).collect();
+        let expected_legend: std::collections::BTreeSet<_> = (7400000 + first..=7400000 + first + 3).collect();
+        assert_eq!(cfg["Group"], pool); assert_eq!(cfg["BonusGroup"], pool);
+        assert_eq!(leaves(&s, cfg["Group"].as_str().unwrap(), 0).intersection(&all_line).copied().collect::<std::collections::BTreeSet<_>>(), expected);
+        assert_eq!(leaves(&s, cfg["BonusGroup"].as_str().unwrap(), 0).intersection(&all_line).copied().collect::<std::collections::BTreeSet<_>>(), expected);
+        assert_eq!(cfg["PityGroup"], format!("PET_LINEFRIEND_{stage}_RANDOM_GRADE4_GROUP"));
+        assert_eq!(leaves(&s, cfg["PityGroup"].as_str().unwrap(), 0), expected_legend);
+        let root = &s.tables.item_groups.entries[pool];
+        assert_eq!(root.total_rate, 100000);
+        assert_eq!(root.sub_data_list.iter().find(|r| r.item_code == cfg["PityGroup"].as_str().unwrap()).unwrap().rate, 2500);
+        // Exercise the actual ticket endpoint at its existing 100-draw pity.
+        seed(&s, &u, ticket, 1).await;
+        put(&mut s.db.acquire().await.unwrap(), a, "summon", id, &json!({"GachaCount":99,"RewardGauge":0,"Day":day()})).await.unwrap();
+        let result = call(&s, &u, "pet/exec_pet_gacha", &format!("GachaIndex={id}&ItemIndex={ticket}")).await;
+        ok(&result);
+        let reward = &result["GachaItemResults"][0];
+        if !reward["PetItemResult"].is_null() {
+            assert!(expected_legend.contains(&(n(&reward["PetItemResult"], "PetIndex") as i32)));
+        } else {
+            // Other banners from this set may already have granted this pet.
+            let index = n(&reward["ItemResult"], "ItemIndex") as i32;
+            let soul_indices: std::collections::BTreeSet<_> = expected_legend.iter().map(|i| {
+                let row = s.tables.live.find("PetAwaken", &[("PetIndex", *i as i64), ("Star", 1)]).unwrap();
+                s.tables.get_item_index(row["ItemCode1"].as_str().unwrap()).unwrap()
+            }).collect();
+            assert!(soul_indices.contains(&index), "Wrong duplicate LINE soul reward: {reward}");
+        }
+        assert_eq!(result["GachaItemResults"].as_array().unwrap().len(), if id==26 || id==27 {11} else {1});
+    }
+    // Ordinary banners retain their ordinary pools and cannot roll LINE pets.
+    for id in [25, 28] {
+        let cfg = &s.tables.live.rules["Summons"][id.to_string()];
+        assert!(leaves(&s, cfg["Group"].as_str().unwrap(), 0).is_disjoint(&all_line));
+    }
+}
+
+#[tokio::test]
 async fn ceiling_is_claimed_once_and_pet_summons_create_owned_pets() {
     let (mut s, u) = setup().await;
     Arc::make_mut(&mut Arc::make_mut(&mut s.tables).live).rules["Summons"]["28"]["CeilingCount"] =

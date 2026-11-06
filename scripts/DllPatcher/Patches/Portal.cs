@@ -10,89 +10,7 @@ partial class Program
     static void PatchPortal(ModuleDefinition module)
     {
         bool nativeCombatTables = NativeCombatTables.ValidateInstalled(Path.GetDirectoryName(module.FileName)!);
-        using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Portal.cs.txt")!;
-        using var reader = new StreamReader(stream);
-        using var raidStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.ReconstructedRaids.json")!;
-        using var raidReader = new StreamReader(raidStream);
-        var sourceText = reader.ReadToEnd().Replace("\"__RECONSTRUCTED_RAIDS__\"", System.Text.Json.JsonSerializer.Serialize(raidReader.ReadToEnd()));
-        using var punishmentSkillStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredCombat.json")!;
-        using var punishmentSkillReader = new StreamReader(punishmentSkillStream);
-        sourceText = sourceText.Replace("\"__RESTORED_PUNISHMENT_SKILLS__\"", System.Text.Json.JsonSerializer.Serialize(punishmentSkillReader.ReadToEnd()));
-        using var orvelStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredOrvelMenus.json")!;
-        using var orvelReader = new StreamReader(orvelStream);
-        sourceText = sourceText.Replace("\"__RESTORED_ORVEL_MENUS__\"", System.Text.Json.JsonSerializer.Serialize(orvelReader.ReadToEnd()));
-        using var guildStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildMenus.json")!;
-        using var guildReader = new StreamReader(guildStream);
-        sourceText = sourceText.Replace("\"__RESTORED_GUILD_MENUS__\"", System.Text.Json.JsonSerializer.Serialize(guildReader.ReadToEnd()));
-        using var contentStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildContent.json")!;
-        using var contentReader = new StreamReader(contentStream);
-        sourceText = sourceText.Replace("\"__RESTORED_GUILD_CONTENT__\"", System.Text.Json.JsonSerializer.Serialize(contentReader.ReadToEnd()));
-        using var conquestStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildConquest.json")!;
-        using var conquestReader = new StreamReader(conquestStream);
-        sourceText = sourceText.Replace("\"__RESTORED_GUILD_CONQUEST__\"", System.Text.Json.JsonSerializer.Serialize(conquestReader.ReadToEnd()));
-        var references = Directory.GetFiles(Path.GetDirectoryName(module.FileName)!, "*.dll")
-            .Select(path => MetadataReference.CreateFromFile(path));
-        var compilation = CSharpCompilation.Create("PortalRestore",
-            new[] { CSharpSyntaxTree.ParseText(sourceText) }, references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
-        using var compiled = new MemoryStream();
-        var result = compilation.Emit(compiled);
-        if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics));
-        compiled.Position = 0;
-        using var sourceAssembly = AssemblyDefinition.ReadAssembly(compiled);
-        var sourceType = sourceAssembly.MainModule.Types.Single(t => t.Name == "RestoredPortal");
-        var targetType = module.Types.SingleOrDefault(t => t.Name == sourceType.Name);
-        if (targetType == null)
-        {
-            targetType = new TypeDefinition("", sourceType.Name, sourceType.Attributes, module.TypeSystem.Object);
-            module.Types.Add(targetType);
-        }
-        foreach(var field in sourceType.Fields)
-            if(!targetType.Fields.Any(f=>f.Name==field.Name))
-                targetType.Fields.Add(new FieldDefinition(field.Name,field.Attributes,module.ImportReference(field.FieldType)));
-        foreach (var source in sourceType.Methods)
-        {
-            if (targetType.Methods.Any(m => m.Name == source.Name)) continue;
-            var target = new MethodDefinition(source.Name, source.Attributes, module.ImportReference(source.ReturnType));
-            foreach (var parameter in source.Parameters)
-                target.Parameters.Add(new ParameterDefinition(parameter.Name, parameter.Attributes, module.ImportReference(parameter.ParameterType)));
-            targetType.Methods.Add(target);
-        }
-        foreach (var source in sourceType.Methods)
-        {
-            var target = targetType.Methods.Single(m => m.Name == source.Name);
-            var body = new MethodBody(target) { InitLocals = source.Body.InitLocals, MaxStackSize = source.Body.MaxStackSize };
-            target.Body = body;
-            foreach (var variable in source.Body.Variables)
-                body.Variables.Add(new VariableDefinition(module.ImportReference(variable.VariableType)));
-            var instructions = source.Body.Instructions.ToDictionary(i => i, i => Instruction.Create(OpCodes.Nop));
-            foreach (var instruction in source.Body.Instructions)
-            {
-                var copy = instructions[instruction];
-                copy.OpCode = instruction.OpCode;
-                copy.Operand = instruction.Operand switch
-                {
-                    Instruction branch => instructions[branch],
-                    Instruction[] branches => branches.Select(b => instructions[b]).ToArray(),
-                    VariableDefinition variable => body.Variables[variable.Index],
-                    ParameterDefinition parameter => target.Parameters[parameter.Index],
-                    MethodReference method when method.DeclaringType.FullName == sourceType.FullName => targetType.Methods.Single(m => m.Name == method.Name),
-                    MethodReference method => module.ImportReference(method),
-                    FieldReference field when field.DeclaringType.FullName == sourceType.FullName => targetType.Fields.Single(f=>f.Name==field.Name),
-                    FieldReference field => module.ImportReference(field),
-                    TypeReference type => module.ImportReference(type),
-                    var operand => operand
-                };
-                body.Instructions.Add(copy);
-            }
-            foreach (var handler in source.Body.ExceptionHandlers)
-                body.ExceptionHandlers.Add(new ExceptionHandler(handler.HandlerType) {
-                    TryStart = instructions[handler.TryStart], TryEnd = handler.TryEnd == null ? null : instructions[handler.TryEnd],
-                    HandlerStart = instructions[handler.HandlerStart], HandlerEnd = handler.HandlerEnd == null ? null : instructions[handler.HandlerEnd],
-                    CatchType = handler.CatchType == null ? null : module.ImportReference(handler.CatchType),
-                    FilterStart = handler.FilterStart == null ? null : instructions[handler.FilterStart]
-                });
-        }
+        var targetType = InstallRestoredPortalType(module);
         var loginInit=module.Types.Single(t=>t.FullName=="NGame2.NUI.NWindow.LoginBackground").Methods.Single(m=>m.Name=="Init");
         if(!loginInit.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name=="FinishStartupLogo")) {
             var il=loginInit.Body.GetILProcessor();
@@ -901,6 +819,99 @@ partial class Program
         if (nativeCombatTables) NativeCombatTables.Apply(module);
         if (NativeStaticData.ValidateInstalled(Path.GetDirectoryName(module.FileName)!)) NativeStaticData.Apply(module);
         Console.WriteLine("Restored missing Portal categories and shared reconstructed raid definitions.");
+    }
+
+    // Compile Portal.cs.txt and copy RestoredPortal's fields and method bodies into
+    // the game module. Shared by the full patch path and focused helper refreshes.
+    static TypeDefinition InstallRestoredPortalType(ModuleDefinition module, ISet<string>? only = null)
+    {
+        using var stream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.Portal.cs.txt")!;
+        using var reader = new StreamReader(stream);
+        using var raidStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.ReconstructedRaids.json")!;
+        using var raidReader = new StreamReader(raidStream);
+        var sourceText = reader.ReadToEnd().Replace("\"__RECONSTRUCTED_RAIDS__\"", System.Text.Json.JsonSerializer.Serialize(raidReader.ReadToEnd()));
+        using var punishmentSkillStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredCombat.json")!;
+        using var punishmentSkillReader = new StreamReader(punishmentSkillStream);
+        sourceText = sourceText.Replace("\"__RESTORED_PUNISHMENT_SKILLS__\"", System.Text.Json.JsonSerializer.Serialize(punishmentSkillReader.ReadToEnd()));
+        using var orvelStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredOrvelMenus.json")!;
+        using var orvelReader = new StreamReader(orvelStream);
+        sourceText = sourceText.Replace("\"__RESTORED_ORVEL_MENUS__\"", System.Text.Json.JsonSerializer.Serialize(orvelReader.ReadToEnd()));
+        using var guildStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildMenus.json")!;
+        using var guildReader = new StreamReader(guildStream);
+        sourceText = sourceText.Replace("\"__RESTORED_GUILD_MENUS__\"", System.Text.Json.JsonSerializer.Serialize(guildReader.ReadToEnd()));
+        using var contentStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildContent.json")!;
+        using var contentReader = new StreamReader(contentStream);
+        sourceText = sourceText.Replace("\"__RESTORED_GUILD_CONTENT__\"", System.Text.Json.JsonSerializer.Serialize(contentReader.ReadToEnd()));
+        using var conquestStream = typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.RestoredGuildConquest.json")!;
+        using var conquestReader = new StreamReader(conquestStream);
+        sourceText = sourceText.Replace("\"__RESTORED_GUILD_CONQUEST__\"", System.Text.Json.JsonSerializer.Serialize(conquestReader.ReadToEnd()));
+        var references = Directory.GetFiles(Path.GetDirectoryName(module.FileName)!, "*.dll")
+            .Select(path => MetadataReference.CreateFromFile(path));
+        var compilation = CSharpCompilation.Create("PortalRestore",
+            new[] { CSharpSyntaxTree.ParseText(sourceText) }, references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
+        using var compiled = new MemoryStream();
+        var result = compilation.Emit(compiled);
+        if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics));
+        compiled.Position = 0;
+        using var sourceAssembly = AssemblyDefinition.ReadAssembly(compiled);
+        var sourceType = sourceAssembly.MainModule.Types.Single(t => t.Name == "RestoredPortal");
+        var targetType = module.Types.SingleOrDefault(t => t.Name == sourceType.Name);
+        if (targetType == null)
+        {
+            targetType = new TypeDefinition("", sourceType.Name, sourceType.Attributes, module.TypeSystem.Object);
+            module.Types.Add(targetType);
+        }
+        // A focused refresh only replaces the named methods; their fields must already exist.
+        foreach(var field in only == null ? sourceType.Fields : Enumerable.Empty<FieldDefinition>())
+            if(!targetType.Fields.Any(f=>f.Name==field.Name))
+                targetType.Fields.Add(new FieldDefinition(field.Name,field.Attributes,module.ImportReference(field.FieldType)));
+        foreach (var source in sourceType.Methods)
+        {
+            if (only != null && !only.Contains(source.Name)) continue;
+            if (targetType.Methods.Any(m => m.Name == source.Name)) continue;
+            var target = new MethodDefinition(source.Name, source.Attributes, module.ImportReference(source.ReturnType));
+            foreach (var parameter in source.Parameters)
+                target.Parameters.Add(new ParameterDefinition(parameter.Name, parameter.Attributes, module.ImportReference(parameter.ParameterType)));
+            targetType.Methods.Add(target);
+        }
+        foreach (var source in sourceType.Methods)
+        {
+            if (only != null && !only.Contains(source.Name)) continue;
+            var target = targetType.Methods.Single(m => m.Name == source.Name);
+            var body = new MethodBody(target) { InitLocals = source.Body.InitLocals, MaxStackSize = source.Body.MaxStackSize };
+            target.Body = body;
+            foreach (var variable in source.Body.Variables)
+                body.Variables.Add(new VariableDefinition(module.ImportReference(variable.VariableType)));
+            var instructions = source.Body.Instructions.ToDictionary(i => i, i => Instruction.Create(OpCodes.Nop));
+            foreach (var instruction in source.Body.Instructions)
+            {
+                var copy = instructions[instruction];
+                copy.OpCode = instruction.OpCode;
+                copy.Operand = instruction.Operand switch
+                {
+                    Instruction branch => instructions[branch],
+                    Instruction[] branches => branches.Select(b => instructions[b]).ToArray(),
+                    VariableDefinition variable => body.Variables[variable.Index],
+                    ParameterDefinition parameter => target.Parameters[parameter.Index],
+                    MethodReference method when method.DeclaringType.FullName == sourceType.FullName => targetType.Methods.Single(m => m.Name == method.Name),
+                    MethodReference method => module.ImportReference(method),
+                    FieldReference field when field.DeclaringType.FullName == sourceType.FullName => targetType.Fields.Single(f=>f.Name==field.Name),
+                    FieldReference field => module.ImportReference(field),
+                    TypeReference type => module.ImportReference(type),
+                    var operand => operand
+                };
+                body.Instructions.Add(copy);
+            }
+            foreach (var handler in source.Body.ExceptionHandlers)
+                body.ExceptionHandlers.Add(new ExceptionHandler(handler.HandlerType) {
+                    TryStart = instructions[handler.TryStart], TryEnd = handler.TryEnd == null ? null : instructions[handler.TryEnd],
+                    HandlerStart = instructions[handler.HandlerStart], HandlerEnd = handler.HandlerEnd == null ? null : instructions[handler.HandlerEnd],
+                    CatchType = handler.CatchType == null ? null : module.ImportReference(handler.CatchType),
+                    FilterStart = handler.FilterStart == null ? null : instructions[handler.FilterStart]
+                });
+        }
+        return targetType;
     }
 }
 

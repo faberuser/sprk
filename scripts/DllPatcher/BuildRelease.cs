@@ -23,6 +23,7 @@ partial class Program
             File.Move(helper, helper[..^7], true);
         File.Copy(staged, dll, true);
         using(var purify=Mono.Cecil.AssemblyDefinition.ReadAssembly(dll)) VerifyPurifyHudReuse(purify.MainModule);
+        VerifyCutsceneCostumesFile(clientRoot);
 
         // Companion helpers and patches that historically had separate CLI modes.
         InstallCrafting(clientRoot, false);
@@ -81,6 +82,10 @@ partial class Program
         VerifySkillDescriptionFormulaFile(clientRoot);
         InstallArtifactSourceFilter(clientRoot, false);
         VerifyArtifactSourceFilterFile(clientRoot);
+        InstallTicketSearch(clientRoot, false);
+        VerifyTicketSearchFile(clientRoot);
+        InstallSoulstoneOwnership(clientRoot, false);
+        InstallSoulstoneOwnership(clientRoot, false, true);
         InstallTeamExpRefresh(clientRoot, false);
         VerifyTeamExpRefreshFile(clientRoot);
         VerifyRaidInfoScrollFile(clientRoot);
@@ -115,6 +120,7 @@ partial class Program
         VerifyStoryAutoFile(clientRoot);
         TestStoryAutoRecovery();
         TestStoryAutoCancellation();
+        TestStoryAutoSkills();
         TestCampaignSurvivors();
         TestMailUpdates();
         InstallLobbyAvatarStability(clientRoot, false);
@@ -145,10 +151,14 @@ partial class Program
         VerifyAwakeningMaterialsFile(clientRoot);
         InstallTechnomagicRefresh(clientRoot, false);
         InstallTechnomagicRefresh(clientRoot, false, true);
+        InstallTechnomagicEnchantRefresh(clientRoot, false);
+        InstallTechnomagicEnchantRefresh(clientRoot, false, true);
         VerifyCurrency64File(clientRoot);
         VerifyContinuousBattleSerializationFile(clientRoot);
         InstallSoloRetry(clientRoot, false);
         InstallSoloRetry(clientRoot, false, true);
+        InstallPartyRetry(clientRoot, false);
+        InstallPartyRetry(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
@@ -161,10 +171,23 @@ partial class Program
         InstallBatchGrind(clientRoot, false, true);
         InstallHeroInnPresentation(clientRoot, false);
         InstallHeroInnPresentation(clientRoot, false, true);
+        InstallLinePets(clientRoot, false);
+        InstallLinePets(clientRoot, false, true);
+        RestoreLinePetCurrency(clientRoot, false);
+        RestoreLinePetCurrency(clientRoot, true);
+        RestoreConquestDungeonIcons(clientRoot, false);
+        RestoreConquestDungeonIcons(clientRoot, true);
+        InstallConquestRoundLabel(clientRoot, false);
+        InstallHeroDeathVoices(clientRoot, false);
+        InstallHeroDeathVoices(clientRoot, false, true);
+        InstallAccessories(clientRoot, false);
+        InstallAccessories(clientRoot, false, true);
         // Raid table validation loads the game assembly into this process and
         // keeps it locked on Windows. Finish all DLL replacements first.
         InstallRaidCoopLimits(clientRoot, false);
         InstallRaidCoopLimits(clientRoot, false, true);
+        InstallLavrilCircle(clientRoot, false);
+        InstallLavrilCircle(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
 }

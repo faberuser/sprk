@@ -4,6 +4,11 @@ use super::*;
 const RAID: i64 = 90001;
 const EPOCH: i64 = 1767628800; // Monday 2026-01-05 16:00 UTC, archived weekly offset.
 const WEEK: i64 = 7 * 86400;
+// Seasons are eight weekly sessions, counted from the server's first season
+// week (session 10041, starting 2026-10-19). Earlier sessions belong to season 0.
+// Clients prefer these server-sent seasons over native archived rows.
+const SEASON_WEEKS: i64 = 8;
+const FIRST_SEASON_SESSION: i64 = 10041;
 
 #[derive(Clone, Copy)]
 struct Session { index: i64, start: i64, apply_end: i64, battle_start: i64, end: i64 }
@@ -17,6 +22,14 @@ impl Session {
         Self { index: 10000 + number, start, apply_end: start + 47*3600,
                battle_start: start + 47*3600 + 1800, end: start + WEEK - 3600 }
     }
+    fn week(self) -> i64 { self.index - FIRST_SEASON_SESSION }
+    fn season(self) -> i64 { 1 + self.week().div_euclid(SEASON_WEEKS) }
+    /// One-based round within the season, as shown by the native portal and ban list.
+    fn round(self) -> i64 { self.week().rem_euclid(SEASON_WEEKS) + 1 }
+    fn season_sessions(self) -> std::ops::Range<i64> {
+        let first = self.index - (self.round() - 1);
+        first..first + SEASON_WEEKS
+    }
     fn state(self, stamp: i64) -> &'static str {
         if stamp < self.apply_end { "Apply" } else if stamp < self.battle_start { "ApplyEnded" }
         else if stamp < self.end { "Battle" } else { "Ended" }
@@ -28,24 +41,38 @@ impl Session {
 }
 // Calendar definitions belong to the server, alongside registration and battle
 // timing. The client receives ordinary native DTOs, without generating table rows.
+// The native ban list and portal read every session of a season, so whole
+// seasons are sent: the current one plus those of the requested and previous session.
 fn session_definitions(s: &AppState, session: Session, requested: i64) -> Result<Value> {
     let template = row(s, "GuildSuppressSession", &[("RaidIndex", RAID)])?;
-    let mut indices = BTreeSet::from([session.index, requested]);
-    if session.index > 10000 { indices.insert(session.index - 1); }
-    Ok(json!(indices.into_iter().map(|index| {
+    let mut indices = BTreeSet::new();
+    for index in [session.index, requested, (session.index - 1).max(10000)] {
+        indices.extend(Session::by_index(index).season_sessions().filter(|&v| v >= 10000));
+    }
+    indices.into_iter().map(|index| {
         let period = Session::by_index(index);
         let mut definition = template.clone();
         definition["SessionIndex"] = json!(index);
-        definition["SeasonIndex"] = json!(index);
-        definition["ViewRankSeason"] = json!(index);
-        definition["ViewSession"] = json!(1);
-        definition["PortalViewSession"] = json!(1);
+        definition["SeasonIndex"] = json!(period.season());
+        definition["ViewRankSeason"] = json!(period.season());
+        definition["ViewSession"] = json!(period.round());
+        definition["PortalViewSession"] = json!(period.round());
+        definition["SuppressDungeonIndex"] = rotation(s, period)?.clone();
         definition["GlobalApplyStart"] = json!(time(period.start));
         definition["GlobalApplyEnd"] = json!(time(period.apply_end - 1));
         definition["GlobalBattleStart"] = json!(time(period.battle_start));
         definition["GlobalBattleEnd"] = json!(time(period.end - 1));
-        definition
-    }).collect::<Vec<_>>()))
+        Ok(definition)
+    }).collect::<Result<Vec<_>>>().map(Value::from)
+}
+/// Weekly bosses and bans replay every three-boss archived week (seasons 3-26,
+/// identical boss order, one ban set per boss and week) from the first season
+/// week, then repeat. Seasons 1-2 had only two bosses.
+fn rotation(s: &AppState, session: Session) -> Result<&Value> {
+    let rows = s.tables.arena_guild.rows("GuildSuppressRotation");
+    if rows.is_empty() { return Err(rule("GuildSuppressSessionDataNotFound")); }
+    let row = &rows[session.week().rem_euclid(rows.len() as i64) as usize];
+    Ok(&row["SuppressDungeonIndex"])
 }
 fn stamp(s: &AppState) -> i64 {
     #[cfg(test)]
@@ -64,9 +91,8 @@ pub(super) fn session_index(s: &AppState) -> i64 { current(s).index }
 fn boss(s: &AppState, level: i64) -> Result<&Value> {
     row(s,"GuildSuppressBoss", &[("Level",level)])
 }
-fn definition(s: &AppState, level: i64) -> Result<&Value> {
-    let rotation = row(s,"GuildSuppressSession", &[("RaidIndex",RAID)])?;
-    let index = rotation["SuppressDungeonIndex"].get((level-1) as usize)
+fn definition(s: &AppState, session: Session, level: i64) -> Result<&Value> {
+    let index = rotation(s, session)?.get((level-1) as usize)
         .and_then(Value::as_i64).ok_or_else(|| rule("WrongDungeonIndex"))?;
     row(s,"GuildSuppressDungeon", &[("Index", index)])
 }
@@ -75,7 +101,7 @@ pub(crate) fn party_dungeon_index(s: &AppState, level: i64) -> Result<i64> {
     // Their chat reconnect still needs a valid PartyInfo snapshot.
     let level = if (101..=103).contains(&level) {level-100}else{level};
     if !(1..=3).contains(&level) {return Err(rule("WrongDungeonIndex"));}
-    Ok(n(definition(s,level)?,"Index"))
+    Ok(n(definition(s,current(s),level)?,"Index"))
 }
 async fn registration(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
     let session=current(s);
@@ -229,8 +255,8 @@ pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: 
         "get_guild_suppress_session_info" => {
             let plays=plays(db,s,g,session.index).await?;
             result["GuildSuppressSessionInfo"]=session.info(stamp(s));
-            result["GuildSuppressSeasonInfo"]=json!({"SeasonIndex":session.index});
-            result["GuildSuppressBanInfo"]=json!({"SeasonIndex":session.index,"SessionIndex":session.index});
+            result["GuildSuppressSeasonInfo"]=json!({"SeasonIndex":session.season()});
+            result["GuildSuppressBanInfo"]=json!({"SeasonIndex":session.season(),"SessionIndex":session.index});
             result["GuildSuppressInfo"]=info(g,&registration,&plays);
             result["GuildSuppressPlayInfos"]=json!(plays);result["GuildSuppressApplied"]=registration["Applied"].clone();
             result["AutoApplySuppress"]=guild::state(db,s,g).await?["AutoApplySuppress"].clone();
@@ -279,7 +305,7 @@ pub(crate) async fn validate(db: &mut SqliteConnection, s: &AppState, a: i64, r:
         || r.number("RaidLevel",0)?<100 && !ai.is_empty() {
         return Err(rule("NotMatchHeroIndices"));
     }
-    Ok(n(definition(s,level)?,"BanIndex"))
+    Ok(n(definition(s,session,level)?,"BanIndex"))
 }
 pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, entry: &mut Value, out: &mut Value) -> Result<()> {
     let (g,_)=guild::membership(db,a).await?;let session=current(s);let requested=r.number("RaidLevel",0)?;let level=if requested>100 {requested-100} else {requested};
@@ -348,7 +374,7 @@ pub(crate) async fn finish(
         for member in members {
             let inserted=sqlx::query("INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,'guild_conquest_kill',?,?)")
                 .bind(member).bind(level).bind(session.to_string()).execute(&mut *db).await?.rows_affected();
-            if inserted>0 {progression::mail_reward(db,s,member,n(definition(s,level)?,"KillRewardIndex"),"Guild Conquest boss defeated").await?;}
+            if inserted>0 {progression::mail_reward(db,s,member,n(definition(s,Session::by_index(session),level)?,"KillRewardIndex"),"Guild Conquest boss defeated").await?;}
         }
     }
     plays[(level-1) as usize]=play.clone();

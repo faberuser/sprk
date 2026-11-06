@@ -161,8 +161,12 @@ pub(crate) async fn execute(
                     return Err(rule("InvalidCostume"));
                 }
                 appearance[format!("AccessoryCostumeIndex{part}")] = json!(accessory);
+                let mut accessories = cosmetics::equipped_accessories(db, account, &h).await?;
+                cosmetics::equip_accessory(&mut accessories, accessory, part, &raw.to_string());
+                appearance["SprkAccessories"] = json!(accessories);
                 let mut details = hero::details(db, account, hero_id).await?;
                 details[format!("AccessoryCostumeIndex{part}")] = json!(accessory);
+                details["SprkAccessories"] = appearance["SprkAccessories"].clone();
                 hero::save_details(db, account, hero_id, &details).await?;
                 out["PlayerAccessoryCostumeInfo"] = info;
                 out["HeroCostumeResultInfo"] = appearance;

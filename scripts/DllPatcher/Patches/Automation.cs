@@ -18,11 +18,13 @@ partial class Program
         using var migrationReader=new StreamReader(migrationStream);
         using var innStream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.HeroInnPresentationProbe.cs.txt")!;
         using var innReader=new StreamReader(innStream);
+        using var lineStream=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.LinePetProbe.cs.txt")!;
+        using var lineReader=new StreamReader(lineStream);
         var references = Directory.GetFiles(managed, "*.dll")
             .Where(p => Path.GetFileName(p) != "SprkAutomation.dll")
             .Select(p => MetadataReference.CreateFromFile(p));
         var compilation = CSharpCompilation.Create("SprkAutomation",
-            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(migrationReader.ReadToEnd()), CSharpSyntaxTree.ParseText(innReader.ReadToEnd()) }, references,
+            new[] { CSharpSyntaxTree.ParseText(reader.ReadToEnd()), CSharpSyntaxTree.ParseText(migrationReader.ReadToEnd()), CSharpSyntaxTree.ParseText(innReader.ReadToEnd()), CSharpSyntaxTree.ParseText(lineReader.ReadToEnd()) }, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
         using var compiled = new MemoryStream();
         var emitted = compilation.Emit(compiled);

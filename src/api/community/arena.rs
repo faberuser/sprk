@@ -3,6 +3,8 @@ use super::*;
 pub(crate) mod online;
 #[path = "arena_honor_rewards.rs"]
 pub(crate) mod honor_rewards;
+#[path = "arena_daily_rewards.rs"]
+mod daily_rewards;
 pub(crate) async fn defense_heroes(db: &mut SqliteConnection, a: i64) -> Result<Vec<i64>> {
     let saved: Option<String> = sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND kind=0 AND json_extract(data,'$.DuelType') IS NOT 1 ORDER BY id DESC LIMIT 1")
         .bind(a).fetch_optional(&mut *db).await?;
@@ -20,13 +22,16 @@ pub(crate) async fn defense_heroes(db: &mut SqliteConnection, a: i64) -> Result<
         .bind(a).fetch_all(db).await?)
 }
 pub(crate) fn season(s: &AppState) -> (i64, i64, i64) {
+    season_at(s, now())
+}
+fn season_at(s: &AppState, at: i64) -> (i64, i64, i64) {
     let epoch = s.tables.arena_guild.rules["SeasonEpoch"]
         .as_str()
         .and_then(|v| chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%d %H:%M:%S").ok())
         .map(|v| v.and_utc().timestamp())
         .unwrap_or(1767571200);
     let length = settings(s, "SeasonDays", 7).clamp(1, 365) * 86400;
-    let index = (now() - epoch).max(0) / length + 1;
+    let index = (at - epoch).max(0) / length + 1;
     (index, epoch + (index - 1) * length, epoch + index * length)
 }
 pub(super) fn season_info(s: &AppState, kind: i64) -> Value {
@@ -602,18 +607,23 @@ async fn rank_mail(
     sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_items,reward_currencies,expires_at) VALUES(?,'Arena',?,?,?, ?,?)").bind(a).bind(if daily{"Arena daily reward"}else{"Arena season reward"}).bind(format!("Rank {rank}, period {period}")).bind(json!(items).to_string()).bind(currencies.to_string()).bind(time(now()+72*3600)).execute(db).await?;
     Ok(())
 }
+pub(super) async fn pending(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<bool> {
+    if honor_rewards::pending(db, s, a).await? || !daily_rewards::due(db, s, a, now()).await?.is_empty() {
+        return Ok(true);
+    }
+    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_scores q WHERE account=? AND kind=0 AND season<? AND wins+losses>0 AND NOT EXISTS(SELECT 1 FROM community_claims c WHERE c.account=q.account AND c.kind='arena_season_reward' AND c.period=CAST(q.season AS TEXT)))")
+        .bind(a).bind(season(s).0).fetch_one(db).await?)
+}
 pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
     honor_rewards::settle(db, s, a).await?;
-    let days=sqlx::query("SELECT idx,data FROM community_state c WHERE owner=? AND kind='arena_daily' AND idx<? AND NOT EXISTS(SELECT 1 FROM community_claims x WHERE x.account=c.owner AND x.kind='arena_daily_reward' AND x.period=json_extract(c.data,'$.Day')) ORDER BY idx LIMIT 500").bind(a).bind(now()/86400).fetch_all(&mut *db).await?;
-    for day in days {
-        let v: Value = parse(&day.get::<String, _>("data"))?;
+    for (day, rank) in daily_rewards::due(db, s, a, now()).await? {
         rank_mail(
             db,
             s,
             a,
-            n(&v, "Rank"),
+            rank,
             "arena_daily_reward",
-            v["Day"].as_str().unwrap_or(""),
+            &day,
         )
         .await?;
     }

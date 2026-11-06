@@ -56,3 +56,31 @@ pub(crate) async fn calculate(
     }
     Ok((gold + guild_bonus.0 + honor_gold, exp + guild_bonus.1))
 }
+
+/// Dispatch stamina saving, as the native dispatch window shows it: the sum of
+/// `SaveDispatchStamina` booster abilities on owned Legend costumes.
+pub(crate) async fn dispatch_stamina_discount(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+) -> Result<i64> {
+    const LEGEND: i64 = 2;
+    const BOOSTER: i64 = 1;
+    let costumes: Vec<i32> =
+        sqlx::query_scalar("SELECT costume_index FROM costumes WHERE account_id=?")
+            .bind(a)
+            .fetch_all(db)
+            .await?;
+    let mut rate = 0;
+    for id in costumes {
+        let Some(c) = s.tables.hero_shop.costumes.get(&id) else { continue };
+        if n(c, "CostumeType") != LEGEND { continue; }
+        for i in 1..=3 {
+            let v = &c[format!("AbilityValue{i}")];
+            if n(c, &format!("AbilityType{i}")) == BOOSTER && v[0] == "SaveDispatchStamina" {
+                rate += v[1].as_str().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+            }
+        }
+    }
+    Ok(rate.clamp(0, 100))
+}

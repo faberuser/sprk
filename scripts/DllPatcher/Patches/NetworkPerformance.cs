@@ -124,6 +124,33 @@ partial class Program {
             foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg_0),Instruction.Create(OpCodes.Ldfld,lobby.Fields.Single(f=>f.Name=="_response")),
                 Instruction.Create(OpCodes.Call,module.ImportReference(hooks.Methods.Single(m=>m.Name=="CatalogApplied")))})il.InsertBefore(next,i);
         }
+        // Request scheduling: concurrent verified reads, exclusive FIFO
+        // mutations, and no idle frames between consecutive requests.
+        var chain=requester.Methods.Single(m=>m.Name=="ChainUpdate");
+        if(!chain.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name && m.Name=="Pump")) {
+            var body=chain.Body;body.Instructions.Clear();body.Variables.Clear();body.ExceptionHandlers.Clear();
+            var il=body.GetILProcessor();
+            il.Append(Instruction.Create(OpCodes.Ldarg_0));
+            il.Append(Instruction.Create(OpCodes.Ldfld,requester.Fields.Single(f=>f.Name=="_serviceRequestList")));
+            il.Append(Instruction.Create(OpCodes.Call,Hook("Pump")));
+            il.Append(Instruction.Create(OpCodes.Ret));
+        }
+        void Guard(MethodDefinition method,string hook,params Instruction[] args) {
+            if(method.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name==hooks.Name && m.Name==hook))return;
+            var first=method.Body.Instructions[0];var il=method.Body.GetILProcessor();
+            foreach(var arg in args)il.InsertBefore(first,arg);
+            foreach(var i in new[]{Instruction.Create(OpCodes.Call,Hook(hook)),Instruction.Create(OpCodes.Brfalse,first),Instruction.Create(OpCodes.Ret)})il.InsertBefore(first,i);
+        }
+        Guard(module.GetType("NGame2.NUI.NManager.NLobby.LobbyManagement").Methods.Single(m=>m.Name=="RequestCheckNewMailArrived"),"SkipMailCheck");
+        Guard(module.GetType("NGame2.NUtil.QueryMarketInfo").Methods.Single(m=>m.Name=="Query"),"AnswerMarketQuery",
+            Instruction.Create(OpCodes.Ldarg_0),Instruction.Create(OpCodes.Ldarg_1));
+        // Background-download telemetry (client_log/add_log): the server does
+        // not implement it, and each call occupied the serial request queue.
+        var telemetry=module.GetType("NGameAsset.NPatch.PatchDownloader").Methods.Single(m=>m.Name=="RequestBackgroundLog");
+        if(telemetry.Body.Instructions.Count!=1 || telemetry.Body.Instructions[0].OpCode!=OpCodes.Ret) {
+            var body=telemetry.Body;body.Instructions.Clear();body.Variables.Clear();body.ExceptionHandlers.Clear();
+            body.GetILProcessor().Append(Instruction.Create(OpCodes.Ret));
+        }
         var staged=dll+".network-staged";
         var helperPath=Path.Combine(managed,"SprkNetworkPerformance.dll");
         assembly.Write(staged);File.WriteAllBytes(helperPath+".staged",output.ToArray());
@@ -158,7 +185,19 @@ partial class Program {
         var catalog=lobbyHandler.Body.Instructions.First(i=>i.Operand is MethodReference m && m.Name=="get_PayShopProductInfos");
         if(catalog.Next.OpCode!=OpCodes.Brfalse && catalog.Next.OpCode!=OpCodes.Brfalse_S)
             throw new InvalidOperationException("Native lobby must preserve its catalog when PayShopProductInfos is absent.");
-        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock","Started","BeginResponse","TransportComplete","ShopListApplied"})
+        var chain=requester.Methods.Single(m=>m.Name=="ChainUpdate").Body.Instructions;
+        if(chain.Count!=4 || !(chain[2].Operand is MethodReference pump && pump.DeclaringType.Name=="SprkNetworkPerformance" && pump.Name=="Pump")
+            || !(chain[1].Operand is FieldReference list && list.Name=="_serviceRequestList"))
+            throw new InvalidOperationException("Request queue must be driven only by the network scheduler.");
+        foreach(var (type,method,hook) in new[]{("NGame2.NUI.NManager.NLobby.LobbyManagement","RequestCheckNewMailArrived","SkipMailCheck"),("NGame2.NUtil.QueryMarketInfo","Query","AnswerMarketQuery")}) {
+            var code=assembly.MainModule.GetType(type).Methods.Single(m=>m.Name==method).Body.Instructions;
+            if(code.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkNetworkPerformance" && m.Name==hook)!=1
+                || !code.Take(5).Any(i=>i.Operand is MethodReference m && m.Name==hook))
+                throw new InvalidOperationException("Missing or duplicated request guard: "+hook);
+        }
+        var telemetry=assembly.MainModule.GetType("NGameAsset.NPatch.PatchDownloader").Methods.Single(m=>m.Name=="RequestBackgroundLog").Body.Instructions;
+        if(telemetry.Count!=1 || telemetry[0].OpCode!=OpCodes.Ret)throw new InvalidOperationException("Background download telemetry must be removed.");
+        foreach(var name in new[]{"Prepare","Capture","ProgressionApplied","CatalogApplied","SetStaminaClock","HasStaminaClock","Started","BeginResponse","TransportComplete","ShopListApplied","Pump","SkipMailCheck","AnswerMarketQuery"})
             if(!helper.MainModule.GetType("SprkNetworkPerformance").Methods.Any(m=>m.Name==name))throw new InvalidOperationException("Missing network helper: "+name);
         var responseCode=requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded").Body.Instructions;
         var parseIndex=responseCode.ToList().FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="JsonMarshaler" && m.Name=="Parse");
@@ -189,6 +228,6 @@ partial class Program {
         using var output=new MemoryStream();var result=compilation.Emit(output);
         if(!result.Success)throw new InvalidOperationException(string.Join("\n",result.Diagnostics));
         System.Reflection.Assembly.Load(output.ToArray()).GetType("NetworkPerformanceTestRunner")!.GetMethod("Run")!.Invoke(null,null);
-        Console.WriteLine("PASS: snapshot acknowledgement, lost-response recovery, host/session isolation, old-server fallback and independent queued headers.");
+        Console.WriteLine("PASS: snapshot acknowledgement, lost-response recovery, host/session isolation, old-server fallback, independent queued headers, request scheduling and local market answers.");
     }
 }

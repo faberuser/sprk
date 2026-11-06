@@ -69,7 +69,38 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
     void ResetHistories() { foreach(var layer in layers.Values)if(layer!=null)layer.ResetHistory(); }
     readonly Dictionary<Camera,UnityEngine.Rendering.CommandBuffer> presentationCommands=new Dictionary<Camera,UnityEngine.Rendering.CommandBuffer>();
     void RestoreTargets() { foreach(var command in presentationCommands.Values)command.Clear();foreach(var pair in redirected)if(pair.Key!=null && pair.Key.targetTexture==world)pair.Key.targetTexture=pair.Value;redirected.Clear();lastWorld=null;presentationCamera=null;presentationFrame=-1; }
-    void ReleaseWorld() { if(world!=null){ownedTargets.Remove(world);world.Release();Destroy(world);world=null;} }
+    void ReleaseWorld() { DestroyWorldTarget(world);world=null;ReleaseRetainedWorlds(); }
+    static void DestroyWorldTarget(RenderTexture target) { if(target!=null){ownedTargets.Remove(target);target.Release();Destroy(target);} }
+    // Adaptive battle scale alternates between a few sizes. Reusing their
+    // targets avoids GPU allocation hitches on each step; D3D11 has no native
+    // dynamic resolution. Retention is bounded by count and VRAM, and is
+    // cleared with the world target on scene change or when the stack is unused.
+    readonly List<RenderTexture> retainedWorlds=new List<RenderTexture>();
+    public int RetainedWorldReuses { get; private set; }
+    const int MaxRetainedWorlds=2;
+    static long WorldTargetBytes(RenderTexture rt) { return (long)rt.width*rt.height*Mathf.Max(1,rt.antiAliasing)*8; }
+    static long RetainedWorldBudget { get { return Math.Min(1024L,Math.Max(0,SystemInfo.graphicsMemorySize)/8L)*1024*1024; } }
+    void ReleaseRetainedWorlds() { foreach(var target in retainedWorlds)DestroyWorldTarget(target);retainedWorlds.Clear(); }
+    void RetireWorld(bool retain) {
+        if(world==null)return;
+        if(!retain || !world.IsCreated() || !ownedTargets.ContainsKey(world)){DestroyWorldTarget(world);world=null;return;}
+        retainedWorlds.Insert(0,world);world=null;
+        long budget=RetainedWorldBudget,total=0;
+        for(int i=0;i<retainedWorlds.Count;i++) {
+            var target=retainedWorlds[i];
+            long bytes=target==null || !target.IsCreated()?0:WorldTargetBytes(target);
+            if(bytes==0 || i>=MaxRetainedWorlds || total+bytes>budget){DestroyWorldTarget(target);retainedWorlds.RemoveAt(i);i--;continue;}
+            total+=bytes;
+        }
+    }
+    RenderTexture TakeRetainedWorld(int width,int height,int scale,int samples) {
+        for(int i=0;i<retainedWorlds.Count;i++) {
+            var target=retainedWorlds[i];TargetSize size;
+            if(target==null || !target.IsCreated() || !ownedTargets.TryGetValue(target,out size) || size.width!=width || size.height!=height || size.scale!=scale || size.samples!=samples)continue;
+            retainedWorlds.RemoveAt(i);RetainedWorldReuses++;return target;
+        }
+        return null;
+    }
     void BeforeUI(Camera camera) {
         if(world==null || !world.IsCreated() || lastWorld==null || camera.depth<=lastWorld.depth || camera.targetTexture!=null || !IsOverlayCamera(camera) || presentationFrame==Time.frameCount)return;
         presentationFrame=Time.frameCount;
@@ -1243,11 +1274,17 @@ public sealed partial class SprkGraphicsOptions : MonoBehaviour {
         if(useWorld) {
             int worldSamples=samples;
             int signature=Screen.width*397^Screen.height*17^scale^worldSamples*31;
-            TargetSize worldSize;
+            TargetSize worldSize=null;
             if(world==null || !world.IsCreated() || !ownedTargets.TryGetValue(world,out worldSize) || worldSize.width!=Screen.width || worldSize.height!=Screen.height || worldSize.scale!=scale || worldSize.samples!=worldSamples) {
                 RestoreTargets();
-                ReleaseWorld();world=CreateWorldTarget(Screen.width,Screen.height,24);world.name="SPRK World";
-                world.Create();ResetHistories();
+                // Only adaptive battle steps keep the previous size; manual
+                // setting and window changes free it as before.
+                bool adaptive=battleActive && AdaptiveBattleTarget!=0;
+                RetireWorld(adaptive && world!=null && worldSize!=null && worldSize.width==Screen.width && worldSize.height==Screen.height && worldSize.samples==worldSamples);
+                if(!adaptive)ReleaseRetainedWorlds();
+                world=adaptive?TakeRetainedWorld(Screen.width,Screen.height,scale,worldSamples):null;
+                if(world==null){world=CreateWorldTarget(Screen.width,Screen.height,24);world.name="SPRK World";world.Create();}
+                ResetHistories();
             }
             foreach(var c in onscreen){if(!redirected.ContainsKey(c))redirected[c]=c.targetTexture;if(c.targetTexture!=world)c.targetTexture=world;c.allowMSAA=world.antiAliasing>1;}
             lastWorld=onscreen[onscreen.Count-1];

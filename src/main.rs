@@ -29,6 +29,9 @@ use crate::state::AppState;
 use crate::tables::GameTables;
 use anyhow::Context;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize tracing
@@ -83,6 +86,8 @@ fn http_router(router: Router) -> Router {
 
 #[cfg(test)]
 mod performance_tests;
+#[cfg(test)]
+mod database_tests;
 
 // Game state and middleware are confined to this router. Update downloads never
 // initialize a database, chat/battle listeners, or a native worker.
@@ -106,8 +111,10 @@ async fn game_router() -> anyhow::Result<Router> {
     };
     
     api::extensions::schema::migrate_technomagic(&db, &tables).await?;
+    // Readers open after migrations, once the writer has enabled WAL.
+    let reads = database::open_read_pool(Path::new("sprk.db")).await?;
     // Create application state
-    let state = AppState::new(db, tables);
+    let state = AppState::new(db, tables).with_reads(reads);
     api::community::mail::start_notifications(state.clone());
     api::battle::cooperative::start_dispatch_preparation(state.clone());
     api::system::cheat::start_admin(state.clone()).await?;

@@ -40,7 +40,8 @@ async fn profile_row(db: &mut SqliteConnection, state: &AppState, row: &sqlx::sq
         "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon}))
 }
 
-pub(super) fn online(state: &AppState, account: i64) -> bool {
+/// Chat-connected, or a game session active within the last two minutes.
+pub(crate) fn online(state: &AppState, account: i64) -> bool {
     state.chat.online(account)
         || state.sessions.iter().any(|s| {
             s.account_id == account
@@ -116,7 +117,7 @@ pub async fn login_data(
     account: i64,
 ) -> Result<(Vec<Value>, Vec<Value>, Vec<Value>, Vec<Value>)> {
     let rows = sqlx::query("SELECT f.account_id AS sender, f.friend_account_id AS receiver, f.status, f.created_at, a.account_id, a.nick, a.last_login, a.last_logout, u.team_level, u.avatar_hero_index FROM friends f JOIN accounts a ON a.account_id = CASE WHEN f.account_id = ? THEN f.friend_account_id ELSE f.account_id END JOIN user_info u ON u.account_id = a.account_id WHERE (f.account_id = ? OR f.friend_account_id = ?) AND a.is_banned = 0 ORDER BY f.id")
-        .bind(account).bind(account).bind(account).fetch_all(&state.db).await?;
+        .bind(account).bind(account).bind(account).fetch_all(&state.reads).await?;
     let mut outgoing = Vec::new();
     let mut incoming = Vec::new();
     for row in rows {
@@ -127,14 +128,14 @@ pub async fn login_data(
             outgoing.push(json!({"FriendId":other,"InvitedTime":time}));
         }
         if accepted || row.get::<i64, _>("receiver") == account {
-            let mut info = profile_row(&mut *state.db.acquire().await?, state, &row).await?;
+            let mut info = profile_row(&mut *state.reads.acquire().await?, state, &row).await?;
             info["InvitedTime"] = json!(time);
             incoming.push(info);
         }
     }
-    let own = point_infos(&mut *state.db.acquire().await?, account).await?;
+    let own = point_infos(&mut *state.reads.acquire().await?, account).await?;
     let rows = sqlx::query("SELECT p.account_id AS friend_id, p.last_send_time, p.last_recv_time FROM friend_points p WHERE p.friend_id = ? AND EXISTS (SELECT 1 FROM friends f WHERE f.status = 'accepted' AND ((f.account_id = p.account_id AND f.friend_account_id = p.friend_id) OR (f.account_id = p.friend_id AND f.friend_account_id = p.account_id)))")
-        .bind(account).fetch_all(&state.db).await?;
+        .bind(account).fetch_all(&state.reads).await?;
     let sent = rows.iter().map(point_row).collect();
     Ok((outgoing, incoming, own, sent))
 }
@@ -207,9 +208,9 @@ pub async fn search_friend(State(state): State<AppState>, body: Bytes) -> Result
         query.push(" COLLATE NOCASE THEN 1 ELSE 2 END, a.account_id");
     }
     query.push(" LIMIT 20");
-    let rows = query.build().fetch_all(&state.db).await?;
+    let rows = query.build().fetch_all(&state.reads).await?;
     let mut infos = Vec::with_capacity(rows.len());
-    for row in &rows { infos.push(profile_row(&mut *state.db.acquire().await?, &state, row).await?); }
+    for row in &rows { infos.push(profile_row(&mut *state.reads.acquire().await?, &state, row).await?); }
     Ok(Json(
         json!({"BaseResult":"Success", "Result":if !keyword.is_empty() && infos.is_empty() {"FriendNotFound"} else {"Success"}, "FriendInfos":infos}),
     ))

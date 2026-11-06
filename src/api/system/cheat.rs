@@ -90,12 +90,15 @@ pub struct PlayerSearch {
 
 pub async fn gm_players(State(state): State<AppState>, Form(req): Form<PlayerSearch>) -> Result<Json<serde_json::Value>> {
     let query = req.query.unwrap_or_default();
-    let rows = sqlx::query("SELECT a.account_id,a.nick,c.username FROM accounts a LEFT JOIN credentials c ON c.login_id=a.login_id WHERE a.account_id>? AND (?='' OR CAST(a.account_id AS TEXT)=? OR instr(lower(COALESCE(a.nick,'')),lower(?))>0 OR instr(lower(COALESCE(c.username,'')),lower(?))>0) ORDER BY a.account_id LIMIT 100")
+    let rows = sqlx::query("SELECT a.account_id,a.nick,c.username,MAX(COALESCE(a.last_login,''),COALESCE(a.last_logout,'')) AS last_online FROM accounts a LEFT JOIN credentials c ON c.login_id=a.login_id WHERE a.account_id>? AND (?='' OR CAST(a.account_id AS TEXT)=? OR instr(lower(COALESCE(a.nick,'')),lower(?))>0 OR instr(lower(COALESCE(c.username,'')),lower(?))>0) ORDER BY a.account_id LIMIT 100")
         .bind(req.after.unwrap_or(0)).bind(&query).bind(&query).bind(&query).bind(&query).fetch_all(&state.db).await?;
     let players: Vec<_> = rows.iter().map(|row| serde_json::json!({
         "AccountId":row.get::<i64,_>("account_id"),
         "Nickname":row.get::<Option<String>,_>("nick"),
         "Username":row.get::<Option<String>,_>("username"),
+        // Same rule as the friend list's online indicator.
+        "Online":crate::api::community::friend::online(&state,row.get("account_id")),
+        "LastOnlineTime":Some(row.get::<String,_>("last_online")).filter(|t|!t.is_empty()),
     })).collect();
     let next = if players.len()==100 {players.last().map(|p|p["AccountId"].clone())} else {None};
     Ok(Json(serde_json::json!({"Players":players,"NextAfter":next})))

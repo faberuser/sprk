@@ -14,6 +14,35 @@ dotnet build scripts/DllPatcher
 
 ## Apply a focused fix
 
+`--hero-death-voices-only` corrects the battle creature's case-sensitive
+Dead/Damage/Down sound prefixes and retains the dot when a costume voice falls
+back to its hero's base voice. The original uppercase DEAD lookup cannot find
+the installed or archived `Dead.Hero.*` definitions. Native death detection,
+timers, voice language, audio settings and animation-sound fallback stay in use.
+`--verify-hero-death-voices` checks the death path and executes the native sound
+code builder against the installed catalogue, including missing costume voices,
+plus native English/Korean/Japanese death sound loading. The full release build
+installs and verifies this patch. Restart the game after installation.
+
+`--lavril-circle-only` aligns Lavril S3's normal and Glory League ground circles
+and impact flourish with the stationary damaging field, six metres in front of
+the caster. The old tree used the self-targeted projectile-creation operation's
+target (Lavril) for the circle. The restored build1558 tree (tracked override)
+places them at caster origin + facing * 5m; both forms are accepted and rewritten
+to the same 6m position. Combat tables, damage, stacks and targeting are
+unchanged. `--verify-lavril-circle` checks the installed node tree against the
+native projectile data and tests native radius boundaries with multiple enemy
+positions for both facing directions. Only three visual position records change;
+the complete tree is read back and checked for unrelated changes and idempotence.
+The full `--build-release` installs and verifies this fix. Restart the game.
+
+`--soulstone-ownership-only` makes the Soulstone Ticket's Owned and Not Owned
+filters use the hero roster instead of unique-weapon inventory. The native class
+filter and ticket pool remain in use. `--verify-soulstone-ownership` checks the
+installed lookup and executes all twelve ownership/class combinations through
+the installed method's control flow, plus patch idempotence. The full
+`--build-release` installs and verifies this fix. Restart the game after installing.
+
 `--skill-formula-only` adds a `123` / `fx` display toggle to the top-left of the
 hero skill card, mirrored against its linked-skill button. It preserves the native
 calculated description and combat data, and renders formulas from current native
@@ -52,6 +81,36 @@ this patch and `--automation-only`, then run
 source/ownership, selection and reopen checks (`--installed` after installation).
 The full release build installs and verifies this patch.
 
+`--ticket-search-only` adds a name search field to selector tickets: unique
+weapon/treasure and "all unique" tickets, artifact tickets, soulstone (soul
+weapon) tickets, hero tickets (both the single list and the Physical/Magical
+layout) and costume tickets. In windows with the native filter bar, the field
+takes the last slot beside the existing dropdowns and copies their pill sprite.
+Natively stacked dropdowns share one slot. Narrowed dropdowns keep their arrow's
+native inset from the pill edge. The Physical/Magical ticket gets a row above its
+column headings using the native `Common_Box_2` input box. Both use the window's
+font and the `Common_Close` clear button. Matching ignores case, spaces,
+punctuation and accents. Every word must match the localized hero name or title,
+the hero's internal English code name, or the item/costume name. When no entry in
+the ticket matches exactly, matching becomes typo-tolerant. Words of 4-5 letters
+allow 1 edit, 6-8 letters 2 edits, and longer words 3 edits. Adjacent swaps count
+as one edit. Name initials also match (for example `dlk` for Dark Lord Kasel).
+Typing filters after a short pause (Enter applies immediately). The native lists, their order, ownership
+and class filters and empty-state labels are retained. Only non-matching
+entries are skipped. Reopening a ticket clears the query. A unique/soulstone
+selection hidden by the search is cleared and Acquire is disabled. Hero tickets
+keep the chosen hero in the left panel. Hero tickets with two hero slots
+(`InvenUseMultipleHeroSelect`) page through heroes without a list and are
+unchanged. `--verify-ticket-search` checks the installed hooks. With this patch
+and `--automation-only` installed, launch an isolated client with a
+`ticket-search-*` profile and send the `ticket-search-probe` request with text
+`test`. It opens every ticket type on the Login scene and checks exact and typo
+matches, empty results, clearing, selection, native filter rebuilds and reopening.
+The fixture loads lobby atlases from the `HighAndMidSpec` bundle folder.
+`open:<weapon|treasure|artifact|soul|hero|attr|costume>` and `type:<query>`
+leave a fixture on screen for screenshots. The full release build installs and
+verifies this patch.
+
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,
 with a separate saved roster and no entry cost. It uses the equipped-hero
@@ -89,8 +148,12 @@ isolated client.
 `--technomagic-refresh-only` applies TM tier-upgrade account state before UI
 notification, then rebuilds the open awakening window's hero/inventory icons and
 clears the old 5-star target. `--verify-technomagic-refresh` verifies the response
-order, native error paths, and scoped refresh. Installation also executes the
-native response callback with isolated service traces and checks idempotence.
+order, native error paths, and scoped refresh. After restoration replaces an item,
+it also rebuilds Hero Info's equipped icons and inventory, discards the old
+equipped-item details/menu and refreshes treasure slots. Returning with Back then
+uses the restored item and its Enhancement eligibility without switching heroes.
+Installation executes the native response callback with isolated service traces,
+the Hero Info refresh across 16 hero/panel presence cases and patch idempotence.
 The full release build installs and verifies this patch. The server prices TM
 star upgrades using the target star, matching `ValanceAwakenWindow.AfterStar`.
 
@@ -534,3 +597,72 @@ actions and all 24 owned-button label states in an isolated Unity Login.
 `--unpatched` provides the negative control and `--installed` checks a copy of
 the installed DLL. No login or account mutation occurs. The full
 `--build-release` installs and verifies this patch. Restart the game afterward.
+# LINE pet index and summons
+
+`--line-pets-only` restores the pre-doomsday pet index by removing only the
+`IsLinePet` exclusion from `PetListBook.SetupPetPortraitComponent`. The native
+rarity filter, owned/unowned portraits and LINE-specific care/adventure rules
+remain intact. `--verify-line-pets` checks installed code; `--stage-only` stages
+the game DLL. The full `--build-release` installs and verifies the patch.
+
+`python scripts/client/verify_line_pets.py` tests the real Unity index in an
+isolated Login, including all 16 LINE entries and both rarity tabs. It never
+logs in or changes an account. `--unpatched` is the negative control;
+`--installed` checks a copy of the installed DLL.
+
+`LiveRules.json` routes first-set banners 27/30 to archived `GACHA_PET_2_GROUP`
+and second-set banners 26/29 to `GACHA_PET_3_GROUP`, including their bonus draws.
+The existing 100-draw pity uses the corresponding LINE Legendary group. Event
+pool weights match the September 2022 `ItemGroupTable2`; ordinary pets and pet
+food remain possible. Native mileage rewards and ordinary banners are unchanged.
+Run `cargo test --locked pet_ -- --test-threads=1` for summon/ownership regression
+checks. Restart the game and server after installing the DLL/rules.
+
+`--conquest-dungeon-icons-only` restores the boss icon and status-board
+portrait of baked Guild Conquest dungeons 290-292 (empty since they were baked
+from the old restoration hook). It points those fields of native
+`GuildSuppressDungeonTable.jit` at the strings the same bosses' archived rows
+already use and updates `SPRK-NativeData.json`. `--verify-conquest-dungeon-icons`
+checks the rows and integrity; the full `--build-release` installs and verifies it.
+
+`--conquest-round-label-only` changes the English banned-heroes week label
+(`GUILD_SUPPRESS_SESSION_NUMBER`, the Korean 회차) from "{1} time(s)" to
+"Round {1}", matching the portal. Other languages are unchanged. It updates the
+English localization pins in `SPRK-NativeData.json` and `SPRK-NativeCombat.json`;
+`--verify-conquest-round-label` checks both. The full `--build-release` installs it.
+
+`--portal-refresh-only` replaces only the conquest session hooks of the
+installed `RestoredPortal` helper (server-sent seasons replace archived rows with
+the same number; weekly rows in the banned-heroes list stay ordered). Use it on an already-patched client; `--portal-only`
+re-runs shared patches that cannot be reapplied. The full build compiles the
+same source. Add `--stage-only` to write `Assembly-CSharp.dll.portal-staged`.
+
+`--line-pet-currency-only` makes banners 26/27/29/30 permanent ruby purchases
+at twice the matching normal banner price (5,000 rubies for 10+1 and 500 for a
+single). It edits only their duration/date/payment/price fields in native
+`NewEquipGachaTable.jit` and updates `SPRK-NativeData.json`. Existing tickets
+remain usable, like normal summons. Server `LiveSupport.json` matches these
+fields. `--verify-line-pet-currency` checks prices, permanence and integrity;
+the full `--build-release` installs and verifies this transformation.
+`python scripts/client/verify_line_pets.py --currency` validates the loaded
+native table in isolation (`--unpatched` for the negative control).
+
+### Preview shadow culling
+
+`--free-camera-only` also preserves planar shadows when a caster leaves the
+camera frustum in See Motions, Dressing Room and the hero model preview. The
+preview bounds contain both the model and its projection along the native
+`_ShadowDirection`. Animated bounds use the current bones and bind-pose mesh
+bounds without baking vertices. Automatic offscreen bounds replacement is
+temporarily disabled; reset, window disable and model replacement restore the
+native settings. Static meshes use private copies whose bounds are restored on
+release. Combat rendering is outside this window scope.
+
+`--verify-free-camera` checks the projection hook and cleanup paths, including
+through the existing full `--build-release` workflow.
+`python scripts/client/verify_preview_shadows.py` reproduces the lost shadow
+with the native shader, verifies static/skinned projection bounds, moving and
+offset bones, stable repeated updates, cleanup, and the actual Isaiah model.
+`--installed` checks the installed helper in isolation. `--camera-controls`
+runs the existing native preview camera/layout regression checks. Neither test
+logs in or changes an account.

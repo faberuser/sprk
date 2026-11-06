@@ -305,7 +305,8 @@ pub(crate) async fn snapshot(s: &AppState, a: i64) -> Result<Value> {
 // EnterLobby uses NewPayShopProductInfo. Login's legacy PayShopProductInfo DTO
 // has a different category enum, so do not attach the new catalog to Login.
 pub(crate) async fn shop_snapshot(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    // One consistent read snapshot; lobby products never roll selection stock.
+    let mut tx = s.reads.begin().await?;
     let value = offers::lobby_snapshot(&mut tx, s, a).await?;
     tx.commit().await?;
     Ok(value)

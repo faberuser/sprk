@@ -164,4 +164,74 @@ public static class SprkNetworkPerformance {
         var manager=NVespa.NSingleton.SceneAutoBehaviour<NGame2.NUI.NManager.ShopManagement>.instance;
         foreach(var pair in grouped)manager.SetShopItemInfos(pair.Key,pair.Value.ToArray());
     }
+
+    // ---- Request queue ----
+    // The native queue sends one request at a time and spends frames between
+    // them. These reads match the server's observation() list: they skip
+    // mission notifications, carry no progression snapshot and only perform
+    // idempotent self-healing writes, so their replies cannot be reordered
+    // against gameplay state. Every other request remains exclusive and FIFO:
+    // it starts only when nothing is in flight, and nothing overtakes it.
+    static readonly HashSet<string> parallelReads=new HashSet<string>(StringComparer.Ordinal) {
+        "ping","ping/idle","dispatch/get_dispatch_list","mail/check_new_mail",
+        "mail/get_mail_list","mail/get_mail_list_by_page","mail/get_global_mail_list","mail/list",
+        "friend/list","friend/get_friend_list","friend/search_friend",
+        "match/get_season_info","global_arena/get_season_info","chat/info","chat/recent","query/session",
+        "guild/get_guildbasicinfo","guild/get_all_guild_member_info"};
+    public const int MaxParallelReads=4;
+    static List<WebServiceRequest> queue;
+    static string Service(WebServiceRequest request) {return request==null || request.ServiceName==null?"":request.ServiceName.Trim('/');}
+    public static bool ParallelRead(WebServiceRequest request) {return parallelReads.Contains(Service(request));}
+
+    // Replaces WebServiceRequester.ChainUpdate. Unlike the native loop it starts
+    // the next request in the same frame the previous one finished.
+    public static void Pump(List<WebServiceRequest> list) {
+        if(list==null)return;
+        queue=list;
+        double expiry=WebServiceRequest.GetTimeout()+5.0;
+        var now=DateTime.UtcNow;
+        for(int i=list.Count-1;i>=0;i--) {
+            var request=list[i];
+            if(request==null || request.Started && (request.Ended || (now-request.RequestedTime).TotalSeconds>expiry))list.RemoveAt(i);
+        }
+        int active=0;
+        for(int i=0;i<list.Count;i++) {
+            var request=list[i];
+            bool read=ParallelRead(request);
+            if(request.Started) {
+                if(!read)return;
+                active++;continue;
+            }
+            if(read) {
+                if(active>=MaxParallelReads)return;
+                request.Start();active++;continue;
+            }
+            if(active==0)request.Start();
+            return;
+        }
+    }
+    // True when an identical service call is already queued or in flight.
+    public static bool Pending(string service) {
+        var list=queue;if(list==null)return false;
+        foreach(var request in list)
+            if(request!=null && (!request.Started || !request.Ended) && Service(request)==service)return true;
+        return false;
+    }
+    // Two lobby paths request the same mail check back to back. The queued
+    // request's callback updates the shared mail state for both callers.
+    public static bool SkipMailCheck() {return Pending("mail/check_new_mail");}
+
+    // query_market_url only drives store-upgrade popups, which the SPRK
+    // launcher replaces; the server answers it with a generic success. Answer
+    // locally with the same result and keep the native asynchronous callback.
+    static readonly System.Reflection.MethodInfo marketDone=typeof(NGame2.NUtil.QueryMarketInfo).GetProperty("IsDone").GetSetMethod(true);
+    static readonly System.Reflection.MethodInfo marketResponse=typeof(NGame2.NUtil.QueryMarketInfo).GetProperty("Response").GetSetMethod(true);
+    public static bool AnswerMarketQuery(NGame2.NUtil.QueryMarketInfo query,Action onComplete) {
+        if(query==null)return false;
+        var response=new NShared.QueryMarketUrl.Response{BaseResult=NShared.BaseResultType.Success,Result=NShared.QueryMarketUrl.ResultType.Success};
+        marketResponse.Invoke(query,new object[]{response});
+        marketDone.Invoke(query,new object[]{true});
+        if(onComplete!=null)NVespa.SingletonUpdater<NVespa.NUtil.Executer>.instance.NextRun(onComplete);
+        return true;
+    }
 }

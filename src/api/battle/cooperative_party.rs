@@ -7,6 +7,18 @@ pub(crate) async fn begin_party(
     a: i64,
     r: &Request,
 ) -> Result<Value> {
+    begin_party_for(db, s, a, r, None).await
+}
+
+/// `only` limits a Party Retry restart to the players still in the battle;
+/// members who exited to the party room stay in the room without joining.
+pub(super) async fn begin_party_for(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    only: Option<&BTreeSet<i64>>,
+) -> Result<Value> {
     let room_id = r.number("RaidRoomNo", 0)?.max(r.number("MultiRoomNo", 0)?);
     let (family, raw): (String, String) = sqlx::query_as("SELECT family,data FROM battle_rooms WHERE id=? AND EXISTS(SELECT 1 FROM battle_room_members WHERE room=? AND account=?)")
         .bind(room_id).bind(room_id).bind(a).fetch_optional(&mut *db).await?.ok_or_else(|| rule("RoomNotExist"))?;
@@ -116,6 +128,7 @@ pub(crate) async fn begin_party(
     .bind(room_id)
     .fetch_all(&mut *db)
     .await?;
+    let members: Vec<i64> = members.into_iter().filter(|m| only.is_none_or(|only| only.contains(m))).collect();
     if ids(r, "MultiplayMemberIds", 8)?
         .into_iter()
         .collect::<BTreeSet<_>>()
@@ -288,7 +301,12 @@ pub(crate) async fn begin_party(
         .bind(room_id)
         .execute(&mut *db)
         .await?;
-    let payload = json!({"RunId":id,"PartyCampaign":true,"BossHp":0,"BossIndex":0,"Seed":now()%i32::MAX as i64,
+    // Party Retry replays the master's start against the same room. The
+    // payload reaches the battle worker, so it never carries session secrets.
+    let master_request: serde_json::Map<String, Value> = r.0.iter()
+        .filter(|(key, _)| !key.starts_with("Session"))
+        .map(|(key, value)| (key.clone(), json!(value))).collect();
+    let payload = json!({"RunId":id,"PartyCampaign":true,"MasterRequest":master_request,"BossHp":0,"BossIndex":0,"Seed":now()%i32::MAX as i64,
         "RaidIndex":room["RaidIndex"],"RaidLevel":room["RaidLevel"],
         "AffixIndices":if family=="raid" && n(def,"Type")==7 {room["AffixIndices"].clone()} else {json!([])},
         "Simulation":{"Uid":id,"ChapterIndex":room["ChapterIndex"],"DungeonIndex":room["DungeonIndex"],"DungeonDifficulty":campaign::difficulty(r)?,"AccountInfos":accounts}});
@@ -1009,7 +1027,7 @@ mod tests {
         }
     }
     #[tokio::test]
-    async fn full_login_leaves_idle_room_but_keeps_active_native_battle() {
+    async fn full_login_leaves_idle_and_active_battle_rooms() {
         let (s, users, _) = fixture().await;
         // FirstLobby also uses this snapshot. Returning from battle must keep
         // the existing PartyManager's room; only a full user login leaves it.
@@ -1029,6 +1047,9 @@ mod tests {
             .unwrap(),
             0
         );
+        // A restarted client (e.g. after a crash) cannot rejoin the party even
+        // while its battle runs; a retained membership would hide invites and
+        // block creating rooms ("AlreadyJoined").
         sqlx::query("UPDATE battle_rooms SET data=json_set(data,'$.Status',2) WHERE id=1")
             .execute(&s.db)
             .await
@@ -1044,7 +1065,7 @@ mod tests {
             .fetch_one(&s.db)
             .await
             .unwrap(),
-            1
+            0
         );
     }
 

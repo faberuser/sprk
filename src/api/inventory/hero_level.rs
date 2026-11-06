@@ -159,7 +159,8 @@ pub(crate) async fn notify(
     let current = session.as_ref().and_then(|s| *s.equipment_revision.lock().unwrap_or_else(|e| e.into_inner()));
     if let Some((cached, cached_tables)) = current.filter(|(_, t)| *t == tables) {
         let revision = async {
-            let mut db = state.db.acquire().await?;
+            // Committed-state probe; the repair path below takes the writer.
+            let mut db = state.reads.acquire().await?;
             crate::api::system::revisions::get(&mut db, "equipment", account).await
         }.await;
         if revision.ok() == Some(cached) && cached_tables == tables {

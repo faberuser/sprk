@@ -160,13 +160,14 @@ pub async fn enter_lobby_http(
 ) -> Result<Json<serde_json::Value>> {
     let compact=headers.get("x-sprk-compact-lobby").is_some_and(|v|v=="1");
     let session=req.session_key.as_deref().or(req.session_id.as_deref()).unwrap_or("").to_owned();
-    let mut response=enter_lobby_inner(state, req, compact).await?;
+    let mut response=enter_lobby_inner(state.clone(), req, compact).await?;
     if compact {
         conditional_catalog(&mut response.0.battle, &session,
             headers.get("x-sprk-shop-catalog").and_then(|v|v.to_str().ok()).unwrap_or(""));
     }
     let mut value=serde_json::to_value(response.0).map_err(|e|ServerError::Internal(e.to_string()))?;
-    crate::api::progression::notifications::conditional_sections(&mut value, &session, &headers);
+    let login = state.get_session(&session).map(|s| s.login_sections.clone());
+    crate::api::progression::notifications::conditional_sections_after_login(&mut value, &session, &headers, login.as_deref());
     Ok(Json(value))
 }
 
@@ -259,7 +260,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT COUNT(*) FROM mails WHERE account_id = ? AND is_received = 0"
     )
     .bind(account_id)
-    .fetch_one(&state.db)
+    .fetch_one(&state.reads)
     .await?;
 
     // Count friend requests
@@ -267,7 +268,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT COUNT(*) FROM friends WHERE friend_account_id = ? AND status = 0"
     )
     .bind(account_id)
-    .fetch_one(&state.db)
+    .fetch_one(&state.reads)
     .await?;
 
     // Fetch campaign progress for dungeon infos
@@ -275,7 +276,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
         "SELECT chapter_id, dungeon_id, clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? ORDER BY chapter_id, dungeon_id"
     )
     .bind(account_id)
-    .fetch_all(&state.db)
+    .fetch_all(&state.reads)
     .await
     .unwrap_or_default();
 
@@ -317,7 +318,7 @@ async fn enter_lobby_inner(state: AppState, req: EnterLobbyRequest, compact: boo
     // Fetch Hero Inn friendly info if exists
     let friendly_info = sqlx::query("SELECT * FROM hero_friendly_info WHERE account_id = ?")
         .bind(account_id)
-        .fetch_optional(&state.db)
+        .fetch_optional(&state.reads)
         .await?
         .map(|row| PlayerHeroFriendlyInfo {
             hero_index: row.get("hero_index"),
