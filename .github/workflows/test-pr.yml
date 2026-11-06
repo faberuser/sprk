@@ -37,6 +37,71 @@ jobs:
       - name: Test client release packaging
         run: python3 -m unittest discover -s scripts -t . -p 'test_*client*.py'
 
+  client-release:
+    name: Build and verify client release
+    # Runs the same patch/verify/package path as the main-branch release, so
+    # DllPatcher failures show up on the PR instead of during deployment.
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Skip when client inputs match the latest release
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        shell: python
+        run: |
+          import os, sys
+          sys.path.insert(0, os.environ['GITHUB_WORKSPACE'])
+          from scripts.release.client_release_inputs import main
+          main()
+
+      - name: Set up Python
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/client/requirements-client.txt
+
+      - name: Set up .NET
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Cache NuGet packages
+        if: steps.reuse.outputs.tag == ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('scripts/DllPatcher/*.csproj', '**/Directory.Packages.props', '**/NuGet.Config', '**/nuget.config') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Install client patch dependencies
+        if: steps.reuse.outputs.tag == ''
+        run: python -m pip install -r scripts/client/requirements-client.txt
+
+      - name: Build and verify client release (throwaway signature, no publish)
+        if: steps.reuse.outputs.tag == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $version = "pr-$($env:GITHUB_SHA.Substring(0,12))-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          python scripts/release/build_client_release.py `
+            --work "$env:RUNNER_TEMP/client-build" `
+            --version $version --repo $env:GITHUB_REPOSITORY --check-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   native-tests:
     name: Test native battles under Wine
     if: github.event_name == 'pull_request'
@@ -55,21 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_REPOSITORY: ${{ github.repository }}
-        shell: python
-        run: |
-          import json, os, re, subprocess
-          repo = os.environ['RELEASE_REPOSITORY']
-          releases = json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/releases?per_page=100']))
-          required = {'client-update-manifest.json', 'client-update.tar.gz'}
-          candidates = [r for r in releases if not r['draft'] and not r['prerelease']
-                        and re.fullmatch(r'client-[A-Za-z0-9][A-Za-z0-9_.-]*', r['tag_name'])
-                        and required <= {a['name'] for a in r['assets'] if a['state'] == 'uploaded'}]
-          if not candidates:
-              raise SystemExit('No complete published client release is available for PR native battle tests')
-          tag = max(candidates, key=lambda r: r['published_at'])['tag_name']
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'tag={tag}\n')
-          print(f'PR server compatibility tests will use signed worker release {tag}')
+        run: python3 scripts/release/latest_client_release.py
 
       - name: Assemble verified Linux battle worker
         env:
@@ -100,4 +151,63 @@ jobs:
         run: |
           docker run --rm --init sprk-native-tests:ci conquest_native_tcp_battle --ignored --nocapture
           docker run --rm --init sprk-native-tests:ci native_challenge_party_combat_and_settlement --ignored --nocapture
+
+  server-image:
+    name: Build and smoke-test server image
+    # Same release compile, image and readiness check as build-and-deploy.yml,
+    # without pushing or deploying. Runs alongside the Wine tests.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Select latest published client for PR compatibility tests
+        id: client
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/release/latest_client_release.py
+
+      - name: Assemble verified Linux battle worker
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_TAG: ${{ steps.client.outputs.tag }}
+        run: python3 scripts/server/linux_worker.py build --repo "$GITHUB_REPOSITORY" --tag "$CLIENT_TAG"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Compile Linux server binary
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: server-binary
+          platforms: linux/amd64
+          outputs: type=local,dest=build-input/server
+          cache-from: type=gha,scope=sprk-server-build
+
+      - name: Build server image for validation
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: precompiled-production
+          platforms: linux/amd64
+          load: true
+          push: false
+          build-args: |
+            CLIENT_UPDATE_REPO=${{ github.repository }}
+            CLIENT_UPDATE_TAG=${{ steps.client.outputs.tag }}
+          tags: sprk-server:pr-${{ github.sha }}
+          cache-from: type=gha,scope=sprk-server
+
+      - name: Require Linux battle worker readiness
+        run: python3 scripts/server/smoke_linux_worker.py "sprk-server:pr-${GITHUB_SHA}"
 

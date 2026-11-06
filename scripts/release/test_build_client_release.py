@@ -13,7 +13,8 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.release.build_client_release import extract_baseline, file_hash, managed_build_files
+from scripts.release.build_client_release import extract_baseline, file_hash, managed_build_files, throwaway_key
+from scripts.release.client_update_bundle import verified_manifest
 from scripts.release.prepare_client_baseline import prepare
 from scripts.release.publish_client_update import find_openssl, ignored, publish
 
@@ -84,6 +85,30 @@ class BaselineTests(unittest.TestCase):
                            managed_build_files(self.client), self.key)
         self.assertEqual([item["path"] for item in manifest["files"]], [added])
         self.assertIn(original, manifest["deleted_files"])
+
+
+class CheckOnlyTests(unittest.TestCase):
+    def test_throwaway_key_signs_verifiable_manifests_without_release_key(self):
+        with tempfile.TemporaryDirectory(prefix="sprk-check-key-") as folder:
+            root = Path(folder)
+            private, public = throwaway_key(root)
+            target = root / "client/King's Raid_Data/Managed/fixture.dll"
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b"pr check fixture")
+            publish(root / "client", root / "updates", "pr-check", "stable", ["King's Raid_Data/Managed"], private)
+            raw = (root / "updates/stable/manifest.json").read_bytes()
+            self.assertEqual(verified_manifest(raw, public)["version"], "pr-check")
+            release = Path(__file__).resolve().parents[2] / "config/client-update-public.pem"
+            with self.assertRaises(subprocess.CalledProcessError):
+                verified_manifest(raw, release)
+
+    def test_check_only_refuses_publish_or_release_key_before_network_access(self):
+        script = Path(__file__).resolve().with_name("build_client_release.py")
+        for extra in (["--publish"], ["--signing-key", "unused.pem"]):
+            result = subprocess.run([sys.executable, "-I", str(script), "--work", "unused", "--version", "x",
+                                     "--check-only", *extra], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("--check-only cannot be combined", result.stderr)
 
 
 if __name__ == "__main__":
