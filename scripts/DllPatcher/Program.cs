@@ -11,6 +11,11 @@ namespace DllPatcher
         {
             if (args.Contains("--accessories-only")) { InstallAccessories(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-accessories")) { InstallAccessories(args[0],false,true); return; }
+            if (args.Contains("--portal-refresh-only")) { RefreshPortalHelpers(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--conquest-round-label-only")) { InstallConquestRoundLabel(args[0], false); return; }
+            if (args.Contains("--verify-conquest-round-label")) { InstallConquestRoundLabel(args[0], true); return; }
+            if (args.Contains("--conquest-dungeon-icons-only")) { RestoreConquestDungeonIcons(args[0], false); return; }
+            if (args.Contains("--verify-conquest-dungeon-icons")) { RestoreConquestDungeonIcons(args[0], true); return; }
             if (args.Contains("--line-pet-currency-only")) { RestoreLinePetCurrency(args[0], false); return; }
             if (args.Contains("--verify-line-pet-currency")) { RestoreLinePetCurrency(args[0], true); return; }
             if (args.Contains("--line-pets-only")) { InstallLinePets(args[0], args.Contains("--stage-only")); return; }

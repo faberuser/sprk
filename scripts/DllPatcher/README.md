@@ -618,6 +618,25 @@ food remain possible. Native mileage rewards and ordinary banners are unchanged.
 Run `cargo test --locked pet_ -- --test-threads=1` for summon/ownership regression
 checks. Restart the game and server after installing the DLL/rules.
 
+`--conquest-dungeon-icons-only` restores the boss icon and status-board
+portrait of baked Guild Conquest dungeons 290-292 (empty since they were baked
+from the old restoration hook). It points those fields of native
+`GuildSuppressDungeonTable.jit` at the strings the same bosses' archived rows
+already use and updates `SPRK-NativeData.json`. `--verify-conquest-dungeon-icons`
+checks the rows and integrity; the full `--build-release` installs and verifies it.
+
+`--conquest-round-label-only` changes the English banned-heroes week label
+(`GUILD_SUPPRESS_SESSION_NUMBER`, the Korean 회차) from "{1} time(s)" to
+"Round {1}", matching the portal. Other languages are unchanged. It updates the
+English localization pins in `SPRK-NativeData.json` and `SPRK-NativeCombat.json`;
+`--verify-conquest-round-label` checks both. The full `--build-release` installs it.
+
+`--portal-refresh-only` replaces only the conquest session hooks of the
+installed `RestoredPortal` helper (server-sent seasons replace archived rows with
+the same number; weekly rows in the banned-heroes list stay ordered). Use it on an already-patched client; `--portal-only`
+re-runs shared patches that cannot be reapplied. The full build compiles the
+same source. Add `--stage-only` to write `Assembly-CSharp.dll.portal-staged`.
+
 `--line-pet-currency-only` makes banners 26/27/29/30 permanent ruby purchases
 at twice the matching normal banner price (5,000 rubies for 10+1 and 500 for a
 single). It edits only their duration/date/payment/price fields in native

@@ -175,6 +175,9 @@ partial class Program
         InstallLinePets(clientRoot, false, true);
         RestoreLinePetCurrency(clientRoot, false);
         RestoreLinePetCurrency(clientRoot, true);
+        RestoreConquestDungeonIcons(clientRoot, false);
+        RestoreConquestDungeonIcons(clientRoot, true);
+        InstallConquestRoundLabel(clientRoot, false);
         InstallHeroDeathVoices(clientRoot, false);
         InstallHeroDeathVoices(clientRoot, false, true);
         InstallAccessories(clientRoot, false);

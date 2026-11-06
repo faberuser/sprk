@@ -72,7 +72,7 @@ async fn conquest_solo_chat_reconnect_then_leave_allows_party_invitation_for_eve
         let mut follower=Socket::connect(address,&guest,1).await;
         let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyNotice");
         let replay:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
-        let expected=state.tables.arena_guild.rows("GuildSuppressSession").iter().find(|v|v["RaidIndex"]==90001).unwrap()["SuppressDungeonIndex"][(level-101) as usize].clone();
+        let expected=json!(super::conquest::party_dungeon_index(&state,level).unwrap());
         assert_eq!(replay["PartyInfo"]["GuildSuppressDungeonIndex"],expected);
         assert_eq!(replay["PartyInfo"]["RaidLevel"],level);
         follower.send("PingReq",json!({"RequestId":100})).await;
@@ -130,7 +130,7 @@ async fn conquest_invite_acceptance_preserves_native_party_screen_context_for_ev
         let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyRes");
         let accepted:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
         assert_eq!(accepted["Result"],"Success");assert_eq!(accepted["SendKey"],key);
-        let index=state.tables.arena_guild.rows("GuildSuppressSession").iter().find(|v|v["RaidIndex"]==90001).unwrap()["SuppressDungeonIndex"][(level-1) as usize].as_i64().unwrap();
+        let index=super::conquest::party_dungeon_index(&state,level).unwrap();
         assert_eq!(accepted["PartyInfo"]["GuildSuppressDungeonIndex"],index,"The native guest UI needs a valid conquest boss definition");
         assert!(state.tables.arena_guild.find("GuildSuppressDungeon",&[("Index",index)]).is_some());
         assert_eq!(accepted["PartyInfo"]["RaidIndex"],90001);assert_eq!(accepted["PartyInfo"]["RaidLevel"],level);
