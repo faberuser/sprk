@@ -276,7 +276,9 @@ pub(super) async fn execute(
                 })
             })
             .ok_or_else(|| rule("AlreadyOnBattleHero"))?;
-        let cost = campaign::stamina_cost(d, diff) * count;
+        // Legend costumes discount each run, rounded down like the native window.
+        let discount = bonuses::dispatch_stamina_discount(db, s, a).await?;
+        let cost = campaign::stamina_cost(d, diff) * (100 - discount) / 100 * count;
         let mut receipt = if entry_costs::enabled(db, a).await? {
             entry_costs::deferred_receipt()
         } else {
@@ -298,7 +300,7 @@ pub(super) async fn execute(
         };
         let finish = now() + settings(s, "DispatchSecondsPerBattle", 60).max(1) * count;
         request.0.remove("SessionKey");
-        let mut info = json!({"SlotIndex":slot,"ChapterIndex":n(d,"ChapterIndex"),"DungeonIndex":n(d,"DungeonIndex"),"Difficulty":diff,"DeckIndex":int(r,"DeckIndex")?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),"BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,"ServerResult":null,"State":"Battle","WinCount":0,"LoseCount":0,"StaminaDiscountRate":0,"FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost,"CostType":n(d,"ReqStaminaType"),"Request":request.0});
+        let mut info = json!({"SlotIndex":slot,"ChapterIndex":n(d,"ChapterIndex"),"DungeonIndex":n(d,"DungeonIndex"),"Difficulty":diff,"DeckIndex":int(r,"DeckIndex")?,"RepeatCount":count,"HeroIndices":json!(party).to_string(),"BeginTime":time(now()),"CompleteTime":time(finish),"ClientResult":null,"ClientResultTimeMs":0,"ServerResult":null,"State":"Battle","WinCount":0,"LoseCount":0,"StaminaDiscountRate":discount,"FinishTimestamp":finish,"StartTimestamp":now(),"Cost":cost,"CostType":n(d,"ReqStaminaType"),"Request":request.0});
         info["SimulationVersion"] = json!(2);
         info["SimulationSnapshot"] = simulation_snapshot(db, s, a, &info).await?;
         info["SimulationJobId"] = json!(uuid::Uuid::new_v4().to_string());
