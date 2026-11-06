@@ -59,6 +59,10 @@ partial class Program {
         // Execute the actual patched code builder with the installed catalogue.
         // Replace only its availability query; loading/decoding localized sound
         // rows below still uses the game's native SoundDataContainer.
+        // The CI release baseline carries only launcher-managed files, not the
+        // stock BundlePack.bin; static IL verification still runs there.
+        var bundlePack=Path.Combine(root,"King's Raid_Data","Documents","Patch","StandaloneWindows","Assetbundle","BundlePack.bin");
+        if(!File.Exists(bundlePack)){Console.WriteLine("Skipped hero death voice catalogue test: BundlePack.bin not present.");return;}
         using var bytes=new MemoryStream();game.Write(bytes);bytes.Position=0;
         using var fixture=AssemblyDefinition.ReadAssembly(bytes,new ReaderParameters{AssemblyResolver=game.MainModule.AssemblyResolver});
         var module=fixture.MainModule;var helper=module.GetType("NGameAsset.NSound.SoundHelper");
@@ -75,7 +79,7 @@ partial class Program {
             var assembly=Assembly.Load(output.ToArray());
             var read=assembly.GetType("JsonBin.JsonRead")!;
             var create=read.GetMethods().Single(m=>m.Name=="CreateRoot" && m.GetParameters().Length==2 && m.GetParameters()[0].ParameterType==typeof(byte[]));
-            object?[] parameters={File.ReadAllBytes(Path.Combine(root,"King's Raid_Data","Documents","Patch","StandaloneWindows","Assetbundle","BundlePack.bin")),null};
+            object?[] parameters={File.ReadAllBytes(bundlePack),null};
             if(!(bool)create.Invoke(null,parameters)!)throw new Exception("Installed sound pack cannot be decoded.");
             var soundRoot=read.GetMethod("GetField",new[]{typeof(string)})!.Invoke(parameters[1],new object[]{"SoundTable_Json"})!;
             var decode=assembly.GetType("JsonBin.NBinary.BinaryToJson")!.GetMethods().Single(m=>m.Name=="ToJson" && m.GetParameters()[0].ParameterType==read);
