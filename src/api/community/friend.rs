@@ -32,12 +32,38 @@ async fn profile_row(db: &mut SqliteConnection, state: &AppState, row: &sqlx::sq
     // higher raid/event chapter is not main-story completion.
     let clears: Vec<(i64,i64)> = sqlx::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=? AND clear_count>0 UNION SELECT COALESCE(json_extract(data,'$.ChapterIndex'),idx >> 32),COALESCE(json_extract(data,'$.DungeonIndex'),idx & 4294967295) FROM battle_state WHERE account=? AND kind='dungeon' AND (json_extract(data,'$.FirstRewardedDiff')>0 OR json_extract(data,'$.MaxStar')>0 OR json_extract(data,'$.ScenarioComplete')=1)")
         .bind(account).bind(account).fetch_all(db).await?;
-    let (chapter,dungeon) = clears.into_iter().filter(|(c,d)|
-        state.tables.battle.find("CampaignChapter",&[("Index",*c)]).is_some_and(|v|v["MainField"]==true) &&
-        state.tables.battle.find("CampaignDungeon",&[("ChapterIndex",*c),("DungeonIndex",*d)]).is_some_and(|v|matches!(super::n(v,"BattleType"),1|2|10)))
-        .max().unwrap_or((1,1));
+    let main = main_story_stages(state);
+    let (chapter,dungeon) = clears.into_iter().filter(|stage| main.contains(stage)).max().unwrap_or((1,1));
     Ok(json!({"AccountId":account, "Nick":row.get::<String,_>("nick"), "TeamLevel":row.get::<i32,_>("team_level"), "AvatarHeroIndex":row.get::<i32,_>("avatar_hero_index"),
         "VIPLevel":0, "IsOnline":online, "LastLoginTime":last, "LastOnlineTime":last_online, "LastLogoutTime":logout, "TierIndex":0, "MatchScore":0, "LastChapterIndex":chapter, "LastDungeonIndex":dungeon}))
+}
+
+/// Main-story stages (first `CampaignChapter` row has MainField, first
+/// `CampaignDungeon` row has BattleType 1, 2 or 10), built once per loaded table.
+/// Login builds a profile per friend, and scanning ~2800 dungeon rows per
+/// cleared stage made friend data most of the login time.
+fn main_story_stages(state: &AppState) -> std::sync::Arc<std::collections::HashSet<(i64, i64)>> {
+    type Cache = Option<(std::sync::Arc<crate::tables::BattleTable>, std::sync::Arc<std::collections::HashSet<(i64, i64)>>)>;
+    static CACHE: std::sync::Mutex<Cache> = std::sync::Mutex::new(None);
+    let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((table, stages)) = cache.as_ref() {
+        if std::sync::Arc::ptr_eq(table, &state.tables.battle) { return stages.clone(); }
+    }
+    let mut main_chapter = std::collections::HashMap::new();
+    for row in state.tables.battle.rows("CampaignChapter") {
+        if let Some(index) = row["Index"].as_i64() { main_chapter.entry(index).or_insert(row["MainField"] == true); }
+    }
+    let mut battle_type = std::collections::HashMap::new();
+    for row in state.tables.battle.rows("CampaignDungeon") {
+        if let (Some(c), Some(d)) = (row["ChapterIndex"].as_i64(), row["DungeonIndex"].as_i64()) {
+            battle_type.entry((c, d)).or_insert(super::n(row, "BattleType"));
+        }
+    }
+    let stages = std::sync::Arc::new(battle_type.into_iter()
+        .filter(|((c, _), kind)| main_chapter.get(c) == Some(&true) && matches!(kind, 1 | 2 | 10))
+        .map(|(stage, _)| stage).collect());
+    *cache = Some((state.tables.battle.clone(), std::sync::Arc::clone(&stages)));
+    stages
 }
 
 /// Chat-connected, or a game session active within the last two minutes.
@@ -476,4 +502,31 @@ async fn points(state: AppState, body: Bytes, mode: u8) -> Result<Json<Value>> {
     Ok(Json(
         json!({"BaseResult":"Success","Result":"Success","FriendshipPointResult":{"AddValue":add,"AddDailyAccValue":add,"NewValue":new,"NewDailyAccValue":daily+add},"FriendshipPointInfos":infos}),
     ))
+}
+
+#[cfg(test)]
+mod main_story_index_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn main_story_index_matches_first_row_table_lookups() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        let state = AppState::new(db, crate::tables::test_tables());
+        let stages = main_story_stages(&state);
+        let battle = &state.tables.battle;
+        let mut candidates: Vec<(i64, i64)> = battle.rows("CampaignDungeon").iter()
+            .filter_map(|r| Some((r["ChapterIndex"].as_i64()?, r["DungeonIndex"].as_i64()?))).collect();
+        candidates.extend([(0, 0), (1, 999_999), (999_999, 1)]);
+        let mut main = 0;
+        for (c, d) in candidates {
+            let expected = battle.find("CampaignChapter", &[("Index", c)]).is_some_and(|v| v["MainField"] == true)
+                && battle.find("CampaignDungeon", &[("ChapterIndex", c), ("DungeonIndex", d)])
+                    .is_some_and(|v| matches!(super::super::n(v, "BattleType"), 1 | 2 | 10));
+            assert_eq!(stages.contains(&(c, d)), expected, "stage {c}-{d}");
+            main += expected as usize;
+        }
+        assert!(main > 0, "fixture has no main-story stages");
+        // Reused while the same table set is loaded.
+        assert!(std::sync::Arc::ptr_eq(&stages, &main_story_stages(&state)));
+    }
 }

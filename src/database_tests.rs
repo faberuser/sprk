@@ -69,6 +69,21 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
         assert_eq!(body["Result"], "Success", "{body}");
     }
 
+    // A progression cache miss rebuilds on the readers: it must not write
+    // (SQLITE_READONLY) or queue behind the writer, which is held here.
+    sqlx::query("UPDATE user_info SET team_level=team_level+1 WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    let writer = s.db.acquire().await.unwrap();
+    let rebuilt = tokio::time::timeout(std::time::Duration::from_secs(5), api::progression::cache::get(&s, &key, account))
+        .await.expect("cache miss waited for the writer").unwrap();
+    assert!(rebuilt["AchievementInfos"].is_array(), "{rebuilt}");
+    drop(writer);
+    // A new day still needs the writer to count the login before the snapshot.
+    sqlx::query("UPDATE progression_login SET last_day='2000-01-01' WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
+    api::progression::cache::get(&s, &key, account).await.unwrap();
+    let day: String = sqlx::query_scalar("SELECT last_day FROM progression_login WHERE account_id=?").bind(account).fetch_one(&s.db).await.unwrap();
+    let today: String = sqlx::query_scalar("SELECT date('now')").fetch_one(&s.db).await.unwrap();
+    assert_eq!(day, today);
+
     reads.close().await;
     db.close().await;
     database::remove_test_database(&path).await;

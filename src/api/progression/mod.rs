@@ -81,12 +81,22 @@ pub(crate) async fn record(
 pub(crate) mod cache;
 
 pub(crate) async fn login(state: &AppState, account: i64) -> Result<Value> {
+    // Commit the initializers, then build the read-only snapshot on a reader
+    // (it sees that commit) so the writer is held for milliseconds, not the
+    // ~50 ms (~250 ms on the production host) the snapshot takes.
     let mut tx = state.db.begin().await?;
     item::init(&mut tx, state, account).await?;
     touch_day(&mut tx, account).await?;
+    tx.commit().await?;
+    let mut tx = state.reads.begin().await?;
     let out = snapshot(&mut tx, state, account).await?;
     tx.commit().await?;
     Ok(out)
+}
+/// Read-only: whether `touch_day` would write nothing (today is already counted).
+async fn day_touched(db: &mut SqliteConnection, account: i64) -> Result<bool> {
+    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM progression_login WHERE account_id=? AND last_day=date('now'))")
+        .bind(account).fetch_one(db).await?)
 }
 async fn touch_day(db: &mut SqliteConnection, account: i64) -> Result<()> {
     let changed=sqlx::query("INSERT INTO progression_login(account_id,days,last_day) VALUES(?,1,date('now')) ON CONFLICT(account_id) DO UPDATE SET days=days+1,last_day=excluded.last_day WHERE last_day!=excluded.last_day").bind(account).execute(&mut *db).await?.rows_affected();

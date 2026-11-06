@@ -75,6 +75,22 @@ before a slow request or long hold.
   transaction must see its uncommitted writes, so those stay on `db`. A
   misrouted write fails with SQLITE_READONLY; `database_tests.rs` runs every
   routed endpoint against a real reader pool.
+- **Progression notifier off the writer.** After every gameplay mutation the
+  notifier appends the mission snapshot (~176 KB, 20–55 ms of CPU locally and
+  about 5× that on the production host). `progression::cache::get` builds it on
+  a reader inside one read transaction, together with the revision. It takes
+  the writer only when `item::init` or the daily login count would write
+  (first request of a new day). Before Nov 2026 the rebuild ran under the
+  writer and was the ~360 ms "held long" floor behind nearly every equip, shop
+  and hero endpoint.
+- **Per-account revisions.** `response_revisions` triggers bump the account
+  that owns each changed row. `friends` bumps both players, and conquest
+  history bumps the `AccountId` in its JSON. Only world boss `battle_scores`
+  and `credentials` bump the global `('progression', 0)` revision, which every
+  cache also checks. When the snapshot reads a new table, add it to
+  `revisions::migrate` with its owner. A global owner invalidates every online
+  player's cache. Startup drops and recreates these triggers, so owner changes
+  take effect on existing databases.
 - **Memory pragmas.** Writer `cache_size` 64 MB, each reader 16 MB,
   `mmap_size` 256 MB (shared OS page cache), `temp_store=MEMORY`. These are
   caps, not reservations; at most about 130 MB of SQLite cache plus the
@@ -129,6 +145,17 @@ before a slow request or long hold.
   backfill skips stages that already have one), `GameTables::load` about 38–42 s
   (JSON parsing of `tables/`, not the database),
   login about 260–390 ms (about 500 statements, but only about 25 ms of SQL).
+- Login (Nov 2026, release build on the production copy, heaviest accounts):
+  200–330 ms before, 100–150 ms after these fixes. Expect about 5× that on the
+  production host. Friend profiles had scanned `CampaignDungeonTable` (~2800
+  rows) once per cleared stage of each friend (77–212 ms). Class buffs scanned
+  `EquipItem` once per owned item. Both now use indexes built once per loaded
+  table (`friend::main_story_stages`, `extensions::equip_item`). Login's
+  progression snapshot is built on a reader after the initializers commit.
+  What remains is mostly CPU: progression snapshot 24–53 ms, community
+  settlement 23–27 ms (writer), live 11–15 ms, equip items 13–17 ms (the
+  reply is 1.3–1.7 MB, about 70% `EquipItems`). Repeated `find` calls on
+  large tables inside per-row loops are the pattern to look for first.
 
 ## 6. Known scaling notes (Nov 2026: 59 accounts, about 2000 targeted)
 

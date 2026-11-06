@@ -10,7 +10,9 @@ pub(crate) async fn migrate(pool: &crate::database::DbPool) -> anyhow::Result<()
     // existing inventory proves a minimum for saves predating those metrics.
     for sql in [
         "INSERT OR IGNORE INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account_id,last_day,'LoginDaily',0,0,1 FROM progression_login WHERE days>0 AND last_day!=''",
-        "INSERT OR IGNORE INTO play_record_values SELECT account_id,'equip_count',item_index,MAX(owned,acquired) FROM (SELECT account_id,item_index,COUNT(*) owned,COALESCE((SELECT SUM(value) FROM progression_metrics m WHERE m.account_id=e.account_id AND m.kind='AddEquip' AND m.arg=e.item_index),0) acquired FROM equip_items e GROUP BY account_id,item_index)",
+        // Aggregate acquisitions once and skip existing keys. A correlated SUM
+        // per (account, item) held the writer for ~7s on every production boot.
+        "INSERT OR IGNORE INTO play_record_values SELECT e.account_id,'equip_count',e.item_index,MAX(e.owned,COALESCE(m.acquired,0)) FROM (SELECT account_id,item_index,COUNT(*) owned FROM equip_items GROUP BY account_id,item_index) e LEFT JOIN (SELECT account_id,arg,SUM(value) acquired FROM progression_metrics WHERE kind='AddEquip' GROUP BY account_id,arg) m ON m.account_id=e.account_id AND m.arg=e.item_index WHERE NOT EXISTS(SELECT 1 FROM play_record_values p WHERE p.account_id=e.account_id AND p.kind='equip_count' AND p.idx=e.item_index)",
         "INSERT OR IGNORE INTO play_record_values SELECT account_id,'equip_count',arg,SUM(value) FROM progression_metrics WHERE kind='AddEquip' GROUP BY account_id,arg",
         "INSERT OR IGNORE INTO play_record_values SELECT account_id,'equip_star',item_index,MAX(star) FROM equip_items GROUP BY account_id,item_index",
         "INSERT OR IGNORE INTO play_record_values SELECT s.account_id,'soul_count',0,COUNT(*) FROM extension_state s JOIN equip_items e ON e.account_id=s.account_id AND e.slot_index=s.idx WHERE s.kind='soul' GROUP BY s.account_id",

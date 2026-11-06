@@ -68,11 +68,7 @@ pub(crate) async fn class_snapshot(
     let equips=sqlx::query("SELECT item_index,MAX(star) AS star FROM equip_items WHERE account_id=? GROUP BY item_index").bind(account).fetch_all(&mut *db).await?;
     for eq in equips {
         let id: i32 = eq.get("item_index");
-        let Some(data) = state
-            .tables
-            .extensions
-            .find("EquipItem", &[("ItemIndex", id as i64)])
-        else {
+        let Some(data) = super::equip_item(state, id as i64) else {
             continue;
         };
         let detail = row(
