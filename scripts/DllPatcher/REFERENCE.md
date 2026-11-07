@@ -774,3 +774,18 @@ checks. The full release build installs and verifies the patch.
 dotnet run --project scripts/DllPatcher -- ../sprk-client --hero-exp-level-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-hero-exp-level
 ```
+
+## Team level buffs after Switch Account
+
+`TeamLevelBuffManager` is a global singleton. `Init` runs on every first lobby,
+including after Switch Account. It re-added the current account's buffs to
+caches keyed by `OpenBuffLevel` but never removed entries, so the previous
+account's higher buff levels remained in Total Applied Buffs and the team level
+stat lists. `--team-level-buff-reset-only` makes `Init` clear the three cached
+dictionaries before rebuilding, as `PetManager.RefreshAllPetBuff` already does
+for pets. The full release build installs and verifies it.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --team-level-buff-reset-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-team-level-buff-reset
+```

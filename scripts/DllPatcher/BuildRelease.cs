@@ -163,6 +163,8 @@ partial class Program
         InstallGodkingRechargePrompt(clientRoot, true);
         InstallHonorTicketRecharge(clientRoot, false);
         InstallHonorTicketRecharge(clientRoot, true);
+        InstallTeamLevelBuffReset(clientRoot, false);
+        InstallTeamLevelBuffReset(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
         VerifyOrdealUnlockFile(clientRoot, false);
