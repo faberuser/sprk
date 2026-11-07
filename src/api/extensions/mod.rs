@@ -173,7 +173,29 @@ fn row<'a>(state: &'a AppState, table: &str, fields: &[(&str, i64)]) -> Result<&
         .ok_or_else(|| rule("ItemDataNotFound"))
 }
 fn meta(state: &AppState, item: i32) -> Result<&Value> {
-    row(state, "EquipItem", &[("ItemIndex", item as i64)])
+    equip_item(state, item as i64).ok_or_else(|| rule("ItemDataNotFound"))
+}
+/// The first `EquipItem` row with this ItemIndex, like `find`, but indexed once
+/// per loaded table instead of scanning thousands of rows on every lookup.
+pub(crate) fn equip_item(state: &AppState, item: i64) -> Option<&Value> {
+    type Index = std::sync::Arc<std::collections::HashMap<i64, usize>>;
+    static CACHE: std::sync::Mutex<Option<(std::sync::Arc<crate::tables::ExtensionTable>, Index)>> = std::sync::Mutex::new(None);
+    let index = {
+        let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        match cache.as_ref() {
+            Some((table, index)) if std::sync::Arc::ptr_eq(table, &state.tables.extensions) => index.clone(),
+            _ => {
+                let mut index = std::collections::HashMap::new();
+                for (i, row) in state.tables.extensions.rows("EquipItem").iter().enumerate() {
+                    if let Some(id) = row["ItemIndex"].as_i64() { index.entry(id).or_insert(i); }
+                }
+                let index: Index = std::sync::Arc::new(index);
+                *cache = Some((state.tables.extensions.clone(), index.clone()));
+                index
+            }
+        }
+    };
+    index.get(&item).and_then(|i| state.tables.extensions.rows("EquipItem").get(*i))
 }
 pub(crate) async fn equip(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
     let r = sqlx::query(
@@ -412,10 +434,7 @@ pub(crate) async fn first_lobby(state: &AppState, account: i64) -> Result<Value>
         .await?
     {
         let eq = EquipItemInfo::from_row(&r);
-        if state
-            .tables
-            .extensions
-            .find("EquipItem", &[("ItemIndex", eq.item_index as i64)])
+        if equip_item(state, eq.item_index as i64)
             .is_some_and(|v| n(v, "EquipType") == 1)
         {
             techno.push(eq.item_index);
@@ -430,4 +449,28 @@ pub(crate) async fn first_lobby(state: &AppState, account: i64) -> Result<Value>
     Ok(
         json!({"EquipPresetInfos":presets,"EquipItemIdentifiedInfos":identified,"TechnoMagicEquipItems":techno,"PetInfos":pets,"TeamLevelBuffInfos":team}),
     )
+}
+
+#[cfg(test)]
+mod equip_item_index_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn equip_item_index_matches_first_row_lookup() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        let state = AppState::new(db, crate::tables::test_tables());
+        let rows = state.tables.extensions.rows("EquipItem");
+        assert!(!rows.is_empty());
+        for id in rows.iter().filter_map(|r| r["ItemIndex"].as_i64()).chain([0, -1, 999_999_999]) {
+            let expected = state.tables.extensions.find("EquipItem", &[("ItemIndex", id)]);
+            assert_eq!(equip_item(&state, id).map(|v| v as *const Value), expected.map(|v| v as *const Value), "item {id}");
+        }
+        // A replaced table is re-indexed rather than served from the old one.
+        let mut changed = state.clone();
+        let first = rows[0]["ItemIndex"].as_i64().unwrap();
+        std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut changed.tables).extensions).0
+            .get_mut("EquipItem").unwrap().retain(|r| r["ItemIndex"].as_i64() != Some(first));
+        assert!(equip_item(&changed, first).is_none());
+        assert!(equip_item(&state, first).is_some());
+    }
 }

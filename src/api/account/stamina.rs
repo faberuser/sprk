@@ -57,17 +57,18 @@ async fn counter(db: &mut SqliteConnection, a: i64, k: i64) -> Result<Value> {
         json!({"Day":day,"Count":0})
     })
 }
-pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
-    let row = sqlx::query(
-        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=?",
-    )
-    .bind(a)
-    .fetch_one(&mut *db)
-    .await?;
+/// The client's displayed Chicken stamina maximum: the team-level maximum plus
+/// every owned hero's AddStamina bonus. Returns (cap, recharge interval).
+pub(crate) async fn chicken_cap(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    team_level: i64,
+) -> Result<(i64, i64)> {
     let team = s
         .tables
         .services
-        .find("TeamLevel", &[("Level", row.get("team_level"))])
+        .find("TeamLevel", &[("Level", team_level)])
         .ok_or_else(|| rule("Fail"))?;
     let ids: Vec<i32> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=?")
         .bind(a)
@@ -79,7 +80,16 @@ pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> 
             .filter_map(|id| s.tables.hero_shop.heroes.get(id))
             .map(|v| n(v, "AddStamina"))
             .sum::<i64>();
-    let interval = n(team, "RechargeStaminaSec").max(1);
+    Ok((cap, n(team, "RechargeStaminaSec").max(1)))
+}
+pub(crate) async fn chicken(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+    let row = sqlx::query(
+        "SELECT stamina,stamina_recharge_time,team_level FROM user_info WHERE account_id=?",
+    )
+    .bind(a)
+    .fetch_one(&mut *db)
+    .await?;
+    let (cap, interval) = chicken_cap(db, s, a, row.get("team_level")).await?;
     let now = s.server_time();
     let old = row.get::<i64, _>("stamina");
     let last = row.get::<i64, _>("stamina_recharge_time");

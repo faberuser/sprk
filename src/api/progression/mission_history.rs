@@ -262,7 +262,14 @@ impl View {
             .collect();
         match row["Kind"].as_str().unwrap_or("") {
             "ClearTechnoMagicKingdomRaid" => c == ["System", "CanGoDungeon", "10", "10"],
-            "ClearTower" => c == ["System", "CanGoDungeon", "2", "27"],
+            // Tower of Challenge floors prove CanGoDungeon access; Ordeal Tower
+            // (TowerIndex 11, normal achievement 511) floors prove the Hall of
+            // Heroes entry condition, the same menu ClearOrdealTowerWeekly uses.
+            "ClearTower" => {
+                c == ["System", "CanGoDungeon", "2", "27"]
+                    || (row["ReqValue"] == "11"
+                        && c == ["Table", "NPCTable", "HallofHero", "EntryMenuCondition3"])
+            }
             "ClearOrdealTowerWeekly" => c == ["Table", "NPCTable", "HallofHero", "EntryMenuCondition3"],
             "WorldBossMaxRank" => c == ["System", "MenuOpenCheckManager", "WorldBoss"],
             "JoinMatchBanPickWeekly" => c == ["System", "MatchManagement", "CheckBanPickCondition"],

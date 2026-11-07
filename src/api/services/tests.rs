@@ -628,3 +628,28 @@ async fn recommended_decks_keep_only_the_served_ranking_and_use_indexes() {
     let dispatch = plan(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)).await;
     assert!(dispatch.contains("battle_state_dispatch_pending"), "{dispatch}");
 }
+
+#[tokio::test]
+async fn honor_tickets_recharge_like_victory_at_double_the_ruby_price() {
+    let (s,u)=setup().await;let a=aid(&u);
+    let price=|k:i64| s.tables.services.find("Stamina",&[("StaminaType",k)]).unwrap()["RechargeGemValue"][0]
+        .as_str().unwrap().parse::<i64>().unwrap();
+    // Honor holds 20 tickets to Victory's 10, so a full refill costs twice as much.
+    assert_eq!(price(13),price(2)*2);
+    sqlx::query("UPDATE user_info SET sword2=0,gem=1000,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    let v=call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await;
+    ok(&v);
+    assert_eq!(v["StaminaResult"]["Type"],"Sword2");
+    assert_eq!(v["StaminaResult"]["NewValue"],20);
+    assert_eq!(v["CurrencyResult"]["AddValue"],-price(13));
+    let stored:i64=sqlx::query_scalar("SELECT sword2 FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(stored,20);
+    // Recharging again after spending keeps working, with no daily cap.
+    sqlx::query("UPDATE user_info SET sword2=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    ok(&call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await);
+    // Without enough rubies the recharge fails and grants nothing.
+    sqlx::query("UPDATE user_info SET sword2=0,gem=0,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await["Result"],"Success");
+    let stored:i64=sqlx::query_scalar("SELECT sword2 FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    assert_eq!(stored,0);
+}

@@ -1939,3 +1939,22 @@ async fn clear_dungeon_baseline_backfill_only_fills_missing_stages() {
     play_record::migrate(&db).await.unwrap();
     assert_eq!((baseline(1, 2).await, baseline(1, 3).await), (Some(3), Some(0)));
 }
+
+#[tokio::test]
+async fn ordeal_tower_normal_achievement_claim_uses_cleared_floor_access_proof() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let row=s.tables.progression.achievements.iter().find(|r|r["Index"]==511 && r["Step"]==1).unwrap();
+    assert_eq!(row["OpenCondition"],json!(["Table","NPCTable","HallofHero","EntryMenuCondition3"]));
+    let claim="AchievementIndices=[511]&Steps=[0]";
+    // No cleared Ordeal Tower floor: the menu predicate alone grants nothing.
+    assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
+    let floor=s.tables.battle.rows("TowerFloor").iter()
+        .find(|r|n(r,"TowerIndex")==11 && n(r,"Floor")==10).unwrap().clone();
+    let dungeon=floor["DungeonIndices"].as_array().and_then(|d|d.first()).and_then(Value::as_i64).unwrap_or(n(&floor,"DungeonIndex"));
+    record(&mut s.db.acquire().await.unwrap(),a,"ClearDungeon",n(&floor,"ChapterIndex"),dungeon,1).await.unwrap();
+    let result=call(&s,&u,"reward_achievement",claim).await;
+    assert_eq!(result["Result"],"Success","{result}");
+    assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
+    let login=relogin(&s).await;
+    assert!(login.achievement_infos.iter().any(|v|v["AchievementIndex"]==511 && v["LastStep"]==1));
+}

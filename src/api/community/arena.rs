@@ -392,10 +392,11 @@ async fn execute_inner(
         }
         "register_match" => {
             let duel=int(r,"DuelType")?;
-            if !(0..=1).contains(&duel) || (duel==1 && kind!=0) {
+            let group=r.number("GroupId",0)?;
+            // A friendly duel registers in the league its invitation named.
+            if !(0..=1).contains(&duel) || (duel==1 && super::duel::league(group)!=kind) {
                 return Err(rule("ContentsDisabled"));
             }
-            let group=r.number("GroupId",0)?;
             let invited=if duel==1 {super::duel::opponent(db,a,group).await?} else {0};
             if n(&user(db, a).await?, "TeamLevel") < constant(s, "ArenaOpenTeamLevel", 10) {
                 return Err(rule("ContentsDisabled"));
@@ -408,7 +409,8 @@ async fn execute_inner(
                     let h=cached_hero(db,a,*id).await?;
                     if n(&h,"Level")<constant(s,"MatchingBanPickHeroLevelMin",1) || n(&h,"Star")<constant(s,"MatchingBanPickHeroStarMin",1) {return Err(rule("InvalidHero"));}
                 }
-                if n(&match_tickets(db,s,a,kind,0).await?,"NewValue")<1 {return Err(rule("NotEnoughSword"));}
+                // Friendly duels never consume or require Honor tickets.
+                if duel==0 && n(&match_tickets(db,s,a,kind,0).await?,"NewValue")<1 {return Err(rule("NotEnoughSword"));}
             }
             let leader = int(r, "LeaderHeroIndex")?;
             if kind==0 && leader > 0 && !heroes.contains(&leader) {
@@ -672,8 +674,8 @@ async fn complete_match(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,tr
     }
     let previous = battle_info_kind(db, s, a,kind).await?;
     if n(&data,"DuelType")==1 {
-        out["MatchResult"]=json!({"MatchUid":n(&data,"OnlineMatchUid"),"ArenaType":"Normal","Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":0,"NewMatchScore":previous["MatchScore"],"NewTierIndex":previous["TierIndex"],"NewTierRank":previous["Rank"],"NewTotalRank":previous["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"CurrencyResults":[],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?});
-        out["BattleInfo"]=previous;
+        out["MatchResult"]=json!({"MatchUid":n(&data,"OnlineMatchUid"),"ArenaType":if kind==1{"BanPick"}else{"Normal"},"Win":win==1,"GiveUp":false,"Canceled":false,"GainedMatchScore":0,"NewMatchScore":previous["MatchScore"],"NewTierIndex":previous["TierIndex"],"NewTierRank":previous["Rank"],"NewTotalRank":previous["Rank"],"PrevTierIndex":previous["TierIndex"],"PrevTierRank":previous["Rank"],"PrevTotalRank":previous["Rank"],"CurrencyResults":[],"ItemResults":[],"HeroExpResults":[],"SwordResult":match_tickets(db,s,a,kind,0).await?});
+        out[if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}]=previous;
         data["End"]=out.clone();data["CompletedAt"]=json!(now());
         sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?").bind(data.to_string()).bind(id).execute(db).await?;
         return Ok(out);

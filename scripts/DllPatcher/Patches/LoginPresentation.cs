@@ -6,7 +6,7 @@ namespace DllPatcher;
 partial class Program {
     static void VerifyLoginPresentation(ModuleDefinition game,ModuleDefinition helper) {
         var presentation=helper.GetType("SprkLoginPresentation") ?? throw new InvalidOperationException("Login presentation helper missing");
-        foreach(var name in new[]{"SelectBackground","SelectMusic","FilterMusic","Configure","Setup","ApplyBackground","LoadMusic","NormalizeBackgroundId","NormalizeMusicId","RestoreLogoSubtitle","ApplyEraLogo"})
+        foreach(var name in new[]{"SelectBackground","SelectMusic","FilterMusic","Configure","Setup","ApplyBackground","LoadMusic","NormalizeBackgroundId","NormalizeMusicId","RestoreLogoSubtitle","ApplyEraLogo","CoverScreen","CheckEdgePixels","AlignLogo","AlignMessage"})
             if(!presentation.Methods.Any(m=>m.Name==name))throw new InvalidOperationException("Missing login presentation method: "+name);
         foreach(var pair in new[]{("CleanLoginBackground","Configure"),("CleanSettings","Setup")})
             if(helper.GetType("SprkAccounts").Methods.Single(m=>m.Name==pair.Item1).Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkLoginPresentation" && m.Name==pair.Item2)!=1)
@@ -31,8 +31,11 @@ partial class Program {
         if(menu.Methods.Single(m=>m.Name=="OpenPicker").Body.Instructions.Any(i=>Equals(i.Operand,"Default Login Music")))throw new InvalidOperationException("Removed Default Login Music choice remains");
         foreach(var caption in new[]{"Button_LoginBackground","Button_LoginMusic"})
             if(!menu.Methods.Single(m=>m.Name=="Setup").Body.Instructions.Any(i=>Equals(i.Operand,caption)))throw new InvalidOperationException("Missing Others control: "+caption);
+        var closeToTitle=helper.GetType("SprkAccounts").Methods.SingleOrDefault(m=>m.Name=="CloseToTitle") ?? throw new InvalidOperationException("Account form close button missing");
+        if(!closeToTitle.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.Name==".ctor" && m.DeclaringType.Name=="StateBase_WaitTouch"))throw new InvalidOperationException("Account form close does not return to TAP TO PLAY");
+        if(!helper.GetType("SprkTapToPlay").Methods.Any(m=>m.Name=="TryGetLineWorldY"))throw new InvalidOperationException("TAP TO PLAY line is not shared with the status message");
         if(helper.GetType("SprkRecoveredLoginScene")==null)throw new InvalidOperationException("Recovered scene loader missing");
-        Console.WriteLine("Verified independent login background/music preferences, Others controls and native BGM integration.");
+        Console.WriteLine("Verified independent login background/music preferences, Others controls, wide-screen cover, account-form close and native BGM integration.");
     }
     static void VerifyLoginPresentationAssets(string root) {
         VerifyNoCenterLoginLogos(root);

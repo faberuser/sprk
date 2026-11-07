@@ -505,6 +505,8 @@ Run `python scripts/client/verify_graphics_options.py --window-checks` to includ
 
 The login menu replaces Language and Character Voice with one Settings button and hides the legacy Check Patch button. It opens the native GameOptionWindow through LoginManagement. The settings table and GameOption atlas load from installed client files without marking patch download complete. Texture and BGM callbacks handle the login context; account and lobby-only actions stay hidden there, with state restored before a pooled panel is opened in-game. The accounts installer owns these hooks, and `--build-release` verifies them with `VerifyLoginSettingsFile`; `--verify-login-settings` also supports `--stage-only`. An isolated Unity run with `SPRK_LOGIN_SETTINGS_TEST`, `SPRK_AUTOMATION_DIR` and `SPRK_AUTOMATION_PROFILE` checks native button cleanup, the panel's 52 rows, artwork, tabs, texture changes, refresh, close/reopen, pool cleanup and preserved download state.
 
+On screens wider than a background's art (ultrawide fullscreen), `SprkLoginPresentation` zooms the recovered scene about the screen centre until it covers the view (at most 2x). It takes the union of the scene's Spine/mesh renderers and non-black sprites over the first 45 frames, then reads a few rows of the rendered frame and trims the art to its non-black columns, because glow/fog layers overstate renderer bounds. 16:9 is unchanged. The corner logo keeps its 16:9 inset from the right screen edge, so it stays above Settings, and `LoginBackground.Label_Message` (the `[State] ...` status text) is centred on the TAP TO PLAY row. The account form has a top-right close button that closes LoginSelect and sets `StateBase_WaitTouch` as the next login state, returning to TAP TO PLAY. `SPRK_LOGIN_PRESENTATION_COVER` with the presentation probe variables screenshots every background at the launch resolution (e.g. `-screen-width 2560 -screen-height 1080`) and checks cover scale and status-line placement.
+
 Before constructing the login settings panel, load the installed full localization dictionary and enum redirects. Both GameOption (tooltip/child-row artwork) and PayShop (panel frame, title and close button) atlases must be available before login; their materials use the shipped Unlit/Transparent Colored shader because normal bundle shader preloading has not run yet. The existing shared Common atlas is preserved. The probe rejects raw localization keys, checks both sets of artwork and exports the visible panel with the standalone test's BI overlay disabled.
 
 My Info removes the dark outer window border baked into Common_Fram_Small2 using a cached, window-specific atlas copy. The gold silhouette, original nine-slice dimensions, portrait frames and shared Common atlas remain intact. This is separate from the older portrait-backdrop cleanup. The pet presentation installer includes the correction in focused and full release builds. An isolated Unity launch with SPRK_MYINFO_FRAME_TEST, SPRK_AUTOMATION_PROFILE and SPRK_AUTOMATION_DIR set exports before/after sprite images and checks outer-border removal, unchanged gold pixels, native geometry, atlas isolation and cached reuse.
@@ -733,3 +735,130 @@ also prefixes `BattleManagement`'s party exit listener,
 reflection. `--self-test-party-retry` tests mode eligibility, competitive
 exclusions, the wire format and notice text. Installation also checks
 idempotence and the serialized DLL.
+
+## League of Honor ticket recharge
+
+`--honor-ticket-recharge-only` makes League of Honor tickets (`Sword2`,
+StaminaType 13) Ruby-rechargeable like League of Victory (`Sword`). It edits
+only the `Sword2` row of `TableJit/StaminaTable.jit`: `RechargeCostType` 1, a
+Ruby price of twice Victory's (Honor refills 20 tickets to Victory's 10, so
+200 vs 100), and Victory's `RECHARGE_ARENATICKET_MESSAGE` popup. It then updates
+the `SPRK-NativeData.json` hash. It also fixes `MatchManager.OnFailRegistered_Pvp`,
+which always offered Victory's recharge after a `NotEnoughSword` registration
+failure: it now picks `Sword2` for non-Normal arenas, matching native
+`RetryMatch_Pvp`. The server's `tables/ServicesSupport.json` `Stamina` row for
+type 13 must carry the same cost type, price and popup key. The full release
+build installs and verifies both parts.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-ticket-recharge-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-ticket-recharge
+```
+
+## Hero EXP potion level picker
+
+In the EXP Potion window, a quick tap on a hero slot used to spend one potion.
+`--hero-exp-level-only` changes `HeroGetExpComponent.OnReleaseComponent` so that
+a tap (released before any potion was poured) opens the native Max confirmation
+(`LevelUpMaxPopup`) with level steppers (−10, −1, +1, +10) from the
+`SprkHeroExpLevel` helper. The picker starts at the highest level the selected
+potions reach, capped at the hero's maximum. Each step moves to the next level
+that whole potions can reach; one large potion can skip levels. The popup shows
+the fewest potions and the EXP for that level. Yes adjusts only the native
+confirmation closure's `usablePotion` and `nextHeroTotalExp` and then runs
+native `UseMax`, so the animation and `UsePotionItem` request are unchanged. If
+the potions cannot reach a single level, the plain native confirmation is shown.
+Holding a slot still pours potions continuously, and the Max button is
+unchanged. The installer runs the planning math (`TestHeroExpLevel`) and IL
+checks. The full release build installs and verifies the patch.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --hero-exp-level-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-hero-exp-level
+```
+
+## Team level buffs after Switch Account
+
+`TeamLevelBuffManager` is a global singleton. `Init` runs on every first lobby,
+including after Switch Account. It re-added the current account's buffs to
+caches keyed by `OpenBuffLevel` but never removed entries, so the previous
+account's higher buff levels remained in Total Applied Buffs and the team level
+stat lists. `--team-level-buff-reset-only` makes `Init` clear the three cached
+dictionaries before rebuilding, as `PetManager.RefreshAllPetBuff` already does
+for pets. The full release build installs and verifies it.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --team-level-buff-reset-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-team-level-buff-reset
+```
+
+## Victory and Honor friendly duels
+
+`--honor-duel-only` renames the friend menu's Friendly Duel to "Victory Duel"
+and adds "Honor Duel" below it (`SprkHonorDuel`). Both duels share the native
+handshake (`CanDuel`, `RequestDuel`, `AcceptDuel`, `CompletePartySetting`,
+`BeginDuel`). The league travels in the native `GroupId`: Victory uses the
+inviter's account ID, Honor uses that ID plus 2^40. The server
+(`src/api/community/duel.rs`, `HONOR_DUEL_GROUP_OFFSET`) uses the same rule.
+Honor has no four-hero party screen. Each player instead submits the native
+eligible collection (`MatchManagement.CheckBanPickCondition`, which shows the
+native message when a player is ineligible). The inviter submits first; the
+acceptor submits only after receiving the inviter's submission. Submitting
+immediately on acceptance would reach an inviter still in its `RequestDuel`
+state, which cancels the duel natively. Registration then uses `MatchPvpType`
+1, so the native ban/pick draft and battle run unchanged. The receiver's
+invitation keeps "Lv {level} {nick}" and names the league in the message line
+("Honor Duel Request sent."), so long nicknames do not overflow. The Honor
+button copies the Victory button's enabled/grayscale state and NGUI state
+sprites. A clone of the initially disabled native button would otherwise keep
+grey as its normal look. A friendly Honor duel skips the ranked matching screen
+(`MatchManager.OnRegistered_Pvp`), since the two invited players pair at once,
+and goes straight to the draft. Its result hides the score/ranking section
+(`PvpResult.BottomRoot`) and disables Retry, as Victory duels do; ranked results
+reset the section because the window is reused. Friendly results in both leagues
+enlarge the win/lose effect before it plays (`PvpResult.Init_*` reset
+`EffectRoot` and set the effect scale to 100, as native Victory duels do); ranked
+results restore the captured layout. Friendly Honor duels poll matchmaking every
+0.5 s like Victory, where ranked Honor uses `MatchArena.json`'s 3 s interval.
+They also open the draft immediately; ranked Honor waits 5 s
+(`ArenaContext.OnBattleBanPickStartCallback`) for the matching screen's opponent
+reveal. Together these cut the time from acceptance to the draft from about
+6-10 s to about 1 s.
+
+If the inviter cancels before the friend accepts, the server refuses the late
+acceptance and answers with the inviter's `CancelDuel`. The native client then
+shows "Duel has been canceled." and does not open the party screen. The client
+remembers cancels received while idle (`DuelManager.OnReceive` hooks; a new
+invitation from that friend clears them), so accepting a withdrawn Victory
+invitation never flashes the party screen first.
+
+On the server, a friendly registration must match its invitation's league.
+Friendly duels neither require nor consume tickets. They settle with no score,
+coins, medals, Honor weekly progress, play records or replays, and mission
+history ignores `DuelType` 1.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-duel-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-duel
+```
+
+## Gear Detailed Options
+
+Inventory > Filter & Sort Gear > Detailed Options lists each `OptionType` in
+`EquipOptionTable` that `EquipmentItemFilterManager.Helper.IsExceptionOperationType`
+accepts. The table is identical to the Pre-Doomsday archive (1,453 rows, 39
+types). The native rule rejected types by enum-name substring, which also hid
+real gear stats with native labels: Recovery (`ModRecoverPower`), Tough /
+P./M.Resistance (`*Toughness`), DMG Reduction upon Block / P./M.Block
+(`*BlockPower`) and Mana Recovery/DMG (`ModMpOnDamageR`).
+`--gear-filter-options-only` replaces the rule with an explicit list of the
+non-stat types (UseSkill, skill levels, Soul Weapon usage limit, plus ModMaxMp
+and ModMpOnDamage, which are not on gear). The grid now lists 32 options
+instead of 24. Matching (`GetMatchedDetailOptionCount`) is generic per type.
+The installer executes the patched rule for all 39 table types. The archived
+client is IL2CPP, so its own rule could not be read directly.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --gear-filter-options-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-gear-filter-options
+```

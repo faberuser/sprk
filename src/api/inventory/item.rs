@@ -41,19 +41,23 @@ pub(crate) fn data(state: &AppState, index: i32) -> Result<&Value> {
         .get(&index)
         .ok_or_else(|| rule("ItemDataNotFound"))
 }
+/// Read-only: whether `init` would write nothing for this account.
+pub(crate) async fn initialized(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<bool> {
+    let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
+    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=?) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=? AND slot_index BETWEEN 1 AND ?) = ?")
+        .bind(account).bind(account).bind(slots).bind(slots)
+        .fetch_one(db).await?)
+}
 pub(crate) async fn init(db: &mut SqliteConnection, state: &AppState, account: i64) -> Result<()> {
     // Mutation callers use deferred SQLx transactions. Reserve the SQLite writer
     // before any reads to avoid read-to-write upgrade races (including WAL's
     // SQLITE_BUSY_SNAPSHOT). WHERE 0 changes no rows or database pages.
     sqlx::query("UPDATE inventory_settings SET account_id=account_id WHERE 0")
         .execute(&mut *db).await?;
-    let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
     // Check persisted state instead of caching initialization before its caller's
     // transaction commits. This also repairs old accounts and missing slots.
-    let ready: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM inventory_settings WHERE account_id=?) AND (SELECT COUNT(*) FROM craft_slots WHERE account_id=? AND slot_index BETWEEN 1 AND ?) = ?")
-        .bind(account).bind(account).bind(slots).bind(slots)
-        .fetch_one(&mut *db).await?;
-    if ready { return Ok(()); }
+    if initialized(&mut *db, state, account).await? { return Ok(()); }
+    let slots = state.tables.inventory.constant("CraftSlotCountMin", 2);
     sqlx::query("INSERT OR IGNORE INTO inventory_settings(account_id) VALUES (?)")
         .bind(account)
         .execute(&mut *db)
@@ -266,7 +270,7 @@ pub(crate) async fn give(
         for equip in &mut rewards.equipment[equip_start..] {
             make_options(state, index, equip, &[])?;
             save_options(db, account, equip).await?;
-            if state.tables.extensions.find("EquipItem",&[("ItemIndex",index as i64)]).is_some_and(|v|n(v,"EquipType")==1){
+            if crate::api::extensions::equip_item(&state,index as i64).is_some_and(|v|n(v,"EquipType")==1){
                 equip.identified=0;
                 crate::api::extensions::save_equip(db,account,equip).await?;
             }
@@ -646,14 +650,21 @@ async fn execute(
                         .bind(account)
                         .fetch_one(&mut *db)
                         .await?;
-                        let max = state
-                            .tables
-                            .inventory
-                            .team_levels
-                            .iter()
-                            .find(|r| n(r, "Level") == level as i64)
-                            .map(|r| n(r, "MaxStamina"))
-                            .unwrap_or(0);
+                        // Chicken potions restore a share of the displayed
+                        // maximum, which includes owned heroes' AddStamina.
+                        let max = if kind == "Chicken" {
+                            crate::api::account::stamina::chicken_cap(db, state, account, level as i64)
+                                .await?.0
+                        } else {
+                            state
+                                .tables
+                                .inventory
+                                .team_levels
+                                .iter()
+                                .find(|r| n(r, "Level") == level as i64)
+                                .map(|r| n(r, "MaxStamina"))
+                                .unwrap_or(0)
+                        };
                         if max <= 0 {
                             return Err(rule("InvalidActionValue"));
                         }
