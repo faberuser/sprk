@@ -171,6 +171,8 @@ partial class Program
         InstallLegacyBannerRemoval(clientRoot, false);
         InstallBatchGrind(clientRoot, false);
         InstallBatchGrind(clientRoot, false, true);
+        InstallHeroExpLevel(clientRoot, false);
+        InstallHeroExpLevel(clientRoot, false, true);
         InstallHeroInnPresentation(clientRoot, false);
         InstallHeroInnPresentation(clientRoot, false, true);
         InstallLinePets(clientRoot, false);

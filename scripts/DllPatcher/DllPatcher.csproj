@@ -13,6 +13,7 @@
     <EmbeddedResource Include="Resources/LinePetProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.LinePetProbe.cs.txt" />
     <EmbeddedResource Include="Resources/HeroInnPresentationProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroInnPresentationProbe.cs.txt" />
     <EmbeddedResource Include="Resources/BatchGrind.cs.txt" WithCulture="false" LogicalName="DllPatcher.BatchGrind.cs.txt" />
+    <EmbeddedResource Include="Resources/HeroExpLevel.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroExpLevel.cs.txt" />
     <EmbeddedResource Include="Resources/SkillDescriptionFormula*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/TeamExpRefresh*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/ArtifactSourceFilter*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />

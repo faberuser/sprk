@@ -38,6 +38,8 @@ namespace DllPatcher
             if (args.Contains("--verify-godking-recharge-prompt")) { InstallGodkingRechargePrompt(args[0], true); return; }
             if (args.Contains("--honor-ticket-recharge-only")) { InstallHonorTicketRecharge(args[0], false); return; }
             if (args.Contains("--verify-honor-ticket-recharge")) { InstallHonorTicketRecharge(args[0], true); return; }
+            if (args.Contains("--hero-exp-level-only")) { InstallHeroExpLevel(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-hero-exp-level")) { InstallHeroExpLevel(args[0], false, true); return; }
             if (args.Contains("--solo-retry-only")) { InstallSoloRetry(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-solo-retry")) { InstallSoloRetry(args[0], args.Contains("--stage-only"), true); return; }
             if (args.Contains("--self-test-solo-retry")) { TestSoloRetry(); return; }

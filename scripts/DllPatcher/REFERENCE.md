@@ -752,3 +752,25 @@ build installs and verifies both parts.
 dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-ticket-recharge-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-ticket-recharge
 ```
+
+## Hero EXP potion level picker
+
+In the EXP Potion window, a quick tap on a hero slot used to spend one potion.
+`--hero-exp-level-only` changes `HeroGetExpComponent.OnReleaseComponent` so that
+a tap (released before any potion was poured) opens the native Max confirmation
+(`LevelUpMaxPopup`) with level steppers (−10, −1, +1, +10) from the
+`SprkHeroExpLevel` helper. The picker starts at the highest level the selected
+potions reach, capped at the hero's maximum. Each step moves to the next level
+that whole potions can reach; one large potion can skip levels. The popup shows
+the fewest potions and the EXP for that level. Yes adjusts only the native
+confirmation closure's `usablePotion` and `nextHeroTotalExp` and then runs
+native `UseMax`, so the animation and `UsePotionItem` request are unchanged. If
+the potions cannot reach a single level, the plain native confirmation is shown.
+Holding a slot still pours potions continuously, and the Max button is
+unchanged. The installer runs the planning math (`TestHeroExpLevel`) and IL
+checks. The full release build installs and verifies the patch.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --hero-exp-level-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-hero-exp-level
+```
