@@ -650,14 +650,21 @@ async fn execute(
                         .bind(account)
                         .fetch_one(&mut *db)
                         .await?;
-                        let max = state
-                            .tables
-                            .inventory
-                            .team_levels
-                            .iter()
-                            .find(|r| n(r, "Level") == level as i64)
-                            .map(|r| n(r, "MaxStamina"))
-                            .unwrap_or(0);
+                        // Chicken potions restore a share of the displayed
+                        // maximum, which includes owned heroes' AddStamina.
+                        let max = if kind == "Chicken" {
+                            crate::api::account::stamina::chicken_cap(db, state, account, level as i64)
+                                .await?.0
+                        } else {
+                            state
+                                .tables
+                                .inventory
+                                .team_levels
+                                .iter()
+                                .find(|r| n(r, "Level") == level as i64)
+                                .map(|r| n(r, "MaxStamina"))
+                                .unwrap_or(0)
+                        };
                         if max <= 0 {
                             return Err(rule("InvalidActionValue"));
                         }

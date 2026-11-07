@@ -533,7 +533,7 @@ async fn mail_achievement_token_failed_use_rolls_back_and_login_recovers_once() 
 }
 
 #[tokio::test]
-async fn potions_use_client_amounts_and_full_recovery_uses_team_capacity() {
+async fn potions_use_client_amounts_and_full_recovery_uses_displayed_capacity() {
     let (state, u) = setup().await;
     let (id, p) = potion(&state, 1);
     put(&state, &u, id, 3).await;
@@ -560,7 +560,35 @@ async fn potions_use_client_amounts_and_full_recovery_uses_team_capacity() {
     .unwrap()
     .0;
     assert_eq!(response["Result"], "Success");
-    assert_eq!(response["StaminaResult"]["AddValue"], 200);
+    let cap = |state: AppState| async move {
+        crate::api::account::stamina::chicken_cap(
+            &mut state.db.acquire().await.unwrap(), &state, u.user_info.account_id,
+            u.user_info.team_level as i64).await.unwrap().0
+    };
+    let before = cap(state.clone()).await;
+    assert!(before >= 200);
+    assert_eq!(response["StaminaResult"]["AddValue"], before);
+    // The displayed maximum includes owned heroes' AddStamina; a Full Stamina
+    // Potion restores that whole maximum, not only the team-level base.
+    let owned: Vec<i32> = sqlx::query_scalar("SELECT hero_index FROM heroes WHERE account_id=?")
+        .bind(u.user_info.account_id).fetch_all(&state.db).await.unwrap();
+    let (hero, bonus) = state.tables.hero_shop.heroes.iter()
+        .find(|(id, v)| item::n(v, "AddStamina") > 0 && !owned.contains(id))
+        .map(|(id, v)| (*id, item::n(v, "AddStamina"))).unwrap();
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index) VALUES(?,?,?)")
+        .bind(u.user_info.account_id).bind(hero).bind(hero).execute(&state.db).await.unwrap();
+    let after = cap(state.clone()).await;
+    assert_eq!(after, before + bonus);
+    put(&state, &u, full, 1).await;
+    let response = item::use_potion_item(
+        State(state.clone()),
+        form(&u, &format!("ItemIndex={full}&ItemCount=1")),
+    )
+    .await
+    .unwrap()
+    .0;
+    assert_eq!(response["Result"], "Success", "{response}");
+    assert_eq!(response["StaminaResult"]["AddValue"], after);
 }
 #[tokio::test]
 async fn entry_refill_items_use_native_stamina_types_and_keep_their_timers() {
