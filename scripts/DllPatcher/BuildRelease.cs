@@ -165,6 +165,8 @@ partial class Program
         InstallHonorTicketRecharge(clientRoot, true);
         InstallTeamLevelBuffReset(clientRoot, false);
         InstallTeamLevelBuffReset(clientRoot, true);
+        InstallGearFilterOptions(clientRoot, false);
+        InstallGearFilterOptions(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
         InstallHonorDuel(clientRoot, false);

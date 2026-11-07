@@ -92,7 +92,7 @@ public sealed class SprkAccounts : MonoBehaviour {
     bool choosing;
     int accountPage;
     GameObject accountList;
-    UIButton back;
+    UIButton back, close;
     const int PageSize=4;
     static SprkAccountStore Store {
         get {
@@ -487,6 +487,27 @@ public sealed class SprkAccounts : MonoBehaviour {
         UILabel backLabel;
         back=Button(changingPassword?"Cancel":"BackToAccounts",changingPassword?"Cancel":"Back to Accounts",0,0,696,BackToAccounts,out backLabel,null,false,52);
         accountList=Child("SavedAccounts",root.transform,0,0);
+        if(!changingPassword)BuildCloseButton();
+    }
+    // Top-right X: leaves the account form for the TAP TO PLAY screen. The panel
+    // top is fixed at y=440 (RefreshLayout grows it downwards).
+    public const float CloseX=376,CloseY=396;
+    void BuildCloseButton() {
+        UILabel unused;
+        close=Button("Close","",CloseX,CloseY,56,CloseToTitle,out unused,null,false,56);
+        unused.gameObject.SetActive(false);
+        foreach(var angle in new[]{45f,-45f}) {
+            var bar=Surface(Child("Cross",close.transform,0,0),30,4,new Color(.77f,.84f,.91f),16);
+            bar.transform.localRotation=Quaternion.Euler(0,0,angle);
+        }
+    }
+    void CloseToTitle() {
+        if(busy || changingPassword || window==null)return;
+        username.value="";password.value="";confirm.value="";HidePasswords();SetMessage("");UICamera.selectedObject=null;
+        window.Close();
+        // Ending StateBase_SelectLoginMethod this way stops its wait loop and
+        // reopens the touch screen and its Introduction/Settings menu.
+        SingletonUpdater<LoginManager>.instance.SetNextState(new NGame2.NLogin.NState.StateBase_WaitTouch());
     }
     void Refresh() {
         if(changingPassword) {RefreshPasswordChange();return;}
@@ -495,6 +516,7 @@ public sealed class SprkAccounts : MonoBehaviour {
         serverStatus.SetActive(!choosing);submit.gameObject.SetActive(!choosing);toggle.gameObject.SetActive(!choosing);
         back.gameObject.SetActive(!choosing && Store.Accounts.Count>0);back.isEnabled=!busy;
         back.transform.localPosition=new Vector3(0,registering?-312:-204,0);
+        if(close!=null)close.isEnabled=!busy;
         accountList.SetActive(choosing);
         title.text=choosing?"Choose an Account":registering?"Create Your Account":"Welcome Back";
         if(choosing)BuildAccountList();

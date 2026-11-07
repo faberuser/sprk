@@ -156,6 +156,10 @@ public sealed class SprkTapToPlay : MonoBehaviour {
     // Visible text center: the caption box is taller than its bottom-aligned text.
     public static float CaptionCenterY(UILabel caption,Transform space){var bottom=(caption.worldCorners[0]+caption.worldCorners[3])*.5f;return space.InverseTransformPoint(bottom+caption.transform.TransformVector(new Vector3(0f,caption.printedSize.y*.5f,0f))).y;}
     UIWidget art;Transform root;LoginAccountInfo menu;float nextSearch;
+    // World Y of the TAP TO PLAY line from the last frame that placed it from the
+    // Settings caption; the status message reuses it after this window closes.
+    static float lineWorldY;static bool hasLine;
+    public static bool TryGetLineWorldY(out float y){y=lineWorldY;return hasLine;}
     void Start() {
         root=transform.Find("Panel/Root");
         var tm=root!=null?root.Find("Sprite_backGround"):null;
@@ -175,6 +179,7 @@ public sealed class SprkTapToPlay : MonoBehaviour {
         }
         var position=art.transform.localPosition;
         if(Mathf.Abs(position.x)>.01f || Mathf.Abs(position.y-y)>.01f)art.transform.localPosition=new Vector3(0f,y,position.z);
+        lineWorldY=root.TransformPoint(new Vector3(0f,y,0f)).y;hasLine=true;
     }
 }
 public sealed class SprkLoginSettingsProbe : MonoBehaviour {

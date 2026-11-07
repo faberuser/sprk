@@ -505,6 +505,8 @@ Run `python scripts/client/verify_graphics_options.py --window-checks` to includ
 
 The login menu replaces Language and Character Voice with one Settings button and hides the legacy Check Patch button. It opens the native GameOptionWindow through LoginManagement. The settings table and GameOption atlas load from installed client files without marking patch download complete. Texture and BGM callbacks handle the login context; account and lobby-only actions stay hidden there, with state restored before a pooled panel is opened in-game. The accounts installer owns these hooks, and `--build-release` verifies them with `VerifyLoginSettingsFile`; `--verify-login-settings` also supports `--stage-only`. An isolated Unity run with `SPRK_LOGIN_SETTINGS_TEST`, `SPRK_AUTOMATION_DIR` and `SPRK_AUTOMATION_PROFILE` checks native button cleanup, the panel's 52 rows, artwork, tabs, texture changes, refresh, close/reopen, pool cleanup and preserved download state.
 
+On screens wider than a background's art (ultrawide fullscreen), `SprkLoginPresentation` zooms the recovered scene about the screen centre until it covers the view (at most 2x). It takes the union of the scene's Spine/mesh renderers and non-black sprites over the first 45 frames, then reads a few rows of the rendered frame and trims the art to its non-black columns, because glow/fog layers overstate renderer bounds. 16:9 is unchanged. The corner logo keeps its 16:9 inset from the right screen edge, so it stays above Settings, and `LoginBackground.Label_Message` (the `[State] ...` status text) is centred on the TAP TO PLAY row. The account form has a top-right close button that closes LoginSelect and sets `StateBase_WaitTouch` as the next login state, returning to TAP TO PLAY. `SPRK_LOGIN_PRESENTATION_COVER` with the presentation probe variables screenshots every background at the launch resolution (e.g. `-screen-width 2560 -screen-height 1080`) and checks cover scale and status-line placement.
+
 Before constructing the login settings panel, load the installed full localization dictionary and enum redirects. Both GameOption (tooltip/child-row artwork) and PayShop (panel frame, title and close button) atlases must be available before login; their materials use the shipped Unlit/Transparent Colored shader because normal bundle shader preloading has not run yet. The existing shared Common atlas is preserved. The probe rejects raw localization keys, checks both sets of artwork and exports the visible panel with the standalone test's BI overlay disabled.
 
 My Info removes the dark outer window border baked into Common_Fram_Small2 using a cached, window-specific atlas copy. The gold silhouette, original nine-slice dimensions, portrait frames and shared Common atlas remain intact. This is separate from the older portrait-backdrop cleanup. The pet presentation installer includes the correction in focused and full release builds. An isolated Unity launch with SPRK_MYINFO_FRAME_TEST, SPRK_AUTOMATION_PROFILE and SPRK_AUTOMATION_DIR set exports before/after sprite images and checks outer-border removal, unchanged gold pixels, native geometry, atlas isolation and cached reuse.
@@ -838,4 +840,25 @@ history ignores `DuelType` 1.
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-duel-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-duel
+```
+
+## Gear Detailed Options
+
+Inventory > Filter & Sort Gear > Detailed Options lists each `OptionType` in
+`EquipOptionTable` that `EquipmentItemFilterManager.Helper.IsExceptionOperationType`
+accepts. The table is identical to the Pre-Doomsday archive (1,453 rows, 39
+types). The native rule rejected types by enum-name substring, which also hid
+real gear stats with native labels: Recovery (`ModRecoverPower`), Tough /
+P./M.Resistance (`*Toughness`), DMG Reduction upon Block / P./M.Block
+(`*BlockPower`) and Mana Recovery/DMG (`ModMpOnDamageR`).
+`--gear-filter-options-only` replaces the rule with an explicit list of the
+non-stat types (UseSkill, skill levels, Soul Weapon usage limit, plus ModMaxMp
+and ModMpOnDamage, which are not on gear). The grid now lists 32 options
+instead of 24. Matching (`GetMatchedDetailOptionCount`) is generic per type.
+The installer executes the patched rule for all 39 table types. The archived
+client is IL2CPP, so its own rule could not be read directly.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --gear-filter-options-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-gear-filter-options
 ```
