@@ -167,6 +167,8 @@ partial class Program
         InstallTeamLevelBuffReset(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
+        InstallHonorDuel(clientRoot, false);
+        InstallHonorDuel(clientRoot, false, true);
         VerifyOrdealUnlockFile(clientRoot, false);
         InstallMariaLegendBird(clientRoot);
         InstallMariaLegendBird(clientRoot,true);

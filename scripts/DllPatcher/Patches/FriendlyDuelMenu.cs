@@ -32,7 +32,7 @@ partial class Program
             // The shipped menu hides DuelButton but never asks the peer whether
             // it can duel. Restore the native handshake, after the target is set
             // and before the final layout. The native callback shows the button.
-            var refresh = open.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "RefreshButton");
+            var refresh = open.Body.Instructions.Single(i => i.Operand is MethodReference m && IsDuelMenuLayout(m));
             var il = open.Body.GetILProcessor();
             il.InsertBefore(refresh.Previous, il.Create(OpCodes.Ldarg_0));
             il.InsertBefore(refresh.Previous, il.Create(OpCodes.Call, request));
@@ -44,6 +44,11 @@ partial class Program
         VerifyFriendlyDuelMenu(module);
     }
 
+    // The Honor duel patch (HonorDuel.cs) routes the native layout call through
+    // SprkHonorDuel.SetupAndRefresh, which adds its button and then lays out.
+    static bool IsDuelMenuLayout(MethodReference m) =>
+        m.Name == "RefreshButton" || (m.Name == "SetupAndRefresh" && m.DeclaringType.Name == "SprkHonorDuel");
+
     static void VerifyFriendlyDuelMenu(ModuleDefinition module)
     {
         VerifyArenaRankerMenu(module);
@@ -52,7 +57,7 @@ partial class Program
         bool Calls(MethodDefinition method, string name) => method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == name);
         var hook = open.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "RequestCanDuel");
         var target = open.Body.Instructions.Single(i => i.OpCode == OpCodes.Stfld && i.Operand is FieldReference f && f.Name == "_inspectUser");
-        var refresh = open.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "RefreshButton");
+        var refresh = open.Body.Instructions.Single(i => i.Operand is MethodReference m && IsDuelMenuLayout(m));
         var visible=open.Body.Instructions.Single(i=>i.Operand is MethodReference m && m.Name=="SprkSetDuelButtonVisible");
         var show=menu.Methods.Single(m=>m.Name=="SprkSetDuelButtonVisible");
         if (visible.Previous.OpCode!=OpCodes.Ldloc_0 || !Calls(show,"EnableGameObject") ||
@@ -65,7 +70,7 @@ partial class Program
         var callback = menu.Methods.Single(m => m.Name == "<RequestCanDuel>b__25_0");
         var click = menu.Methods.Single(m => m.Name == "OnClickButton");
         if (!Calls(request, "IsValidParty") || !Calls(request, "CanDuel") || !Calls(request, "SendCanDuel") ||
-            !Calls(callback, "get_CanDuel") || !Calls(callback, "EnableButton") || !Calls(callback, "RefreshButton") ||
+            !Calls(callback, "get_CanDuel") || !Calls(callback, "EnableButton") || !callback.Body.Instructions.Any(i => i.Operand is MethodReference m && IsDuelMenuLayout(m)) ||
             !Calls(click, "RequestDuel") || !callback.Body.Instructions.Any(i => i.Operand is FieldReference f && f.Name == "DuelButton"))
             throw new InvalidOperationException("Friendly duels must retain native party/eligibility checks, peer response and invitation action.");
         foreach (var method in new[] { open, request, callback, click, show }) VerifyArenaResultStack(method);

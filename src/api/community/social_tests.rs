@@ -1129,6 +1129,31 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
     assert_ne!(message(&mut sb,"MessageRes").await["Result"],"Success","closed invitations cannot relay zero-group pongs");
     sa.send("MessageReq",json!({"RequestId":13,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group}))})).await;
     assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"RequestDuel").await;
+    sa.send("MessageReq",json!({"RequestId":14,"ReceiverIds":[b.user_info.account_id],"Message":format!("CancelDuel {}",json!({"GroupId":group,"IsReject":false}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"CancelDuel").await;
+    // Honor duels encode the league in GroupId; any other GroupId is refused.
+    let forged=group+1;
+    sa.send("MessageReq",json!({"RequestId":15,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":forged}))})).await;
+    assert_ne!(message(&mut sa,"MessageRes").await["Result"],"Success");
+    let honor=group+super::duel::HONOR_DUEL_GROUP_OFFSET;
+    sa.send("MessageReq",json!({"RequestId":16,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":honor}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");
+    let notice=message(&mut sb,"RequestDuel").await;
+    let body:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(body["Nick"],a.user_info.nick);assert_eq!(body["GroupId"],honor);
+    assert_eq!(super::duel::league(honor),1);assert_eq!(super::duel::league(group),0);
+    // The inviter withdraws before the friend accepts: the late acceptance is
+    // refused and answered with the inviter's CancelDuel ("canceled", not a hang).
+    sa.send("MessageReq",json!({"RequestId":17,"ReceiverIds":[b.user_info.account_id],"Message":format!("CancelDuel {}",json!({"GroupId":honor,"IsReject":false}))})).await;
+    assert_eq!(message(&mut sa,"MessageRes").await["Result"],"Success");message(&mut sb,"CancelDuel").await;
+    sb.send("MessageReq",json!({"RequestId":18,"ReceiverIds":[a.user_info.account_id],"Message":format!("AcceptDuel {}",json!({"GroupId":honor}))})).await;
+    let (first,second)=(sb.read().await,sb.read().await);
+    let (response,cancel)=if first.0=="MessageRes" {(first.1,second.1)} else {(second.1,first.1)};
+    assert_ne!(response["Result"],"Success");
+    assert_eq!(cancel["Type"],"CancelDuel");assert_eq!(cancel["SenderId"],a.user_info.account_id);
+    let body:Value=serde_json::from_str(cancel["Content"].as_str().unwrap()).unwrap();
+    assert_eq!(body["GroupId"],honor);assert_eq!(body["IsReject"],false);
+    assert_eq!(sqlx::query_scalar::<_,String>("SELECT status FROM friendly_duels WHERE group_id=?").bind(honor).fetch_one(&state.db).await.unwrap(),"canceled");
     server.abort();
 }
 

@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 use sqlx::{Row, SqliteConnection, SqlitePool};
 use std::collections::BTreeSet;
 pub(crate) mod arena;
-mod duel;
+pub(crate) mod duel;
 pub mod chat;
 pub mod friend;
 mod guild;

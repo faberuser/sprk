@@ -301,6 +301,56 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn honor_friendly_duels_skip_tickets_scores_rewards_records_and_missions() {
+        let (s,users,mut worker)=fixture().await;
+        let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");
+        let group=a+crate::api::community::duel::HONOR_DUEL_GROUP_OFFSET;
+        sqlx::query("INSERT INTO friendly_duels VALUES(?,?,?,'accepted',?)").bind(group).bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
+        // No Honor tickets at all: a friendly duel neither requires nor spends them.
+        sqlx::query("UPDATE user_info SET sword2=0 WHERE account_id IN (?,?)").bind(a).bind(b).execute(&s.db).await.unwrap();
+        let heroes=json!((1..=16).collect::<Vec<_>>()).to_string();
+        // The GroupId names the league: an Honor invitation cannot enter Victory and vice versa.
+        assert_eq!(call(&s,&users[0],"match/register_match",&format!("ArenaType=Normal&DuelType=Friendly&GroupId={group}&HeroIndices=[1]&LeaderHeroIndex=1")).await["Result"],"ContentsDisabled");
+        assert_eq!(call(&s,&users[0],"match/register_match",&format!("ArenaType=BanPick&DuelType=Friendly&GroupId={a}&HeroIndices={heroes}&LeaderHeroIndex=1")).await["Result"],"ContentsDisabled");
+        // Ranked Honor without tickets is still refused.
+        assert_eq!(call(&s,&users[0],"match/register_match",&format!("ArenaType=BanPick&HeroIndices={heroes}&LeaderHeroIndex=1")).await["Result"],"NotEnoughSword");
+        for u in &users {
+            let out=call(&s,u,"match/register_match",&format!("ArenaType=BanPick&DuelType=Friendly&GroupId={group}&HeroIndices={heroes}&LeaderHeroIndex=1")).await;
+            assert_eq!(out["Result"],"Success","{out}");
+        }
+        let matched=call(&s,&users[0],"match/wait_match","").await;
+        assert_eq!(matched["Result"],"Success","{matched}");
+        assert_eq!(matched["MatchInfo"]["ArenaType"],"BanPick");
+        let uid=number(&matched["MatchInfo"],"Uid");
+        let (_server,mut clients)=draft(&s,&users,&matched).await;
+        finish_draft(&s,&mut clients,uid).await;
+        for c in &mut clients {c.send("BattleEnterReq",json!({"RequestId":31})).await;c.recv("BattleEnterRes").await;}
+        assert_eq!(worker.recv().await.unwrap().0,"WorkerPrepare");
+        for c in &mut clients {c.send("BattleStartReq",json!({"RequestId":32})).await;c.recv("BattleStartRes").await;}
+        assert_eq!(worker.recv().await.unwrap().0,"WorkerStart");
+        worker_packet(&s,"honor-worker","WorkerResult",json!({"RunId":format!("arena:{uid}"),"Winner":"Left","Win":true,"Creatures":[],"TimeMs":10000})).await.unwrap();
+        for u in &users {
+            let account=number(&u["UserInfo"],"AccountId");
+            assert_eq!(balance(&s,u).await.1,0,"Honor tickets must not be consumed");
+            let out=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
+            assert_eq!(out["MatchResult"]["ArenaType"],"BanPick","{out}");
+            assert_eq!(out["MatchResult"]["GainedMatchScore"],0);
+            assert_eq!(out["MatchResult"]["CurrencyResults"],json!([]));
+            assert_eq!(out["BattleBanPickInfo"]["MatchScore"],1000);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+                .bind(account).fetch_one(&s.db).await.unwrap(),0,"no Honor weekly reward progress");
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'),0)")
+                .bind(account).fetch_one(&s.db).await.unwrap(),0,"no Honor medals");
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM service_replays WHERE owner=?")
+                .bind(account).fetch_one(&s.db).await.unwrap(),0,"no battle record");
+            // Mission history ignores DuelType 1 runs (see mission_history_tests).
+            let summary:String=sqlx::query_scalar("SELECT mission_summary FROM arena_runs WHERE account=? AND status='complete'")
+                .bind(account).fetch_one(&s.db).await.unwrap();
+            assert_eq!(serde_json::from_str::<Value>(&summary).unwrap()["DuelType"],1);
+        }
+        assert_eq!(sqlx::query_scalar::<_,String>("SELECT status FROM friendly_duels WHERE group_id=?").bind(group).fetch_one(&s.db).await.unwrap(),"complete");
+    }
+    #[tokio::test]
     async fn honor_combat_forfeits_retain_replays_for_both_players() {
         for quit_http in [false,true] {
             let (s,users,mut worker)=fixture().await;

@@ -789,3 +789,53 @@ for pets. The full release build installs and verifies it.
 dotnet run --project scripts/DllPatcher -- ../sprk-client --team-level-buff-reset-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-team-level-buff-reset
 ```
+
+## Victory and Honor friendly duels
+
+`--honor-duel-only` renames the friend menu's Friendly Duel to "Victory Duel"
+and adds "Honor Duel" below it (`SprkHonorDuel`). Both duels share the native
+handshake (`CanDuel`, `RequestDuel`, `AcceptDuel`, `CompletePartySetting`,
+`BeginDuel`). The league travels in the native `GroupId`: Victory uses the
+inviter's account ID, Honor uses that ID plus 2^40. The server
+(`src/api/community/duel.rs`, `HONOR_DUEL_GROUP_OFFSET`) uses the same rule.
+Honor has no four-hero party screen. Each player instead submits the native
+eligible collection (`MatchManagement.CheckBanPickCondition`, which shows the
+native message when a player is ineligible). The inviter submits first; the
+acceptor submits only after receiving the inviter's submission. Submitting
+immediately on acceptance would reach an inviter still in its `RequestDuel`
+state, which cancels the duel natively. Registration then uses `MatchPvpType`
+1, so the native ban/pick draft and battle run unchanged. The receiver's
+invitation keeps "Lv {level} {nick}" and names the league in the message line
+("Honor Duel Request sent."), so long nicknames do not overflow. The Honor
+button copies the Victory button's enabled/grayscale state and NGUI state
+sprites. A clone of the initially disabled native button would otherwise keep
+grey as its normal look. A friendly Honor duel skips the ranked matching screen
+(`MatchManager.OnRegistered_Pvp`), since the two invited players pair at once,
+and goes straight to the draft. Its result hides the score/ranking section
+(`PvpResult.BottomRoot`) and disables Retry, as Victory duels do; ranked results
+reset the section because the window is reused. Friendly results in both leagues
+enlarge the win/lose effect before it plays (`PvpResult.Init_*` reset
+`EffectRoot` and set the effect scale to 100, as native Victory duels do); ranked
+results restore the captured layout. Friendly Honor duels poll matchmaking every
+0.5 s like Victory, where ranked Honor uses `MatchArena.json`'s 3 s interval.
+They also open the draft immediately; ranked Honor waits 5 s
+(`ArenaContext.OnBattleBanPickStartCallback`) for the matching screen's opponent
+reveal. Together these cut the time from acceptance to the draft from about
+6-10 s to about 1 s.
+
+If the inviter cancels before the friend accepts, the server refuses the late
+acceptance and answers with the inviter's `CancelDuel`. The native client then
+shows "Duel has been canceled." and does not open the party screen. The client
+remembers cancels received while idle (`DuelManager.OnReceive` hooks; a new
+invitation from that friend clears them), so accepting a withdrawn Victory
+invitation never flashes the party screen first.
+
+On the server, a friendly registration must match its invitation's league.
+Friendly duels neither require nor consume tickets. They settle with no score,
+coins, medals, Honor weekly progress, play records or replays, and mission
+history ignores `DuelType` 1.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-duel-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-duel
+```

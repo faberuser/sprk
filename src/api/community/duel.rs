@@ -1,6 +1,17 @@
 //! Native friend invitations; group membership is validated before arena pairing.
 use super::*;
 
+/// League of Honor friendly duels use the inviter's account ID plus this
+/// offset as GroupId; Victory duels keep the native account ID. Every native
+/// duel message and the arena registration carry GroupId, so both clients and
+/// the server agree on the league without a new protocol field.
+pub(crate) const HONOR_DUEL_GROUP_OFFSET: i64 = 1 << 40;
+
+/// The arena kind (0 Victory, 1 Honor) of a friendly duel GroupId.
+pub(crate) fn league(group: i64) -> i64 {
+    i64::from(group > HONOR_DUEL_GROUP_OFFSET)
+}
+
 pub(crate) fn supported(protocol: &str) -> bool {
     matches!(protocol, "CanDuelRequest"|"CanDuelResponse"|"RequestDuel"|"AcceptDuel"|"CancelDuel"|"CompletePartySetting"|"BeginDuel"|"DuelPing"|"DuelPong")
 }
@@ -15,14 +26,16 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
     match protocol {
         "CanDuelRequest"|"CanDuelResponse"=>{},
         "RequestDuel"=>{
-            // The native friend menu uses the inviter's account ID as GroupId.
-            if group!=a {return Err(rule("InvalidValue"));}
+            // The native friend menu uses the inviter's account ID as GroupId;
+            // Honor duels add HONOR_DUEL_GROUP_OFFSET to it.
+            if group!=a && group!=a+HONOR_DUEL_GROUP_OFFSET {return Err(rule("InvalidValue"));}
             let busy:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM friendly_duels WHERE status IN ('invited','accepted') AND expires>? AND (requester IN (?,?) OR opponent IN (?,?)))")
                 .bind(now()).bind(a).bind(b).bind(a).bind(b).fetch_one(&mut *tx).await?;
             if busy {return Err(rule("WaitMore"));}
             sqlx::query("INSERT INTO friendly_duels(group_id,requester,opponent,status,expires) VALUES(?,?,?,'invited',?) ON CONFLICT(group_id) DO UPDATE SET requester=excluded.requester,opponent=excluded.opponent,status='invited',expires=excluded.expires")
                 .bind(group).bind(a).bind(b).bind(now()+180).execute(&mut *tx).await?;
             let user=user(&mut tx,a).await?;
+            // The client names the league in the invitation from GroupId.
             content=json!({"GroupId":group,"Nick":user["Nick"],"TeamLevel":user["TeamLevel"],"AvatarIndex":user["AvatarHeroIndex"]});
         },
         _=>{
@@ -35,7 +48,21 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
             } else {
                 sqlx::query("SELECT requester,opponent,status FROM friendly_duels WHERE group_id=? AND expires>?")
                     .bind(group).bind(now()).fetch_optional(&mut *tx).await?
-            }.ok_or_else(||rule("WrongMember"))?;
+            };
+            // Accepting an invitation its sender canceled (or that expired): the
+            // native client has already entered the party step. Answer with the
+            // inviter's CancelDuel so it shows "canceled" and returns, instead
+            // of waiting for a partner who will never start.
+            let withdrawn=|row:&Option<sqlx::sqlite::SqliteRow>| match row {
+                None=>true,
+                Some(row)=>row.get::<i64,_>("requester")==b && row.get::<i64,_>("opponent")==a && row.get::<String,_>("status")!="invited",
+            };
+            if protocol=="AcceptDuel" && (group==b || group==b+HONOR_DUEL_GROUP_OFFSET) && withdrawn(&row) {
+                drop(tx);
+                s.chat.notify(a,b,"CancelDuel",json!({"GroupId":group,"IsReject":false}));
+                return Err(rule("WrongMember"));
+            }
+            let row=row.ok_or_else(||rule("WrongMember"))?;
             let requester:i64=row.get("requester");let opponent:i64=row.get("opponent");let status:String=row.get("status");
             if !((requester==a && opponent==b)||(requester==b && opponent==a)) {return Err(rule("WrongMember"));}
             if protocol=="AcceptDuel" {
@@ -50,6 +77,7 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
         }
     }
     tx.commit().await?;
+    tracing::debug!(protocol, from=a, to=b, group, "Duel message relayed");
     s.chat.notify(b,a,protocol,content);
     Ok(())
 }
