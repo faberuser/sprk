@@ -246,10 +246,12 @@
           20
         ],
         "AllowOverflow": true,
-        "RechargeCostType": 0,
+        "RechargeCostType": 1,
         "RechargeGoldValue": null,
-        "RechargeGemValue": null,
-        "PopupStringKey": "",
+        "RechargeGemValue": [
+          "200"
+        ],
+        "PopupStringKey": "RECHARGE_ARENATICKET_MESSAGE",
         "AutoRepeatStopMsgKey": "",
         "HeroBonusTooltipDesc": "TooltipDesc_Sword2",
         "StaminaTooltipDesc": ""

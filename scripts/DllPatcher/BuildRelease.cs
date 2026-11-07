@@ -161,6 +161,8 @@ partial class Program
         InstallPartyRetry(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
+        InstallHonorTicketRecharge(clientRoot, false);
+        InstallHonorTicketRecharge(clientRoot, true);
         InstallFriendlyDuelMenu(clientRoot, false);
         InstallFriendlyDuelMenu(clientRoot, true);
         VerifyOrdealUnlockFile(clientRoot, false);

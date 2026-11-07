@@ -733,3 +733,22 @@ also prefixes `BattleManagement`'s party exit listener,
 reflection. `--self-test-party-retry` tests mode eligibility, competitive
 exclusions, the wire format and notice text. Installation also checks
 idempotence and the serialized DLL.
+
+## League of Honor ticket recharge
+
+`--honor-ticket-recharge-only` makes League of Honor tickets (`Sword2`,
+StaminaType 13) Ruby-rechargeable like League of Victory (`Sword`). It edits
+only the `Sword2` row of `TableJit/StaminaTable.jit`: `RechargeCostType` 1, a
+Ruby price of twice Victory's (Honor refills 20 tickets to Victory's 10, so
+200 vs 100), and Victory's `RECHARGE_ARENATICKET_MESSAGE` popup. It then updates
+the `SPRK-NativeData.json` hash. It also fixes `MatchManager.OnFailRegistered_Pvp`,
+which always offered Victory's recharge after a `NotEnoughSword` registration
+failure: it now picks `Sword2` for non-Normal arenas, matching native
+`RetryMatch_Pvp`. The server's `tables/ServicesSupport.json` `Stamina` row for
+type 13 must carry the same cost type, price and popup key. The full release
+build installs and verifies both parts.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --honor-ticket-recharge-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-honor-ticket-recharge
+```
