@@ -69,7 +69,9 @@ async fn install(db: &mut SqliteConnection, table: &str, scope: &str, owners: &[
     let all = sqlx::query(&format!("PRAGMA table_info(\"{table}\")")).fetch_all(&mut *db).await?;
     anyhow::ensure!(!all.is_empty(), "Missing revision dependency: {table}");
     let names: Vec<String> = all.iter().map(|r| r.get("name")).collect();
-    let columns: Vec<&str> = columns.map(Vec::from).unwrap_or_else(|| names.iter().map(String::as_str).collect());
+    // Queue heartbeats (`arena_runs.last_poll`) change no response.
+    let columns: Vec<&str> = columns.map(Vec::from).unwrap_or_else(|| names.iter().map(String::as_str)
+        .filter(|c| !(table == "arena_runs" && *c == "last_poll")).collect());
     let changed = columns.iter().map(|c| format!("OLD.\"{c}\" IS NOT NEW.\"{c}\"")).collect::<Vec<_>>().join(" OR ");
     let bump = |account: &str, when: &str| format!("INSERT INTO response_revisions(scope,account,revision) SELECT '{scope}',{account},1 WHERE {when} ON CONFLICT(scope,account) DO UPDATE SET revision=revision+1;");
     for event in ["INSERT", "UPDATE", "DELETE"] {

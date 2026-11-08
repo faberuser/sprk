@@ -443,8 +443,8 @@ async fn execute_inner(
             out["DeckInfo"] = if kind==1 {Value::Null} else {
                 json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}})
             };
-            let data = json!({"Kind":kind,"DuelType":duel,"GroupId":group,"InvitedOpponent":invited,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"LastPoll":now(),"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
-            sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,'waiting',?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).execute(db).await?;
+            let data = json!({"Kind":kind,"DuelType":duel,"GroupId":group,"InvitedOpponent":invited,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
+            sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data,last_poll) VALUES(?,?,?,'waiting',?,?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).bind(now()).execute(db).await?;
         }
         "cancel_match" => {
             if online::cancel_account(db, s, a).await? {
@@ -480,9 +480,8 @@ async fn execute_inner(
             if run.get::<String, _>("status") == "battle" {
                 return Ok(data["Wait"].clone());
             }
-            data["LastPoll"] = json!(now());
-            sqlx::query("UPDATE arena_runs SET data=? WHERE id=?")
-                .bind(data.to_string()).bind(id).execute(&mut *db).await?;
+            sqlx::query("UPDATE arena_runs SET last_poll=? WHERE id=?")
+                .bind(now()).bind(id).execute(&mut *db).await?;
             if let Some(matched) = online::pair(db, s, a, id, &data).await? {
                 return Ok(matched);
             }

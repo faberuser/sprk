@@ -125,6 +125,19 @@ pub(crate) async fn money(
     Ok(json!(CurrencyResultInfo3::gem(amount, new_free, new_paid)))
 }
 
+/// Unequipped equipment in one bag. `?1` = account, `?2` = inventory type.
+const EQUIP_BAG_COUNT: &str = "SELECT COUNT(*) FROM equip_items WHERE account_id=?1 AND inventory_type=?2 AND slot_index NOT IN (\
+    SELECT equip_item_slot_index_1 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_1 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_2 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_2 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_3 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_3 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_4 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_4 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_5 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_5 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_6 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_6 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_7 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_7 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_8 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_8 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_9 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_9 IS NOT NULL UNION ALL \
+    SELECT equip_item_slot_index_10 FROM heroes WHERE account_id=?1 AND equip_item_slot_index_10 IS NOT NULL)";
+
 pub(crate) async fn capacity(
     db: &mut SqliteConnection,
     state: &AppState,
@@ -132,6 +145,19 @@ pub(crate) async fn capacity(
     inventory: i32,
     extra: i64,
 ) -> Result<()> {
+    if free_slots(db, state, account, inventory).await? < extra {
+        return Err(rule("EquipItemFull"));
+    }
+    Ok(())
+}
+
+/// Bag size minus unequipped items; negative when over capacity.
+pub(crate) async fn free_slots(
+    db: &mut SqliteConnection,
+    state: &AppState,
+    account: i64,
+    inventory: i32,
+) -> Result<i64> {
     let column = if inventory == 1 {
         "chest_extend"
     } else {
@@ -167,17 +193,14 @@ pub(crate) async fn capacity(
     } else {
         state.tables.inventory.constant("EquipItemMaxCount", 280)
     };
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM equip_items e WHERE account_id=? AND inventory_type=? AND NOT EXISTS(SELECT 1 FROM heroes h WHERE h.account_id=e.account_id AND e.slot_index IN (h.equip_item_slot_index_1,h.equip_item_slot_index_2,h.equip_item_slot_index_3,h.equip_item_slot_index_4,h.equip_item_slot_index_5,h.equip_item_slot_index_6,h.equip_item_slot_index_7,h.equip_item_slot_index_8,h.equip_item_slot_index_9,h.equip_item_slot_index_10))",
-    )
+    // Collect the equipped slots once instead of rescanning the account's
+    // heroes per bag row (5 ms vs 0.15 ms for ~1000 items; this runs per drop).
+    let count: i64 = sqlx::query_scalar(EQUIP_BAG_COUNT)
     .bind(account)
     .bind(inventory)
     .fetch_one(db)
     .await?;
-    if count + extra > base + extend * size {
-        return Err(rule("EquipItemFull"));
-    }
-    Ok(())
+    Ok(base + extend * size - count)
 }
 pub(crate) async fn give(
     db: &mut SqliteConnection,
@@ -276,15 +299,19 @@ pub(crate) async fn give(
             }
         }
     }
-    if metadata.kind == "Equip" && rewards.mail_overflow {
-        let mut mailed = Vec::new();
+    if metadata.kind == "Equip" && rewards.mail_overflow && rewards.equipment.len() > equip_start {
+        // Count the bag once per grant: a 100-fight dispatch can roll hundreds of
+        // pieces, and recounting per piece held the writer for ~24 s in production.
+        let added = (rewards.equipment.len() - equip_start) as i64;
+        let overflow = if rewards.bag_full { added } else {
+            let free = free_slots(db, state, account, 0).await?;
+            let overflow = (-free).clamp(0, added);
+            rewards.bag_full = free + overflow <= 0;
+            overflow
+        };
         // Remove only the newly rolled overflow; preserve its exact options in mail.
-        while rewards.equipment.len() > equip_start {
-            match capacity(db, state, account, 0, 0).await {
-                Ok(()) => break,
-                Err(ServerError::InvalidRequest(code)) if code == "EquipItemFull" => {},
-                Err(error) => return Err(error),
-            }
+        let mut mailed = Vec::new();
+        for _ in 0..overflow {
             let mut equip = rewards.equipment.pop().unwrap();
             sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
                 .bind(account).bind(equip.slot_index).execute(&mut *db).await?;
@@ -292,11 +319,8 @@ pub(crate) async fn give(
             equip.uid = String::new();
             mailed.push(equip);
         }
-        if !mailed.is_empty() {
-            sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Battle equipment rewards','Your equipment bag was full. Free bag space to claim these rewards.',?)")
-                .bind(account).bind(serde_json::to_string(&mailed).map_err(|e|ServerError::Internal(e.to_string()))?)
-                .execute(&mut *db).await?;
-        }
+        mailed.reverse();
+        mail_overflow(db, account, rewards, mailed).await?;
     }
     sqlx::query("UPDATE items SET created_time=COALESCE(created_time,datetime('now')) WHERE account_id=? AND item_index=?").bind(account).bind(index).execute(&mut *db).await?;
     // Rewarding additional copies must preserve the item's lock in the client response.
@@ -308,6 +332,31 @@ pub(crate) async fn give(
                 .fetch_one(db)
                 .await?;
         result["Locked"] = json!(locked);
+    }
+    Ok(())
+}
+/// Equipment per bag-overflow mail; each extra piece rewrites that mail's JSON.
+const OVERFLOW_MAIL_EQUIPMENT: usize = 25;
+
+/// Persist overflowed equipment now (never only in memory), appending to the
+/// batch's open overflow mail while it has room.
+async fn mail_overflow(db: &mut SqliteConnection, account: i64, rewards: &mut Rewards, equipment: Vec<EquipItemInfo>) -> Result<()> {
+    for equip in equipment {
+        match rewards.overflow_mail.as_mut() {
+            Some((id, held)) if held.len() < OVERFLOW_MAIL_EQUIPMENT => {
+                held.push(equip);
+                sqlx::query("UPDATE mails SET reward_equipment=? WHERE mail_id=? AND account_id=?")
+                    .bind(serde_json::to_string(held).map_err(|e|ServerError::Internal(e.to_string()))?)
+                    .bind(*id).bind(account).execute(&mut *db).await?;
+            }
+            _ => {
+                let held = vec![equip];
+                let id: i64 = sqlx::query_scalar("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Battle equipment rewards','Your equipment bag was full. Free bag space to claim these rewards.',?) RETURNING mail_id")
+                    .bind(account).bind(serde_json::to_string(&held).map_err(|e|ServerError::Internal(e.to_string()))?)
+                    .fetch_one(&mut *db).await?;
+                rewards.overflow_mail = Some((id, held));
+            }
+        }
     }
     Ok(())
 }

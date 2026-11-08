@@ -204,5 +204,25 @@ before a slow request or long hold.
   triggers existed. Freed space is reused; run `VACUUM` once while stopped
   to shrink the file.
 - `mails` rows are up to about 0.2 MB. Watch it in the largest-tables section.
+- **Bag-full rewards (Nov 2026).** A 100-fight raid dispatch rolled 706
+  pieces into a full bag and held the writer for 24 s in production. Each
+  piece re-counted the bag (5 ms each) and became its own mail (572 mails).
+  `item::free_slots` now counts once per grant using a single equipped-slot
+  subquery (0.15 ms). A `Rewards` batch that fills the bag stops counting
+  (`bag_full`, since batches only add equipment). Overflow joins the batch's
+  open mail, up to `OVERFLOW_MAIL_EQUIPMENT` (25) pieces. Claiming a mail
+  needs room for all of its pieces.
+- **Arena queue polls** update only `arena_runs.last_poll`. Pairing filters on
+  the `last_poll` and `season` columns (index `arena_waiting_queue`).
+  Rewriting `data` on each `wait_match` (up to ~1.5 MB) re-ran its JSON
+  triggers. `last_poll` is excluded from the progression revision triggers.
+- **Hold labels.** Background holds name their task (`task:dispatch-preparation`,
+  `task:battle-connection`, `task:mail-notifications`, `ws:battle`, …). Use
+  `database::spawn_labelled` for new long-running tasks. The GM listener's
+  requests still show as `background`.
+- **Unimplemented endpoints** log their method, path and field names only,
+  never values (they carry live `SessionKey`s). `user/ping`,
+  `user/set_push_notification` and `user/query_nick` are routed. Nicknames
+  may repeat, because the username identifies players.
 - There is a single process and database file. Automated backups (the SQLite
   backup API or Litestream) are still to do.

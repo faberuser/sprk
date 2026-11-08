@@ -8,6 +8,13 @@ tokio::task_local! {
     pub(crate) static REQUEST_PATH: Arc<str>;
 }
 
+/// Spawn background work whose connection holds are reported under `label`
+/// rather than the generic "background" (task-locals do not cross spawns).
+pub(crate) fn spawn_labelled<F>(label: &'static str, work: F) -> tokio::task::JoinHandle<F::Output>
+where F: std::future::Future + Send + 'static, F::Output: Send + 'static {
+    tokio::spawn(REQUEST_PATH.scope(Arc::from(label), work))
+}
+
 /// Holding the single connection this long delays every queued request.
 const SLOW_HOLD: Duration = Duration::from_millis(250);
 

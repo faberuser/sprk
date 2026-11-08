@@ -228,6 +228,25 @@ pub(super) mod tests {
             assert_eq!(result["MatchResult"]["CurrencyResults"],json!([]));
         }
     }
+    #[tokio::test]
+    async fn queue_polls_touch_only_last_poll_and_keep_progression_cached() {
+        let (s,users,_worker)=fixture().await;
+        // No worker: a poll only refreshes the queue entry.
+        *s.conquest.worker.write().await=None;
+        register(&s,&users[0]).await;
+        let a=number(&users[0]["UserInfo"],"AccountId");
+        let row=|s:AppState|async move {
+            sqlx::query_as::<_,(String,Option<i64>,i64)>("SELECT data,last_poll,(SELECT revision FROM response_revisions WHERE scope='progression' AND account=?) FROM arena_runs WHERE account=? AND status='waiting'")
+                .bind(a).bind(a).fetch_one(&s.db).await.unwrap()
+        };
+        let (data,_,revision)=row(s.clone()).await;
+        sqlx::query("UPDATE arena_runs SET last_poll=last_poll-60 WHERE account=?").bind(a).execute(&s.db).await.unwrap();
+        assert_eq!(call(&s,&users[0],"match/wait_match","PlayOfflineMatch=false").await["Result"],"WaitMore");
+        let (after,poll,after_revision)=row(s.clone()).await;
+        assert_eq!(after,data);
+        assert!(poll.unwrap()>=now()-5);
+        assert_eq!(after_revision,revision);
+    }
     async fn register(s:&AppState,u:&Value) {
         let out=call(s,u,"match/register_match","ArenaType=Normal&HeroIndices=1&LeaderHeroIndex=1").await;
         assert_eq!(out["Result"],"Success","{out}");
@@ -556,7 +575,7 @@ pub(super) mod tests {
     async fn arena_queue_stale_cancelled_and_worker_unavailable_fall_back() {
         let (s,users,_worker)=fixture().await;
         register(&s,&users[0]).await;register(&s,&users[1]).await;
-        sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.LastPoll',?) WHERE account=?")
+        sqlx::query("UPDATE arena_runs SET last_poll=? WHERE account=?")
             .bind(now()-30).bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();
         assert_eq!(call(&s,&users[0],"match/wait_match","PlayOfflineMatch=false").await["Result"],"WaitMore");
         call(&s,&users[1],"match/cancel_match","").await;

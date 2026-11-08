@@ -36,7 +36,7 @@ fn attachments<T: serde::de::DeserializeOwned>(row: &SqliteRow, column: &str) ->
 /// The durable queue is populated by a transactional trigger for every mail
 /// source, including background rewards and direct administrator inserts.
 pub fn start_notifications(state: AppState) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
+    crate::database::spawn_labelled("task:mail-notifications", async move {
         let mut tick = tokio::time::interval(std::time::Duration::from_millis(250));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {

@@ -253,14 +253,14 @@ pub(crate) async fn party_start(db:&mut SqliteConnection,s:&AppState,a:i64,room:
 }
 
 pub(crate) async fn serve(listener:TcpListener,s:AppState)->std::io::Result<()> {
-    let liveness=s.clone();tokio::spawn(async move {
+    let liveness=s.clone();crate::database::spawn_labelled("task:conquest-liveness",async move {
         let mut interval=tokio::time::interval(std::time::Duration::from_secs(5));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {interval.tick().await;
             if let Err(error)=flush_heartbeats(&liveness).await {tracing::warn!(%error,"Battle room heartbeat persistence failed; will retry");}
         }
     });
-    let cleanup=s.clone();tokio::spawn(async move {
+    let cleanup=s.clone();crate::database::spawn_labelled("task:conquest-cleanup",async move {
         let mut interval=tokio::time::interval(std::time::Duration::from_secs(2));
         loop {interval.tick().await;
             let handles:Vec<_>=cleanup.conquest.runs.iter().map(|v|v.value().clone()).collect();
@@ -273,7 +273,7 @@ pub(crate) async fn serve(listener:TcpListener,s:AppState)->std::io::Result<()> 
             }
         }
     });
-    loop {let (socket,_)=listener.accept().await?;let s=s.clone();tokio::spawn(async move {
+    loop {let (socket,_)=listener.accept().await?;let s=s.clone();crate::database::spawn_labelled("task:battle-connection",async move {
         if let Err(error)=connection(socket,s).await {tracing::debug!(%error,"Conquest connection closed");}
     });}
 }
@@ -405,7 +405,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                     run.disconnect_cutoffs.insert(account,cutoff);
                 }
             }
-            let s=s.clone();tokio::spawn(async move {
+            let s=s.clone();crate::database::spawn_labelled("task:battle-disconnect",async move {
                 // Permit a brief transport reconnect, then release abandoned
                 // entries instead of blocking the next party for 2–20 minutes.
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;

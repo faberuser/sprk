@@ -204,6 +204,9 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/query/session", post(api::system::query::query_session))
         .route("/query/nick", post(api::account::nickname::query))
         .route("/user/change_nick", post(api::account::nickname::change))
+        .route("/user/query_nick", post(api::account::nickname::query))
+        .route("/user/ping", post(api::account::client::ping))
+        .route("/user/set_push_notification", post(api::account::client::set_push_notification))
         // First lobby entry
         .route("/first/lobby", post(api::account::lobby::first_lobby))
         .route("/user/first_lobby", post(api::account::lobby::first_lobby))

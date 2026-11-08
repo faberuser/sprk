@@ -100,7 +100,7 @@ pub async fn serve(listener: TcpListener, state: AppState) -> std::io::Result<()
     loop {
         let (socket, _) = listener.accept().await?;
         let state = state.clone();
-        tokio::spawn(async move {
+        crate::database::spawn_labelled("task:chat-connection", async move {
             if let Err(error) = connection(socket, state).await {
                 tracing::debug!(%error, "Chat connection ended");
             }

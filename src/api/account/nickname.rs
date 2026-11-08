@@ -14,16 +14,11 @@ fn validation(state: &AppState, nick: &str) -> &'static str {
     "Success"
 }
 
+/// Nicknames are display names and may repeat: the username (login) and
+/// AccountId identify players. Availability therefore checks format only.
 pub async fn query(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
-    let nick = req.text("Nick");
-    let mut result = validation(&state, nick);
-    let account = req.account(&state).unwrap_or(0);
-    if result == "Success" {
-        let taken: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE nick=? COLLATE NOCASE AND account_id<>?)")
-            .bind(nick).bind(account).fetch_one(&state.db).await?;
-        if taken { result = "AlreadyExist"; }
-    }
+    let result = validation(&state, req.text("Nick"));
     Ok(Json(json!({"BaseResult":"Success","Result":result,"IsAvailable":result=="Success"})))
 }
 
@@ -31,13 +26,11 @@ pub async fn change(State(state): State<AppState>, body: Bytes) -> Result<Json<V
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
     let nick = req.text("Nick");
-    let mut result = validation(&state, nick);
+    let result = validation(&state, nick);
     if result == "Success" {
-        // A single write checks availability and changes the name atomically.
         // No inventory or currency mutations, even on repeated changes.
-        let changed = sqlx::query("UPDATE accounts SET nick=? WHERE account_id=? AND NOT EXISTS(SELECT 1 FROM accounts WHERE nick=? COLLATE NOCASE AND account_id<>?)")
-            .bind(nick).bind(account).bind(nick).bind(account).execute(&state.db).await?;
-        if changed.rows_affected() == 0 { result = "AlreadyExist"; }
+        sqlx::query("UPDATE accounts SET nick=? WHERE account_id=?")
+            .bind(nick).bind(account).execute(&state.db).await?;
     }
     Ok(Json(json!({"BaseResult":"Success","Result":result})))
 }
@@ -61,7 +54,7 @@ mod tests {
             assert_eq!(query(State(state.clone()),body.clone()).await.unwrap().0["Result"],"Success");
             assert_eq!(change(State(state.clone()),body).await.unwrap().0["Result"],"Success");
         }
-        for (nick,result) in [("", "EmptyNick"),("a","TooShortNick"),("[bad]","InvalidNick"),("raider2","AlreadyExist")] {
+        for (nick,result) in [("", "EmptyNick"),("a","TooShortNick"),("[bad]","InvalidNick")] {
             let body=Bytes::from(format!("SessionKey=session1&Nick={nick}"));
             assert_eq!(query(State(state.clone()),body.clone()).await.unwrap().0["Result"],result);
             assert_eq!(change(State(state.clone()),body).await.unwrap().0["Result"],result);
@@ -71,13 +64,13 @@ mod tests {
         assert_eq!(row,("OtherName".into(),"login1".into(),0,0));
         let count:i64=sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=1").fetch_one(&state.db).await.unwrap();
         assert_eq!(count,0);
-        // Two players competing for the same name cannot both succeed.
-        let (a,b)=tokio::join!(
-            change(State(state.clone()),Bytes::from("SessionKey=session1&Nick=SharedName")),
-            change(State(state.clone()),Bytes::from("SessionKey=session2&Nick=SharedName"))
-        );
-        let results=[a.unwrap().0,b.unwrap().0];
-        assert_eq!(results.iter().filter(|r|r["Result"]=="Success").count(),1);
-        assert_eq!(results.iter().filter(|r|r["Result"]=="AlreadyExist").count(),1);
+        // Nicknames may repeat, including case-insensitive matches.
+        for (session, nick) in [("session2", "OtherName"), ("session2", "othername"), ("session1", "Raider2")] {
+            let body = Bytes::from(format!("SessionKey={session}&Nick={nick}"));
+            assert_eq!(query(State(state.clone()), body.clone()).await.unwrap().0["IsAvailable"], true);
+            assert_eq!(change(State(state.clone()), body).await.unwrap().0["Result"], "Success");
+        }
+        let nicks: Vec<String> = sqlx::query_scalar("SELECT nick FROM accounts ORDER BY account_id").fetch_all(&state.db).await.unwrap();
+        assert_eq!(nicks, ["Raider2", "othername"]);
     }
 }

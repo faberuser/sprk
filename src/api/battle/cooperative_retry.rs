@@ -92,7 +92,7 @@ async fn propose(s: &AppState, run: &mut Run, a: i64) -> Result<bool> {
     if voters.len() == 1 { return finish(s, run).await; }
     send_all(s, run, format!("Vote|{id}|{a}|{VOTE_SECONDS}|{}", nick(run, a)));
     let (s, run_id) = (s.clone(), run.id.clone());
-    tokio::spawn(async move {
+    crate::database::spawn_labelled("task:battle-retry-vote", async move {
         tokio::time::sleep(std::time::Duration::from_secs(VOTE_SECONDS)).await;
         if let Err(error) = expire(&s, &run_id, id).await {
             tracing::warn!(%error, "Party retry vote expiry failed");

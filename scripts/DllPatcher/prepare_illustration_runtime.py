@@ -9,6 +9,8 @@ import io
 import json
 from pathlib import Path
 import struct
+import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -22,6 +24,40 @@ REMACRI_FILES = {
     "bin": "a43be595c0d743314c30b50fe7ef188be0c61cc55c46ce81adb79ba4b3c3fb7a",
 }
 INTERFACE = "sprk-ncnn-rrdb-rgb-x4-v1"
+# Same pinned asset through the REST API. The browser download route has
+# returned persistent 504s for this release while the API route still served it.
+API_URL = "https://api.github.com/repos/xinntao/Real-ESRGAN/releases/assets/63494469"
+# Downloads are hash-pinned, so retrying transient host failures (e.g. GitHub
+# release-asset 502/503/504 during CI image builds) or switching to another
+# route cannot admit other bytes.
+RETRY_DELAYS = (5, 15, 30, 60)
+TRANSIENT_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def download(sources, limit: int, opener=urllib.request.urlopen, sleep=time.sleep) -> bytes:
+    """Fetch the first source that answers; each round tries every source.
+
+    A source is a URL or a (URL, headers) pair. Permanent HTTP errors (e.g. 404)
+    move on to the next source; when all sources fail, the last error is raised.
+    """
+    sources = [(s, {}) if isinstance(s, str) else s for s in ([sources] if isinstance(sources, str) else sources)]
+    for attempt, delay in enumerate(RETRY_DELAYS + (None,), 1):
+        transient = False
+        for url, headers in sources:
+            try:
+                with opener(urllib.request.Request(url, headers=headers), timeout=120) as response:
+                    return response.read(limit)
+            except urllib.error.HTTPError as error:
+                last, reason = error, f"HTTP {error.code}"
+                transient |= error.code in TRANSIENT_STATUS
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                last, reason, transient = error, type(error).__name__ + ": " + str(getattr(error, "reason", error)), True
+            print(f"Download attempt {attempt} failed ({reason}): {url}", flush=True)
+        if not transient or delay is None:
+            raise last
+        print(f"Retrying in {delay}s", flush=True)
+        sleep(delay)
+    raise AssertionError("unreachable")
 
 
 def pack_model(param: bytes, weights: bytes) -> bytes:
@@ -36,7 +72,7 @@ def remacri():
     files = {}
     base = f"https://raw.githubusercontent.com/upscayl/upscayl/{REMACRI_COMMIT}/resources/models/remacri-4x."
     for extension, expected in REMACRI_FILES.items():
-        data = urllib.request.urlopen(base + extension, timeout=120).read(65 * 1024**2)
+        data = download(base + extension, 65 * 1024**2)
         if hashlib.sha256(data).hexdigest() != expected:
             raise ValueError("Remacri integrity mismatch: " + extension)
         files[extension] = data
@@ -115,7 +151,7 @@ def main():
         return
     if not (args.client or args.server):
         parser.error("Specify --client and/or --server")
-    archive = args.archive.read_bytes() if args.archive else urllib.request.urlopen(URL, timeout=120).read(100 * 1024**2)
+    archive = args.archive.read_bytes() if args.archive else download([URL, (API_URL, {"Accept": "application/octet-stream"})], 100 * 1024**2)
     print(json.dumps(prepare(archive, args.client, args.server), indent=2))
 
 
