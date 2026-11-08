@@ -5,6 +5,10 @@ pub(crate) fn observation(path: &str) -> bool {
         path,
         "/ping"
             | "/ping/idle"
+            // Heartbeat, nickname format check and push toggles change no state.
+            | "/user/ping"
+            | "/user/query_nick"
+            | "/user/set_push_notification"
             | "/dispatch/get_dispatch_list"
             | "/mail/check_new_mail"
             | "/mail/get_mail_list"

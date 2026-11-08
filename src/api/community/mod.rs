@@ -71,6 +71,13 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     ] {sqlx::query(q).execute(db).await?;}
     crate::api::progression::mission_history::migrate_arena_history(db).await?;
     crate::api::progression::mission_history::migrate_arena_retention(db).await?;
+    // Queue polls touch only this column. Rewriting `data` (up to ~1.5 MB for
+    // Honor registrations) on every poll re-ran its JSON triggers each time.
+    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
+    if !columns.iter().any(|c| c == "last_poll") {
+        sqlx::query("ALTER TABLE arena_runs ADD COLUMN last_poll INTEGER").execute(db).await?;
+    }
+    sqlx::query("CREATE INDEX IF NOT EXISTS arena_waiting_queue ON arena_runs(kind,started) WHERE status='waiting'").execute(db).await?;
     Ok(())
 }
 pub fn routes(t: &crate::tables::BattleTable) -> axum::Router<AppState> {

@@ -27,7 +27,7 @@ struct Scheduler {
 
 pub(crate) fn start(s: AppState) {
     let scheduler = Scheduler::new();
-    tokio::spawn(async move {
+    crate::database::spawn_labelled("task:dispatch-scan", async move {
         loop {
             if let Err(error) = scheduler.scan(&s).await {
                 tracing::warn!(%error,"Dispatch preparation will retry");
@@ -51,7 +51,7 @@ impl Scheduler {
                 continue;
             }
             let (scheduler, s) = (self.clone(), s.clone());
-            tokio::spawn(async move { scheduler.run(&s, job).await });
+            crate::database::spawn_labelled("task:dispatch-preparation", async move { scheduler.run(&s, job).await });
         }
         Ok(())
     }

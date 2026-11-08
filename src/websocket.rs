@@ -40,13 +40,13 @@ pub(crate) fn validate_config() -> anyhow::Result<()> {
 pub(crate) async fn chat(State(state): State<AppState>, ws: WebSocketUpgrade) -> Response {
     ws.max_message_size(crate::api::community::chat::MAX_FRAME)
         .max_frame_size(crate::api::community::chat::MAX_FRAME)
-        .on_upgrade(move |socket| serve(socket, state, false))
+        .on_upgrade(move |socket| crate::database::REQUEST_PATH.scope(std::sync::Arc::from("ws:chat"), serve(socket, state, false)))
 }
 
 pub(crate) async fn battle(State(state): State<AppState>, ws: WebSocketUpgrade) -> Response {
     ws.max_message_size(8 * 1024 * 1024)
         .max_frame_size(8 * 1024 * 1024)
-        .on_upgrade(move |socket| serve(socket, state, true))
+        .on_upgrade(move |socket| crate::database::REQUEST_PATH.scope(std::sync::Arc::from("ws:battle"), serve(socket, state, true)))
 }
 
 async fn serve(socket: WebSocket, state: AppState, battle: bool) {

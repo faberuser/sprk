@@ -2693,3 +2693,40 @@ async fn stamina_potion_batches_allow_1000_and_reject_1001_without_consumption()
     let after: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&state.db).await.unwrap();
     assert_eq!(after, stamina + 150000);
 }
+
+#[tokio::test]
+async fn bag_overflow_counts_once_and_packs_a_batch_into_few_mails() {
+    let (s,u)=setup().await;
+    let a=u.user_info.account_id;
+    let base=s.tables.inventory.constant("EquipItemMaxCount",280);
+    let mut tx=s.db.begin().await.unwrap();
+    // One free slot left.
+    for _ in 0..base-1 {
+        sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)").bind(a).execute(&mut *tx).await.unwrap();
+    }
+    let mut r = crate::api::tutorial::Rewards { mail_overflow: true, ..Default::default() };
+    let grant = |count| ItemGrant { index: 1001, count, star: 4, custom: 0 };
+    // First grant: one piece fits, one overflows, and the bag is now exactly full.
+    item::give(&mut tx,&s,a,grant(2),&mut r).await.unwrap();
+    assert_eq!(r.equipment.len(), 1);
+    assert!(r.bag_full);
+    // Later drops overflow without recounting and join the same mail.
+    for _ in 0..30 { item::give(&mut tx,&s,a,grant(1),&mut r).await.unwrap(); }
+    assert_eq!(r.equipment.len(), 1);
+    assert_eq!(item::free_slots(&mut tx,&s,a,0).await.unwrap(), 0);
+    let mails:Vec<String>=sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND title='Battle equipment rewards' ORDER BY mail_id").bind(a).fetch_all(&mut *tx).await.unwrap();
+    let pieces:Vec<Vec<crate::models::equip::EquipItemInfo>>=mails.iter().map(|m|serde_json::from_str(m).unwrap()).collect();
+    assert_eq!(pieces.iter().map(Vec::len).collect::<Vec<_>>(), [25, 6]);
+    assert!(pieces.iter().flatten().all(|e| e.item_index==1001 && e.star==4 && e.slot_index==0));
+    // Every overflowed piece left the bag; none was lost or duplicated.
+    let owned:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&mut *tx).await.unwrap();
+    assert_eq!(owned, base);
+    tx.commit().await.unwrap();
+    // A fresh batch counts again: the bag may have changed between requests.
+    let mut tx=s.db.begin().await.unwrap();
+    sqlx::query("DELETE FROM equip_items WHERE slot_index=(SELECT MAX(slot_index) FROM equip_items WHERE account_id=?)").bind(a).execute(&mut *tx).await.unwrap();
+    let mut fresh = crate::api::tutorial::Rewards { mail_overflow: true, ..Default::default() };
+    item::give(&mut tx,&s,a,grant(1),&mut fresh).await.unwrap();
+    assert_eq!(fresh.equipment.len(), 1);
+    assert!(fresh.overflow_mail.is_none());
+}

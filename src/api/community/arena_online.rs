@@ -15,7 +15,7 @@ pub(crate) async fn pair(
     let friendly=n(mine,"DuelType")==1;
     let cutoff = now() - settings(s, "ArenaQueueStaleSeconds", 15).clamp(6, 120);
     let candidates: Vec<(i64, i64, String)> = sqlx::query_as(
-        "SELECT id,account,data FROM arena_runs WHERE kind=? AND status='waiting' AND account!=? AND started>=? AND COALESCE(json_extract(data,'$.LastPoll'),started)>=? AND json_extract(data,'$.Season')=? ORDER BY started,id LIMIT 100")
+        "SELECT id,account,data FROM arena_runs WHERE kind=? AND status='waiting' AND account!=? AND started>=? AND COALESCE(last_poll,started)>=? AND season=? ORDER BY started,id LIMIT 100")
         .bind(kind).bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).bind(cutoff)
         .bind(season(s).0).fetch_all(&mut *db).await?;
     if !friendly && n(&match_tickets(db,s,a,kind,0).await?,"NewValue") < 1 {

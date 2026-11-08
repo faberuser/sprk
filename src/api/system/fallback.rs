@@ -26,9 +26,16 @@ pub struct FallbackResponse {
 /// Handle unimplemented endpoints gracefully
 /// This returns a success response so the client doesn't crash
 pub async fn handle_fallback(
+    method: axum::http::Method,
+    axum::extract::OriginalUri(uri): axum::extract::OriginalUri,
     Form(req): Form<FallbackRequest>,
 ) -> Result<Json<FallbackResponse>> {
-    tracing::warn!("Unimplemented endpoint called with data: {:?}", req.data);
+    // Name the endpoint; log field names only. Values include live session
+    // keys (and the common T1/T2/TEMP transport fields), which must not reach logs.
+    let mut fields: Vec<&str> = req.data.keys().map(String::as_str)
+        .filter(|k| !matches!(*k, "SessionKey" | "SessionId" | "T1" | "T2" | "TEMP")).collect();
+    fields.sort_unstable();
+    tracing::warn!(%method, path = %uri.path(), ?fields, "Unimplemented endpoint called");
     
     Ok(Json(FallbackResponse {
         base_result: "Success".to_string(),

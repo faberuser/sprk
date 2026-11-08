@@ -177,7 +177,12 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
     touch_day(&mut tx, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(mut out) => {
-            let snapshot = snapshot(&mut tx, &state, account).await?;
+            // Build the refreshed snapshot after commit on a reader (it sees the
+            // claim): under the writer it held every other request for ~400 ms.
+            tx.commit().await?;
+            let mut reads = state.reads.begin().await?;
+            let snapshot = snapshot(&mut reads, &state, account).await?;
+            reads.commit().await?;
             for (wire, field) in [
                 ("AchievementInfos", "AchievementInfos"),
                 ("ReservedMainQuestInfo", "MainQuestInfo"),
@@ -186,7 +191,6 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
             ] {
                 out[wire] = snapshot[field].clone();
             }
-            tx.commit().await?;
             let session_key = req.0.get("SessionKey").or(req.0.get("SessionId")).map(String::as_str).unwrap_or("");
             out["ReservedSubQuestInfos"] = json!(notifications::subquest_updates(&state, session_key, &snapshot["SubQuestInfos"]));
             Ok(Json(out))

@@ -83,6 +83,12 @@ pub async fn begin_tutorial(
 #[derive(Default)]
 pub(crate) struct Rewards {
     pub(crate) mail_overflow: bool,
+    /// With `mail_overflow`: the bag reached capacity during this batch. A
+    /// batch only adds equipment, so later drops overflow without recounting.
+    pub(crate) bag_full: bool,
+    /// With `mail_overflow`: this batch's overflow mail and its equipment, so
+    /// further drops join it (up to OVERFLOW_MAIL_EQUIPMENT) instead of one mail each.
+    pub(crate) overflow_mail: Option<(i64, Vec<EquipItemInfo>)>,
     pub(crate) pets: Vec<Value>,
     pub(crate) currencies: Vec<Value>,
     pub(crate) items: Vec<Value>,

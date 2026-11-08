@@ -70,15 +70,7 @@ pub(crate) async fn execute(
                     .execute(&mut *db)
                     .await?;
             } else {
-                let duplicate: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM accounts WHERE nick=? COLLATE NOCASE)",
-                )
-                .bind(name)
-                .fetch_one(&mut *db)
-                .await?;
-                if duplicate {
-                    return Err(rule("AlreadyExistName"));
-                }
+                // Player nicknames may repeat; the username identifies players.
                 sqlx::query("UPDATE accounts SET nick=? WHERE account_id=?")
                     .bind(name)
                     .bind(account)
