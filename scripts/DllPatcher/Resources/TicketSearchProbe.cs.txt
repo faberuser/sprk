@@ -278,6 +278,12 @@ public static class SprkTicketSearchProbe {
         return b;
     }
 
+    static void CheckAcquire(WeaponUniqueSelect ticket,bool enabled,string message) {
+        Check(ticket.Button_Buy.isEnabled==enabled,message+": click state");
+        var widget=ticket.Button_Buy.GetComponent<UIWidget>();
+        Check(widget!=null && widget.isGrayscale==!enabled,message+": grayscale matches click state");
+    }
+
     static string TestFamily(string kind,List<string> lines) {
         Open(kind);
         var box=window.GetComponent<SprkTicketSearchBox>();
@@ -308,6 +314,15 @@ public static class SprkTicketSearchProbe {
         }
         Check(hits.Length<all.Length,kind+": query narrows the list");
         Check(!box.fuzzy,kind+": exact hits keep typo matching off");
+        var frame=box.input.GetComponent<UISprite>();
+        var clearSprite=box.clear.GetComponent<UISprite>();
+        float right=frame.width*.5f;
+        float clearX=box.clear.transform.localPosition.x;
+        Check(right-clearX-clearSprite.width*.5f>=50f,kind+": clear icon stays inside the blue background");
+        var clearHit=ColliderBounds(clearSprite,box.input.transform);
+        Check(right-clearHit.max.x>=40f,kind+": clear hit area stays inside the right end cap");
+        Check(box.label.transform.localPosition.x+box.label.width<=clearX-clearSprite.width*.5f-10f,kind+": search text leaves space before clear icon");
+        Check(Mathf.Abs(box.clear.transform.localPosition.y)<.01f,kind+": clear icon remains vertically centered");
 
         // Typo: swap two letters inside the longest word of the name.
         var word=name.Split(' ').Select(SprkTicketSearch.Fold).OrderByDescending(w=>w.Length).First();
@@ -329,8 +344,8 @@ public static class SprkTicketSearchProbe {
         Check(NoneLabelShown(),kind+": native empty-state label shown");
         Check(box.clear.activeSelf,kind+": clear button shown for text");
 
-        box.Clear();
-        Check(Visible().SequenceEqual(all),kind+": clear restores the full native list and order");
+        EventDelegate.Execute(box.clear.GetComponent<UIButton>().onClick);
+        Check(Visible().SequenceEqual(all),kind+": clear button restores the full native list and order");
         Check(!box.clear.activeSelf && box.input.value=="",kind+": clear empties the field");
 
         if(window is WeaponUniqueSelect) {
@@ -338,13 +353,20 @@ public static class SprkTicketSearchProbe {
             var keep=GameRoot.Instance.ItemDataContainer.GetData(int.Parse(hits[0]));
             ticket.OnSelect(keep);
             Check(Field<ItemData>(ticket,"_buyItemData")==keep && ticket.Button_Buy.isEnabled,kind+": native selection enables Acquire");
+            CheckAcquire(ticket,true,kind+": selection restores Acquire color");
             Type(name);
             // The artifact source filter clears the choice on every rebuild by design.
             if(kind=="artifact")Check(Field<ItemData>(ticket,"_buyItemData")==null && !ticket.Button_Buy.isEnabled,kind+": artifact rebuild clears choice like its source filter");
             else Check(Field<ItemData>(ticket,"_buyItemData")==keep && ticket.Button_Buy.isEnabled,kind+": visible selection is kept");
             Type("zzqxv");
             Check(Field<ItemData>(ticket,"_buyItemData")==null && !ticket.Button_Buy.isEnabled,kind+": hidden selection cannot be acquired");
+            CheckAcquire(ticket,false,kind+": hidden selection disables and greys Acquire");
             box.Clear();
+            ticket.OnSelect(keep);
+            CheckAcquire(ticket,true,kind+": reselection after clearing search restores Acquire color");
+            ticket.OnSelect(keep);
+            CheckAcquire(ticket,true,kind+": repeated selection keeps Acquire colored");
+            lines.Add(kind+" Acquire click/grayscale selection, hidden, clear and reselection PASS");
         }
 
         // A native dropdown rebuild keeps the typed query applied.
@@ -360,6 +382,12 @@ public static class SprkTicketSearchProbe {
         box=window.GetComponent<SprkTicketSearchBox>();
         Check(box.input.value=="" && !box.Active && Visible().SequenceEqual(all),kind+": reopening starts unfiltered");
         Check(window.GetComponentsInChildren<Transform>(true).Count(t=>t.name==SprkTicketSearchBox.NodeName)==1,kind+": one field after reopen");
+        if(window is WeaponUniqueSelect) {
+            var ticket=(WeaponUniqueSelect)window;
+
+            ticket.OnSelect(GameRoot.Instance.ItemDataContainer.GetData(int.Parse(all[0])));
+            CheckAcquire(ticket,true,kind+": selection after reopening restores Acquire color");
+        }
         var line=kind+" all="+all.Length+" query=\""+name+"\" hits="+hits.Length;
         lines.Add(line);
         return line;

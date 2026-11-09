@@ -167,6 +167,8 @@ namespace DllPatcher
             if (args.Contains("--verify-artifact-source-filter")) { VerifyArtifactSourceFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--ticket-search-only")) { InstallTicketSearch(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-ticket-search")) { VerifyTicketSearchFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--selector-acquire-state-only")) { InstallSelectorAcquireState(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-selector-acquire-state")) { VerifySelectorAcquireStateFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-rune-filter-only")) { InstallHeroRuneFilter(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-hero-rune-filter")) { VerifyHeroRuneFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }

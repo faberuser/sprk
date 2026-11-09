@@ -84,6 +84,8 @@ partial class Program
         VerifyArtifactSourceFilterFile(clientRoot);
         InstallTicketSearch(clientRoot, false);
         VerifyTicketSearchFile(clientRoot);
+        InstallSelectorAcquireState(clientRoot, false);
+        VerifySelectorAcquireStateFile(clientRoot);
         InstallSoulstoneOwnership(clientRoot, false);
         InstallSoulstoneOwnership(clientRoot, false, true);
         InstallTeamExpRefresh(clientRoot, false);

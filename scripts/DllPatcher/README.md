@@ -89,7 +89,9 @@ takes the last slot beside the existing dropdowns and copies their pill sprite.
 Natively stacked dropdowns share one slot. Narrowed dropdowns keep their arrow's
 native inset from the pill edge. The Physical/Magical ticket gets a row above its
 column headings using the native `Common_Box_2` input box. Both use the window's
-font and the `Common_Close` clear button. Matching ignores case, spaces,
+font and the `Common_Close` clear button, inset inside the blue background with
+reserved text space. The probe checks its icon/hit-area inset and clear action
+across all seven layouts. Matching ignores case, spaces,
 punctuation and accents. Every word must match the localized hero name or title,
 the hero's internal English code name, or the item/costume name. When no entry in
 the ticket matches exactly, matching becomes typo-tolerant. Words of 4-5 letters
@@ -110,6 +112,32 @@ The fixture loads lobby atlases from the `HighAndMidSpec` bundle folder.
 `open:<weapon|treasure|artifact|soul|hero|attr|costume>` and `type:<query>`
 leave a fixture on screen for screenshots. The full release build installs and
 verifies this patch.
+
+`--selector-acquire-state-only` fixes stale grayscale on Acquire after a selector
+filter/search temporarily disables the button. In both
+`WeaponUniqueSelect.SetItemDescription(ItemData)` and its `SoulStoneSelect`
+override, it changes only the native `UIHelper.EnableButton(Button_Buy, true,
+false, false)` grayscale argument to `true`. The resulting `(true, true, false)`
+keeps Acquire enabled and clears stale grayscale without forcing gray. Native
+empty/null handling, eligibility and selection stay intact. The ticket-search
+probe also checks Acquire's click/grayscale state through selection, hidden
+results, clearing, reselection and reopening for weapon, treasure, artifact and
+soulstone tickets. Installation patches the current DLL to
+preserve existing patches, validates both exact call/argument shapes and IL
+stacks, checks idempotence, stages and re-verifies the result, then checks for
+client/shared-worker processes and backs up the DLL before replacement.
+Unexpected or ambiguous native shapes fail closed.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --selector-acquire-state-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-selector-acquire-state --stage-only
+```
+
+Stage-only writes `Assembly-CSharp.dll.selector-acquire-state-staged` beside the
+current DLL without replacing it. Omit `--stage-only` from the first command to
+install (restart the client afterward); omit it from the verification command
+to check the installed DLL. Full `--build-release` installs and verifies this
+fix immediately after TicketSearch.
 
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,

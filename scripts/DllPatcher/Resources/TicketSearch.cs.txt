@@ -551,8 +551,8 @@ public static class SprkTicketSearch {
         collider.center=Vector3.zero;collider.size=new Vector3(width,RowHeight,1);
         // Inset past the pill's end caps (also fine for the plain box).
         box.label.transform.localPosition=new Vector3(-width*.5f+46f,0f,0f);
-        box.label.width=Math.Max(60,width-46-66);
-        box.clear.transform.localPosition=new Vector3(width*.5f-50f,0f,0f);
+        box.label.width=Math.Max(60,width-46-98);
+        box.clear.transform.localPosition=new Vector3(width*.5f-70f,0f,0f);
     }
 
     // ---- Layout -------------------------------------------------------------
