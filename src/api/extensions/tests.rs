@@ -2381,6 +2381,97 @@ async fn locked_punishment_rune_equips_once_and_retains_lock_and_rolls() {
     assert_ne!(item::break_rune(State(s.clone()),request).await.unwrap().0["Result"],"Success");
 }
 
+#[test]
+fn soul_judgment_reward_group_matches_pre_doomsday_archive() {
+    let tables = crate::tables::test_tables();
+    let config = tables
+        .extensions
+        .find("LocalSoulStoneRestore", &[("Index", 1)])
+        .unwrap();
+    assert_eq!(config["SoulStoneChancePer10000"], 2000);
+    assert_eq!(config["EtherItemGroup"], "SOUL_APPRISE_GROUP[2:3:4]");
+    // Archived build1558 ItemGroupTable, also referenced by RewardTable 65011.
+    let group = tables.item_groups.get("SOUL_APPRISE_GROUP").unwrap();
+    assert_eq!(group.total_rate, 1000);
+    let actual: Vec<_> = group
+        .sub_data_list
+        .iter()
+        .map(|r| (r.item_code.as_str(), r.rate, r.item_min, r.item_max))
+        .collect();
+    assert_eq!(
+        actual,
+        vec![
+            ("SOULSTONE_RANDOM_ITEM_GROUP", 200, 1, 1),
+            ("SOULWEAPON_ETHER_2", 250, 15, 15),
+            ("SOULWEAPON_ETHER_3", 300, 10, 10),
+            ("SOULWEAPON_ETHER_4", 250, 5, 5),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn soul_judgment_grants_each_archived_ether_tier_and_quantity() {
+    for (code, count) in [
+        ("SOULWEAPON_ETHER_2", 15),
+        ("SOULWEAPON_ETHER_3", 10),
+        ("SOULWEAPON_ETHER_4", 5),
+    ] {
+        let (mut s, u) = setup().await;
+        let a = u.user_info.account_id;
+        let tables = std::sync::Arc::make_mut(&mut s.tables);
+        std::sync::Arc::make_mut(&mut tables.extensions)
+            .0
+            .get_mut("LocalSoulStoneRestore")
+            .unwrap()[0]["SoulStoneChancePer10000"] = json!(0);
+        // Force each real group outcome, retaining its native item/count and
+        // the production Ether filter. No probabilistic assertions are needed.
+        let group = std::sync::Arc::make_mut(&mut tables.item_groups)
+            .entries
+            .get_mut("SOUL_APPRISE_GROUP")
+            .unwrap();
+        for row in &mut group.sub_data_list {
+            row.rate = if row.item_code == code { 1 } else { 0 };
+        }
+        group.total_rate = 1;
+        let index = s.tables.get_item_index(code).unwrap();
+        give(&s, a, 45080, 200).await;
+        give(&s, a, 5251, 1).await;
+        let before: i64 = sqlx::query_scalar(
+            "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",
+        )
+        .bind(a)
+        .bind(index)
+        .fetch_one(&s.db)
+        .await
+        .unwrap();
+        let out = call(&s, &u, "restore_soul_stone", "SoulStoneRestoreIndex=1").await;
+        assert_eq!(out["Result"], "Success", "{out}");
+        assert_eq!(out["ItemResults"].as_array().unwrap().len(), 1);
+        assert_eq!(out["ItemResults"][0]["ItemIndex"], index);
+        assert_eq!(out["ItemResults"][0]["AddCount"], count);
+        assert_eq!(out["ItemResults"][0]["NewCount"], before + count);
+        assert_eq!(out["SoulStoneMileage"], 1);
+        assert_eq!(out["SelectSoulStoneIndices"], json!([]));
+        assert_eq!(out["RemovedItemResultInfos"].as_array().unwrap().len(), 1);
+        assert_eq!(out["RemovedItemResultInfos"][0]["ItemIndex"], 45080);
+        let after: i64 =
+            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+                .bind(a)
+                .bind(index)
+                .fetch_one(&s.db)
+                .await
+                .unwrap();
+        assert_eq!(after, before + count);
+        let protection: i64 =
+            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
+                .bind(a)
+                .fetch_one(&s.db)
+                .await
+                .unwrap();
+        assert_eq!(protection, 1);
+    }
+}
+
 #[tokio::test]
 async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     let (mut s, u) = setup().await;
@@ -2405,7 +2496,16 @@ async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     assert_eq!(ether["Result"], "Success", "{ether}");
     assert_eq!(ether["SoulStoneMileage"], 20);
     assert_eq!(ether["SelectSoulStoneIndices"], json!([]));
-    assert_eq!(ether["ItemResults"][0]["ItemIndex"], 5100);
+    let ether_index = n(&ether["ItemResults"][0], "ItemIndex");
+    let expected = [
+        ("SOULWEAPON_ETHER_2", 15),
+        ("SOULWEAPON_ETHER_3", 10),
+        ("SOULWEAPON_ETHER_4", 5),
+    ]
+    .into_iter()
+    .find(|(code, _)| s.tables.get_item_index(code).map(i64::from) == Some(ether_index))
+    .unwrap();
+    assert_eq!(ether["ItemResults"][0]["AddCount"], expected.1);
     let protection: i64 =
         sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
             .bind(a)

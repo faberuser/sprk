@@ -616,14 +616,25 @@ async fn restore(
                 .await?;
             }
         } else {
+            // The Soulstone branch was already rolled above. Condition the native
+            // judgment group on its Ether entries, retaining their weights/counts.
+            let (group, filter) = crate::tables::parse_item_code(
+                config["EtherItemGroup"]
+                    .as_str()
+                    .ok_or_else(|| rule("ItemDataNotFound"))?,
+            );
+            let (index, count, star, _) = state
+                .tables
+                .roll_item_from_group_code(&group, &filter)
+                .ok_or_else(|| rule("ItemDataNotFound"))?;
             item::give(
                 db,
                 state,
                 account,
                 ItemGrant {
-                    index: n(config, "EtherItemIndex") as i32,
-                    count: n(config, "EtherCount") as i32,
-                    star: 0,
+                    index,
+                    count,
+                    star,
                     custom: 0,
                 },
                 &mut rewards,
