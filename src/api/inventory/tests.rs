@@ -1,3 +1,6 @@
+#[path = "retired_rewards_tests.rs"]
+mod retired_rewards;
+
 use crate::api::{
     account::user,
     inventory::{craft, item},
