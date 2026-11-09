@@ -6,6 +6,7 @@ partial class Program {
     static readonly string[] AwakenMaterialRefreshes={"UpdateAwakeEquipItemListTask","UpdatePublicAwakeItemListTask"};
     static void PatchAwakeningMaterials(ModuleDefinition module) {
         PatchAwakeningMaterialLocks(module);
+        PatchAwakeningSortInitialization(module);
         var view=module.GetType("NGame2.NUI.NWindow.HeroEquipAwaken");
         var icon=module.GetType("NGame2.NUI.NComponent2.ItemIconComponent");
         var gray=icon.Methods.Single(m=>m.Name=="SetIconGrayScale");
@@ -61,6 +62,7 @@ partial class Program {
     }
     static void VerifyAwakeningMaterials(ModuleDefinition module) {
         VerifyAwakeningMaterialLocks(module);
+        VerifyAwakeningSortInitialization(module);
         var eligibility=AwakenMaterialEligibility(module);
         var before=eligibility.Body.Instructions.Select(i=>(i.OpCode,i.Operand)).ToArray();
         PatchAwakeningMaterialLocks(module);
@@ -85,7 +87,7 @@ partial class Program {
             deferred.Next.OpCode!=OpCodes.Ret)
             throw new InvalidOperationException("Awakening grid must request activation-safe layout after immediate compaction.");
         foreach(var name in new[]{"SprkSetMaterialVisibility","SprkCompactMaterialGrid"})VerifyArenaResultStack(view.Methods.Single(m=>m.Name==name));
-        Console.WriteLine("Verified awakening material lock guard (16 control-flow cases), native eligibility, selection/visibility hooks, IL stack, idempotence and compact grid refreshes.");
+        Console.WriteLine("Verified awakening cold/reopen sort defaults, 80 native sort-toggle transitions, material lock guard (16 control-flow cases), native eligibility, selection/visibility hooks, IL stack, idempotence and compact grid refreshes.");
     }
     static void VerifyAwakeningMaterialsFile(string root,bool staged=false) {
         using var a=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".awakening-materials-staged":"")));

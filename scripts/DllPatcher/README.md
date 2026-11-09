@@ -319,15 +319,22 @@ materials. Locked gear remains usable as the awakening target. Native soul-weapo
 metadata and required-level checks remain intact, as do selected-item checks and
 restoration on later refreshes. Compaction also requests native next-frame grid
 layout: initialization while the window hierarchy is hidden must not leave all
-icons at the first-slot origin on cold opens or pooled reopens. The full release
-build installs this patch.
+icons at the first-slot origin on cold opens or pooled reopens. All five equipped
+and unequipped sort fields are initialized in the constructor to the native
+close/reset defaults. Previously they started at zero and became one only after
+closing, so the first open after each game restart used different ordering and
+arrows. User sort toggles and the native comparators remain unchanged. The full
+release build installs this patch.
 `--verify-awakening-materials` checks the selection/visibility hooks, retained
-native checks, immediate/deferred layout, IL stack, patch idempotence and 16
-lock/null/eligibility cases. Install this patch and `--automation-only`, launch
+native checks, immediate/deferred layout, constructor/reset default parity,
+80 native sort-toggle transitions with sprite arguments, IL stack, patch
+idempotence and 16 lock/null/eligibility cases. Install this patch and `--automation-only`, launch
 an isolated client with `scripts/automation/client_automation.py`, then send the
 `awakening-material-probe` action on the Login scene. It checks eight native icons
 across a cold hidden initialization and two pooled reopens without sorting, plus
-compact filtering, hide-all, restore-all and spacing.
+compact filtering, hide-all, restore-all and spacing. It also checks two fresh
+native window instances start with all five reset defaults, and verifies the
+sort arrows in both directions. Repeat in a new client process to cover restart.
 
 Tower continuous-battle startup uses `--continuous-battle-only` (and
 `--verify-continuous-battle`). Its native popup keeps a 32-bit serialized prefab

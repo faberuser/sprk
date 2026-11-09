@@ -1346,6 +1346,38 @@ public sealed partial class SprkAutomation : MonoBehaviour
         if((int)view.GetType().GetField("_subCategoryIndex",flags).GetValue(view)!=1)throw new Exception("Blasphemy rune selection failed");
         go.SetActive(false);
     }
+    void CheckAwakeningSortInitialization(NGame2.NUI.NWindow.HeroEquipAwaken view) {
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var type=view.GetType();
+        var names=new[]{"ReqLevel","Grade","Star","HeroLevel","HeroGrade"};
+        foreach(var name in names) {
+            var field=type.GetField("_"+name+"SortType",flags);
+            if(Convert.ToInt32(field.GetValue(view))!=1)throw new Exception("Cold awakening sort differs from native close/reset default: "+name);
+            var sprites=type.GetField("Sort"+name+"Sprites",flags);
+            var info=Activator.CreateInstance(sprites.FieldType);
+            foreach(var direction in new[]{"Up","Down"}) {
+                var go=new GameObject(name+direction);go.transform.SetParent(view.transform,false);
+                info.GetType().GetField("Sprite"+direction).SetValue(info,go.AddComponent<UISprite>());
+            }
+            sprites.SetValue(view,info);
+        }
+        var setup=type.GetMethod("SetupSortButton",flags);
+        // Verify each arrow reflects each sort direction, independently of the
+        // prefab's initial visibility, then leave the cold/reopen defaults intact.
+        foreach(int direction in new[]{1,0,1}) {
+            foreach(var name in names) {
+                var field=type.GetField("_"+name+"SortType",flags);
+                field.SetValue(view,Enum.ToObject(field.FieldType,direction));
+            }
+            setup.Invoke(view,null);
+            foreach(var name in names) {
+                var info=type.GetField("Sort"+name+"Sprites",flags).GetValue(view);
+                var up=(UISprite)info.GetType().GetField("SpriteUp").GetValue(info);
+                var down=(UISprite)info.GetType().GetField("SpriteDown").GetValue(info);
+                if(up.gameObject.activeSelf!=(direction==0) || down.gameObject.activeSelf!=(direction==1))throw new Exception("Awakening sort arrow disagrees with state: "+name);
+            }
+        }
+    }
     IEnumerator ProbeAwakeningMaterials(Command cmd) {
         var host=new GameObject("AwakeningMaterialFixture");host.SetActive(false);
         var gridRoot=new GameObject("AwakeningMaterialGridFixture");
@@ -1364,6 +1396,10 @@ public sealed partial class SprkAutomation : MonoBehaviour
         };
         try {
             view=host.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>();
+            CheckAwakeningSortInitialization(view);
+            // A second new component must not depend on a previously closed window.
+            var fresh=new GameObject("FreshAwakeningSortFixture");fresh.SetActive(false);fresh.transform.SetParent(host.transform,false);
+            CheckAwakeningSortInitialization(fresh.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>());
             var scroll=gridRoot.AddComponent<NVespa.NNGUIExtension.UIScrollGrid>();
             var rows=new GameObject("Grid");rows.transform.SetParent(gridRoot.transform,false);
             grid=rows.AddComponent<UIGrid>();grid.arrangement=UIGrid.Arrangement.Horizontal;grid.maxPerLine=3;grid.cellWidth=100;grid.cellHeight=100;
@@ -1402,7 +1438,7 @@ public sealed partial class SprkAutomation : MonoBehaviour
         gridRoot.SetActive(false);UnityEngine.Object.Destroy(gridRoot);UnityEngine.Object.Destroy(host);
         busy=false;
         if(failure!=null){Write(failure);yield break;}
-        var reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening cold-open and pooled-reopen deferred layout, eight distinct slots without sorting, compact hide-all/restore-all and eligibility refresh round trips.");Write(reply);
+        var reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening fresh-instance sort defaults and all five arrows in both directions; cold-open and pooled-reopen deferred layout, eight distinct slots without sorting, compact hide-all/restore-all and eligibility refresh round trips.");Write(reply);
     }
     IEnumerator ProbeTowerContinuous(Command cmd) {
         var type=typeof(NGame2.NUI.NWindow.NBattle.AutoNextBattle);
