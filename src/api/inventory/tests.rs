@@ -1,3 +1,6 @@
+#[path = "forge_shop_tests.rs"]
+mod forge_shop;
+
 #[path = "retired_rewards_tests.rs"]
 mod retired_rewards;
 

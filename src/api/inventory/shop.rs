@@ -129,7 +129,8 @@ async fn stock(
     let mut expected: Vec<Value> = state.tables.hero_shop.shop_items.iter()
         .filter(|v| n(v,"ShopIndex")==shop_id as i64 && purchasable(state,shop,v)).cloned().collect();
     expected.sort_by_key(|r| n(r,"Index"));
-    let catalog_changed = matches!(shop_id,4|15|20|21|27|35) && old.as_ref().is_some_and(|r|
+    // Fixed stock follows the catalog; rotating slots and their revision must survive.
+    let catalog_changed = !rotating && old.as_ref().is_some_and(|r|
         serde_json::from_str::<Vec<Value>>(&r.get::<String,_>("stock")).ok().as_ref()!=Some(&expected));
     let needs = old.is_none() || refresh || expired || catalog_changed;
     if needs {

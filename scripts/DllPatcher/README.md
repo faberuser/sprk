@@ -317,11 +317,17 @@ nonzero equipment lock flag in the shared native awakening-material predicate,
 so locked artifacts, unique weapons and unique treasures cannot be selected as
 materials. Locked gear remains usable as the awakening target. Native soul-weapon,
 metadata and required-level checks remain intact, as do selected-item checks and
-restoration on later refreshes. The full release build installs this patch.
+restoration on later refreshes. Compaction also requests native next-frame grid
+layout: initialization while the window hierarchy is hidden must not leave all
+icons at the first-slot origin on cold opens or pooled reopens. The full release
+build installs this patch.
 `--verify-awakening-materials` checks the selection/visibility hooks, retained
-native checks, IL stack, patch idempotence and 16 lock/null/eligibility cases. Stage this
-patch and automation before running `python scripts/client/verify_awakening_materials.py`
-for isolated native icon/grid visibility, restoration and spacing checks.
+native checks, immediate/deferred layout, IL stack, patch idempotence and 16
+lock/null/eligibility cases. Install this patch and `--automation-only`, launch
+an isolated client with `scripts/automation/client_automation.py`, then send the
+`awakening-material-probe` action on the Login scene. It checks eight native icons
+across a cold hidden initialization and two pooled reopens without sorting, plus
+compact filtering, hide-all, restore-all and spacing.
 
 Tower continuous-battle startup uses `--continuous-battle-only` (and
 `--verify-continuous-battle`). Its native popup keeps a 32-bit serialized prefab

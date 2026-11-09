@@ -32,6 +32,21 @@ partial class Program {
             il.Emit(OpCodes.Ldarg_0);il.Emit(OpCodes.Ldfld,grid);il.Emit(OpCodes.Ldfld,inner);il.Emit(OpCodes.Ldc_I4_1);il.Emit(OpCodes.Stfld,hide);
             il.Emit(OpCodes.Ldarg_0);il.Emit(OpCodes.Ldfld,grid);il.Emit(OpCodes.Call,reposition);il.Emit(OpCodes.Ret);
         }
+        var request=module.GetType("UIGrid").Methods.Single(m=>m.Name=="RequestRepositionNextFrame");
+        if(!compact.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.FullName==request.FullName)) {
+            // Opening can populate a preloaded grid while its ancestors are
+            // hidden. hideInactive then excludes every icon from immediate layout.
+            var grid=view.Fields.Single(f=>f.Name=="AwakeInvenItemListGrid");
+            var inner=grid.FieldType.Resolve().Fields.Single(f=>f.Name=="Grid");
+            var il=compact.Body.GetILProcessor();
+            foreach(var ret in compact.Body.Instructions.Where(i=>i.OpCode==OpCodes.Ret).ToArray()) {
+                ret.OpCode=OpCodes.Ldarg_0;ret.Operand=null;
+                var load=Instruction.Create(OpCodes.Ldfld,grid);il.InsertAfter(ret,load);
+                var loadInner=Instruction.Create(OpCodes.Ldfld,inner);il.InsertAfter(load,loadInner);
+                var call=Instruction.Create(OpCodes.Callvirt,request);il.InsertAfter(loadInner,call);
+                il.InsertAfter(call,Instruction.Create(OpCodes.Ret));
+            }
+        }
         foreach(var name in AwakenMaterialRefreshes) {
             var method=view.Methods.Single(m=>m.Name==name);
             foreach(var i in method.Body.Instructions)
@@ -60,6 +75,15 @@ partial class Program {
                 throw new InvalidOperationException("Awakening material visibility/compaction hook missing: "+name);
             VerifyArenaResultStack(method);
         }
+        var compact=view.Methods.Single(m=>m.Name=="SprkCompactMaterialGrid");
+        var layout=compact.Body.Instructions;
+        var immediate=layout.Single(i=>i.Operand is MethodReference m && m.Name=="RepositionGrid");
+        var deferred=layout.SingleOrDefault(i=>i.Operand is MethodReference m && m.Name=="RequestRepositionNextFrame");
+        if(deferred==null || layout.IndexOf(deferred)<=layout.IndexOf(immediate) ||
+            deferred.Previous.OpCode!=OpCodes.Ldfld || deferred.Previous.Operand is not FieldReference inner || inner.Name!="Grid" ||
+            deferred.Previous.Previous.Operand is not FieldReference grid || grid.Name!="AwakeInvenItemListGrid" ||
+            deferred.Next.OpCode!=OpCodes.Ret)
+            throw new InvalidOperationException("Awakening grid must request activation-safe layout after immediate compaction.");
         foreach(var name in new[]{"SprkSetMaterialVisibility","SprkCompactMaterialGrid"})VerifyArenaResultStack(view.Methods.Single(m=>m.Name==name));
         Console.WriteLine("Verified awakening material lock guard (16 control-flow cases), native eligibility, selection/visibility hooks, IL stack, idempotence and compact grid refreshes.");
     }
