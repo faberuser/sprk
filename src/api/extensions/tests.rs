@@ -1843,6 +1843,100 @@ async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
     assert_eq!(result["ResultEquipItem"]["Star"],1);
 }
 
+async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: i64, stone_type: i64) {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let data = meta(&s, item_index).unwrap();
+    let detail = row(&s, "EquipItemDetail", &[("DetailIndex", n(data, "DetailIndex"))]).unwrap();
+    assert_eq!(n(detail, "EquipItemDetailType"), detail_type);
+    let price = row(&s, "EquipAwakenPrice", &[
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 0),
+    ]).unwrap();
+    assert!(n(price, "ReqGold") > 0);
+    let equips = give(&s, a, item_index, 3).await.equipment;
+    let target = equips[0].slot_index;
+    let unlocked = equips[1].slot_index;
+    let locked = equips[2].slot_index;
+    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(locked).execute(&s.db).await.unwrap();
+    let stone = s.tables.extensions.rows("AwakenStone").iter()
+        .find(|r| n(r, "Type") == stone_type && r["IsAllowNPC"] == true
+            && r["ItemIndices"].as_array().is_none_or(Vec::is_empty))
+        .map(|r| n(r, "ItemIndex") as i32);
+    assert_eq!(stone.is_some(), stone_type != 0);
+    let stone_args = if let Some(id) = stone {
+        give(&s, a, id, 2).await;
+        format!("&MaterialItemInfors=[{id},1]")
+    } else { String::new() };
+    let before_gold = gold(&s).await;
+    let before_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+        .bind(a).fetch_all(&s.db).await.unwrap().iter()
+        .map(|r| json!(EquipItemInfo::from_row(r))).collect();
+    let before_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+
+    // Check the actual validation reason, independently of native result mapping.
+    let args = format!("EquipItemSlotIndex={target}&MaterialSlotIndices=[{unlocked},{locked}]{stone_args}");
+    let req = Request::parse_with_integer_arrays(args.as_bytes(), &["MaterialSlotIndices", "MaterialItemInfors"]).unwrap();
+    let mut tx = s.db.begin().await.unwrap();
+    let err = equipment::execute(&mut tx, &s, a, &req, "awaken_equip").await.unwrap_err();
+    assert!(matches!(err, ServerError::InvalidRequest(ref code) if code == "LockedEquip"), "{err:?}");
+    tx.rollback().await.unwrap();
+
+    for materials in [
+        locked.to_string(),
+        format!("[{unlocked},{locked}]"),
+        format!("[\"{locked}\",\"{unlocked}\"]"),
+        format!("{unlocked}&MaterialSlotIndices={locked}"),
+    ] {
+        let out = call(&s, &u, "awaken_equip", &format!(
+            "EquipItemSlotIndex={target}&MaterialSlotIndices={materials}{stone_args}"
+        )).await;
+        // LockedEquip is not mapped to the native LockedEquipItemExists here.
+        assert_eq!(out["Result"], "Fail", "item {item_index}: {out}");
+        assert_eq!(gold(&s).await, before_gold);
+        let after_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+            .bind(a).fetch_all(&s.db).await.unwrap().iter()
+            .map(|r| json!(EquipItemInfo::from_row(r))).collect();
+        assert_eq!(after_equips, before_equips, "item {item_index}: equipment changed");
+        let after_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        assert_eq!(after_items, before_items, "item {item_index}: inventory changed");
+    }
+
+    // The same batch must be valid once unlocked, not rejected for another rule.
+    sqlx::query("UPDATE equip_items SET locked=0 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(locked).execute(&s.db).await.unwrap();
+    let out = call(&s, &u, "awaken_equip", &args).await;
+    assert_eq!(out["Result"], "Success", "item {item_index}: {out}");
+    assert_eq!(out["ResultEquipItem"]["Star"], 1);
+    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold"));
+    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)")
+        .bind(a).bind(unlocked).bind(locked).fetch_one(&s.db).await.unwrap();
+    assert_eq!(remaining, 0);
+    if let Some(id) = stone {
+        let before = before_items.iter().find(|r| r.0 == id).unwrap().1;
+        let after: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            .bind(a).bind(id).fetch_one(&s.db).await.unwrap();
+        assert_eq!(after, before - 1);
+    }
+}
+
+#[tokio::test]
+async fn awakening_locked_artifact_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(150044, 12, 0).await;
+}
+
+#[tokio::test]
+async fn awakening_locked_unique_weapon_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(1001, 11, 42).await;
+}
+
+#[tokio::test]
+async fn awakening_locked_unique_treasure_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(102014, 14, 43).await;
+}
+
 #[tokio::test]
 async fn awakening_validates_materials_and_charges_once() {
     let (s, u) = setup().await;

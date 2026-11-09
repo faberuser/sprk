@@ -312,9 +312,14 @@ tickets, multiple ticket choices, and fallback behavior. These probes do not use
 player inventory. Both installation and verification run in `--build-release`.
 
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
-inside gear awakening, then compacts that material grid. It retains the native
-eligibility and selected-item checks and restores items on later refreshes.
-`--verify-awakening-materials` checks the scoped hooks and IL stack. Stage this
+inside gear awakening, then compacts that material grid. It also rejects every
+nonzero equipment lock flag in the shared native awakening-material predicate,
+so locked artifacts, unique weapons and unique treasures cannot be selected as
+materials. Locked gear remains usable as the awakening target. Native soul-weapon,
+metadata and required-level checks remain intact, as do selected-item checks and
+restoration on later refreshes. The full release build installs this patch.
+`--verify-awakening-materials` checks the selection/visibility hooks, retained
+native checks, IL stack, patch idempotence and 16 lock/null/eligibility cases. Stage this
 patch and automation before running `python scripts/client/verify_awakening_materials.py`
 for isolated native icon/grid visibility, restoration and spacing checks.
 

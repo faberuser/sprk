@@ -5,6 +5,7 @@ namespace DllPatcher;
 partial class Program {
     static readonly string[] AwakenMaterialRefreshes={"UpdateAwakeEquipItemListTask","UpdatePublicAwakeItemListTask"};
     static void PatchAwakeningMaterials(ModuleDefinition module) {
+        PatchAwakeningMaterialLocks(module);
         var view=module.GetType("NGame2.NUI.NWindow.HeroEquipAwaken");
         var icon=module.GetType("NGame2.NUI.NComponent2.ItemIconComponent");
         var gray=icon.Methods.Single(m=>m.Name=="SetIconGrayScale");
@@ -44,6 +45,12 @@ partial class Program {
         VerifyAwakeningMaterials(module);
     }
     static void VerifyAwakeningMaterials(ModuleDefinition module) {
+        VerifyAwakeningMaterialLocks(module);
+        var eligibility=AwakenMaterialEligibility(module);
+        var before=eligibility.Body.Instructions.Select(i=>(i.OpCode,i.Operand)).ToArray();
+        PatchAwakeningMaterialLocks(module);
+        if(!before.SequenceEqual(eligibility.Body.Instructions.Select(i=>(i.OpCode,i.Operand))))
+            throw new InvalidOperationException("Awakening lock guard is not idempotent.");
         var view=module.GetType("NGame2.NUI.NWindow.HeroEquipAwaken");
         foreach(var name in AwakenMaterialRefreshes) {
             var method=view.Methods.Single(m=>m.Name==name);
@@ -54,7 +61,7 @@ partial class Program {
             VerifyArenaResultStack(method);
         }
         foreach(var name in new[]{"SprkSetMaterialVisibility","SprkCompactMaterialGrid"})VerifyArenaResultStack(view.Methods.Single(m=>m.Name==name));
-        Console.WriteLine("Verified awakening-only material visibility, native eligibility checks and compact grid refreshes.");
+        Console.WriteLine("Verified awakening material lock guard (16 control-flow cases), native eligibility, selection/visibility hooks, IL stack, idempotence and compact grid refreshes.");
     }
     static void VerifyAwakeningMaterialsFile(string root,bool staged=false) {
         using var a=AssemblyDefinition.ReadAssembly(Path.Combine(root,"King's Raid_Data","Managed","Assembly-CSharp.dll"+(staged?".awakening-materials-staged":"")));
