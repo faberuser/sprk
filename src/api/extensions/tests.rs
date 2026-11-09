@@ -1451,6 +1451,154 @@ async fn valance_craft_honors_owned_hero_material_discount() {
 }
 
 #[tokio::test]
+async fn valance_craft_selected_skill_is_identified_and_uses_discounted_materials() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES(?,111,111,5)")
+        .bind(a)
+        .execute(&s.db)
+        .await
+        .unwrap();
+    give(&s, a, 990001, 45900).await;
+    give(&s, a, 990000, 34).await;
+    let r = call(&s, &u, "valance_craft",
+        "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None&SelectEquipOptionIndices=8101").await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let eq = &r["EquipItemResult"];
+    assert_eq!(eq["ExtraOptionIndex1"], 8101);
+    assert_eq!(
+        eq["ExtraOptionStep1"],
+        s.tables.inventory.options[&8101]["Steps"]
+    );
+    assert_eq!(eq["ExtraOptionIndex2"], 0);
+    assert_eq!(eq["ExtraOptionStep2"], 0);
+    assert_eq!(eq["Identified"], 1);
+    let saved = equip(&mut s.db.acquire().await.unwrap(), a, n(eq, "SlotIndex"))
+        .await
+        .unwrap();
+    assert_eq!(json!(saved), *eq);
+    assert_eq!(gold(&s).await, 91000000);
+    for id in [990001, 990000] {
+        let remaining: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?",
+        )
+        .bind(a)
+        .bind(id)
+        .fetch_one(&s.db)
+        .await
+        .unwrap();
+        assert_eq!(remaining, 0, "material {id}");
+    }
+    // A paid selection must not be unidentified and rerolled by identification.
+    let rejected = call(
+        &s,
+        &u,
+        "valance_identified",
+        &format!("EquipItemSlotIndices=[{}]", saved.slot_index),
+    )
+    .await;
+    assert_ne!(rejected["Result"], "Success", "{rejected}");
+    let unchanged = equip(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        saved.slot_index as i64,
+    )
+    .await
+    .unwrap();
+    assert_eq!(json!(unchanged), *eq);
+    assert_eq!(gold(&s).await, 91000000);
+}
+
+#[tokio::test]
+async fn valance_craft_selected_skills_work_for_every_selectable_recipe() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    for id in [990001, 990002, 990003, 990000] { give(&s, a, id, 100000000).await; }
+    let mut covered = BTreeSet::new();
+    let mut crafted = 0;
+    for recipe in s.tables.extensions.rows("ValanceCraft") {
+        let Some(groups) = recipe["EquipOptionGroupIndex"].as_array() else { continue };
+        if groups.is_empty() { continue; }
+        let group = groups[0].as_i64().unwrap() as i32;
+        let chosen = s.tables.inventory.option_groups[&group][0];
+        covered.insert((n(recipe, "SetType"), group));
+        // Native WWWForm scalar and JSON-array forms must select the same skill.
+        for selection in [chosen.to_string(), format!("[{chosen}]")] {
+            let before = gold(&s).await;
+            let args = format!("SetType={}&CreatureTagType={}&PartType={}&SubPartType={}&SelectEquipOptionIndices={selection}",
+                n(recipe,"SetType"), n(recipe,"CreatureTagType"), n(recipe,"EquipPartType"), n(recipe,"EquipItemSubType"));
+            let r = call(&s, &u, "valance_craft", &args).await;
+            assert_eq!(r["Result"], "Success", "{args}: {r}");
+            let eq = &r["EquipItemResult"];
+            assert_eq!(eq["Identified"], 1, "{args}");
+            assert_eq!(eq["ExtraOptionIndex1"], chosen, "{args}");
+            assert_eq!(eq["ExtraOptionStep1"], s.tables.inventory.options[&chosen]["Steps"]);
+            assert_eq!(eq["ExtraOptionIndex2"], 0);
+            assert_eq!(eq["ExtraOptionStep2"], 0);
+            let data = &s.tables.inventory.equipment[&(n(eq,"ItemIndex") as i32)];
+            let mut normal = BTreeSet::new();
+            normal.extend(data["OptionIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64));
+            for g in data["OptionGroupIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
+                normal.extend(s.tables.inventory.option_groups[&(g as i32)].iter().map(|v| *v as i64));
+            }
+            for slot in 1..=n(data,"OptionCount").clamp(0,4) {
+                let option = n(eq,&format!("OptionIndex{slot}"));
+                assert!(normal.contains(&option), "normal stat replaced by a skill: {args}: {eq}");
+                assert_ne!(option, chosen as i64);
+            }
+            let saved = equip(&mut s.db.acquire().await.unwrap(), a, n(eq,"SlotIndex")).await.unwrap();
+            assert_eq!(json!(saved), *eq);
+            assert_eq!(gold(&s).await, before - n(recipe,"ReqGold"));
+            assert_eq!(r["ItemResults"][0]["AddCount"], -n(recipe,"MaterialItemCount") - n(recipe,"AdditionalMaterialItemCount"));
+            assert_eq!(r["ItemResults"][1]["AddCount"], -n(recipe,"SubMaterialItemCount"));
+            sqlx::query("DELETE FROM equip_items WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            crafted += 1;
+        }
+    }
+    assert_eq!(covered, (1..=3).flat_map(|set| (10001..=10004).map(move |group| (set,group))).collect());
+    assert_eq!(crafted, 294, "every selectable recipe in both request forms");
+    println!("Validated {crafted} selected-skill crafts across every selectable recipe and both request forms");
+}
+
+#[tokio::test]
+async fn valance_craft_selected_skill_failures_roll_back_all_costs_and_rewards() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 990001, 54000).await;
+    give(&s, a, 990000, 40).await;
+    let args = "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None";
+    async fn snapshot(s: &AppState, a: i64) -> (i64, Vec<(i32,i32)>, i64, i64) {
+        let materials = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index,item_id")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        let equipment = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let crafts = sqlx::query_scalar("SELECT COALESCE(SUM(value),0) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        (gold(s).await, materials, equipment, crafts)
+    }
+    for selection in ["[8201]", "[101]", "[0]", "[-1]", "[2147483647]", "[8101,8101]", "[8101,8102]", "8101&SelectEquipOptionIndices=8102"] {
+        let before = snapshot(&s,a).await;
+        let r = call(&s,&u,"valance_craft",&format!("{args}&SelectEquipOptionIndices={selection}")).await;
+        assert_ne!(r["Result"], "Success", "{selection}: {r}");
+        assert_eq!(snapshot(&s,a).await, before, "{selection}");
+    }
+    // Valid choices with insufficient gold, base/additional material, or sub-material.
+    for (gold, material, sub) in [(8999999,54000,40), (100000000,53999,40), (100000000,54000,39)] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(gold).bind(a).execute(&s.db).await.unwrap();
+        for (id,count) in [(990001,material),(990000,sub)] {
+            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=?")
+                .bind(count).bind(a).bind(id).execute(&s.db).await.unwrap();
+        }
+        let before = snapshot(&s,a).await;
+        let r = call(&s,&u,"valance_craft",&format!("{args}&SelectEquipOptionIndices=[8101]")).await;
+        assert_ne!(r["Result"], "Success", "{r}");
+        assert_eq!(snapshot(&s,a).await, before);
+    }
+}
+
+#[tokio::test]
 async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
