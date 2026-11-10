@@ -285,6 +285,12 @@ public sealed partial class SprkAutomation : MonoBehaviour
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
                 busy=true;StartCoroutine(ProbeAwakeningMaterials(cmd));return;
             }
+            if(cmd.action=="forge-awaken-chance-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Forge chance fixture requires isolated Login");
+                var probe=System.Reflection.Assembly.Load("SprkForgeAwakenChance").GetType("SprkForgeAwakenChanceProbe");
+                var result=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(result);Write(reply);return;
+            }
             if(cmd.action=="arena-ranking-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ranking fixture requires isolated Login");
                 NShared.NJit.TableRoot.Instance.SetPatchDownLoadComplete(true);

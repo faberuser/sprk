@@ -24,6 +24,8 @@
     <EmbeddedResource Include="Resources/HeroRuneFilter.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroRuneFilter.cs.txt" />
     <EmbeddedResource Include="Resources/TicketSearch*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/TechnomagicAwakenTarget.cs.txt" WithCulture="false" LogicalName="DllPatcher.TechnomagicAwakenTarget.cs.txt" />
+    <EmbeddedResource Include="Resources/ForgeAwakenChance.cs.txt" WithCulture="false" LogicalName="DllPatcher.ForgeAwakenChance.cs.txt" />
+    <EmbeddedResource Include="Resources/ForgeAwakenChanceProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.ForgeAwakenChanceProbe.cs.txt" />
     <EmbeddedResource Include="Resources/SkillUpgradeAll.cs.txt" WithCulture="false" LogicalName="DllPatcher.SkillUpgradeAll.cs.txt" />
     <EmbeddedResource Include="Resources/ArenaPractice*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/GearPresetPortraits*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />

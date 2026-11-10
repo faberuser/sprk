@@ -200,6 +200,37 @@ field is absent. `--verify-technomagic-awaken-target` checks hooks, native
 members and IL. Installation also runs the native request encoder against the
 compiled helper. The full release build installs it before `Currency64`.
 
+`--forge-awaken-chance-only` adds a success-rate slider to normal/UW/UT Forge
+awakening. Each stop is a distinct positive chance achievable with the available
+eligible materials, using the target's next-star success table and failure bonus.
+For example, a one-star target with two zero-star copies has just 50% and 100%
+stops. There are no fixed percentage intervals or empty-material stop. Selection defaults to the
+highest achievable chance, capped at 100%, whenever a target is selected or its
+star/failure bonus changes. The readout shows the actual achievable chance,
+including the native failure bonus. The planner minimizes awakening points and
+then material count for each distinct achievable chance. Ties prefer
+lower-star duplicates before universal stones. Locked gear and native-ineligible
+stones/gear are excluded. Native material icons, gold cost, button and request
+arrays are refreshed; awakening still attempts only the next star when pressed.
+Manual material selection remains available. `--verify-forge-awaken-chance`
+checks hooks, eligibility/table calls and IL stacks. Installation compares the
+planner with exhaustive subsets for 350 inventories, including mixed materials,
+nonlinear rates, failure bonuses and the two-copy 50%/100% example. A single
+achievable chance is selected automatically with dragging disabled; no eligible
+materials disables dragging and selects nothing.
+The slider sits in a separate row above Gold and Awaken Gear; the track and
+right-aligned success readout span the combined width of those controls. Track
+widgets widen while the thumb and row height retain their original proportions.
+The target/result,
+materials/success-rate and complete stat/effect scroll groups move upward together;
+their internal spacing and stat viewport size are preserved. Layout is applied
+once per pooled window. An active discount banner fits beside the raised instruction.
+The opt-in Login automation action `forge-awaken-chance-probe` exercises the
+native prefab, normal/UW/UT selection, dynamic stops across next-star tables,
+single/empty inventories, stones, locks, manual edits and failure
+refresh; `text: "preview"` retains its isolated fixture for a screenshot.
+The full release build installs and verifies the patch.
+
 `--skill-upgrade-all-only` adds an upgrade-all button (labelled Upgrade) to the
 hero Skills tab's skill-book row. It clones the HeroList window's native All Heroes button as a taller sliced
 button with a larger label. The four book counters get narrower count boxes

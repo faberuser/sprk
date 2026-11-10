@@ -159,6 +159,8 @@ partial class Program
         InstallPresetDisposal(clientRoot, true);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
+        InstallForgeAwakenChance(clientRoot, false);
+        VerifyForgeAwakenChanceFile(clientRoot);
         InstallTechnomagicRefresh(clientRoot, false);
         InstallTechnomagicRefresh(clientRoot, false, true);
         InstallTechnomagicEnchantRefresh(clientRoot, false);

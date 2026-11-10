@@ -64,6 +64,8 @@ namespace DllPatcher
             if (args.Contains("--technomagic-enchant-refresh-only")) { InstallTechnomagicEnchantRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-enchant-refresh")) { InstallTechnomagicEnchantRefresh(args[0],false,true); return; }
             if (args.Contains("--technomagic-awaken-target-only")) { InstallTechnomagicAwakenTarget(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--forge-awaken-chance-only")) { InstallForgeAwakenChance(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-forge-awaken-chance")) { VerifyForgeAwakenChanceFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--skill-upgrade-all-only")) { InstallSkillUpgradeAll(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-skill-upgrade-all")) { VerifySkillUpgradeAllFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-awaken-target")) { VerifyTechnomagicAwakenTargetFile(args[0],args.Contains("--stage-only")); return; }
