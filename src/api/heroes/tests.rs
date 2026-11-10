@@ -1278,6 +1278,54 @@ async fn transcend_pages_parse_native_pairs_enforce_points_and_persist() {
     assert_eq!(get(&s, &u, 1).await["TranscendSkillPage1"], "[]");
 }
 #[tokio::test]
+async fn void_rune_shops_allow_repeat_purchases_beyond_old_caps_at_original_prices() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let offers: Vec<_> = s.tables.hero_shop.shop_items.iter()
+        .filter(|r| (45123..=45127).contains(&item::n(r, "ItemIndex"))).collect();
+    assert!(!offers.is_empty());
+    let mut runes = std::collections::BTreeSet::new();
+    for row in &offers {
+        assert_eq!(item::n(row, "PurchasableCount"), 0, "{row}");
+        runes.insert(item::n(row, "ItemIndex"));
+    }
+    assert_eq!(runes, (45123..=45127).collect());
+    // Exercise the actual Arena, World Boss, Honor and Challenge shop paths.
+    // Guild-level rows are covered above without bypassing guild membership.
+    for (shop_id, currency) in [(3, "PvpCoin"), (12, "WorldBossPoint"), (15, "GloryPoint"), (38, "ChallengeRaidPoint")] {
+        let row = offers.iter().find(|r| item::n(r, "ShopIndex") == shop_id).unwrap();
+        let index = item::n(row, "Index");
+        let rune = item::n(row, "ItemIndex") as i32;
+        let price = item::n(row, "TargetPrice");
+        assert!(price > 0);
+        let current = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 1000000 - item::n(&current, "NewValue")).await.unwrap();
+        let before = count(&s, &u, rune).await;
+        for amount in [3, 4] {
+            let req = format!("ShopIndex={shop_id}&ShopItemIndex={index}&ShopItemPurchaseCount={amount}");
+            let result = shop::buy_shop_item(State(s.clone()), form(&u, &req)).await.unwrap().0;
+            assert_eq!(result["Result"], "Success", "{result}");
+            assert_eq!(result["ShopItem"]["Sold"], 0);
+        }
+        assert_eq!(count(&s, &u, rune).await, before + 7);
+        let remaining = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        assert_eq!(item::n(&remaining, "NewValue"), 1000000 - price * 7);
+        let listed = shop::get_shop_list(State(s.clone()), form(&u, &format!("ShopIndex={shop_id}"))).await.unwrap().0;
+        let offer = listed["ShopItems"].as_array().unwrap().iter().find(|r| item::n(r, "ListNo") == index).unwrap();
+        assert_eq!(offer["Sold"], 0);
+        assert_eq!(offer["PurchasableCount"], 0);
+        assert_eq!(offer["Purchased"], 7);
+        hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, -item::n(&remaining, "NewValue")).await.unwrap();
+        let rejected = shop::buy_shop_item(State(s.clone()), form(&u,
+            &format!("ShopIndex={shop_id}&ShopItemIndex={index}&ShopItemPurchaseCount=1"))).await.unwrap().0;
+        assert_ne!(rejected["Result"], "Success");
+        assert_eq!(count(&s, &u, rune).await, before + 7);
+        let empty = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        assert_eq!(item::n(&empty, "NewValue"), 0);
+    }
+}
+
+#[tokio::test]
 async fn inn_shop_lists_actual_item_codes_and_atomic_friendship_purchases() {
     let (s, u) = setup().await;
     let r = shop::get_shop_list(State(s.clone()), form(&u, "ShopIndex=10"))

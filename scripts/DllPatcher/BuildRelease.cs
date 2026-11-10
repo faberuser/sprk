@@ -196,6 +196,8 @@ partial class Program
         InstallLinePets(clientRoot, false, true);
         RestoreLinePetCurrency(clientRoot, false);
         RestoreLinePetCurrency(clientRoot, true);
+        InstallVoidRuneShopLimits(clientRoot, false);
+        InstallVoidRuneShopLimits(clientRoot, true);
         RestoreConquestDungeonIcons(clientRoot, false);
         RestoreConquestDungeonIcons(clientRoot, true);
         InstallHeroDeathVoices(clientRoot, false);

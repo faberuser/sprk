@@ -163,6 +163,8 @@ namespace DllPatcher
             if (args.Contains("--verify-honor")) { VerifyHonorFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-legendary-rune-tickets")) { TestLegendaryRuneTickets(); return; }
             if (args.Contains("--class-weapon-selectors-only")) { InstallClassWeaponSelectors(args[0], false); return; }
+            if (args.Contains("--void-rune-shop-limits-only")) { InstallVoidRuneShopLimits(args[0], false); return; }
+            if (args.Contains("--verify-void-rune-shop-limits")) { InstallVoidRuneShopLimits(args[0], true); return; }
             if (args.Contains("--verify-class-weapon-selectors")) { InstallClassWeaponSelectors(args[0], true); return; }
             if (args.Contains("--punishment-rewards-only")) { InstallPunishmentRewards(args[0], false); return; }
             if (args.Contains("--verify-punishment-rewards")) { InstallPunishmentRewards(args[0], true); return; }
