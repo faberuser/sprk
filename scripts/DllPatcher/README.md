@@ -113,6 +113,15 @@ The fixture loads lobby atlases from the `HighAndMidSpec` bundle folder.
 leave a fixture on screen for screenshots. The full release build installs and
 verifies this patch.
 
+The same patch adds a selector-style class dropdown and search field above the
+middle `HeroPortraitList` grid in Hero Info. Class and name filters intersect;
+clearing search retains the class, and reopening resets both. The original
+portraits, selected hero and full preferred-hero order are preserved. The scroll
+viewport and drag area reserve the top row once per window instance. The
+`ticket-search-probe` mode `hero-info-test` checks combined filtering, empty
+results, clearing, full-list bookmark moves, selection, reopening and layout
+idempotence on the real Unity client using an isolated Login fixture.
+
 `--selector-acquire-state-only` fixes stale grayscale on Acquire after a selector
 filter/search temporarily disables the button. In both
 `WeaponUniqueSelect.SetItemDescription(ItemData)` and its `SoulStoneSelect`

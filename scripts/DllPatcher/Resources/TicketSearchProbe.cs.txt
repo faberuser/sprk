@@ -415,8 +415,68 @@ public static class SprkTicketSearchProbe {
         Check(SprkTicketSearch.FuzzyMatches(SprkTicketSearch.Terms("lord kasle"),"|darklordkasel|#dlk#"),"multi-word fuzzy");
         return "PASS: "+String.Join("; ",lines.ToArray());
     }
+    static string HeroInfoTest() {
+        EnsureAccount();Show("HeroPortraitList");
+        var gridWindow=shown.GetComponent<HeroPortraitList>();
+        var all=GameRoot.Instance.CreatureDataContainer.GetAllData()
+            .Where(h=>h.OpenType==CreatureOpenType.Opened).ToList();
+        Check(all.Count>20,"hero fixture pool");
+        typeof(HeroPortraitList).GetField("_SelectedHeroIndex",Any).SetValue(gridWindow,all[0].Index);
+        var create=Method(typeof(HeroPortraitList),"CreateHeroItem",1);
+        foreach(var data in all) {
+            var hero=new CachedHeroInfo(data);hero.Level=100;hero.Star=5;hero.Transcended=5;
+            create.Invoke(gridWindow,new object[]{hero});
+        }
+        NGameAsset.Define.PatchDownloaded=true;
+        try { SprkTicketSearch.AfterHeroGrid(gridWindow); }
+        finally { NGameAsset.Define.PatchDownloaded=false; }
+        LoadSpecAtlases(shown);
+        var state=gridWindow.GetComponent<SprkHeroGridState>();
+        var box=gridWindow.GetComponent<SprkTicketSearchBox>();
+        Func<int> count=()=>state.heroes.Count(h=>h.gameObject.activeSelf);
+        // Row sits above the portrait grid's panel so clicks reach the field.
+        var clipDepth=gridWindow.HeroListGrid.ClippingPanel.depth;
+        Check(box.input.GetComponentInParent<UIPanel>().depth>clipDepth && state.classes.GetComponentInParent<UIPanel>().depth>clipDepth,"filter row above grid panel");
+        var start=typeof(UIInput).GetField("mValue",Any);
+        Check(start==null || start.GetValue(box.input)!=null,"search input initialised before Start");
+        var space=gridWindow.HeroListGrid.transform.parent;
+        var fieldHit=ColliderBounds(box.input,space);var classHit=ColliderBounds(state.classes,space);
+        Check(classHit.max.x<=fieldHit.min.x+1f,"class filter and search do not overlap");
+        Check(Mathf.Abs(classHit.size.x-fieldHit.size.x)<2f,"class filter and search are equal width ("+classHit.size.x.ToString("0")+" vs "+fieldHit.size.x.ToString("0")+")");
+        Check(classHit.min.x>=-361f && fieldHit.max.x<=361f,"row stays inside the frame ("+classHit.min.x.ToString("0")+".."+fieldHit.max.x.ToString("0")+")");
+        var classBack=space.InverseTransformPoint(box.styleSource.transform.position);
+        Check(box.styleSource!=null && Mathf.Abs(fieldHit.center.y-classBack.y)<2f && Mathf.Abs(classHit.center.y-classBack.y)<2f,"row controls share a centre line");
+        Check(fieldHit.max.y<=453f && Math.Min(fieldHit.min.y,classHit.min.y)>=gridWindow.HeroListGrid.ClippingPanel.baseClipRegion.y+gridWindow.HeroListGrid.ClippingPanel.baseClipRegion.w*.5f
+            +gridWindow.HeroListGrid.ClippingPanel.transform.localPosition.y+gridWindow.HeroListGrid.transform.localPosition.y-1f,"row stays between frame top and the grid");
+        var arrow=state.classes.GetComponentsInChildren<UISprite>(true).First(s=>s.name=="Sprite_Dir");
+        var selected=state.classes.SelectedLabel;
+        Check(selected.transform.localPosition.x-selected.width*.5f>=arrow.transform.localPosition.x+arrow.width*.5f,"class text clears the arrow");
+        Check(Mathf.Abs(space.InverseTransformPoint(selected.transform.position).x-classBack.x)<1f,"class text centred on its box");
+        Check(count()==all.Count,"unfiltered Hero Info");
+        int tag=(int)all[0].TagType;
+        state.classes.SelectItem(tag,true);
+        Check(count()==all.Count(h=>(int)h.TagType==tag),"class filter");
+        box.input.value=all[0].Name;box.OnSubmitted();
+        Check(count()>0 && state.heroes.Where(h=>h.gameObject.activeSelf).All(h=>(int)h.CreatureData.TagType==tag),"combined class and name");
+        box.input.value="zzzzzzzzzzzzzzzzzzzz";box.OnSubmitted();
+        Check(count()==0,"zero results");
+        box.Clear();Check(count()==all.Count(h=>(int)h.TagType==tag),"clear preserves class");
+        var moved=state.heroes[state.heroes.Count-1];
+        gridWindow.MoveGridItem(state.heroes.Count-1,0,true);
+        Check(state.heroes[0]==moved && moved.transform.GetSiblingIndex()==0,"bookmark uses full-list indices");
+        state.classes.SelectItem(0,true);Check(count()==all.Count,"restore all classes");
+        float y=gridWindow.HeroListGrid.transform.localPosition.y;
+        var region=gridWindow.HeroListGrid.ClippingPanel.baseClipRegion;
+        SprkTicketSearch.BeforeHeroGrid(gridWindow);SprkTicketSearch.AfterHeroGrid(gridWindow);
+        Check(gridWindow.HeroListGrid.transform.localPosition.y==y && gridWindow.HeroListGrid.ClippingPanel.baseClipRegion==region,"layout idempotence");
+        Check(box.text=="" && state.classes.CurrentKey==0 && count()==all.Count,"reopen reset");
+        Check((int)typeof(HeroPortraitList).GetField("_SelectedHeroIndex",Any).GetValue(gridWindow)==all[0].Index,"selection preserved");
+        return "PASS: Hero Info class/name intersection, zero results, clear, bookmark indices, reopen, selection and layout; heroes="+count();
+    }
+
     public static string Run(string mode) {
         Prepare();
+        if(mode=="hero-info-test")return HeroInfoTest();
         if(mode!=null && mode.StartsWith("show:"))return Show(mode.Substring(5));
         if(mode!=null && mode.StartsWith("dumpshown:") && shown!=null) {
             var under=shown.transform.Find(mode.Substring(10));
