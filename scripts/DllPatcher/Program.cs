@@ -169,6 +169,9 @@ namespace DllPatcher
             if (args.Contains("--verify-void-rune-shop-limits")) { InstallVoidRuneShopLimits(args[0], true); return; }
             if (args.Contains("--verify-class-weapon-selectors")) { InstallClassWeaponSelectors(args[0], true); return; }
             if (args.Contains("--punishment-rewards-only")) { InstallPunishmentRewards(args[0], false); return; }
+            if (args.Contains("--punishment-level-selection-only")) { InstallPunishmentLevelSelection(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-punishment-level-selection")) { VerifyPunishmentLevelSelectionFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-punishment-level-selection")) { TestPunishmentLevelSelection(args[0]); return; }
             if (args.Contains("--verify-punishment-rewards")) { InstallPunishmentRewards(args[0], true); return; }
             if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
             if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
@@ -360,6 +363,7 @@ namespace DllPatcher
                 PatchVoiceLanguage(module);
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
+                PatchPunishmentLevelSelection(module);
                 PatchPetFeeding(module);
                 PatchSelectorCountLimit(module);
                 PatchCraftShortcut(module);

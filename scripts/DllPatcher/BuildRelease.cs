@@ -117,6 +117,8 @@ partial class Program
         VerifyPetFeedingFile(clientRoot);
         TestPetFeeding(clientRoot);
         TestShopPurchaseLimits(clientRoot);
+        VerifyPunishmentLevelSelectionFile(clientRoot, false);
+        TestPunishmentLevelSelection(clientRoot);
         VerifySelectorCountLimitFile(clientRoot, false);
         TestSelectorCountLimit(clientRoot);
         VerifySoulWeaponCinematicFile(clientRoot, false);

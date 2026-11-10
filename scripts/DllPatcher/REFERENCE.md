@@ -602,6 +602,16 @@ attachment of the blocked mail untouched. Legacy clients retain their atomic
 batch behavior. Deploy the matching server before distributing this client.
 
 
+### Apocalypsion and Solenis level selection
+
+`--punishment-level-selection-only` makes the shared punishment level picker
+start at the selected raid group's saved cleared level, with level 1 as the
+first-clear default. The unlocked maximum and manual level selection stay
+unchanged. `--verify-punishment-level-selection` checks the installed selection
+expression and maximum; `--self-test-punishment-level-selection` executes the
+production IL expression and checks patch idempotence. The full patch path and
+`--build-release` include the patch, verifier and self-test.
+
 ### Progressive dispatch results
 
 `--dispatch-only` installs the native simulator helper with progressive uploads.
