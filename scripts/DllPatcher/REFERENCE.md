@@ -614,9 +614,18 @@ only completed victories on cancellation. Saved outcomes progress offline;
 unprepared runs require a logged-in client to simulate them. Legacy full-batch
 reports keep their existing contract. Deploy the matching server first.
 
+Claiming or cancelling a dispatch adds earned equipment directly to inventory;
+only equipment exceeding bag capacity goes to the existing overflow mail.
+The helper captures `EquipItemResults` after response parsing and applies them
+once in the main-thread callback before native result UI and equipment level
+updates. Native claim/cancel responses lack an equipment field, so both server
+and client changes are required. Older server responses without equipment work
+unchanged.
+
 `--self-test-dispatch` exercises the shipping coroutine with controlled native
 engine/network stand-ins: first result from a 200-run job, upload retry, persisted
-resume, slot fairness, timeout and session replacement. `--verify-dispatch` checks
+resume, slot fairness, timeout, session replacement and inventory delivery for
+claim/cancel, concurrent slots, failed requests and legacy responses. `--verify-dispatch` checks
 installed hooks and protocol fields. Both run in `--build-release`.
 
 

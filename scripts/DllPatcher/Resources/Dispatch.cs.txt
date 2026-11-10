@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using NGame2.NAccount;
 using NGame2.NDispatchBattle;
 using NGame2.NBattleSimulator;
@@ -16,6 +17,26 @@ using UnityEngine.Networking;
 // Dispatch uses the native battle engine and uploads each finished simulation.
 // Saved outcomes progress on the server while the client is offline.
 public sealed class SprkDispatch : MonoBehaviour {
+    sealed class RewardDelivery { public EquipItemInfo[] Equipment; }
+    static readonly ConditionalWeakTable<object,RewardDelivery> rewardDeliveries = new ConditionalWeakTable<object,RewardDelivery>();
+    // Parsing runs on a worker; inventory managers must only run in the native
+    // main-thread callback. Key by response so concurrent slots cannot mix loot.
+    public static void CaptureRewards(string body, object response) {
+        var complete = response as NShared.RequestCompleteDispatch.Response;
+        var cancel = response as NShared.CancelDispatch.Response;
+        if (!(complete != null && complete.BaseResult == BaseResultType.Success && complete.Result == NShared.RequestCompleteDispatch.ResultType.Success)
+            && !(cancel != null && cancel.BaseResult == BaseResultType.Success && cancel.Result == NShared.CancelDispatch.ResultType.Success)) return;
+        var rewards = JsonMarshaler.Parse<RewardResultInfo>(body);
+        if (rewards == null || rewards.EquipItemResults == null || rewards.EquipItemResults.Length == 0) return;
+        rewardDeliveries.Remove(response);
+        rewardDeliveries.Add(response, new RewardDelivery { Equipment = rewards.EquipItemResults });
+    }
+    public static void ApplyRewards(object response) {
+        RewardDelivery delivery;
+        if (response == null || !rewardDeliveries.TryGetValue(response, out delivery)) return;
+        Account().EquipItemManager.Apply(delivery.Equipment);
+        rewardDeliveries.Remove(response);
+    }
     static SprkDispatch instance;
     bool busy;
     float nextPoll;

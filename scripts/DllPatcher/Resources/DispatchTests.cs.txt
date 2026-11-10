@@ -24,6 +24,24 @@ public static class DispatchTestRunner {
     static SprkDispatch.Job Job(string id="job",int slot=1) {return new SprkDispatch.Job {SlotIndex=slot,ChapterIndex=1,DungeonIndex=1,Difficulty=1,RepeatCount=200,SimulationVersion=1,State="Simulation",HeroIndices="[1]",SimulationJobId=id};}
     static void Reset() {FakeNetwork.Requests.Clear();FakeNetwork.Replies.Clear();FakeSimulator.Uids.Clear();FakeSimulator.Timeout=false;FakeSimulator.ChangeSession=false;UnityEngine.Time.realtimeSinceStartup=0;NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="session";}
     public static void Run() {
+        var bag=NVespa.NGlobal.GlobalAutoBehaviour<NGame2.NAccount.AccountManager>.instance.EquipItemManager.Slots;
+        bag.Clear();
+        var complete=new NShared.RequestCompleteDispatch.Response {BaseResult=NShared.BaseResultType.Success,Result=NShared.RequestCompleteDispatch.ResultType.Success};
+        var cancel=new NShared.CancelDispatch.Response {BaseResult=NShared.BaseResultType.Success,Result=NShared.CancelDispatch.ResultType.Success};
+        SprkDispatch.CaptureRewards("{\"EquipItemResults\":[{\"SlotIndex\":41}]}",complete);
+        SprkDispatch.CaptureRewards("{\"EquipItemResults\":[{\"SlotIndex\":42}]}",cancel);
+        Check(bag.Count==0,"Worker-thread parsing modified inventory");
+        SprkDispatch.ApplyRewards(cancel);SprkDispatch.ApplyRewards(complete);SprkDispatch.ApplyRewards(complete);
+        Check(bag.SequenceEqual(new[]{42,41}),"Concurrent slot rewards mixed or applied twice");
+        complete.Result=NShared.RequestCompleteDispatch.ResultType.Fail;
+        SprkDispatch.CaptureRewards("{\"EquipItemResults\":[{\"SlotIndex\":43}]}",complete);
+        SprkDispatch.ApplyRewards(complete);
+        Check(bag.Count==2,"Failed completion granted equipment");
+        complete.Result=NShared.RequestCompleteDispatch.ResultType.Success;
+        SprkDispatch.CaptureRewards("{}",complete);SprkDispatch.ApplyRewards(complete);
+        SprkDispatch.CaptureRewards("{\"EquipItemResults\":[]}",complete);SprkDispatch.ApplyRewards(complete);
+        SprkDispatch.CaptureRewards("invalid unrelated body",new object());SprkDispatch.ApplyRewards(null);
+        Check(bag.Count==2,"Empty or legacy rewards modified inventory");
         Reset();var scheduled=Worker();
         var pollIfReady=typeof(SprkDispatch).GetMethod("PollIfReady",BindingFlags.Instance|BindingFlags.NonPublic);
         var finished=JsonJob("finished",1).Replace("\"Simulation\"","\"ReadyToComplete\"");
@@ -109,10 +127,10 @@ namespace UnityEngine.Networking {
     }
 }
 public class UserDispatchBattleInfoManager {public int SetCount;public void Set(NGame2.NUtil.NWrappedInfo.WCL_DispatchBattleInfo[] infos){SetCount++;}}
-namespace NGame2.NAccount {public class AccountManager {public bool LoginResponseComplete=true;public UserInfo UserInfo=new UserInfo();public UserDispatchBattleInfoManager DispatchBattleInfoManager=new UserDispatchBattleInfoManager();}public class UserInfo {public long AccountId=1;}}
+namespace NGame2.NAccount {public class AccountManager {public bool LoginResponseComplete=true;public UserInfo UserInfo=new UserInfo();public UserDispatchBattleInfoManager DispatchBattleInfoManager=new UserDispatchBattleInfoManager();public UserEquipItemManager EquipItemManager=new UserEquipItemManager();}public class UserInfo {public long AccountId=1;}}
 namespace NGame2.NUtil.NWrappedInfo {public class WCL_DispatchBattleInfo {public WCL_DispatchBattleInfo Copy(NShared.DispatchBattleInfo info){return this;}}}
 namespace NShared.GetDispatchList {public enum ResultType {Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;public NShared.DispatchBattleInfo[] DispatchBattleInfos;}}
-public static class JsonMarshaler {public static T Parse<T>(string body) {var doc=JsonDocument.Parse(body);var count=doc.RootElement.GetProperty("DispatchBattleInfos").GetArrayLength();return (T)(object)new NShared.GetDispatchList.Response {BaseResult=NShared.BaseResultType.Success,Result=NShared.GetDispatchList.ResultType.Success,DispatchBattleInfos=new NShared.DispatchBattleInfo[count]};}}
+public static class JsonMarshaler {public static T Parse<T>(string body) {var doc=JsonDocument.Parse(body);if(typeof(T)==typeof(NShared.RewardResultInfo))return (T)(object)new NShared.RewardResultInfo {EquipItemResults=doc.RootElement.TryGetProperty("EquipItemResults",out var equipment)?equipment.EnumerateArray().Select(e=>new NShared.EquipItemInfo{SlotIndex=e.GetProperty("SlotIndex").GetInt32()}).ToArray():null};var count=doc.RootElement.GetProperty("DispatchBattleInfos").GetArrayLength();return (T)(object)new NShared.GetDispatchList.Response {BaseResult=NShared.BaseResultType.Success,Result=NShared.GetDispatchList.ResultType.Success,DispatchBattleInfos=new NShared.DispatchBattleInfo[count]};}}
 namespace NGame2.NDispatchBattle {public static class DispatchHelper {public static void SendRQGetDispatchList(object callback){}}}
 namespace NGame2.NBattleSimulator {public static class BattleSimulationFacade {
     public static NShared.BattleSimulationInstance RunBattleSimulation(string uid,int[] ids,int chapter,int dungeon,int difficulty,bool b){FakeSimulator.Uids.Add(uid);if(FakeSimulator.ChangeSession)NVespa.NSingleton.SingletonUpdater<NVespa.WebServiceManager>.instance.Requester.SessionKey="replaced";return new NShared.BattleSimulationInstance{IsBattleEnd=!FakeSimulator.Timeout};}
@@ -140,3 +158,8 @@ namespace LitJson {
     }
     public static class JsonMapper {public static JsonData ToObject(string text){return new JsonData(JsonDocument.Parse(text).RootElement.Clone());}}
 }
+
+public class UserEquipItemManager {public readonly List<int> Slots=new List<int>();public void Apply(NShared.EquipItemInfo[] equipment){Slots.AddRange(equipment.Select(e=>e.SlotIndex));}}
+namespace NShared {public class EquipItemInfo {public int SlotIndex;}public class RewardResultInfo {public EquipItemInfo[] EquipItemResults;}}
+namespace NShared.RequestCompleteDispatch {public enum ResultType{Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;}}
+namespace NShared.CancelDispatch {public enum ResultType{Success,Fail}public class Response {public NShared.BaseResultType BaseResult;public ResultType Result;}}

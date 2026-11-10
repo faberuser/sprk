@@ -388,30 +388,9 @@ pub(super) async fn execute(
             return Err(rule("NotEnoughCurrency"));
         }
     }
-    // The native dispatch response has no equipment field. Deliver rolled gear
-    // through mail so collection updates the bag through its supported protocol.
-    let mut equipment: Vec<crate::models::equip::EquipItemInfo> = read_value(
-        out["EquipItemResults"]
-            .as_array()
-            .cloned()
-            .map(Value::Array)
-            .unwrap_or(json!([])),
-    )?;
-    for equip in &mut equipment {
-        sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
-            .bind(a)
-            .bind(equip.slot_index)
-            .execute(&mut *db)
-            .await?;
-        equip.slot_index = 0;
-        equip.uid = String::new();
-    }
-    for attachments in equipment.chunks(100) {
-        sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_equipment) VALUES(?,'System','Dispatch equipment rewards','Equipment earned by your dispatch. Claim it here to add it to your bag.',?)")
-            .bind(a).bind(json!(attachments).to_string()).execute(&mut *db).await?;
-    }
-    out["EquipItemResults"] = json!([]);
-    out["EquipItemInfos"] = json!([]);
+    // Reward grants already keep what fits in the bag and mail only overflow.
+    // SprkDispatch applies EquipItemResults alongside the native claim/cancel
+    // callback because those native response types have no equipment field.
     if !deferred && n(&info, "CostType") == 1 && wins > 0 {
         let spent=n(&info, "Cost") / total * wins;
         out["ExpResult"] = dungeons::stamina_exp(db, s, a, spent).await?;

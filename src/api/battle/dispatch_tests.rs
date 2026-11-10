@@ -187,7 +187,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         assert_eq!(done["DispatchBattleInfo"]["LoseCount"], 7);
         assert_eq!(stamina(&s, &u).await, 700);
         assert_eq!(done["TeamExpResult"]["AddValue"], 3000);
-        assert_eq!(done["EquipItemResults"], json!([]));
+        assert_eq!(done["EquipItemInfos"], done["EquipItemResults"]);
         let mail_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?")
             .bind(a)
             .fetch_one(&s.db)
@@ -195,6 +195,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
             .unwrap();
         assert!(
             mail_after > mail_before
+                || done["EquipItemResults"].as_array().is_some_and(|items| !items.is_empty())
                 || done["ItemResults"]
                     .as_array()
                     .is_some_and(|items| !items.is_empty()),
@@ -249,6 +250,74 @@ async fn finish_now(s: &AppState, u: &Value, slot: i64) {
     let mut job = get(&mut db, a, "dispatch", slot).await.unwrap();
     job["FinishTimestamp"] = json!(now() - 1);
     put(&mut db, a, "dispatch", slot, &job).await.unwrap();
+}
+#[tokio::test]
+async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
+    for cancel in [false, true] {
+        for spaces in [0, 1, 6] {
+            let (mut s, u) = fixture(true).await;
+            let a = account(&u);
+            let dungeon = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
+                .tables.get_mut("CampaignDungeon").unwrap().iter_mut()
+                .find(|d| n(d,"ChapterIndex")==1 && n(d,"DungeonIndex")==1).unwrap();
+            let drop_index = n(dungeon,"DropRewardIndex_Normal") as i32;
+            dungeon["FirstClearRewardIndex_Normal"] = json!(0);
+            dungeon["FirstRewardIndex"] = json!(0);
+            assert_eq!(s.tables.reward_string_pool.get(66),Some("ARMOR_HEAVY_8_6_4"));
+            let reward = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).rewards)
+                .entries.iter_mut().find(|r| r.index==drop_index).unwrap();
+            *reward = crate::tables::RewardData {
+                index: drop_index,
+                sub_data_list: vec![json!([2,[66,0],1000,3,null,3,0,0,0])],
+                ..Default::default()
+            };
+            let job = start(&s,&u,if cancel {3} else {2}).await;
+            let mut saved = job.clone();
+            saved["SimulationResults"] = json!([{"Outcome":1,"TimeMs":1000},{"Outcome":1,"TimeMs":1000}]);
+            saved["StartTimestamp"] = json!(now()-60);
+            saved["FinishTimestamp"] = json!(now()-1);
+            let slot = n(&job,"SlotIndex");
+            let mut db = s.db.acquire().await.unwrap();
+            put(&mut db,a,"dispatch",slot,&saved).await.unwrap();
+            let free = item::free_slots(&mut db,&s,a,0).await.unwrap();
+            for _ in 0..(free-spaces) {
+                sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)")
+                    .bind(a).execute(&mut *db).await.unwrap();
+            }
+            let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+                .bind(a).fetch_one(&mut *db).await.unwrap();
+            drop(db);
+            let path = if cancel {"dispatch/cancel_dispatch"} else {"dispatch/request_complete_dispatch"};
+            let args = format!("SlotIndex={slot}");
+            let done = call(&s,&u,path,&args).await;
+            assert_eq!(done["Result"],"Success","spaces={spaces}, cancel={cancel}: {done}");
+            let equipment = done["EquipItemResults"].as_array().unwrap();
+            assert_eq!(equipment.len(),spaces as usize,"{done}");
+            assert_eq!(done["EquipItemInfos"],done["EquipItemResults"]);
+            let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+                .bind(a).fetch_one(&s.db).await.unwrap();
+            assert_eq!(after-before,spaces);
+            for equip in equipment {
+                let saved = crate::api::extensions::equip(&mut s.db.acquire().await.unwrap(),a,n(equip,"SlotIndex"))
+                    .await.unwrap();
+                assert_eq!(&json!(saved),equip,"Inventory must preserve the exact rolled equipment");
+            }
+            let mails: Vec<String> = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND reward_equipment IS NOT NULL ORDER BY mail_id")
+                .bind(a).fetch_all(&s.db).await.unwrap();
+            let mailed: Vec<Value> = mails.iter().flat_map(|raw| serde_json::from_str::<Vec<Value>>(raw).unwrap()).collect();
+            assert_eq!(mailed.len(),(6-spaces) as usize);
+            for equip in &mailed {
+                assert_eq!(equip["SlotIndex"],0);
+                assert_eq!(equip["Uid"],"");
+                assert_eq!(equip["ItemIndex"],s.tables.get_item_index("ARMOR_HEAVY_8_6_4").unwrap());
+            }
+            assert_ne!(call(&s,&u,path,&args).await["Result"],"Success");
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+                .bind(a).fetch_one(&s.db).await.unwrap(),after);
+            assert_eq!(sqlx::query_scalar::<_,String>("SELECT COALESCE(json_group_array(reward_equipment),'[]') FROM (SELECT reward_equipment FROM mails WHERE account_id=? AND reward_equipment IS NOT NULL ORDER BY mail_id)")
+                .bind(a).fetch_one(&s.db).await.unwrap(),json!(mails).to_string());
+        }
+    }
 }
 #[tokio::test]
 async fn dispatch_mixed_results_charge_only_wins_and_release_unplayed_costs() {
