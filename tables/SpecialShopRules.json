@@ -5309,7 +5309,10 @@
       "ProductName": "2022 Daily Gift",
       "ItemCode": "PACKAGE_PAY_EVERYDAY_PRESENT_1221",
       "ItemIndex": 94623,
-      "ItemCount": 1
+      "ItemCount": 1,
+      "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400
     },
     {
       "Index": 3093286,

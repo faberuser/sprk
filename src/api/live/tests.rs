@@ -175,8 +175,8 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     let catalog = shop_snapshot(&s, a).await.unwrap();
     let products = catalog["PayShopProductInfos"].as_array().unwrap();
     let free: Vec<_> = products.iter().filter(|p| n(p, "Price") == 0).collect();
-    assert_eq!(free.len(), 6);
-    for (id, item, amount) in [(3094170, 94170, 1), (3094594, 94594, 1), (3094595, 94595, 1),
+    assert_eq!(free.len(), 7);
+    for (id, item, amount) in [(3094170, 94170, 1), (3094594, 94594, 1), (3094595, 94595, 1), (3094623, 94623, 1),
         (50000301, 990001, 100), (50000302, 990002, 100), (50000303, 990003, 100)] {
         let product = free.iter().find(|p| n(p, "Index") == id).unwrap();
         assert_eq!(product["Flag"], "Free");
