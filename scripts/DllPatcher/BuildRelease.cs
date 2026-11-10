@@ -164,6 +164,8 @@ partial class Program
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
         VerifyGodkingBackground(clientRoot);
+        InstallValanceSkillSpeed(clientRoot, false);
+        InstallValanceSkillSpeed(clientRoot, true);
         InstallHonorTicketRecharge(clientRoot, false);
         InstallHonorTicketRecharge(clientRoot, true);
         InstallTeamLevelBuffReset(clientRoot, false);

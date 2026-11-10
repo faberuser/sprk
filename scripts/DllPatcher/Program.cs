@@ -34,6 +34,8 @@ namespace DllPatcher
             if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
             if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
             if (args.Contains("--verify-friendly-duel-menu")) { InstallFriendlyDuelMenu(args[0], true); return; }
+            if (args.Contains("--valance-s3-speed-only")) { InstallValanceSkillSpeed(args[0], false); return; }
+            if (args.Contains("--verify-valance-s3-speed")) { InstallValanceSkillSpeed(args[0], true); return; }
             if (args.Contains("--verify-godking-background")) { VerifyGodkingBackground(args[0]); return; }
             if (args.Contains("--godking-recharge-prompt-only")) { InstallGodkingRechargePrompt(args[0], false); return; }
             if (args.Contains("--verify-godking-recharge-prompt")) { InstallGodkingRechargePrompt(args[0], true); return; }
