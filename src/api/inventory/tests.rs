@@ -1143,6 +1143,38 @@ async fn package_and_selector_rewards_have_native_shapes() {
     let _ = def;
 }
 #[tokio::test]
+async fn class_unique_weapon_selector_is_dedicated_and_regular_pools_are_restored() {
+    let (state, u) = setup().await;
+    let ticket = 600101;
+    assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"], json!([900001,900002,900003,900004,900005,900006,900007]));
+    put(&state, &u, ticket, 7).await;
+    for selected in 900001..=900007 {
+        let result = item::use_weapon_unique_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={ticket}&WeaponUniqueItemIndex={selected}&ItemCount=1")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipItemResults"][0]["ItemIndex"], selected);
+        assert_eq!(result["EquipItemResults"][0]["Star"], 0);
+    }
+    assert_eq!(count(&state, &u, ticket).await, 0);
+    for ticket in [2000,700066,700314,700338,700308,700067,700335,700334,700333,700316] {
+        assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"].as_array().unwrap().len(), 91);
+        put(&state, &u, ticket, 1).await;
+        let result = item::use_weapon_unique_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={ticket}&WeaponUniqueItemIndex=900001&ItemCount=1")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], "WeaponUniqueNotSelectable");
+        assert_eq!(count(&state, &u, ticket).await, 1);
+    }
+    put(&state, &u, 600101, 1).await;
+    let rejected = item::use_weapon_unique_select_item(State(state.clone()),
+        form(&u, "ItemIndex=600101&WeaponUniqueItemIndex=1001&ItemCount=1"))
+        .await.unwrap().0;
+    assert_eq!(rejected["Result"], "WeaponUniqueNotSelectable");
+    assert_eq!(count(&state, &u, 600101).await, 1);
+}
+
+#[tokio::test]
 async fn equipment_selectors_enforce_choices_and_inventory_capacity() {
     let (state, u) = setup().await;
     let (&id, s) = state

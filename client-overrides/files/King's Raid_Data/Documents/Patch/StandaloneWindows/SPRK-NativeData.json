@@ -7,7 +7,7 @@
       "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "e284a26eb3ed6cca81b1db0d6309adcd3077683b851fb2f42e96c69d9da958be",
+      "sha256": "3ece8cdc6a38bad612295983740a354ccef810884d0d5c4dd02467358012f545",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
     "TableJit/AccessoryCostumeTable.jit": {
@@ -91,11 +91,11 @@
       "originalSha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1"
     },
     "TableJit/WeaponUniqueSelectItemTable.jit": {
-      "sha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28",
+      "sha256": "1bcea9325b4352127969e00fc351ba5656b3e813369a64d01cf188f11f48b1a9",
       "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
     },
     "TableJit/ItemTable.jit": {
-      "sha256": "247cf88713b5a430b7a0a62ad213f5446ec776dadd0d8bc0e5343b456a858fe6",
+      "sha256": "26a64ebf665c1e5a483a5917df71629052cc72695ff26796c52db9d5c54bc106",
       "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
     },
     "TableJit/CostumeSelectItemTable.jit": {

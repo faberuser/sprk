@@ -221,6 +221,35 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
 }
 
 #[tokio::test]
+async fn class_unique_weapon_selector_shop_purchase_costs_2000_and_redeems() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let product = s.tables.live.rules["Products"].as_array().unwrap().iter()
+        .find(|p| n(p, "Index") == 3600101).unwrap();
+    assert_eq!(product["Category"], "Equipment");
+    assert_eq!(product["ProductName"], "Class Unique Weapon Selector");
+    assert_eq!(product["Price"], 2000);
+    assert_eq!(product["PurchasableCount"], 0);
+    let before = balance(&s, &u, "gem").await;
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3600101&Quantity=7&Price=1").await);
+    assert_eq!(balance(&s, &u, "gem").await, before - 14000);
+    for weapon in 900001..=900007 {
+        let body = Bytes::from(format!("SessionKey={}&ItemIndex=600101&WeaponUniqueItemIndex={weapon}&ItemCount=1", u["UserInfo"]["SessionKey"].as_str().unwrap()));
+        let result = crate::api::inventory::item::use_weapon_unique_select_item(State(s.clone()), body).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipItemResults"][0]["ItemIndex"], weapon);
+        assert_eq!(result["EquipItemResults"][0]["Star"], 0);
+    }
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    sqlx::query("UPDATE user_info SET gem=1999,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3600101").await["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, 1999);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+}
+
+#[tokio::test]
 async fn special_shop_batches_charge_deliver_and_enforce_stock_atomically() {
     let (mut s, u) = setup().await;
     let a = account(&u);

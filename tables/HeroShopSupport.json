@@ -209615,6 +209615,30 @@
       "BuyEventOrvelPoint": 0,
       "BuyChallengeRaidPoint": 0,
       "Code": "PACKAGE_PAY_THANKSGIVING_FREE_AUGMENTATION_02_210622"
+    },
+    "600101": {
+      "Index": 600101,
+      "Type": 20,
+      "BuyGold": 4000000,
+      "BuyGem": 2000,
+      "BuyPvpCoin": 30000,
+      "BuyGuildPoint": 30000,
+      "BuyGuildArenaPoint": 6000,
+      "BuyRoyalPoint": 30000,
+      "BuyFriendshipPoint": 0,
+      "BuyRaidPoint": 30000,
+      "BuyWorldBossPoint": 40000,
+      "BuyEventDungeonPoint": 200,
+      "BuyEventDungeonPoint2": 0,
+      "BuyEventDungeonPoint3": 0,
+      "BuyEventGiftPoint": 0,
+      "BuyGloryPoint": 0,
+      "BuyRankingPoint": 0,
+      "NotForSale": true,
+      "BuyOrdealArenaPoint": 0,
+      "BuyEventOrvelPoint": 0,
+      "BuyChallengeRaidPoint": 5000,
+      "Code": "SPRK_CLASS_UNIQUE_WEAPON_SELECTOR"
     }
   },
   "Heroes": {

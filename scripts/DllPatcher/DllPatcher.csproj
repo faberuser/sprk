@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/ClassWeaponSelectorRules.json" LogicalName="DllPatcher.ClassWeaponSelectorRules.json" />
     <EmbeddedResource Include="../../tables/DivinePunishmentSupport.json" LogicalName="DllPatcher.DivinePunishmentSupport.json" />
     <EmbeddedResource Include="Resources/Accessories.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accessories.cs.txt" />
     <EmbeddedResource Include="Resources/FixLavrilCircle.py" LogicalName="DllPatcher.FixLavrilCircle.py" />

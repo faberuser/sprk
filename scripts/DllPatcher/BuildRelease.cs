@@ -137,6 +137,8 @@ partial class Program
         TestSoulUpgradePlayback(clientRoot);
         InstallCostumeTickets(clientRoot, false, false);
         InstallCostumeTickets(clientRoot, false, true);
+        InstallClassWeaponSelectors(clientRoot, false);
+        InstallClassWeaponSelectors(clientRoot, true);
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
         InstallHeroMaterialTickets(clientRoot, false);
