@@ -161,6 +161,21 @@ public sealed partial class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="godking-background-probe") {
+                reply=Snapshot(cmd.id);
+                foreach(var window in UnityEngine.Object.FindObjectsOfType<ContentUIGodkingTrialDungeonList>()) {
+                    var texture=window.transform.Find("Panel/Root/Bg").GetComponent<UITexture>();
+                    reply.materials.Add(new Dictionary<string,object>{{"texture",texture.mainTexture==null?null:texture.mainTexture.name},
+                        {"shader",texture.shader==null?null:texture.shader.name},{"alpha",texture.finalAlpha},{"depth",texture.depth},
+                        {"enabled",texture.enabled},{"active",texture.gameObject.activeInHierarchy},{"uv",texture.uvRect.ToString()},
+                        {"color",texture.color.ToString()},{"region",texture.drawRegion.ToString()},
+                        {"panels",String.Join(";",texture.GetComponentsInParent<UIPanel>().Select(p=>p.name+":"+p.alpha+":"+p.depth))},
+                        {"loader",texture.GetComponent<NGame2.NUI.UIBundleLoader>().AssetPath},
+                        {"drawCall",texture.drawCall==null?null:texture.drawCall.name},
+                        {"visible",texture.isVisible},{"layer",texture.gameObject.layer}});
+                }
+                Write(reply);return;
+            }
             if(cmd.action=="preview-shadow-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("preview-shadow-"))

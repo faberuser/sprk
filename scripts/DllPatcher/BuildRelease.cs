@@ -163,6 +163,7 @@ partial class Program
         InstallPartyRetry(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
+        VerifyGodkingBackground(clientRoot);
         InstallHonorTicketRecharge(clientRoot, false);
         InstallHonorTicketRecharge(clientRoot, true);
         InstallTeamLevelBuffReset(clientRoot, false);
