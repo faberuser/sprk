@@ -46,7 +46,8 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour {
     static readonly ConditionalWeakTable<NShared.ExtendHeroSkill.Response, Extras> Captured =
         new ConditionalWeakTable<NShared.ExtendHeroSkill.Response, Extras>();
 
-    struct Step { public int Slot; public string Name; public int From; public int To; public int Cost; public string Book; }
+    // Tickets: books this step takes from selection tickets (converted before the request).
+    struct Step { public int Slot; public string Name; public int From; public int To; public int Cost; public int Tickets; public string Book; }
 
     HeroSkillListPanel panel;
     UIButton button;
@@ -69,6 +70,8 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour {
     public static void Changed(HeroSkillListPanel panel) {
         var state = panel.GetComponent<SprkSkillUpgradeAll>();
         if(state != null) state.Refresh();
+        // Counters include convertible tickets; ticket-only changes skip the native book path.
+        if(panel.SkillBookGrid != null) SprkSkillBookTickets.RefreshCounters(panel.SkillBookGrid.GetComponentsInChildren<UpgradeBookItemIconComponent>(true));
     }
 
     // Called by JM_NShared_ExtendHeroSkill_Request.EncodeJsonObject.
@@ -100,21 +103,33 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour {
     }
 
     List<Step> Plan() {
+        SprkSkillBookTickets.Pool tickets;
+        return Plan(out tickets);
+    }
+
+    // Books first, then owned selection tickets from one shared pool (slot order),
+    // so a class or general ticket is never counted for two skills.
+    List<Step> Plan(out SprkSkillBookTickets.Pool tickets) {
         var steps = new List<Step>();
+        tickets = new SprkSkillBookTickets.Pool();
         var hero = panel == null ? null : panel.CachedHeroInfo;
         if(hero == null) return steps;
         for(int slot = 1; slot <= 4; slot++) {
             var detail = Helper.GetSkillDetailInfo(hero, slot);
             if(detail.ExtendInfos == null || detail.BasicInfo.IsLocked || detail.BasicInfo.Level <= 0 || detail.BookInfo.BookItemData == null) continue;
-            int from = hero.GetSkillExtend(slot), to = from, cost = 0, have = detail.BookInfo.CurItemCount;
+            int books = detail.BookInfo.CurItemCount, book = detail.BookInfo.BookItemData.Index;
+            int from = hero.GetSkillExtend(slot), to = from, cost = 0;
+            long have = (long)books + tickets.Available(book);
             while(to < detail.ExtendInfos.Length) {
                 int need = detail.ExtendInfos[to].ExtendItemCount;
                 if(need <= 0 || cost + need > have) break;
                 cost += need;
                 to++;
             }
-            if(to > from) steps.Add(new Step {
-                Slot = slot, From = from, To = to, Cost = cost,
+            if(to <= from) continue;
+            int fromTickets = tickets.Take(book, System.Math.Max(0, cost - books));
+            steps.Add(new Step {
+                Slot = slot, From = from, To = to, Cost = cost, Tickets = fromTickets,
                 Name = detail.BasicInfo.TableData == null ? "Skill " + slot : NGame2.NUI.NDescription.SkillDescContainer.GetSkillName(hero, detail.BasicInfo.TableData),
                 Book = LocalizationManager.GetStringDirect(detail.BookInfo.BookItemData.Name)
             });
@@ -308,15 +323,45 @@ public sealed class SprkSkillUpgradeAll : MonoBehaviour {
 
     public void OnClick() {
         if(requesting || panel == null || panel.CachedHeroInfo == null) return;
-        var plan = Plan();
+        SprkSkillBookTickets.Pool tickets;
+        var plan = Plan(out tickets);
         if(plan.Count == 0) return;
         var text = new StringBuilder();
-        foreach(var step in plan)
+        foreach(var step in plan) {
             text.Append(step.Name).Append("  ").Append(Roman(step.From)).Append(" → ").Append(Roman(step.To))
-                .Append("  (").Append(step.Book).Append(" ×").Append(step.Cost).Append(")\n");
+                .Append("  (").Append(step.Book).Append(" ×").Append(step.Cost);
+            if(step.Tickets > 0) text.Append(", ").Append(step.Tickets).Append(" from tickets");
+            text.Append(")\n");
+        }
+        // Totals per ticket, as the inventory names them.
+        var used = new Dictionary<int, int>();
+        foreach(var c in tickets.Conversions) {int n; used.TryGetValue(c.Ticket, out n); used[c.Ticket] = n + c.Count;}
+        if(used.Count > 0) {
+            text.Append("Uses:");
+            foreach(var pair in used) {
+                var data = GameRoot.Instance.ItemDataContainer.GetData(pair.Key);
+                text.Append("\n  ").Append(data == null ? pair.Key.ToString() : LocalizationManager.GetStringDirect(data.Name)).Append(" ×").Append(pair.Value);
+            }
+        }
         int hero = panel.CachedHeroInfo.HeroIndex;
+        var conversions = tickets.Conversions;
         MessagePopup.Open(LocalizationManager.GetString(NShared.NLocalization.HeroSkill.LEARN_EXTEND_SKILL),
-            "Upgrade all skills with Skill Books?\n" + text.ToString().TrimEnd(), () => Send(hero), null);
+            "Upgrade all skills with Skill Books?\n" + text.ToString().TrimEnd(), () => RedeemThenSend(hero, conversions), null);
+    }
+
+    // Redeem the planned tickets first; the native upgrade-all request then sees enough books.
+    void RedeemThenSend(int heroIndex, List<SprkSkillBookTickets.Conversion> conversions) {
+        if(requesting) return;
+        if(conversions.Count == 0) {Send(heroIndex); return;}
+        requesting = true;
+        Refresh();
+        SprkSkillBookTickets.Redeem(conversions, ok => {
+            requesting = false;
+            if(this == null) return;
+            // On failure the books already converted stay owned; the button replans from them.
+            if(ok && panel != null && panel.CachedHeroInfo != null && panel.CachedHeroInfo.HeroIndex == heroIndex) Send(heroIndex);
+            else Refresh();
+        });
     }
 
     static string Roman(int extend) {

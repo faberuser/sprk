@@ -56,7 +56,7 @@ partial class Program {
         var type=helper.MainModule.GetType(SkillAllHelper)??throw new InvalidOperationException("Missing skill upgrade-all helper.");
         var calls=type.Methods.Concat(type.NestedTypes.SelectMany(t=>t.Methods)).Where(m=>m.HasBody)
             .SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>().ToArray();
-        foreach(var name in new[]{"GetSkillDetailInfo","GetSkillExtend","SetSkillExtend","Apply","EnableButton","OpenError","Open","Request"})
+        foreach(var name in new[]{"GetSkillDetailInfo","GetSkillExtend","SetSkillExtend","Apply","EnableButton","OpenError","Open","Request","Available","Take","Redeem","RefreshCounters"})
             if(!calls.Any(m=>m.Name==name))throw new InvalidOperationException("Incomplete skill upgrade-all helper: "+name);
         Console.WriteLine("PASS: skill upgrade-all panel hooks at every exit, request encoder/response capture hooks, native fields and IL stack.");
     }

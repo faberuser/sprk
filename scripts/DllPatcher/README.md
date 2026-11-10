@@ -254,7 +254,15 @@ turns into `ExtendAll=1`. The server applies every tier and book cost in one
 transaction (locked or reserved books are excluded). It returns `ItemResults`
 and `SkillExtends` alongside the native `ItemResult`; a parser hook captures
 them, so all book counts and tiers update through native account managers.
-Native single-tier requests are unchanged. `--verify-skill-upgrade-all` checks
+Native single-tier requests are unchanged. The plan also counts owned skill-book
+selection tickets (see `--hero-material-tickets-only`) from one shared pool in
+slot order, so a ticket that could serve several slots is counted once. The
+confirmation lists books taken from tickets and each ticket used. Confirming
+first redeems those tickets through native `use_package_select_item` requests
+(at most 1,000 per request, two steps for general tickets) and then sends the
+upgrade-all request. If a redemption fails, it stops; converted books stay owned
+and the button replans. This helper references `SprkHeroMaterialTickets.dll`,
+which the release build installs first. `--verify-skill-upgrade-all` checks
 hooks and IL. Installation also runs the native encoder and response parser
 against the compiled helper. The full release build installs it before
 `Currency64`.
@@ -345,6 +353,35 @@ refresh counts and awakening availability after use. With no matching ticket,
 essences retain the native crafting action; fragments show an unavailable-ticket
 notice because they cannot be crafted. Transcendence stones, limit break,
 and other screens retain their native behavior.
+The same patch adds a skill-book shortcut to Hero Info's skill window. Tapping
+a skill tier that lacks books offers owned, unlocked selection tickets that
+yield that slot's class book instead of the native Underground Prison prompt.
+Class tickets (`SKILLBOOK_SELECT_<CLASS>`) and slot tickets
+(`SKILLBOOK_SELECT_n`) convert directly. General tickets
+(`PACKAGE_SKILLBOOK_ALL`) convert 1:1:1 through the matching slot ticket in two
+native `use_package_select_item` requests. A locked slot-ticket stack blocks
+that route because the server cannot consume it. Direct tickets are listed
+before general ones; multiple tickets open the chooser. The native use popup
+offers only the needed book, preselected, with the quantity set to the tier's
+shortage, capped as above. After the books arrive, the window refreshes and an
+affordable tier opens the native upgrade confirmation. If the general ticket's
+second step fails, the slot tickets stay in inventory. With no usable ticket,
+or with enough books already owned, the native path runs.
+Book counters in the Skills tab and skill window show owned books plus every
+owned ticket that can become that book. A class or general ticket therefore
+appears under each slot it can serve. A hook at the start of
+`UpgradeBookItemIconComponent.SetItemCount` adds the tickets. The Skills tab's
+item observer refreshes counters whose total changed after ticket-only updates,
+such as shop purchases, without interrupting the native "+N" book animation.
+Tier status counts the same tickets. In `Helper.GetSkillDetailInfo`, the
+`CurItemCount` load in the tier comparison is replaced by
+`SprkSkillBookTickets.Usable`. A tier that tickets can pay for therefore shows
+the native UPGRADE marker, upgrade arrows, the Skills tab badge and hero-list
+indicators. `SkillBookInfo.CurItemCount` stays the real book count. Tapping
+such a tier re-checks real books: enough books open the native confirmation;
+otherwise the ticket popup opens first. Ticket availability uses a book → ticket
+index built once from the static item tables. Hero-list badge checks therefore
+avoid rescanning the item table.
 `--verify-hero-material-tickets` checks the scoped hooks, signatures and observer;
 installation also runs isolated service/UI probes against the exact helper source
 for successful/failed use, duplicate requests/responses, stale sessions, depleted
