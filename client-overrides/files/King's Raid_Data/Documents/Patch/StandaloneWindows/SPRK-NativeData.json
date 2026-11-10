@@ -105,6 +105,10 @@
     "TableJit/CostumeGroupTable.jit": {
       "sha256": "7f488601a2f5ad7e41b367dd23377c73ef6b91a1b878dfac78d6f0e96b21a01d",
       "originalSha256": "8e467a59191f91079522d9e5efde58e13e5d40d1929a03a9664e51420591570d"
+    },
+    "TableJit/InfinityTable.jit": {
+      "originalSha256": "a96f41e4fdf2f1c58405cb860b2760b6ceb592b5bdd9baa9516f2f02162f5f44",
+      "sha256": "397be10a0f3b39d9c3560df89a434900d3641ddcf5c608372208fa197137e517"
     }
   },
   "staticRuntimeDataOverrides": false,

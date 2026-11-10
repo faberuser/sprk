@@ -7,9 +7,17 @@ use std::collections::BTreeMap;
 struct RewardPolicy {
     version: i64,
     fragments_per_sqrt_wave: i64,
+    // Runs already in progress retain their original payout when their saved
+    // policy predates the material boost.
+    #[serde(default = "default_fragment_multiplier")]
+    fragment_reward_multiplier: i64,
     max_fragments_per_run: i64,
     bonus_every_cleared_waves: i64,
     max_bonus_bundles_per_run: i64,
+}
+
+fn default_fragment_multiplier() -> i64 {
+    1
 }
 
 impl RewardPolicy {
@@ -18,6 +26,7 @@ impl RewardPolicy {
             serde_json::from_value(value.clone()).map_err(|_| rule("InvalidValue"))?;
         if policy.version != 1
             || !(1..=1000).contains(&policy.fragments_per_sqrt_wave)
+            || !(1..=100).contains(&policy.fragment_reward_multiplier)
             || !(1..=1000).contains(&policy.max_fragments_per_run)
             || !(1..=1000).contains(&policy.bonus_every_cleared_waves)
             || !(0..=100).contains(&policy.max_bonus_bundles_per_run)
@@ -37,7 +46,8 @@ impl RewardPolicy {
             .and_then(|v| v.checked_mul(self.fragments_per_sqrt_wave as u64))
             .ok_or_else(|| rule("InvalidValue"))?;
         Ok((
-            (scaled.isqrt() as i64).min(self.max_fragments_per_run),
+            (scaled.isqrt() as i64).min(self.max_fragments_per_run)
+                * self.fragment_reward_multiplier,
             (cleared / self.bonus_every_cleared_waves).min(self.max_bonus_bundles_per_run),
         ))
     }
@@ -203,11 +213,20 @@ mod reward_tests {
         ] {
             assert_eq!(policy.amounts(wave).unwrap(), (fragments, bundles));
         }
+        let mut boosted = value.clone();
+        boosted["FragmentRewardMultiplier"] = json!(4);
+        let boosted = RewardPolicy::parse(&boosted).unwrap();
+        for wave in 0..=1000 {
+            let (fragments, bundles) = policy.amounts(wave).unwrap();
+            assert_eq!(boosted.amounts(wave).unwrap(), (fragments * 4, bundles));
+        }
         assert!(policy.amounts(-1).is_err());
         for (field, invalid) in [
             ("Version", 2),
             ("BonusEveryClearedWaves", 0),
             ("FragmentsPerSqrtWave", -1),
+            ("FragmentRewardMultiplier", 0),
+            ("FragmentRewardMultiplier", 101),
         ] {
             let mut bad = value.clone();
             bad[field] = json!(invalid);
@@ -263,11 +282,11 @@ mod reward_tests {
         {
             for (waves, fragments, bundles) in [
                 (0, 0, 0),
-                (5, 22, 0),
-                (10, 31, 1),
-                (25, 50, 2),
-                (50, 70, 5),
-                (100, 100, 5),
+                (5, 88, 0),
+                (10, 124, 1),
+                (25, 200, 2),
+                (50, 280, 5),
+                (100, 400, 5),
             ] {
                 begin(&s, &u, group, chapter, flask).await;
                 let args = ending(&s, group, chapter, waves);
@@ -336,6 +355,7 @@ mod reward_tests {
         let args = ending(&s, 101001, 70101, 10);
         let rules = &mut Arc::make_mut(&mut Arc::make_mut(&mut s.tables).battle).rules;
         rules["KarmaRewardPolicy"]["FragmentsPerSqrtWave"] = json!(1);
+        rules["KarmaRewardPolicy"]["FragmentRewardMultiplier"] = json!(1);
         rules["KarmaRewardPolicy"]["MaxFragmentsPerRun"] = json!(1);
         rules["KarmaRewardPolicy"]["MaxBonusBundlesPerRun"] = json!(0);
         Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory)
@@ -361,7 +381,7 @@ mod reward_tests {
             .unwrap()["ItemMaxCap"] = json!(0);
         let out = call(&s, &u, "contents/end_content", &args).await;
         assert_eq!(out["Result"], "Success", "{out}");
-        assert_eq!(added(&out, 45121), 31);
+        assert_eq!(added(&out, 45121), 124);
         assert_eq!(added(&out, 40237), 10);
         begin(&s, &u, 101001, 70101, 40236).await;
         let out = call(&s, &u, "contents/end_content", &args).await;

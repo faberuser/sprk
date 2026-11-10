@@ -453,15 +453,15 @@ mod tests {
     #[tokio::test]
     async fn punishment_archive_curves_and_every_active_clear_combination() {
         let (s, _) = fixture().await;
-        // Frozen build-1558 preview values; include array-tail extrapolation.
+        // Build-1558 curves with the 4x material balance; include tail extrapolation.
         for (index, level, expected) in [
-            (10100, 1, 4),
-            (10100, 5, 20),
-            (10100, 10, 48),
-            (10100, 100, 2100),
-            (30001, 100, 1411),
-            (40001, 5, 23),
-            (40002, 5, 51),
+            (10100, 1, 16),
+            (10100, 5, 80),
+            (10100, 10, 192),
+            (10100, 100, 8400),
+            (30001, 100, 5644),
+            (40001, 5, 92),
+            (40002, 5, 204),
             (50000, 1, 200),
             (50000, 50, 1000),
         ] {
@@ -522,8 +522,8 @@ mod tests {
             );
             assert_eq!(count(&s, a, 45128).await, before);
         }
-        assert_eq!(count(&s, a, 45128).await, 6);
-        assert_eq!(count(&s, a, 45122).await, 60);
+        assert_eq!(count(&s, a, 45128).await, 24);
+        assert_eq!(count(&s, a, 45122).await, 240);
         assert_eq!(count(&s, a, 45129).await, 0);
         assert_eq!(count(&s, a, 91029).await, before_box);
         assert_eq!(count(&s, a, 45121).await, before_old_fragment);
@@ -536,10 +536,22 @@ mod tests {
             call(&s, &u, "contents/end_content", &end(101002, 3, true, 1)).await["Result"],
             "Success"
         );
-        assert_eq!(count(&s, a, 45129).await, 4);
-        assert_eq!(count(&s, a, 45131).await, 42);
-        assert_eq!(count(&s, a, 45128).await, 6);
-        assert_eq!(count(&s, a, 45122).await, 60);
+        assert_eq!(count(&s, a, 45129).await, 16);
+        assert_eq!(count(&s, a, 45131).await, 168);
+        assert_eq!(count(&s, a, 45128).await, 24);
+        assert_eq!(count(&s, a, 45122).await, 240);
+        // Solenis's two side bosses pay out too; the full route must total
+        // 32 blood and 312 artifact fragments at enhancement level one.
+        assert_eq!(open(&s, &u, 101002, 1).await["Result"], "Success");
+        for dungeon in [1, 2, 3] {
+            let affixes = if dungeon == 3 { "&AffixIndices=6001&AffixIndices=6002" } else { "" };
+            let begun = call(&s, &u, "contents/begin_content", &entry(101002, dungeon, 1, affixes)).await;
+            assert_eq!(begun["Result"], "Success", "{begun}");
+            let won = call(&s, &u, "contents/end_content", &end(101002, dungeon, true, 1)).await;
+            assert_eq!(won["Result"], "Success", "{won}");
+        }
+        assert_eq!(count(&s, a, 45129).await, 16 + 32);
+        assert_eq!(count(&s, a, 45131).await, 168 + 312);
     }
 
     #[tokio::test]
@@ -616,8 +628,8 @@ mod tests {
             .unwrap()["ItemMaxCap"] = json!(0);
         let win = call(&s, &u, "contents/end_content", &finish).await;
         assert_eq!(win["Result"], "Success", "{win}");
-        assert_eq!(count(&s, a, 45129).await, 23);
-        assert_eq!(count(&s, a, 45131).await, 51);
+        assert_eq!(count(&s, a, 45129).await, 92);
+        assert_eq!(count(&s, a, 45131).await, 204);
         assert_eq!(
             count(&s, a, 40251).await,
             2,

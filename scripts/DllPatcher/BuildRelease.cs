@@ -13,6 +13,8 @@ partial class Program
             throw new InvalidOperationException("Release builds require a fresh client workspace without a staged DLL.");
 
         TestLegendaryRuneTickets();
+        InstallPunishmentRewards(clientRoot, false);
+        InstallPunishmentRewards(clientRoot, true);
         RestoreLegendaryRuneTickets(clientRoot, false);
         Main(new[] { clientRoot, "--stage-only" });
         if (!File.Exists(staged))
