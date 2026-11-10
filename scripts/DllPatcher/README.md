@@ -501,6 +501,22 @@ baking, focused staging/verification and signed release requirements.
 
 ## Soul Weapon advancement playback
 
+`--soul-upgrade-flash-only` shortens the advancement flash particle's lifetime
+from 1.5 seconds to 0.35 seconds and selects unscaled particle time. The original
+size-100 flash holds almost full opacity for roughly the first 66% of its life,
+which looks like a one-second freeze even while the cinematic continues behind
+it. The shorter flash still covers the background change at 1.9 seconds in both
+A1/A2 timelines. `--verify-soul-upgrade-flash` checks the installed asset; both
+modes accept `--stage-only`. The full release build applies and verifies it.
+
+The asset transformation changes only that particle's lifetime and clock. It
+roundtrips the native bundle, verifies all other objects byte-for-byte and
+preserves every other field of the flash particle. The patched bundle is tracked
+under `client-overrides/files` and included in signed client updates. Gameplay,
+cinematic events, result reveal timing, sounds and existing lifecycle safeguards
+remain unchanged. This visual fix is not evidence that old crash reports share
+the same cause; the recording shows no crash or frame-time telemetry.
+
 `--soul-upgrade-playback-only` (optionally `--stage-only`) installs scoped A1/A2
 result playback safeguards. `--verify-soul-upgrade-playback` verifies the installed
 or staged hook and runs the lifecycle tests. The full release build installs and

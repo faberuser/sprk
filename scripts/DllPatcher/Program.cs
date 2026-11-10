@@ -138,6 +138,8 @@ namespace DllPatcher
                 RestoreSoulWeaponCinematic(args[0], args[source + 1], args.Contains("--stage-only")); return;
             }
             if (args.Contains("--verify-soul-weapon-cinematic")) { VerifySoulWeaponCinematicFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--soul-upgrade-flash-only")) { InstallSoulUpgradeFlash(args[0], args.Contains("--stage-only"), false); return; }
+            if (args.Contains("--verify-soul-upgrade-flash")) { InstallSoulUpgradeFlash(args[0], args.Contains("--stage-only"), true); return; }
             if (args.Contains("--selector-count-limit-only")) { InstallSelectorCountLimit(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-selector-count-limit")) { VerifySelectorCountLimitFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-selector-count-limit")) { TestSelectorCountLimit(args[0]); return; }

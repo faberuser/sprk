@@ -120,6 +120,8 @@ partial class Program
         VerifySelectorCountLimitFile(clientRoot, false);
         TestSelectorCountLimit(clientRoot);
         VerifySoulWeaponCinematicFile(clientRoot, false);
+        InstallSoulUpgradeFlash(clientRoot, false, false);
+        InstallSoulUpgradeFlash(clientRoot, false, true);
         VerifySoulLiberationCostFile(clientRoot);
         VerifyStoryAutoFile(clientRoot);
         TestStoryAutoRecovery();
