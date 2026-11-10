@@ -21,6 +21,7 @@ pub(crate) async fn pair(
     if !friendly && n(&match_tickets(db,s,a,kind,0).await?,"NewValue") < 1 {
         return Err(rule("NotEnoughSword"));
     }
+    let mut mine_validated=false;
     for (other_id, b, raw) in candidates {
         // Being logged in alone is insufficient: candidates must also have a
         // recently polled queue entry. Cancelled/bot/in-battle rows never qualify.
@@ -29,6 +30,20 @@ pub(crate) async fn pair(
         if friendly != (n(&other,"DuelType")==1) {continue;}
         if friendly && (n(mine,"GroupId")!=n(&other,"GroupId") || n(mine,"InvitedOpponent")!=b || n(&other,"InvitedOpponent")!=a) {continue;}
         if n(&other,"Expires") < now() || (!friendly && n(&match_tickets(db,s,b,kind,0).await?,"NewValue") < 1) { continue; }
+        // Validate a collection only when an actual opponent is available, not
+        // on every queue poll (Honor can register up to 200 Heroes).
+        if !mine_validated {
+            if !eligible(db,a,mine).await? {
+                cancel_waiter(db,a,id,mine).await?;
+                return Ok(Some(canceled_response(db,s,a,kind).await?));
+            }
+            mine_validated=true;
+        }
+        if !eligible(db,b,&other).await? {
+            cancel_waiter(db,b,other_id,&other).await?;
+            if friendly {return Ok(Some(canceled_response(db,s,a,kind).await?));}
+            continue;
+        }
         let uid = id.min(other_id);
         let mut accounts = vec![mine["Register"]["AccountInfo"].clone(),other["Register"]["AccountInfo"].clone()];
         if id > other_id { accounts.swap(0,1); }
@@ -57,6 +72,29 @@ pub(crate) async fn pair(
         return Ok(Some(response));
     }
     Ok(None)
+}
+
+async fn eligible(db:&mut SqliteConnection,a:i64,data:&Value)->Result<bool> {
+    let heroes:Vec<i64>=data["Heroes"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
+    match owned(db,a,&heroes).await {
+        Ok(())=>Ok(true),
+        Err(ServerError::InvalidRequest(_))=>Ok(false),
+        Err(e)=>Err(e),
+    }
+}
+
+async fn cancel_waiter(db:&mut SqliteConnection,a:i64,id:i64,data:&Value)->Result<()> {
+    if n(data,"DuelType")==1 {
+        super::super::duel::cancel_waiting(db,a,n(data,"InvitedOpponent"),n(data,"GroupId")).await
+    } else {
+        sqlx::query("UPDATE arena_runs SET status='canceled',data=json_set(data,'$.QueueCancelReason','HeroUnavailable') WHERE id=? AND account=? AND status='waiting'")
+            .bind(id).bind(a).execute(db).await?;
+        Ok(())
+    }
+}
+
+async fn canceled_response(db:&mut SqliteConnection,s:&AppState,a:i64,kind:i64)->Result<Value> {
+    Ok(json!({"BaseResult":"Success","Result":"Canceled","SwordResult":match_tickets(db,s,a,kind,0).await?}))
 }
 
 pub(crate) async fn charge(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result<()> {

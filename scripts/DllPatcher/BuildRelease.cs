@@ -176,6 +176,8 @@ partial class Program
         InstallFriendlyDuelMenu(clientRoot, true);
         InstallHonorDuel(clientRoot, false);
         InstallHonorDuel(clientRoot, false, true);
+        InstallDispatchSelection(clientRoot, false);
+        InstallDispatchSelection(clientRoot, true);
         VerifyOrdealUnlockFile(clientRoot, false);
         InstallMariaLegendBird(clientRoot);
         InstallMariaLegendBird(clientRoot,true);

@@ -206,6 +206,26 @@ pub(super) mod tests {
     }
 
     #[tokio::test]
+    async fn dispatch_duel_pair_revalidates_both_queued_rosters_without_starting_or_charging() {
+        for invalid in [0,1] {
+            let (s,users,mut rx)=fixture().await;
+            let accounts=users.iter().map(|u|number(&u["UserInfo"],"AccountId")).collect::<Vec<_>>();
+            let group=accounts[0];
+            sqlx::query("INSERT INTO friendly_duels VALUES(?,?,?,'accepted',?)")
+                .bind(group).bind(accounts[0]).bind(accounts[1]).bind(now()+900).execute(&s.db).await.unwrap();
+            let args=format!("ArenaType=Normal&DuelType=Friendly&GroupId={group}&HeroIndices=1&LeaderHeroIndex=1");
+            for u in &users[..2] {assert_eq!(call(&s,u,"match/register_match",&args).await["Result"],"Success");}
+            let swords:Vec<i64>=sqlx::query_scalar("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+            sqlx::query("INSERT INTO battle_state VALUES(?,'dispatch',1,?)")
+                .bind(accounts[invalid]).bind(json!({"SlotIndex":1,"State":"Prepare","HeroIndices":"[1]"}).to_string()).execute(&s.db).await.unwrap();
+            for u in &users[..2] {assert_eq!(call(&s,u,"match/wait_match","PlayOfflineMatch=true").await["Result"],"Canceled");}
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM arena_runs WHERE status IN ('waiting','battle')").fetch_one(&s.db).await.unwrap(),0);
+            assert!(s.conquest.runs.is_empty());assert!(rx.try_recv().is_err());
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),swords);
+        }
+    }
+
+    #[tokio::test]
     async fn friendly_duels_pair_only_the_invited_accounts_and_keep_tickets_and_scores() {
         let (s,users,_worker)=fixture().await;
         let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");

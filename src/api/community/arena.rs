@@ -329,7 +329,7 @@ async fn execute_inner(
     // their durable run instead of accidentally operating on Victory's partition.
     let kind = if matches!(action,"wait_match"|"cancel_match"|"get_match_result") {
         let uid=r.number("MatchUid",0)?;
-        sqlx::query_scalar::<_,i64>("SELECT kind FROM arena_runs WHERE account=? AND ((?=0 AND status IN ('waiting','battle')) OR (?!=0 AND (id=? OR json_extract(data,'$.OnlineMatchUid')=?))) ORDER BY id DESC LIMIT 1")
+        sqlx::query_scalar::<_,i64>("SELECT kind FROM arena_runs WHERE account=? AND ((?=0 AND (status IN ('waiting','battle') OR (status='canceled' AND json_extract(data,'$.QueueCancelReason') IS NOT NULL))) OR (?!=0 AND (id=? OR json_extract(data,'$.OnlineMatchUid')=?))) ORDER BY id DESC LIMIT 1")
             .bind(a).bind(uid).bind(uid).bind(uid).bind(uid).fetch_optional(&mut *db).await?.unwrap_or(int(r,"ArenaType")?)
     } else {int(r,"ArenaType")?};
     if action == "get_season_info" {
@@ -460,8 +460,19 @@ async fn execute_inner(
             )
             .bind(a)
             .fetch_optional(&mut *db)
-            .await?
-            .ok_or_else(|| rule("WaiterNotFound"))?;
+            .await?;
+            let Some(run)=run else {
+                let last:Option<(String,String)>=sqlx::query_as("SELECT status,data FROM arena_runs WHERE account=? AND kind=? ORDER BY id DESC LIMIT 1")
+                    .bind(a).bind(kind).fetch_optional(&mut *db).await?;
+                if let Some((status,raw))=last {
+                    if status=="canceled" && parse::<Value>(&raw)?["QueueCancelReason"].is_string() {
+                        out["Result"]=json!("Canceled");
+                        out["SwordResult"]=match_tickets(db,s,a,kind,0).await?;
+                        return Ok(out);
+                    }
+                }
+                return Err(rule("WaiterNotFound"));
+            };
             let id = run.get::<i64, _>("id");
             let mut data: Value = parse(&run.get::<String, _>("data"))?;
             // Pairing wins over a simultaneous bot fallback/cancel poll.

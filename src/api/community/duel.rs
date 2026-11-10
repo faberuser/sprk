@@ -70,7 +70,7 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
                 sqlx::query("UPDATE friendly_duels SET status='accepted',expires=? WHERE group_id=?")
                     .bind(now()+900).bind(group).execute(&mut *tx).await?;
             } else if protocol=="CancelDuel" {
-                sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=?").bind(group).execute(&mut *tx).await?;
+                cancel_waiting(&mut tx,a,b,group).await?;
             } else if matches!(protocol,"DuelPing"|"DuelPong") {
                 if !matches!(status.as_str(),"invited"|"accepted") {return Err(rule("WrongMember"));}
             } else if status!="accepted" {return Err(rule("WrongMember"));}
@@ -84,4 +84,36 @@ pub(crate) async fn send(s: &AppState, a: i64, b: i64, protocol: &str, mut conte
 pub(crate) async fn opponent(db:&mut SqliteConnection,a:i64,group:i64)->Result<i64> {
     sqlx::query_scalar("SELECT CASE WHEN requester=? THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=? AND status='accepted' AND expires>? AND (requester=? OR opponent=?)")
         .bind(a).bind(group).bind(now()).bind(a).bind(a).fetch_optional(db).await?.ok_or_else(||rule("MatchingBlocked"))
+}
+
+// Party-ready messages precede HTTP registration in the native client. If one
+// registration fails, its partner may already be waiting in the arena queue.
+// Persist cancellation independently of the rejected registration transaction.
+pub(super) async fn registration_failed(s:&AppState,a:i64,r:&Request)->Result<()> {
+    if r.number("DuelType",0).ok()!=Some(1) {return Ok(());}
+    let Some(group)=r.number("GroupId",0).ok().filter(|v|*v>0) else {return Ok(());};
+    let mut tx=s.db.begin().await?;
+    let partner:Option<i64>=sqlx::query_scalar("SELECT CASE WHEN requester=? THEN opponent ELSE requester END FROM friendly_duels WHERE group_id=? AND status='accepted' AND (requester=? OR opponent=?)")
+        .bind(a).bind(group).bind(a).bind(a).fetch_optional(&mut *tx).await?;
+    let Some(b)=partner else {return Ok(());};
+    // A bad duplicate request must not cancel an already valid registration or
+    // a match in progress. Nor may a forged group cancel another player's duel.
+    let registered:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE account=? AND status IN ('waiting','battle') AND json_extract(data,'$.DuelType')=1 AND json_extract(data,'$.GroupId')=?)")
+        .bind(a).bind(group).fetch_one(&mut *tx).await?;
+    if registered {return Ok(());}
+    cancel_waiting(&mut tx,a,b,group).await?;
+    tx.commit().await?;
+    for (to,from) in [(a,b),(b,a)] {
+        s.chat.notify(to,from,"CancelDuel",json!({"GroupId":group,"IsReject":false}));
+    }
+    tracing::info!(account=a,opponent=b,group,"Canceled pending duel after rejected registration");
+    Ok(())
+}
+
+pub(super) async fn cancel_waiting(db:&mut SqliteConnection,a:i64,b:i64,group:i64)->Result<()> {
+    sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=? AND ((requester=? AND opponent=?) OR (requester=? AND opponent=?))")
+        .bind(group).bind(a).bind(b).bind(b).bind(a).execute(&mut *db).await?;
+    sqlx::query("UPDATE arena_runs SET status='canceled',data=json_set(data,'$.QueueCancelReason','DuelCanceled') WHERE account IN (?,?) AND status='waiting' AND json_extract(data,'$.DuelType')=1 AND json_extract(data,'$.GroupId')=?")
+        .bind(a).bind(b).bind(group).execute(db).await?;
+    Ok(())
 }

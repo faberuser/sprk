@@ -161,6 +161,14 @@ public sealed partial class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="dispatch-selection-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("dispatch-selection-"))
+                    throw new InvalidOperationException("Dispatch selection fixture requires isolated Login and dispatch-selection profile");
+                var probe=System.Reflection.Assembly.Load("SprkDispatchSelection").GetType("SprkDispatchSelectionProbe");
+                var result=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(result);Write(reply);return;
+            }
             if(cmd.action=="godking-background-probe") {
                 reply=Snapshot(cmd.id);
                 foreach(var window in UnityEngine.Object.FindObjectsOfType<ContentUIGodkingTrialDungeonList>()) {

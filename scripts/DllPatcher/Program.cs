@@ -258,6 +258,8 @@ namespace DllPatcher
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-mission-worker")) { VerifyMissionWorker(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--dispatch-selection-only")) { InstallDispatchSelection(args[0],false); return; }
+            if (args.Contains("--verify-dispatch-selection")) { InstallDispatchSelection(args[0],true); return; }
             if (args.Contains("--self-test-dispatch")) { TestDispatch(); return; }
             if (args.Contains("--verify-dispatch")) { VerifyDispatchFile(args[0]); return; }
             if (args.Contains("--self-test-honor-buff")) { TestHonorBuff(); return; }

@@ -27,6 +27,8 @@ mod progression;
 #[cfg(test)]
 mod social_tests;
 #[cfg(test)]
+mod dispatch_duel_tests;
+#[cfg(test)]
 mod attendance_tests;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -157,6 +159,10 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         }
         Err(ServerError::InvalidRequest(code)) => {
             tx.rollback().await?;
+            if matches!(path.split('/').next(), Some("match" | "global_arena")) && action == "register_match"
+                && matches!(code.as_str(),"CannotPlayInBattle"|"AlreadyOnBattleHero"|"NoHeroes"|"InvalidHero"|"WaitMore"|"MatchingBlocked") {
+                duel::registration_failed(s,a,&r).await?;
+            }
             let allowed = s
                 .tables
                 .arena_guild
