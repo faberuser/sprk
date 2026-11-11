@@ -37,7 +37,7 @@ Either flag can be used alone. The report prints:
 | PostgreSQL contention errors | Deadlocks (40P01), serialization failures (40001), `lock_timeout`, `statement_timeout`, idle-in-transaction kills, too many connections, by path. A few deadlocks under heavy play are tolerable (the request fails and the client retries); a growing count names a hot row or an inconsistent lock order (see section 4). |
 | SQLite `database is locked` / holds | Only in logs from before the move. Kept to compare against the phase 0 baseline. |
 | Pool acquire timeouts, slow acquires | All pooled connections were busy. Look for long transactions first, then raise `SPRK_DB_MAX_CONNECTIONS` (default 16). |
-| `Slow HTTP request` by path | Requests of 1 s or more. With per-player locks a slow request can be waiting for the same player's previous transaction. |
+| `Slow HTTP request` by path | Requests of 1 s or more. A matching `Waited long for a lock` warning (same path, `lock`, `key`, `waited_ms`) means it waited for the same player's, guild's or the arena queue's previous transaction; the holder is the slow path to fix. |
 | sqlx `slow statement` | Single statements of 1 s or more, including lock waits. |
 | Largest tables, dead rows, last vacuum | Growth and bloat. A table with many dead rows and no recent vacuum needs autovacuum tuning (phase 6). |
 | Buffer cache hit rate | Below about 99% under load means the working set does not fit in `shared_buffers`/memory. |

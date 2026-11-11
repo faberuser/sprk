@@ -112,6 +112,15 @@ def report_log(path) -> None:
     slow_acquire = [line for line in lines if "slow acquire" in line.lower() or "acquire_slow" in line]
     print(f"Slow pool acquires: {len(slow_acquire)}")
 
+    waits = [fields(line) for line in lines if "Waited long for a lock" in line]
+    print(f"\n'Waited long for a lock' (>=250ms): {len(waits)}")
+    if waits:
+        by_lock: dict[str, list[float]] = collections.defaultdict(list)
+        for f in waits:
+            by_lock[f"{f.get('lock', '?')} @ {f.get('path', '?')}"].append(number(f.get("waited_ms")) or 0)
+        for key, values in sorted(by_lock.items(), key=lambda kv: -sum(kv[1]))[:15]:
+            print(f"  total={sum(values):8.0f}ms  {summarize(key, values)}")
+
     slow = [fields(line) for line in lines if "Slow HTTP request" in line]
     print(f"\n'Slow HTTP request' (>=1s): {len(slow)}")
     if slow:

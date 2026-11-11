@@ -83,11 +83,27 @@ pub(crate) async fn migrate(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
 /// works across several `game` containers. Advisory locks keyed by a single
 /// bigint are reserved for accounts; use the two-int4 form for anything else.
 pub(crate) async fn lock_account(conn: &mut PgConnection, account_id: i64) -> Result<(), sqlx::Error> {
+    let start = std::time::Instant::now();
     sqlx::query("SELECT pg_advisory_xact_lock($1)")
         .bind(account_id)
         .execute(conn)
         .await?;
+    warn_slow_wait("account", account_id, start);
     Ok(())
+}
+
+/// A lock wait this long delays the request noticeably.
+const SLOW_LOCK_WAIT: Duration = Duration::from_millis(250);
+
+/// Log a long wait for one of the locks above, with the request that waited.
+/// The holder is usually the same player's (or guild's) previous request,
+/// which then shows as the slow path to optimize.
+fn warn_slow_wait(lock: &'static str, key: i64, start: std::time::Instant) {
+    let waited = start.elapsed();
+    if waited >= SLOW_LOCK_WAIT {
+        let path = crate::database::REQUEST_PATH.try_with(|p| p.to_string()).unwrap_or_else(|_| "background".into());
+        tracing::warn!(lock, key, path, waited_ms = waited.as_millis() as u64, "Waited long for a lock");
+    }
 }
 
 /// Lock several accounts (cross-player writes such as friend points or
@@ -112,7 +128,9 @@ const ARENA_QUEUE_LOCK: i32 = 2;
 /// Serialize arena matchmaking and settlement: they write both players'
 /// queue entries and swords. Take it after the account lock, never before.
 pub(crate) async fn lock_arena_queue(conn: &mut PgConnection) -> Result<(), sqlx::Error> {
+    let start = std::time::Instant::now();
     sqlx::query("SELECT pg_advisory_xact_lock($1, 0)").bind(ARENA_QUEUE_LOCK).execute(conn).await?;
+    warn_slow_wait("arena queue", 0, start);
     Ok(())
 }
 
@@ -120,11 +138,13 @@ pub(crate) async fn lock_arena_queue(conn: &mut PgConnection) -> Result<(), sqlx
 /// community_state, member list, guild arena/raid/conquest state). Take it
 /// after the account lock, never before.
 pub(crate) async fn lock_guild(conn: &mut PgConnection, guild_id: i64) -> Result<(), sqlx::Error> {
+    let start = std::time::Instant::now();
     sqlx::query("SELECT pg_advisory_xact_lock($1, $2)")
         .bind(GUILD_LOCK)
         .bind(i32::try_from(guild_id).map_err(|_| sqlx::Error::Protocol(format!("guild id {guild_id} out of range")))?)
         .execute(conn)
         .await?;
+    warn_slow_wait("guild", guild_id, start);
     Ok(())
 }
 

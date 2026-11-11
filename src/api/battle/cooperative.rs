@@ -564,7 +564,7 @@ async fn start_wave(s:&AppState,run:&mut Run)->Result<()> {
         } else {
         let mut cancelled=vec![];
         let mut db=crate::database::begin(&s.db).await?;
-        crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+        crate::postgres::lock_account(&mut *db, run.master).await?;
         for member in &run.members {
             if run.payload["PartyCampaign"] == true {
                 // A guest who leaves before BeginCampaign never confirmed its
@@ -692,7 +692,7 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
     })?;
     let lost_hp=if matches!(number(&run.payload["Simulation"],"DungeonIndex"),3|103) {number(boss_report,"GivedDamage")} else {hp-end_hp};
     if lost_hp<0 {return Err(rule("InvalidValue"));}let mut assigned=0_i64;
-    let mut db=crate::database::begin(&s.db).await?;crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    let mut db=crate::database::begin(&s.db).await?;crate::postgres::lock_account(&mut *db, run.master).await?;
     for (index,a) in run.members.iter().enumerate() {
         let (completed,raw):(i64,String)=crate::db::query_as("SELECT completed,entry FROM battle_runs WHERE account=$1").bind(a).fetch_one(&mut *db).await?;
         let mut entry:Value=read_json(&raw)?;
@@ -716,7 +716,7 @@ async fn settle(s:&AppState,run:&Run,body:&Value)->Result<()> {
 }
 async fn cancel(s:&AppState,run:&Run)->Result<()> {
     if run.payload["ArenaMatch"] == true {return arena::cancel(s,run).await;}
-    let mut db=crate::database::begin(&s.db).await?;crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    let mut db=crate::database::begin(&s.db).await?;crate::postgres::lock_account(&mut *db, run.master).await?;
     for a in &run.members {
         let raw:Option<String>=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND sprk_json_text(entry,'$.CoopRunId')=$2").bind(a).bind(&run.id).fetch_optional(&mut *db).await?;
         if let Some(raw)=raw {

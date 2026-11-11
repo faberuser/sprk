@@ -93,7 +93,7 @@ pub async fn set_equip(
         return Err(ServerError::InvalidRequest("Invalid equipment slots".into()));
     }
     let mut tx=crate::database::begin(&state.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(session.account_id).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, session.account_id).await?;
     let owned:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)").bind(session.account_id).bind(hero_index).fetch_one(&mut *tx).await?;
     if !owned {return Err(ServerError::InvalidRequest("HeroNotOwned".into()));}
     for slot in &equip_slot_indices {

@@ -344,10 +344,7 @@ pub(super) async fn settle_party(s: &AppState, run: &Run, body: &Value) -> Resul
         .as_array()
         .ok_or_else(|| rule("InvalidValue"))?;
     let mut db = crate::database::begin(&s.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(run.master)
-        .execute(&mut *db)
-        .await?;
+    crate::postgres::lock_account(&mut *db, run.master).await?;
     for account in &run.members {
         // Provisional guests can start another battle after cancellation. Their
         // new entry must never be read or settled as part of this old run.

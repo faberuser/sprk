@@ -141,10 +141,7 @@ pub(crate) async fn send(
     }
     let mut db = crate::database::begin(&s.db).await?;
     // Obtain the SQLite writer before reading membership/decks, avoiding lost updates.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(a)
-        .execute(&mut *db)
-        .await?;
+    crate::postgres::lock_account(&mut *db, a).await?;
     let mut messages: Vec<(i64, i64, String, Value)> = vec![];
     if protocol == "JoinPartyReq" {
         // Native declines omit RoomNo and Invitee; there is no join to authorize.
@@ -646,8 +643,7 @@ pub(crate) async fn reconnect(s: &AppState, a: i64) -> Result<()> {
 /// A chat reconnect with the same session retains the room.
 pub(crate) async fn new_login(s: &AppState, a: i64) -> Result<()> {
     let mut db = crate::database::begin(&s.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(a).execute(&mut *db).await?;
+    crate::postgres::lock_account(&mut *db, a).await?;
     let Ok((id, family, _room)) = membership(&mut db, a).await else { return Ok(()); };
     rooms::remove_account(&mut db, a).await?;
     db.commit().await?;

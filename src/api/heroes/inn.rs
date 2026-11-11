@@ -358,8 +358,7 @@ pub async fn do_hero_friendly(
     // Serialize the cooldown check, costs, timestamp and Affinity update. A
     // concurrent click must not pay or earn points a second time.
     let mut tx = crate::database::begin(&state.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account_id).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
     let owned = crate::db::query("SELECT closeness FROM heroes WHERE account_id=$1 AND hero_index=$2")
         .bind(account_id).bind(hero_index).fetch_optional(&mut *tx).await?;
     let is_owned = owned.is_some();
@@ -870,8 +869,7 @@ async fn spin_roulette(state:AppState,req:GiveRewardHeroInnRouletteRequest,winni
 
     let mut tx=crate::database::begin(&state.db).await?;
     // Serialize quota checks and reward credits in the same transaction.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account_id).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
 
     // Get today's date for spin tracking
     let today = Utc::now().format("%Y-%m-%d").to_string();

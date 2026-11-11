@@ -333,3 +333,4 @@ loses it; decide the window in advance.
 | 4. Tools | `gm.py`, diagnostics, automation, local launcher, backups and restore | Done; restore tested on the production copy |
 | 5. Data and cutover | Copy tool, validation, rehearsal | Tool and rehearsal done. **Operator:** real-client play-through, load test, cutover |
 | 6. Tuning | Hot JSON fields to columns or `jsonb`, `timestamptz`, booleans, `synchronous_commit` for low-value writes, batching hot counters, autovacuum | After the cutover, against the phase 0 baseline |
+| 7. Cleanup | Remove the SQLite copy path and migration-only code | After the rollback window; checklist in [postgresql-cleanup.md](postgresql-cleanup.md) |

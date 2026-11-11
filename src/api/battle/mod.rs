@@ -435,8 +435,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     let mut tx = crate::database::begin(&s.db).await?;
     // FirstLobby can run while party heartbeats write on another connection.
     // Reserve the writer before reading progress that may need repair.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(a).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
     seasons::settle(&mut tx, s, a).await?;

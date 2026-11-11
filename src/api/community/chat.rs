@@ -378,8 +378,7 @@ async fn send_chat(
     content["ReceiverId"] = json!(if group == "None" { target } else { 0 });
     content["ReceiverName"] = json!(target_name.unwrap_or_default());
     let mut tx = crate::database::begin(&state.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     // Native SendToParty uses GroupType=None and a client-supplied receiver
     // list. Resolve the actual party here, including the sender's local echo.
     let party = if group == "Party" {

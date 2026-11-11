@@ -522,8 +522,7 @@ pub(crate) async fn recover_pending_achievement_tokens(state: &AppState, account
     let mut tx=crate::database::begin(&state.db).await?;
     // Serialize against a concurrent native auto-use request. Tokens left by
     // the old unsupported-action response are consumed and credited together.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     for (&index,potion) in &state.tables.inventory.potions {
         if potion["AutoUse"] != true || n(potion,"ActionType") != 8 ||
             potion["ActionSubValue"] != "WinGuildSuppress" || n(potion,"ActionValue2") != 0 { continue; }
@@ -1409,8 +1408,7 @@ async fn activate_booster_definition(
 pub(crate) async fn booster_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
     let mut tx = crate::database::begin(&state.db).await?;
     // Serialize legacy timer repair against an item use or battle settlement.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let result = booster_snapshot(&mut tx, state, account).await?;
     tx.commit().await?;
     Ok(result)

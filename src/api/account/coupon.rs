@@ -72,10 +72,7 @@ pub async fn use_coupon(State(s): State<AppState>, body: Bytes) -> Result<Json<V
     }
     let mut tx = crate::database::begin(&s.db).await?;
     // Take the writer lock before checking the ledger, including on WAL pools.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let received: bool = crate::db::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM coupon_redemptions WHERE account_id=$1 AND code=$2)",
     )

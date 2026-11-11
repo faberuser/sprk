@@ -270,10 +270,7 @@ async fn invite(state: AppState, body: Bytes, force_accept: bool) -> Result<Json
         return Ok(Json(response("RequestMyself")));
     }
     let mut tx = crate::database::begin(&state.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let exists: bool = crate::db::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id = $1 AND is_banned = 0)",
     )

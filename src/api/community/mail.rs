@@ -86,10 +86,7 @@ async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
         .bind(account).fetch_one(&state.reads).await?;
     if !pending { return Ok(()); }
     let mut tx = crate::database::begin(&state.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let rows = crate::db::query("SELECT global_id FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=$1 AND d.global_id=g.global_id) ORDER BY global_id")
         .bind(account).fetch_all(&mut *tx).await?;
     for row in rows {
@@ -345,10 +342,7 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
     };
     let mut tx = crate::database::begin(&state.db).await?;
     // Acquire the write lock before selecting attachments: concurrent claims cannot both grant.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, account).await?;
     let rows=crate::db::query("SELECT * FROM mails WHERE account_id=$1 AND is_received=0 AND ($2=1 OR mail_id=$3) AND (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND (opens_at IS NULL OR opens_at='' OR sprk_datetime(opens_at)<=sprk_datetime('now')) ORDER BY mail_id DESC LIMIT $4")
         .bind(account).bind(all).bind(id).bind(max).fetch_all(&mut *tx).await?;
     if !all && rows.is_empty() {

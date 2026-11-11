@@ -578,8 +578,7 @@ async fn clause_stage_cleared(db: &mut PgConnection, account_id: i64) -> Result<
 pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> Result<()> {
     let mut tx = crate::database::begin(&state.db).await?;
     // Serialize this recovery with native tutorial completion before reading eligibility.
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(account_id).execute(&mut *tx).await?;
+    crate::postgres::lock_account(&mut *tx, account_id).await?;
     if clause_stage_cleared(&mut tx, account_id).await? {
         for index in [20001,20002] {
             let data = state.tables.tutorials.get(index)

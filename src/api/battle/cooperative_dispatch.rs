@@ -94,10 +94,7 @@ async fn prepare(s: &AppState, a: i64, slot: i64) -> Result<bool> {
         (w.id.clone(), w.sender.clone())
     };
     let mut tx = crate::database::begin(&s.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(a)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
     let mut job = get(&mut tx, a, "dispatch", slot).await?;
     if matches!(job["State"].as_str(), Some("Complete" | "Cancel")) {
         return Ok(false);
@@ -166,10 +163,7 @@ async fn save(
     answer: &Value,
 ) -> Result<()> {
     let mut tx = crate::database::begin(&s.db).await?;
-    crate::db::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(a)
-        .execute(&mut *tx)
-        .await?;
+    crate::postgres::lock_account(&mut *tx, a).await?;
     let mut job = get(&mut tx, a, "dispatch", slot).await?;
     if job["SimulationJobId"] != original["SimulationJobId"]
         || matches!(job["State"].as_str(), Some("Complete" | "Cancel"))
