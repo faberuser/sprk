@@ -118,5 +118,8 @@
     <EmbeddedResource Include="Resources/LegacyData/ChatCommon.png" LogicalName="DllPatcher.ChatCommon.png" />
     <EmbeddedResource Include="Resources/LegacyData/ChatCommon.json" LogicalName="DllPatcher.ChatCommon.json" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../tables/CouponPool.json" LogicalName="DllPatcher.CouponPool.json" />
+  </ItemGroup>
 
 </Project>

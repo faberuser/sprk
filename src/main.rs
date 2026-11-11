@@ -196,6 +196,7 @@ async fn game_router() -> anyhow::Result<Router> {
         // User authentication endpoints
         .route("/user/login", post(api::account::user::login))
         .route("/user/logout", post(api::account::user::logout))
+        .route("/promotion/use_coupon", post(api::account::coupon::use_coupon))
         .route("/user/get_certificate", post(api::account::user::get_certificate))
         // Ping endpoints
         .route("/ping", post(api::system::ping::ping))

@@ -6,3 +6,4 @@ pub(crate) mod recharge;
 pub mod user;
 pub mod nickname;
 pub mod client;
+pub mod coupon;

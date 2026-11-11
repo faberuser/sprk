@@ -141,6 +141,8 @@ partial class Program
         TestSoulUpgradePlayback(clientRoot);
         InstallCostumeTickets(clientRoot, false, false);
         InstallCostumeTickets(clientRoot, false, true);
+        InstallCouponItems(clientRoot, false);
+        InstallCouponItems(clientRoot, true);
         InstallClassWeaponSelectors(clientRoot, false);
         InstallClassWeaponSelectors(clientRoot, true);
         // Run last: helpers compile against the baseline API, then currency
@@ -218,9 +220,9 @@ partial class Program
         InstallRaidCoopLimits(clientRoot, false, true);
         InstallLavrilCircle(clientRoot, false);
         InstallLavrilCircle(clientRoot, false, true);
-        Console.WriteLine("Complete client release patching and verification passed.");
-    }
         // Last: earlier steps may re-save resources.assets.
         InstallQueryHost(clientRoot, false);
         VerifyQueryHostFile(clientRoot);
+        Console.WriteLine("Complete client release patching and verification passed.");
+    }
 }
