@@ -18,6 +18,12 @@ public static class SprkMotionCostumes {
         }
         grid.RepositionGrid();
     }
+    // Dressing Room > See Motions opens on a copy of the current preview
+    // (costume, hair, weapon and accessories, owned or not). The motion viewer
+    // can change its own costume without altering the Dressing Room preview.
+    public static CachedHeroInfo Snapshot(CachedHeroInfo preview) {
+        return preview == null ? null : JsonMarshaler.Clone(preview);
+    }
     public static void Refresh(HeroDetailView window, HeroInfo hero, List<HeroCostumeComponent> components) {
         if (hero == null) return;
         foreach (var component in components) {
