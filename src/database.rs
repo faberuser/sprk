@@ -175,6 +175,8 @@ pub(crate) mod test_support {
 
     static TEMPLATE: OnceCell<String> = OnceCell::const_new();
     static NEXT: AtomicU64 = AtomicU64::new(0);
+    /// Random per test process: process IDs repeat across containers.
+    static RUN: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| uuid::Uuid::new_v4().simple().to_string()[..12].to_owned());
 
     pub(crate) fn admin_options() -> PgConnectOptions {
         let url = std::env::var("SPRK_TEST_POSTGRES_URL").expect(
@@ -215,11 +217,10 @@ pub(crate) mod test_support {
             }
             // Leftovers of earlier runs (a panicking test cannot drop its
             // database). Databases still in use by another run are skipped.
-            let pid = std::process::id();
             let stale: Vec<String> = crate::db::query_scalar(
                 "SELECT datname FROM pg_database WHERE (datname LIKE 'sprk\\_t\\_%' AND datname NOT LIKE $1) \
                  OR (datname LIKE 'sprk\\_tpl\\_%' AND datname<>$2)")
-                .bind(format!("sprk\\_t\\_{pid}\\_%")).bind(&name).fetch_all(&mut admin).await.unwrap();
+                .bind(format!("sprk\\_t\\_{}\\_%", *RUN)).bind(&name).fetch_all(&mut admin).await.unwrap();
             for db in stale {
                 let _ = sqlx::query(AssertSqlSafe(format!("DROP DATABASE IF EXISTS {db}"))).execute(&mut admin).await;
             }
@@ -231,7 +232,7 @@ pub(crate) mod test_support {
 
     pub(crate) async fn database(read_only: bool) -> crate::database::DbPool {
         let template = template().await;
-        let name = format!("sprk_t_{}_{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed));
+        let name = format!("sprk_t_{}_{}", *RUN, NEXT.fetch_add(1, Ordering::Relaxed));
         let mut admin = PgConnection::connect_with(&admin_options()).await.unwrap();
         sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name} TEMPLATE {template}"))).execute(&mut admin).await.unwrap();
         admin.close().await.unwrap();
