@@ -66,7 +66,7 @@ pub(crate) async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
 }
 
 async fn install(db: &mut SqliteConnection, table: &str, scope: &str, owners: &[Owner], columns: Option<&[&str]>) -> anyhow::Result<()> {
-    let all = sqlx::query(&format!("PRAGMA table_info(\"{table}\")")).fetch_all(&mut *db).await?;
+    let all = sqlx::query(sqlx::AssertSqlSafe(format!("PRAGMA table_info(\"{table}\")"))).fetch_all(&mut *db).await?;
     anyhow::ensure!(!all.is_empty(), "Missing revision dependency: {table}");
     let names: Vec<String> = all.iter().map(|r| r.get("name")).collect();
     // Queue heartbeats (`arena_runs.last_poll`) change no response.
@@ -93,8 +93,8 @@ async fn install(db: &mut SqliteConnection, table: &str, scope: &str, owners: &[
         let condition = if event == "UPDATE" { format!(" WHEN {changed}") } else { String::new() };
         // Recreate: IF NOT EXISTS would keep a previous definition's owners.
         let name = format!("response_revision_{scope}_{table}_{event}");
-        sqlx::query(&format!("DROP TRIGGER IF EXISTS {name}")).execute(&mut *db).await?;
-        sqlx::query(&format!("CREATE TRIGGER {name} AFTER {event} ON \"{table}\"{condition} BEGIN {body} END")).execute(&mut *db).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER IF EXISTS {name}"))).execute(&mut *db).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER {name} AFTER {event} ON \"{table}\"{condition} BEGIN {body} END"))).execute(&mut *db).await?;
     }
     Ok(())
 }

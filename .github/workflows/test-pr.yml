@@ -25,14 +25,14 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install 1.93.0 --profile minimal
-          rustup override set 1.93.0
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup override set 1.99.1
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
       - name: Test
-        run: cargo +1.93.0 test --locked
+        run: cargo +1.99.1 test --locked
 
       - name: Test client release packaging
         run: python3 -m unittest discover -s scripts -t . -p 'test_*client*.py'

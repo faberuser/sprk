@@ -361,9 +361,9 @@ async fn grant_rewards(
             let (code, filter) = parse_item_code(&drop.item_code);
             let (item_index, count, star) = if let Some(index) = state.tables.get_item_index(&code)
             {
-                use rand::Rng;
+                use rand::RngExt;
                 let star =
-                    rand::thread_rng().gen_range(drop.star_min..=drop.star_max.max(drop.star_min));
+                    rand::rng().random_range(drop.star_min..=drop.star_max.max(drop.star_min));
                 (index, drop.count, star)
             } else if let Some((index, count, star, _)) =
                 state.tables.roll_item_from_group_code(&code, &filter)

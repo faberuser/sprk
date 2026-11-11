@@ -292,7 +292,7 @@ async fn score(
     let update = if family == "world_boss" {
         "score=excluded.score,battle_time=excluded.battle_time WHERE excluded.score>battle_scores.score"
     } else { "score=score+excluded.score,battle_time=battle_time+excluded.battle_time" };
-    let result=sqlx::query(&format!("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,?,?,?,?,?,?) ON CONFLICT(family,boss,season,account,day) DO UPDATE SET {update}"))
+    let result=sqlx::query(sqlx::AssertSqlSafe(format!("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,?,?,?,?,?,?) ON CONFLICT(family,boss,season,account,day) DO UPDATE SET {update}")))
         .bind(family).bind(id).bind(season).bind(a).bind(date).bind(damage).bind(battle_time).execute(&mut *db).await?;
     // The score triggers count new/improved records. Lower and equal attempts
     // still count as completed battles for missions, despite leaving rank intact.
@@ -603,7 +603,7 @@ pub(super) async fn execute(
     }
     if action.contains("daily_score") || action.contains("score_info") {
         let aggregate=if family=="world_boss" {"MAX"} else {"SUM"};
-        let score:i64=sqlx::query_scalar(&format!("SELECT COALESCE({aggregate}(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)")).bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
+        let score:i64=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COALESCE({aggregate}(score),0) FROM battle_scores WHERE family=? AND boss=? AND season=? AND account=? AND (?=0 OR day=?)"))).bind(family).bind(id).bind(season).bind(a).bind(if action.contains("daily"){1}else{0}).bind(day()).fetch_one(&mut *db).await?;
         let participated=score>0 || (family=="world_boss" && sqlx::query_scalar::<_,bool>("SELECT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind='world_boss_participation' AND idx=? AND period=?)")
             .bind(a).bind(id).bind(format!("{season}:{}",day())).fetch_one(&mut *db).await?);
         out[if action.contains("daily") {

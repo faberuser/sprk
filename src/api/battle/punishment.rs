@@ -108,8 +108,8 @@ pub(super) async fn grant(
         )?;
         let value = scaled(s, n(data, "InfinityIndex"), level)?;
         let amount = if data["IsRatio"] == true {
-            use rand::Rng;
-            ratio_count(value, rand::thread_rng().gen_range(0..1000))
+            use rand::RngExt;
+            ratio_count(value, rand::rng().random_range(0..1000))
         } else {
             value
         };

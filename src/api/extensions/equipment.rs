@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::{seq::SliceRandom, Rng};
+use rand::{seq::IndexedRandom, RngExt};
 
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -327,8 +327,8 @@ pub(super) async fn execute(
             // Restoration keeps the same equipment slot on the server. The
             // native client removes and reapplies it using this owner field.
             let parts = (1..=10).map(|part| format!("equip_item_slot_index_{part}")).collect::<Vec<_>>().join(",");
-            let owner: Option<i32> = sqlx::query_scalar(&format!(
-                "SELECT hero_index FROM heroes WHERE account_id=? AND ? IN ({parts}) ORDER BY hero_index LIMIT 1"))
+            let owner: Option<i32> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT hero_index FROM heroes WHERE account_id=? AND ? IN ({parts}) ORDER BY hero_index LIMIT 1")))
                 .bind(account).bind(eq.slot_index).fetch_optional(&mut *db).await?;
             out["EquipHeroIndex"] = json!(owner.unwrap_or(0));
             out["NewEquipStorageSlotInfo"] = Value::Null;
@@ -391,7 +391,7 @@ pub(super) async fn execute(
                 if available.is_empty() {
                     break;
                 }
-                let slot = *available.choose(&mut rand::thread_rng()).unwrap();
+                let slot = *available.choose(&mut rand::rng()).unwrap();
                 let key = format!("OptionStep{slot}");
                 v[&key] = json!(n(&v, &key) + 1);
                 steps += 1;
@@ -504,7 +504,7 @@ async fn break_equipment(
         for i in 1..=5 {
             let max = n(r, &format!("MaxItemCount{i}"));
             let mut count = if max > 0 {
-                rand::thread_rng().gen_range(n(r, &format!("MinItemCount{i}"))..=max)
+                rand::rng().random_range(n(r, &format!("MinItemCount{i}"))..=max)
             } else {
                 0
             };
@@ -586,7 +586,7 @@ fn choose_option(pool: &[(i64, i64, i64, i64)]) -> Result<(i64, i64)> {
     if total <= 0 {
         return Err(rule("InvalidOption"));
     }
-    let mut value = rand::thread_rng().gen_range(0..total);
+    let mut value = rand::rng().random_range(0..total);
     let chosen = pool
         .iter()
         .find(|r| {
@@ -594,7 +594,7 @@ fn choose_option(pool: &[(i64, i64, i64, i64)]) -> Result<(i64, i64)> {
             value < 0
         })
         .unwrap();
-    Ok((chosen.0, rand::thread_rng().gen_range(chosen.2..=chosen.3)))
+    Ok((chosen.0, rand::rng().random_range(chosen.2..=chosen.3)))
 }
 
 pub(super) fn option_value(data: &Value, star: i32, step: i64) -> Result<i64> {

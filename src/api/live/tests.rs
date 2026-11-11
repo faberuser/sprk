@@ -361,7 +361,7 @@ async fn seed(s: &AppState, u: &Value, id: i32, count: i32) {
     sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET count=count+excluded.count").bind(account(u)).bind(id).bind(count).execute(&s.db).await.unwrap();
 }
 async fn balance(s: &AppState, u: &Value, col: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT {col} FROM user_info WHERE account_id=?"))
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {col} FROM user_info WHERE account_id=?")))
         .bind(account(u))
         .fetch_one(&s.db)
         .await

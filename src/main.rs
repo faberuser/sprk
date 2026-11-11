@@ -183,7 +183,7 @@ async fn game_router() -> anyhow::Result<Router> {
         // Original path from client config
         .route("/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json", get(api::system::query::get_host_info))
         // Alternative shorter paths for patched clients
-        .route("/Masang_Tokyo/Live/:version/:hostfile", get(api::system::query::get_host_info))
+        .route("/Masang_Tokyo/Live/{version}/{hostfile}", get(api::system::query::get_host_info))
         .route("/host.json", get(api::system::query::get_host_info))
         // Auth endpoints (Masang login server API)
         .route("/api/auth/login/guest", post(api::account::auth::guest_login))
@@ -387,7 +387,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .merge(api::system::cheat::public_routes())
         // CDN endpoints for patch/asset downloads
         .route("/cdn/LastBuildVersion.txt", get(api::system::cdn::get_last_build_version))
-        .route("/cdn/:version/patch.json", get(api::system::cdn::get_patch_json))
+        .route("/cdn/{version}/patch.json", get(api::system::cdn::get_patch_json))
         // Catch-all for unimplemented endpoints
         .fallback(api::system::fallback::handle_fallback)
         // Middleware

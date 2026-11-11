@@ -219,9 +219,9 @@ async fn honor(
         3=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=0",
         _=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=1"
     };
-    let seasons: Vec<i64> = sqlx::query_scalar(&format!(
+    let seasons: Vec<i64> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT DISTINCT season FROM ({source}) ORDER BY season DESC"
-    ))
+    )))
     .fetch_all(&mut *db)
     .await?;
     let selected = if season == 0 {
@@ -229,7 +229,7 @@ async fn honor(
     } else {
         season
     };
-    let rows=sqlx::query(&format!("SELECT *,ROW_NUMBER() OVER(ORDER BY score DESC,id) AS ranking FROM ({source}) WHERE season=? ORDER BY score DESC,id")).bind(selected).fetch_all(&mut *db).await?;
+    let rows=sqlx::query(sqlx::AssertSqlSafe(format!("SELECT *,ROW_NUMBER() OVER(ORDER BY score DESC,id) AS ranking FROM ({source}) WHERE season=? ORDER BY score DESC,id"))).bind(selected).fetch_all(&mut *db).await?;
     let group = s.tables.services.rules["ServerGroup"]
         .as_str()
         .unwrap_or("Local");

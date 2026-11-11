@@ -5,7 +5,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use chrono::{Utc, Duration};
-use rand::Rng;
+use rand::RngExt;
 
 use crate::{
     error::{Result, ServerError},
@@ -25,9 +25,9 @@ use crate::{
 
 /// Select random heroes from a list
 fn select_random_heroes(available: &[i32], count: usize) -> Vec<i32> {
-    use rand::seq::SliceRandom;
-    let mut rng = rand::thread_rng();
-    available.choose_multiple(&mut rng, count.min(available.len())).cloned().collect()
+    use rand::seq::IndexedRandom;
+    let mut rng = rand::rng();
+    available.sample(&mut rng, count.min(available.len())).cloned().collect()
 }
 
 // Recruitment and visiting are separate: owned heroes can fill the remaining
@@ -405,7 +405,7 @@ pub async fn do_hero_friendly(
     let new_point = if is_owned { current_point } else { (current_point + points).min(target.unwrap()) };
     // Retain the Inn's action timestamps for recruitment and progression hooks.
     // Owned-hero cooldown decisions use only that hero's persisted timestamps.
-    sqlx::query(&format!("UPDATE hero_friendly_info SET friendly_point=?, {column}=? WHERE account_id=?"))
+    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE hero_friendly_info SET friendly_point=?, {column}=? WHERE account_id=?")))
         .bind(new_point).bind(&current_time).bind(account_id).execute(&mut *tx).await?;
     let hero_info = if let Some(owned) = owned {
         sqlx::query("UPDATE heroes SET closeness=? WHERE account_id=? AND hero_index=?")
@@ -852,7 +852,7 @@ pub async fn give_reward_hero_inn_roulette(
     State(state): State<AppState>,
     Form(req): Form<GiveRewardHeroInnRouletteRequest>,
 ) -> Result<Json<GiveRewardHeroInnRouletteResponse>> {
-    let section=rand::thread_rng().gen_range(1..=8);
+    let section=rand::rng().random_range(1..=8);
     spin_roulette(state,req,section).await
 }
 

@@ -178,7 +178,7 @@ async fn add_inner(
         }
         1 | 11 | 13 => {
             let column=match k {1=>"stamina",11=>"world_boss_ticket",_=>"sword2"};
-            sqlx::query(&format!("UPDATE user_info SET {column}=? WHERE account_id=?"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=? WHERE account_id=?")))
                 .bind(new).bind(a).execute(&mut *db).await?;
         }
         _ => {

@@ -141,7 +141,7 @@ pub(super) async fn charge_reserved(
         let mut info = get(db, a, "key", kind).await?;
         let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
         if let Some(column) = column {
-            let count:i64 = sqlx::query_scalar(&format!("SELECT {column} FROM user_info WHERE account_id=?"))
+            let count:i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {column} FROM user_info WHERE account_id=?")))
                 .bind(a).fetch_one(&mut *db).await?;
             let initial_record=info.is_null();
             if initial_record { info = json!({"Day":day()}); }
@@ -149,7 +149,7 @@ pub(super) async fn charge_reserved(
         }
         let (info, result) = crate::api::account::recharge::at(&info, def, overrides, initial, Utc::now(), cost)?;
         if let Some(column) = column {
-            sqlx::query(&format!("UPDATE user_info SET {column}=? WHERE account_id=?"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=? WHERE account_id=?")))
                 .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
         }
         put(db, a, "key", kind, &info).await?;
@@ -1211,7 +1211,7 @@ pub(super) async fn shakmeh_passives(
         choices.sort_by_key(|v| v.as_i64());
         choices.dedup();
         use rand::seq::SliceRandom;
-        choices.shuffle(&mut rand::thread_rng());
+        choices.shuffle(&mut rand::rng());
         choices.truncate(
             s.tables
                 .hero_shop

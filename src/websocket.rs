@@ -103,9 +103,9 @@ async fn serve(socket: WebSocket, state: AppState, battle: bool) {
                     result = reader.read(&mut buffer) => {
                         let count = result?;
                         if count == 0 { break; }
-                        Message::Binary(buffer[..count].to_vec())
+                        Message::Binary(buffer[..count].to_vec().into())
                     }
-                    _ = heartbeat.tick() => Message::Ping(Vec::new()),
+                    _ = heartbeat.tick() => Message::Ping(Default::default()),
                     pong = pong_rx.recv() => {
                         match pong { Some(bytes) => Message::Pong(bytes), None => break }
                     }
@@ -173,7 +173,7 @@ pub(crate) mod tests {
         }
         pub(crate) async fn send(&mut self, name: &str, body: Value) {
             self.socket
-                .send(Frame::Binary(encode_packet(name, &body)))
+                .send(Frame::Binary(encode_packet(name, &body).into()))
                 .await
                 .unwrap();
         }
@@ -234,13 +234,13 @@ pub(crate) mod tests {
         bytes.extend(encode_packet("PingReq", &json!({"RequestId":2})));
         first
             .socket
-            .send(Frame::Binary(bytes[..13].to_vec()))
+            .send(Frame::Binary(bytes[..13].to_vec().into()))
             .await
             .unwrap();
         first
             .socket
             .send(Frame::Text(
-                String::from_utf8(bytes[13..].to_vec()).unwrap(),
+                String::from_utf8(bytes[13..].to_vec()).unwrap().into(),
             ))
             .await
             .unwrap();
@@ -379,10 +379,10 @@ pub(crate) mod tests {
         let bytes=encode_packet("MessageReq",&body);
         assert!(bytes.len()>64*1024);
         if dragon {
-            host_socket.socket.send(Frame::Binary(bytes)).await.unwrap();
+            host_socket.socket.send(Frame::Binary(bytes.into())).await.unwrap();
         } else {
             // The shipped client relays TCP chunks as separate WS messages.
-            for chunk in bytes.chunks(32768) {host_socket.socket.send(Frame::Binary(chunk.to_vec())).await.unwrap();}
+            for chunk in bytes.chunks(32768) {host_socket.socket.send(Frame::Binary(chunk.to_vec().into())).await.unwrap();}
         }
         assert_eq!(host_socket.recv("MessageRes").await["Result"],"Success");
         let notice=guest_socket.recv("MessageNot").await;
@@ -416,7 +416,7 @@ pub(crate) mod tests {
         let server = server(s.clone()).await;
         let mut chat = Client::connect(&server, "chat").await;
         chat.socket
-            .send(Frame::Binary(vec![b'x'; 64 * 1024 + 1]))
+            .send(Frame::Binary(vec![b'x'; 64 * 1024 + 1].into()))
             .await
             .unwrap();
         chat.closed().await;
@@ -428,9 +428,9 @@ pub(crate) mod tests {
             let oversized=vec![b'x';crate::api::community::chat::MAX_FRAME+1];
             if fragmented {
                 for bytes in oversized.chunks(32768) {
-                    if client.socket.send(Frame::Binary(bytes.to_vec())).await.is_err() {break;}
+                    if client.socket.send(Frame::Binary(bytes.to_vec().into())).await.is_err() {break;}
                 }
-            } else {let _=client.socket.send(Frame::Binary(oversized)).await;}
+            } else {let _=client.socket.send(Frame::Binary(oversized.into())).await;}
             client.closed().await;
         }
         let mut worker = Client::connect(&server, "battle").await;

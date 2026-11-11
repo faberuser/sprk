@@ -149,6 +149,9 @@ fn game_and_all_modes_expose_the_expected_endpoints() {
         assert!(server.get("/health").starts_with("HTTP/1.1 200"));
         assert!(server.get("/host.json").starts_with("HTTP/1.1 200"));
         assert!(server.get("/host.json").contains("https://play.example.test/cdn/"));
+        // Parameterised routes (path syntax changed in axum 0.8).
+        assert!(server.get("/cdn/1.2.3/patch.json").contains(r#"{"Archives":[]}"#));
+        assert!(server.get("/Masang_Tokyo/Live/1.2.3/host.json").contains("https://play.example.test/cdn/"));
         server.upgrade("/ws/chat");
         server.upgrade("/ws/battle");
         assert!(server.root.join("sprk.db").is_file());

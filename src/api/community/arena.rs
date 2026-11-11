@@ -260,7 +260,7 @@ async fn ranking_kind(db: &mut SqliteConnection, s: &AppState, season: i64, kind
 async fn ranking_page(db: &mut SqliteConnection, s: &AppState, season: i64, kind: i64, from: i64, to: i64) -> Result<Vec<Value>> {
     let to = to.min(RANKED_LIMIT - 1);
     if from > to { return Ok(vec![]); }
-    let rows: Vec<(i64,i64,i64,i64)> = sqlx::query_as(&format!("SELECT account,score,wins,losses FROM arena_scores WHERE kind=? AND season=? {RANKED_ORDER} LIMIT ? OFFSET ?"))
+    let rows: Vec<(i64,i64,i64,i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT account,score,wins,losses FROM arena_scores WHERE kind=? AND season=? {RANKED_ORDER} LIMIT ? OFFSET ?")))
         .bind(kind).bind(season).bind(to - from + 1).bind(from).fetch_all(&mut *db).await?;
     let mut out = vec![];
     for (i, (account, score, wins, losses)) in rows.into_iter().enumerate() {
@@ -315,7 +315,7 @@ async fn ranking_deck(db: &mut SqliteConnection, account: i64, season: i64, kind
     // missing Hero). The leading placeholder path keeps a single Hero an array.
     let paths = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let sql = format!("SELECT json_extract(data,'$.__none__',{paths}) FROM arena_runs WHERE id=?");
-    let mut query = sqlx::query_scalar::<_, String>(&sql);
+    let mut query = sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql.as_str()));
     for id in &ids { query = query.bind(format!("$.Register.AccountInfo.HeroInfos.\"{id}\"")); }
     let registered: Value = parse(&query.bind(run).fetch_one(&mut *db).await?)?;
     let mut result = vec![];

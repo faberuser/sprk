@@ -44,7 +44,7 @@ impl Scheduler {
 
     /// Start a task for each pending job that does not already have one.
     async fn scan(&self, s: &AppState) -> Result<()> {
-        let jobs: Vec<(i64,i64)> = sqlx::query_as(&format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION))
+        let jobs: Vec<(i64,i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
             .fetch_all(&s.db).await?;
         for job in jobs {
             if !self.active.lock().unwrap_or_else(|e| e.into_inner()).insert(job) {
@@ -490,7 +490,7 @@ mod tests {
         let (s, u, job) = job().await;
         let a = account(&u);
         let pending = |s: AppState| async move {
-            sqlx::query_scalar::<_, i64>(&format!("SELECT COUNT(*) FROM battle_state WHERE {}", crate::api::battle::PENDING_DISPATCH_SIMULATION))
+            sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM battle_state WHERE {}", crate::api::battle::PENDING_DISPATCH_SIMULATION)))
                 .fetch_one(&s.db).await.unwrap()
         };
         // slot 1: 50 fights (sampled); slot 2: exactly SAMPLE_FIGHTS (all simulated);

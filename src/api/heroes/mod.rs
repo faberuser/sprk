@@ -757,9 +757,9 @@ async fn skills(
             count += required;
         }
         if slot <= 4 {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE heroes SET skill_level_{slot}=? WHERE account_id=? AND hero_index=?"
-            ))
+            )))
             .bind(n(extra, &key).max(level))
             .bind(account)
             .bind(n(h, "HeroIndex"))

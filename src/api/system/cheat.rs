@@ -17,7 +17,7 @@ mod tests;
 pub fn public_routes() -> axum::Router<AppState> {
     use axum::{routing::any, http::StatusCode, Router};
     Router::new().route("/cheat", any(|| async { StatusCode::NOT_FOUND }))
-        .route("/cheat/*path", any(|| async { StatusCode::NOT_FOUND }))
+        .route("/cheat/{*path}", any(|| async { StatusCode::NOT_FOUND }))
 }
 
 pub async fn start_admin(state: AppState) -> anyhow::Result<()> {
@@ -437,10 +437,10 @@ pub async fn gm_reset_account(
     }
 
     for table in ["play_record_values","progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
-        sqlx::query(&format!("DELETE FROM {table} WHERE account_id=?")).bind(account_id).execute(&mut *tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=?"))).bind(account_id).execute(&mut *tx).await?;
     }
     for table in if keep_heroes {vec![]}else{vec!["equipment_pending","extension_state","hero_details"]} {
-        sqlx::query(&format!("DELETE FROM {table} WHERE account_id=?")).bind(account_id).execute(&mut *tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=?"))).bind(account_id).execute(&mut *tx).await?;
     }
     tx.commit().await?;
 
@@ -610,9 +610,9 @@ pub async fn gm_add_all_uwut(
             let slot_index = result.last_insert_rowid() as i32;
 
             // Link the equip item to the hero's slot
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE heroes SET {} = ? WHERE unique_hero_id = ?", col
-            ))
+            )))
             .bind(slot_index)
             .bind(unique_hero_id)
             .execute(&state.db)

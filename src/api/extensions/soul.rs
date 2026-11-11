@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::Rng;
+use rand::RngExt;
 
 pub(super) async fn execute(
     db: &mut SqliteConnection,
@@ -191,12 +191,12 @@ pub(super) async fn execute(
                     out["CurrencyResult"] = hero::currency(db, account, "Gem", -price).await?;
                     out["RemovedItemResultInfos"] = json!([]);
                 }
-                let first = rand::thread_rng().gen_range(300..=700);
+                let first = rand::rng().random_range(300..=700);
                 info["RenewOptionRatio1"] = json!(first);
                 info["RenewOptionRatio2"] = json!(1000 - first);
                 for i in 1..=2 {
                     info[format!("RenewOptionBonusRatio{i}")] =
-                        json!(rand::thread_rng().gen_range(0..=200));
+                        json!(rand::rng().random_range(0..=200));
                 }
                 info["RenewOptionCount"] = json!(n(&info, "RenewOptionCount") + 1);
                 info["PendingRenew"] = json!(true);
@@ -343,7 +343,7 @@ async fn break_soul(
             ],
         )?;
         for reward in r["Rewards"].as_array().into_iter().flatten() {
-            let count = rand::thread_rng().gen_range(n(reward, "Min")..=n(reward, "Max"));
+            let count = rand::rng().random_range(n(reward, "Min")..=n(reward, "Max"));
             if count > 0 {
                 item::give(
                     db,
@@ -516,7 +516,7 @@ async fn restore(
             removed.push(item::consume(db, account, n(r, "MaterialItemIndex") as i32,
                 n(r, "MaterialItemCount") as i32).await?);
             super::super::progression::record(db, account, "SoulRestore", 0, 0, 1).await?;
-            rand::thread_rng().gen_range(0..10000) < n(config, "SoulStoneChancePer10000")
+            rand::rng().random_range(0..10000) < n(config, "SoulStoneChancePer10000")
         };
         if soulstone {
             let protection: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=5251),0)")
@@ -582,7 +582,7 @@ async fn restore(
                     if pool.is_empty() {
                         return Err(rule("ItemDataNotFound"));
                     }
-                    pool[rand::thread_rng().gen_range(0..pool.len())]
+                    pool[rand::rng().random_range(0..pool.len())]
                 } else {
                     state
                         .tables

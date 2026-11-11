@@ -163,9 +163,9 @@ pub(crate) async fn free_slots(
     } else {
         "inventory_extend"
     };
-    let extend: i64 = sqlx::query_scalar(&format!(
+    let extend: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT {column} FROM inventory_settings WHERE account_id=?"
-    ))
+    )))
     .bind(account)
     .fetch_optional(&mut *db)
     .await?
@@ -389,9 +389,9 @@ pub(crate) async fn reward_with_loot_booster(
         ("ShopEventPoint", row.shop_event_point_rate, row.shop_event_point_min, row.shop_event_point_max),
         ("LimitedShopEventPoint", row.limited_shop_event_point_rate, row.limited_shop_event_point_value, row.limited_shop_event_point_value),
     ] {
-        use rand::Rng;
-        let amount = if max > 0 && rand::thread_rng().gen_range(0..1000) < rate {
-            rand::thread_rng().gen_range(min.max(0)..=max.max(min).max(0)) as i64
+        use rand::RngExt;
+        let amount = if max > 0 && rand::rng().random_range(0..1000) < rate {
+            rand::rng().random_range(min.max(0)..=max.max(min).max(0)) as i64
         } else { 0 };
         if amount > 0 { rewards.currencies.push(crate::api::heroes::currency(db,account,kind,amount).await?); }
     }
@@ -423,11 +423,11 @@ pub(crate) async fn reward_with_loot_booster(
             continue;
         }
         let (index, count, star) = if let Some(index) = state.tables.get_item_index(&code) {
-            use rand::Rng;
+            use rand::RngExt;
             (
                 index,
                 drop.count,
-                rand::thread_rng().gen_range(drop.star_min..=drop.star_max.max(drop.star_min)),
+                rand::rng().random_range(drop.star_min..=drop.star_max.max(drop.star_min)),
             )
         } else if let Some((i, c, s, _)) = state.tables.roll_item_from_group_code(&code, &filter) {
             (
@@ -769,9 +769,9 @@ async fn execute(
                     } else {
                         "inventory_extend"
                     };
-                    let old: i64 = sqlx::query_scalar(&format!(
+                    let old: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
                         "SELECT {column} FROM inventory_settings WHERE account_id=?"
-                    ))
+                    )))
                     .bind(account)
                     .fetch_one(&mut *db)
                     .await?;
@@ -791,9 +791,9 @@ async fn execute(
                         return Err(rule("InvalidActionValue"));
                     }
                     let added = amount.min(max - old);
-                    sqlx::query(&format!(
+                    sqlx::query(sqlx::AssertSqlSafe(format!(
                         "UPDATE inventory_settings SET {column}={column}+? WHERE account_id=?"
-                    ))
+                    )))
                     .bind(added)
                     .bind(account)
                     .execute(&mut *db)
@@ -852,8 +852,8 @@ async fn execute(
             out["ItemResult"] = consume(db, account, index, count).await?;
             let mut results = vec![];
             for _ in 0..count {
-                use rand::Rng;
-                let mut roll = rand::thread_rng().gen_range(0..1000);
+                use rand::RngExt;
+                let mut roll = rand::rng().random_range(0..1000);
                 let mut selected = 0;
                 for i in 1..=5 {
                     let rate = n(package, &format!("RewardRate{i}"));
@@ -1281,9 +1281,9 @@ async fn expand(
     } else {
         "inventory_extend"
     };
-    let count: i64 = sqlx::query_scalar(&format!(
+    let count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT {column} FROM inventory_settings WHERE account_id=?"
-    ))
+    )))
     .bind(account)
     .fetch_one(&mut *db)
     .await?;
@@ -1327,9 +1327,9 @@ async fn expand(
     }
     let mut out = success();
     out["CurrencyResult"] = money(db, account, "Gem", -price).await?;
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "UPDATE inventory_settings SET {column}=? WHERE account_id=?"
-    ))
+    )))
     .bind(new_count)
     .bind(account)
     .execute(db)
@@ -1484,7 +1484,7 @@ pub(crate) fn make_options(
     item: &mut EquipItemInfo,
     chosen: &[i32],
 ) -> Result<()> {
-    use rand::Rng;
+    use rand::RngExt;
     let eq = state
         .tables
         .inventory
@@ -1537,7 +1537,7 @@ pub(crate) fn make_options(
             if total <= 0 {
                 return Err(rule("NoAvailableOption"));
             }
-            let mut roll = rand::thread_rng().gen_range(0..total);
+            let mut roll = rand::rng().random_range(0..total);
             *available
                 .iter()
                 .find(|i| {
@@ -1554,7 +1554,7 @@ pub(crate) fn make_options(
             if chosen != 0 {
                 steps
             } else {
-                rand::thread_rng().gen_range(0..=steps)
+                rand::rng().random_range(0..=steps)
             },
         ));
     }
@@ -1563,8 +1563,8 @@ pub(crate) fn make_options(
     (item.option_index_2, item.option_step_2) = values[1];
     (item.option_index_3, item.option_step_3) = values[2];
     (item.option_index_4, item.option_step_4) = values[3];
-    item.rune_slot_count = rand::thread_rng()
-        .gen_range(n(eq, "MinRuneCount")..=n(eq, "MaxRuneCount").max(n(eq, "MinRuneCount")))
+    item.rune_slot_count = rand::rng()
+        .random_range(n(eq, "MinRuneCount")..=n(eq, "MaxRuneCount").max(n(eq, "MinRuneCount")))
         as i32;
     Ok(())
 }
@@ -1610,9 +1610,9 @@ async fn dismantle_runes(
             .ok_or_else(|| rule("NotBreakableItemExists"))?;
         consumed.push(consume(db, account, id, count).await?);
         for drop in drops {
-            use rand::Rng;
+            use rand::RngExt;
             let total: i64 = (0..count)
-                .map(|_| rand::thread_rng().gen_range(n(drop, "Min")..=n(drop, "Max")))
+                .map(|_| rand::rng().random_range(n(drop, "Min")..=n(drop, "Max")))
                 .sum();
             give(
                 db,

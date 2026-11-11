@@ -43,10 +43,10 @@ pub async fn routes(root: &FsPath) -> anyhow::Result<Router> {
     );
     tracing::info!(directory = %root.display(), "Serving client updates");
     Ok(Router::new()
-        .route("/:channel/manifest.json", get(channel_manifest))
-        .route("/releases/:release/manifest.json", get(release_manifest))
-        .route("/releases/:release/files/*file_path", get(release_file))
-        .route("/models/:version/:artifact", get(illustration_model))
+        .route("/{channel}/manifest.json", get(channel_manifest))
+        .route("/releases/{release}/manifest.json", get(release_manifest))
+        .route("/releases/{release}/files/{*file_path}", get(release_file))
+        .route("/models/{version}/{artifact}", get(illustration_model))
         .fallback(|| async { StatusCode::NOT_FOUND })
         .with_state(UpdateStorage(Arc::new(root))))
 }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::Rng;
+use rand::RngExt;
 
 async fn progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
     let cfg = event(s)?;
@@ -254,7 +254,7 @@ pub(super) async fn execute(
                             .await?,
                         );
                     }
-                    let roll = rand::thread_rng().gen_range(0..1000);
+                    let roll = rand::rng().random_range(0..1000);
                     let success = fixed || roll < n(data, "SuccessRatio");
                     out["Success"] = json!(success);
                     if success {

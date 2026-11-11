@@ -175,9 +175,9 @@ async fn list(state: AppState, body: Bytes, paged: bool, global: bool) -> Result
         0
     };
     let filter="account_id=? AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND ((?=1 AND global_id IS NOT NULL) OR (?=0 AND global_id IS NULL))";
-    let rows=sqlx::query(&format!("SELECT * FROM mails WHERE {filter} AND (?=0 OR mail_id<?) ORDER BY mail_id DESC LIMIT ? OFFSET ?"))
+    let rows=sqlx::query(sqlx::AssertSqlSafe(format!("SELECT * FROM mails WHERE {filter} AND (?=0 OR mail_id<?) ORDER BY mail_id DESC LIMIT ? OFFSET ?")))
         .bind(account).bind(global).bind(global).bind(cursor).bind(cursor).bind(max).bind(offset).fetch_all(&state.reads).await?;
-    let total: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM mails WHERE {filter}"))
+    let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM mails WHERE {filter}")))
         .bind(account)
         .bind(global)
         .bind(global)
