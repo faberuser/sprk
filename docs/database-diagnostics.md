@@ -246,8 +246,9 @@ before a slow request or long hold.
 - **Reader-routed**: `inspect_user` (a read-only ~100-Hero snapshot) and the
   `sync_seen_categories` category check (`View::load`, ~18 ms) run on the read
   pool; the writer only records the seen categories.
-- `push_reward/get_push_reward` (polled every minute) is routed and answers
-  the same empty success without an unimplemented-endpoint warning.
+- `push_reward/get_push_reward` (polled every minute), `user/init_device_id`
+  and `user/register_device_token` are routed and answer the same empty
+  success without an unimplemented-endpoint warning.
 - **Hold labels.** Background holds name their task (`task:dispatch-preparation`,
   `task:battle-connection`, `task:mail-notifications`, `ws:battle`, …). Use
   `database::spawn_labelled` for new long-running tasks. The GM listener's

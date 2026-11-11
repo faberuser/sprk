@@ -133,7 +133,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     }
     let guild: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
         .bind(target).fetch_optional(&mut *db).await?;
-    let guild_info = if let Some(g) = guild { super::guild::state(&mut db, &state, g).await? } else { Value::Null };
+    let guild_info = if let Some(g) = guild { super::guild::view(&mut db, &state, g).await? } else { Value::Null };
     db.commit().await?;
     Ok(Json(json!({"BaseResult":"Success","Result":"Success",
         "CachedAccountInfo":{"UserInfo":user,"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":decks},

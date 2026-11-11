@@ -31,6 +31,13 @@ fn master(role: i64) -> Result<()> {
     }
 }
 pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
+    let v = view(db, s, g).await?;
+    put(db, g, "guild", 0, &v).await?;
+    Ok(v)
+}
+/// The normalized guild info without persisting it, for read-only connections
+/// (inspecting a guild member's profile runs on the reader pool).
+pub(super) async fn view(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
     let r=sqlx::query("SELECT g.*,a.nick AS master_nick,(SELECT count(*) FROM guild_members m WHERE m.guild_id=g.guild_id) AS members FROM guilds g JOIN accounts a ON a.account_id=g.master_account_id WHERE g.guild_id=?").bind(g).fetch_optional(&mut *db).await?.ok_or_else(||rule("NoGuild"))?;
     let mut v = get(db, g, "guild", 0).await?;
     if v.is_null() {
@@ -93,7 +100,6 @@ pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Re
         v[format!("Skill{id}Level")] = json!(skills.iter().find(|skill| n(skill, "SkillIndex") == id).map(|skill| n(skill, "SkillLevel")).unwrap_or(1));
     }
     v["SkillInfos"] = json!(skills);
-    put(db, g, "guild", 0, &v).await?;
     Ok(v)
 }
 pub(super) fn contribution_day(s: &AppState) -> String {

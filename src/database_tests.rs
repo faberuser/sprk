@@ -45,7 +45,12 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
     }
 
     // Inspection and mission-category validation run on readers, so they never
-    // queue behind (or wait for) a writer held by another request.
+    // queue behind (or wait for) a writer held by another request. A guild
+    // member's profile includes the guild info, which must not be persisted.
+    let guild = sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('ReaderGuild',?)")
+        .bind(account).execute(&s.db).await.unwrap().last_insert_rowid();
+    sqlx::query("INSERT INTO guild_members(account_id,guild_id,role) VALUES(?,?,2)")
+        .bind(account).bind(guild).execute(&s.db).await.unwrap();
     {
         let writer = s.db.acquire().await.unwrap();
         let inspected = tokio::time::timeout(std::time::Duration::from_secs(5),
@@ -53,6 +58,7 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
             .await.expect("inspection waited for the writer").unwrap().0;
         assert_eq!(inspected["Result"], "Success", "{inspected}");
         assert!(inspected["CachedAccountInfo"]["HeroInfos"].as_object().is_some_and(|h| !h.is_empty()), "{inspected}");
+        assert_eq!(inspected["GuildInfo"]["Name"], "ReaderGuild", "{inspected}");
         drop(writer);
     }
     let opened = api::progression::mission_categories(&mut s.reads.acquire().await.unwrap(), &s, account).await.unwrap();
