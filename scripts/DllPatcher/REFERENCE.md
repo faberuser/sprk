@@ -881,3 +881,22 @@ client is IL2CPP, so its own rule could not be read directly.
 dotnet run --project scripts/DllPatcher -- ../sprk-client --gear-filter-options-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-gear-filter-options
 ```
+
+## Host list URL (QueryHost)
+
+The client requests its host list (login and CDN servers) from the launcher's
+`SPRK_HOST_URL`, normally `/host.json`. Without it, `ResolveHostUrl` falls back
+to `QueryHost` in `resources.assets`. `--query-host-only` rewrites that setting
+from either legacy value (the original Masang CDN URL, or the localhost
+`/Masang_Tokyo/Live/...` path written by older `scripts/client/patch.ps1`) to
+`http://127.0.0.1:8080/sprk/live/1/host_1.0_304dbdffe094.json`. The value is a
+fixed 87-byte string inside a TextAsset, so it is replaced in place with space
+padding and the asset layout is unchanged. `--verify-query-host` requires exactly
+one QueryHost with the new URL and no remaining `Masang_Tokyo` reference. Both
+run last in `--build-release`, after every other step that re-saves
+`resources.assets`. The server serves only `/host.json` and `/sprk/live/...`.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --query-host-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-query-host
+```

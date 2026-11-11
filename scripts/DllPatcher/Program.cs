@@ -113,6 +113,8 @@ namespace DllPatcher
             if (args.Contains("--verify-room-shortcut")) { VerifyRoomShortcutFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--pet-presentation-only")) { InstallPetPresentation(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-pet-presentation")) { VerifyPetPresentationFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--query-host-only")) { InstallQueryHost(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-query-host")) { VerifyQueryHostFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--inventory-expansion-only")) { InstallInventoryExpansion(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-inventory-expansion")) { VerifyInventoryExpansionFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--special-shop-only")) { InstallSpecialShop(args[0],args.Contains("--stage-only")); return; }

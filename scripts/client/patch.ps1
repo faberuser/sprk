@@ -31,7 +31,7 @@ $DllPath = Join-Path $ManagedDir "Assembly-CSharp.dll"
 $AssetsPath = Join-Path $ClientPath "King's Raid_Data\resources.assets"
 
 # Replacement URL for localhost (must be 87 bytes with padding)
-$REPLACEMENT_URL = [System.Text.Encoding]::UTF8.GetBytes('http://127.0.0.1:8080/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json                   ')
+$REPLACEMENT_URL = [System.Text.Encoding]::UTF8.GetBytes('http://127.0.0.1:8080/sprk/live/1/host_1.0_304dbdffe094.json                           ')
 $ORIGINAL_URL = [System.Text.Encoding]::UTF8.GetBytes('https://kr-apne1-patchsrc.masangsoft.com/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json')
 
 # ---------------------------------------------------------------------------

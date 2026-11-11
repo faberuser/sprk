@@ -220,4 +220,7 @@ partial class Program
         InstallLavrilCircle(clientRoot, false, true);
         Console.WriteLine("Complete client release patching and verification passed.");
     }
+        // Last: earlier steps may re-save resources.assets.
+        InstallQueryHost(clientRoot, false);
+        VerifyQueryHostFile(clientRoot);
 }
