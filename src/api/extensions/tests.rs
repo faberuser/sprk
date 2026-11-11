@@ -2936,3 +2936,46 @@ async fn multiplayer_hero_snapshots_carry_visible_accessories() {
     assert_eq!(cached["SprkAccessories"], stacked);
     assert_eq!(cached["AccessoryPositionInfo1"], custom);
 }
+
+#[tokio::test]
+async fn batch_break_clears_every_reference_once_and_grants_summed_materials() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut slots = vec![];
+    for _ in 0..3 { slots.push(give(&s, a, 70004, 1).await.equipment.remove(0)); }
+    let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
+    let stored = call(&s, &u, "add_equip_storage_slot", &format!(
+        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[2,4]&EquipItemSlotIndex=[{},{}]",
+        armor.slot_index, slots[0].slot_index)).await;
+    assert_eq!(stored["Result"], "Success", "{stored}");
+    let preset = json!([{"HeroIndex":1,"EquipItemSlotIndex":[0,slots[1].slot_index,0,slots[0].slot_index],"EquipItemUid":["",slots[1].uid,"",slots[0].uid],"EquipItemRunePage":[0,1,0,2]}]);
+    sqlx::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES(?,'batch',?)")
+        .bind(a).bind(preset.to_string()).execute(&s.db).await.unwrap();
+    let before: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&s.db).await.unwrap();
+    let ids = slots.iter().map(|e| e.slot_index.to_string()).collect::<Vec<_>>().join(",");
+    let result = call(&s, &u, "break_equip", &format!("EquipItemSlotIndices=[{ids}]")).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+        .bind(a).bind(format!("[{ids}]")).fetch_one(&s.db).await.unwrap();
+    assert_eq!(remaining, 0);
+    let mut db = s.db.acquire().await.unwrap();
+    let storage = get(&mut db, a, "equip_storage", 1).await.unwrap();
+    assert_eq!((storage["EquipItemSlotIndex2"].as_i64(), storage["EquipItemSlotIndex4"].as_i64()), (Some(armor.slot_index as i64), Some(0)));
+    let saved: String = sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key='batch'").bind(a).fetch_one(&mut *db).await.unwrap();
+    let saved: Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(saved[0]["EquipItemSlotIndex"], json!([0,0,0,0]));
+    assert_eq!(saved[0]["EquipItemUid"], json!(["","","",""]));
+    // Materials are summed per item and granted once; the reported new counts
+    // match the inventory change.
+    let after: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&mut *db).await.unwrap();
+    let results = result["ItemResults"].as_array().unwrap();
+    assert!(!results.is_empty(), "{result}");
+    let mut indices = std::collections::BTreeSet::new();
+    for r in results {
+        let index = r["ItemIndex"].as_i64().unwrap();
+        assert!(indices.insert(index), "one result per material: {result}");
+        let old = before.iter().find(|(i, _)| *i == index).map(|v| v.1).unwrap_or(0);
+        let new = after.iter().find(|(i, _)| *i == index).map(|v| v.1).unwrap();
+        assert!(new > old, "{index}: {old} -> {new}");
+    }
+}

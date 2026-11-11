@@ -80,7 +80,9 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     let req = Request::parse(&body)?;
     req.account(&state)?;
     let target = req.number("TargetAccountId", 0)?;
-    let mut db = state.db.begin().await?;
+    // Read-only snapshot of another player (~100 Hero snapshots): serve it
+    // from a reader instead of queueing every request behind it on the writer.
+    let mut db = state.reads.begin().await?;
     let row = sqlx::query("SELECT a.account_id,a.nick,a.last_login, a.last_logout,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=? AND a.is_banned=0")
         .bind(target).fetch_optional(&mut *db).await?;
     let Some(row) = row else { return Ok(Json(response("NoTargetAccountId"))); };
@@ -99,7 +101,7 @@ pub async fn inspect_user(State(state): State<AppState>, body: Bytes) -> Result<
     // The native Arena inspector selects DeckInfos[BattleType.Arena], not
     // ranking-row HeroInfos. Keep the last real Victory team across rollovers,
     // while the profile statistics above always describe the current season.
-    let saved: Option<(i64,String)> = sqlx::query_as("SELECT started,data FROM arena_runs WHERE account=? AND kind=0 AND status='complete' AND json_extract(data,'$.DuelType') IS NOT 1 AND json_array_length(data,'$.Heroes') BETWEEN 1 AND 4 ORDER BY id DESC LIMIT 1")
+    let saved: Option<(i64,String)> = sqlx::query_as("SELECT started,data FROM arena_runs WHERE account=? AND kind=0 AND status='complete' AND squad=1 ORDER BY id DESC LIMIT 1")
         .bind(target).fetch_optional(&mut *db).await?;
     let mut decks = json!({});
     if let Some((started,saved)) = saved {

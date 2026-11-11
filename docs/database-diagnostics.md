@@ -67,7 +67,8 @@ before a slow request or long hold.
 - **Read-only pool beside the writer.** `database::open_read_pool` opens
   `READER_CONNECTIONS` (4) connections with `read_only(true)`, exposed as
   `AppState.reads` (tests and tools default it to `db`). Only standalone reads
-  verified to never write use it: friend list/search, chat history, mail
+  verified to never write use it: friend list/search, user inspection, the
+  mission-category check of `sync_seen_categories`, chat history, mail
   list/count and the honor/global-mail "pending?" probes, lobby counts, the
   lobby shop catalog, and the unchanged-revision checks in the progression and
   hero-level notifiers. Many "get" endpoints write lazily (dispatch
@@ -216,6 +217,37 @@ before a slow request or long hold.
   the `last_poll` and `season` columns (index `arena_waiting_queue`).
   Rewriting `data` on each `wait_match` (up to ~1.5 MB) re-ran its JSON
   triggers. `last_poll` is excluded from the progression revision triggers.
+- **Honor (BanPick) arena (Nov 10 log).** About 72% of all held time
+  was online arena: two players duelling every ~3.5 min cost ~4.5 s of writer
+  time per match. Honor registers the whole collection, so each
+  `arena_runs` row is 1.2–1.5 MB. Fixes, with local times on the production
+  copy (production is ~5× slower):
+  - Account-scoped `OnlineMatchUid` lookups write `+account` so SQLite uses
+    `arena_online_match_status`. Without planner statistics it chose the
+    account index and JSON-parsed every run of that player (41–75 ms → 0.1 ms).
+    `arena_completion_lookup_uses_match_index` checks the plans.
+  - `battle_info_kind`, `get_match_rank`, inspection and season rewards count
+    the rows ahead of one account (`ranked`) instead of building the whole
+    leaderboard. World rankers build only the requested page.
+  - Ranking decks filter on the trigger-kept `season`/`squad` columns, never on
+    `json_extract` (a rejected friendly-duel row cost a 1.5 MB parse).
+  - Registration reuses the Honor validation snapshots (it built ~99 Heroes
+    twice) and checks ownership in one query: 156–206 ms → 40 ms.
+  - Settlement writes `MatchUid`/`GiveUp` with the result instead of a second
+    full-row `json_set`, and drops the completed row's
+    `Wait.MatchInfo.AccountInfos` (a ~1 MB copy of both registrations, only
+    served while waiting/fighting): 276 ms → under 60 ms.
+- **Hero snapshots** (`community::cached_hero`) fetch all ten equipped pieces
+  in one statement. Applying a whole-roster Hero preset computes each Hero's
+  final slots in memory and writes one row per changed Hero (it issued
+  ~3300 statements; 102 ms → 15–23 ms). Batch `break_equip` validates every
+  piece, clears preset/storage references once and grants summed materials
+  once per item (30 pieces: 31 ms → 7 ms).
+- **Reader-routed**: `inspect_user` (a read-only ~100-Hero snapshot) and the
+  `sync_seen_categories` category check (`View::load`, ~18 ms) run on the read
+  pool; the writer only records the seen categories.
+- `push_reward/get_push_reward` (polled every minute) is routed and answers
+  the same empty success without an unimplemented-endpoint warning.
 - **Hold labels.** Background holds name their task (`task:dispatch-preparation`,
   `task:battle-connection`, `task:mail-notifications`, `ws:battle`, …). Use
   `database::spawn_labelled` for new long-running tasks. The GM listener's

@@ -341,7 +341,7 @@ where S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static {
                         let mut db=s.db.acquire().await?;
                         let match_uid=number(&body,"MatchUid");
                         let id = if match_uid>0 {
-                            let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE account=? AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=?)")
+                            let valid:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=? AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=?)")
                                 .bind(account).bind(match_uid).fetch_one(&mut *db).await?;
                             if !valid {return Err(rule("WrongMember"));}
                             format!("arena:{match_uid}")

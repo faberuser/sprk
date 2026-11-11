@@ -150,7 +150,7 @@ pub(super) async fn execute(
                 .and_then(|v| v.parse::<i64>().ok())
                 .ok_or_else(|| rule("Fail"))?;
             let raw: Option<String> = sqlx::query_scalar(
-                "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND account=? AND status='battle'",
+                "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='battle'",
             )
             .bind(id)
             .bind(id)

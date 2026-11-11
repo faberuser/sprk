@@ -326,15 +326,17 @@ async fn rewards(
 }
 pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
     let mut h = hero::info(db, a, id as i32).await?;
-    for part in 1..=10 {
-        let slot = n(&h, &format!("EquipItemSlotIndex{part}"));
-        let r = sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=?")
-            .bind(a)
-            .bind(slot)
-            .fetch_optional(&mut *db)
-            .await?;
+    // All ten equipped pieces in one statement: snapshots run per Hero, and
+    // Honor/inspection build up to ~200 of them in one transaction.
+    let slots: Vec<i64> = (1..=10).map(|part| n(&h, &format!("EquipItemSlotIndex{part}"))).collect();
+    let rows = sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+        .bind(a)
+        .bind(json!(slots).to_string())
+        .fetch_all(&mut *db)
+        .await?;
+    for (part, slot) in (1..=10).zip(slots) {
+        let r = rows.iter().find(|r| r.get::<i64, _>("slot_index") == slot);
         h[format!("EquipItemInfo{part}")] = r
-            .as_ref()
             .map(|r| json!(crate::models::equip::EquipItemInfo::from_row(r)))
             .unwrap_or(Value::Null);
         if r.is_some() {

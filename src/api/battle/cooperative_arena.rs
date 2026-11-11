@@ -402,6 +402,22 @@ pub(super) mod tests {
         let plan:Vec<(i64,i64,i64,String)>=sqlx::query_as("EXPLAIN QUERY PLAN SELECT account,data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
             .bind(1_i64).fetch_all(&s.db).await.unwrap();
         assert!(plan.iter().any(|row|row.3.contains("USING INDEX arena_online_match_status")),"{plan:?}");
+        // Account-scoped lookups must not fall back to the account index, which
+        // JSON-parses every one of that player's runs (Honor rows are ~1.5 MB).
+        for sql in [
+            "SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=? AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=?)",
+            "SELECT kind FROM arena_runs WHERE +account=? AND (id=? OR json_extract(data,'$.OnlineMatchUid')=?) ORDER BY id DESC LIMIT 1",
+            "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='complete' ORDER BY id DESC LIMIT 1",
+            "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='battle'",
+            "UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?",
+        ] {
+            let explain=format!("EXPLAIN QUERY PLAN {sql}");
+            let mut query=sqlx::query_as::<_,(i64,i64,i64,String)>(&explain);
+            for _ in 0..sql.matches('?').count() {query=query.bind(1_i64);}
+            let plan=query.fetch_all(&s.db).await.unwrap();
+            assert!(plan.iter().any(|row|row.3.contains("arena_online_match_status")),"{sql}: {plan:?}");
+            assert!(!plan.iter().any(|row|row.3.contains("USING INDEX arena_retention")||row.3.contains("arena_mission_history")),"{sql}: {plan:?}");
+        }
     }
 
     #[tokio::test]
@@ -715,6 +731,20 @@ pub(super) mod tests {
         let out=call(&s,&users[1],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!(out["MatchResult"]["GiveUp"],true);
         assert_eq!(out["MatchResult"]["Canceled"],false);
+        assert_eq!(out["MatchResult"]["MatchUid"],uid);
+        // Settlement writes both players' End once, with the shared match uid.
+        let winner=call(&s,&users[0],"match/get_match_result",&format!("MatchUid={uid}")).await;
+        assert_eq!((winner["MatchResult"]["GiveUp"].clone(),winner["MatchResult"]["MatchUid"].clone()),(json!(false),json!(uid)));
+        // Completed rows drop the shared copy of both registrations, keeping their own.
+        let stored:Vec<String>=sqlx::query_scalar("SELECT data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
+            .bind(uid).fetch_all(&s.db).await.unwrap();
+        assert_eq!(stored.len(),2);
+        for raw in stored {
+            let data:Value=serde_json::from_str(&raw).unwrap();
+            assert_eq!(data["Wait"]["MatchInfo"]["AccountInfos"],json!([]));
+            assert_eq!(data["Wait"]["MatchInfo"]["Uid"],uid);
+            assert!(data["Register"]["AccountInfo"]["HeroInfos"].as_object().is_some_and(|h|!h.is_empty()));
+        }
         // Repeated HTTP cancellation must preserve the same replay.
         call(&s,&users[1],"match/cancel_match","").await;
         assert_forfeit_replay(&s,&users,0,0).await;

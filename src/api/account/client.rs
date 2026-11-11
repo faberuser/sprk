@@ -22,6 +22,16 @@ pub async fn set_push_notification(State(state): State<AppState>, body: Bytes) -
     Ok(Json(json!({"BaseResult":"Success","Result":"Success"})))
 }
 
+/// `push_reward/get_push_reward`: polled about once a minute. The server
+/// offers no push rewards, so it answers the empty success the fallback gave,
+/// without logging an unimplemented-endpoint warning per poll.
+pub async fn get_push_reward(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    if let Ok(req) = Request::parse(&body) {
+        let _ = req.account(&state);
+    }
+    Ok(Json(json!({"BaseResult":"Success","Result":"Success"})))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,6 +49,10 @@ mod tests {
         assert_eq!(ping(State(state.clone()), Bytes::from_static(b"SessionKey=gone")).await.unwrap().0["Result"], "Success");
         let push = set_push_notification(State(state.clone()), Bytes::from_static(b"SessionKey=live&PushType=GuildRaid&Status=False")).await.unwrap().0;
         assert_eq!(push["Result"], "Success");
-        assert!(set_push_notification(State(state), Bytes::from_static(b"SessionKey=gone&PushType=Event&Status=True")).await.is_err());
+        assert!(set_push_notification(State(state.clone()), Bytes::from_static(b"SessionKey=gone&PushType=Event&Status=True")).await.is_err());
+        for key in ["live", "gone"] {
+            let reward = get_push_reward(State(state.clone()), Bytes::from(format!("SessionKey={key}"))).await.unwrap().0;
+            assert_eq!(reward, json!({"BaseResult":"Success","Result":"Success"}));
+        }
     }
 }

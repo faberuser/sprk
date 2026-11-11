@@ -106,7 +106,7 @@ pub(crate) async fn charge(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
         if n(&data,"Season")!=season(s).0 {return Err(rule("MatchingAborted"));}
         if data["OnlineCharged"]!=true {
             if n(&data,"DuelType")!=1 {match_tickets(db,s,a,n(&data,"Kind"),-1).await?;}
-            sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
+            sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
                 .bind(a).bind(uid).execute(&mut *db).await?;
         }
     }
@@ -125,10 +125,11 @@ pub(crate) async fn finish(db:&mut SqliteConnection,s:&AppState,uid:i64,winner:i
             .filter(|c|native_number(c,"AccountId")==a && native_number(c,"Hp")>0 && data["Heroes"].as_array().is_some_and(|h|h.contains(&json!(native_number(c,"Index")))))
             .map(|c|json!(native_number(c,"Index"))).collect::<Vec<_>>();
         let req=Request([("ArenaType".into(),n(&data,"Kind").to_string()),("Win".into(),if a==winner{"1"}else{"0"}.into()),
-            ("PlayTime".into(),(native_number(body,"TimeMs")/1000).max(0).to_string()),("AliveHeroIndices".into(),json!(alive).to_string())].into());
+            ("PlayTime".into(),(native_number(body,"TimeMs")/1000).max(0).to_string()),("AliveHeroIndices".into(),json!(alive).to_string()),
+            ("GiveUp".into(),if give_up==Some(a){"1"}else{"0"}.into())].into());
+        // Settlement writes MatchUid and GiveUp into End with the result
+        // itself: patching them afterwards rewrote each ~1.5 MB Honor row again.
         service_result(db,s,a,&req).await?;
-        sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.End.MatchResult.MatchUid',?,'$.End.MatchResult.GiveUp',json(?)) WHERE account=? AND status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
-            .bind(uid).bind(if give_up==Some(a){"true"}else{"false"}).bind(a).bind(uid).execute(&mut *db).await?;
         if n(&data,"DuelType")==1 {
             sqlx::query("UPDATE friendly_duels SET status='complete' WHERE group_id=?")
                 .bind(n(&data,"GroupId")).execute(&mut *db).await?;

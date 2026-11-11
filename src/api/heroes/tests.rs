@@ -2323,3 +2323,30 @@ async fn ashen_costumes_sell_for_3000_rubies_and_retain_dedicated_tickets() {
         assert_eq!(balance(&s,&u,"gem").await,before-3000);
     }
 }
+
+#[tokio::test]
+async fn applying_a_preset_moves_gear_back_and_reports_every_removed_piece() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let key=s.tables.hero_shop.preset_slots.iter().find(|(_,v)|v["IsPaid"]==false).unwrap().0.clone();
+    let mut tx=s.db.begin().await.unwrap();let mut rewards=crate::api::tutorial::Rewards::default();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:2,star:0,custom:0},&mut rewards).await.unwrap();
+    tx.commit().await.unwrap();let x=rewards.equipment[0].slot_index;let y=rewards.equipment[1].slot_index;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(x).bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(hero::add_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0["Result"],"Success");
+    // After saving, the piece moves to Hero 2 (not part of the preset) and
+    // Hero 1 wears another one.
+    sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(y).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_2=? WHERE account_id=? AND hero_index=2").bind(x).bind(a).execute(&s.db).await.unwrap();
+    let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],x);
+    assert_eq!(get(&s,&u,2).await["EquipItemSlotIndex2"],0);
+    let removed=out["UnEquippedSlotIndices"].as_array().unwrap();
+    assert!(removed.contains(&serde_json::json!(x)) && removed.contains(&serde_json::json!(y)),"{out}");
+    let wearing:i64=sqlx::query_scalar("SELECT count(*) FROM heroes WHERE account_id=? AND ? IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10)")
+        .bind(a).bind(x).fetch_one(&s.db).await.unwrap();
+    assert_eq!(wearing,1,"a piece is worn by exactly one Hero");
+    let heroes=out["Heroes"].as_array().unwrap();
+    assert_eq!(heroes.iter().find(|h|h["HeroIndex"]==1).unwrap()["EquipItemSlotIndex1"],x);
+}
