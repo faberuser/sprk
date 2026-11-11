@@ -549,19 +549,20 @@ installs and verifies it right after shop tags.
 Two client-only groups are added to `NewPayShopGroupTable` at runtime, before the
 sidebar is built, so selection, scrolling and the product list stay native:
 
-- **Search** is the first top-level tab. Hot & New is hidden (its offers remain
-  searchable). In Search the tag bar becomes a search field. Words are folded
-  like the selector-ticket search (case, spaces, punctuation, accents), and every
-  word must match. Results are ordered by tier: product name, then contained item
-  and package-content names (one level of `PackageItemHelper` expansion, plus
-  currencies), then product/item descriptions. Within a tier, native order is kept.
-  If nothing matches exactly, a typo-tolerant pass runs over names and contents.
-  Only products whose category is enabled in the shop are searched.
-- **Bookmarks** is Package's first child. The lobby shop button
-  (`PayShopManagement.OpenNewPayShop()`, previously `"Hero"`) opens it. Explicit
-  links such as hero, Ruby and Gold shop shortcuts are unchanged. The group is
-  enabled only while the sidebar is built, so clicking Package still opens its
-  usual first child. Its search field filters the bookmarks.
+- **Bookmarks** and **Search** are Package's first two children, in that order.
+  Bookmarks is what clicking Package opens, and the lobby shop button
+  (`PayShopManagement.OpenNewPayShop()`, previously `"Hero"`) opens it as well.
+  Explicit links such as hero, Ruby and Gold shop shortcuts are unchanged.
+  Hot & New is hidden (its offers remain searchable). If a table has no Package
+  tab, both become top-level tabs and Search draws its own magnifier icon.
+- In both tabs the tag bar becomes a search field. The native bar and its screen-anchored background stay live. Only the tag pills, View All, the TAG label and the frame's click area are disabled, by component, and restored on leaving. The field re-fits to the frame whenever it moves or resizes. In Bookmarks it filters the
+  bookmarks. In Search, words are folded like the selector-ticket search (case,
+  spaces, punctuation, accents), and every word must match. Results are ordered
+  by tier: product name, then contained item and package-content names (one level
+  of `PackageItemHelper` expansion, plus currencies), then product/item
+  descriptions. Within a tier, native order is kept. If nothing matches exactly,
+  a typo-tolerant pass runs over names and contents. Only products whose category
+  is enabled in the shop are searched.
 
 Every `PayShopProductComponent` card and the `PayShopProductInfoPopup` image
 get a star toggle (`Common_Star`). Card stars keep drag-scrolling and take
@@ -569,9 +570,7 @@ the click before the card. Card and popup stars stay in sync. Bookmarks are
 product indices stored per account on this device (`LocalAccountString`
 `SprkShopBookmarks`). They are not synced through the server. Unbookmarking inside
 Bookmarks leaves the card visible (hollow star) until the list is rebuilt. Use
-this to undo by mistake. The Search tab icon is a small magnifier texture drawn at
-runtime, because no shop atlas has one. Pooled sidebar buttons restore the native
-icon when reused.
+this to undo by mistake. Pooled sidebar buttons restore the native icon when reused.
 
 ### King's Pass artifacts in selectors
 

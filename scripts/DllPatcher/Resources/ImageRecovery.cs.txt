@@ -427,7 +427,7 @@ public static class SprkImageRecovery
                     throw new InvalidOperationException("xdd missing from native Others index");
                 loader.SetAssetPath(UIHelper.GetItemIconPath(item.Code), (UIHelper.EAssetTextureAssign)4);
                 var gift = loader.UiTex.mainTexture as Texture2D;
-                if (gift == null || gift.name != "xdd" || gift.width != 44 || gift.height != 44)
+                if (gift == null || gift.name != "xdd" || gift.width != 96 || gift.height != 96)
                     throw new InvalidOperationException("xdd icon did not bind through native loader");
                 loader.SetAssetPath("", (UIHelper.EAssetTextureAssign)4);
                 if (loader.UiTex.mainTexture != null) throw new InvalidOperationException("Pooled icon retained xdd art");

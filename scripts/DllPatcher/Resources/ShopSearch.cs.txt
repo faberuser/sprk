@@ -18,8 +18,8 @@ using Math = System.Math;
 
 // Special Shop search and bookmarks. Two client-only shop groups are added to
 // the native category table so the sidebar, selection and product list stay
-// native: "Search" as the first tab (Hot & New is hidden) and "Bookmarks" as
-// Package's first child, which the lobby shop button opens.
+// native: Package's first children are "Bookmarks" (opened by the lobby shop
+// button and by clicking Package) and "Search". Hot & New is hidden.
 public static class SprkShopSearch {
     public const string SearchKey="SprkSearch",BookmarkKey="SprkBookmark",ParentKey="Package";
     public const string SearchName="Search",BookmarkName="Bookmarks";
@@ -181,20 +181,24 @@ public static class SprkShopSearch {
         var all=container.GetAllData();
         if(all==null)return;
         var native=all.Where(g=>g!=null && !IsVirtual(g.PayShopCategoryType)).ToList();
-        // Hot & New is hidden; Search becomes the first top-level tab.
+        // Hot & New is hidden from the sidebar.
         string hotKey=NewPayShopCategoryType.HotNew.ToString();
         foreach(var g in native.Where(g=>g.PayShopCategoryType==hotKey))g.IsEnable=false;
         var hotCached=container.GetData(hotKey);
         if(hotCached!=null)hotCached.IsEnable=false;
-        var roots=native.Where(g=>String.IsNullOrEmpty(g.ParentCategory) && g.PayShopCategoryType!=hotKey).ToList();
-        int searchSort=roots.Count==0?0:roots.Min(g=>g.Sort)-1;
-        var children=native.Where(g=>g.ParentCategory==ParentKey).ToList();
-        int bookmarkSort=children.Count==0?0:children.Min(g=>g.Sort)-1;
-        searchGroup=searchGroup??Group(SearchKey,SearchName,null,searchSort);searchGroup.Sort=searchSort;
-        bookmarkGroup=bookmarkGroup??Group(BookmarkKey,BookmarkName,ParentKey,bookmarkSort);bookmarkGroup.Sort=bookmarkSort;
+        // Package's first two children: Bookmarks, then Search. Being first,
+        // Bookmarks is also what a click on Package opens.
         bool hasParent=native.Any(g=>g.PayShopCategoryType==ParentKey && String.IsNullOrEmpty(g.ParentCategory));
-        bookmarkGroup.ParentCategory=hasParent?ParentKey:null;
-        if(!hasParent)bookmarkGroup.Sort=searchSort;
+        var siblings=hasParent?native.Where(g=>g.ParentCategory==ParentKey).ToList()
+            :native.Where(g=>String.IsNullOrEmpty(g.ParentCategory) && g.PayShopCategoryType!=hotKey).ToList();
+        int first=siblings.Count==0?0:siblings.Min(g=>g.Sort);
+        string parent=hasParent?ParentKey:null;
+        bookmarkGroup=bookmarkGroup??Group(BookmarkKey,BookmarkName,parent,first-2);
+        searchGroup=searchGroup??Group(SearchKey,SearchName,parent,first-1);
+        bookmarkGroup.ParentCategory=parent;bookmarkGroup.Sort=first-2;bookmarkGroup.IsEnable=true;
+        searchGroup.ParentCategory=parent;searchGroup.Sort=first-1;searchGroup.IsEnable=true;
+        foreach(var g in new[]{bookmarkGroup,searchGroup})
+            g.EParentCategory=parent==null?NewPayShopCategoryType.None:NewPayShopGroupDataContainer.StringToCategoryType(parent);
         var list=new List<NewPayShopGroupData>(native){searchGroup,bookmarkGroup};
         var baseList=(JitRef<List<NewPayShopGroupData>>)typeof(JitDataContainer<NewPayShopGroupData>).GetProperty("BaseList",Any).GetValue(container,null);
         baseList.JsonLoad_Set(list);
@@ -209,16 +213,11 @@ public static class SprkShopSearch {
         try {
             textCache.Clear();
             Inject(GameRoot.Instance.NewPayShopGroupDataContainer);
-            // Enabled while the native sidebar creates its buttons.
-            if(bookmarkGroup!=null)bookmarkGroup.IsEnable=true;
         } catch(Exception e) { Debug.LogException(e); }
     }
     // End of PayShop.Open.
     public static void AfterOpen(ShopWindow shop) {
         try {
-            // Disabled afterwards so clicking Package still opens its usual
-            // first child and flag refreshes skip it. Selection ignores IsEnable.
-            if(bookmarkGroup!=null)bookmarkGroup.IsEnable=false;
             var bar=shop.GetComponent<SprkShopSearchBar>();
             if(bar==null)bar=shop.gameObject.AddComponent<SprkShopSearchBar>();
             bar.Bind(shop);
@@ -227,7 +226,8 @@ public static class SprkShopSearch {
     // End of PayShopCategoryComponent.Open: name and icon for the added tabs.
     public static void DecorateCategory(PayShopCategoryComponent component,NewPayShopGroupData data) {
         try {
-            SprkShopIcons.ApplyCategoryIcon(component,data!=null && data.PayShopCategoryType==SearchKey);
+            // Only top-level buttons have an icon (Search is top-level only without a Package tab).
+            SprkShopIcons.ApplyCategoryIcon(component,data!=null && data.PayShopCategoryType==SearchKey && String.IsNullOrEmpty(data.ParentCategory));
             if(data==null || !IsVirtual(data.PayShopCategoryType))return;
             component.SetName(data.PayShopCategoryType==SearchKey?SearchName:BookmarkName);
         } catch(Exception e) { Debug.LogException(e); }
@@ -439,9 +439,15 @@ public sealed class SprkShopStar : MonoBehaviour {
 public sealed class SprkShopSearchBar : MonoBehaviour {
     static readonly FieldInfo CurrentField=typeof(ShopWindow).GetField("_currentCategory",BindingFlags.Instance|BindingFlags.NonPublic);
     ShopWindow shop;
-    Transform tagRoot;
+    Transform tagRoot;UISprite frame;UILabel tagLabel;
     GameObject bar;UISprite field;UIInput input;UILabel inputLabel,title,count,hint;GameObject clear;
     string shown;bool silent;float pending=-1f;bool styled;
+    Vector3 laidOut=new Vector3(float.NaN,0f,0f);
+    // Native tag-bar parts switched off while Search/Bookmarks is shown. Only
+    // component enabled flags are touched (native code toggles GameObjects),
+    // and exactly the ones switched off here are switched back on.
+    readonly HashSet<Behaviour> hiddenWidgets=new HashSet<Behaviour>();
+    readonly HashSet<Collider> hiddenColliders=new HashSet<Collider>();
 
     public void Bind(ShopWindow window) { shop=window;shown=null; }
     string Current { get { return CurrentField.GetValue(shop) as string ?? ""; } }
@@ -450,36 +456,25 @@ public sealed class SprkShopSearchBar : MonoBehaviour {
         var tagList=shop.PayShopTagList;
         tagRoot=tagList.transform.Find("Root");
         if(tagRoot==null)return;
-        var frame=tagRoot.Find("Sprite_TagFrame")?.GetComponent<UISprite>();
-        var tagLabel=tagRoot.GetComponentsInChildren<UILabel>(true).FirstOrDefault(l=>l.name.Contains("TagLabel"));
+        frame=tagRoot.Find("Sprite_TagFrame")?.GetComponent<UISprite>();
+        tagLabel=tagRoot.GetComponentsInChildren<UILabel>(true).FirstOrDefault(l=>l.name.Contains("TagLabel"));
         if(frame==null || tagLabel==null)return;
+        // Inside the native bar, so its live background (anchored to the
+        // screen) stays visible behind the field at every resolution.
         bar=new GameObject("SprkShopSearchBar");bar.layer=tagRoot.gameObject.layer;
-        bar.transform.SetParent(tagRoot.parent,false);
-        bar.transform.localPosition=tagRoot.localPosition;bar.transform.localScale=tagRoot.localScale;
-        var back=NGUITools.AddWidget<UISprite>(bar);
-        back.name="Frame";back.atlas=frame.atlas;back.spriteName=frame.spriteName;back.type=frame.type;back.pivot=frame.pivot;
-        back.width=frame.width;back.height=frame.height;back.depth=frame.depth;back.color=frame.color;
-        back.transform.localPosition=frame.transform.localPosition;
+        bar.transform.SetParent(tagRoot,false);
         title=NGUITools.AddWidget<UILabel>(bar);
-        Copy(tagLabel,title);title.transform.localPosition=tagLabel.transform.localPosition;title.name="Title";
-        // Frame bounds in bar space.
-        var corners=frame.localCorners;var offset=frame.transform.localPosition;
-        float left=corners[0].x+offset.x,right=corners[2].x+offset.x,mid=(corners[0].y+corners[2].y)*.5f+offset.y;
-        float fieldLeft=tagLabel.transform.localPosition.x+(tagLabel.pivot==UIWidget.Pivot.Left?tagLabel.width:tagLabel.width*.5f)+110f;
-        float fieldRight=right-26f;
-        int width=Math.Max(200,(int)(fieldRight-fieldLeft));
+        Copy(tagLabel,title);title.name="Title";
         var fieldGo=new GameObject("Input");fieldGo.layer=bar.layer;fieldGo.transform.SetParent(bar.transform,false);
-        fieldGo.transform.localPosition=new Vector3(fieldLeft+width*.5f,mid,0f);
         field=fieldGo.AddComponent<UISprite>();
         field.atlas=frame.atlas;field.spriteName=frame.spriteName;field.type=UIBasicSprite.Type.Sliced;
-        field.width=width;field.height=60;field.depth=frame.depth+2;
-        var collider=fieldGo.AddComponent<BoxCollider>();collider.size=new Vector3(width,60f,1f);
+        field.width=400;field.height=60;field.depth=frame.depth+2;
+        fieldGo.AddComponent<BoxCollider>();
         inputLabel=NGUITools.AddWidget<UILabel>(fieldGo);inputLabel.name="Label_Search";
         Copy(tagLabel,inputLabel);
         inputLabel.pivot=UIWidget.Pivot.Left;inputLabel.alignment=NGUIText.Alignment.Left;
         inputLabel.overflowMethod=UILabel.Overflow.ClampContent;inputLabel.supportEncoding=false;
-        inputLabel.width=width-260;inputLabel.height=44;inputLabel.depth=field.depth+1;
-        inputLabel.transform.localPosition=new Vector3(-width*.5f+30f,0f,0f);
+        inputLabel.height=44;inputLabel.depth=field.depth+1;
         input=fieldGo.AddComponent<UIInput>();
         input.label=inputLabel;input.characterLimit=40;
         input.inputType=UIInput.InputType.Standard;input.validation=UIInput.Validation.None;
@@ -494,9 +489,7 @@ public sealed class SprkShopSearchBar : MonoBehaviour {
         count.pivot=UIWidget.Pivot.Right;count.alignment=NGUIText.Alignment.Right;
         count.width=180;count.height=40;count.depth=field.depth+1;
         count.color=new Color(tagLabel.color.r,tagLabel.color.g,tagLabel.color.b,.7f);
-        count.transform.localPosition=new Vector3(width*.5f-80f,0f,0f);
         clear=new GameObject("Button_Clear");clear.layer=bar.layer;clear.transform.SetParent(fieldGo.transform,false);
-        clear.transform.localPosition=new Vector3(width*.5f-38f,0f,0f);
         UIAtlas closeAtlas;string closeSprite;
         if(SprkShopIcons.Find(new[]{"PayShop_Tag_Close_Icon","Common_Close"},out closeAtlas,out closeSprite)) {
             var x=clear.AddComponent<UISprite>();x.atlas=closeAtlas;x.spriteName=closeSprite;x.MakePixelPerfect();x.depth=field.depth+2;
@@ -515,6 +508,54 @@ public sealed class SprkShopSearchBar : MonoBehaviour {
         hint.transform.localPosition=drag!=null?drag.localPosition:Vector3.zero;
         bar.SetActive(false);hint.gameObject.SetActive(false);
     }
+    // Fit the title and field to the live native frame (re-run when it moves or resizes).
+    void Layout() {
+        var corners=frame.worldCorners;
+        Vector3 bl=tagRoot.InverseTransformPoint(corners[0]),tr=tagRoot.InverseTransformPoint(corners[2]);
+        var key=new Vector3(bl.x,tr.x,(bl.y+tr.y)*.5f);
+        if(key==laidOut)return;
+        laidOut=key;
+        float mid=key.z;
+        Vector3 labelPos=tagRoot.InverseTransformPoint(tagLabel.transform.position);
+        title.transform.localPosition=labelPos;
+        float labelRight=labelPos.x+(tagLabel.pivot==UIWidget.Pivot.Left?tagLabel.width:tagLabel.pivot==UIWidget.Pivot.Right?0f:tagLabel.width*.5f);
+        float fieldLeft=labelRight+110f,fieldRight=tr.x-26f;
+        int width=Math.Max(200,(int)(fieldRight-fieldLeft));
+        field.transform.localPosition=new Vector3(fieldLeft+width*.5f,mid,0f);
+        field.width=width;
+        field.GetComponent<BoxCollider>().size=new Vector3(width,field.height,1f);
+        inputLabel.width=Math.Max(80,width-260);
+        inputLabel.transform.localPosition=new Vector3(-width*.5f+30f,0f,0f);
+        count.transform.localPosition=new Vector3(width*.5f-80f,0f,0f);
+        clear.transform.localPosition=new Vector3(width*.5f-38f,0f,0f);
+    }
+    IEnumerable<Transform> Content() {
+        var tagList=shop.PayShopTagList;
+        if(tagList.HotTagRoot!=null)yield return tagList.HotTagRoot.transform;
+        foreach(var t in new Component[]{tagList.HotTagPos,tagList.SelectedTagPos,tagList.AllTagPos,tagList.Sprite_OpenArrow})
+            if(t!=null)yield return t.transform;
+        var all=tagRoot.Find("OpenAllTagButton");
+        if(all!=null)yield return all;
+        yield return tagLabel.transform;
+    }
+    void HideNative() {
+        foreach(var root in Content()) {
+            if(root==null || root.IsChildOf(bar.transform))continue;
+            foreach(var w in root.GetComponentsInChildren<UIWidget>(true))
+                if(w.enabled){w.enabled=false;hiddenWidgets.Add(w);}
+            foreach(var c in root.GetComponentsInChildren<Collider>(true))
+                if(c.enabled){c.enabled=false;hiddenColliders.Add(c);}
+        }
+        // The frame stays visible but must not open the tag panel.
+        var hit=frame.GetComponent<Collider>();
+        if(hit!=null && hit.enabled){hit.enabled=false;hiddenColliders.Add(hit);}
+    }
+    void RestoreNative() {
+        foreach(var w in hiddenWidgets)if(w!=null)w.enabled=true;
+        foreach(var c in hiddenColliders)if(c!=null)c.enabled=true;
+        hiddenWidgets.Clear();hiddenColliders.Clear();
+    }
+    void OnDisable() { RestoreNative(); }
     static void Copy(UILabel from,UILabel to) {
         to.bitmapFont=from.bitmapFont;to.trueTypeFont=from.trueTypeFont;to.fontSize=from.fontSize;to.fontStyle=from.fontStyle;
         to.color=from.color;to.effectStyle=from.effectStyle;to.effectColor=from.effectColor;to.effectDistance=from.effectDistance;
@@ -561,9 +602,9 @@ public sealed class SprkShopSearchBar : MonoBehaviour {
         if(bar==null){Build();if(bar==null)return;}
         var category=Current;
         bool on=SprkShopSearch.IsVirtual(category);
-        if(on && tagRoot.gameObject.activeSelf)tagRoot.gameObject.SetActive(false);
+        if(on)HideNative();
+        else if(hiddenWidgets.Count>0 || hiddenColliders.Count>0)RestoreNative();
         if(category!=shown) {
-            if(!on && SprkShopSearch.IsVirtual(shown))tagRoot.gameObject.SetActive(true);
             bar.SetActive(on);
             if(on) {
                 bool search=category==SprkShopSearch.SearchKey;
@@ -577,6 +618,7 @@ public sealed class SprkShopSearchBar : MonoBehaviour {
         }
         if(!on){if(hint.gameObject.activeSelf)hint.gameObject.SetActive(false);return;}
         MatchStyle();
+        Layout();
         if(pending>=0f && Time.unscaledTime>=pending)Apply();
         bool searchView=category==SprkShopSearch.SearchKey;
         bool hasQuery=SprkShopSearch.Query(category).Trim().Length>0;
