@@ -81,14 +81,14 @@ async fn advance(s:&AppState,run:&mut Run)->Result<()> {
 }
 async fn complete(s:&AppState,run:&mut Run)->Result<()> {
     let mut accounts=run.payload["MatchInfo"]["AccountInfos"].clone();
-    let mut db=s.db.begin().await?;
+    let mut db=crate::database::begin(&s.db).await?;
     // Persist the exact four combat heroes before exposing the loading phase.
     for (side,a) in run.members.iter().enumerate() {
         let heroes=indices(&run.payload["Draft"]["Accounts"][side]["PickHeroIndices"]);
         if heroes.len()!=4 {return Err(rule("InvalidHero"));}
         accounts[side]["HeroInfos"].as_object_mut().unwrap().retain(|id,_|id.parse::<i64>().is_ok_and(|id|heroes.contains(&id)));
         accounts[side]["LeaderHeroIndex"]=json!(heroes[0]);
-        sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.Heroes',json(?),'$.Leader',?) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
+        crate::db::query("UPDATE arena_runs SET data=sprk_json_set(sprk_json_set(data,'$.Heroes',($1)::jsonb),'$.Leader',$2) WHERE +account=$3 AND status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$4")
             .bind(json!(heroes).to_string()).bind(heroes[0]).bind(a).bind(number(&run.payload,"MatchUid")).execute(&mut *db).await?;
     }
     db.commit().await?;
@@ -175,7 +175,7 @@ mod tests {
         let users=vec![login(&s,"honor-a").await,login(&s,"honor-b").await];
         for u in &users {
             for hero in 1..=16 {
-                sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+                crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                     .bind(number(&u["UserInfo"],"AccountId")).bind(hero).bind(hero).execute(&s.db).await.unwrap();
             }
         }
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(out["MatchInfo"]["ArenaType"],"BanPick");
         // Collections live in arena_snapshots; the run JSON stays small.
         let uid=number(&out["MatchInfo"],"Uid");
-        let rows:Vec<String>=sqlx::query_scalar("SELECT r.data FROM arena_runs r JOIN arena_snapshots p ON p.run=r.id WHERE json_extract(r.data,'$.OnlineMatchUid')=?")
+        let rows:Vec<String>=crate::db::query_scalar("SELECT r.data FROM arena_runs r JOIN arena_snapshots p ON p.run=r.id WHERE sprk_json_int(r.data,'$.OnlineMatchUid')=$1")
             .bind(uid).fetch_all(&s.db).await.unwrap();
         assert_eq!(rows.len(),2);
         for raw in &rows {
@@ -203,7 +203,7 @@ mod tests {
             assert!(data["Register"]["AccountInfo"].is_null(),"{data}");
             assert_eq!(data["Wait"]["MatchInfo"]["AccountInfos"],json!([]));
         }
-        let heroes:Vec<i64>=sqlx::query_scalar("SELECT (SELECT COUNT(*) FROM json_each(data,'$.HeroInfos')) FROM arena_snapshots").fetch_all(&s.db).await.unwrap();
+        let heroes:Vec<i64>=crate::db::query_scalar("SELECT (SELECT COUNT(*) FROM sprk_json_each(data,'$.HeroInfos')) FROM arena_snapshots").fetch_all(&s.db).await.unwrap();
         assert_eq!(heroes,vec![16,16]);
         // The opponent's poll and a repeated poll rebuild the same full MatchInfo.
         for u in users.iter().rev() {
@@ -219,7 +219,7 @@ mod tests {
         out
     }
     async fn balance(s:&AppState,u:&Value)->(i64,i64) {
-        sqlx::query_as("SELECT sword,sword2 FROM user_info WHERE account_id=?")
+        crate::db::query_as("SELECT sword,sword2 FROM user_info WHERE account_id=$1")
             .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap()
     }
     async fn draft(s:&AppState,users:&[Value],matched:&Value)->(crate::websocket::tests::Server,Vec<Client>) {
@@ -276,7 +276,7 @@ mod tests {
         let before=[balance(&s,&users[0]).await,balance(&s,&users[1]).await];
         let mut victory_coins=Vec::new();
         for u in &users {
-            victory_coins.push(sqlx::query_scalar::<_,i64>("SELECT pvp_coin FROM user_info WHERE account_id=?")
+            victory_coins.push(crate::db::query_scalar::<i64>("SELECT pvp_coin FROM user_info WHERE account_id=$1")
                 .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap());
         }
         let (_server,mut clients)=draft(&s,&users,&matched).await;
@@ -306,15 +306,15 @@ mod tests {
             let medals=if i==0 {50} else {10};
             assert_eq!(out["MatchResult"]["CurrencyResults"][0]["CurrencyType"],"GloryPoint");
             assert_eq!(out["MatchResult"]["CurrencyResults"][0]["AddValue"],medals);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM community_state WHERE owner=$1 AND kind='honor_week'")
                 .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),1);
             // Duplicate worker packets and result polling must never mint twice.
             let repeated=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
             assert_eq!(repeated["MatchResult"]["CurrencyResults"],out["MatchResult"]["CurrencyResults"]);
             let account=number(&u["UserInfo"],"AccountId");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT value FROM battle_currencies WHERE account=$1 AND kind='GloryPoint'")
                 .bind(account).fetch_one(&s.db).await.unwrap(),medals);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT pvp_coin FROM user_info WHERE account_id=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT pvp_coin FROM user_info WHERE account_id=$1")
                 .bind(account).fetch_one(&s.db).await.unwrap(),victory_coins[i]);
             let logged=login(&s,if i==0 {"honor-a"}else{"honor-b"}).await;
             assert_eq!(logged["UserInfo"]["GloryPoint"],medals);
@@ -328,9 +328,9 @@ mod tests {
         let (s,users,mut worker)=fixture().await;
         let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");
         let group=a+crate::api::community::duel::HONOR_DUEL_GROUP_OFFSET;
-        sqlx::query("INSERT INTO friendly_duels VALUES(?,?,?,'accepted',?)").bind(group).bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO friendly_duels VALUES($1,$2,$3,'accepted',$4)").bind(group).bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
         // No Honor tickets at all: a friendly duel neither requires nor spends them.
-        sqlx::query("UPDATE user_info SET sword2=0 WHERE account_id IN (?,?)").bind(a).bind(b).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET sword2=0 WHERE account_id IN ($1,$2)").bind(a).bind(b).execute(&s.db).await.unwrap();
         let heroes=json!((1..=16).collect::<Vec<_>>()).to_string();
         // The GroupId names the league: an Honor invitation cannot enter Victory and vice versa.
         assert_eq!(call(&s,&users[0],"match/register_match",&format!("ArenaType=Normal&DuelType=Friendly&GroupId={group}&HeroIndices=[1]&LeaderHeroIndex=1")).await["Result"],"ContentsDisabled");
@@ -360,18 +360,18 @@ mod tests {
             assert_eq!(out["MatchResult"]["GainedMatchScore"],0);
             assert_eq!(out["MatchResult"]["CurrencyResults"],json!([]));
             assert_eq!(out["BattleBanPickInfo"]["MatchScore"],1000);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM community_state WHERE owner=$1 AND kind='honor_week'")
                 .bind(account).fetch_one(&s.db).await.unwrap(),0,"no Honor weekly reward progress");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'),0)")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='GloryPoint'),0)")
                 .bind(account).fetch_one(&s.db).await.unwrap(),0,"no Honor medals");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM service_replays WHERE owner=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM service_replays WHERE owner=$1")
                 .bind(account).fetch_one(&s.db).await.unwrap(),0,"no battle record");
             // Mission history ignores DuelType 1 runs (see mission_history_tests).
-            let summary:String=sqlx::query_scalar("SELECT mission_summary FROM arena_runs WHERE account=? AND status='complete'")
+            let summary:String=crate::db::query_scalar("SELECT mission_summary FROM arena_runs WHERE account=$1 AND status='complete'")
                 .bind(account).fetch_one(&s.db).await.unwrap();
             assert_eq!(serde_json::from_str::<Value>(&summary).unwrap()["DuelType"],1);
         }
-        assert_eq!(sqlx::query_scalar::<_,String>("SELECT status FROM friendly_duels WHERE group_id=?").bind(group).fetch_one(&s.db).await.unwrap(),"complete");
+        assert_eq!(crate::db::query_scalar::<String>("SELECT status FROM friendly_duels WHERE group_id=$1").bind(group).fetch_one(&s.db).await.unwrap(),"complete");
     }
     #[tokio::test]
     async fn honor_combat_forfeits_retain_replays_for_both_players() {
@@ -404,7 +404,7 @@ mod tests {
         let before=balance(&s,&users[0]).await;
         clients[0].send("BattleBanPickGiveUpReq",json!({"RequestId":3})).await;
         assert_eq!(clients[0].recv("BattleBanPickGiveUpRes").await["Result"],"Success");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM service_replays").fetch_one(&s.db).await.unwrap(),0,
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM service_replays").fetch_one(&s.db).await.unwrap(),0,
             "Draft forfeits have no combat to replay");
         clients[0].recv("BattleResultNot").await;clients[1].recv("BattleResultNot").await;
         assert_eq!(balance(&s,&users[0]).await,(before.0,before.1-1));
@@ -440,10 +440,10 @@ mod tests {
             assert_eq!(balance(&s,u).await,before[i]);
             let out=call(&s,u,"match/get_match_result",&format!("MatchUid={uid}")).await;
             assert_eq!(out["MatchResult"]["Canceled"],true);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM community_state WHERE owner=? AND kind='honor_week'")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM community_state WHERE owner=$1 AND kind='honor_week'")
                 .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),0);
             assert!(out["MatchResult"]["CurrencyResults"].as_array().unwrap().is_empty());
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='GloryPoint'),0)")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='GloryPoint'),0)")
                 .bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap(),0);
             assert_eq!(out["BattleBanPickInfo"]["MatchScore"],1000);
         }
@@ -456,7 +456,7 @@ mod tests {
         impl Drop for Native {fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
         let (mut s,users,_rx)=fixture().await;
         *s.conquest.worker.write().await=None;
-        sqlx::query("UPDATE heroes SET level=1,star=1 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=1,star=1 WHERE account_id=$1")
             .bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();
         let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let port=listener.local_addr().unwrap().port();

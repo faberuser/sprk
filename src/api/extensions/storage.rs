@@ -12,7 +12,7 @@ fn blank(index: i64) -> Value {
     v
 }
 pub(super) async fn initialize(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<()> {
@@ -32,7 +32,7 @@ pub(super) async fn initialize(
     }
     Ok(())
 }
-pub(super) async fn reconcile(db: &mut SqliteConnection, account: i64, v: &mut Value) -> Result<BTreeSet<i64>> {
+pub(super) async fn reconcile(db: &mut PgConnection, account: i64, v: &mut Value) -> Result<BTreeSet<i64>> {
     let mut missing = BTreeSet::new();
     for part in 1..=10 {
         let key = format!("EquipItemSlotIndex{part}");
@@ -40,7 +40,7 @@ pub(super) async fn reconcile(db: &mut SqliteConnection, account: i64, v: &mut V
         if slot <= 0 { continue; }
         // A preset is a reference, not an ownership lock. Keep references to
         // chest gear, but remove deleted/foreign gear when the preset is used.
-        let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=?)")
+        let owned: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=$1 AND slot_index=$2)")
             .bind(account).bind(slot).fetch_one(&mut *db).await?;
         if !owned {
             v[key] = json!(0);
@@ -52,7 +52,7 @@ pub(super) async fn reconcile(db: &mut SqliteConnection, account: i64, v: &mut V
     }
     Ok(missing)
 }
-pub(super) async fn preset(db: &mut SqliteConnection, account: i64, v: &Value) -> Result<Value> {
+pub(super) async fn preset(db: &mut PgConnection, account: i64, v: &Value) -> Result<Value> {
     let mut v = v.clone();
     reconcile(db, account, &mut v).await?;
     let mut slots = vec![];
@@ -72,7 +72,7 @@ pub(super) async fn preset(db: &mut SqliteConnection, account: i64, v: &Value) -
     )
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -204,13 +204,13 @@ pub(super) async fn execute(
                 if slot > 0 {
                     for p in 1..=10 {
                         let col = format!("equip_item_slot_index_{p}");
-                        let owners:Vec<i32>=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT hero_index FROM heroes WHERE account_id=? AND hero_index<>? AND {col}=?"))).bind(account).bind(hero_id).bind(slot).fetch_all(&mut *db).await?;
+                        let owners:Vec<i32>=crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT hero_index FROM heroes WHERE account_id=$1 AND hero_index<>$2 AND {col}=$3"))).bind(account).bind(hero_id).bind(slot).fetch_all(&mut *db).await?;
                         if let Some(owner) = owners.first() {
                             old_hero = *owner;
                             old_removed.push(slot);
                         }
-                        sqlx::query(sqlx::AssertSqlSafe(format!(
-                            "UPDATE heroes SET {col}=0 WHERE account_id=? AND {col}=?"
+                        crate::db::query(sqlx::AssertSqlSafe(format!(
+                            "UPDATE heroes SET {col}=0 WHERE account_id=$1 AND {col}=$2"
                         )))
                         .bind(account)
                         .bind(slot)
@@ -219,7 +219,7 @@ pub(super) async fn execute(
                     }
                     equipped.push(slot);
                 }
-                sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?"))).bind(slot).bind(account).bind(hero_id).execute(&mut *db).await?;
+                crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=$1 WHERE account_id=$2 AND hero_index=$3"))).bind(slot).bind(account).bind(hero_id).execute(&mut *db).await?;
             }
             v["LinkInfo"] = json!(json!([hero_id]).to_string());
             out["NewHeroIndex"] = json!(hero_id);

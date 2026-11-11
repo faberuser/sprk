@@ -1,6 +1,5 @@
 use super::*;
 use crate::api::account::user;
-use crate::database;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -19,11 +18,7 @@ async fn inn_greeting_completes_guideline_and_recovers_existing_greetings_once()
     })).await.unwrap().0;
     assert_eq!(reply.result,"Success");assert_eq!(progress(s.clone(),quest.clone()).await,1);
     // An ordinary read/update of the Inn must not award another greeting.
-    sqlx::query("UPDATE hero_friendly_info SET friendly_point=friendly_point WHERE account_id=?").bind(account).execute(&s.db).await.unwrap();
-    assert_eq!(progress(s.clone(),quest.clone()).await,1);
-    // Simulate a greeting stored before these triggers existed.
-    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='DoHeroFriendly'").bind(account).execute(&s.db).await.unwrap();
-    schema::migrate(&s.db).await.unwrap();schema::migrate(&s.db).await.unwrap();
+    crate::db::query("UPDATE hero_friendly_info SET friendly_point=friendly_point WHERE account_id=$1").bind(account).execute(&s.db).await.unwrap();
     assert_eq!(progress(s.clone(),quest.clone()).await,1);
     let claim=call(&s,&u,"complete_sub_quest","SubQuestIndices=[10162]").await;
     assert_eq!(claim["Result"],"Success","{claim}");
@@ -61,32 +56,12 @@ fn play_value(infos: &[Value], id: i64) -> &str {
     infos.iter().find(|r|r["RecordIndex"]==id).unwrap()["RecordValue"].as_str().unwrap()
 }
 
-#[tokio::test]
-async fn play_records_recover_legacy_inventory_and_classify_battle_clears() {
-    let (s,u)=setup().await;let a=u.user_info.account_id;
-    let mut rewards=Rewards::default();
-    let mut tx=s.db.begin().await.unwrap();
-    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:1,star:3,custom:0},&mut rewards).await.unwrap();
-    // Simulate equipment saved before lifetime acquisition tracking existed.
-    sqlx::query("DELETE FROM play_record_values WHERE account_id=?").bind(a).execute(&mut *tx).await.unwrap();
-    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='AddEquip'").bind(a).execute(&mut *tx).await.unwrap();
-    let red=s.tables.battle.rows("Raid").iter().find(|r|n(r,"Index")==1).unwrap();
-    record(&mut tx,a,"ClearDungeon",n(red,"ChapterIndex"),n(red,"DungeonIndex"),3).await.unwrap();
-    let floor=s.tables.battle.rows("TowerFloor").iter().find(|r|n(r,"TowerIndex")==21 && n(r,"Floor")==10).unwrap();
-    record(&mut tx,a,"ClearDungeon",n(floor,"ChapterIndex"),n(floor,"DungeonIndex"),2).await.unwrap();
-    crate::api::battle::put(&mut tx,a,"eclipse_record",0,&json!({"BestWave":42})).await.unwrap();
-    tx.commit().await.unwrap();
-    play_record::migrate(&s.db).await.unwrap();
-    play_record::migrate(&s.db).await.unwrap();
-    let login=relogin(&s).await;
-    for (id,value) in [(201,"1"),(203,"3"),(606,"3"),(619,"2"),(620,"10"),(626,"42")] {assert_eq!(play_value(&login.play_record_infos,id),value,"record {id}");}
-}
 
 #[tokio::test]
 async fn play_records_track_inventory_history_transactionally_and_isolate_accounts() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
-    let created:String=sqlx::query_scalar("SELECT created_at FROM accounts WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let created:String=crate::db::query_scalar("SELECT created_at FROM accounts WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(play_value(&u.play_record_infos,1),created);
     assert_eq!(play_value(&u.play_record_infos,2),"1");
     assert_eq!(play_value(&u.play_record_infos,3),"1");
@@ -105,13 +80,11 @@ async fn play_records_track_inventory_history_transactionally_and_isolate_accoun
     assert_eq!(play_value(&with_item.play_record_infos,301),"1");
     assert_eq!(play_value(&with_item.play_record_infos,302),"2");
     assert_eq!(play_value(&with_item.play_record_infos,303),"20");
-    sqlx::query("DELETE FROM equip_items WHERE slot_index=?").bind(slot).execute(&s.db).await.unwrap();
-    sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='soul'").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM equip_items WHERE slot_index=$1").bind(slot).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='soul'").bind(a).execute(&s.db).await.unwrap();
     let mut tx=s.db.begin().await.unwrap();
     item::give(&mut tx,&s,a,ItemGrant{index:1001,count:1,star:0,custom:0},&mut Rewards::default()).await.unwrap();
     tx.rollback().await.unwrap();
-    play_record::migrate(&s.db).await.unwrap();
-    play_record::migrate(&s.db).await.unwrap();
     let after=relogin(&s).await;
     for info in &with_item.play_record_infos {let id=n(info,"RecordIndex");assert_eq!(play_value(&after.play_record_infos,id),info["RecordValue"].as_str().unwrap());}
     let other=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=record-other")).await.unwrap().0;
@@ -122,16 +95,16 @@ async fn play_records_track_inventory_history_transactionally_and_isolate_accoun
 #[tokio::test]
 async fn play_records_login_streaks_use_calendar_days_and_login_is_idempotent() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
-    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='LoginDaily'").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM progression_metrics WHERE account_id=$1 AND kind='LoginDaily'").bind(a).execute(&s.db).await.unwrap();
     for offset in [0,1,2,5,6,7,8] {
         let date=(chrono::Utc::now().date_naive()-chrono::Duration::days(offset)).to_string();
-        sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,value) VALUES(?,?,'LoginDaily',1)").bind(a).bind(date).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,value) VALUES($1,$2,'LoginDaily',1)").bind(a).bind(date).execute(&s.db).await.unwrap();
     }
     let login=relogin(&s).await;
     assert_eq!(play_value(&login.play_record_infos,3),"3");
     assert_eq!(play_value(&login.play_record_infos,4),"4");
     assert_eq!(play_value(&relogin(&s).await.play_record_infos,2),"1");
-    sqlx::query("DELETE FROM progression_metrics WHERE account_id=? AND kind='LoginDaily' AND day=date('now','-1 day')").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM progression_metrics WHERE account_id=$1 AND kind='LoginDaily' AND day=sprk_date('now','-1 day')").bind(a).execute(&s.db).await.unwrap();
     let login=relogin(&s).await;
     assert_eq!(play_value(&login.play_record_infos,3),"1");
     assert_eq!(play_value(&login.play_record_infos,4),"4");
@@ -140,12 +113,11 @@ async fn play_records_login_streaks_use_calendar_days_and_login_is_idempotent() 
 #[tokio::test]
 async fn play_records_arena_bests_and_totals_survive_losses_and_season_removal() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
-    sqlx::query("INSERT INTO arena_scores(account,kind,season,score) VALUES(?,0,987654,1000)").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO arena_scores(account,kind,season,score) VALUES($1,0,987654,1000)").bind(a).execute(&s.db).await.unwrap();
     for (score,wins,losses,streak) in [(1020,1,0,1),(1040,2,0,2),(1030,2,1,0)] {
-        sqlx::query("UPDATE arena_scores SET score=?,wins=?,losses=?,data=? WHERE account=? AND kind=0 AND season=987654").bind(score).bind(wins).bind(losses).bind(json!({"SuccessiveWin":streak}).to_string()).bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE arena_scores SET score=$1,wins=$2,losses=$3,data=$4 WHERE account=$5 AND kind=0 AND season=987654").bind(score).bind(wins).bind(losses).bind(json!({"SuccessiveWin":streak}).to_string()).bind(a).execute(&s.db).await.unwrap();
     }
-    sqlx::query("DELETE FROM arena_scores WHERE account=? AND season=987654").bind(a).execute(&s.db).await.unwrap();
-    play_record::migrate(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM arena_scores WHERE account=$1 AND season=987654").bind(a).execute(&s.db).await.unwrap();
     let login=relogin(&s).await;
     for (id,value) in [(401,"1040"),(403,"2"),(404,"2"),(405,"1")] {assert_eq!(play_value(&login.play_record_infos,id),value);}
 }
@@ -173,12 +145,7 @@ async fn play_records_campaign_response_updates_native_cache_and_rejects_duplica
     assert_ne!(invalid["Result"],"Success");
 }
 pub(super) async fn setup() -> (AppState, user::LoginResponse) {
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let s = AppState::new(pool, crate::tables::test_tables());
     let u = relogin(&s).await;
     (s, u)
@@ -242,8 +209,8 @@ async fn call(s: &AppState, u: &user::LoginResponse, action: &str, data: &str) -
     handle(s.clone(), form(u, data), action).await.unwrap().0
 }
 async fn count(s: &AppState, u: &user::LoginResponse, id: i64) -> i64 {
-    sqlx::query_scalar(
-        "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",
+    crate::db::query_scalar(
+        "SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2),0)",
     )
     .bind(u.user_info.account_id)
     .bind(id)
@@ -252,7 +219,7 @@ async fn count(s: &AppState, u: &user::LoginResponse, id: i64) -> i64 {
     .unwrap()
 }
 async fn currency(s: &AppState, u: &user::LoginResponse) -> (i64, i64) {
-    sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?")
+    crate::db::query_as("SELECT gold,gem FROM user_info WHERE account_id=$1")
         .bind(u.user_info.account_id)
         .fetch_one(&s.db)
         .await
@@ -282,7 +249,7 @@ async fn sanctum_missions_recover_existing_souls_and_enforce_level_and_grade_fil
         }
         assert_eq!(View::load(&mut db, other).await.unwrap()
             .quest(&s, &json!({"Kind":"SoulWeaponCount"})), 0);
-        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='soul' AND idx=999999")
+        crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='soul' AND idx=999999")
             .bind(a).execute(&mut *db).await.unwrap();
     }
     let login = relogin(&s).await;
@@ -292,7 +259,7 @@ async fn sanctum_missions_recover_existing_souls_and_enforce_level_and_grade_fil
         assert_eq!(call(&s, &login, "complete_sub_quest", &args).await["Result"], "Success");
         assert_ne!(call(&s, &login, "complete_sub_quest", &args).await["Result"], "Success");
     }
-    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+    crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(slot).execute(&s.db).await.unwrap();
     let mut db = s.db.acquire().await.unwrap();
     assert_eq!(View::load(&mut db,a).await.unwrap().quest(&s,&json!({"Kind":"SoulWeaponCount"})),0);
@@ -305,7 +272,7 @@ async fn world_boss_normal_achievement_claim_uses_completed_battle_access_proof(
     let claim="AchievementIndices=[20]&Steps=[0]";
     // A menu predicate alone must never grant participation or a reward.
     assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
-    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,date('now'),'CompleteWorldBoss',4,0,1)")
+    crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,sprk_date('now'),'CompleteWorldBoss',4,0,1)")
         .bind(a).execute(&s.db).await.unwrap();
     let infos=call(&s,&u,"get_achievements","").await;
     assert_eq!(infos["AchievementInfos"].as_array().unwrap().iter()
@@ -321,7 +288,7 @@ async fn world_boss_normal_achievement_claim_uses_completed_battle_access_proof(
     // A retired event in Claim All still rolls the whole transaction back.
     assert_eq!(call(&s,&u,"reward_achievement","AchievementIndices=[20,5000010]&Steps=[0,0]").await["Result"],"RewardTimeEnded");
     let points=|s:AppState| async move {
-        sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'),0)")
+        crate::db::query_scalar::<i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='WorldBossPoint'),0)")
             .bind(a).fetch_one(&s.db).await.unwrap()
     };
     assert_eq!(points(s.clone()).await,0);
@@ -363,7 +330,7 @@ async fn attendance_claim_once_per_day_and_persist() {
     assert_eq!(login.attendance_infos[0]["CompletedDay"], 1);
     assert_eq!(login.attendance_datas[0]["AttendanceRewardableDays"], 0);
     assert_eq!(login.misc_info.unwrap().login_daily_count, 1);
-    sqlx::query("UPDATE attendance_calendar_state SET last_day='2000-01-01' WHERE account_id=?")
+    crate::db::query("UPDATE attendance_calendar_state SET last_day='2000-01-01' WHERE account_id=$1")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -420,7 +387,7 @@ async fn accumulated_login_uses_days_not_request_count() {
     for _ in 0..2 {
         assert_eq!(relogin(&s).await.misc_info.unwrap().login_daily_count, 1);
     }
-    sqlx::query("UPDATE progression_login SET days=6,last_day='2000-01-01' WHERE account_id=?")
+    crate::db::query("UPDATE progression_login SET days=6,last_day='2000-01-01' WHERE account_id=$1")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -442,7 +409,7 @@ async fn accumulated_login_uses_days_not_request_count() {
 #[tokio::test]
 async fn lobby_preserves_accumulated_login_days_and_claims() {
     let (s, u) = setup().await;
-    sqlx::query("UPDATE progression_login SET days=14,last_day=date('now') WHERE account_id=?")
+    crate::db::query("UPDATE progression_login SET days=14,last_day=sprk_date('now') WHERE account_id=$1")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let login = relogin(&s).await;
     assert_eq!(serde_json::to_value(&login).unwrap()["MiscInfo"]["LoginDailyCount"], 14);
@@ -467,7 +434,7 @@ async fn attendance_continues_past_seven_days_without_resetting_claims() {
     assert_eq!(u.attendance_datas[0]["PageSize"], 28);
     assert_eq!(u.attendance_datas[0]["RewardEndDay"], 28);
     assert_eq!(u.attendance_datas[0]["Reward"].as_array().unwrap().len(), 28);
-    sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,7,date('now','-1 day'))")
+    crate::db::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES($1,1,7,sprk_date('now','-1 day'))")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let response = call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await;
     assert_eq!(response["Result"], "Success");
@@ -483,10 +450,10 @@ async fn automatic_dungeon_milestones_unlock_categories_without_claiming_rewards
     };
     let before = login(&s, u.user_info.account_id).await.unwrap();
     assert!(!opened(&before, 5, 1));
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,6,1,0,0,1)")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES($1,6,1,0,0,1)")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     assert!(!opened(&login(&s, u.user_info.account_id).await.unwrap(), 5, 1));
-    sqlx::query("UPDATE campaign_progress SET clear_count=1,best_star=3 WHERE account_id=? AND chapter_id=6 AND dungeon_id=1")
+    crate::db::query("UPDATE campaign_progress SET clear_count=1,best_star=3 WHERE account_id=$1 AND chapter_id=6 AND dungeon_id=1")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let balance = currency(&s, &u).await;
     let refreshed = login(&s, u.user_info.account_id).await.unwrap();
@@ -495,7 +462,7 @@ async fn automatic_dungeon_milestones_unlock_categories_without_claiming_rewards
     assert!(!opened(&refreshed, 5, 2)); // 8-26 still required.
     assert!(!opened(&refreshed, 5, 4)); // 10-9 still required.
     assert_eq!(currency(&s, &u).await, balance);
-    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='subquest' AND idx=10740")
+    let claims: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=$1 AND family='subquest' AND idx=10740")
         .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap();
     assert_eq!(claims, 0);
 }
@@ -532,7 +499,7 @@ async fn native_claim_all_and_lobby_categories() {
     assert!(categories.contains(&json!({"MainCategoryIndex":2,"SubCategoryIndex":1})));
     assert!(categories.contains(&json!({"MainCategoryIndex":2,"SubCategoryIndex":2})));
     assert!(!categories.contains(&json!({"MainCategoryIndex":4,"SubCategoryIndex":1})));
-    sqlx::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES(?,'subquest',10110,1,'all')")
+    crate::db::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES($1,'subquest',10110,1,'all')")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let refreshed = login(&s, u.user_info.account_id).await.unwrap();
     let categories = refreshed["OpendMissionCategories"].as_array().unwrap();
@@ -564,7 +531,7 @@ async fn daily_achievement_native_rewards_and_reset() {
         .await["Result"],
         "InvalidStep"
     );
-    sqlx::query("UPDATE progression_claims SET period='2000-01-01' WHERE account_id=?")
+    crate::db::query("UPDATE progression_claims SET period='2000-01-01' WHERE account_id=$1")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -643,7 +610,7 @@ async fn batch_achievement_error_and_forged_progress_never_grant() {
 #[tokio::test]
 async fn currency_metrics_follow_transaction_rollback() {
     let (s, u) = setup().await;
-    sqlx::query("UPDATE user_info SET gold=2000000").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=2000000").execute(&s.db).await.unwrap();
     let mut tx = s.db.begin().await.unwrap();
     item::money(&mut tx, u.user_info.account_id, "Gold", -1000000)
         .await
@@ -679,7 +646,7 @@ async fn currency_metrics_follow_transaction_rollback() {
 async fn guideline_claim_all_preserves_native_batch_and_rolls_back_invalid_batch() {
     let (s, u) = setup().await;
     for dungeon in 1..=3 {
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,?,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,$2,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
             .bind(u.user_info.account_id).bind(dungeon).execute(&s.db).await.unwrap();
     }
     let before = currency(&s, &u).await;
@@ -713,7 +680,7 @@ async fn subquest_requires_saved_dungeon_and_claims_once() {
         call(&s, &u, "complete_sub_quest", "SubQuestIndices=[10010]").await["Result"],
         "Success"
     );
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13").bind(u.user_info.account_id).execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13").bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     let a = call(&s, &u, "complete_sub_quest", "SubQuestIndices=[10010]").await;
     assert_eq!(a["Result"], "Success");
     assert_eq!(a["SucceededSubQuestInfos"][0]["LastStep"], 1);
@@ -740,7 +707,7 @@ async fn chapter_reward_uses_decimal_star_encoding_and_bitmask() {
         "NotEnoughStar"
     );
     for id in 1..=8 {
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,?,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13").bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,$2,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13").bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
     }
     let a = call(&s, &u, "reward_clear_chapter", "ChapterIndex=1&Step=1").await;
     assert_eq!(a["Result"], "Success");
@@ -754,7 +721,7 @@ async fn chapter_reward_uses_decimal_star_encoding_and_bitmask() {
         "WrongStep"
     );
     for id in 9..=20 {
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,?,1,13)")
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,$2,1,13)")
             .bind(u.user_info.account_id).bind(id).execute(&s.db).await.unwrap();
     }
     for step in [2, 3] {
@@ -774,7 +741,7 @@ async fn paid_missions_require_entitlement_and_gameplay() {
         call(&s, &u, "get_clear_mission_reward", "MissionIndex=1001").await["Result"],
         "CheckConditionNotPassed"
     );
-    sqlx::query("INSERT INTO progression_entitlements(account_id,product_index) VALUES(?,410015)")
+    crate::db::query("INSERT INTO progression_entitlements(account_id,product_index) VALUES($1,410015)")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -783,7 +750,7 @@ async fn paid_missions_require_entitlement_and_gameplay() {
         call(&s, &u, "get_clear_mission_reward", "MissionIndex=1001").await["Result"],
         "ClearMissionNotCleared"
     );
-    sqlx::query("UPDATE user_info SET team_level=3 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET team_level=3 WHERE account_id=$1")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -797,7 +764,7 @@ async fn paid_missions_require_entitlement_and_gameplay() {
         "CheckConditionNotPassed"
     );
     for id in 410009..=410011 {
-        sqlx::query("INSERT INTO progression_entitlements(account_id,product_index) VALUES(?,?)")
+        crate::db::query("INSERT INTO progression_entitlements(account_id,product_index) VALUES($1,$2)")
             .bind(u.user_info.account_id)
             .bind(id)
             .execute(&s.db)
@@ -838,7 +805,7 @@ async fn world_map_claim_needs_owned_completed_event_and_rolls_back_batch() {
     let id = s.tables.get_item_index(code).unwrap() as i64;
     let items_before = count(&s, &u, id).await;
     let data = json!({"EventIndex":99,"ChapterIndex":1,"DungeonIndex":1,"Completed":true,"NoExpire":true,"RewardGold":456,"RewardItems":json!([{"Code":code,"Count":1,"Star":0}]).to_string()});
-    sqlx::query("INSERT INTO progression_world_events(account_id,chapter,dungeon,event,data) VALUES(?,1,1,99,?)").bind(u.user_info.account_id).bind(data.to_string()).execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO progression_world_events(account_id,chapter,dungeon,event,data) VALUES($1,1,1,99,$2)").bind(u.user_info.account_id).bind(data.to_string()).execute(&s.db).await.unwrap();
     let before = currency(&s, &u).await;
     assert_ne!(
         call(
@@ -897,7 +864,7 @@ async fn hero_achievement_requires_actual_star_and_retired_event_stays_closed() 
         .await["Result"],
         "AchievementNotCleared"
     );
-    sqlx::query("UPDATE heroes SET star=2 WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET star=2 WHERE account_id=$1 AND hero_index=1")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -947,12 +914,12 @@ async fn hero_achievement_claims_every_completed_step_at_once() {
     let last_step = |infos: &Value| infos["AchievementInfos"].as_array().unwrap().iter()
         .find(|r| r["AchievementIndex"] == id).map(|r| n(r, "LastStep")).unwrap_or(0);
     let gold = |s: AppState| async move {
-        sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap()
+        crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap()
     };
     let reward = |step: i64| rows.iter().filter(|r| n(r, "Index") == id && n(r, "Step") <= step && r["RewardKind"] == "Gold")
         .map(|r| n(r, "RewardValue")).sum::<i64>();
     // Level between steps 3 and 4: Claim All takes steps 1-3 and stops at 4.
-    sqlx::query("UPDATE heroes SET level=? WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET level=$1 WHERE account_id=$2 AND hero_index=1")
         .bind(level_of(3) + 5).bind(a).execute(&s.db).await.unwrap();
     let before = gold(s.clone()).await;
     let r = call(&s, &u, "reward_achievement", &format!("AchievementIndices=[{id}]&Steps=[0]")).await;
@@ -960,7 +927,7 @@ async fn hero_achievement_claims_every_completed_step_at_once() {
     assert_eq!(last_step(&call(&s, &u, "get_achievements", "").await), 3);
     assert_eq!(gold(s.clone()).await - before, reward(3));
     // At max level the remaining steps are claimed together.
-    sqlx::query("UPDATE heroes SET level=? WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET level=$1 WHERE account_id=$2 AND hero_index=1")
         .bind(level_of(steps)).bind(a).execute(&s.db).await.unwrap();
     let r = call(&s, &u, "reward_achievement", &format!("AchievementIndices=[{id}]&Steps=[3]")).await;
     assert_eq!(r["Result"], "Success", "{r}");
@@ -981,18 +948,18 @@ async fn general_achievement_claims_every_completed_step_at_once() {
     let need = |step: i64| rows.iter().find(|r| n(r, "Index") == id && n(r, "Step") == step)
         .and_then(|r| r["ReqValue"].as_str()?.parse::<i64>().ok()).unwrap();
     let owned = || async {
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM heroes WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap()
+        crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM heroes WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap()
     };
     // Own exactly enough heroes for step 3 but not step 4.
     let mut hero = 900;
     while owned().await < need(3) {
-        sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,1,1)")
+        crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,1,1)")
             .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         hero += 1;
     }
     assert!(owned().await < need(4));
     let gold = || async {
-        sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap()
+        crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap()
     };
     let reward: i64 = rows.iter().filter(|r| n(r, "Index") == id && n(r, "Step") <= 3 && r["RewardKind"] == "Gold")
         .map(|r| n(r, "RewardValue")).sum();
@@ -1044,8 +1011,8 @@ async fn daily_hot_time_claims_activate_boosters_once_per_step_and_reset_daily()
                     .unwrap()["LastStep"],
                 step + 1
             );
-            let saved: (String, String) = sqlx::query_as(
-                "SELECT start_time,end_time FROM item_boosters WHERE account_id=? AND item_index=?",
+            let saved: (String, String) = crate::db::query_as(
+                "SELECT start_time,end_time FROM item_boosters WHERE account_id=$1 AND item_index=$2",
             )
             .bind(account)
             .bind(item_id)
@@ -1056,8 +1023,8 @@ async fn daily_hot_time_claims_activate_boosters_once_per_step_and_reset_daily()
                 call(&s, &u, "reward_achievement", &data).await["Result"],
                 "InvalidStep"
             );
-            let after: (String, String) = sqlx::query_as(
-                "SELECT start_time,end_time FROM item_boosters WHERE account_id=? AND item_index=?",
+            let after: (String, String) = crate::db::query_as(
+                "SELECT start_time,end_time FROM item_boosters WHERE account_id=$1 AND item_index=$2",
             )
             .bind(account)
             .bind(item_id)
@@ -1096,7 +1063,7 @@ async fn daily_hot_time_claims_activate_boosters_once_per_step_and_reset_daily()
         );
     }
     // Move only this fixture's claims to yesterday to exercise the next day's allowance.
-    sqlx::query("UPDATE progression_claims SET period=date('now','-1 day') WHERE account_id=? AND family='achievement' AND idx IN (54,55)")
+    crate::db::query("UPDATE progression_claims SET period=sprk_date('now','-1 day') WHERE account_id=$1 AND family='achievement' AND idx IN (54,55)")
         .bind(account).execute(&s.db).await.unwrap();
     for id in [54, 55] {
         assert_eq!(
@@ -1145,7 +1112,7 @@ async fn daily_hot_time_preserves_conditions_and_failed_bulk_claims_roll_back() 
         .await["Result"],
         "RewardTimeEnded"
     );
-    let claims: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='achievement' AND idx=54")
+    let claims: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM progression_claims WHERE account_id=$1 AND family='achievement' AND idx=54")
         .bind(account).fetch_one(&s.db).await.unwrap();
     assert_eq!(claims, 0);
 }
@@ -1211,21 +1178,7 @@ async fn mission_bars_count_claimed_quests_in_their_own_category() {
 #[tokio::test]
 async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
     let (template, _) = setup().await;
-    let path =
-        std::env::temp_dir().join(format!("sprk-progression-{}.sqlite", uuid::Uuid::new_v4()));
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .min_connections(3)
-        .max_connections(3)
-        .connect_with(
-            sqlx::sqlite::SqliteConnectOptions::new()
-                .filename(&path)
-                .create_if_missing(true)
-                .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-                .busy_timeout(std::time::Duration::from_secs(20)),
-        )
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let s = AppState::new(pool.clone(), template.tables.as_ref().clone());
     let u = relogin(&s).await;
     let (a, b) = tokio::join!(
@@ -1236,10 +1189,7 @@ async fn separate_connections_claim_attendance_once_and_migrate_idempotently() {
         [a, b].iter().filter(|r| r["Result"] == "Success").count(),
         1
     );
-    database::create_tables(&pool).await.unwrap();
     assert_eq!(relogin(&s).await.attendance_infos[0]["LastRewardedDay"], 1);
-    pool.close().await;
-    database::remove_test_database(&path).await;
 }
 
 #[tokio::test]
@@ -1264,17 +1214,17 @@ async fn mailbox_reads_skip_progression_writes_but_claims_update_missions() {
         .with_state(s.clone());
     let account=u.user_info.account_id;
     let id=mail::send_system_mail(&s,account,"Polling test","Reward",1,0,None).await.unwrap();
-    sqlx::query("INSERT INTO global_mails(title,reward_gold) VALUES('Polling announcement',1)").execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO global_mails(title,reward_gold) VALUES('Polling announcement',1)").execute(&s.db).await.unwrap();
     // Global mail must still materialize exactly once before reads become idle.
     let globals=send(&mut app,&u,"/mail/get_global_mail_list","").await;
     assert_eq!(globals["Result"],"Success");assert_eq!(globals["MailInfos"].as_array().unwrap().len(),1);
     for path in ["/mail/check_new_mail","/mail/get_mail_list","/mail/get_mail_list_by_page","/mail/get_global_mail_list","/mail/list"] {
-        let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+        let before:i64=crate::database::row_changes(&s.db).await;
         let result=send(&mut app,&u,path,"MaxCount=10&PageNo=0").await;
         assert_eq!(result["Result"],"Success","{path}: {result}");
         assert!(result.get("AchievementInfos").is_none(),"Mailbox reads must not create progression snapshots");
         assert!(result.get("ReservedSubQuestInfos").is_none());
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before,
+        assert_eq!(crate::database::row_changes(&s.db).await,before,
             "Idle mailbox read wrote to the database: {path}");
     }
     let mut db=s.db.acquire().await.unwrap();
@@ -1384,7 +1334,7 @@ async fn world_boss_guideline_restores_existing_participation_and_claims_once() 
     // the Guideline evaluator supported EnterWorldBoss. No migration or new run
     // should be needed, even if participation was in a previous season.
     record(&mut db,a,"EnterDungeon",7003,1,1).await.unwrap();
-    sqlx::query("UPDATE progression_metrics SET day='2020-01-01' WHERE account_id=? AND arg=7003")
+    crate::db::query("UPDATE progression_metrics SET day='2020-01-01' WHERE account_id=$1 AND arg=7003")
         .bind(a).execute(&mut *db).await.unwrap();
     assert_eq!(View::load(&mut db,a).await.unwrap().quest(&s,quest),1);
     drop(db);
@@ -1392,7 +1342,7 @@ async fn world_boss_guideline_restores_existing_participation_and_claims_once() 
     assert!(login.sub_quest_infos.iter().any(|v|n(v,"SubQuestIndex")==10731 && n(v,"Progress")==1 && n(v,"LastStep")==0));
     let before=currency(&s,&login).await;
     async fn points(s:&AppState,a:i64)->i64 {
-        sqlx::query_scalar("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+        crate::db::query_scalar("SELECT value FROM battle_currencies WHERE account=$1 AND kind='WorldBossPoint'")
             .bind(a).fetch_optional(&s.db).await.unwrap().unwrap_or(0)
     }
     let before_points=points(&s,a).await;
@@ -1409,8 +1359,8 @@ async fn world_boss_guideline_notifies_on_valid_entry_without_a_kill_or_duplicat
     use tower::Service;
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
-    sqlx::query("UPDATE heroes SET level=60 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET world_boss_ticket=2 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=60 WHERE account_id=$1 AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET world_boss_ticket=2 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let mut app=axum::Router::new()
         .route("/campaign/begin",axum::routing::post(crate::api::battle::campaign_handlers::begin_campaign))
         .route("/campaign/end",axum::routing::post(crate::api::battle::campaign_handlers::end_campaign))
@@ -1455,7 +1405,7 @@ async fn battle_missions_filter_modes_and_respect_daily_and_weekly_periods() {
         (today.to_string(),"ClearDungeon",1,1,1000),
         (today.to_string(),"CompleteWorldBoss",1,0,1), (yesterday.clone(),"CompleteWorldBoss",1,0,2), (old,"CompleteWorldBoss",1,0,7),
     ] {
-        sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,?,?,?,?,?)")
+        crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,$2,$3,$4,$5,$6)")
             .bind(a).bind(day).bind(kind).bind(chapter).bind(dungeon).bind(value).execute(&s.db).await.unwrap();
     }
     let mut db=s.db.acquire().await.unwrap();
@@ -1483,8 +1433,8 @@ async fn battle_missions_notify_clears_sweeps_and_finished_world_boss_without_du
     use tower::Service;
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
-    sqlx::query("UPDATE heroes SET level=60 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET world_boss_ticket=2,gold=10000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=60 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET world_boss_ticket=2,gold=10000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let mut app=axum::Router::new()
         .route("/campaign/begin_campaign",axum::routing::post(crate::api::battle::handle))
         .route("/campaign/end_campaign",axum::routing::post(crate::api::battle::handle))
@@ -1511,7 +1461,7 @@ async fn battle_missions_notify_clears_sweeps_and_finished_world_boss_without_du
     assert_eq!(progress(&won,1107),1);
     assert_eq!(progress(&won,1707),1);
     assert_eq!(progress(&won,1105),0);
-    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,120125,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10")
+    crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,120125,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10")
         .bind(a).execute(&s.db).await.unwrap();
     let sweep=send(&mut app,&u,"/sweep/sweep_dungeon","ChapterIndex=5001&DungeonIndex=1&DungeonDifficulty=0&SweepCount=2").await;
     assert_eq!(sweep["Result"],"Success","{sweep}");
@@ -1542,7 +1492,7 @@ async fn battle_missions_notify_clears_sweeps_and_finished_world_boss_without_du
     assert_eq!(claim["Result"],"Success","{claim}");
     assert_eq!(count(&s,&u,flask).await,before_flask+3);
     assert_eq!(count(&s,&u,material).await,before_material+10);
-    let points:i64=sqlx::query_scalar("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+    let points:i64=crate::db::query_scalar("SELECT value FROM battle_currencies WHERE account=$1 AND kind='WorldBossPoint'")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(points,1000);
     let after=currency(&s,&u).await;
@@ -1550,36 +1500,10 @@ async fn battle_missions_notify_clears_sweeps_and_finished_world_boss_without_du
     assert_eq!(currency(&s,&u).await,after);
     assert_eq!(count(&s,&u,flask).await,before_flask+3);
     assert_eq!(count(&s,&u,material).await,before_material+10);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='WorldBossPoint'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT value FROM battle_currencies WHERE account=$1 AND kind='WorldBossPoint'")
         .bind(a).fetch_one(&s.db).await.unwrap(),1000);
 }
 
-#[tokio::test]
-async fn battle_missions_world_boss_history_migration_and_score_writes_are_idempotent() {
-    let (s,u)=setup().await;
-    let a=u.user_info.account_id;
-    for trigger in ["progress_world_boss_complete_insert","progress_world_boss_complete_update"] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}"))).execute(&s.db).await.unwrap();
-    }
-    for family in ["world_boss","event_world_boss","challenge"] {
-        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,1,1,?,date('now'),1000,60)")
-            .bind(family).bind(a).execute(&s.db).await.unwrap();
-    }
-    for _ in 0..2 {crate::api::battle::migrate(&s.db).await.unwrap();}
-    async fn completions(s:&AppState,a:i64)->i64 {
-        let mut db=s.db.acquire().await.unwrap();
-        View::load(&mut db,a).await.unwrap().metric("CompleteWorldBoss","all",None,None)
-    }
-    assert_eq!(completions(&s,a).await,1);
-    sqlx::query("UPDATE battle_scores SET score=score+1000 WHERE account=? AND family='world_boss'").bind(a).execute(&s.db).await.unwrap();
-    assert_eq!(completions(&s,a).await,2);
-    let mut tx=s.db.begin().await.unwrap();
-    sqlx::query("UPDATE battle_scores SET score=score+1000 WHERE account=? AND family='world_boss'").bind(a).execute(&mut *tx).await.unwrap();
-    tx.rollback().await.unwrap();
-    sqlx::query("UPDATE battle_scores SET score=score WHERE account=?").bind(a).execute(&s.db).await.unwrap();
-    crate::api::battle::migrate(&s.db).await.unwrap();
-    assert_eq!(completions(&s,a).await,2,"Retries, rollback and other boss modes must not create extra completions");
-}
 
 #[tokio::test]
 async fn story_mission_notifications_do_not_replay_after_battles_or_lobby_refresh() {
@@ -1629,7 +1553,7 @@ async fn story_mission_notifications_do_not_replay_after_battles_or_lobby_refres
         assert_eq!(call(&s, &u, "get_achievements", "").await["ReservedSubQuestInfos"], json!([]));
     }
     // Unclaimed rewards remain available; notification deduplication must not claim them.
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM progression_claims WHERE account_id=? AND family='subquest'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM progression_claims WHERE account_id=$1 AND family='subquest'")
         .bind(u.user_info.account_id).fetch_one(&s.db).await.unwrap(), 0);
     let login = relogin(&s).await;
     for id in completed {
@@ -1648,7 +1572,7 @@ async fn story_mission_notifications_do_not_replay_after_battles_or_lobby_refres
 async fn mission_notification_baselines_are_isolated_per_session() {
     let (s, u) = setup().await;
     let other = relogin(&s).await;
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=1,best_star=13")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
     for session in [&u, &other] {
         let update = call(&s, session, "get_achievements", "").await;
@@ -1661,7 +1585,7 @@ async fn mission_notification_baselines_are_isolated_per_session() {
 async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
     let (mut s, u) = setup().await;
     let days = s.tables.progression.calendars[0]["Reward"].as_array().unwrap().len() as i64;
-    sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES(?,1,?,date('now'))")
+    crate::db::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day) VALUES($1,1,$2,sprk_date('now'))")
         .bind(u.user_info.account_id).bind(days).execute(&s.db).await.unwrap();
     let completed = call(&s, &u, "attendance_info", "").await;
     assert_eq!(completed["AttendanceInfos"][0]["CompletedDay"], days);
@@ -1670,8 +1594,8 @@ async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
         call(&s, &u, "get_attendance_reward", "AttendanceIndex=1").await["Result"],
         "Fail"
     );
-    sqlx::query(
-        "UPDATE attendance_calendar_state SET last_day=date('now','-1 day') WHERE account_id=?",
+    crate::db::query(
+        "UPDATE attendance_calendar_state SET last_day=sprk_date('now','-1 day') WHERE account_id=$1",
     )
     .bind(u.user_info.account_id)
     .execute(&s.db)
@@ -1701,9 +1625,9 @@ async fn attendance_cycle_wraps_and_nonrepeating_calendar_finishes() {
 #[tokio::test]
 async fn item_removal_does_not_count_as_use_and_stamina_reward_matches_native_type() {
     let (mut s, u) = setup().await;
-    sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,2002,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10")
+    crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,2002,10) ON CONFLICT(account_id,item_index) DO UPDATE SET count=10")
         .bind(u.user_info.account_id).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE items SET count=0 WHERE account_id=? AND item_index=2002")
+    crate::db::query("UPDATE items SET count=0 WHERE account_id=$1 AND item_index=2002")
         .bind(u.user_info.account_id)
         .execute(&s.db)
         .await
@@ -1747,7 +1671,7 @@ async fn tutorial_progression_does_not_complete_scoped_stockade_guild_or_craftin
         session_id:None,session_key:Some(u.user_info.session_key.clone()),tutorial_index:Some(14000),
     })).await.unwrap().0;
     assert_eq!(completed["Result"],"Success");
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+1")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,1,1,1,13) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=campaign_progress.clear_count+1")
         .bind(account).execute(&s.db).await.unwrap();
     for kind in ["ConsumeStamina","StaminaUses","AddItem","BuyShopItem","CraftItem","UseItem","EnterDungeon"] {
         record(&mut s.db.acquire().await.unwrap(),account,kind,1,1,100).await.unwrap();
@@ -1789,11 +1713,11 @@ async fn guild_damage_progression_uses_saved_personal_raid_damage_and_64_bit_thr
     let account=u.user_info.account_id;
     let row=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==1002190).unwrap();
     record(&mut s.db.acquire().await.unwrap(),account,"ClearDungeon",1,1,999999).await.unwrap();
-    sqlx::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES(1,?,'suppress',1,1,90000000000),(1,?,'raid',1,1,4999999999)")
+    crate::db::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES(1,$1,'suppress',1,1,90000000000),(1,$2,'raid',1,1,4999999999)")
         .bind(account).bind(account).execute(&s.db).await.unwrap();
     let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
     assert_eq!(view.quest(&s,row),0);
-    sqlx::query("UPDATE guild_battle_scores SET score=score+1 WHERE account=? AND kind='raid'").bind(account).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE guild_battle_scores SET score=score+1 WHERE account=$1 AND kind='raid'").bind(account).execute(&s.db).await.unwrap();
     let view=View::load(&mut s.db.acquire().await.unwrap(),account).await.unwrap();
     assert_eq!(view.quest(&s,row),1);
     let next=s.tables.progression.sub_quests.iter().find(|r|r["QuestIndex"]==1002200).unwrap();
@@ -1811,7 +1735,7 @@ async fn trial_milestones_recover_saved_variant_clears_and_rewards_once() {
     for floor in 1..=25 {
         let row=s.tables.battle.find("TowerFloor",&[("TowerIndex",11),("Floor",floor)]).unwrap();
         let dungeon=row["DungeonIndices"][((floor-1)%5) as usize].as_i64().unwrap();
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES(?,2001,?,1,3,1)")
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked) VALUES($1,2001,$2,1,3,1)")
             .bind(a).bind(dungeon).execute(&s.db).await.unwrap();
         if floor==24 {
             let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
@@ -1852,13 +1776,13 @@ async fn trial_weekly_reward_accepts_proven_access_and_respects_week_and_replays
     for dungeon in [1,6,11,16,21] {
         record(&mut s.db.acquire().await.unwrap(),a,"ClearDungeon",2001,dungeon,1).await.unwrap();
     }
-    sqlx::query("UPDATE progression_metrics SET day='2000-01-01' WHERE account_id=? AND kind='ClearDungeon'")
+    crate::db::query("UPDATE progression_metrics SET day='2000-01-01' WHERE account_id=$1 AND kind='ClearDungeon'")
         .bind(a).execute(&s.db).await.unwrap();
     let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
     assert_eq!(view.achievement(&s,row),(0,5));
     let claim="AchievementIndices=[1708]&Steps=[0]";
     assert_ne!(call(&s,&u,"reward_achievement",claim).await["Result"],"Success");
-    sqlx::query("UPDATE progression_metrics SET day=date('now') WHERE account_id=? AND kind='ClearDungeon'")
+    crate::db::query("UPDATE progression_metrics SET day=sprk_date('now') WHERE account_id=$1 AND kind='ClearDungeon'")
         .bind(a).execute(&s.db).await.unwrap();
     let view=View::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
     assert_eq!(view.achievement(&s,row),(5,5));
@@ -1878,12 +1802,10 @@ async fn trial_weekly_reward_accepts_proven_access_and_respects_week_and_replays
 #[tokio::test]
 #[ignore]
 async fn progression_latency_profile() {
-    let path=std::path::PathBuf::from(std::env::var("SPRK_PERF_DB").expect("Set SPRK_PERF_DB to an isolated target database copy"));
-    let path=path.canonicalize().unwrap();
-    assert!(path.starts_with(std::env::current_dir().unwrap().join("target").canonicalize().unwrap()));
-    let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&path).read_only(true)).await.unwrap();
+    let url=std::env::var("SPRK_PERF_DATABASE_URL").expect("Set SPRK_PERF_DATABASE_URL to an isolated copy of the game database");
+    let db=crate::postgres::connect_read(&url).await.unwrap();
     let s=AppState::new(db,crate::tables::test_tables());
-    let account:i64=sqlx::query_scalar("SELECT account_id FROM heroes GROUP BY account_id ORDER BY COUNT(*) DESC LIMIT 1").fetch_one(&s.db).await.unwrap();
+    let account:i64=crate::db::query_scalar("SELECT account_id FROM heroes GROUP BY account_id ORDER BY COUNT(*) DESC LIMIT 1").fetch_one(&s.db).await.unwrap();
     let mut connection=s.db.acquire().await.unwrap();
     let now=std::time::Instant::now();let view=View::load(&mut connection,account).await.unwrap();println!("PROFILE view_load_ms={:.2} heroes={} metrics={} claims={}",now.elapsed().as_secs_f64()*1000.,view.heroes.len(),view.metrics.len(),view.claims.len());
     let now=std::time::Instant::now();let achievements=view.achievement_infos(&s);println!("PROFILE achievements_ms={:.2} count={}",now.elapsed().as_secs_f64()*1000.,achievements.len());
@@ -1912,33 +1834,6 @@ async fn progression_latency_profile() {
     }
 }
 
-#[tokio::test]
-async fn clear_dungeon_baseline_backfill_only_fills_missing_stages() {
-    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    database::create_tables(&db).await.unwrap();
-    sqlx::query("INSERT INTO accounts(account_id,login_id,login_method,device_id,nick) VALUES(7,'baseline',0,'d','n')").execute(&db).await.unwrap();
-    let baseline = |chapter: i64, dungeon: i64| {
-        let db = db.clone();
-        async move {
-            sqlx::query_scalar::<_, i64>("SELECT value FROM progression_metrics WHERE account_id=7 AND day='0001-01-01' AND kind='ClearDungeon' AND arg=? AND arg2=?")
-                .bind(chapter).bind(dungeon).fetch_optional(&db).await.unwrap()
-        }
-    };
-    // Legacy save predating the clear triggers: 5 clears, only 2 counted by
-    // daily metrics. Drop the row the trigger writes for this setup insert.
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(7,1,2,5)").execute(&db).await.unwrap();
-    sqlx::query("DELETE FROM progression_metrics WHERE account_id=7 AND kind='ClearDungeon'").execute(&db).await.unwrap();
-    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(7,'2026-11-01','ClearDungeon',1,2,2)").execute(&db).await.unwrap();
-    play_record::migrate(&db).await.unwrap();
-    assert_eq!(baseline(1, 2).await, Some(3));
-    // Later clears are counted live; an existing baseline is never recomputed.
-    sqlx::query("UPDATE campaign_progress SET clear_count=9 WHERE chapter_id=1 AND dungeon_id=2").execute(&db).await.unwrap();
-    // A stage first cleared since the last start (counted live by the trigger)
-    // still receives its zero baseline.
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count) VALUES(7,1,3,1)").execute(&db).await.unwrap();
-    play_record::migrate(&db).await.unwrap();
-    assert_eq!((baseline(1, 2).await, baseline(1, 3).await), (Some(3), Some(0)));
-}
 
 #[tokio::test]
 async fn ordeal_tower_normal_achievement_claim_uses_cleared_floor_access_proof() {

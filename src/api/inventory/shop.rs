@@ -13,7 +13,8 @@ use crate::{
 use axum::{body::Bytes, extract::State, Json};
 use chrono::{Datelike, TimeZone, Utc};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 
 macro_rules! endpoints {($($name:ident),*)=>{$(pub async fn $name(State(state):State<AppState>,body:Bytes)->Result<Json<Value>> {handle(state,body,stringify!($name)).await})*};}
 endpoints!(
@@ -67,7 +68,7 @@ fn kind(cost: i64) -> Result<&'static str> {
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(v) => {
@@ -84,13 +85,13 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     }
 }
 async fn purchased(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     shop: i32,
     index: i64,
     period: &str,
 ) -> Result<i64> {
-    Ok(sqlx::query_scalar("SELECT purchased FROM shop_purchase_ledger WHERE account_id=? AND shop_index=? AND item_index=? AND period=?").bind(account).bind(shop).bind(index).bind(period).fetch_optional(db).await?.unwrap_or(0))
+    Ok(crate::db::query_scalar("SELECT purchased FROM shop_purchase_ledger WHERE account_id=$1 AND shop_index=$2 AND item_index=$3 AND period=$4").bind(account).bind(shop).bind(index).bind(period).fetch_optional(db).await?.unwrap_or(0))
 }
 fn purchasable(state: &AppState, shop: &Value, row: &Value) -> bool {
     let cost = if n(row, "BuyCostTypeForItem") > 0 {
@@ -109,7 +110,7 @@ fn purchasable(state: &AppState, shop: &Value, row: &Value) -> bool {
             .is_some_and(|r| matches!(r.kind.as_str(), "Item" | "Equip"))
 }
 async fn stock(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     shop: &Value,
@@ -117,7 +118,7 @@ async fn stock(
 ) -> Result<(Vec<Value>, Value)> {
     let shop_id = n(shop, "Index") as i32;
     let now = state.server_time();
-    let old = sqlx::query("SELECT * FROM shop_stock WHERE account_id=? AND shop_index=?")
+    let old = crate::db::query("SELECT * FROM shop_stock WHERE account_id=$1 AND shop_index=$2")
         .bind(account)
         .bind(shop_id)
         .fetch_optional(&mut *db)
@@ -178,9 +179,9 @@ async fn stock(
         } else {
             0
         };
-        sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,?,?,?,?,?) ON CONFLICT(account_id,shop_index) DO UPDATE SET revision=excluded.revision,restock_time=excluded.restock_time,restock_count=excluded.restock_count,stock=excluded.stock").bind(account).bind(shop_id).bind(rev).bind(next).bind(count).bind(json!(rows).to_string()).execute(&mut *db).await?;
+        crate::db::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,shop_index) DO UPDATE SET revision=excluded.revision,restock_time=excluded.restock_time,restock_count=excluded.restock_count,stock=excluded.stock").bind(account).bind(shop_id).bind(rev).bind(next).bind(count).bind(json!(rows).to_string()).execute(&mut *db).await?;
     }
-    let row = sqlx::query("SELECT * FROM shop_stock WHERE account_id=? AND shop_index=?")
+    let row = crate::db::query("SELECT * FROM shop_stock WHERE account_id=$1 AND shop_index=$2")
         .bind(account)
         .bind(shop_id)
         .fetch_one(&mut *db)
@@ -193,7 +194,7 @@ async fn stock(
     Ok((rows, info))
 }
 async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -210,8 +211,8 @@ async fn execute(
     } else { None };
     let mut out = item::success();
     if action == "buy_shop_item" && n(shop, "MaxStock") > 0 {
-        let expiry: Option<i64> = sqlx::query_scalar(
-            "SELECT restock_time FROM shop_stock WHERE account_id=? AND shop_index=?",
+        let expiry: Option<i64> = crate::db::query_scalar(
+            "SELECT restock_time FROM shop_stock WHERE account_id=$1 AND shop_index=$2",
         )
         .bind(account)
         .bind(id)
@@ -293,8 +294,8 @@ async fn execute(
             return Err(rule("InvalidCost"));
         }
         if n(shop, "HeroIndex") > 0 {
-            let owned = sqlx::query(
-                "SELECT star,transcend FROM heroes WHERE account_id=? AND hero_index=?",
+            let owned = crate::db::query(
+                "SELECT star,transcend FROM heroes WHERE account_id=$1 AND hero_index=$2",
             )
             .bind(account)
             .bind(n(shop, "HeroIndex"))
@@ -363,14 +364,14 @@ async fn execute(
         }
         out["ItemResult"] = json!(rewards.items.first());
         out["EquipItems"] = json!(rewards.equipment);
-        sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,?,?,?,?,?) ON CONFLICT(account_id,shop_index,item_index,period) DO UPDATE SET purchased=excluded.purchased,purchased_time=excluded.purchased_time").bind(account).bind(id).bind(index).bind(period).bind(old+count).bind(now).execute(&mut *db).await?;
+        crate::db::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT(account_id,shop_index,item_index,period) DO UPDATE SET purchased=excluded.purchased,purchased_time=excluded.purchased_time").bind(account).bind(id).bind(index).bind(period).bind(old+count).bind(now).execute(&mut *db).await?;
         out["ShopItem"] = json!({"ShopIndex":id,"ListNo":index,"Sold":if max>0&&old+count>=max {1}else{0},"Purchased":old+count,"PurchasedTime":now});
     } else {
         // One indexed read for the catalog, rather than a query per product.
         // Keep period in the key: daily, weekly and lifetime products may share
         // the same shop, and expired periods must read as zero.
         let purchases: std::collections::HashMap<(i64, String), i64> =
-            sqlx::query_as::<_, (i64, String, i64)>("SELECT item_index,period,purchased FROM shop_purchase_ledger WHERE account_id=? AND shop_index=?")
+            crate::db::query_as::<(i64, String, i64)>("SELECT item_index,period,purchased FROM shop_purchase_ledger WHERE account_id=$1 AND shop_index=$2")
                 .bind(account).bind(id).fetch_all(&mut *db).await?
                 .into_iter().map(|(index, period, count)| ((index, period), count)).collect();
         let mut result = vec![];

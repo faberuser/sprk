@@ -37,7 +37,7 @@ See [the scripts inventory](scripts/README.md) for active CI and development too
 ### Prerequisites
 
 - Rust 1.99+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
-- SQLite ([bundled with the project](https://www.sqlite.org/download.html))
+- PostgreSQL 18 (the game database; Docker is the easiest way to run it locally)
 
 ### VS Code Rust analysis
 
@@ -70,18 +70,22 @@ run both. See [client updates and Portainer setup](docs/client-updates.md) for t
 publishing script, download endpoints, and shared-image container stack.
 
 ```bash
-# Run the server (default port 8080)
-cargo run --release
+# A local PostgreSQL for development
+docker run -d --name sprk-postgres-dev -e POSTGRES_PASSWORD=dev   -p 127.0.0.1:5432:5432 postgres:18 -c max_connections=300
 
-# Or run the binary directly
-./target/release/sprk-server
+# Run the server (default port 8080) against it
+DATABASE_URL=postgres://postgres:dev@127.0.0.1:5432/postgres cargo run --release
 ```
 
 The server will:
 
-1. Create a SQLite database file (`sprk.db`) on first run
-2. Initialize all required tables
-3. Start listening on `http://0.0.0.0:8080`
+1. Apply the schema migrations in `migrations/` (with `DATABASE_MIGRATION_URL`
+   when set, otherwise `DATABASE_URL`)
+2. Start listening on `http://0.0.0.0:8080`
+
+It refuses to start when a `sprk.db` file from the SQLite version sits next to
+an empty database; copy it first with `sprk-server migrate-sqlite sprk.db` (see
+[the PostgreSQL migration plan](docs/postgresql-migration.md)).
 
 ### Running with Docker Compose
 
@@ -109,6 +113,9 @@ Edit `.env` before starting:
 - `SPRK_GM_KEY`: replace the example value with a random key of at least 32
   characters, or leave it empty to disable GM access. Keep `SPRK_GM_BIND_IP`
   at `127.0.0.1` for local administration.
+- `SPRK_DB_SUPERUSER_PASSWORD`, `SPRK_DB_OWNER_PASSWORD`, `SPRK_DB_APP_PASSWORD`:
+  three different random URL-safe passwords for the PostgreSQL service. They
+  take effect when its volume is first created.
 
 ```bash
 docker compose config --quiet
@@ -121,7 +128,8 @@ Compose pulls the published image and starts two services:
 
 | Service   | Default host address    | Persistent storage                                                        |
 | --------- | ----------------------- | ------------------------------------------------------------------------- |
-| `game`    | `http://localhost:8080` | SQLite database and service state in the `game-data` volume at `/data`    |
+| `game`    | `http://localhost:8080` | Service state in the `game-data` volume at `/data`                        |
+| `postgres`| internal only           | Game database in the `postgres-data` volume                               |
 | `updates` | `http://localhost:8081` | Signed client releases in the host directory mounted at `/client-updates` |
 
 The update service downloads and verifies the image-pinned client release before
@@ -151,6 +159,20 @@ game database volume. For Portainer, reverse proxy setup, and local image builds
 see [client updates and Docker hosting](docs/client-updates.md#portainer--docker)
 and [the CI release workflow](docs/github-client-updates.md). Local image builds
 also require preparing `build-input/worker` before running `docker build`.
+
+### Tests
+
+Tests run against PostgreSQL. `SPRK_TEST_POSTGRES_URL` must name a server
+where the role can create databases (CI provides one):
+
+```bash
+SPRK_TEST_POSTGRES_URL=postgres://postgres:dev@127.0.0.1:5432/postgres cargo test
+```
+
+The first run builds a migrated template database (`sprk_tpl_*`); each test
+then clones it into its own `sprk_t_*` database. Leftovers from earlier runs
+are dropped automatically. Parallel tests open many connections, so start the
+development server with `-c max_connections=300` as shown above.
 
 ### Patching the Client
 

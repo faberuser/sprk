@@ -29,7 +29,7 @@ pub async fn change(State(state): State<AppState>, body: Bytes) -> Result<Json<V
     let result = validation(&state, nick);
     if result == "Success" {
         // No inventory or currency mutations, even on repeated changes.
-        sqlx::query("UPDATE accounts SET nick=? WHERE account_id=?")
+        crate::db::query("UPDATE accounts SET nick=$1 WHERE account_id=$2")
             .bind(nick).bind(account).execute(&state.db).await?;
     }
     Ok(Json(json!({"BaseResult":"Success","Result":result})))
@@ -40,13 +40,12 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn free_nickname_changes_validate_persist_and_never_charge() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-        crate::database::create_tables(&db).await.unwrap();
+        let db = crate::database::test_pool().await;
         let tables = crate::tables::test_tables();
         let state = AppState::new(db, tables);
         for id in [1i64,2] {
-            sqlx::query("INSERT INTO accounts(account_id,login_id,nick) VALUES(?,?,?)").bind(id).bind(format!("login{id}")).bind(format!("Raider{id}")).execute(&state.db).await.unwrap();
-            sqlx::query("INSERT INTO user_info(account_id,gold,gem) VALUES(?,0,0)").bind(id).execute(&state.db).await.unwrap();
+            crate::db::query("INSERT INTO accounts(account_id,login_id,nick) VALUES($1,$2,$3)").bind(id).bind(format!("login{id}")).bind(format!("Raider{id}")).execute(&state.db).await.unwrap();
+            crate::db::query("INSERT INTO user_info(account_id,gold,gem) VALUES($1,0,0)").bind(id).execute(&state.db).await.unwrap();
             state.create_session(format!("session{id}"),id,String::new());
         }
         for nick in ["NewName","OtherName","OtherName"] {
@@ -60,9 +59,9 @@ mod tests {
             assert_eq!(change(State(state.clone()),body).await.unwrap().0["Result"],result);
         }
         assert!(change(State(state.clone()),Bytes::from("Nick=NoSession")).await.is_err());
-        let row:(String,String,i64,i64)=sqlx::query_as("SELECT nick,login_id,gold,gem FROM accounts JOIN user_info USING(account_id) WHERE account_id=1").fetch_one(&state.db).await.unwrap();
+        let row:(String,String,i64,i64)=crate::db::query_as("SELECT nick,login_id,gold,gem FROM accounts JOIN user_info USING(account_id) WHERE account_id=1").fetch_one(&state.db).await.unwrap();
         assert_eq!(row,("OtherName".into(),"login1".into(),0,0));
-        let count:i64=sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=1").fetch_one(&state.db).await.unwrap();
+        let count:i64=crate::db::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=1").fetch_one(&state.db).await.unwrap();
         assert_eq!(count,0);
         // Nicknames may repeat, including case-insensitive matches.
         for (session, nick) in [("session2", "OtherName"), ("session2", "othername"), ("session1", "Raider2")] {
@@ -70,7 +69,7 @@ mod tests {
             assert_eq!(query(State(state.clone()), body.clone()).await.unwrap().0["IsAvailable"], true);
             assert_eq!(change(State(state.clone()), body).await.unwrap().0["Result"], "Success");
         }
-        let nicks: Vec<String> = sqlx::query_scalar("SELECT nick FROM accounts ORDER BY account_id").fetch_all(&state.db).await.unwrap();
+        let nicks: Vec<String> = crate::db::query_scalar("SELECT nick FROM accounts ORDER BY account_id").fetch_all(&state.db).await.unwrap();
         assert_eq!(nicks, ["Raider2", "othername"]);
     }
 }

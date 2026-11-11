@@ -14,7 +14,7 @@ async fn floors(s: &AppState, a: i64, total: i64) {
 }
 
 async fn fragments(s: &AppState, a: i64) -> i64 {
-    sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=45039")
+    crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=45039")
         .bind(a).fetch_one(&s.db).await.unwrap()
 }
 
@@ -72,7 +72,7 @@ async fn royal_labyrinth_resets_claims_with_towers_and_can_redeem_all_five_steps
     for id in 1001..=1007 {
         put(&mut db, a, "tower", id, &json!({"TowerIndex":id,"CompletedFloor":5,"Period":"1900-01-16"})).await.unwrap();
     }
-    sqlx::query("INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES(?,'maze',1,'1900-01-16')")
+    crate::db::query("INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES($1,'maze',1,'1900-01-16')")
         .bind(a).execute(&mut *db).await.unwrap();
     drop(db);
     assert_eq!(call(&s, &u, INFO, "").await["MazeTowerRewardStep"], 0);
@@ -96,7 +96,7 @@ async fn royal_labyrinth_migrates_legacy_daily_claim_without_regranting_it() {
     // The old implementation saved no cycle alongside its step and used a
     // calendar date for its claim receipt. Preserve an earlier day this cycle.
     put(&mut db, a, "maze_step", 0, &json!({"Step":1})).await.unwrap();
-    sqlx::query("INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES(?,'maze',1,?)")
+    crate::db::query("INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES($1,'maze',1,$2)")
         .bind(a).bind(period).execute(&mut *db).await.unwrap();
     drop(db);
     let before = fragments(&s, a).await;
@@ -117,7 +117,7 @@ async fn royal_labyrinth_failed_grant_rolls_back_and_concurrent_claims_pay_once(
     assert_ne!(call(&s, &u, CLAIM, "MazeTowerRewardIndex=1").await["Result"], "Success");
     assert_eq!(fragments(&s, a).await, before);
     assert_eq!(call(&s, &u, INFO, "").await["MazeTowerRewardStep"], 0);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_reward_claims WHERE account=? AND kind='maze'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_reward_claims WHERE account=$1 AND kind='maze'")
         .bind(a).fetch_one(&s.db).await.unwrap(), 0);
     let table = std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle);
     table.tables.get_mut("MazeClearReward").unwrap()[0]["RewardIndex"] = json!(1300301);

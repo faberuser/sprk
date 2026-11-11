@@ -34,12 +34,12 @@ pub(super) fn max(s: &AppState) -> Result<i64> {
         .ok_or_else(|| rule("DungeonNotFound"))
 }
 
-pub(super) async fn info(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn info(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     info_at(db, s, a, Utc::now().date_naive()).await
 }
 
 async fn info_at(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     date: NaiveDate,
@@ -56,7 +56,7 @@ async fn info_at(
     let reset = !p.is_null() && previous.is_some_and(|v| v < period);
     if p.is_null() || reset {
         if reset {
-            sqlx::query("UPDATE battle_currencies SET value=0 WHERE account=? AND kind=?")
+            crate::db::query("UPDATE battle_currencies SET value=0 WHERE account=$1 AND kind=$2")
                 .bind(a)
                 .bind(CURRENCY)
                 .execute(&mut *db)
@@ -73,7 +73,7 @@ async fn info_at(
     Ok(p)
 }
 
-pub(super) async fn snapshot(db: &mut SqliteConnection, a: i64) -> Result<Value> {
+pub(super) async fn snapshot(db: &mut PgConnection, a: i64) -> Result<Value> {
     hero::currency(db, a, CURRENCY, 0).await
 }
 
@@ -87,7 +87,7 @@ fn sync(out: &mut Value, result: Value) {
 }
 
 pub(super) async fn validate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     d: &Value,
@@ -105,7 +105,7 @@ pub(super) async fn validate(
 }
 
 pub(super) async fn clear(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     out: &mut Value,
@@ -120,7 +120,7 @@ pub(super) async fn clear(
     Ok(())
 }
 
-pub(super) async fn reroll(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn reroll(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut p = info(db, s, a).await?;
     p["Index"] = json!(choose(s)?);
     p["UpdatedTime"] = json!(time(now()));
@@ -129,7 +129,7 @@ pub(super) async fn reroll(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
 }
 
 pub(super) async fn record_time(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,

@@ -2,11 +2,10 @@ use super::*;
 use crate::{api::account::user, models::item::ItemGrant};
 
 async fn setup() -> (AppState,user::LoginResponse) {
-    let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db=crate::database::test_pool().await;
     let s=AppState::new(db,crate::tables::test_tables());
     let u=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=mission-rule-audit")).await.unwrap().0;
-    sqlx::query("UPDATE user_info SET gold=100000000").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=100000000").execute(&s.db).await.unwrap();
     (s,u)
 }
 fn quest(s:&AppState,id:i64)->&Value {
@@ -30,7 +29,7 @@ async fn mission_rules_login_days_enforce_each_native_target_and_claim_once() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
     assert_ne!(claim(&s,&u,5001490).await["Result"],"Success","Day 7 must not complete on day 1");
     for days in [1,6,7,14] {
-        sqlx::query("UPDATE progression_login SET days=?,last_day=date('now') WHERE account_id=?")
+        crate::db::query("UPDATE progression_login SET days=$1,last_day=sprk_date('now') WHERE account_id=$2")
             .bind(days).bind(a).execute(&s.db).await.unwrap();
         let v=view(&s,a).await;
         let rows:Vec<_>=s.tables.progression.sub_quests.iter().filter(|r|r["Kind"]=="LoginDaily").collect();
@@ -54,13 +53,13 @@ async fn mission_rules_equipment_requires_correct_type_and_actual_equipping() {
     let weapon=grant(&s,a,1001,1,0).await.equipment[0].slot_index;
     let v=view(&s,a).await;
     for id in [10233,1000370,5002440,5002580,1000400] {assert_eq!(v.quest(&s,quest(&s,id)),0,"ownership alone: {id}");}
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_5=? WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_1=$1,equip_item_slot_index_5=$2 WHERE account_id=$3 AND hero_index=1")
         .bind(weapon).bind(artifact).bind(a).execute(&s.db).await.unwrap();
     let v=view(&s,a).await;
     for id in [10233,1000370,5002440,5002580,1000400] {assert_eq!(v.quest(&s,quest(&s,id)),1,"equipped: {id}");}
     assert_eq!(v.quest(&s,quest(&s,1000450)),0,"UW is not a Unique Treasure");
     assert_eq!(v.quest(&s,quest(&s,1000380)),0,"UW is not a Class Unique Weapon");
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_5=0 WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_5=0 WHERE account_id=$1 AND hero_index=1")
         .bind(a).execute(&s.db).await.unwrap();
     assert_eq!(view(&s,a).await.quest(&s,quest(&s,10233)),0);
 }

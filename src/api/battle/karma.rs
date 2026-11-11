@@ -54,7 +54,7 @@ impl RewardPolicy {
 }
 
 async fn grant_scaled_bundle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     index: i64,
@@ -142,7 +142,7 @@ fn group_data<'a>(s: &'a AppState, r: &Request) -> Result<&'a Value> {
     )
 }
 pub(super) async fn opening(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -153,7 +153,7 @@ pub(super) async fn opening(
     let mut p = get(db, a, "punishment_open", key).await?;
     let mut out = item::success();
     if action != "get_punishment_raid_info" {
-        let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0 AND started>=?)")
+        let active:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2)")
             .bind(a).bind(now()-settings(s,"BattleExpirySeconds",14400)).fetch_one(&mut *db).await?;
         if active {
             return Err(rule("AlreadyOnBattleHero"));
@@ -235,11 +235,11 @@ mod reward_tests {
     }
 
     async fn begin(s: &AppState, u: &Value, group: i64, chapter: i64, flask: i64) {
-        sqlx::query("UPDATE heroes SET level=100")
+        crate::db::query("UPDATE heroes SET level=100")
             .execute(&s.db)
             .await
             .unwrap();
-        sqlx::query("UPDATE user_info SET stamina=500000")
+        crate::db::query("UPDATE user_info SET stamina=500000")
             .execute(&s.db)
             .await
             .unwrap();
@@ -253,7 +253,7 @@ mod reward_tests {
         assert!(matches!(opened["Result"].as_str(), Some("Success" | "AlreadyOpened")), "{opened}");
         let begun = call(s,u,"contents/begin_content",&format!("GroupIndex={group}&DungeonType=Karma&ChapterIndex={chapter}&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=1&FlaskItemIndex={flask}")).await;
         assert_eq!(begun["Result"], "Success", "{begun}");
-        sqlx::query("UPDATE battle_runs SET started=started-200")
+        crate::db::query("UPDATE battle_runs SET started=started-200")
             .execute(&s.db)
             .await
             .unwrap();
@@ -296,8 +296,8 @@ mod reward_tests {
                 for (offset, count) in [(1, 10), (2, 4), (3, 2), (4, 1)] {
                     assert_eq!(added(&out, flask + offset), bundles * count, "{out}");
                 }
-                let inventory: Vec<(i64, i64)> = sqlx::query_as(
-                    "SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index",
+                let inventory: Vec<(i64, i64)> = crate::db::query_as(
+                    "SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index",
                 )
                 .bind(account(&u))
                 .fetch_all(&s.db)
@@ -308,8 +308,8 @@ mod reward_tests {
                     "Success"
                 );
                 assert_eq!(
-                    sqlx::query_as::<_, (i64, i64)>(
-                        "SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index"
+                    crate::db::query_as::<(i64, i64)>(
+                        "SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index"
                     )
                     .bind(account(&u))
                     .fetch_all(&s.db)
@@ -324,7 +324,7 @@ mod reward_tests {
     #[tokio::test]
     async fn karma_team_exp_requires_completed_clear_and_is_awarded_once() {
         let (s,u)=setup().await;let a=account(&u);
-        let team=||async {sqlx::query_as::<_,(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=?")
+        let team=||async {crate::db::query_as::<(i64,i64)>("SELECT team_level,team_exp FROM user_info WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap()};
         for (group,chapter,flask) in [(101001,70101,40236),(101002,70201,40246)] {
             let before=team().await;
@@ -367,14 +367,14 @@ mod reward_tests {
             "Success"
         );
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT completed FROM battle_runs WHERE account=?")
+            crate::db::query_scalar::<i64>("SELECT completed FROM battle_runs WHERE account=$1")
                 .bind(account(&u))
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
             0
         );
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM items WHERE account_id=? AND item_index IN (40241,45121,40237)").bind(account(&u)).fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM items WHERE account_id=$1 AND item_index IN (40241,45121,40237)").bind(account(&u)).fetch_one(&s.db).await.unwrap(),0);
         Arc::make_mut(&mut Arc::make_mut(&mut s.tables).inventory)
             .items
             .get_mut(&45121)
@@ -397,7 +397,7 @@ mod reward_tests {
             let flasks:Vec<_>=s.tables.battle.rows("ShardFlaskItem").iter().filter(|v|n(v,"GroupIndex")==group).cloned().collect();
             for flask in flasks {
                 let id=n(&flask,"Index");
-                sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,3) ON CONFLICT(account_id,item_index) DO UPDATE SET count=3").bind(a).bind(id).execute(&s.db).await.unwrap();
+                crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,$2,3) ON CONFLICT(account_id,item_index) DO UPDATE SET count=3").bind(a).bind(id).execute(&s.db).await.unwrap();
                 begin(&s,&u,group,chapter,id).await;
                 let out=call(&s,&u,"contents/end_content",&ending(&s,group,chapter,100)).await;
                 assert_eq!(out["Result"],"Success","flask {id}: {out}");
@@ -407,7 +407,7 @@ mod reward_tests {
     }
 }
 pub(super) async fn validate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -433,7 +433,7 @@ pub(super) async fn validate(
         return Err(rule("InvalidItem"));
     }
     if flask["IsDefault"] != true {
-        let count:i64=sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=? AND locked=0),0)")
+        let count:i64=crate::db::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0),0)")
             .bind(a).bind(n(flask,"Index")).fetch_one(&mut *db).await?;
         if count <= 0 {
             return Err(rule("ItemNotOwned"));
@@ -442,7 +442,7 @@ pub(super) async fn validate(
     Ok(())
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -475,8 +475,8 @@ pub(super) async fn execute(
     }
     validate(db, s, a, &request).await?;
     // Retries cannot swap the selected flask while retaining the old entry snapshot.
-    if let Some((entry,)) = sqlx::query_as::<_, (String,)>(
-        "SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND started>=?",
+    if let Some((entry,)) = crate::db::query_as::<(String,)>(
+        "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2",
     )
     .bind(a)
     .bind(now() - settings(s, "BattleExpirySeconds", 14400))
@@ -489,19 +489,19 @@ pub(super) async fn execute(
         }
     }
     let out = campaign::begin(db, s, a, &request).await?;
-    let raw: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+    let raw: String = crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1")
         .bind(a)
         .fetch_one(&mut *db)
         .await?;
     let mut entry: Value = read_json(&raw)?;
     if entry["KarmaFlaskCount"].is_null() {
-        let count:i64=sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=? AND locked=0),0)")
+        let count:i64=crate::db::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0),0)")
             .bind(a).bind(int(&request,"FlaskItemIndex")?).fetch_one(&mut *db).await?;
         entry["KarmaFlaskCount"] = json!(count);
         entry["KarmaRewardPolicy"] = json!(RewardPolicy::parse(
             &s.tables.battle.rules["KarmaRewardPolicy"]
         )?);
-        sqlx::query("UPDATE battle_runs SET entry=? WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET entry=$1 WHERE account=$2")
             .bind(entry.to_string())
             .bind(a)
             .execute(&mut *db)
@@ -587,12 +587,12 @@ fn gauge(s: &AppState, group: i64, clear: i64, end_kills: i64) -> Result<(f32, i
     Ok((total, kills))
 }
 pub(super) async fn end(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
 ) -> Result<Value> {
-    let saved = sqlx::query("SELECT * FROM battle_runs WHERE account=?")
+    let saved = crate::db::query("SELECT * FROM battle_runs WHERE account=$1")
         .bind(a)
         .fetch_optional(&mut *db)
         .await?
@@ -747,7 +747,7 @@ pub(super) async fn end(
         &p,
     )
     .await?;
-    sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0")
+    crate::db::query("UPDATE battle_runs SET completed=1 WHERE account=$1 AND completed=0")
         .bind(a)
         .execute(&mut *db)
         .await?;

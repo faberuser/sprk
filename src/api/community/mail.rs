@@ -12,7 +12,8 @@ use crate::{
 use axum::{body::Bytes, extract::State, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::{sqlite::SqliteRow, Row, SqliteConnection};
+use sqlx::{postgres::PgRow, PgConnection};
+use crate::db::RowExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -24,7 +25,7 @@ pub struct MailItemInfo {
 fn response(result: &str) -> Value {
     json!({"BaseResult":"Success","Result":result})
 }
-fn attachments<T: serde::de::DeserializeOwned>(row: &SqliteRow, column: &str) -> Result<Vec<T>> {
+fn attachments<T: serde::de::DeserializeOwned>(row: &PgRow, column: &str) -> Result<Vec<T>> {
     let data: Option<String> = row.get(column);
     match data.as_deref().filter(|s| !s.trim().is_empty()) {
         None | Some("null") => Ok(vec![]),
@@ -49,7 +50,7 @@ pub fn start_notifications(state: AppState) -> tokio::task::JoinHandle<()> {
 }
 
 pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
-    let rows = sqlx::query("SELECT q.mail_id,q.account_id,q.is_global,(m.mail_id IS NOT NULL AND m.is_received=0 AND (m.expires_at IS NULL OR m.expires_at='' OR datetime(m.expires_at)>datetime('now'))) AS deliver FROM mail_notifications q LEFT JOIN mails m ON m.mail_id=q.mail_id ORDER BY q.mail_id LIMIT 256")
+    let rows = crate::db::query("SELECT q.mail_id,q.account_id,q.is_global,(m.mail_id IS NOT NULL AND m.is_received=0 AND (m.expires_at IS NULL OR m.expires_at='' OR sprk_datetime(m.expires_at)>sprk_datetime('now'))) AS deliver FROM mail_notifications q LEFT JOIN mails m ON m.mail_id=q.mail_id ORDER BY q.mail_id LIMIT 256")
         .fetch_all(&state.db).await?;
     let Some(last) = rows.last() else { return Ok(0); };
     let last_id: i64 = last.get("mail_id");
@@ -65,7 +66,7 @@ pub(super) async fn deliver_notifications(state: &AppState) -> Result<usize> {
     }
     // Offline clients obtain the persistent inbox on login. These hints can be
     // retried safely after a crash; they never create or claim rewards.
-    sqlx::query("DELETE FROM mail_notifications WHERE mail_id<=?").bind(last_id).execute(&state.db).await?;
+    crate::db::query("DELETE FROM mail_notifications WHERE mail_id<=$1").bind(last_id).execute(&state.db).await?;
     Ok(rows.len())
 }
 
@@ -77,26 +78,26 @@ async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
     // the writer when needed. Both paths recheck under the writer transaction.
     let arena_pending = super::arena::pending(&mut *state.reads.acquire().await?, state, account).await?;
     if arena_pending {
-        let mut arena = state.db.begin().await?;
+        let mut arena = crate::database::begin(&state.db).await?;
         super::arena::settle(&mut arena, state, account).await?;
         arena.commit().await?;
     }
-    let pending: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id))")
+    let pending: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=$1 AND d.global_id=g.global_id))")
         .bind(account).fetch_one(&state.reads).await?;
     if !pending { return Ok(()); }
-    let mut tx = state.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::db::query("SELECT pg_advisory_xact_lock($1)")
         .bind(account)
         .execute(&mut *tx)
         .await?;
-    let rows = sqlx::query("SELECT global_id FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=? AND d.global_id=g.global_id) ORDER BY global_id")
+    let rows = crate::db::query("SELECT global_id FROM global_mails g WHERE (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND NOT EXISTS(SELECT 1 FROM global_mail_deliveries d WHERE d.account_id=$1 AND d.global_id=g.global_id) ORDER BY global_id")
         .bind(account).fetch_all(&mut *tx).await?;
     for row in rows {
         let global: i64 = row.get("global_id");
-        let mail = sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id) SELECT ?,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id FROM global_mails WHERE global_id=?")
-            .bind(account).bind(global).execute(&mut *tx).await?.last_insert_rowid();
-        sqlx::query(
-            "INSERT INTO global_mail_deliveries(account_id,global_id,mail_id) VALUES (?,?,?)",
+        let mail = crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id) SELECT $1,sender,title,content,reward_gold,reward_gem,reward_items,reward_stamina,reward_equipment,created_at,expires_at,opens_at,global_id FROM global_mails WHERE global_id=$2 RETURNING mail_id")
+            .bind(account).bind(global).fetch_one(&mut *tx).await?;
+        crate::db::query(
+            "INSERT INTO global_mail_deliveries(account_id,global_id,mail_id) VALUES ($1,$2,$3)",
         )
         .bind(account)
         .bind(global)
@@ -108,7 +109,7 @@ async fn deliver_globals(state: &AppState, account: i64) -> Result<()> {
     Ok(())
 }
 
-fn mail_info(row: &SqliteRow) -> Result<Value> {
+fn mail_info(row: &PgRow) -> Result<Value> {
     let opens: Option<String> = row.get("opens_at");
     let remain = opens
         .as_deref()
@@ -132,7 +133,7 @@ pub async fn check_new_mail(State(state): State<AppState>, body: Bytes) -> Resul
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
     deliver_globals(&state, account).await?;
-    let row=sqlx::query("SELECT COUNT(*) AS total, COALESCE(MAX(mail_id),0) AS latest FROM mails WHERE account_id=? AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now'))")
+    let row=crate::db::query("SELECT COUNT(*) AS total, COALESCE(MAX(mail_id),0) AS latest FROM mails WHERE account_id=$1 AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now'))")
         .bind(account).fetch_one(&state.reads).await?;
     let latest: i64 = row.get("latest");
     Ok(Json(
@@ -174,10 +175,10 @@ async fn list(state: AppState, body: Bytes, paged: bool, global: bool) -> Result
     } else {
         0
     };
-    let filter="account_id=? AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND ((?=1 AND global_id IS NOT NULL) OR (?=0 AND global_id IS NULL))";
-    let rows=sqlx::query(sqlx::AssertSqlSafe(format!("SELECT * FROM mails WHERE {filter} AND (?=0 OR mail_id<?) ORDER BY mail_id DESC LIMIT ? OFFSET ?")))
+    let filter="account_id=$1 AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND (($2=1 AND global_id IS NOT NULL) OR ($3=0 AND global_id IS NULL))";
+    let rows=crate::db::query(sqlx::AssertSqlSafe(format!("SELECT * FROM mails WHERE {filter} AND ($4=0 OR mail_id<$5) ORDER BY mail_id DESC LIMIT $6 OFFSET $7")))
         .bind(account).bind(global).bind(global).bind(cursor).bind(cursor).bind(max).bind(offset).fetch_all(&state.reads).await?;
-    let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM mails WHERE {filter}")))
+    let total: i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM mails WHERE {filter}")))
         .bind(account)
         .bind(global)
         .bind(global)
@@ -190,10 +191,10 @@ async fn list(state: AppState, body: Bytes, paged: bool, global: bool) -> Result
 }
 
 async fn claim(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
-    row: &SqliteRow,
+    row: &PgRow,
 ) -> Result<Value> {
     let gold: i64 = row.get("reward_gold");
     let gem: i64 = row.get("reward_gem");
@@ -229,8 +230,8 @@ async fn claim(
             ));
         }
         let owned: bool = if metadata.kind == "Hero" {
-            sqlx::query_scalar(
-                "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND hero_index=?)",
+            crate::db::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND hero_index=$2)",
             )
             .bind(account)
             .bind(metadata.hero_index)
@@ -318,7 +319,7 @@ async fn claim(
     if let Some(index) = rewards.heroes.first() {
         result["HeroAddResult"] = json!({"HeroInfo":tutorial::hero_info(db,account,*index).await?,"TeamExpResult":rewards.team_exp.first()});
     }
-    sqlx::query("UPDATE mails SET is_received=1,is_read=1,read_time=datetime('now'),received_time=datetime('now'),receipt=? WHERE mail_id=? AND account_id=?")
+    crate::db::query("UPDATE mails SET is_received=1,is_read=1,read_time=sprk_datetime('now'),received_time=sprk_datetime('now'),receipt=$1 WHERE mail_id=$2 AND account_id=$3")
         .bind(result.to_string()).bind(row.get::<i64,_>("mail_id")).bind(account).execute(db).await?;
     Ok(result)
 }
@@ -342,13 +343,13 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
     } else {
         1
     };
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     // Acquire the write lock before selecting attachments: concurrent claims cannot both grant.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+    crate::db::query("SELECT pg_advisory_xact_lock($1)")
         .bind(account)
         .execute(&mut *tx)
         .await?;
-    let rows=sqlx::query("SELECT * FROM mails WHERE account_id=? AND is_received=0 AND (?=1 OR mail_id=?) AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now')) AND (opens_at IS NULL OR opens_at='' OR datetime(opens_at)<=datetime('now')) ORDER BY mail_id DESC LIMIT ?")
+    let rows=crate::db::query("SELECT * FROM mails WHERE account_id=$1 AND is_received=0 AND ($2=1 OR mail_id=$3) AND (expires_at IS NULL OR expires_at='' OR sprk_datetime(expires_at)>sprk_datetime('now')) AND (opens_at IS NULL OR opens_at='' OR sprk_datetime(opens_at)<=sprk_datetime('now')) ORDER BY mail_id DESC LIMIT $4")
         .bind(account).bind(all).bind(id).bind(max).fetch_all(&mut *tx).await?;
     if !all && rows.is_empty() {
         return Ok(Json(response("Fail")));
@@ -357,12 +358,12 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
     let mut stop_message = String::new();
     for row in rows {
         if until_full {
-            sqlx::query("SAVEPOINT mail_claim").execute(&mut *tx).await?;
+            crate::db::query("SAVEPOINT mail_claim").execute(&mut *tx).await?;
         }
         match claim(&mut tx, &state, account, &row).await {
             Ok(result) => {
                 if until_full {
-                    sqlx::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                    crate::db::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
                 }
                 results.push(result);
             }
@@ -371,8 +372,8 @@ async fn receive(state: AppState, body: Bytes, all: bool) -> Result<Json<Value>>
                 if until_full {
                     // claim() can debit/grant currencies before checking gear.
                     // Roll back the entire blocked mail, keeping prior receipts.
-                    sqlx::query("ROLLBACK TO SAVEPOINT mail_claim").execute(&mut *tx).await?;
-                    sqlx::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                    crate::db::query("ROLLBACK TO SAVEPOINT mail_claim").execute(&mut *tx).await?;
+                    crate::db::query("RELEASE SAVEPOINT mail_claim").execute(&mut *tx).await?;
                     stop_message = if matches!(&error, ServerError::InvalidRequest(code) if code == "EquipItemFull") {
                         "Equipment bag is full. Free space and try claiming the mail again."
                     } else {
@@ -415,10 +416,10 @@ pub async fn send_system_mail(
         serde_json::to_string(&i).unwrap_or_default()
     });
 
-    let result = sqlx::query(
+    let result = crate::db::query_scalar::<i64>(
         r#"INSERT INTO mails (account_id, sender, title, content, 
            reward_gold, reward_gem, reward_items, is_received)
-           VALUES (?, 'System', ?, ?, ?, ?, ?, 0)"#,
+           VALUES ($1, 'System', $2, $3, $4, $5, $6, 0) RETURNING mail_id"#,
     )
     .bind(receiver_id)
     .bind(title)
@@ -426,10 +427,10 @@ pub async fn send_system_mail(
     .bind(gold)
     .bind(gem)
     .bind(items_json)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await?;
 
-    let id = result.last_insert_rowid();
+    let id = result;
     Ok(id)
 }
 
@@ -441,7 +442,7 @@ mod claim_until_full_tests {
         let s = crate::api::community::tests::setup().await;
         let u = crate::api::community::tests::login(&s, "mail-drain-test").await;
         let a = u["UserInfo"]["AccountId"].as_i64().unwrap();
-        sqlx::query("DELETE FROM mails WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("DELETE FROM mails WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         (s, u, a)
     }
     fn form(u: &Value, fields: &str) -> Bytes {
@@ -450,9 +451,9 @@ mod claim_until_full_tests {
     #[tokio::test]
     async fn mail_claim_until_full_drains_over_1000_mails_once_in_bounded_batches() {
         let (s, u, a) = setup().await;
-        sqlx::query("WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<1005) INSERT INTO mails(account_id,sender,title,reward_gold) SELECT ?,'System','Batch test',1 FROM n")
+        crate::db::query("WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<1005) INSERT INTO mails(account_id,sender,title,reward_gold) SELECT $1,'System','Batch test',1 FROM n")
             .bind(a).execute(&s.db).await.unwrap();
-        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let before: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
         let mut total = 0;
         loop {
             let r = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
@@ -463,7 +464,7 @@ mod claim_until_full_tests {
             if count < 50 { break; }
         }
         assert_eq!(total, 1005);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 1005);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), before + 1005);
         let retry = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
         assert_eq!(retry["ReceivedMailCount"], 0);
     }
@@ -474,40 +475,40 @@ mod claim_until_full_tests {
         let mut gear = EquipItemInfo::default(); gear.item_index = 1001; gear.star = 2;
         let big = serde_json::to_string(&vec![gear.clone(), gear.clone()]).unwrap();
         let small = serde_json::to_string(&vec![gear]).unwrap();
-        let blocked = sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES(?,'System','Does not fit',999,?)")
-            .bind(a).bind(big).execute(&s.db).await.unwrap().last_insert_rowid();
+        let blocked = crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES($1,'System','Does not fit',999,$2) RETURNING mail_id")
+            .bind(a).bind(big).fetch_one(&s.db).await.unwrap();
         for _ in 0..2 {
-            sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES(?,'System','Fits',7,?)")
+            crate::db::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_equipment) VALUES($1,'System','Fits',7,$2)")
                 .bind(a).bind(&small).execute(&s.db).await.unwrap();
         }
-        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let before: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
         let r = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
         assert_eq!(r["Result"], "Success"); assert_eq!(r["ReceivedMailCount"], 2);
         assert!(r["InternalErrorMessage"].as_str().unwrap().contains("Equipment bag is full"));
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 14);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT is_received FROM mails WHERE mail_id=?").bind(blocked).fetch_one(&s.db).await.unwrap(), 0);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=1001").bind(a).fetch_one(&s.db).await.unwrap(), 2);
-        sqlx::query("UPDATE inventory_settings SET inventory_extend=1 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), before + 14);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT is_received FROM mails WHERE mail_id=$1").bind(blocked).fetch_one(&s.db).await.unwrap(), 0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND item_index=1001").bind(a).fetch_one(&s.db).await.unwrap(), 2);
+        crate::db::query("UPDATE inventory_settings SET inventory_extend=1 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         let rest = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
         assert_eq!(rest["ReceivedMailCount"], 1);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 14 + 999);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), before + 14 + 999);
     }
     #[tokio::test]
     async fn mail_claim_until_full_keeps_legacy_atomicity_and_stops_on_invalid_rewards() {
         let (s, u, a) = setup().await;
         let bad = json!([{"ItemIndex":2147483647,"ItemCount":1}]).to_string();
-        sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_items) VALUES(?,'System','Invalid',999,?)")
+        crate::db::query("INSERT INTO mails(account_id,sender,title,reward_gold,reward_items) VALUES($1,'System','Invalid',999,$2)")
             .bind(a).bind(bad).execute(&s.db).await.unwrap();
-        sqlx::query("INSERT INTO mails(account_id,sender,title,reward_gold) VALUES(?,'System','Valid',7)")
+        crate::db::query("INSERT INTO mails(account_id,sender,title,reward_gold) VALUES($1,'System','Valid',7)")
             .bind(a).execute(&s.db).await.unwrap();
-        let before: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+        let before: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
         let old = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50")).await.unwrap().0;
         assert_eq!(old["Result"], "Fail");
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), before);
         let new = receive_all_mail(State(s.clone()), form(&u, "MaxCount=50&ClaimUntilFull=true")).await.unwrap().0;
         assert_eq!(new["ReceivedMailCount"], 1);
         assert!(!new["InternalErrorMessage"].as_str().unwrap().is_empty());
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), before + 7);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM mails WHERE account_id=? AND is_received=0").bind(a).fetch_one(&s.db).await.unwrap(), 1);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), before + 7);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND is_received=0").bind(a).fetch_one(&s.db).await.unwrap(), 1);
     }
 }

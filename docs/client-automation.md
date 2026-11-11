@@ -1,7 +1,8 @@
 # Client automation
 
 `scripts/automation/client_automation.py` controls the real Unity client through an opt-in
-helper installed by DllPatcher. Python uses only its standard library. Normal
+helper installed by DllPatcher. Python uses its standard library plus
+`psycopg` for the test database (`pip install "psycopg[binary]"`). Normal
 launches without `SPRK_AUTOMATION_DIR` do not start the bridge.
 
 ## Install and launch
@@ -13,11 +14,16 @@ dotnet run --project scripts/DllPatcher -- ../sprk-client --automation-only
 python scripts/automation/client_automation.py launch --seed-db sprk.db
 ```
 
-The launcher starts the release server on ports 8080/9001 with a SQLite backup
-in a new `target/client-automation/<run>` directory, then starts the client at
-1280x720. It never points a newly started test server at the main database.
-Without `--seed-db`, it creates an empty test database. Build the release server
-first if needed. Ports must be free. `--external-server` explicitly reuses an
+The launcher creates a new PostgreSQL database `sprk_auto_<run>` and starts the
+release server on ports 8080/9001 against it, with logs in a new
+`target/client-automation/<run>` directory, then starts the client at 1280x720.
+It never points a newly started test server at the main database. `--seed-db`
+copies a SQLite file into the new database with `sprk-server migrate-sqlite`;
+without it the database starts empty. Databases are created on
+`SPRK_AUTOMATION_POSTGRES_URL`, by default the local container that
+`start_server.bat` runs (`postgres://postgres:sprk-local@127.0.0.1:54320/postgres`).
+Drop old `sprk_auto_*` databases by hand. Build the release server first if
+needed. Ports must be free. `--external-server` explicitly reuses an
 already-running server; its database is not isolated by the launcher.
 
 `--profile host` selects separate PlayerPrefs keys and a stable test device ID.
@@ -31,7 +37,7 @@ third-party assemblies are not fully virtualized.
 ```powershell
 python scripts/automation/client_automation.py launch --seed-db sprk.db --profile host
 # Record the run directory printed above before starting the second client.
-python scripts/automation/client_automation.py launch --external-server --profile guest --database <host-run>/sprk.db
+python scripts/automation/client_automation.py launch --external-server --profile guest --database <database URL from the host run's session.json>
 ```
 
 Fresh accounts retain their normal tutorial/unlocks. Use `new-guest.json` to
@@ -68,7 +74,8 @@ Scenarios support `wait`, `wait-ui`, `click`, `native-click`, `text`, `key`,
 `snapshot`, `screenshot`, `clear-errors`, `assert-no-errors`, and `assert-db`.
 Selectors match an exact label, full hierarchy path, or current instance ID;
 ambiguous matches fail. `wait-ui` checks active enabled elements by substring,
-not rendered visibility. Database assertions use read-only SQLite connections:
+not rendered visibility. Database assertions run in read-only PostgreSQL
+transactions. Queries keep `?` placeholders; write a literal `%` as `%%`:
 
 ```json
 {

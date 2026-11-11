@@ -12,14 +12,15 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 use std::collections::BTreeSet;
 pub(crate) mod buffs;
 pub(crate) mod consumables;
 pub(crate) mod cosmetics;
 mod equipment;
 mod npc;
-pub(crate) async fn npc_friendly_snapshot(db: &mut SqliteConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
+pub(crate) async fn npc_friendly_snapshot(db: &mut PgConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
     npc::snapshot(db,state,account).await
 }
 pub(crate) mod punishment;
@@ -77,7 +78,7 @@ pub async fn handle(
     } else { Request::parse(&body)? };
     let account = req.account(&state)?;
     let action = uri.path().rsplit('/').next().unwrap_or("");
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, &state, account).await?;
     let result = if matches!(
         action,
@@ -197,9 +198,9 @@ pub(crate) fn equip_item(state: &AppState, item: i64) -> Option<&Value> {
     };
     index.get(&item).and_then(|i| state.tables.extensions.rows("EquipItem").get(*i))
 }
-pub(crate) async fn equip(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
-    let r = sqlx::query(
-        "SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0",
+pub(crate) async fn equip(db: &mut PgConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+    let r = crate::db::query(
+        "SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2 AND inventory_type=0",
     )
     .bind(account)
     .bind(slot)
@@ -209,7 +210,7 @@ pub(crate) async fn equip(db: &mut SqliteConnection, account: i64, slot: i64) ->
     Ok(EquipItemInfo::from_row(&r))
 }
 pub(crate) async fn save_equip(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     eq: &EquipItemInfo,
 ) -> Result<()> {
@@ -230,8 +231,8 @@ pub(crate) async fn save_equip(
         .push(" AND slot_index=")
         .push_bind(eq.slot_index);
     query.build().execute(&mut *db).await?;
-    sqlx::query(
-        "UPDATE equip_items SET punishment_rune_option=? WHERE account_id=? AND slot_index=?",
+    crate::db::query(
+        "UPDATE equip_items SET punishment_rune_option=$1 WHERE account_id=$2 AND slot_index=$3",
     )
     .bind(eq.punishment_rune_option.as_ref().map(Value::to_string))
     .bind(account)
@@ -240,25 +241,25 @@ pub(crate) async fn save_equip(
     .await?;
     Ok(())
 }
-pub(crate) async fn material(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
+pub(crate) async fn material(db: &mut PgConnection, account: i64, slot: i64) -> Result<EquipItemInfo> {
     material_checked(db, account, slot, false).await
 }
-async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, disposing: bool) -> Result<EquipItemInfo> {
+async fn material_checked(db: &mut PgConnection, account: i64, slot: i64, disposing: bool) -> Result<EquipItemInfo> {
     let eq = equip(db, account, slot).await?;
     if eq.locked != 0 {
         return Err(rule("LockedEquip"));
     }
     // One prepared statement for every slot (formatting the slot into the SQL
     // prepared a new statement per piece in batch breaks).
-    let worn: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND ? IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10))",
+    let worn: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=$1 AND $2 IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10))",
     )
     .bind(account)
     .bind(slot)
     .fetch_one(&mut *db)
     .await?;
-    let pending: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?)",
+    let pending: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=$1 AND slot_index=$2)",
     )
     .bind(account)
     .bind(slot)
@@ -273,18 +274,18 @@ async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, di
     Ok(eq)
 }
 /// `remove_equip` for a batch: presets and storage are rewritten once.
-async fn remove_equips(db: &mut SqliteConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
+async fn remove_equips(db: &mut PgConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
     crate::api::heroes::presets::forget_equipments(db, account, slots).await?;
-    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+    crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
         .bind(account)
         .bind(json!(slots).to_string())
         .execute(&mut *db)
         .await?;
     Ok(())
 }
-async fn remove_equip(db: &mut SqliteConnection, account: i64, slot: i32) -> Result<()> {
+async fn remove_equip(db: &mut PgConnection, account: i64, slot: i32) -> Result<()> {
     crate::api::heroes::presets::forget_equipment(db, account, slot as i64).await?;
-    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?")
+    crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2")
         .bind(account)
         .bind(slot)
         .execute(&mut *db)
@@ -326,9 +327,9 @@ fn roll(chance: i64, scale: i64) -> bool {
     rand::rng().random_range(0..scale) < chance.clamp(0, scale)
 }
 
-pub(crate) async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id: i64) -> Result<Value> {
-    let text: Option<String> = sqlx::query_scalar(
-        "SELECT data FROM extension_state WHERE account_id=? AND kind=? AND idx=?",
+pub(crate) async fn get(db: &mut PgConnection, account: i64, kind: &str, id: i64) -> Result<Value> {
+    let text: Option<String> = crate::db::query_scalar(
+        "SELECT data FROM extension_state WHERE account_id=$1 AND kind=$2 AND idx=$3",
     )
     .bind(account)
     .bind(kind)
@@ -340,22 +341,22 @@ pub(crate) async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id:
         .map(|v| v.unwrap_or(Value::Null))
 }
 pub(crate) async fn put(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     kind: &str,
     id: i64,
     value: &Value,
 ) -> Result<()> {
-    sqlx::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES(?,?,?,?) ON CONFLICT(account_id,kind,idx) DO UPDATE SET data=excluded.data").bind(account).bind(kind).bind(id).bind(value.to_string()).execute(db).await?;
+    crate::db::query("INSERT INTO extension_state(account_id,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account_id,kind,idx) DO UPDATE SET data=excluded.data").bind(account).bind(kind).bind(id).bind(value.to_string()).execute(db).await?;
     Ok(())
 }
 pub(crate) async fn list(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     kind: &str,
 ) -> Result<Vec<Value>> {
-    let rows: Vec<String> = sqlx::query_scalar(
-        "SELECT data FROM extension_state WHERE account_id=? AND kind=? ORDER BY idx",
+    let rows: Vec<String> = crate::db::query_scalar(
+        "SELECT data FROM extension_state WHERE account_id=$1 AND kind=$2 ORDER BY idx",
     )
     .bind(account)
     .bind(kind)
@@ -367,19 +368,19 @@ pub(crate) async fn list(
 }
 
 pub(crate) async fn misc(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
 ) -> Result<serde_json::Map<String, Value>> {
     let mut out = json!({"RenewOptionEquipItemSlotIndex":0,"RenewOptionResultIndex":0,"RenewOptionResultStep":0,"RenewOptionSlotIndex":0,"RenewEnchantOptionEquipItemSlotIndex":0,"RenewEnchantOptionResultIndex":0,"RenewEnchantOptionResultStep":0,"SoulStoneMileage":0,"RestoreSoulStoneIndices":""});
     let pending =
-        sqlx::query("SELECT slot_index,kind,data FROM equipment_pending WHERE account_id=?")
+        crate::db::query("SELECT slot_index,kind,data FROM equipment_pending WHERE account_id=$1")
             .bind(account)
             .fetch_all(&mut *db)
             .await?;
     for r in pending {
         let slot: i64 = r.get("slot_index");
         let kind: String = r.get("kind");
-        let p: Value = serde_json::from_str(r.get("data")).map_err(|_| rule("InvalidOption"))?;
+        let p: Value = serde_json::from_str(&r.get::<String, _>("data")).map_err(|_| rule("InvalidOption"))?;
         match kind.as_str() {
             "option" => {
                 let v = json!({"RenewOptionEquipItemSlotIndex":slot,"RenewOptionResultIndex":p["Index"],"RenewOptionResultStep":p["Step"],"RenewOptionSlotIndex":p["Slot"]});
@@ -419,7 +420,7 @@ pub(crate) async fn misc(
     Ok(out.as_object().unwrap().clone())
 }
 pub(crate) async fn storage_login(state: &AppState, account: i64) -> Result<Vec<Value>> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     storage::initialize(&mut tx, state, account).await?;
     let mut rows = list(&mut tx, account, "equip_storage").await?;
     for value in &mut rows {
@@ -429,7 +430,7 @@ pub(crate) async fn storage_login(state: &AppState, account: i64) -> Result<Vec<
     Ok(rows)
 }
 pub(crate) async fn first_lobby(state: &AppState, account: i64) -> Result<Value> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     storage::initialize(&mut tx, state, account).await?;
     let mut presets = vec![];
     for v in list(&mut tx, account, "equip_storage").await? {
@@ -437,7 +438,7 @@ pub(crate) async fn first_lobby(state: &AppState, account: i64) -> Result<Value>
     }
     let mut identified = vec![];
     let mut techno = vec![];
-    for r in sqlx::query("SELECT * FROM equip_items WHERE account_id=?")
+    for r in crate::db::query("SELECT * FROM equip_items WHERE account_id=$1")
         .bind(account)
         .fetch_all(&mut *tx)
         .await?
@@ -466,7 +467,7 @@ mod equip_item_index_tests {
 
     #[tokio::test]
     async fn equip_item_index_matches_first_row_lookup() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        let db = crate::database::test_pool().await;
         let state = AppState::new(db, crate::tables::test_tables());
         let rows = state.tables.extensions.rows("EquipItem");
         assert!(!rows.is_empty());

@@ -18,12 +18,12 @@ pub(super) fn calendars(state: &AppState, view: &View) -> Vec<Value> {
         .collect()
 }
 pub(super) async fn snapshot(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     view: &View,
 ) -> Result<(Vec<Value>, Vec<Value>)> {
-    let rows:Vec<(i64,i64,String,Option<String>)>=sqlx::query_as("SELECT idx,claims,last_day,completed_time FROM attendance_calendar_state WHERE account_id=?").bind(account).fetch_all(db).await?;
+    let rows:Vec<(i64,i64,String,Option<String>)>=crate::db::query_as("SELECT idx,claims,last_day,completed_time FROM attendance_calendar_state WHERE account_id=$1").bind(account).fetch_all(db).await?;
     let mut infos = vec![];
     let mut datas = calendars(state, view);
     for c in &mut datas {
@@ -48,7 +48,7 @@ pub(super) async fn snapshot(
     Ok((datas, infos))
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -99,7 +99,7 @@ pub(super) async fn execute(
                 .iter()
                 .find(|c| n(c, "Index") == id)
                 .ok_or_else(|| rule("Fail"))?;
-            let count:Option<(i64,String)>=sqlx::query_as("SELECT claims,last_day FROM attendance_calendar_state WHERE account_id=? AND idx=?").bind(account).bind(id).fetch_optional(&mut *db).await?;
+            let count:Option<(i64,String)>=crate::db::query_as("SELECT claims,last_day FROM attendance_calendar_state WHERE account_id=$1 AND idx=$2").bind(account).bind(id).fetch_optional(&mut *db).await?;
             let (count, day) = count.unwrap_or((0, String::new()));
             let days = c["Reward"].as_array().ok_or_else(|| rule("Fail"))?;
             if day == state.server_date() || (n(c, "Repeatable") == 0 && count >= days.len() as i64)
@@ -120,7 +120,7 @@ pub(super) async fn execute(
             for r in entries {
                 db_reward(db, state, account, r, &mut rewards).await?;
             }
-            sqlx::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day,completed_time) VALUES(?,?,?,date('now'),datetime('now')) ON CONFLICT(account_id,idx) DO UPDATE SET claims=excluded.claims,last_day=excluded.last_day,completed_time=excluded.completed_time").bind(account).bind(id).bind(count+1).execute(&mut *db).await?;
+            crate::db::query("INSERT INTO attendance_calendar_state(account_id,idx,claims,last_day,completed_time) VALUES($1,$2,$3,sprk_date('now'),sprk_datetime('now')) ON CONFLICT(account_id,idx) DO UPDATE SET claims=excluded.claims,last_day=excluded.last_day,completed_time=excluded.completed_time").bind(account).bind(id).bind(count+1).execute(&mut *db).await?;
         }
         out["AttendanceRewardResult"] = item::reward_response(db, state, account, rewards).await?;
         let (datas, infos) = snapshot(db, state, account, &view).await?;

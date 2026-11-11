@@ -1,4 +1,4 @@
-use sqlx::Row;
+use crate::db::RowExt;
 use serde::{Deserialize, Serialize};
 
 /// Equipment item info matching client's EquipItemInfo
@@ -141,7 +141,7 @@ pub struct EquipItemInfo {
 
 impl EquipItemInfo {
     /// Build the same equipment snapshot for login and tutorial retries.
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Self {
+    pub fn from_row(row: &sqlx::postgres::PgRow) -> Self {
         let slot_index: i32 = row.get("slot_index");
         let mut info = EquipItemInfo {
             slot_index,

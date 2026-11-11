@@ -23,8 +23,9 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
 }
 
 pub(super) async fn charge(s:&AppState,run:&Run)->Result<()> {
-    let mut db=s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(run.master).execute(&mut *db).await?;
+    let mut db=crate::database::begin(&s.db).await?;
+    crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
     online::charge(&mut db,s,number(&run.payload,"MatchUid")).await?;
     db.commit().await?;
     Ok(())
@@ -48,9 +49,10 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
         run.members[if body["Win"]==true {0}else{1}]
     };
     let uid=number(&run.payload,"MatchUid");
-    let mut db=s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(run.master).execute(&mut *db).await?;
-    let valid:bool=sqlx::query_scalar("SELECT count(*)=2 FROM arena_runs WHERE status='battle' AND json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.Season')=?")
+    let mut db=crate::database::begin(&s.db).await?;
+    crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
+    let valid:bool=crate::db::query_scalar("SELECT count(*)=2 FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$1 AND sprk_json_int(data,'$.Season')=$2")
         .bind(uid).bind(crate::api::community::arena::season(s).0).fetch_one(&mut *db).await?;
     if !valid {
         drop(db);
@@ -110,8 +112,8 @@ fn forfeit_cutoff(run:&Run,winner:i64)->(i64,usize) {
         .unwrap_or((run.time_ms,run.logs.len()))
 }
 
-async fn save_history(db:&mut SqliteConnection,s:&AppState,run:&Run,winner:i64,body:&Value,forfeit:bool)->Result<()> {
-    let friendly:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE json_extract(data,'$.OnlineMatchUid')=? AND json_extract(data,'$.DuelType')=1)")
+async fn save_history(db:&mut PgConnection,s:&AppState,run:&Run,winner:i64,body:&Value,forfeit:bool)->Result<()> {
+    let friendly:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM arena_runs WHERE sprk_json_int(data,'$.OnlineMatchUid')=$1 AND sprk_json_int(data,'$.DuelType')=1)")
         .bind(number(&run.payload,"MatchUid")).fetch_one(&mut *db).await?;
     if let Some(accounts)=run.payload["Simulation"]["AccountInfos"].as_array().filter(|_|!friendly) {
         let logs=if forfeit {forfeit_logs(run,winner)} else {body["ReplayLogs"].as_str().unwrap_or("").to_owned()};
@@ -146,8 +148,9 @@ pub(super) async fn depart(s:&AppState,run:&mut Run,a:i64)->Result<()> {
 }
 
 pub(super) async fn cancel(s:&AppState,run:&Run)->Result<()> {
-    let mut db=s.db.begin().await?;
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?").bind(run.master).execute(&mut *db).await?;
+    let mut db=crate::database::begin(&s.db).await?;
+    crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
     online::cancel(&mut db,s,number(&run.payload,"MatchUid")).await?;
     db.commit().await?;
     let _=notify_result(s,run,&json!({"Canceled":true}));
@@ -170,7 +173,7 @@ pub(crate) async fn http_cancelled(s:&AppState,a:i64)->Result<()> {
 }
 
 pub(super) async fn sync_finished(s:&AppState,run:&mut Run)->Result<bool> {
-    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT account,data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
+    let rows:Vec<(i64,String)>=crate::db::query_as("SELECT account,data FROM arena_runs WHERE status='complete' AND sprk_json_int(data,'$.OnlineMatchUid')=$1")
         .bind(number(&run.payload,"MatchUid")).fetch_all(&s.db).await?;
     if rows.len()!=2 {return Ok(false);}
     let mut winner=0;let mut canceled=false;
@@ -180,7 +183,7 @@ pub(super) async fn sync_finished(s:&AppState,run:&mut Run)->Result<bool> {
         if data["End"]["MatchResult"]["Win"]==true {winner=a;}
     }
     if canceled {cancel(s,run).await?;} else {
-        let mut db=s.db.begin().await?;
+        let mut db=crate::database::begin(&s.db).await?;
         save_history(&mut db,s,run,winner,&Value::Null,true).await?;
         db.commit().await?;
         run.result=Some(json!({"WinnerAccountId":winner,"Creatures":[],"GiveUp":true}));
@@ -211,17 +214,17 @@ pub(super) mod tests {
             let (s,users,mut rx)=fixture().await;
             let accounts=users.iter().map(|u|number(&u["UserInfo"],"AccountId")).collect::<Vec<_>>();
             let group=accounts[0];
-            sqlx::query("INSERT INTO friendly_duels VALUES(?,?,?,'accepted',?)")
+            crate::db::query("INSERT INTO friendly_duels VALUES($1,$2,$3,'accepted',$4)")
                 .bind(group).bind(accounts[0]).bind(accounts[1]).bind(now()+900).execute(&s.db).await.unwrap();
             let args=format!("ArenaType=Normal&DuelType=Friendly&GroupId={group}&HeroIndices=1&LeaderHeroIndex=1");
             for u in &users[..2] {assert_eq!(call(&s,u,"match/register_match",&args).await["Result"],"Success");}
-            let swords:Vec<i64>=sqlx::query_scalar("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
-            sqlx::query("INSERT INTO battle_state VALUES(?,'dispatch',1,?)")
+            let swords:Vec<i64>=crate::db::query_scalar("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+            crate::db::query("INSERT INTO battle_state VALUES($1,'dispatch',1,$2)")
                 .bind(accounts[invalid]).bind(json!({"SlotIndex":1,"State":"Prepare","HeroIndices":"[1]"}).to_string()).execute(&s.db).await.unwrap();
             for u in &users[..2] {assert_eq!(call(&s,u,"match/wait_match","PlayOfflineMatch=true").await["Result"],"Canceled");}
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM arena_runs WHERE status IN ('waiting','battle')").fetch_one(&s.db).await.unwrap(),0);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM arena_runs WHERE status IN ('waiting','battle')").fetch_one(&s.db).await.unwrap(),0);
             assert!(s.conquest.runs.is_empty());assert!(rx.try_recv().is_err());
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),swords);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT sword FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),swords);
         }
     }
 
@@ -229,8 +232,8 @@ pub(super) mod tests {
     async fn friendly_duels_pair_only_the_invited_accounts_and_keep_tickets_and_scores() {
         let (s,users,_worker)=fixture().await;
         let a=number(&users[0]["UserInfo"],"AccountId");let b=number(&users[1]["UserInfo"],"AccountId");
-        sqlx::query("INSERT INTO friendly_duels VALUES(123,?,?,'accepted',?)").bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE user_info SET sword=0 WHERE account_id IN (?,?)").bind(a).bind(b).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO friendly_duels VALUES(123,$1,$2,'accepted',$3)").bind(a).bind(b).bind(now()+900).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET sword=0 WHERE account_id IN ($1,$2)").bind(a).bind(b).execute(&s.db).await.unwrap();
         register(&s,&users[2]).await;
         let entry="ArenaType=Normal&DuelType=Friendly&GroupId=123&HeroIndices=1&LeaderHeroIndex=1";
         for u in &users[..2] {assert_eq!(call(&s,u,"match/register_match",entry).await["Result"],"Success");}
@@ -256,11 +259,11 @@ pub(super) mod tests {
         register(&s,&users[0]).await;
         let a=number(&users[0]["UserInfo"],"AccountId");
         let row=|s:AppState|async move {
-            sqlx::query_as::<_,(String,Option<i64>,i64)>("SELECT data,last_poll,(SELECT revision FROM response_revisions WHERE scope='progression' AND account=?) FROM arena_runs WHERE account=? AND status='waiting'")
+            crate::db::query_as::<(String,Option<i64>,i64)>("SELECT data,last_poll,(SELECT revision FROM response_revisions WHERE scope='progression' AND account=$1) FROM arena_runs WHERE account=$2 AND status='waiting'")
                 .bind(a).bind(a).fetch_one(&s.db).await.unwrap()
         };
         let (data,_,revision)=row(s.clone()).await;
-        sqlx::query("UPDATE arena_runs SET last_poll=last_poll-60 WHERE account=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE arena_runs SET last_poll=last_poll-60 WHERE account=$1").bind(a).execute(&s.db).await.unwrap();
         assert_eq!(call(&s,&users[0],"match/wait_match","PlayOfflineMatch=false").await["Result"],"WaitMore");
         let (after,poll,after_revision)=row(s.clone()).await;
         assert_eq!(after,data);
@@ -278,7 +281,7 @@ pub(super) mod tests {
         matched
     }
     async fn sword(s:&AppState,u:&Value)->i64 {
-        sqlx::query_scalar("SELECT sword FROM user_info WHERE account_id=?").bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap()
+        crate::db::query_scalar("SELECT sword FROM user_info WHERE account_id=$1").bind(number(&u["UserInfo"],"AccountId")).fetch_one(&s.db).await.unwrap()
     }
     async fn transport(s:&AppState,users:&[Value],matched:&Value)->(crate::websocket::tests::Server,Vec<Client>) {
         let server=server(s.clone()).await;
@@ -399,24 +402,21 @@ pub(super) mod tests {
     #[tokio::test]
     async fn arena_completion_lookup_uses_match_index() {
         let (s,_,_worker)=fixture().await;
-        let plan:Vec<(i64,i64,i64,String)>=sqlx::query_as("EXPLAIN QUERY PLAN SELECT account,data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
-            .bind(1_i64).fetch_all(&s.db).await.unwrap();
-        assert!(plan.iter().any(|row|row.3.contains("USING INDEX arena_online_match_status")),"{plan:?}");
+        let plan=crate::database::explain(&s.db,"SELECT account,data FROM arena_runs WHERE status='complete' AND sprk_json_int(data,'$.OnlineMatchUid')=$1").await;
+        assert!(plan.contains("arena_online_match_status"),"{plan}");
         // Account-scoped lookups must not fall back to the account index, which
         // JSON-parses every one of that player's runs (Honor rows are ~1.5 MB).
         for sql in [
-            "SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=? AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=?)",
-            "SELECT kind FROM arena_runs WHERE +account=? AND (id=? OR json_extract(data,'$.OnlineMatchUid')=?) ORDER BY id DESC LIMIT 1",
-            "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='complete' ORDER BY id DESC LIMIT 1",
-            "SELECT data FROM arena_runs WHERE (id=? OR json_extract(data,'$.OnlineMatchUid')=?) AND +account=? AND status='battle'",
-            "UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?",
+            "SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=$1 AND status IN ('battle','complete') AND sprk_json_int(data,'$.OnlineMatchUid')=$2)",
+            "SELECT kind FROM arena_runs WHERE +account=$1 AND (id=$2 OR sprk_json_int(data,'$.OnlineMatchUid')=$3) ORDER BY id DESC LIMIT 1",
+            "SELECT data FROM arena_runs WHERE id IN (SELECT id FROM arena_runs WHERE id=$1 UNION SELECT id FROM arena_runs WHERE sprk_json_int(data,'$.OnlineMatchUid')=$2) AND +account=$3 AND status='complete' ORDER BY id DESC LIMIT 1",
+            "SELECT data FROM arena_runs WHERE (id=$1 OR sprk_json_int(data,'$.OnlineMatchUid')=$2) AND +account=$3 AND status='battle'",
+            "UPDATE arena_runs SET data=sprk_json_set(data,'$.OnlineCharged',('true')::jsonb) WHERE +account=$1 AND status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$2",
         ] {
-            let explain=format!("EXPLAIN QUERY PLAN {sql}");
-            let mut query=sqlx::query_as::<_,(i64,i64,i64,String)>(sqlx::AssertSqlSafe(explain.as_str()));
-            for _ in 0..sql.matches('?').count() {query=query.bind(1_i64);}
-            let plan=query.fetch_all(&s.db).await.unwrap();
-            assert!(plan.iter().any(|row|row.3.contains("arena_online_match_status")),"{sql}: {plan:?}");
-            assert!(!plan.iter().any(|row|row.3.contains("USING INDEX arena_retention")||row.3.contains("arena_mission_history")),"{sql}: {plan:?}");
+            let plan=crate::database::explain(&s.db,sql).await;
+            assert!(plan.contains("arena_online_match_status"),"{sql}: {plan}");
+            // The match uid is only read through its index, never by parsing each row.
+            assert!(!plan.lines().any(|line|line.contains("Filter:")&&line.contains("sprk_json")),"{sql}: {plan}");
         }
     }
 
@@ -511,7 +511,7 @@ pub(super) mod tests {
             assert_eq!(result["MatchResult"]["NewMatchScore"],if i==1{1020}else{990});
             assert_eq!(sword(&s,&users[i]).await,before[i]-1);
         }
-        let scores:Vec<(i64,i64)>=sqlx::query_as("SELECT wins,losses FROM arena_scores WHERE account IN (?,?) ORDER BY account")
+        let scores:Vec<(i64,i64)>=crate::db::query_as("SELECT wins,losses FROM arena_scores WHERE account IN ($1,$2) ORDER BY account")
             .bind(number(&users[0]["UserInfo"],"AccountId")).bind(number(&users[1]["UserInfo"],"AccountId")).fetch_all(&s.db).await.unwrap();
         assert_eq!(scores,vec![(0,1),(1,0)]);
     }
@@ -593,7 +593,7 @@ pub(super) mod tests {
             assert_eq!(c.recv("PingRes").await["ClientTimeMs"],123);
         }
         assert!(worker.try_recv().is_err(),"Emotes must not command or stop the combat worker");
-        let rows:Vec<(String,i64,i64)>=sqlx::query_as("SELECT r.status,s.wins,s.losses FROM arena_runs r JOIN arena_scores s ON s.account=r.account AND s.kind=0 AND s.season=json_extract(r.data,'$.Season') WHERE json_extract(r.data,'$.OnlineMatchUid')=? ORDER BY r.id")
+        let rows:Vec<(String,i64,i64)>=crate::db::query_as("SELECT r.status,s.wins,s.losses FROM arena_runs r JOIN arena_scores s ON s.account=r.account AND s.kind=0 AND s.season=sprk_json_int(r.data,'$.Season') WHERE sprk_json_int(r.data,'$.OnlineMatchUid')=$1 ORDER BY r.id")
             .bind(uid).fetch_all(&s.db).await.unwrap();
         assert_eq!(rows,vec![("battle".into(),0,0),("battle".into(),0,0)]);
         for i in 0..2 {assert_eq!(sword(&s,&users[i]).await,before[i]);}
@@ -611,7 +611,7 @@ pub(super) mod tests {
     async fn arena_queue_stale_cancelled_and_worker_unavailable_fall_back() {
         let (s,users,_worker)=fixture().await;
         register(&s,&users[0]).await;register(&s,&users[1]).await;
-        sqlx::query("UPDATE arena_runs SET last_poll=? WHERE account=?")
+        crate::db::query("UPDATE arena_runs SET last_poll=$1 WHERE account=$2")
             .bind(now()-30).bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();
         assert_eq!(call(&s,&users[0],"match/wait_match","PlayOfflineMatch=false").await["Result"],"WaitMore");
         call(&s,&users[1],"match/cancel_match","").await;
@@ -736,7 +736,7 @@ pub(super) mod tests {
         let winner=call(&s,&users[0],"match/get_match_result",&format!("MatchUid={uid}")).await;
         assert_eq!((winner["MatchResult"]["GiveUp"].clone(),winner["MatchResult"]["MatchUid"].clone()),(json!(false),json!(uid)));
         // Completed rows drop the shared copy of both registrations, keeping their own.
-        let stored:Vec<String>=sqlx::query_scalar("SELECT data FROM arena_runs WHERE status='complete' AND json_extract(data,'$.OnlineMatchUid')=?")
+        let stored:Vec<String>=crate::db::query_scalar("SELECT data FROM arena_runs WHERE status='complete' AND sprk_json_int(data,'$.OnlineMatchUid')=$1")
             .bind(uid).fetch_all(&s.db).await.unwrap();
         assert_eq!(stored.len(),2);
         for raw in stored {
@@ -779,7 +779,7 @@ pub(super) mod tests {
         let (mut s,users,_rx)=fixture().await;
         *s.conquest.worker.write().await=None;
         let key=uuid::Uuid::new_v4().to_string();s.battle_service_key=Arc::new(Some(key.clone()));
-        sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE account_id=$1")
             .bind(number(&users[1]["UserInfo"],"AccountId")).execute(&s.db).await.unwrap();
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let port=listener.local_addr().unwrap().port();
         let task=tokio::spawn(serve(listener,s.clone()));
@@ -858,11 +858,11 @@ pub(super) mod tests {
         }
         std::fs::write("target/arena-lab/native-results.json",json!(results).to_string()).unwrap();
         if forfeit {
-            let data:String=sqlx::query_scalar("SELECT data FROM service_replays").fetch_one(&s.db).await.unwrap();
+            let data:String=crate::db::query_scalar("SELECT data FROM service_replays").fetch_one(&s.db).await.unwrap();
             std::fs::write("target/arena-lab/native-forfeit-replay.txt",data).unwrap();
-            let info:String=sqlx::query_scalar("SELECT info FROM service_replays").fetch_one(&s.db).await.unwrap();
+            let info:String=crate::db::query_scalar("SELECT info FROM service_replays").fetch_one(&s.db).await.unwrap();
             std::fs::write("target/arena-lab/native-forfeit-info.json",info).unwrap();
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM service_replay_accounts").fetch_one(&s.db).await.unwrap(),2);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM service_replay_accounts").fetch_one(&s.db).await.unwrap(),2);
         }
         task.abort();
     }

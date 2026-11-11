@@ -85,8 +85,8 @@ pub(super) fn enter(s: &AppState, r: &Request, entry: &mut Value) -> Result<()> 
     Ok(())
 }
 
-pub(super) async fn rankers(db: &mut SqliteConnection, id: i64, season: i64) -> Result<Vec<Value>> {
-    let rows = sqlx::query("SELECT c.*,a.nick,u.avatar_hero_index FROM challenge_results c JOIN accounts a ON a.account_id=c.account JOIN user_info u ON u.account_id=c.account WHERE challenge=? AND season=? ORDER BY score DESC,battle_time,account")
+pub(super) async fn rankers(db: &mut PgConnection, id: i64, season: i64) -> Result<Vec<Value>> {
+    let rows = crate::db::query("SELECT c.*,a.nick,u.avatar_hero_index FROM challenge_results c JOIN accounts a ON a.account_id=c.account JOIN user_info u ON u.account_id=c.account WHERE challenge=$1 AND season=$2 ORDER BY score DESC,battle_time,account")
         .bind(id).bind(season).fetch_all(db).await?;
     Ok(rows.iter().enumerate().map(|(i,r)| json!({"Rank":i,"AccountId":r.get::<i64,_>("account"),
         "Nick":r.get::<String,_>("nick"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),
@@ -94,15 +94,15 @@ pub(super) async fn rankers(db: &mut SqliteConnection, id: i64, season: i64) -> 
         "CurrentScore":r.get::<i64,_>("current_score"),"CurrentBattleTime":r.get::<i64,_>("current_time")})).collect())
 }
 
-async fn mine(db: &mut SqliteConnection, a: i64, id: i64, season: i64) -> Result<Value> {
+async fn mine(db: &mut PgConnection, a: i64, id: i64, season: i64) -> Result<Value> {
     if let Some(me) = rankers(db,id,season).await?.into_iter().find(|v| n(v,"AccountId")==a) { return Ok(me); }
-    let r = sqlx::query("SELECT a.nick,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE account_id=?")
+    let r = crate::db::query("SELECT a.nick,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE account_id=$1")
         .bind(a).fetch_one(db).await?;
     Ok(json!({"Rank":-1,"AccountId":a,"Nick":r.get::<String,_>("nick"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),
         "Score":0,"CurrentScore":0,"BattleTime":0,"CurrentBattleTime":0}))
 }
 
-pub(super) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, end: &Request,
+pub(super) async fn finish(db: &mut PgConnection, s: &AppState, a: i64, end: &Request,
     entry: &Value, elapsed: i64, out: &mut Value) -> Result<()> {
     let id = n(entry,"ChallengeIndex");
     if id == 0 { return Ok(()); }
@@ -125,7 +125,7 @@ pub(super) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, end:
             let currency = hero::currency(db,a,"ChallengeRaidPoint",score).await?;
             dungeons::append_rewards(out,&json!({"CurrencyResults":[currency]}));
         }
-        sqlx::query("INSERT INTO challenge_results VALUES(?,?,?,?,?,?,?) ON CONFLICT(season,challenge,account) DO UPDATE SET score=MAX(score,excluded.score),battle_time=CASE WHEN excluded.score>score OR (excluded.score=score AND excluded.battle_time<battle_time) THEN excluded.battle_time ELSE battle_time END,current_score=excluded.current_score,current_time=excluded.current_time")
+        crate::db::query("INSERT INTO challenge_results VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(season,challenge,account) DO UPDATE SET score=GREATEST(challenge_results.score,excluded.score),battle_time=CASE WHEN excluded.score>challenge_results.score OR (excluded.score=challenge_results.score AND excluded.battle_time<challenge_results.battle_time) THEN excluded.battle_time ELSE challenge_results.battle_time END,current_score=excluded.current_score,\"current_time\"=excluded.\"current_time\"")
             .bind(season).bind(id).bind(a).bind(score).bind(battle_time).bind(score).bind(battle_time).execute(&mut *db).await?;
         if let Some(team) = entry["ChallengeTeam"].as_array() {
             let mut team = team.clone();
@@ -135,7 +135,7 @@ pub(super) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, end:
             let request = Request(read_value(entry["Request"].clone())?);
             let data = json!({"RankerInfos":players,"Score":score,"BattleTime":battle_time,
                 "RaidLevel":int(&request,"RaidLevel")?,"AffixIndices":ids(&request,"AffixIndices",128)?});
-            sqlx::query("INSERT INTO challenge_teams VALUES(?,?,?,?,?,?) ON CONFLICT(season,challenge,team) DO UPDATE SET score=excluded.score,battle_time=excluded.battle_time,data=excluded.data WHERE excluded.score>score OR (excluded.score=score AND excluded.battle_time<battle_time)")
+            crate::db::query("INSERT INTO challenge_teams VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(season,challenge,team) DO UPDATE SET score=excluded.score,battle_time=excluded.battle_time,data=excluded.data WHERE excluded.score>challenge_teams.score OR (excluded.score=challenge_teams.score AND excluded.battle_time<challenge_teams.battle_time)")
                 .bind(season).bind(id).bind(json!(team).to_string()).bind(score).bind(battle_time).bind(data.to_string()).execute(&mut *db).await?;
         }
     }
@@ -146,14 +146,14 @@ pub(super) async fn finish(db: &mut SqliteConnection, s: &AppState, a: i64, end:
     Ok(())
 }
 
-pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, action: &str) -> Result<Value> {
+pub(super) async fn execute(db: &mut PgConnection, s: &AppState, a: i64, r: &Request, action: &str) -> Result<Value> {
     settle(db,s,a).await?;
     let season = seasons::season(s).0;
     let id = int(r,"RaidIndex")?; // Native request uses ChallengeRaidIndex, not the underlying raid.
     if id != n(definition(s,season)?,"Index") { return Err(rule("NotFoundSeasonData")); }
     let mut out = item::success();
     if action.contains("multi_play") {
-        let rows: Vec<String> = sqlx::query_scalar("SELECT data FROM challenge_teams WHERE season=? AND challenge=? ORDER BY score DESC,battle_time,team LIMIT 100")
+        let rows: Vec<String> = crate::db::query_scalar("SELECT data FROM challenge_teams WHERE season=$1 AND challenge=$2 ORDER BY score DESC,battle_time,team LIMIT 100")
             .bind(season).bind(id).fetch_all(db).await?;
         let mut ranks = vec![];
         for (i,raw) in rows.iter().enumerate() { let mut v: Value = read_json(raw)?; v["Rank"]=json!(i); ranks.push(v); }
@@ -166,8 +166,8 @@ pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: 
     Ok(out)
 }
 
-pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
-    let records: Vec<(i64,i64)> = sqlx::query_as("SELECT season,challenge FROM challenge_results WHERE account=? AND season<? AND NOT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=? AND kind='challenge_native_season' AND idx=challenge AND period=CAST(season AS TEXT))")
+pub(super) async fn settle(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
+    let records: Vec<(i64,i64)> = crate::db::query_as("SELECT season,challenge FROM challenge_results WHERE account=$1 AND season<$2 AND NOT EXISTS(SELECT 1 FROM battle_reward_claims WHERE account=$3 AND kind='challenge_native_season' AND idx=challenge AND period=CAST(season AS TEXT))")
         .bind(a).bind(seasons::season(s).0).bind(a).fetch_all(&mut *db).await?;
     for (season,id) in records {
         let ranks = rankers(db,id,season).await?;

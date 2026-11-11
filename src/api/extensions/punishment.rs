@@ -6,7 +6,7 @@ use rand::RngExt;
 /// including inactive pages. Account login resolves these from EquipItemInfos;
 /// remote heroes and saved battle snapshots have no account inventory to query.
 pub(crate) async fn options(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     hero: &Value,
 ) -> Result<Value> {
@@ -14,8 +14,8 @@ pub(crate) async fn options(
         .map(|page| n(page, "EquipItemSlotIndex")).filter(|slot| *slot > 0).collect();
     let mut options = vec![];
     for slot in slots {
-        let raw: Option<String> = sqlx::query_scalar(
-            "SELECT punishment_rune_option FROM equip_items WHERE account_id=? AND slot_index=?",
+        let raw: Option<String> = crate::db::query_scalar(
+            "SELECT punishment_rune_option FROM equip_items WHERE account_id=$1 AND slot_index=$2",
         ).bind(account).bind(slot).fetch_optional(&mut *db).await?.flatten();
         if let Some(raw) = raw {
             let mut option: Value = serde_json::from_str(&raw)
@@ -27,16 +27,16 @@ pub(crate) async fn options(
     Ok(json!(options))
 }
 
-pub(crate) async fn attached(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<bool> {
-    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM hero_details h,json_each(h.data,'$.HeroRunePageInfos') r WHERE h.account_id=? AND json_extract(r.value,'$.EquipItemSlotIndex')=?)").bind(account).bind(slot).fetch_one(db).await?)
+pub(crate) async fn attached(db: &mut PgConnection, account: i64, slot: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM hero_details h,sprk_json_each(h.data,'$.HeroRunePageInfos') r WHERE h.account_id=$1 AND sprk_json_int(r.value,'$.EquipItemSlotIndex')=$2)").bind(account).bind(slot).fetch_one(db).await?)
 }
 async fn stored(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     slot: i64,
 ) -> Result<EquipItemInfo> {
-    let r = sqlx::query(
-        "SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type IN (0,3)",
+    let r = crate::db::query(
+        "SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2 AND inventory_type IN (0,3)",
     )
     .bind(account)
     .bind(slot)
@@ -46,7 +46,7 @@ async fn stored(
     Ok(EquipItemInfo::from_row(&r))
 }
 pub(crate) async fn available(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     slot: i64,
 ) -> Result<EquipItemInfo> {
@@ -60,7 +60,7 @@ pub(crate) async fn available(
 // the equipment. A lock must not prevent the move, but a rune already assigned
 // to any hero/page must not be assigned a second time.
 pub(super) async fn for_equipping(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     slot: i64,
 ) -> Result<EquipItemInfo> {
@@ -71,7 +71,7 @@ pub(super) async fn for_equipping(
     Ok(eq)
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -106,7 +106,7 @@ pub(super) async fn execute(
     }
     let id = req.number("PunishmentRuneIndex", 0)?;
     let data = row(state, "PunishmentRune", &[("PunishmentRuneIndex", id)])?;
-    let owned:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND punishment_rune_option IS NOT NULL").bind(account).fetch_one(&mut *db).await?;
+    let owned:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND punishment_rune_option IS NOT NULL").bind(account).fetch_one(&mut *db).await?;
     let max = state
         .tables
         .hero_shop
@@ -216,7 +216,7 @@ pub(super) async fn execute(
     )
 }
 pub(crate) async fn dismantle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,

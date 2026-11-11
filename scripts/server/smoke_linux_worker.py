@@ -15,9 +15,21 @@ def main():
     parser.add_argument("image")
     args = parser.parse_args()
     name = "sprk-worker-smoke-" + uuid.uuid4().hex[:12]
+    database = name + "-postgres"
     try:
-        docker("run", "--detach", "--init", "--name", name,
-               "--env", "SPRK_SERVICE_MODE=game", args.image)
+        # The game needs PostgreSQL; give it a throwaway server on a private network.
+        docker("network", "create", name)
+        docker("run", "--detach", "--name", database, "--network", name,
+               "--env", "POSTGRES_PASSWORD=smoke", "postgres:18")
+        deadline = time.monotonic() + 60
+        while subprocess.run(["docker", "exec", database, "pg_isready", "-U", "postgres"],
+                             capture_output=True).returncode != 0:
+            if time.monotonic() > deadline:
+                raise RuntimeError("PostgreSQL did not become ready")
+            time.sleep(1)
+        docker("run", "--detach", "--init", "--name", name, "--network", name,
+               "--env", "SPRK_SERVICE_MODE=game",
+               "--env", f"DATABASE_URL=postgres://postgres:smoke@{database}:5432/postgres", args.image)
         deadline = time.monotonic() + 240
         while time.monotonic() < deadline:
             state = json.loads(docker("inspect", "--format", "{{json .State}}", name))
@@ -34,7 +46,9 @@ def main():
         subprocess.run(["docker", "exec", name, "tail", "-100", "/data/conquest-worker.log"])
         raise
     finally:
-        subprocess.run(["docker", "rm", "--force", "--volumes", name], stdout=subprocess.DEVNULL)
+        subprocess.run(["docker", "rm", "--force", "--volumes", name, database], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+        subprocess.run(["docker", "network", "rm", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 if __name__ == "__main__":

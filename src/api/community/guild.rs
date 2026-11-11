@@ -1,8 +1,8 @@
 use super::*;
 
 // Keep legacy database roles: master=2, admin=1, member=0. Convert at the wire boundary.
-pub(super) async fn membership(db: &mut SqliteConnection, a: i64) -> Result<(i64, i64)> {
-    let r = sqlx::query("SELECT guild_id,role FROM guild_members WHERE account_id=?")
+pub(super) async fn membership(db: &mut PgConnection, a: i64) -> Result<(i64, i64)> {
+    let r = crate::db::query("SELECT guild_id,role FROM guild_members WHERE account_id=$1")
         .bind(a)
         .fetch_optional(db)
         .await?
@@ -16,7 +16,7 @@ pub(super) fn admin(role: i64) -> Result<()> {
         Ok(())
     }
 }
-pub(super) async fn contents_available(db: &mut SqliteConnection, a: i64) -> Result<()> {
+pub(super) async fn contents_available(db: &mut PgConnection, a: i64) -> Result<()> {
     let p = get(db, a, "withdraw", 0).await?;
     if now() < n(&p, "ContentsAt") {
         return Err(rule("ContentsDisabled"));
@@ -30,15 +30,15 @@ fn master(role: i64) -> Result<()> {
         Ok(())
     }
 }
-pub(super) async fn state(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
+pub(super) async fn state(db: &mut PgConnection, s: &AppState, g: i64) -> Result<Value> {
     let v = view(db, s, g).await?;
     put(db, g, "guild", 0, &v).await?;
     Ok(v)
 }
 /// The normalized guild info without persisting it, for read-only connections
 /// (inspecting a guild member's profile runs on the reader pool).
-pub(super) async fn view(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
-    let r=sqlx::query("SELECT g.*,a.nick AS master_nick,(SELECT count(*) FROM guild_members m WHERE m.guild_id=g.guild_id) AS members FROM guilds g JOIN accounts a ON a.account_id=g.master_account_id WHERE g.guild_id=?").bind(g).fetch_optional(&mut *db).await?.ok_or_else(||rule("NoGuild"))?;
+pub(super) async fn view(db: &mut PgConnection, s: &AppState, g: i64) -> Result<Value> {
+    let r=crate::db::query("SELECT g.*,a.nick AS master_nick,(SELECT count(*) FROM guild_members m WHERE m.guild_id=g.guild_id) AS members FROM guilds g JOIN accounts a ON a.account_id=g.master_account_id WHERE g.guild_id=$1").bind(g).fetch_optional(&mut *db).await?.ok_or_else(||rule("NoGuild"))?;
     let mut v = get(db, g, "guild", 0).await?;
     if v.is_null() {
         v = json!({"Logo":1,"Back":1,"Flag":0,"JoinWay":1,"ReqTeamLevel":1,"Introduce":"","CountryCode":"US","ActivityPoint":r.get::<i64,_>("exp"),"SuppressPoint":0,"Wood":0,"Stone":0,"Metal":0,"SkillInfos":[],"SkillInitTime":null,"AutoApplySuppress":0});
@@ -69,7 +69,7 @@ pub(super) async fn view(db: &mut SqliteConnection, s: &AppState, g: i64) -> Res
         v["ContributionDay"] = json!(period);
         v["ContributedGem"] = json!(0);
     }
-    let votes=sqlx::query("SELECT json_extract(c.data,'$.ReqGuildSkill') AS skill,COUNT(*) AS votes FROM community_state c JOIN guild_members m ON m.account_id=c.owner AND m.guild_id=c.idx WHERE c.kind='guild_member' AND c.idx=? AND json_extract(c.data,'$.ReqGuildSkill')>0 GROUP BY skill").bind(g).fetch_all(&mut *db).await?;
+    let votes=crate::db::query("SELECT sprk_json_int(c.data,'$.ReqGuildSkill') AS skill,COUNT(*) AS votes FROM community_state c JOIN guild_members m ON m.account_id=c.owner AND m.guild_id=c.idx WHERE c.kind='guild_member' AND c.idx=$1 AND sprk_json_int(c.data,'$.ReqGuildSkill')>0 GROUP BY skill").bind(g).fetch_all(&mut *db).await?;
     let mut skills = v["SkillInfos"].as_array().cloned().unwrap_or_default();
     for def in s.tables.arena_guild.rows("GuildSkill") {
         let id = n(def, "GuildSkillIndex");
@@ -105,7 +105,7 @@ pub(super) async fn view(db: &mut SqliteConnection, s: &AppState, g: i64) -> Res
 pub(super) fn contribution_day(s: &AppState) -> String {
     time(now() - constant(s, "GuildContributeResetHour", 3) * 3600)[..10].into()
 }
-pub(super) async fn member(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn member(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let (g, role) = membership(db, a).await?;
     let mut u = user(db, a).await?;
     let mut v = get(db, a, "guild_member", g).await?;
@@ -133,7 +133,7 @@ pub(super) async fn member(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     // of inactivity. Long-lived logins and saved attendance must count too.
     // Derive this on read so existing check-ins work after server restarts,
     // without rewriting the account's actual login time or attendance rewards.
-    let saved:Option<String>=sqlx::query_scalar("SELECT MAX(last_time) FROM (SELECT last_login AS last_time FROM accounts WHERE account_id=? UNION ALL SELECT last_logout FROM accounts WHERE account_id=? UNION ALL SELECT json_extract(data,'$.LastAttendanceTime') FROM community_state WHERE owner=? AND kind='attendance' AND idx=?)")
+    let saved:Option<String>=crate::db::query_scalar("SELECT MAX(last_time) FROM (SELECT last_login AS last_time FROM accounts WHERE account_id=$1 UNION ALL SELECT last_logout FROM accounts WHERE account_id=$2 UNION ALL SELECT sprk_json_text(data,'$.LastAttendanceTime') FROM community_state WHERE owner=$3 AND kind='attendance' AND idx=$4)")
         .bind(a).bind(a).bind(a).bind(g).fetch_one(&mut *db).await?;
     let session=s.sessions.iter().filter(|entry|entry.account_id==a)
         .map(|entry|entry.last_activity.format("%Y-%m-%d %H:%M:%S").to_string()).max();
@@ -141,8 +141,8 @@ pub(super) async fn member(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
     u["LastLoginTime"]=json!(saved.into_iter().chain(session).chain(connected).max());
     Ok(u)
 }
-pub(super) async fn save(db: &mut SqliteConnection, g: i64, v: &Value) -> Result<()> {
-    sqlx::query("UPDATE guilds SET exp=?,level=?,notice=? WHERE guild_id=?")
+pub(super) async fn save(db: &mut PgConnection, g: i64, v: &Value) -> Result<()> {
+    crate::db::query("UPDATE guilds SET exp=$1,level=$2,notice=$3 WHERE guild_id=$4")
         .bind(n(v, "ActivityPoint"))
         .bind(n(v, "Level"))
         .bind(v["Notice"].as_str().unwrap_or(""))
@@ -151,7 +151,7 @@ pub(super) async fn save(db: &mut SqliteConnection, g: i64, v: &Value) -> Result
         .await?;
     put(db, g, "guild", 0, v).await
 }
-async fn name(db: &mut SqliteConnection, s: &AppState, name: &str) -> Result<()> {
+async fn name(db: &mut PgConnection, s: &AppState, name: &str) -> Result<()> {
     let len = name.chars().count() as i64;
     if len < constant(s, "MinGuildNameLength", 4) {
         return Err(rule("TooShortName"));
@@ -166,7 +166,7 @@ async fn name(db: &mut SqliteConnection, s: &AppState, name: &str) -> Result<()>
     {
         return Err(rule("InvalidName"));
     }
-    if sqlx::query_scalar::<_, i64>("SELECT count(*) FROM guilds WHERE name=? COLLATE NOCASE")
+    if crate::db::query_scalar::<i64>("SELECT count(*) FROM guilds WHERE lower(name)=lower($1)")
         .bind(name)
         .fetch_one(db)
         .await?
@@ -227,7 +227,7 @@ fn settings_fields(s: &AppState, r: &Request, create: bool) -> Result<Value> {
         json!({"Logo":logo,"Back":back,"JoinWay":way,"ReqTeamLevel":level,"Introduce":text(r,fields[4],constant(s,"MaxGuildIntroduceLength",26) as usize)?,"CountryCode":country.to_uppercase()}),
     )
 }
-async fn joinable(db: &mut SqliteConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
+async fn joinable(db: &mut PgConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
     if membership(db, a).await.is_ok() {
         return Err(rule("AlreadyJoined"));
     }
@@ -248,20 +248,20 @@ async fn joinable(db: &mut SqliteConnection, s: &AppState, a: i64, g: i64) -> Re
     }
     Ok(v)
 }
-async fn join(db: &mut SqliteConnection, a: i64, g: i64) -> Result<()> {
-    sqlx::query("INSERT INTO guild_members(guild_id,account_id,role,contribution) VALUES(?,?,0,0)")
+async fn join(db: &mut PgConnection, a: i64, g: i64) -> Result<()> {
+    crate::db::query("INSERT INTO guild_members(guild_id,account_id,role,contribution) VALUES($1,$2,0,0)")
         .bind(g)
         .bind(a)
         .execute(&mut *db)
         .await?;
-    sqlx::query("DELETE FROM guild_requests WHERE account=?")
+    crate::db::query("DELETE FROM guild_requests WHERE account=$1")
         .bind(a)
         .execute(&mut *db)
         .await?;
-    sqlx::query("UPDATE guilds SET member_count=(SELECT count(*) FROM guild_members WHERE guild_id=?) WHERE guild_id=?").bind(g).bind(g).execute(db).await?;
+    crate::db::query("UPDATE guilds SET member_count=(SELECT count(*) FROM guild_members WHERE guild_id=$1) WHERE guild_id=$2").bind(g).bind(g).execute(db).await?;
     Ok(())
 }
-async fn withdraw(db: &mut SqliteConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
+async fn withdraw(db: &mut PgConnection, s: &AppState, a: i64, g: i64) -> Result<Value> {
     let mut p = get(db, a, "withdraw", 0).await?;
     if p.is_null() {
         p = json!({});
@@ -281,20 +281,20 @@ async fn withdraw(db: &mut SqliteConnection, s: &AppState, a: i64, g: i64) -> Re
     let wait = penalty.map(|v| n(v, "RejoinTimeMin")).unwrap_or(0);
     p = json!({"Count":count,"At":now(),"RejoinAt":now()+wait*60,"ContentsAt":now()+penalty.map(|v|n(v,"RestrictTimeMin")).unwrap_or(0)*60});
     put(db, a, "withdraw", 0, &p).await?;
-    sqlx::query("DELETE FROM guild_members WHERE account_id=? AND guild_id=?")
+    crate::db::query("DELETE FROM guild_members WHERE account_id=$1 AND guild_id=$2")
         .bind(a)
         .bind(g)
         .execute(&mut *db)
         .await?;
-    sqlx::query("DELETE FROM guild_arena_decks WHERE account=?")
+    crate::db::query("DELETE FROM guild_arena_decks WHERE account=$1")
         .bind(a)
         .execute(&mut *db)
         .await?;
-    sqlx::query("UPDATE guilds SET member_count=(SELECT count(*) FROM guild_members WHERE guild_id=?) WHERE guild_id=?").bind(g).bind(g).execute(db).await?;
+    crate::db::query("UPDATE guilds SET member_count=(SELECT count(*) FROM guild_members WHERE guild_id=$1) WHERE guild_id=$2").bind(g).bind(g).execute(db).await?;
     Ok(json!({"GuildWithdrawCount":count,"GuildWithdrawTime":time(now())}))
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -320,17 +320,17 @@ pub(super) async fn execute(
             out["CurrencyResult"] =
                 hero::currency(db, a, "Gold", -constant(s, "GuildCreateGold", 3000000)).await?;
             let max = n(row(s, "GuildLevel", &[("Level", 1)])?, "MaxMember");
-            let g = sqlx::query(
-                "INSERT INTO guilds(name,master_account_id,max_members,notice) VALUES(?,?,?,'')",
+            let g = crate::db::query_scalar::<i64>(
+                "INSERT INTO guilds(name,master_account_id,max_members,notice) VALUES($1,$2,$3,'') RETURNING guild_id",
             )
             .bind(r.text("name"))
             .bind(a)
             .bind(max)
-            .execute(&mut *db)
+            .fetch_one(&mut *db)
             .await?
-            .last_insert_rowid();
+            ;
             join(db, a, g).await?;
-            sqlx::query("UPDATE guild_members SET role=2 WHERE account_id=?")
+            crate::db::query("UPDATE guild_members SET role=2 WHERE account_id=$1")
                 .bind(a)
                 .execute(&mut *db)
                 .await?;
@@ -341,14 +341,14 @@ pub(super) async fn execute(
         }
         "get_guildlist" | "get_join_requested_guilds" => {
             let ids: Vec<i64> = if action == "get_join_requested_guilds" {
-                sqlx::query_scalar(
-                    "SELECT guild_id FROM guild_requests WHERE account=? ORDER BY created",
+                crate::db::query_scalar(
+                    "SELECT guild_id FROM guild_requests WHERE account=$1 ORDER BY created",
                 )
                 .bind(a)
                 .fetch_all(&mut *db)
                 .await?
             } else {
-                sqlx::query_scalar(
+                crate::db::query_scalar(
                     "SELECT guild_id FROM guilds ORDER BY level DESC,exp DESC,guild_id LIMIT 50",
                 )
                 .fetch_all(&mut *db)
@@ -362,7 +362,7 @@ pub(super) async fn execute(
         }
         "search_guild" => {
             let g: Option<i64> =
-                sqlx::query_scalar("SELECT guild_id FROM guilds WHERE name=? COLLATE NOCASE")
+                crate::db::query_scalar("SELECT guild_id FROM guilds WHERE lower(name)=lower($1)")
                     .bind(r.text("name"))
                     .fetch_optional(&mut *db)
                     .await?;
@@ -371,7 +371,7 @@ pub(super) async fn execute(
         "get_all_guild_member_info" => {
             let g = r.number("GuildId", 0)?;
             state(db, s, g).await?;
-            let ids:Vec<i64>=sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=? ORDER BY role DESC,account_id").bind(g).fetch_all(&mut *db).await?;
+            let ids:Vec<i64>=crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=$1 ORDER BY role DESC,account_id").bind(g).fetch_all(&mut *db).await?;
             let mut members = vec![];
             for id in ids {
                 members.push(member(db, s, id).await?);
@@ -387,12 +387,12 @@ pub(super) async fn execute(
                 out["guildInfo"] = state(db, s, g).await?;
             } else {
                 let count: i64 =
-                    sqlx::query_scalar("SELECT count(*) FROM guild_requests WHERE account=?")
+                    crate::db::query_scalar("SELECT count(*) FROM guild_requests WHERE account=$1")
                         .bind(a)
                         .fetch_one(&mut *db)
                         .await?;
                 let received: i64 =
-                    sqlx::query_scalar("SELECT count(*) FROM guild_requests WHERE guild_id=?")
+                    crate::db::query_scalar("SELECT count(*) FROM guild_requests WHERE guild_id=$1")
                         .bind(g)
                         .fetch_one(&mut *db)
                         .await?;
@@ -402,8 +402,8 @@ pub(super) async fn execute(
                 if received >= constant(s, "MaxRecvJoinGuildRequest", 50) {
                     return Err(rule("GuildMaxJoinRequest"));
                 }
-                if sqlx::query(
-                    "INSERT OR IGNORE INTO guild_requests(account,guild_id,created) VALUES(?,?,?)",
+                if crate::db::query(
+                    "INSERT INTO guild_requests(account,guild_id,created) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
                 )
                 .bind(a)
                 .bind(g)
@@ -419,7 +419,7 @@ pub(super) async fn execute(
             out["JoinWay"] = json!(way);
         }
         "cancel_request_join_guild" => {
-            if sqlx::query("DELETE FROM guild_requests WHERE account=? AND guild_id=?")
+            if crate::db::query("DELETE FROM guild_requests WHERE account=$1 AND guild_id=$2")
                 .bind(a)
                 .bind(r.number("GuildId", 0)?)
                 .execute(db)
@@ -439,8 +439,8 @@ pub(super) async fn execute(
                 }
                 "get_join_request_players" => {
                     admin(role)?;
-                    let ids: Vec<i64> = sqlx::query_scalar(
-                        "SELECT account FROM guild_requests WHERE guild_id=? ORDER BY created",
+                    let ids: Vec<i64> = crate::db::query_scalar(
+                        "SELECT account FROM guild_requests WHERE guild_id=$1 ORDER BY created",
                     )
                     .bind(g)
                     .fetch_all(&mut *db)
@@ -454,8 +454,8 @@ pub(super) async fn execute(
                 "accept_join_request" | "reject_join_request" => {
                     admin(role)?;
                     let target = r.number("AccountId", 0)?;
-                    if sqlx::query_scalar::<_, i64>(
-                        "SELECT count(*) FROM guild_requests WHERE account=? AND guild_id=?",
+                    if crate::db::query_scalar::<i64>(
+                        "SELECT count(*) FROM guild_requests WHERE account=$1 AND guild_id=$2",
                     )
                     .bind(target)
                     .bind(g)
@@ -470,7 +470,7 @@ pub(super) async fn execute(
                         join(db, target, g).await?;
                         out["MemberInfo"] = member(db, s, target).await?;
                     } else {
-                        sqlx::query("DELETE FROM guild_requests WHERE account=? AND guild_id=?")
+                        crate::db::query("DELETE FROM guild_requests WHERE account=$1 AND guild_id=$2")
                             .bind(target)
                             .bind(g)
                             .execute(db)
@@ -481,8 +481,8 @@ pub(super) async fn execute(
                     admin(role)?;
                     let fields = settings_fields(s, r, false)?;
                     if n(&fields, "JoinWay") != n(&info, "JoinWay")
-                        && sqlx::query_scalar::<_, i64>(
-                            "SELECT count(*) FROM guild_requests WHERE guild_id=?",
+                        && crate::db::query_scalar::<i64>(
+                            "SELECT count(*) FROM guild_requests WHERE guild_id=$1",
                         )
                         .bind(g)
                         .fetch_one(&mut *db)
@@ -525,8 +525,8 @@ pub(super) async fn execute(
                             row(s, "GuildLevel", &[("Level", n(&info, "Level"))])?,
                             "MaxAdmin",
                         );
-                        if sqlx::query_scalar::<_, i64>(
-                            "SELECT count(*) FROM guild_members WHERE guild_id=? AND role=1",
+                        if crate::db::query_scalar::<i64>(
+                            "SELECT count(*) FROM guild_members WHERE guild_id=$1 AND role=1",
                         )
                         .bind(g)
                         .fetch_one(&mut *db)
@@ -536,8 +536,8 @@ pub(super) async fn execute(
                             return Err(rule("MaxGuildAdmin"));
                         }
                     }
-                    sqlx::query(
-                        "UPDATE guild_members SET role=? WHERE account_id=? AND guild_id=?",
+                    crate::db::query(
+                        "UPDATE guild_members SET role=$1 WHERE account_id=$2 AND guild_id=$3",
                     )
                     .bind(3 - rank)
                     .bind(target)
@@ -552,8 +552,8 @@ pub(super) async fn execute(
                     if tg != g || target == a {
                         return Err(rule("InvalidRank"));
                     }
-                    sqlx::query("UPDATE guild_members SET role=CASE WHEN account_id=? THEN 2 ELSE 0 END WHERE guild_id=? AND account_id IN (?,?)").bind(target).bind(g).bind(target).bind(a).execute(&mut *db).await?;
-                    sqlx::query("UPDATE guilds SET master_account_id=? WHERE guild_id=?")
+                    crate::db::query("UPDATE guild_members SET role=CASE WHEN account_id=$1 THEN 2 ELSE 0 END WHERE guild_id=$2 AND account_id IN ($3,$4)").bind(target).bind(g).bind(target).bind(a).execute(&mut *db).await?;
+                    crate::db::query("UPDATE guilds SET master_account_id=$1 WHERE guild_id=$2")
                         .bind(target)
                         .bind(g)
                         .execute(db)
@@ -580,11 +580,11 @@ pub(super) async fn execute(
                         return Err(rule("GuildMemberExist"));
                     }
                     merge(&mut out, withdraw(db, s, a, g).await?);
-                    sqlx::query("DELETE FROM guild_requests WHERE guild_id=?")
+                    crate::db::query("DELETE FROM guild_requests WHERE guild_id=$1")
                         .bind(g)
                         .execute(&mut *db)
                         .await?;
-                    sqlx::query("DELETE FROM guilds WHERE guild_id=?")
+                    crate::db::query("DELETE FROM guilds WHERE guild_id=$1")
                         .bind(g)
                         .execute(db)
                         .await?;

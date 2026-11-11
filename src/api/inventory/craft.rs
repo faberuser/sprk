@@ -11,7 +11,8 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 
 macro_rules! endpoint {($($name:ident),*)=>{$(pub async fn $name(State(state):State<AppState>,body:Bytes)->Result<Json<Value>>{handle(state,body,stringify!($name)).await})*};}
 endpoint!(
@@ -23,17 +24,17 @@ endpoint!(
 );
 
 pub(crate) async fn login_data(state: &AppState, account: i64) -> Result<Vec<Value>> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, state, account).await?;
-    let rows = sqlx::query("SELECT * FROM craft_slots WHERE account_id=? ORDER BY slot_index")
+    let rows = crate::db::query("SELECT * FROM craft_slots WHERE account_id=$1 ORDER BY slot_index")
         .bind(account)
         .fetch_all(&mut *tx)
         .await?;
     tx.commit().await?;
     Ok(rows.iter().map(|r|json!({"SlotIndex":r.get::<i32,_>("slot_index"),"CraftIndex":r.get::<i32,_>("craft_index"),"ItemIndex":r.get::<i32,_>("item_index"),"ItemCount":r.get::<i32,_>("item_count"),"CompleteTime":chrono::DateTime::from_timestamp(r.get("complete_time"),0).map(|t|t.format("%Y-%m-%d %H:%M:%S").to_string())})).collect())
 }
-async fn slot_result(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<Value> {
-    let r = sqlx::query("SELECT * FROM craft_slots WHERE account_id=? AND slot_index=?")
+async fn slot_result(db: &mut PgConnection, account: i64, slot: i64) -> Result<Value> {
+    let r = crate::db::query("SELECT * FROM craft_slots WHERE account_id=$1 AND slot_index=$2")
         .bind(account)
         .bind(slot)
         .fetch_one(db)
@@ -42,14 +43,14 @@ async fn slot_result(db: &mut SqliteConnection, account: i64, slot: i64) -> Resu
         json!({"SlotIndex":slot,"CraftIndex":r.get::<i32,_>("craft_index"),"ItemIndex":r.get::<i32,_>("item_index"),"ItemCount":r.get::<i32,_>("item_count"),"RemainTime":(r.get::<i64,_>("complete_time")-chrono::Utc::now().timestamp()).max(0)}),
     )
 }
-async fn clear(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<()> {
-    sqlx::query("UPDATE craft_slots SET craft_index=0,item_index=0,item_count=0,complete_time=0,paid_gold=0,materials='[]' WHERE account_id=? AND slot_index=?").bind(account).bind(slot).execute(db).await?;
+async fn clear(db: &mut PgConnection, account: i64, slot: i64) -> Result<()> {
+    crate::db::query("UPDATE craft_slots SET craft_index=0,item_index=0,item_count=0,complete_time=0,paid_gold=0,materials='[]' WHERE account_id=$1 AND slot_index=$2").bind(account).bind(slot).execute(db).await?;
     Ok(())
 }
 async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let req = Request::parse(&body)?;
     let account = req.account(&state)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, &state, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
         Ok(value) => {
@@ -67,7 +68,7 @@ async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value
     }
 }
 async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -78,7 +79,7 @@ async fn execute(
         return Err(rule("WrongSlotIndex"));
     }
     let mut out = item::success();
-    let existing = sqlx::query("SELECT * FROM craft_slots WHERE account_id=? AND slot_index=?")
+    let existing = crate::db::query("SELECT * FROM craft_slots WHERE account_id=$1 AND slot_index=$2")
         .bind(account)
         .bind(slot)
         .fetch_optional(&mut *db)
@@ -87,8 +88,8 @@ async fn execute(
         if existing.is_some() {
             return Err(rule("NotSelectableSlotIndex"));
         }
-        let previous: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=? AND slot_index=?)",
+        let previous: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM craft_slots WHERE account_id=$1 AND slot_index=$2)",
         )
         .bind(account)
         .bind(slot - 1)
@@ -104,7 +105,7 @@ async fn execute(
             .get(&format!("CraftSlotIndexOpen{slot}"))
             .ok_or_else(|| rule("CraftSlotPriceDataNotFound"))?;
         out["CurrencyResult"] = item::money(db, account, "Gold", -*price).await?;
-        sqlx::query("INSERT INTO craft_slots(account_id,slot_index) VALUES (?,?)")
+        crate::db::query("INSERT INTO craft_slots(account_id,slot_index) VALUES ($1,$2)")
             .bind(account)
             .bind(slot)
             .execute(&mut *db)
@@ -185,7 +186,7 @@ async fn execute(
                 consumed.extend(r.items);
                 out["EquipItemResults"] = json!(r.equipment);
             } else {
-                sqlx::query("UPDATE craft_slots SET craft_index=?,item_index=?,item_count=?,complete_time=?,paid_gold=?,materials=? WHERE account_id=? AND slot_index=?")
+                crate::db::query("UPDATE craft_slots SET craft_index=$1,item_index=$2,item_count=$3,complete_time=$4,paid_gold=$5,materials=$6 WHERE account_id=$7 AND slot_index=$8")
                     .bind(craft_index).bind(index).bind(output).bind(state.server_time()+duration).bind(gold).bind(json!(refunds).to_string()).bind(account).bind(slot).execute(&mut *db).await?;
                 out["EquipItemResults"] = json!([]);
             }
@@ -275,7 +276,7 @@ async fn execute(
                             }
                     };
                     out["CurrencyResult"] = item::money(db, account, "Gem", -price).await?;
-                    sqlx::query("UPDATE craft_slots SET complete_time=? WHERE account_id=? AND slot_index=?").bind(state.server_time()).bind(account).bind(slot).execute(&mut *db).await?;
+                    crate::db::query("UPDATE craft_slots SET complete_time=$1 WHERE account_id=$2 AND slot_index=$3").bind(state.server_time()).bind(account).bind(slot).execute(&mut *db).await?;
                 }
                 _ => return Err(rule("Fail")),
             }

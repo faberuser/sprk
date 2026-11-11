@@ -30,7 +30,7 @@ pub(super) fn key(c: i64, d: i64) -> i64 {
     (c << 32) | d
 }
 pub(super) async fn progress(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     c: i64,
@@ -38,7 +38,7 @@ pub(super) async fn progress(
 ) -> Result<Value> {
     let mut p = get(db, a, "dungeon", key(c, d)).await?;
     if p.is_null() {
-        let old=sqlx::query("SELECT clear_count,best_star,completed_time FROM campaign_progress WHERE account_id=? AND chapter_id=? AND dungeon_id=?").bind(a).bind(c).bind(d).fetch_optional(&mut *db).await?;
+        let old=crate::db::query("SELECT clear_count,best_star,completed_time FROM campaign_progress WHERE account_id=$1 AND chapter_id=$2 AND dungeon_id=$3").bind(a).bind(c).bind(d).fetch_optional(&mut *db).await?;
         let count = old
             .as_ref()
             .map(|r| r.get::<i64, _>("clear_count"))
@@ -98,7 +98,7 @@ fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i6
 }
 
 pub(super) async fn validate_dispatch(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -107,7 +107,7 @@ pub(super) async fn validate_dispatch(
     validate_inner(db, s, a, r, heroes, false, true).await
 }
 
-pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, room: &Value) -> Result<()> {
+pub(super) async fn require_story_join_unlock(db: &mut PgConnection, s: &AppState, a: i64, room: &Value) -> Result<()> {
     let c=n(room,"ChapterIndex");let di=n(room,"DungeonIndex");
     let ch=row(s,"CampaignChapter",&[("Index",c)])?;
     let d=row(s,"CampaignDungeon",&[("ChapterIndex",c),("DungeonIndex",di)])?;
@@ -134,7 +134,7 @@ pub(super) async fn require_story_join_unlock(db: &mut SqliteConnection, s: &App
     Ok(())
 }
 async fn validate_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool, dispatch: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request, heroes: &[i64], service: bool, dispatch: bool,
 ) -> Result<()> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -288,7 +288,7 @@ pub(super) fn selected_heroes(s: &AppState, r: &Request) -> Result<Vec<i64>> {
 }
 
 pub(super) async fn begin(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -302,19 +302,19 @@ pub(super) async fn begin(
 }
 
 pub(super) async fn begin_local(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request, service: bool,
 ) -> Result<Value> {
     begin_local_inner(db, s, a, r, service, None).await
 }
 
 pub(super) async fn begin_party_member(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, use_stamina: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request, use_stamina: bool,
 ) -> Result<Value> {
     begin_local_inner(db, s, a, r, true, Some(use_stamina)).await
 }
 
 async fn begin_local_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, service: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request, service: bool,
     party_use_stamina: Option<bool>,
 ) -> Result<Value> {
     if n(dungeon(s, r)?, "BattleType") == 36 {
@@ -330,8 +330,8 @@ async fn begin_local_inner(
     if let Some(use_stamina) = party_use_stamina {
         entry["PartyUseStamina"] = json!(use_stamina);
     }
-    let previous = sqlx::query(
-        "SELECT started,completed,entry,begin_response FROM battle_runs WHERE account=?",
+    let previous = crate::db::query(
+        "SELECT started,completed,entry,begin_response FROM battle_runs WHERE account=$1",
     )
     .bind(a)
     .fetch_optional(&mut *db)
@@ -409,7 +409,7 @@ async fn begin_local_inner(
         json!([])
     } else { crate::api::services::records::snapshot(db,a,&party).await? };
     out["RunId"] = json!(run_id);
-    sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,?,?,0,?,?) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
+    crate::db::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES($1,$2,$3,0,$4,$5) ON CONFLICT(account) DO UPDATE SET run_id=excluded.run_id,started=excluded.started,completed=0,entry=excluded.entry,begin_response=excluded.begin_response").bind(a).bind(&run_id).bind(now()).bind(entry.to_string()).bind(out.to_string()).execute(&mut *db).await?;
     if let Some(deck) = super::campaign_inspection_deck(s,&entry,now()) {
         put(db,a,"inspection_deck",1,&deck).await?;
     }
@@ -433,7 +433,7 @@ pub(super) fn stamina_cost(d: &Value, diff: i64) -> i64 {
     }
 }
 pub(super) async fn visit(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -450,19 +450,19 @@ pub(super) async fn visit(
         p["ScenarioComplete"] = json!(1);
     } else {
         p["VisitedTime"] = json!(time(now()));
-        sqlx::query("INSERT OR IGNORE INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES(?,?,?,1)").bind(a).bind(c).bind(di).execute(&mut *db).await?;
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,is_unlocked) VALUES($1,$2,$3,1) ON CONFLICT DO NOTHING").bind(a).bind(c).bind(di).execute(&mut *db).await?;
     }
     put(db, a, "dungeon", key(c, di), &p).await?;
     Ok(json!({"DungeonInfo":p}))
 }
-pub(super) async fn end(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
+pub(super) async fn end(db:&mut PgConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
     end_inner(db,s,a,r,false).await
 }
-pub(crate) async fn end_authoritative(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
+pub(crate) async fn end_authoritative(db:&mut PgConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
     end_inner(db,s,a,r,true).await
 }
 async fn end_inner(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -474,7 +474,7 @@ async fn end_inner(
     if n(dungeon(s,r)?,"BattleType")==48 {
         return super::karma::end(db,s,a,r).await;
     }
-    let saved = sqlx::query("SELECT * FROM battle_runs WHERE account=?")
+    let saved = crate::db::query("SELECT * FROM battle_runs WHERE account=$1")
         .bind(a)
         .fetch_optional(&mut *db)
         .await?
@@ -499,7 +499,7 @@ async fn end_inner(
     }
     if saved.get::<i64,_>("completed") != 0 {
         if entry["ServiceOwned"]==true {
-            let result:Option<String>=sqlx::query_scalar("SELECT response FROM service_results WHERE run=? AND account=?").bind(saved.get::<String,_>("run_id")).bind(a).fetch_optional(&mut *db).await?;
+            let result:Option<String>=crate::db::query_scalar("SELECT response FROM service_results WHERE run=$1 AND account=$2").bind(saved.get::<String,_>("run_id")).bind(a).fetch_optional(&mut *db).await?;
             if let Some(result)=result{return read_json(&result);}
         }
         if let Some(result) = entry.get("StoryEndResponse").filter(|v| v.is_object()) {
@@ -534,7 +534,7 @@ async fn end_inner(
         super::super::community::conquest_finish(db,s,a,r,&entry,&mut out).await?;
         let mut settled=entry;
         settled["ConquestEndResponse"]=out.clone();
-        sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
+        crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND completed=0")
             .bind(settled.to_string()).bind(a).execute(db).await?;
         return Ok(out);
     }
@@ -542,11 +542,12 @@ async fn end_inner(
         let mut out=item::success();
         super::super::community::raid_finish(db,s,a,r,&entry,&mut out).await?;
         super::treasure::record_time(db, s, a, r, saved.get("started"), n(dungeon(s, r)?, "BattleType"), &mut out).await?;
-        sqlx::query("UPDATE battle_runs SET completed=1 WHERE account=? AND completed=0").bind(a).execute(db).await?;
+        crate::db::query("UPDATE battle_runs SET completed=1 WHERE account=$1 AND completed=0").bind(a).execute(db).await?;
         return Ok(out);
     }
     let mut out = if completed {
-        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), super::loot_booster::active(&entry)).await?
+        let loot_percent = super::loot_booster::percent(db,s,a,&request,&entry).await?;
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent).await?
     } else {
         item::success()
     };
@@ -578,7 +579,7 @@ async fn end_inner(
     if is_story_entry(s,&settled_entry) {
         settled_entry["StoryEndResponse"] = out.clone();
     }
-    sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND completed=0")
+    crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND completed=0")
         .bind(settled_entry.to_string())
         .bind(a)
         .execute(db)
@@ -604,7 +605,7 @@ pub(super) fn result_star(r: &Request, completed: bool) -> Result<i64> {
 }
 
 pub(super) async fn complete(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -612,7 +613,21 @@ pub(super) async fn complete(
     star: i64,
     count: i64,
 ) -> Result<Value> {
-    complete_inner(db, s, a, r, party, star, count, true, false).await
+    let loot_percent = super::loot_booster::percent(db,s,a,r,&json!({})).await?;
+    complete_inner(db, s, a, r, party, star, count, true, loot_percent).await
+}
+
+pub(super) async fn complete_dispatch(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    party: &[i64],
+    star: i64,
+    count: i64,
+) -> Result<Value> {
+    // Dispatch is excluded from loot boosters, even when one is active at claim.
+    complete_inner(db, s, a, r, party, star, count, true, 0).await
 }
 
 /// Only authenticated, server-saved party options can disable battle loot.
@@ -621,8 +636,8 @@ pub(super) fn party_loot_enabled(entry: &Value) -> bool {
 }
 
 async fn complete_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request,
-    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_boosted: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request,
+    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_percent: i64,
 ) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -633,7 +648,7 @@ async fn complete_inner(
     for _ in 0..if grant_loot {count} else {0} {
         let index = field(d, "DropRewardIndex", diff);
         if index > 0 {
-            item::reward_with_loot_booster(db,s,a,index as i32,&mut reward,loot_boosted).await?;
+            item::reward_with_loot_bonus(db,s,a,index as i32,&mut reward,loot_percent).await?;
         }
     }
     // Clear credit also unlocks later stages. Track actual loot claims separately
@@ -717,7 +732,7 @@ async fn complete_inner(
                 cap,
             )
         };
-        sqlx::query("UPDATE heroes SET level=?,exp=? WHERE account_id=? AND hero_index=?")
+        crate::db::query("UPDATE heroes SET level=$1,exp=$2 WHERE account_id=$3 AND hero_index=$4")
             .bind(level)
             .bind(new_exp)
             .bind(a)
@@ -763,7 +778,7 @@ async fn complete_inner(
             .await?;
         }
     }
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked,completed_time) VALUES(?,?,?,?,?,1,?) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=clear_count+excluded.clear_count,best_star=MAX(best_star,excluded.best_star),completed_time=excluded.completed_time").bind(a).bind(c).bind(di).bind(count).bind(star).bind(time(now())).execute(&mut *db).await?;
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star,is_unlocked,completed_time) VALUES($1,$2,$3,$4,$5,1,$6) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=campaign_progress.clear_count+excluded.clear_count,best_star=GREATEST(campaign_progress.best_star,excluded.best_star),completed_time=excluded.completed_time").bind(a).bind(c).bind(di).bind(count).bind(star).bind(time(now())).execute(&mut *db).await?;
 
     let mut out = rewards(db, s, a, reward).await?;
     // Field raids reuse legacy story chapters, but their stage unlock is carried
@@ -804,7 +819,7 @@ fn validate_selection(s: &AppState, c: i64, d: i64, codes: &[String]) -> Result<
     Ok(())
 }
 async fn grant_selection(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     def: &Value,
@@ -839,7 +854,7 @@ async fn grant_selection(
     Ok(())
 }
 pub(super) async fn select_reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,

@@ -2,7 +2,7 @@ use super::*;
 use super::tests::{call, create, login, setup};
 
 async fn store_card(s: &AppState, a: i64, g: i64, value: &Value) {
-    sqlx::query("UPDATE community_state SET data=? WHERE owner=? AND kind='attendance' AND idx=?")
+    crate::db::query("UPDATE community_state SET data=$1 WHERE owner=$2 AND kind='attendance' AND idx=$3")
         .bind(value.to_string()).bind(a).bind(g).execute(&s.db).await.unwrap();
 }
 
@@ -12,7 +12,7 @@ async fn guild_member_activity_tracks_checkins_and_long_lived_sessions() {
     let a=n(&u["UserInfo"],"AccountId");let g=create(&s,&u,"Activity",1).await;
     let session=u["UserInfo"]["SessionKey"].as_str().unwrap();
     // Simulate a client that logged in days ago and stayed connected.
-    sqlx::query("UPDATE accounts SET last_login='2020-01-01 00:00:00',last_logout='2020-01-02 00:00:00' WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE accounts SET last_login='2020-01-01 00:00:00',last_logout='2020-01-02 00:00:00' WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     if let Some(mut entry)=s.sessions.get_mut(session) {entry.last_activity=chrono::Utc::now()-chrono::Duration::days(4);}
     let checked=call(&s,&u,"guild/set_guild_attendance","").await;
     assert_eq!(checked["Result"],"Success","{checked}");
@@ -22,11 +22,11 @@ async fn guild_member_activity_tracks_checkins_and_long_lived_sessions() {
     let mut db=s.db.acquire().await.unwrap();
     let member=guild::member(&mut db,&s,a).await.unwrap();
     assert_eq!(member["LastLoginTime"],checked["GuildMemberAttendanceInfo"]["LastAttendanceTime"]);
-    let actual:Option<String>=sqlx::query_scalar("SELECT last_login FROM accounts WHERE account_id=?").bind(a).fetch_one(&mut *db).await.unwrap();
+    let actual:Option<String>=crate::db::query_scalar("SELECT last_login FROM accounts WHERE account_id=$1").bind(a).fetch_one(&mut *db).await.unwrap();
     assert_eq!(actual.as_deref(),Some("2020-01-01 00:00:00"),"Do not overwrite the account's real login timestamp");
     // Another member without attendance still exposes their latest real session
     // activity. Reading the roster must not mark a stale member active.
-    sqlx::query("DELETE FROM community_state WHERE owner=? AND kind='attendance' AND idx=?").bind(a).bind(g).execute(&mut *db).await.unwrap();
+    crate::db::query("DELETE FROM community_state WHERE owner=$1 AND kind='attendance' AND idx=$2").bind(a).bind(g).execute(&mut *db).await.unwrap();
     assert_eq!(guild::member(&mut db,&s,a).await.unwrap()["LastLoginTime"],"2020-01-02 00:00:00");
     s.sessions.insert(removed.0,removed.1);
     let activity=chrono::Utc::now();s.sessions.get_mut(session).unwrap().last_activity=activity;
@@ -50,8 +50,8 @@ async fn guild_attendance_first_card_is_claimable_and_counts_once_after_relogin(
     assert_eq!(first["GuildMemberAttendanceInfo"]["SuccessiveCount"], 1);
     assert_eq!(first["GuildMemberAttendanceInfo"]["Successive"], 0);
     assert_eq!(first["GuildAttendanceInfo"]["Daily"], 1);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(), 1);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(),1);
     assert_ne!(call(&s, &u, "guild/set_guild_attendance", "").await["Result"], "Success");
     let relog = login(&s, "attendance-first").await;
     let saved = call(&s, &relog, "guild/get_guild_attendance", "").await;
@@ -59,7 +59,7 @@ async fn guild_attendance_first_card_is_claimable_and_counts_once_after_relogin(
     assert_eq!(saved["GuildMemberAttendanceInfo"]["Day1"], 1);
     assert_eq!(relog["UserInfo"]["GuildPoint"], 100);
     call(&s, &relog, "guild/send_guild_attendance_reward", "").await;
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&s.db).await.unwrap(), 1);
 }
 
 #[tokio::test]
@@ -95,7 +95,7 @@ async fn guild_attendance_personal_card_rolls_over_without_losing_streak_or_rewa
     member["LastAttendanceTime"] = json!(format!("{yesterday} 12:00:00"));
     member["UpdatedTime"] = member["LastAttendanceTime"].clone();
     store_card(&s, a, g, &member).await;
-    sqlx::query("UPDATE community_claims SET period=? WHERE account=? AND period=? AND kind IN ('guild_attend','guild_attend_total','guild_attendance_reward')")
+    crate::db::query("UPDATE community_claims SET period=$1 WHERE account=$2 AND period=$3 AND kind IN ('guild_attend','guild_attend_total','guild_attendance_reward')")
         .bind(&yesterday).bind(a).bind(day()).execute(&s.db).await.unwrap();
     let reset = call(&s, &u, "guild/get_guild_attendance", "").await;
     for d in 1..=7 { assert_eq!(reset["GuildMemberAttendanceInfo"][format!("Day{d}")], 0); }
@@ -114,7 +114,7 @@ async fn guild_attendance_missed_day_resets_streak_and_legacy_empty_card_starts_
     let u = login(&s, "attendance-legacy").await;
     let a = n(&u["UserInfo"], "AccountId");
     let g = create(&s, &u, "AttendOld", 1).await;
-    sqlx::query("INSERT INTO community_state(owner,kind,idx,data) VALUES(?,'attendance',?,?)")
+    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,'attendance',$2,$3)")
         .bind(a).bind(g).bind(json!({"GuildId":g,"AccountId":a,"Weekly":0,"Successive":0,"SuccessiveCount":0,"LastAttendanceTime":null,"Week":"2000-01-03"}).to_string())
         .execute(&s.db).await.unwrap();
     let mut member = call(&s, &u, "guild/get_guild_attendance", "").await["GuildMemberAttendanceInfo"].clone();

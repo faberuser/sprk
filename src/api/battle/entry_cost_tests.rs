@@ -19,7 +19,7 @@ async fn cursed_flasks_fill_once_from_paid_victories_and_never_refunded_losses()
     let progress=||async {n(&crate::api::heroes::details(&mut s.db.acquire().await.unwrap(),a,1).await.unwrap(),"FlaskExp")};
     for deferred in [false,true] {
         if deferred {enable(&s,a).await;}
-        sqlx::query("UPDATE user_info SET stamina=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET stamina=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         let args="ChapterIndex=1&DungeonIndex=1&DungeonDifficulty=1&HeroIndices=[1]";
         let before=progress().await;
         assert_eq!(call(&s,&u,"campaign/begin_campaign",args).await["Result"],"Success");
@@ -48,8 +48,8 @@ async fn cursed_flasks_fill_once_from_paid_victories_and_never_refunded_losses()
     tx.commit().await.unwrap();assert_eq!(progress().await,before+1);
 }
 async fn balance(s: &AppState, a: i64, column: &str) -> i64 {
-    sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-        "SELECT {column} FROM user_info WHERE account_id=?"
+    crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT {column} FROM user_info WHERE account_id=$1"
     )))
     .bind(a)
     .fetch_one(&s.db)
@@ -62,7 +62,7 @@ async fn story_and_raid_costs_are_reserved_until_victory_without_account_opt_in(
     let (s, u) = setup().await;
     let a = account(&u);
     assert!(!entry_costs::enabled(&mut s.db.acquire().await.unwrap(), a).await.unwrap());
-    sqlx::query("UPDATE user_info SET stamina=100000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=100000 WHERE account_id=$1")
         .bind(a).execute(&s.db).await.unwrap();
     for kind in [1, 2, 10, 12, 23, 24, 25, 29, 30, 33, 40, 41, 42, 45, 46] {
         let d = s.tables.battle.rows("CampaignDungeon").iter()
@@ -105,8 +105,8 @@ async fn challenge_defeat_and_withdrawal_keep_stamina_and_victory_charges_once()
     let a = account(&u);
     std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle)
         .rules["ChallengeRaidRotation"] = json!([70002]);
-    sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+    crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET stamina=1000 WHERE account_id=$1")
         .bind(a).execute(&s.db).await.unwrap();
     let args = "ChapterIndex=961&DungeonIndex=1&DungeonDifficulty=0&RaidIndex=70002&RaidLevel=1&HeroIndices=[1]";
     let cost = campaign::stamina_cost(campaign::dungeon(&s, &Request::parse(args.as_bytes()).unwrap()).unwrap(), 0);
@@ -122,7 +122,7 @@ async fn challenge_defeat_and_withdrawal_keep_stamina_and_victory_charges_once()
             assert_eq!(balance(&s, a, "stamina").await, 1000);
         } else {
             let won = outcome == "victory";
-            sqlx::query("UPDATE battle_runs SET started=started-60 WHERE account=?")
+            crate::db::query("UPDATE battle_runs SET started=started-60 WHERE account=$1")
                 .bind(a).execute(&s.db).await.unwrap();
             let end_args = format!("{args}&Completed={won}&Star={}&AliveHeroIndices=[1]&PureBattleTime=60", if won { 3 } else { 0 });
             let end = call(&s, &u, "campaign/end_campaign", &end_args).await;
@@ -131,7 +131,7 @@ async fn challenge_defeat_and_withdrawal_keep_stamina_and_victory_charges_once()
             let _ = call(&s, &u, "campaign/end_campaign", &end_args).await;
             assert_eq!(balance(&s, a, "stamina").await, 1000 - if won { cost } else { 0 });
         }
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=$1")
             .bind(a).fetch_one(&s.db).await.unwrap(), 0);
     }
 }
@@ -146,10 +146,10 @@ async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear()
             put(&mut s.db.acquire().await.unwrap(), a, "dungeon", campaign::key(chapter, dungeon),
                 &json!({"ChapterIndex":chapter,"DungeonIndex":dungeon,"FirstRewardedDiff":1,"ScenarioComplete":1})).await.unwrap();
         }
-        sqlx::query("INSERT INTO battle_currencies(account,kind,value) VALUES(?,'ShakmehMiddleBossPoint',600)")
+        crate::db::query("INSERT INTO battle_currencies(account,kind,value) VALUES($1,'ShakmehMiddleBossPoint',600)")
             .bind(a).execute(&s.db).await.unwrap();
         let gauge = || async {
-            sqlx::query_scalar::<_, i64>("SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'")
+            crate::db::query_scalar::<i64>("SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'")
                 .bind(a).fetch_one(&s.db).await.unwrap()
         };
         let entry = "ChapterIndex=50000&DungeonIndex=601&DungeonDifficulty=0&ScenarioDungeon=true&HeroIndices=[1]";
@@ -172,7 +172,7 @@ async fn shakmeh_story_quit_and_reconnect_restore_entry_without_awarding_clear()
                 abandon_local_run_on_lobby(&s, a, session).await.unwrap();
             }
             assert_eq!(gauge().await, 600);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=$1")
                 .bind(a).fetch_one(&s.db).await.unwrap(), 0);
             assert_eq!(n(&campaign::progress(&mut s.db.acquire().await.unwrap(), &s, a, 50000, 601).await.unwrap(), "FirstRewardedDiff"), 0);
             assert_eq!(call(&s, &u, "campaign/begin_campaign",
@@ -193,7 +193,7 @@ async fn pve_only_victory_deducts_once_and_awards_stamina_exp() {
     let a = account(&u);
     std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).battle).rules
         ["RaiderExpPerStamina"] = json!(1);
-    sqlx::query("UPDATE user_info SET stamina=100,team_level=1,team_exp=0 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=100,team_level=1,team_exp=0 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -308,7 +308,7 @@ async fn technomagic_lobby_withdrawal_releases_hold_and_retries_keep_balance() {
     for (index, dungeon) in [(501, 4001), (502, 4101)] {
         let (s, u) = setup().await;
         let a = account(&u);
-        sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -468,12 +468,12 @@ async fn score_modes_never_receive_refundable_cost_receipts() {
         .unwrap();
         assert!(receipt["VictoryEntryCosts"].is_null(), "mode {kind}");
     }
-    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+    crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
         .unwrap();
-    sqlx::query("UPDATE user_info SET world_boss_ticket=2").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET world_boss_ticket=2").execute(&s.db).await.unwrap();
     let request =
         "ChapterIndex=7001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&WorldBossIndex=1";
     let begin = call(&s, &u, "campaign/begin_campaign", request).await;
@@ -517,7 +517,7 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
     .await;
     assert_eq!(loss["Result"], "Success", "{loss}");
     assert_eq!(loss["StaminaResult"]["NewValue"], 3);
-    sqlx::query("INSERT INTO battle_currencies(account,kind,value) VALUES(?,'ShakmehMiddleBossPoint',600) ON CONFLICT(account,kind) DO UPDATE SET value=600").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("INSERT INTO battle_currencies(account,kind,value) VALUES($1,'ShakmehMiddleBossPoint',600) ON CONFLICT(account,kind) DO UPDATE SET value=600").bind(a).execute(&s.db).await.unwrap();
     let final_boss = "ChapterIndex=50000&DungeonIndex=602&DungeonDifficulty=0&HeroIndices=[1]";
     assert_eq!(
         call(&s, &u, "campaign/begin_campaign", final_boss).await["Result"],
@@ -540,8 +540,8 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
         600
     );
     assert_eq!(
-        sqlx::query_scalar::<_, i64>(
-            "SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'"
+        crate::db::query_scalar::<i64>(
+            "SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'"
         )
         .bind(a)
         .fetch_one(&s.db)
@@ -564,8 +564,8 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
         "Success"
     );
     assert_eq!(
-        sqlx::query_scalar::<_, i64>(
-            "SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'"
+        crate::db::query_scalar::<i64>(
+            "SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'"
         )
         .bind(a)
         .fetch_one(&s.db)
@@ -578,8 +578,8 @@ async fn shakmeh_losses_keep_devourer_keys_and_otherworldly_gauge() {
 async fn punishment_opening_costs_never_grant_team_exp() {
     let (s,u)=setup().await;let a=account(&u);
     put(&mut s.db.acquire().await.unwrap(),a,"dungeon",campaign::key(11,10),&json!({"FirstRewardedDiff":1})).await.unwrap();
-    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET stamina=100000,team_level=1,team_exp=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET stamina=100000,team_level=1,team_exp=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     for deferred in [false,true] {
         if deferred {enable(&s,a).await;}
         for group in [101001,101002] {
@@ -626,12 +626,12 @@ async fn apocalypsion_opening_stamina_is_deducted_on_first_victory() {
     )
     .await
     .unwrap();
-    sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+    crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
         .unwrap();
-    sqlx::query("UPDATE user_info SET stamina=50000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=50000 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -695,7 +695,7 @@ async fn expired_local_run_releases_hold_before_a_replacement_reserves_cost() {
     let before = balance(&s, a, "stamina").await;
     let first = call(&s, &u, "campaign/begin_campaign", entry).await;
     assert_eq!(first["Result"], "Success");
-    sqlx::query("UPDATE battle_runs SET started=? WHERE account=?")
+    crate::db::query("UPDATE battle_runs SET started=$1 WHERE account=$2")
         .bind(now() - settings(&s, "BattleExpirySeconds", 14400) - 1)
         .bind(a)
         .execute(&s.db)
@@ -840,7 +840,7 @@ async fn held_entries_protect_concurrent_spending_and_survive_state_restart() {
     let (s, u) = setup().await;
     let a = account(&u);
     enable(&s, a).await;
-    sqlx::query("UPDATE user_info SET stamina=10,gold=100,gem=100,pay_gem=50 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=10,gold=100,gem=100,pay_gem=50 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -952,7 +952,7 @@ async fn dispatch_keeps_balance_and_only_completed_wins_deduct_on_collection() {
 #[tokio::test]
 async fn tower_currency_fee_stays_available_on_defeat_and_deducts_on_victory() {
     let (s, u) = setup().await;
-    sqlx::query("UPDATE user_info SET team_level=100").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET team_level=100").execute(&s.db).await.unwrap();
     let a = account(&u);
     enable(&s, a).await;
     let entry="ChapterIndex=3001&DungeonIndex=1&DungeonDifficulty=0&HeroIndices=[1]&TowerIndex=1&TowerFloor=1";

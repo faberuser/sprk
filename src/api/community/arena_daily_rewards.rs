@@ -2,12 +2,12 @@
 use super::*;
 use std::collections::BTreeMap;
 
-pub(super) async fn due(db: &mut SqliteConnection, s: &AppState, account: i64, at: i64) -> Result<Vec<(String, i64)>> {
-    let snapshots: Vec<(i64, String)> = sqlx::query_as("SELECT idx,data FROM community_state WHERE owner=? AND kind='arena_daily' AND idx<? ORDER BY idx")
+pub(super) async fn due(db: &mut PgConnection, s: &AppState, account: i64, at: i64) -> Result<Vec<(String, i64)>> {
+    let snapshots: Vec<(i64, String)> = crate::db::query_as("SELECT idx,data FROM community_state WHERE owner=$1 AND kind='arena_daily' AND idx<$2 ORDER BY idx")
         .bind(account).bind(at.div_euclid(86400)).fetch_all(&mut *db).await?;
-    let participating: BTreeSet<i64> = sqlx::query_scalar("SELECT season FROM arena_scores WHERE account=? AND kind=0 AND wins+losses>0")
+    let participating: BTreeSet<i64> = crate::db::query_scalar("SELECT season FROM arena_scores WHERE account=$1 AND kind=0 AND wins+losses>0")
         .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
-    let claimed: BTreeSet<String> = sqlx::query_scalar("SELECT period FROM community_claims WHERE account=? AND kind='arena_daily_reward'")
+    let claimed: BTreeSet<String> = crate::db::query_scalar("SELECT period FROM community_claims WHERE account=$1 AND kind='arena_daily_reward'")
         .bind(account).fetch_all(&mut *db).await?.into_iter().collect();
     let mut days = BTreeMap::new();
     for (day, raw) in snapshots {
@@ -41,7 +41,7 @@ mod tests {
         let monday = chrono::NaiveDate::from_ymd_opt(2026, 11, 2).unwrap().and_hms_opt(0,0,0).unwrap().and_utc().timestamp();
         let season = season_at(&s, monday).0;
         let mut db = s.db.acquire().await.unwrap();
-        sqlx::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,0,?,1000,0,1) ON CONFLICT(account,kind,season) DO UPDATE SET wins=0,losses=1")
+        crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,0,$2,1000,0,1) ON CONFLICT(account,kind,season) DO UPDATE SET wins=0,losses=1")
             .bind(a).bind(season).execute(&mut *db).await.unwrap();
         for (offset, rank) in [(1, 4), (3, 2)] {
             put(&mut db, a, "arena_daily", monday / 86400 + offset, &json!({"Day":time(monday+offset*86400)[..10],"Rank":rank})).await.unwrap();
@@ -59,7 +59,7 @@ mod tests {
             rank_mail(&mut db,&s,a,rank,"arena_daily_reward",&day).await.unwrap();
         }
         assert!(due(&mut db,&s,a,monday+10*86400).await.unwrap().is_empty());
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Arena daily reward'").bind(a).fetch_one(&mut *db).await.unwrap();
+        let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='Arena daily reward'").bind(a).fetch_one(&mut *db).await.unwrap();
         assert_eq!(count,6);
     }
 
@@ -69,9 +69,9 @@ mod tests {
         let u=login(&s,"victory-daily-unplayed").await;
         let a=n(&u["UserInfo"],"AccountId");
         let mut db=s.db.acquire().await.unwrap();
-        sqlx::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,1,?,1000,1,0)")
+        crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,1,$2,1000,1,0)")
             .bind(a).bind(season(&s).0).execute(&mut *db).await.unwrap();
-        sqlx::query("INSERT OR IGNORE INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,0,?,1000,0,0)")
+        crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,0,$2,1000,0,0) ON CONFLICT DO NOTHING")
             .bind(a).bind(season(&s).0).execute(&mut *db).await.unwrap();
         assert!(due(&mut db,&s,a,now()).await.unwrap().is_empty());
     }
@@ -86,7 +86,7 @@ mod tests {
         let first=start-length;
         {
             let mut db=s.db.acquire().await.unwrap();
-            sqlx::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,0,?,1000,0,1)")
+            crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,0,$2,1000,0,1)")
                 .bind(a).bind(current-1).execute(&mut *db).await.unwrap();
             put(&mut db,a,"arena_daily",first/86400,&json!({"Day":time(first)[..10],"Rank":1})).await.unwrap();
         }
@@ -95,12 +95,12 @@ mod tests {
             let reply=crate::api::community::mail::check_new_mail(State(s.clone()),body.clone()).await.unwrap().0;
             assert_eq!(reply["NewMailArrived"],true);
         }
-        let count: i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Arena daily reward'")
+        let count: i64=crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='Arena daily reward'")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(count,length/86400);
         // Logging in again must not duplicate mail generated by polling.
         login(&s,"victory-daily-mail-poll").await;
-        let after: i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Arena daily reward'")
+        let after: i64=crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='Arena daily reward'")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(after,count);
     }

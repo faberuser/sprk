@@ -1,6 +1,6 @@
 use super::*;
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -13,7 +13,7 @@ pub(super) async fn execute(
     }
 }
 async fn eclipse(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -77,7 +77,7 @@ async fn eclipse(
         if new.iter().enumerate().any(|(i, v)| n(v, "DeckIndex") != i as i64 + 1) {
             return Err(rule("Fail"));
         }
-        sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='eclipse_deck'")
+        crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='eclipse_deck'")
             .bind(a)
             .execute(&mut *db)
             .await?;
@@ -123,11 +123,11 @@ pub(super) fn eclipse_heroes(value: &Value) -> Result<Vec<i64>> {
 fn eclipse_hero_string(heroes: &[i64]) -> String {
     heroes.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
 }
-pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> Result<Value> {
+pub(super) async fn cached_hero(db: &mut PgConnection, a: i64, id: i32) -> Result<Value> {
     let mut hero = hero::info(db, a, id).await?;
     for part in 1..=10 {
         let slot = n(&hero, &format!("EquipItemSlotIndex{part}"));
-        let item = sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=?")
+        let item = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2")
             .bind(a)
             .bind(slot)
             .fetch_optional(&mut *db)
@@ -147,20 +147,20 @@ pub(super) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i32) -> R
     crate::api::extensions::cosmetics::complete_snapshot_appearance(db, a, &mut hero).await?;
     Ok(hero)
 }
-pub(super) async fn opponent(db: &mut SqliteConnection, a: i64, exclude: i64) -> Result<Value> {
-    let selected:Option<i64>=sqlx::query_scalar("SELECT account_id FROM heroes WHERE account_id!=? AND account_id!=? GROUP BY account_id ORDER BY RANDOM() LIMIT 1").bind(a).bind(exclude).fetch_optional(&mut *db).await?;
+pub(super) async fn opponent(db: &mut PgConnection, a: i64, exclude: i64) -> Result<Value> {
+    let selected:Option<i64>=crate::db::query_scalar("SELECT account_id FROM heroes WHERE account_id!=$1 AND account_id!=$2 GROUP BY account_id ORDER BY RANDOM() LIMIT 1").bind(a).bind(exclude).fetch_optional(&mut *db).await?;
     let account = selected.unwrap_or(a);
     let ids = crate::api::community::arena::defense_heroes(db, account).await?;
     let mut heroes = serde_json::Map::new();
     for id in ids {
         heroes.insert(id.to_string(), cached_hero(db, account, id as i32).await?);
     }
-    let user=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=?").bind(account).fetch_one(db).await?;
+    let user=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON a.account_id=u.account_id WHERE a.account_id=$1").bind(account).fetch_one(db).await?;
     Ok(
         json!({"UserInfo":{"AccountId":if account == a {-a} else {account},"Nick":user.get::<String,_>("nick"),"TeamLevel":user.get::<i64,_>("team_level"),"AvatarHeroIndex":user.get::<i64,_>("avatar_hero_index"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0},"HeroInfos":heroes,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{}}),
     )
 }
-async fn nodes(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
+async fn nodes(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
     let mut result = vec![];
     for v in s.tables.battle.rows("OrdealArenaNode") {
         let account = if n(v, "NodeType") == 2 {
@@ -186,7 +186,7 @@ fn buffs(s: &AppState) -> Vec<i64> {
     pool
 }
 async fn ordeal(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,

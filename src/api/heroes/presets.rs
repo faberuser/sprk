@@ -10,18 +10,19 @@ use crate::{
     state::AppState,
 };
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 use std::collections::BTreeSet;
 
 /// Called inside the same transaction that permanently removes equipment.
-pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<()> {
+pub(crate) async fn forget_equipment(db: &mut PgConnection, account: i64, slot: i64) -> Result<()> {
     forget_equipments(db, account, &BTreeSet::from([slot])).await
 }
 /// `forget_equipment` for many pieces at once: storage rows and presets are
 /// read, rewritten and saved once per batch instead of once per piece.
-pub(crate) async fn forget_equipments(db: &mut SqliteConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
+pub(crate) async fn forget_equipments(db: &mut PgConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
     if slots.is_empty() { return Ok(()); }
-    let rows = sqlx::query("SELECT idx,data FROM extension_state WHERE account_id=? AND kind='equip_storage'")
+    let rows = crate::db::query("SELECT idx,data FROM extension_state WHERE account_id=$1 AND kind='equip_storage'")
         .bind(account).fetch_all(&mut *db).await?;
     for row in rows {
         let mut value: Value = serde_json::from_str(&row.get::<String,_>("data"))
@@ -32,11 +33,11 @@ pub(crate) async fn forget_equipments(db: &mut SqliteConnection, account: i64, s
             if slots.contains(&n(&value,&key)) { value[key]=json!(0); changed=true; }
         }
         if changed {
-            sqlx::query("UPDATE extension_state SET data=? WHERE account_id=? AND kind='equip_storage' AND idx=?")
+            crate::db::query("UPDATE extension_state SET data=$1 WHERE account_id=$2 AND kind='equip_storage' AND idx=$3")
                 .bind(value.to_string()).bind(account).bind(row.get::<i64,_>("idx")).execute(&mut *db).await?;
         }
     }
-    let rows=sqlx::query("SELECT storage_key,data FROM hero_presets WHERE account_id=?")
+    let rows=crate::db::query("SELECT storage_key,data FROM hero_presets WHERE account_id=$1")
         .bind(account).fetch_all(&mut *db).await?;
     for row in rows {
         let mut presets:Vec<Value>=serde_json::from_str(&row.get::<String,_>("data"))
@@ -53,24 +54,24 @@ pub(crate) async fn forget_equipments(db: &mut SqliteConnection, account: i64, s
             }
         }
         if changed {
-            sqlx::query("UPDATE hero_presets SET data=? WHERE account_id=? AND storage_key=?")
+            crate::db::query("UPDATE hero_presets SET data=$1 WHERE account_id=$2 AND storage_key=$3")
                 .bind(json!(presets).to_string()).bind(account).bind(row.get::<String,_>("storage_key")).execute(&mut *db).await?;
         }
     }
-    sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+    crate::db::query("DELETE FROM equipment_pending WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
         .bind(account).bind(json!(slots).to_string()).execute(&mut *db).await?;
     Ok(())
 }
 
-pub(crate) async fn list(db: &mut SqliteConnection, account: i64) -> Result<Vec<Value>> {
-    let rows = sqlx::query("SELECT * FROM hero_presets WHERE account_id=? ORDER BY storage_key")
+pub(crate) async fn list(db: &mut PgConnection, account: i64) -> Result<Vec<Value>> {
+    let rows = crate::db::query("SELECT * FROM hero_presets WHERE account_id=$1 ORDER BY storage_key")
         .bind(account)
         .fetch_all(db)
         .await?;
     rows.iter().map(|r|Ok(json!({"StorageKey":r.get::<String,_>("storage_key"),"Name":r.get::<String,_>("name"),"HeroPresetInfos":serde_json::from_str::<Value>(&r.get::<String,_>("data")).map_err(|e|ServerError::Internal(e.to_string()))?}))).collect()
 }
 pub(crate) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -85,7 +86,7 @@ pub(crate) async fn execute(
         .ok_or_else(|| rule("InvalidHeroStorageKey"))?;
     let mut out = item::success();
     let existing =
-        sqlx::query("SELECT name,data FROM hero_presets WHERE account_id=? AND storage_key=?")
+        crate::db::query("SELECT name,data FROM hero_presets WHERE account_id=$1 AND storage_key=$2")
             .bind(account)
             .bind(key)
             .fetch_optional(&mut *db)
@@ -99,7 +100,7 @@ pub(crate) async fn execute(
             return Err(rule("InvalidHeroStorageKey"));
         }
         out["CurrencyResults"] = json!([hero::currency(db, account, "Gem", -cost).await?]);
-        sqlx::query("INSERT INTO hero_presets(account_id,storage_key) VALUES (?,?)")
+        crate::db::query("INSERT INTO hero_presets(account_id,storage_key) VALUES ($1,$2)")
             .bind(account)
             .bind(key)
             .execute(&mut *db)
@@ -135,14 +136,14 @@ pub(crate) async fn execute(
                 if name.chars().count() > 80 {
                     return Err(rule("InvalidHeroStorageKey"));
                 }
-                sqlx::query("INSERT INTO hero_presets(account_id,storage_key,name,data) VALUES (?,?,?,?) ON CONFLICT(account_id,storage_key) DO UPDATE SET name=excluded.name,data=excluded.data").bind(account).bind(key).bind(name).bind(json!(presets).to_string()).execute(&mut *db).await?;
+                crate::db::query("INSERT INTO hero_presets(account_id,storage_key,name,data) VALUES ($1,$2,$3,$4) ON CONFLICT(account_id,storage_key) DO UPDATE SET name=excluded.name,data=excluded.data").bind(account).bind(key).bind(name).bind(json!(presets).to_string()).execute(&mut *db).await?;
             }
             "change_hero_storage_slot_name" => {
                 let name = req.text("Name");
                 if existing.is_none() || name.chars().count() > 80 {
                     return Err(rule("InvalidHeroStorageKey"));
                 }
-                sqlx::query("UPDATE hero_presets SET name=? WHERE account_id=? AND storage_key=?")
+                crate::db::query("UPDATE hero_presets SET name=$1 WHERE account_id=$2 AND storage_key=$3")
                     .bind(name)
                     .bind(account)
                     .bind(key)
@@ -157,8 +158,8 @@ pub(crate) async fn execute(
                     return Err(rule("InvalidHeroStorageKey"));
                 }
                 // Clearing a slot preserves its purchase entitlement.
-                sqlx::query(
-                    "UPDATE hero_presets SET data='[]' WHERE account_id=? AND storage_key=?",
+                crate::db::query(
+                    "UPDATE hero_presets SET data='[]' WHERE account_id=$1 AND storage_key=$2",
                 )
                 .bind(account)
                 .bind(key)
@@ -181,8 +182,8 @@ pub(crate) async fn execute(
                 let named: Vec<i64> = presets.iter()
                     .flat_map(|p| p["EquipItemSlotIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64))
                     .filter(|slot| *slot > 0).collect();
-                let mut gear: std::collections::HashMap<i64, sqlx::sqlite::SqliteRow> =
-                    sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND inventory_type=0 AND slot_index IN (SELECT value FROM json_each(?))")
+                let mut gear: std::collections::HashMap<i64, sqlx::postgres::PgRow> =
+                    crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND inventory_type=0 AND slot_index IN (SELECT sprk_json_ints($2))")
                         .bind(account).bind(json!(named).to_string()).fetch_all(&mut *db).await?
                         .into_iter().map(|r| (r.get::<i64, _>("slot_index"), r)).collect();
                 for p in &mut presets {
@@ -222,7 +223,7 @@ pub(crate) async fn execute(
                         }
                         if !gear.contains_key(&slot) {
                             // A fallback to the Hero's currently worn piece.
-                            let r=sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0").bind(account).bind(slot).fetch_optional(&mut *db).await?.ok_or_else(||rule("EquipSlotDataNotFound"))?;
+                            let r=crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND slot_index=$2 AND inventory_type=0").bind(account).bind(slot).fetch_optional(&mut *db).await?.ok_or_else(||rule("EquipSlotDataNotFound"))?;
                             gear.insert(slot, r);
                         }
                         equips.push(EquipItemInfo::from_row(&gear[&slot]));
@@ -258,7 +259,7 @@ pub(crate) async fn execute(
                         after = slots.clone();
                     }
                     if after != before {
-                        let mut update = sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_2=?,equip_item_slot_index_3=?,equip_item_slot_index_4=?,equip_item_slot_index_5=?,equip_item_slot_index_6=?,equip_item_slot_index_7=?,equip_item_slot_index_8=?,equip_item_slot_index_9=?,equip_item_slot_index_10=? WHERE account_id=? AND hero_index=?");
+                        let mut update = crate::db::query("UPDATE heroes SET equip_item_slot_index_1=$1,equip_item_slot_index_2=$2,equip_item_slot_index_3=$3,equip_item_slot_index_4=$4,equip_item_slot_index_5=$5,equip_item_slot_index_6=$6,equip_item_slot_index_7=$7,equip_item_slot_index_8=$8,equip_item_slot_index_9=$9,equip_item_slot_index_10=$10 WHERE account_id=$11 AND hero_index=$12");
                         for slot in &after { update = update.bind(*slot); }
                         update.bind(account).bind(h.hero_index).execute(&mut *db).await?;
                     }
@@ -277,7 +278,7 @@ pub(crate) async fn execute(
                         .map(|slot| slot.as_i64().filter(|slot| *slot > 0).map(|slot| slot.to_string()).unwrap_or_default())
                         .collect::<Vec<_>>());
                 }
-                sqlx::query("UPDATE hero_presets SET data=? WHERE account_id=? AND storage_key=?")
+                crate::db::query("UPDATE hero_presets SET data=$1 WHERE account_id=$2 AND storage_key=$3")
                     .bind(json!(presets).to_string()).bind(account).bind(key).execute(&mut *db).await?;
                 out["Heroes"] = json!(hero::snapshot(db, account).await?);
                 out["EquipItems"] = json!(equips);

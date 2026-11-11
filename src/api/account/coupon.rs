@@ -24,11 +24,6 @@ pub struct Coupon {
     pub mail_title: String,
     pub mail_content: String,
 }
-pub(crate) async fn migrate(db: &sqlx::SqlitePool) -> Result<()> {
-    sqlx::query("CREATE TABLE IF NOT EXISTS coupon_redemptions(account_id INTEGER NOT NULL REFERENCES accounts(account_id),code TEXT NOT NULL,mail_id INTEGER NOT NULL,redeemed_at TEXT NOT NULL DEFAULT(datetime('now')),PRIMARY KEY(account_id,code))")
-        .execute(db).await?;
-    Ok(())
-}
 fn response(code: &str) -> Json<Value> {
     Json(json!({"BaseResult":"Success","Result":code}))
 }
@@ -75,14 +70,14 @@ pub async fn use_coupon(State(s): State<AppState>, body: Bytes) -> Result<Json<V
     {
         return Ok(response("Fail"));
     }
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     // Take the writer lock before checking the ledger, including on WAL pools.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+    crate::db::query("SELECT pg_advisory_xact_lock($1)")
         .bind(account)
         .execute(&mut *tx)
         .await?;
-    let received: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM coupon_redemptions WHERE account_id=? AND code=?)",
+    let received: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM coupon_redemptions WHERE account_id=$1 AND code=$2)",
     )
     .bind(account)
     .bind(&code)
@@ -92,11 +87,11 @@ pub async fn use_coupon(State(s): State<AppState>, body: Bytes) -> Result<Json<V
         tx.rollback().await?;
         return Ok(response("AlreadyReceived"));
     }
-    let mail = sqlx::query("INSERT INTO mails(account_id,sender,title,content,reward_items,is_received) VALUES(?,'System',?,?,?,0)")
+    let mail = crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title,content,reward_items,is_received) VALUES($1,'System',$2,$3,$4,0) RETURNING mail_id")
         .bind(account).bind(&coupon.mail_title).bind(&coupon.mail_content)
         .bind(serde_json::to_string(&coupon.items).expect("serializable mail items"))
-        .execute(&mut *tx).await?.last_insert_rowid();
-    sqlx::query("INSERT INTO coupon_redemptions(account_id,code,mail_id) VALUES(?,?,?)")
+        .fetch_one(&mut *tx).await?;
+    crate::db::query("INSERT INTO coupon_redemptions(account_id,code,mail_id) VALUES($1,$2,$3)")
         .bind(account)
         .bind(&code)
         .bind(mail)

@@ -3,7 +3,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 use crate::{
     error::{Result, ServerError},
     models::BaseResultType,
@@ -75,7 +75,7 @@ async fn target_account(state: &AppState, account: Option<i64>, session: Option<
         (None, Some(key)) => state.get_session(key).ok_or(ServerError::SessionExpired)?.account_id,
         _ => return Err(ServerError::InvalidRequest("Specify one positive AccountId or SessionId".into())),
     };
-    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id=?)")
+    let exists: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id=$1)")
         .bind(account).fetch_one(&state.db).await?;
     if !exists { return Err(ServerError::NotFound("Account not found".into())); }
     Ok(account)
@@ -90,7 +90,7 @@ pub struct PlayerSearch {
 
 pub async fn gm_players(State(state): State<AppState>, Form(req): Form<PlayerSearch>) -> Result<Json<serde_json::Value>> {
     let query = req.query.unwrap_or_default();
-    let rows = sqlx::query("SELECT a.account_id,a.nick,c.username,MAX(COALESCE(a.last_login,''),COALESCE(a.last_logout,'')) AS last_online FROM accounts a LEFT JOIN credentials c ON c.login_id=a.login_id WHERE a.account_id>? AND (?='' OR CAST(a.account_id AS TEXT)=? OR instr(lower(COALESCE(a.nick,'')),lower(?))>0 OR instr(lower(COALESCE(c.username,'')),lower(?))>0) ORDER BY a.account_id LIMIT 100")
+    let rows = crate::db::query("SELECT a.account_id,a.nick,c.username,GREATEST(COALESCE(a.last_login,''),COALESCE(a.last_logout,'')) AS last_online FROM accounts a LEFT JOIN credentials c ON c.login_id=a.login_id WHERE a.account_id>$1 AND ($2='' OR CAST(a.account_id AS TEXT)=$3 OR strpos(lower(COALESCE(a.nick,'')),lower($4))>0 OR strpos(lower(COALESCE(c.username,'')),lower($5))>0) ORDER BY a.account_id LIMIT 100")
         .bind(req.after.unwrap_or(0)).bind(&query).bind(&query).bind(&query).bind(&query).fetch_all(&state.db).await?;
     let players: Vec<_> = rows.iter().map(|row| serde_json::json!({
         "AccountId":row.get::<i64,_>("account_id"),
@@ -150,7 +150,7 @@ pub async fn gm_add_currency(
     let gem = req.gem.unwrap_or(0);
     let stamina = req.stamina.unwrap_or(0);
 
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     let new_gold = crate::api::inventory::item::money(&mut tx, account_id, "Gold", gold).await?;
     let new_gem = crate::api::inventory::item::money(&mut tx, account_id, "Gem", gem).await?;
     let new_stamina = crate::currency::user(&mut tx, account_id, "stamina", stamina, 0).await?;
@@ -198,18 +198,18 @@ pub async fn gm_add_hero(
     let star = req.star.unwrap_or(1);
 
     // Add hero - hero_index same as hero_id for individual adds
-    let result = sqlx::query(
-        "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES (?, ?, ?, ?, ?, 1, 1, 1, 1)"
+    let result = crate::db::query_scalar::<i64>(
+        "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES ($1, $2, $3, $4, $5, 1, 1, 1, 1) RETURNING unique_hero_id"
     )
     .bind(account_id)
     .bind(hero_id)
     .bind(hero_id)
     .bind(star)
     .bind(level)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await?;
 
-    let unique_hero_id = result.last_insert_rowid();
+    let unique_hero_id = result;
 
     Ok(Json(GmAddHeroResponse {
         base_result: BaseResultType::Success as i32,
@@ -246,7 +246,7 @@ pub async fn gm_set_level(
 
 
     // Set player level
-    sqlx::query("UPDATE user_info SET team_level = ? WHERE account_id = ?")
+    crate::db::query("UPDATE user_info SET team_level = $1 WHERE account_id = $2")
         .bind(level)
         .bind(account_id)
         .execute(&state.db)
@@ -285,7 +285,7 @@ pub async fn gm_unlock_all(
 
     let completed_time = state.server_time_str();
 
-    sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
+    crate::db::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES ($1, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
         .bind(account_id).execute(&state.db).await?;
 
     // Skip tutorial - mark all key tutorials as completed
@@ -294,8 +294,8 @@ pub async fn gm_unlock_all(
         10400, 10600, 7400,
     ];
     for &tutorial_idx in &key_tutorials {
-        sqlx::query(
-            "INSERT OR REPLACE INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, ?, 1, ?)"
+        crate::db::query(
+            "INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES ($1, $2, 1, $3) ON CONFLICT (account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time, completion_response = NULL"
         )
         .bind(account_id)
         .bind(tutorial_idx)
@@ -327,8 +327,8 @@ pub async fn gm_unlock_all(
 
     for &(chapter_id, dungeons) in chapter_dungeons {
         for &dungeon_id in dungeons {
-            sqlx::query(
-                "INSERT OR REPLACE INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) VALUES (?, ?, ?, 1, 3, 1, ?)"
+            crate::db::query(
+                "INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) VALUES ($1, $2, $3, 1, 3, 1, $4) ON CONFLICT (account_id, chapter_id, dungeon_id) DO UPDATE SET clear_count = 1, best_star = 3, is_unlocked = 1, completed_time = excluded.completed_time"
             )
             .bind(account_id)
             .bind(chapter_id)
@@ -340,8 +340,8 @@ pub async fn gm_unlock_all(
     }
 
     // Set team level high enough to access all content
-    sqlx::query(
-        "UPDATE user_info SET team_level = MAX(team_level, 90) WHERE account_id = ?"
+    crate::db::query(
+        "UPDATE user_info SET team_level = GREATEST(team_level, 90) WHERE account_id = $1"
     )
     .bind(account_id)
     .execute(&state.db)
@@ -380,10 +380,10 @@ pub async fn gm_reset_account(
     
 
 
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     // Reset user info to defaults
-    sqlx::query(
-        "UPDATE user_info SET team_level = 1, team_exp = 0, event_dungeon_point = 0, gold = 10000, gem = 100, stamina = 100 WHERE account_id = ?"
+    crate::db::query(
+        "UPDATE user_info SET team_level = 1, team_exp = 0, event_dungeon_point = 0, gold = 10000, gem = 100, stamina = 100 WHERE account_id = $1"
     )
     .bind(account_id)
     .execute(&mut *tx)
@@ -391,56 +391,56 @@ pub async fn gm_reset_account(
 
     // Clear progress
     crate::api::battle::reset(&mut tx,account_id,keep_heroes).await?;
-    sqlx::query("DELETE FROM campaign_progress WHERE account_id = ?")
+    crate::db::query("DELETE FROM campaign_progress WHERE account_id = $1")
         .bind(account_id)
         .execute(&mut *tx)
         .await?;
 
-    sqlx::query("DELETE FROM tutorial_progress WHERE account_id = ?")
+    crate::db::query("DELETE FROM tutorial_progress WHERE account_id = $1")
         .bind(account_id)
         .execute(&mut *tx)
         .await?;
 
-    sqlx::query("DELETE FROM attendance WHERE account_id = ?")
+    crate::db::query("DELETE FROM attendance WHERE account_id = $1")
         .bind(account_id)
         .execute(&mut *tx)
         .await?;
 
-    sqlx::query("DELETE FROM achievements WHERE account_id = ?")
+    crate::db::query("DELETE FROM achievements WHERE account_id = $1")
         .bind(account_id)
         .execute(&mut *tx)
         .await?;
 
-    sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 0) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 0")
+    crate::db::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES ($1, 0) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 0")
         .bind(account_id).execute(&mut *tx).await?;
 
     if !keep_heroes {
-        sqlx::query("DELETE FROM heroes WHERE account_id = ?")
+        crate::db::query("DELETE FROM heroes WHERE account_id = $1")
             .bind(account_id)
             .execute(&mut *tx)
             .await?;
 
-        sqlx::query("DELETE FROM equip_items WHERE account_id = ?")
+        crate::db::query("DELETE FROM equip_items WHERE account_id = $1")
             .bind(account_id)
             .execute(&mut *tx)
             .await?;
 
-        sqlx::query("DELETE FROM items WHERE account_id = ?")
+        crate::db::query("DELETE FROM items WHERE account_id = $1")
             .bind(account_id)
             .execute(&mut *tx)
             .await?;
         let kasel = state.tables.tutorials.support.items.get(&1)
             .ok_or_else(|| ServerError::Internal("Missing starter hero data".into()))?;
-        sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES (?, 1, ?, ?, ?)")
+        crate::db::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level) VALUES ($1, 1, $2, $3, $4)")
             .bind(account_id).bind(kasel.hero_index).bind(kasel.star).bind(kasel.level)
             .execute(&mut *tx).await?;
     }
 
     for table in ["play_record_values","progression_claims","progression_metrics","progression_login","attendance_calendar_state","progression_world_events","progression_main_quest"] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=?"))).bind(account_id).execute(&mut *tx).await?;
+        crate::db::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=$1"))).bind(account_id).execute(&mut *tx).await?;
     }
     for table in if keep_heroes {vec![]}else{vec!["equipment_pending","extension_state","hero_details"]} {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=?"))).bind(account_id).execute(&mut *tx).await?;
+        crate::db::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE account_id=$1"))).bind(account_id).execute(&mut *tx).await?;
     }
     tx.commit().await?;
 
@@ -483,15 +483,15 @@ pub async fn gm_add_all_heroes(
     // Add all real heroes from CreatureTable (TagType 1-7, base indices only)
     let mut heroes_added = 0;
     for &hero_index in ALL_HERO_INDICES {
-        let existing = sqlx::query("SELECT 1 FROM heroes WHERE account_id = ? AND hero_index = ?")
+        let existing = crate::db::query("SELECT 1 FROM heroes WHERE account_id = $1 AND hero_index = $2")
             .bind(account_id)
             .bind(hero_index)
             .fetch_optional(&state.db)
             .await?;
 
         if existing.is_none() {
-            sqlx::query(
-                "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES (?, ?, ?, ?, ?, 1, 1, 1, 1)"
+            crate::db::query(
+                "INSERT INTO heroes (account_id, hero_id, hero_index, star, level, skill_level_1, skill_level_2, skill_level_3, skill_level_4) VALUES ($1, $2, $3, $4, $5, 1, 1, 1, 1)"
             )
             .bind(account_id)
             .bind(hero_index as i64)  // hero_id = hero_index for simplicity
@@ -567,14 +567,14 @@ pub async fn gm_add_all_uwut(
         }
 
         // Fetch the hero row with all relevant slot columns
-        let hero_row = sqlx::query(
+        let hero_row = crate::db::query(
             "SELECT unique_hero_id,
                     equip_item_slot_index_1,
                     equip_item_slot_index_7,
                     equip_item_slot_index_8,
                     equip_item_slot_index_9,
                     equip_item_slot_index_10
-             FROM heroes WHERE account_id = ? AND hero_index = ?"
+             FROM heroes WHERE account_id = $1 AND hero_index = $2"
         )
         .bind(account_id)
         .bind(hero_index)
@@ -597,21 +597,21 @@ pub async fn gm_add_all_uwut(
             let item_index = base + hero_index;
 
             // Insert the equip item instance
-            let result = sqlx::query(
+            let result = crate::db::query_scalar::<i64>(
                 "INSERT INTO equip_items (account_id, item_index, star, created_time, identified) \
-                 VALUES (?, ?, 5, ?, 1)"
+                 VALUES ($1, $2, 5, $3, 1) RETURNING slot_index"
             )
             .bind(account_id)
             .bind(item_index)
             .bind(&created_time)
-            .execute(&state.db)
+            .fetch_one(&state.db)
             .await?;
 
-            let slot_index = result.last_insert_rowid() as i32;
+            let slot_index = result as i32;
 
             // Link the equip item to the hero's slot
-            sqlx::query(sqlx::AssertSqlSafe(format!(
-                "UPDATE heroes SET {} = ? WHERE unique_hero_id = ?", col
+            crate::db::query(sqlx::AssertSqlSafe(format!(
+                "UPDATE heroes SET {} = $1 WHERE unique_hero_id = $2", col
             )))
             .bind(slot_index)
             .bind(unique_hero_id)

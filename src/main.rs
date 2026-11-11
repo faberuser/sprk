@@ -2,8 +2,11 @@ mod api;
 mod crypto;
 mod currency;
 mod database;
+mod db;
 mod error;
+mod migrate_sqlite;
 mod models;
+mod postgres;
 mod service_mode;
 mod state;
 mod tables;
@@ -41,6 +44,12 @@ async fn main() -> anyhow::Result<()> {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // One-off tool: copy the SQLite game database into PostgreSQL.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("migrate-sqlite") {
+        return migrate_sqlite::run(migrate_sqlite::parse_args(&args[1..])?).await;
+    }
 
     let mode = ServiceMode::from_env()?;
     tracing::info!(?mode, "Starting sprk Private Server...");
@@ -111,8 +120,7 @@ async fn game_router() -> anyhow::Result<Router> {
     };
     
     api::extensions::schema::migrate_technomagic(&db, &tables).await?;
-    // Readers open after migrations, once the writer has enabled WAL.
-    let reads = database::open_read_pool(Path::new("sprk.db")).await?;
+    let reads = database::open_read_pool().await?;
     // Create application state
     let state = AppState::new(db, tables).with_reads(reads);
     api::community::mail::start_notifications(state.clone());
@@ -397,6 +405,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .layer(middleware::from_fn_with_state(state.clone(), api::progression::notifications::notify))
         .layer(middleware::from_fn_with_state(state.clone(), api::inventory::hero_level::notify))
         .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::decrypt_request))
+        // Outermost: the progression/equipment notifiers above write too.
+        .layer(middleware::from_fn_with_state(state.clone(), api::system::middleware::acting_account))
         .with_state(state.clone());
 
     // Operational readiness must bypass the encrypted game-request middleware.

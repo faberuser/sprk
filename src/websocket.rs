@@ -283,8 +283,8 @@ pub(crate) mod tests {
             client.send("PingReq",json!({"RequestId":2})).await;assert_eq!(client.recv("PingRes").await["Result"],"Success");
         }
         for (room,master,family,members) in [(1,aid,"party_dungeon",vec![aid,bid]),(2,cid,"raid",vec![cid])] {
-            sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(?,?,?,'{}',0)").bind(room).bind(family).bind(master).execute(&s.db).await.unwrap();
-            for member in members {sqlx::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(?,?,0,0)").bind(room).bind(member).execute(&s.db).await.unwrap();}
+            crate::db::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES($1,$2,$3,'{}',0)").bind(room).bind(family).bind(master).execute(&s.db).await.unwrap();
+            for member in members {crate::db::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES($1,$2,0,0)").bind(room).bind(member).execute(&s.db).await.unwrap();}
         }
         sa.send("MessageReq",json!({"RequestId":3,"GroupType":"None","ReceiverIds":[cid],"Message":format!("PartyChat {}",json!({"Chat":"hello party","SenderName":"FORGED","AdminLevel":99,"SenderAvatarIndex":0}))})).await;
         assert_eq!(sa.recv("MessageRes").await["Result"],"Success");
@@ -299,7 +299,7 @@ pub(crate) mod tests {
         sc.send("MessageReq",json!({"RequestId":6,"GroupType":"World","ReceiverIds":[aid,bid],"Message":"PartyChat {\"Chat\":\"other party\"}"})).await;
         assert_eq!(sc.recv("MessageRes").await["Result"],"Success");assert_eq!(sc.recv("MessageNot").await["ReceiverIds"],json!([cid]));
         for client in [&mut sa,&mut sb] {client.send("PingReq",json!({"RequestId":7})).await;assert_eq!(client.recv("PingRes").await["Result"],"Success");}
-        sqlx::query("DELETE FROM battle_room_members WHERE account=?").bind(bid).execute(&s.db).await.unwrap();
+        crate::db::query("DELETE FROM battle_room_members WHERE account=$1").bind(bid).execute(&s.db).await.unwrap();
         sb.send("MessageReq",json!({"RequestId":8,"ReceiverIds":[aid],"Message":"PartyChat {\"Chat\":\"after leaving\"}"})).await;
         assert_eq!(sb.recv("MessageRes").await["Result"],"Fail","Former members cannot send to the old party");
         for text in ["x".repeat(501),String::new(),"bad\nmessage".into()] {
@@ -343,10 +343,10 @@ pub(crate) mod tests {
             }}
         }
         for hero in 1..=3 {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                 .bind(host_id).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
-        sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(host_id).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(host_id).execute(&s.db).await.unwrap();
         let server=server(s.clone()).await;
         let mut host_socket=Client::connect(&server,"chat").await;
         let mut guest_socket=Client::connect(&server,"chat").await;
@@ -396,8 +396,8 @@ pub(crate) mod tests {
             assert_eq!(host["DeckHeros"][hero.to_string()]["Level"],100,"Server must still rebuild owned stats");
             assert!(host["DeckHeros"][hero.to_string()]["EquipItemInfo1"].is_null());
         }
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&s.db).await.unwrap(),2);
-        let saved_family:String=sqlx::query_scalar("SELECT family FROM battle_rooms WHERE id=?").bind(room).fetch_one(&s.db).await.unwrap();
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members WHERE room=$1").bind(room).fetch_one(&s.db).await.unwrap(),2);
+        let saved_family:String=crate::db::query_scalar("SELECT family FROM battle_rooms WHERE id=$1").bind(room).fetch_one(&s.db).await.unwrap();
         assert_eq!(saved_family,family);
         for client in [&mut host_socket,&mut guest_socket] {
             client.send("PingReq",json!({"RequestId":4})).await;

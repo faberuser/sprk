@@ -18,7 +18,7 @@ fn reset_offset(v: &Value) -> i64 {
     // Unix epoch was a Thursday; weekly shop resets follow UTC Monday.
     if n(v, "ResetSeconds") == 604800 { 3 * 86400 } else { 0 }
 }
-async fn ledger(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<Value> {
+async fn ledger(db: &mut PgConnection, a: i64, d: &Value) -> Result<Value> {
     let id = n(d, "Index");
     let mut v = get(db, a, "product", id).await?;
     if v.is_null() || n(&v, "Period") != period(d) {
@@ -27,7 +27,7 @@ async fn ledger(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<Value> {
     Ok(v)
 }
 pub(super) async fn purchases(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
 ) -> Result<Vec<Value>> {
@@ -42,7 +42,7 @@ pub(super) async fn purchases(
     Ok(out)
 }
 async fn selection(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     category: &str,
@@ -94,7 +94,7 @@ async fn selection(
     }
     Ok((v, currency))
 }
-async fn price(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<(i64, Value)> {
+async fn price(db: &mut PgConnection, a: i64, d: &Value) -> Result<(i64, Value)> {
     let local = ledger(db, a, d).await?;
     let total = get(db, 0, "product_global", n(d, "Index")).await?;
     let used = if n(&total, "Period") == period(d) {
@@ -116,14 +116,14 @@ async fn price(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<(i64, Val
         json!({"ProductIndex":d["Index"],"PurchasedCount":local["PurchasedCount"],"Step":if discount>0{1}else{0},"DiscountPrice":p,"DefaultPrice":d["Price"],"ServerLimitedCount":(n(d,"DiscountLimit")-used).max(0)}),
     ))
 }
-async fn product(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
+async fn product(db: &mut PgConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
     let configured = products(s)
         .find(|v| n(v, "Index") == id)
         .ok_or_else(|| rule("ProductNotFound"))?;
     configured_product(db, s, a, configured).await
 }
 
-async fn configured_product(db: &mut SqliteConnection, s: &AppState, a: i64, configured: &Value) -> Result<Value> {
+async fn configured_product(db: &mut PgConnection, s: &AppState, a: i64, configured: &Value) -> Result<Value> {
     let id = n(configured, "Index");
     let mut d = configured.clone();
     if let Some(category) = d["SelectionCategory"].as_str() {
@@ -202,7 +202,7 @@ fn wired_lobby_catalog(s: &AppState) -> Result<std::sync::Arc<Vec<(Value, bool)>
 }
 
 /// Read-only: safe on a reader connection (no selection-shop rolls).
-pub(super) async fn lobby_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn lobby_snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let wired = wired_lobby_catalog(s)?;
     let mut out = Vec::with_capacity(wired.len());
     for (product, discounted) in wired.iter() {
@@ -222,8 +222,7 @@ mod performance_tests {
     use super::*;
     #[tokio::test]
     async fn lobby_catalog_bulk_construction_preserves_every_native_product() {
-        let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-        crate::database::create_tables(&db).await.unwrap();
+        let db=crate::database::test_pool().await;
         let s=AppState::new(db,crate::tables::test_tables());
         let login=crate::api::account::user::test_login(axum::extract::State(s.clone()),axum::body::Bytes::from_static(b"LoginId=catalog-bulk")).await.unwrap().0;
         let a=login.user_info.account_id;let mut db=s.db.acquire().await.unwrap();
@@ -236,7 +235,7 @@ mod performance_tests {
     }
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -440,8 +439,8 @@ pub(super) async fn execute(
             if duration <= 0 || duration > 31536000 {
                 return Err(rule("InvalidValue"));
             }
-            let old: Option<String> = sqlx::query_scalar(
-                "SELECT end_time FROM item_boosters WHERE account_id=? AND item_index=?",
+            let old: Option<String> = crate::db::query_scalar(
+                "SELECT end_time FROM item_boosters WHERE account_id=$1 AND item_index=$2",
             )
             .bind(a)
             .bind(id)
@@ -449,7 +448,7 @@ pub(super) async fn execute(
             .await?;
             let end = timestamp(&json!(old)).max(now()) + duration;
             let info = json!({"ItemIndex":id,"StartTime":time(now()),"EndTime":time(end)});
-            sqlx::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time) VALUES(?,?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET start_time=excluded.start_time,end_time=excluded.end_time").bind(a).bind(id).bind(time(now())).bind(time(end)).execute(&mut *db).await?;
+            crate::db::query("INSERT INTO item_boosters(account_id,item_index,start_time,end_time) VALUES($1,$2,$3,$4) ON CONFLICT(account_id,item_index) DO UPDATE SET start_time=excluded.start_time,end_time=excluded.end_time").bind(a).bind(id).bind(time(now())).bind(time(end)).execute(&mut *db).await?;
             Ok(json!({"CurrencyResults":[currency],"ItemTimeDurations":[info]}))
         }
         _ => Err(rule("Fail")),

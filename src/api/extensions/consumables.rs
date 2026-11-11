@@ -2,7 +2,7 @@ use super::*;
 use crate::models::item::ItemGrant;
 
 pub(crate) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -50,13 +50,13 @@ pub(crate) async fn execute(
             }
             if guild {
                 let guild_id: i64 =
-                    sqlx::query_scalar("SELECT guild_id FROM guilds WHERE master_account_id=?")
+                    crate::db::query_scalar("SELECT guild_id FROM guilds WHERE master_account_id=$1")
                         .bind(account)
                         .fetch_optional(&mut *db)
                         .await?
                         .ok_or_else(|| rule("NotGuildMaster"))?;
-                let duplicate: bool = sqlx::query_scalar(
-                    "SELECT EXISTS(SELECT 1 FROM guilds WHERE name=? COLLATE NOCASE)",
+                let duplicate: bool = crate::db::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM guilds WHERE lower(name)=lower($1))",
                 )
                 .bind(name)
                 .fetch_one(&mut *db)
@@ -64,14 +64,14 @@ pub(crate) async fn execute(
                 if duplicate {
                     return Err(rule("AlreadyExistName"));
                 }
-                sqlx::query("UPDATE guilds SET name=? WHERE guild_id=?")
+                crate::db::query("UPDATE guilds SET name=$1 WHERE guild_id=$2")
                     .bind(name)
                     .bind(guild_id)
                     .execute(&mut *db)
                     .await?;
             } else {
                 // Player nicknames may repeat; the username identifies players.
-                sqlx::query("UPDATE accounts SET nick=? WHERE account_id=?")
+                crate::db::query("UPDATE accounts SET nick=$1 WHERE account_id=$2")
                     .bind(name)
                     .bind(account)
                     .execute(&mut *db)
@@ -227,7 +227,7 @@ pub(crate) async fn execute(
     Ok(out)
 }
 async fn transition(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -259,8 +259,8 @@ async fn transition(
         {
             return Err(rule("InvalidEquipItem"));
         }
-        let pending: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?)",
+        let pending: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=$1 AND slot_index=$2)",
         )
         .bind(account)
         .bind(eq.slot_index)
@@ -316,7 +316,7 @@ async fn transition(
     Ok(out)
 }
 async fn ability(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -435,7 +435,7 @@ async fn ability(
     )
 }
 async fn flask(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -487,7 +487,7 @@ async fn flask(
 }
 
 pub(crate) async fn fill_flask(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     hero_id: i32,
@@ -497,7 +497,7 @@ pub(crate) async fn fill_flask(
 }
 
 pub(crate) async fn fill_stamina_flask(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     hero_id: i32,
@@ -507,7 +507,7 @@ pub(crate) async fn fill_stamina_flask(
 }
 
 async fn fill_flask_from_source(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     hero_id: i32,

@@ -3,11 +3,11 @@ use crate::api::{
     account::user,
     community::{chat, friend, mail},
 };
-use crate::{database, state::AppState};
+use crate::state::AppState;
 use axum::{body::Bytes, extract::State};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
-use sqlx::Row;
+use crate::db::RowExt;
 use std::time::Duration;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -23,7 +23,7 @@ async fn arcdim_guest_second_team_ready_reaches_owner_over_native_socket() {
             crate::api::battle::put(&mut state.db.acquire().await.unwrap(),account,"dungeon",(10_i64<<32)|9,
                 &json!({"ChapterIndex":10,"DungeonIndex":9,"FirstRewardedDiff":15})).await.unwrap();
         }
-        sqlx::query("UPDATE heroes SET level=100").execute(&state.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100").execute(&state.db).await.unwrap();
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
         let server=tokio::spawn(chat::serve(listener,state.clone()));
         let mut owner=Socket::connect(addr,&host,1).await;let mut follower=Socket::connect(addr,&guest,1).await;
@@ -46,7 +46,7 @@ async fn arcdim_guest_second_team_ready_reaches_owner_over_native_socket() {
             assert_eq!(follower.read().await.1["Result"],"Success");
             let notice=owner.read().await.1;assert_eq!(notice["Type"],"PartyRoomReady");assert_eq!(notice["SenderId"],b);
             let content:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();assert_eq!(content["IsReady"],ready);
-            let raw:String=sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='party_member' AND idx=?")
+            let raw:String=crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind='party_member' AND idx=$2")
                 .bind(b).bind(room).fetch_one(&state.db).await.unwrap();
             let stored:Value=serde_json::from_str(&raw).unwrap();assert_eq!(stored["IsBattleReady"],ready);
             assert!(stored["DeckHeros"].as_object().unwrap().is_empty());
@@ -77,17 +77,17 @@ async fn conquest_solo_chat_reconnect_then_leave_allows_party_invitation_for_eve
         assert_eq!(replay["PartyInfo"]["RaidLevel"],level);
         follower.send("PingReq",json!({"RequestId":100})).await;
         assert_eq!(follower.read().await.0,"PingRes");
-        let guild=sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('SoloReturnInvite',?)")
-            .bind(a).execute(&state.db).await.unwrap().last_insert_rowid();
+        let guild=crate::db::query_scalar::<i64>("INSERT INTO guilds(name,master_account_id) VALUES('SoloReturnInvite',$1) RETURNING guild_id")
+            .bind(a).fetch_one(&state.db).await.unwrap();
         for account in [a,b] {
-            sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)")
+            crate::db::query("INSERT INTO guild_members(guild_id,account_id) VALUES($1,$2)")
                 .bind(guild).bind(account).execute(&state.db).await.unwrap();
         }
         // The explicit result-to-lobby client hook sends this ordinary leave.
         let left=crate::api::battle::execute_request(&state,"raid/leave_raid_room",form(&guest,&format!("RoomNo={solo}&AccountId={b}"))).await.unwrap();
         assert_eq!(left["Result"],"Success");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=?").bind(b).fetch_one(&state.db).await.unwrap(),0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_rooms WHERE id=?").bind(solo).fetch_one(&state.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=$1").bind(b).fetch_one(&state.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_rooms WHERE id=$1").bind(solo).fetch_one(&state.db).await.unwrap(),0);
         let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&host,"RaidIndex=90001&RaidLevel=1&Opened=0")).await.unwrap();
         assert_eq!(created["Result"],"Success");
         owner.send("MessageReq",json!({"RequestId":1,"ReceiverIds":[b],"Message":"InvitePartyReq {}"})).await;
@@ -107,10 +107,10 @@ async fn conquest_invite_acceptance_preserves_native_party_screen_context_for_ev
         for socket in [&mut owner,&mut follower] {
             socket.send("PingReq",json!({"RequestId":100})).await;assert_eq!(socket.read().await.0,"PingRes");
         }
-        let guild=sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('ConquestInvite',?)")
-            .bind(a).execute(&state.db).await.unwrap().last_insert_rowid();
+        let guild=crate::db::query_scalar::<i64>("INSERT INTO guilds(name,master_account_id) VALUES('ConquestInvite',$1) RETURNING guild_id")
+            .bind(a).fetch_one(&state.db).await.unwrap();
         for account in [a,b] {
-            sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)").bind(guild).bind(account).execute(&state.db).await.unwrap();
+            crate::db::query("INSERT INTO guild_members(guild_id,account_id) VALUES($1,$2)").bind(guild).bind(account).execute(&state.db).await.unwrap();
         }
         let created=crate::api::battle::execute_request(&state,"raid/create_raid_room",form(&host,&format!("RaidIndex=90001&RaidLevel={level}&Opened=0"))).await.unwrap();
         assert_eq!(created["Result"],"Success","{created}");let room=created["RoomNo"].as_i64().unwrap();
@@ -154,7 +154,7 @@ async fn conquest_invite_acceptance_preserves_native_party_screen_context_for_ev
         let notice=follower.read().await.1;assert_eq!(notice["Type"],"JoinPartyNotice");
         let replay:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
         assert_eq!(replay["PartyInfo"]["GuildSuppressDungeonIndex"],index);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&state.db).await.unwrap(),2);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members WHERE room=$1").bind(room).fetch_one(&state.db).await.unwrap(),2);
         server.abort();
     }
 }
@@ -167,25 +167,25 @@ async fn mail_notifications_follow_commits_coalesce_bursts_and_isolate_recipient
     let address=listener.local_addr().unwrap();let server=tokio::spawn(chat::serve(listener,state.clone()));
     let mut sa=Socket::connect(address,&a,1).await;let mut sb=Socket::connect(address,&b,1).await;
     let mut tx=state.db.begin().await.unwrap();
-    sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'Guild','Rolled back reward')")
+    crate::db::query("INSERT INTO mails(account_id,sender,title) VALUES($1,'Guild','Rolled back reward')")
         .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&mut *tx).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&mut *tx).await.unwrap(),1);
     tx.rollback().await.unwrap();
     assert_eq!(mail::deliver_notifications(&state).await.unwrap(),0);
     let mut tx=state.db.begin().await.unwrap();
     let mut latest=0;
     for title in ["Dispatch equipment rewards","Guild attendance reward","Arena season reward","Battle equipment rewards"] {
-        latest=sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'System',?)")
-            .bind(a.user_info.account_id).bind(title).execute(&mut *tx).await.unwrap().last_insert_rowid();
+        latest=crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title) VALUES($1,'System',$2) RETURNING mail_id")
+            .bind(a.user_info.account_id).bind(title).fetch_one(&mut *tx).await.unwrap();
     }
-    let other=sqlx::query("INSERT INTO mails(account_id,sender,title) VALUES(?,'System','Other recipient')")
-        .bind(b.user_info.account_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
-    let global=sqlx::query("INSERT INTO mails(account_id,sender,title,global_id) VALUES(?,'System','Global',123)")
-        .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+    let other=crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title) VALUES($1,'System','Other recipient') RETURNING mail_id")
+        .bind(b.user_info.account_id).fetch_one(&mut *tx).await.unwrap();
+    let global=crate::db::query_scalar::<i64>("INSERT INTO mails(account_id,sender,title,global_id) VALUES($1,'System','Global',123) RETURNING mail_id")
+        .bind(a.user_info.account_id).fetch_one(&mut *tx).await.unwrap();
     // Expired, deleted or already claimed mail must not generate stale hints.
-    sqlx::query("INSERT INTO mails(account_id,sender,title,expires_at) VALUES(?,'System','Expired','2000-01-01 00:00:00')")
+    crate::db::query("INSERT INTO mails(account_id,sender,title,expires_at) VALUES($1,'System','Expired','2000-01-01 00:00:00')")
         .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
-    sqlx::query("INSERT INTO mails(account_id,sender,title,is_received) VALUES(?,'System','Claimed',1)")
+    crate::db::query("INSERT INTO mails(account_id,sender,title,is_received) VALUES($1,'System','Claimed',1)")
         .bind(a.user_info.account_id).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     let delivery=mail::start_notifications(state.clone());
@@ -199,15 +199,15 @@ async fn mail_notifications_follow_commits_coalesce_bursts_and_isolate_recipient
     // Let the dispatcher acknowledge the batch before simulating shutdown.
     // Killing it between socket send and queue deletion can replay safe hints.
     for _ in 0..50 {
-        if sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap()==0 {break;}
+        if crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap()==0 {break;}
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
     delivery.abort();let _=delivery.await;
     // A replay can only produce a duplicate hint, never a second reward.
     mail::deliver_notifications(&state).await.unwrap();
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&state.db).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications").fetch_one(&state.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE title='Guild attendance reward'").fetch_one(&state.db).await.unwrap(),1);
     for socket in [&mut sa,&mut sb] {
         socket.send("PingReq",json!({"RequestId":45})).await;
         assert_eq!(socket.read().await.0,"PingRes","No notification from a rolled-back reward or another account may leak");
@@ -225,7 +225,6 @@ async fn fresh_accounts_have_avatars_without_startup_repairs() {
     let (s, a, b) = setup().await;
     assert!(a.user_info.avatar_hero_index > 0);
     assert!(b.user_info.avatar_hero_index > 0);
-    database::create_tables(&s.db).await.unwrap();
     let restored = login(&s, "social-a").await;
     assert_eq!(restored.user_info.avatar_hero_index, a.user_info.avatar_hero_index);
 }
@@ -237,17 +236,12 @@ async fn login(state: &AppState, name: &str) -> user::LoginResponse {
         .0
 }
 async fn setup() -> (AppState, user::LoginResponse, user::LoginResponse) {
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let tables = crate::tables::test_tables();
     let state = AppState::new(pool, tables);
     let a = login(&state, "social-a").await;
     let b = login(&state, "social-b").await;
-    sqlx::query("DELETE FROM mails")
+    crate::db::query("DELETE FROM mails")
         .execute(&state.db)
         .await
         .unwrap();
@@ -316,7 +310,7 @@ async fn friend_recommendations_exclude_existing_relationships_and_allow_empty_l
     .unwrap()
     .0;
     assert_eq!(request["Result"], "Success");
-    sqlx::query("UPDATE accounts SET is_banned=1 WHERE account_id=?")
+    crate::db::query("UPDATE accounts SET is_banned=1 WHERE account_id=$1")
         .bind(banned.user_info.account_id)
         .execute(&state.db)
         .await
@@ -363,15 +357,15 @@ async fn friend_recommendations_sample_the_player_pool_with_a_limit() {
     let (state, a, b) = setup().await;
     let mut eligible = std::collections::BTreeSet::from([b.user_info.account_id]);
     for index in 0..30 {
-        let id: i64 = sqlx::query_scalar(
-            "INSERT INTO accounts(login_id,nick,last_login) VALUES(?,?,datetime('now')) RETURNING account_id",
+        let id: i64 = crate::db::query_scalar(
+            "INSERT INTO accounts(login_id,nick,last_login) VALUES($1,$2,sprk_datetime('now')) RETURNING account_id",
         )
         .bind(format!("candidate-{index}"))
         .bind(format!("Candidate {index}"))
         .fetch_one(&state.db)
         .await
         .unwrap();
-        sqlx::query("INSERT INTO user_info(account_id) VALUES(?)")
+        crate::db::query("INSERT INTO user_info(account_id) VALUES($1)")
             .bind(id)
             .execute(&state.db)
             .await
@@ -405,13 +399,13 @@ async fn friend_recommendations_sample_the_player_pool_with_a_limit() {
 #[tokio::test]
 async fn friend_search_matches_username_nickname_and_exact_player_id() {
     let (state, a, b) = setup().await;
-    sqlx::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=?")
+    crate::db::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=$1")
         .bind(b.user_info.account_id)
         .execute(&state.db)
         .await
         .unwrap();
     // Launcher usernames are stored separately from the internal login ID.
-    sqlx::query("INSERT INTO credentials(username,login_id,password_hash,created_at) VALUES('launcher_name','social-b','unused-test-hash',0)")
+    crate::db::query("INSERT INTO credentials(username,login_id,password_hash,created_at) VALUES('launcher_name','social-b','unused-test-hash',0)")
         .execute(&state.db)
         .await
         .unwrap();
@@ -467,7 +461,7 @@ async fn friend_search_matches_username_nickname_and_exact_player_id() {
 #[tokio::test]
 async fn invitations_search_acceptance_and_removal_survive_login() {
     let (state, a, b) = setup().await;
-    sqlx::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=?")
+    crate::db::query("UPDATE accounts SET nick='Friend With Space' WHERE account_id=$1")
         .bind(b.user_info.account_id)
         .execute(&state.db)
         .await
@@ -592,7 +586,7 @@ async fn friendship_exchange_all_preserves_native_repeated_fields() {
     assert_eq!(result["FriendshipPointInfos"].as_array().unwrap().len(), 2);
     let retry = friend::send_recv_friendship_point(State(state.clone()), form(&a, &fields)).await.unwrap().0;
     assert_eq!(retry["FriendshipPointResult"]["AddValue"], 0);
-    sqlx::query("UPDATE friend_points SET last_send_time=NULL,last_recv_time=NULL WHERE account_id=?")
+    crate::db::query("UPDATE friend_points SET last_send_time=NULL,last_recv_time=NULL WHERE account_id=$1")
         .bind(aid).execute(&state.db).await.unwrap();
     let sent = friend::send_friendship_point(State(state.clone()), form(&a, &format!("FriendIds={bid}&FriendIds={cid}"))).await.unwrap().0;
     assert_eq!(sent["FriendshipPointResult"]["AddValue"], 2 * friend::POINTS_PER_ACTION);
@@ -605,7 +599,7 @@ async fn friend_list_preserves_persisted_disconnect_time() {
     let (state, a, b) = setup().await;
     befriend(&state, &a, &b).await;
     state.sessions.clear();
-    sqlx::query("UPDATE accounts SET last_login='2026-10-01 01:00:00',last_logout='2026-10-01 05:00:00' WHERE account_id=?")
+    crate::db::query("UPDATE accounts SET last_login='2026-10-01 01:00:00',last_logout='2026-10-01 05:00:00' WHERE account_id=$1")
         .bind(b.user_info.account_id).execute(&state.db).await.unwrap();
     for _ in 0..2 {
         let (_, friends, _, _) = friend::login_data(&state, a.user_info.account_id).await.unwrap();
@@ -613,7 +607,7 @@ async fn friend_list_preserves_persisted_disconnect_time() {
         assert_eq!(friends[0]["LastOnlineTime"], "2026-10-01 05:00:00");
         assert_eq!(friends[0]["LastLogoutTime"], "2026-10-01 05:00:00");
     }
-    sqlx::query("UPDATE accounts SET last_login='2026-10-02 01:00:00' WHERE account_id=?")
+    crate::db::query("UPDATE accounts SET last_login='2026-10-02 01:00:00' WHERE account_id=$1")
         .bind(b.user_info.account_id).execute(&state.db).await.unwrap();
     let info = friend::profile(&state, b.user_info.account_id).await.unwrap();
     assert_eq!(info["LastOnlineTime"], "2026-10-02 01:00:00");
@@ -685,8 +679,8 @@ async fn friendship_points_are_reciprocal_daily_and_retry_safe() {
         again.misc_info.unwrap().daily_acc_friendship_point,
         2 * friend::POINTS_PER_ACTION
     );
-    sqlx::query("UPDATE friend_points SET last_send_time='2000-01-01 00:00:00',last_recv_time='2000-01-01 00:00:00'").execute(&state.db).await.unwrap();
-    sqlx::query("UPDATE friend_daily SET day='2000-01-01',points=1000")
+    crate::db::query("UPDATE friend_points SET last_send_time='2000-01-01 00:00:00',last_recv_time='2000-01-01 00:00:00'").execute(&state.db).await.unwrap();
+    crate::db::query("UPDATE friend_daily SET day='2000-01-01',points=1000")
         .execute(&state.db)
         .await
         .unwrap();
@@ -704,7 +698,7 @@ async fn friendship_points_are_reciprocal_daily_and_retry_safe() {
 async fn point_cap_rolls_back_the_daily_send_ledger() {
     let (state, a, b) = setup().await;
     befriend(&state, &a, &b).await;
-    sqlx::query("INSERT INTO friend_daily(account_id,day,points) VALUES (?,?,?)")
+    crate::db::query("INSERT INTO friend_daily(account_id,day,points) VALUES ($1,$2,$3)")
         .bind(a.user_info.account_id)
         .bind(state.server_date())
         .bind(friend::DAILY_POINT_LIMIT)
@@ -719,7 +713,7 @@ async fn point_cap_rolls_back_the_daily_send_ledger() {
     .unwrap()
     .0;
     assert_eq!(response["Result"], "MaxFriendshipPoint");
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM friend_points")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM friend_points")
         .fetch_one(&state.db)
         .await
         .unwrap();
@@ -732,7 +726,7 @@ async fn mail_lists_obey_cursor_page_expiry_and_owner() {
     let first = add_mail(&state, &a, 1, 0, None).await;
     let second = add_mail(&state, &a, 2, 0, None).await;
     let expired = add_mail(&state, &a, 3, 0, None).await;
-    sqlx::query("UPDATE mails SET expires_at='2000-01-01 00:00:00' WHERE mail_id=?")
+    crate::db::query("UPDATE mails SET expires_at='2000-01-01 00:00:00' WHERE mail_id=$1")
         .bind(expired)
         .execute(&state.db)
         .await
@@ -828,7 +822,7 @@ async fn mail_claims_all_attachment_types_once() {
         ]),
     )
     .await;
-    sqlx::query("UPDATE mails SET reward_stamina=12 WHERE mail_id=?")
+    crate::db::query("UPDATE mails SET reward_stamina=12 WHERE mail_id=$1")
         .bind(id)
         .execute(&state.db)
         .await
@@ -879,15 +873,15 @@ async fn malformed_and_locked_mail_cannot_consume_or_partially_grant() {
             .0["Result"],
         "Fail"
     );
-    let row = sqlx::query("SELECT gold,gem FROM user_info WHERE account_id=?")
+    let row = crate::db::query("SELECT gold,gem FROM user_info WHERE account_id=$1")
         .bind(a.user_info.account_id)
         .fetch_one(&state.db)
         .await
         .unwrap();
     assert_eq!(row.get::<i64, _>("gold"), a.user_info.gold);
     assert_eq!(row.get::<i64, _>("gem"), a.user_info.gem);
-    sqlx::query(
-        "UPDATE mails SET reward_items=NULL,opens_at='2999-01-01 00:00:00' WHERE mail_id=?",
+    crate::db::query(
+        "UPDATE mails SET reward_items=NULL,opens_at='2999-01-01 00:00:00' WHERE mail_id=$1",
     )
     .bind(id)
     .execute(&state.db)
@@ -900,7 +894,7 @@ async fn malformed_and_locked_mail_cannot_consume_or_partially_grant() {
             .0["Result"],
         "Fail"
     );
-    let pending: i64 = sqlx::query_scalar("SELECT is_received FROM mails WHERE mail_id=?")
+    let pending: i64 = crate::db::query_scalar("SELECT is_received FROM mails WHERE mail_id=$1")
         .bind(id)
         .fetch_one(&state.db)
         .await
@@ -930,7 +924,7 @@ async fn concurrent_mail_claims_and_bulk_limits_prevent_double_rewards() {
         .0;
     assert_eq!(bulk["ReceivedMailCount"], 2);
     assert_eq!(bulk["MailReceiveResults"].as_array().unwrap().len(), 2);
-    let gold: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+    let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
         .bind(a.user_info.account_id)
         .fetch_one(&state.db)
         .await
@@ -941,7 +935,7 @@ async fn concurrent_mail_claims_and_bulk_limits_prevent_double_rewards() {
 #[tokio::test]
 async fn global_mail_is_delivered_and_claimed_once_per_account() {
     let (state, a, b) = setup().await;
-    sqlx::query("INSERT INTO global_mails(title,reward_gold) VALUES ('Announcement',50)")
+    crate::db::query("INSERT INTO global_mails(title,reward_gold) VALUES ('Announcement',50)")
         .execute(&state.db)
         .await
         .unwrap();
@@ -991,7 +985,7 @@ async fn duplicate_heroes_grant_the_client_tables_compensation() {
         })
         .unwrap();
     let hero = state.tables.items.reward_item(index).unwrap().hero_index;
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level) VALUES (?,99,?,5,1)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star,level) VALUES ($1,99,$2,5,1)")
         .bind(a.user_info.account_id)
         .bind(hero)
         .execute(&state.db)
@@ -1021,7 +1015,7 @@ async fn duplicate_heroes_grant_the_client_tables_compensation() {
             > 0
     );
     let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=? AND hero_index=?")
+        crate::db::query_scalar("SELECT COUNT(*) FROM heroes WHERE account_id=$1 AND hero_index=$2")
             .bind(a.user_info.account_id)
             .bind(hero)
             .fetch_one(&state.db)
@@ -1033,18 +1027,7 @@ async fn duplicate_heroes_grant_the_client_tables_compensation() {
 #[tokio::test]
 async fn claims_serialize_across_database_connections_and_survive_restart() {
     let (template, _, _) = setup().await;
-    let path = std::env::temp_dir().join(format!("sprk-social-{}.sqlite", uuid::Uuid::new_v4()));
-    let options = sqlx::sqlite::SqliteConnectOptions::new()
-        .filename(&path)
-        .create_if_missing(true)
-        .busy_timeout(Duration::from_secs(10));
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(5)
-        .min_connections(5)
-        .connect_with(options)
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::test_pool().await;
     let state = AppState::new(pool.clone(), template.tables.as_ref().clone());
     let a = login(&state, "file-account").await;
     let id = add_mail(&state, &a, 90, 0, None).await;
@@ -1057,13 +1040,7 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
         results.iter().filter(|v| v["Result"] == "Success").count(),
         1
     );
-    pool.close().await;
-    let pool = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(2)
-        .connect_with(sqlx::sqlite::SqliteConnectOptions::new().filename(&path))
-        .await
-        .unwrap();
-    database::create_tables(&pool).await.unwrap();
+    let pool = crate::database::reconnect(pool).await;
     let restarted = AppState::new(pool.clone(), template.tables.as_ref().clone());
     let again = login(&restarted, "file-account").await;
     assert_eq!(again.user_info.gold, a.user_info.gold + 90);
@@ -1074,11 +1051,10 @@ async fn claims_serialize_across_database_connections_and_survive_restart() {
             .0["Result"],
         "Fail"
     );
-    pool.close().await;
-    std::fs::remove_file(&path).unwrap();
 }
 
-struct Socket(BufReader<TcpStream>);
+/// A test chat client. Messages read while settling wait in the queue.
+struct Socket(BufReader<TcpStream>, std::collections::VecDeque<(String, Value)>);
 
 #[tokio::test]
 async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated() {
@@ -1095,7 +1071,7 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
     let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
     let server=tokio::spawn(chat::serve(listener,state.clone()));
     let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,1).await;
-    sqlx::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES(?,?,'accepted')")
+    crate::db::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES($1,$2,'accepted')")
         .bind(a.user_info.account_id).bind(b.user_info.account_id).execute(&state.db).await.unwrap();
     let group=a.user_info.account_id;
     sa.send("MessageReq",json!({"RequestId":10,"ReceiverIds":[b.user_info.account_id],"Message":format!("RequestDuel {}",json!({"GroupId":group,"Nick":"FORGED"}))})).await;
@@ -1153,7 +1129,7 @@ async fn native_friend_duel_invitation_acceptance_and_cancel_are_authenticated()
     assert_eq!(cancel["Type"],"CancelDuel");assert_eq!(cancel["SenderId"],a.user_info.account_id);
     let body:Value=serde_json::from_str(cancel["Content"].as_str().unwrap()).unwrap();
     assert_eq!(body["GroupId"],honor);assert_eq!(body["IsReject"],false);
-    assert_eq!(sqlx::query_scalar::<_,String>("SELECT status FROM friendly_duels WHERE group_id=?").bind(honor).fetch_one(&state.db).await.unwrap(),"canceled");
+    assert_eq!(crate::db::query_scalar::<String>("SELECT status FROM friendly_duels WHERE group_id=$1").bind(honor).fetch_one(&state.db).await.unwrap(),"canceled");
     server.abort();
 }
 
@@ -1172,7 +1148,7 @@ async fn current_chapter_profiles_follow_saved_main_story_progress_across_friend
     let stages:Vec<_>=stages.into_iter().collect();
     let (legacy_c,legacy_d)=stages[0];let (modern_c,modern_d)=stages[1];let (locked_c,locked_d)=stages[2];
     for (chapter,dungeon,count) in [(legacy_c,legacy_d,1),(locked_c,locked_d,0),(999999,1,100)] {
-        sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES(?,?,?,?,1) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=excluded.clear_count")
+        crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,is_unlocked) VALUES($1,$2,$3,$4,1) ON CONFLICT(account_id,chapter_id,dungeon_id) DO UPDATE SET clear_count=excluded.clear_count")
             .bind(target).bind(chapter).bind(dungeon).bind(count).execute(&s.db).await.unwrap();
     }
     assert_eq!(friend::profile(&s,target).await.unwrap()["LastChapterIndex"],legacy_c);
@@ -1198,12 +1174,12 @@ async fn hero_info_keeps_campaign_and_victory_squads_separate_for_native_categor
     let (s,a,b)=setup().await;
     let target=b.user_info.account_id;
     let played=super::now();
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,90,5)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,2,2,90,5)")
         .bind(target).execute(&s.db).await.unwrap();
-    sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,0,?,'complete',?)")
+    crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES($1,0,$2,'complete',$3)")
         .bind(target).bind(super::now()).bind(json!({"Heroes":[1],"DuelType":0}).to_string()).execute(&s.db).await.unwrap();
     let entry=json!({"ChapterIndex":1,"DungeonIndex":1,"Heroes":[2],"ScenarioDungeon":false});
-    sqlx::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES(?,'legacy-inspect',?,1,?,'{}')")
+    crate::db::query("INSERT INTO battle_runs(account,run_id,started,completed,entry,begin_response) VALUES($1,'legacy-inspect',$2,1,$3,'{}')")
         .bind(target).bind(played).bind(entry.to_string()).execute(&s.db).await.unwrap();
     let inspect=|category:&str|form(&a,&format!("TargetAccountId={target}&Category={category}"));
     let first=friend::inspect_user(State(s.clone()),inspect("Friend")).await.unwrap().0;
@@ -1214,10 +1190,10 @@ async fn hero_info_keeps_campaign_and_victory_squads_separate_for_native_categor
     assert_eq!(decks["Arena"]["HeroIndex1"],1,"campaign must not replace Victory");
     let deck=crate::api::battle::campaign_inspection_deck(&s,&entry,played).unwrap();
     crate::api::battle::put(&mut s.db.acquire().await.unwrap(),target,"inspection_deck",1,&deck).await.unwrap();
-    sqlx::query("UPDATE battle_runs SET entry='{}' WHERE account=?").bind(target).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE battle_runs SET entry='{}' WHERE account=$1").bind(target).execute(&s.db).await.unwrap();
     let next=friend::inspect_user(State(s.clone()),inspect("Arena")).await.unwrap().0;
     assert_eq!(next["CachedAccountInfo"]["DeckInfos"],*decks,"later unrelated battles retain both independent teams");
-    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='inspection_deck'").bind(target).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='inspection_deck'").bind(target).execute(&s.db).await.unwrap();
     let missing=friend::inspect_user(State(s),inspect("Friend")).await.unwrap().0;
     assert!(missing["CachedAccountInfo"]["DeckInfos"]["Campaign"].is_null(),"never substitute Victory for missing campaign history");
 }
@@ -1227,16 +1203,16 @@ async fn hero_info_shows_victory_deck_and_current_stats_without_registering_unra
     let (s,a,b) = setup().await;
     let target=b.user_info.account_id;
     let season=super::arena::season(&s).0;
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,90,5)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,2,2,90,5)")
         .bind(target).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE arena_scores SET score=1420,wins=7,losses=3,data=? WHERE account=? AND kind=0 AND season=?")
+    crate::db::query("UPDATE arena_scores SET score=1420,wins=7,losses=3,data=$1 WHERE account=$2 AND kind=0 AND season=$3")
         .bind(json!({"SuccessiveWin":3}).to_string()).bind(target).bind(season).execute(&s.db).await.unwrap();
-    sqlx::query("INSERT OR REPLACE INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,1,?,2200,99,10)")
+    crate::db::query("INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,1,$2,2200,99,10) ON CONFLICT(account,kind,season) DO UPDATE SET score=excluded.score,wins=excluded.wins,losses=excluded.losses,data='{}'")
         .bind(target).bind(season).execute(&s.db).await.unwrap();
     // The saved Victory deck survives season rollover. Newer Honor/friendly
     // games and an abandoned queue must not replace it in the public inspector.
     for (kind,status,duel,heroes) in [(0,"complete",0,json!([2,1])),(1,"complete",0,json!([1])),(0,"complete",1,json!([1])),(0,"canceled",0,json!([1]))] {
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,?,?)")
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES($1,$2,$3,$4,$5)")
             .bind(target).bind(kind).bind(super::now()-86400).bind(status)
             .bind(json!({"Season":season-1,"DuelType":duel,"Heroes":heroes}).to_string()).execute(&s.db).await.unwrap();
     }
@@ -1258,19 +1234,19 @@ async fn hero_info_shows_victory_deck_and_current_stats_without_registering_unra
     assert_eq!(cached["HeroInfos"]["2"]["Level"],90);
     assert!(info.get("SessionKey").is_none());
     // Reading an unranked profile must not create a ranking entry or invent a deck.
-    sqlx::query("DELETE FROM arena_scores WHERE account=?").bind(target).execute(&s.db).await.unwrap();
-    sqlx::query("DELETE FROM arena_runs WHERE account=?").bind(target).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM arena_scores WHERE account=$1").bind(target).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM arena_runs WHERE account=$1").bind(target).execute(&s.db).await.unwrap();
     let empty=friend::inspect_user(State(s.clone()),form(&a,&format!("TargetAccountId={target}"))).await.unwrap().0;
     assert_eq!(empty["CachedAccountInfo"]["UserInfo"]["MatchScore"],0);
     assert_eq!(empty["MatchTierRank"],-1);
     assert!(empty["CachedAccountInfo"]["DeckInfos"].as_object().unwrap().is_empty());
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM arena_scores WHERE account=?").bind(target).fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM arena_scores WHERE account=$1").bind(target).fetch_one(&s.db).await.unwrap(),0);
 }
 
 #[tokio::test]
 async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
     let (s, a, b) = setup().await;
-    sqlx::query("UPDATE heroes SET level=37 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=37 WHERE account_id=$1").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
     let out = friend::inspect_user(State(s.clone()), form(&a, &format!("TargetAccountId={}", b.user_info.account_id))).await.unwrap().0;
     assert_eq!(out["Result"], "Success");
     let account = &out["CachedAccountInfo"];
@@ -1283,7 +1259,7 @@ async fn hero_info_returns_target_public_heroes_and_rejects_missing_accounts() {
     assert!(account["UserInfo"].get("Gold").is_none());
     assert!(out["GuildInfo"].is_null());
     assert_eq!(friend::inspect_user(State(s.clone()), form(&a, "TargetAccountId=99999")).await.unwrap().0["Result"], "NoTargetAccountId");
-    sqlx::query("UPDATE accounts SET is_banned=1 WHERE account_id=?").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE accounts SET is_banned=1 WHERE account_id=$1").bind(b.user_info.account_id).execute(&s.db).await.unwrap();
     assert_eq!(friend::inspect_user(State(s.clone()), form(&a, &format!("TargetAccountId={}",b.user_info.account_id))).await.unwrap().0["Result"], "NoTargetAccountId");
     assert!(friend::inspect_user(State(s), Bytes::from("TargetAccountId=1")).await.is_err());
 }
@@ -1293,10 +1269,10 @@ async fn raid_invites_presence_groups_private_join_and_sender_validation() {
     let (state, a, b) = setup().await;
     let c = login(&state, "invite-outsider").await;
     befriend(&state, &a, &b).await;
-    let guild = sqlx::query("INSERT INTO guilds(name,master_account_id) VALUES('InviteTest',?)")
-        .bind(a.user_info.account_id).execute(&state.db).await.unwrap().last_insert_rowid();
+    let guild = crate::db::query_scalar::<i64>("INSERT INTO guilds(name,master_account_id) VALUES('InviteTest',$1) RETURNING guild_id")
+        .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
     for id in [a.user_info.account_id, b.user_info.account_id] {
-        sqlx::query("INSERT INTO guild_members(guild_id,account_id) VALUES(?,?)")
+        crate::db::query("INSERT INTO guild_members(guild_id,account_id) VALUES($1,$2)")
             .bind(guild).bind(id).execute(&state.db).await.unwrap();
     }
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1341,7 +1317,7 @@ async fn raid_invites_presence_groups_private_join_and_sender_validation() {
     sa.send("MessageReq",json!({"RequestId":33,"ReceiverIds":[b.user_info.account_id],"Message":"JoinPartyRes {\"Result\":\"Success\",\"SendKey\":42}"})).await;
     assert_eq!(sa.read().await.1["Result"], "Success");
     assert_eq!(sb.read().await.1["Type"], "JoinPartyRes");
-    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&state.db).await.unwrap();
+    let count: i64 = crate::db::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=$1").bind(room).fetch_one(&state.db).await.unwrap();
     assert_eq!(count, 2);
     // The last socket disconnect, even without an explicit Logout, updates peers.
     drop(sb);
@@ -1355,7 +1331,7 @@ async fn raid_invites_presence_groups_private_join_and_sender_validation() {
         if disconnected.len() == 2 { break; }
     }
     assert_eq!(disconnected.len(), 2);
-    let saved: Option<String> = sqlx::query_scalar("SELECT last_logout FROM accounts WHERE account_id=?")
+    let saved: Option<String> = crate::db::query_scalar("SELECT last_logout FROM accounts WHERE account_id=$1")
         .bind(b.user_info.account_id).fetch_one(&state.db).await.unwrap();
     let saved = chrono::NaiveDateTime::parse_from_str(&saved.expect("disconnect timestamp persisted"), "%Y-%m-%d %H:%M:%S").unwrap();
     assert!((chrono::Utc::now().naive_utc() - saved).num_seconds().abs() < 5);
@@ -1376,7 +1352,7 @@ async fn native_party_socket_join_deck_ready_and_isolation() {
     let invite:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
     assert_eq!(invite["Invitee"]["AccountId"],b.user_info.account_id);
     assert_eq!(invite["Invitee"]["Nick"],b.user_info.nick);
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,2,2,1,1)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
     sa.send("MessageReq",json!({"RequestId":21,"ReceiverIds":[b.user_info.account_id],"Message":format!("JoinPartyRes {}",json!({"Result":"Success","SendKey":42,"PartyInfo":{"PartyMembers":[{"AccountId":a.user_info.account_id,"DeckHeros":{"2":{"HeroIndex":2,"Level":999}},"SubDeckHeros":{}}]}}))})).await;
     assert_eq!(sa.read().await.1["Result"],"Success");
     let (_,notice)=sb.read().await;assert_eq!(notice["Type"],"JoinPartyRes");
@@ -1396,7 +1372,7 @@ async fn native_party_socket_join_deck_ready_and_isolation() {
     sc.send("MessageReq",json!({"RequestId":24,"ReceiverIds":[a.user_info.account_id],"Message":"PartyRoomReady {\"IsReady\":true}"})).await;
     assert_eq!(sc.read().await.1["Result"],"Fail");
     assert!(tokio::time::timeout(Duration::from_millis(100),sc.0.fill_buf()).await.is_err());
-    let saved:String=sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind='party_member' AND idx=?").bind(b.user_info.account_id).bind(room).fetch_one(&state.db).await.unwrap();
+    let saved:String=crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind='party_member' AND idx=$2").bind(b.user_info.account_id).bind(room).fetch_one(&state.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()["IsBattleReady"],true);
     sb.send("MessageReq",json!({"RequestId":26,"Message":"ChangePartyDungeonRoomInfo {\"IsResetSquard\":\"False\"}"})).await;
     assert_eq!(sb.read().await.1["Result"],"Fail");
@@ -1440,7 +1416,7 @@ async fn locked_raid_invites_reject_before_join_and_recheck_changed_settings_on_
     crate::api::battle::put(&mut state.db.acquire().await.unwrap(),a,"raid",1,&json!({"RaidIndex":1,"RaidLevel":9})).await.unwrap();
     let created=crate::api::battle::execute_request(&state,if family=="raid" {"raid/create_raid_room"}else{"party_dungeon/create_party_dungeon_room"},form(&host,if family=="raid" {"RaidIndex=1&RaidLevel=8&Opened=0"}else{"DungeonType=1&ChapterIndex=1&DungeonIndex=3&DungeonDifficulty=2&Opened=0"})).await.unwrap();
     assert_eq!(created["Result"],"Success","{created}");let room=created["RoomNo"].as_i64().unwrap();
-    let before:(i64,i64,i64)=sqlx::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=?").bind(b).fetch_one(&state.db).await.unwrap();
+    let before:(i64,i64,i64)=crate::db::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=$1").bind(b).fetch_one(&state.db).await.unwrap();
     sa.send("MessageReq",json!({"RequestId":30,"ReceiverIds":[b],"Message":format!("InvitePartyReq {}",json!({"RoomNo":room}))})).await;
     assert_eq!(sa.read().await.1["Result"],"Success");assert_eq!(sb.read().await.1["Type"],"InvitePartyReq");
     // Even a valid private invitation cannot bypass the saved unlock.
@@ -1470,7 +1446,7 @@ async fn locked_raid_invites_reject_before_join_and_recheck_changed_settings_on_
         assert_eq!(response["SendKey"],key);
         assert_eq!(response["Result"],if key==102 {"Success"}else{"DungeonLocked"});
         if key!=102 {assert!(response["PartyInfo"].is_null());}
-        let count:i64=sqlx::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=?").bind(room).fetch_one(&state.db).await.unwrap();assert_eq!(count,if key==102 {2}else{1});
+        let count:i64=crate::db::query_scalar("SELECT count(*) FROM battle_room_members WHERE room=$1").bind(room).fetch_one(&state.db).await.unwrap();assert_eq!(count,if key==102 {2}else{1});
         let pending=crate::api::battle::get(&mut state.db.acquire().await.unwrap(),b,"party_pending",room).await.unwrap();assert!(pending.is_null());
         if key==101 {
             let notice=sa.read().await.1;assert_eq!(notice["Type"],"KickedRaidMemberRes");
@@ -1486,7 +1462,7 @@ async fn locked_raid_invites_reject_before_join_and_recheck_changed_settings_on_
             let joined=crate::api::battle::execute_request(&state,if family=="raid" {"raid/join_raid_room"}else{"party_dungeon/join_party_dungeon_room"},form(&guest,&format!("RoomNo={room}"))).await.unwrap();assert_eq!(joined["Result"],"Success");
         }
     }
-    let after:(i64,i64,i64)=sqlx::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=?").bind(b).fetch_one(&state.db).await.unwrap();assert_eq!(before,after);
+    let after:(i64,i64,i64)=crate::db::query_as("SELECT stamina,gold,gem FROM user_info WHERE account_id=$1").bind(b).fetch_one(&state.db).await.unwrap();assert_eq!(before,after);
     server.abort();
     }
 }
@@ -1499,9 +1475,9 @@ async fn native_party_battle_callouts_echo_all_four_buttons_and_stay_inside_the_
         let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
         let server=tokio::spawn(chat::serve(listener,state.clone()));
         let mut sa=Socket::connect(addr,&host,1).await;let mut sb=Socket::connect(addr,&guest,2).await;let mut sc=Socket::connect(addr,&outsider,1).await;
-        sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,?,?,?,0)")
+        crate::db::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,$1,$2,$3,0)")
             .bind(family).bind(a).bind(json!({"RoomNo":1,"Status":2,"CurPartyMember":2}).to_string()).execute(&state.db).await.unwrap();
-        for member in [a,b] {sqlx::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,?,0,0)").bind(member).execute(&state.db).await.unwrap();}
+        for member in [a,b] {crate::db::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,$1,0,0)").bind(member).execute(&state.db).await.unwrap();}
         for (wire,expected) in [(json!("Attack"),"Attack"),(json!("Heal"),"Heal"),(json!("Cc"),"Cc"),(json!("Defense"),"Defense"),
             (json!(1),"Attack"),(json!("2"),"Heal"),(json!(3),"Cc"),(json!("4"),"Defense")] {
             sb.send("MessageReq",json!({"RequestId":20,"GroupType":"World","ReceiverIds":[c],"Message":format!("PartyMemberEmoti {}",json!({"Emoti":wire,"ChatType":"World","SenderName":"FORGED","SenderAvatarIndex":999,"SenderTeamLevel":999,"ReceiverId":c,"ReceiverName":"FORGED","LinkedItem":[{"EquipItemInfo":{"SlotIndex":999}}]}))})).await;
@@ -1512,13 +1488,13 @@ async fn native_party_battle_callouts_echo_all_four_buttons_and_stay_inside_the_
             assert_eq!(body,json!({"ChatType":"Party","Emoti":expected,"SenderName":guest.user_info.nick,"SenderAvatarIndex":guest.user_info.avatar_hero_index,"SenderTeamLevel":guest.user_info.team_level,"ReceiverId":0,"ReceiverName":""}));
             sc.send("PingReq",json!({"RequestId":21})).await;assert_eq!(sc.read().await.0,"PingRes","Outsiders must not receive callouts");
             // Simulate the native button cooldown without slowing the socket test.
-            sqlx::query("UPDATE chat_messages SET created_at=datetime('now','-5 seconds') WHERE sender_id=?").bind(b).execute(&state.db).await.unwrap();
+            crate::db::query("UPDATE chat_messages SET created_at=sprk_datetime('now','-5 seconds') WHERE sender_id=$1").bind(b).execute(&state.db).await.unwrap();
         }
         for invalid in [json!("None"),json!(0),json!(5),json!(-1),json!(1.5),json!("heal"),Value::Null] {
             sb.send("MessageReq",json!({"RequestId":22,"Message":format!("PartyMemberEmoti {}",json!({"Emoti":invalid}))})).await;
             assert_eq!(sb.read().await.1["Result"],"Fail");
         }
-        sqlx::query("DELETE FROM battle_room_members WHERE account=?").bind(b).execute(&state.db).await.unwrap();
+        crate::db::query("DELETE FROM battle_room_members WHERE account=$1").bind(b).execute(&state.db).await.unwrap();
         sb.send("MessageReq",json!({"RequestId":23,"ReceiverIds":[a],"Message":"PartyMemberEmoti {\"Emoti\":\"Heal\"}"})).await;
         assert_eq!(sb.read().await.1["Result"],"Fail","Departed players cannot signal the old party");
         for request in 24..=27 {
@@ -1542,6 +1518,7 @@ impl Socket {
             .unwrap();
     }
     async fn read(&mut self) -> (String, Value) {
+        if let Some(message) = self.1.pop_front() { return message; }
         let mut line = String::new();
         tokio::time::timeout(Duration::from_secs(3), self.0.read_line(&mut line))
             .await
@@ -1554,7 +1531,7 @@ impl Socket {
         )
     }
     async fn connect(address: std::net::SocketAddr, a: &user::LoginResponse, channel: i32) -> Self {
-        let mut socket = Self(BufReader::new(TcpStream::connect(address).await.unwrap()));
+        let mut socket = Self(BufReader::new(TcpStream::connect(address).await.unwrap()), Default::default());
         // Patched LoginReq proves identity with the game session.
         socket.send("LoginReq",json!({"RequestId":11,"SessionKey":a.user_info.session_key,"AccountId":a.user_info.account_id,"ChannelNo":channel,"FriendIds":[]})).await;
         let (name, value) = socket.read().await;
@@ -1562,7 +1539,23 @@ impl Socket {
         assert_eq!(value["RequestId"], 11);
         assert_eq!(value["Result"], "Success");
         assert_eq!(value["ChannelNo"], channel.clamp(1, 99));
+        socket.settle().await;
         socket
+    }
+    /// The server finishes login work (party reconnect, presence, world chat
+    /// replay) after LoginRes and answers a ping only after it, so test writes
+    /// made after settling cannot race that work. Messages that arrive first
+    /// stay queued for read().
+    async fn settle(&mut self) {
+        self.send("PingReq", json!({"RequestId": 99})).await;
+        let mut early = std::collections::VecDeque::new();
+        loop {
+            let message = self.read().await;
+            if message.0 == "PingRes" && message.1["RequestId"] == 99 { break; }
+            early.push_back(message);
+        }
+        early.extend(self.1.drain(..));
+        self.1 = early;
     }
 }
 
@@ -1603,8 +1596,8 @@ async fn native_socket_party_chat_delivers_to_both_members() {
     let server=tokio::spawn(chat::serve(listener,state.clone()));
     let mut sa=Socket::connect(addr,&a,1).await;let mut sb=Socket::connect(addr,&b,2).await;
     for client in [&mut sa,&mut sb] {client.send("PingReq",json!({"RequestId":1})).await;assert_eq!(client.read().await.0,"PingRes");}
-    sqlx::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'raid',?,'{}',0)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
-    for account in [a.user_info.account_id,b.user_info.account_id] {sqlx::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,?,0,0)").bind(account).execute(&state.db).await.unwrap();}
+    crate::db::query("INSERT INTO battle_rooms(id,family,master,data,updated) VALUES(1,'raid',$1,'{}',0)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    for account in [a.user_info.account_id,b.user_info.account_id] {crate::db::query("INSERT INTO battle_room_members(room,account,joined,updated) VALUES(1,$1,0,0)").bind(account).execute(&state.db).await.unwrap();}
     sa.send("MessageReq",json!({"RequestId":2,"GroupType":"None","ReceiverIds":[b.user_info.account_id],"Message":"PartyChat {\"Chat\":\"native party message\"}"})).await;
     assert_eq!(sa.read().await.1["Result"],"Success");let own=sa.read().await;
     assert_eq!(own.0,"MessageNot");assert_eq!(own.1["Type"],"PartyChat");assert_eq!(sb.read().await,own);
@@ -1689,12 +1682,12 @@ async fn socket_rejects_unknown_accounts_and_handles_fragmented_coalesced_packet
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let server = tokio::spawn(chat::serve(listener, state));
-    let mut unknown = Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+    let mut unknown = Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()), Default::default());
     unknown
         .send("LoginReq", json!({"RequestId":7,"AccountId":999999}))
         .await;
     assert_eq!(unknown.read().await.1["Result"], "Fail");
-    let mut socket = Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+    let mut socket = Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()), Default::default());
     let login = chat::encode_packet(
         "LoginReq",
         &json!({"RequestId":8,"SessionKey":a.user_info.session_key,"AccountId":a.user_info.account_id}),
@@ -1716,18 +1709,18 @@ async fn socket_requires_session_proof_and_accepts_native_string_ids() {
     let listener=TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
     let server=tokio::spawn(chat::serve(listener,state));
     for key in [None,Some(b.user_info.session_key.as_str())] {
-        let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+        let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()), Default::default());
         socket.send("LoginReq",json!({"AccountId":a.user_info.account_id.to_string(),"RequestId":"2","SessionKey":key})).await;
         let response=socket.read().await.1;assert_eq!(response["Result"],"Fail");assert_eq!(response["RequestId"],2);
     }
-    let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()));
+    let mut socket=Socket(BufReader::new(TcpStream::connect(addr).await.unwrap()), Default::default());
     socket.send("LoginReq",json!({"AccountId":a.user_info.account_id.to_string(),"RequestId":"3","SessionKey":a.user_info.session_key,"ChannelNo":"1"})).await;
     assert_eq!(socket.read().await.1["Result"],"Success");server.abort();
 }
 #[tokio::test]
 async fn chat_equipment_links_use_owned_snapshot() {
     let (state,a,b)=setup().await;
-    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index) VALUES(?,50,1010101)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
+    crate::db::query("INSERT INTO equip_items(account_id,slot_index,item_index) VALUES($1,50,1010101)").bind(a.user_info.account_id).execute(&state.db).await.unwrap();
     let link=urlencoding::encode(r#"[{"MaxEquipLevel":999,"EquipItemInfo":{"SlotIndex":"50","ItemIndex":99999,"EnchantLevel":999,"SoulWeaponInfo":{"Grade":2,"ReinforceLevel":20}}}]"#).into_owned();
     let v=chat::send_world_chat(State(state.clone()),form(&a,&format!("Chat=item&LinkedItem={link}"))).await.unwrap().0;
     let content:Value=serde_json::from_str(v["Message"]["Content"].as_str().unwrap()).unwrap();
@@ -1740,7 +1733,7 @@ async fn chat_equipment_links_use_owned_snapshot() {
 #[tokio::test]
 async fn chat_equipment_links_include_sender_soul_weapon_snapshot() {
     let (state,a,b)=setup().await;
-    sqlx::query("INSERT INTO equip_items(account_id,slot_index,item_index,star) VALUES(?,50,1001,5)")
+    crate::db::query("INSERT INTO equip_items(account_id,slot_index,item_index,star) VALUES($1,50,1001,5)")
         .bind(a.user_info.account_id).execute(&state.db).await.unwrap();
     let mut soul=json!({"EquipItemSlotIndex":50,"ItemIndex":1001,"Grade":2,"ReinforceLevel":20,
         "OptionRatio1":500,"OptionRatio2":500,"OptionBonusRatio1":100,"OptionBonusRatio2":200});
@@ -1763,7 +1756,7 @@ async fn chat_equipment_links_include_sender_soul_weapon_snapshot() {
     let content:Value=serde_json::from_str(notice["Content"].as_str().unwrap()).unwrap();
     assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["SoulWeaponInfo"],soul);
     assert_eq!(content["LinkedItem"][0]["EquipItemInfo"]["Star"],5);
-    let stored:String=sqlx::query_scalar("SELECT content FROM chat_messages WHERE sender_id=? ORDER BY message_id DESC LIMIT 1")
+    let stored:String=crate::db::query_scalar("SELECT content FROM chat_messages WHERE sender_id=$1 ORDER BY message_id DESC LIMIT 1")
         .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
     assert_eq!(serde_json::from_str::<Value>(&stored).unwrap()["LinkedItem"],content["LinkedItem"]);
     server.abort();
@@ -1774,7 +1767,7 @@ async fn retired_hero_rewards_are_hidden_and_skipped_in_old_mail() {
     let (state, a, _) = setup().await;
     let id = add_mail(&state, &a, 123, 7, None).await;
     // Simulate mail queued by an older server, bypassing send-time filtering.
-    sqlx::query("UPDATE mails SET reward_items=? WHERE mail_id=?")
+    crate::db::query("UPDATE mails SET reward_items=$1 WHERE mail_id=$2")
         .bind(json!([{"ItemIndex":9001001,"ItemCount":180},
             {"ItemIndex":30005,"ItemCount":5},{"ItemIndex":91006,"ItemCount":1},
             {"ItemIndex":45045,"ItemCount":1}]).to_string())
@@ -1785,7 +1778,7 @@ async fn retired_hero_rewards_are_hidden_and_skipped_in_old_mail() {
     let claimed = mail::receive_mail(State(state.clone()), form(&a, &format!("MailIndex={id}"))).await.unwrap().0;
     assert_eq!(claimed["Result"],"Success");
     assert_eq!(claimed["MailReceiveResult"]["ItemResults"].as_array().unwrap().len(),1);
-    let blocked:i64=sqlx::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=? AND item_index IN (9001001,30005,91006)")
+    let blocked:i64=crate::db::query_scalar("SELECT COUNT(*) FROM items WHERE account_id=$1 AND item_index IN (9001001,30005,91006)")
         .bind(a.user_info.account_id).fetch_one(&state.db).await.unwrap();
     assert_eq!(blocked,0);
     assert_eq!(mail::receive_mail(State(state.clone()), form(&a, &format!("MailIndex={id}"))).await.unwrap().0["Result"],"Fail");

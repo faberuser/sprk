@@ -2,6 +2,9 @@
 FROM server-test-deps AS test-build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY migrations ./migrations
+# Embedded by the PostgreSQL parity tests.
+COPY tests/fixtures ./tests/fixtures
 COPY tables ./tables
 COPY config/mission-rule-gaps.json config/mission-rule-gaps.json
 COPY scripts/DllPatcher/Resources/ArtifactSelectorPools.json scripts/DllPatcher/Resources/ArtifactSelectorPools.json

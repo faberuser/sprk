@@ -6,7 +6,7 @@ async fn world_boss_history_accepts_max_scores_on_multiple_days() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
     for day in ["2026-10-27","2026-10-28"] {
-        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,?,?,?)")
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,$1,$2,$3)")
             .bind(a).bind(day).bind(i64::MAX).execute(&s.db).await.unwrap();
     }
     let history=mission_history::History::load(&mut s.db.acquire().await.unwrap(),a).await.unwrap();
@@ -14,12 +14,7 @@ async fn world_boss_history_accepts_max_scores_on_multiple_days() {
 }
 
 async fn setup() -> (AppState, crate::api::account::user::LoginResponse) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let s = AppState::new(db, crate::tables::test_tables());
     let u = crate::api::account::user::test_login(
         State(s.clone()),
@@ -220,7 +215,7 @@ async fn mission_history_raids_filter_type_period_and_reward_replays() {
         "Success"
     );
     let mut db = s.db.acquire().await.unwrap();
-    sqlx::query("UPDATE progression_metrics SET day='2020-01-01' WHERE account_id=?")
+    crate::db::query("UPDATE progression_metrics SET day='2020-01-01' WHERE account_id=$1")
         .bind(a)
         .execute(&mut *db)
         .await
@@ -261,7 +256,7 @@ async fn mission_history_arena_ignores_queue_cancel_and_other_accounts() {
             "BattleBanPickInfo"
         };
         let data = json!({"CompletedAt":started,"End":{"MatchResult":{"Canceled":cancel,"Win":win,"NewTierIndex":35,"NewTierRank":4},key:{"SuccessiveWin":5}}});
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,?,?)")
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES($1,$2,$3,$4,$5)")
             .bind(account)
             .bind(kind)
             .bind(started)
@@ -290,7 +285,7 @@ async fn mission_history_arena_ignores_queue_cancel_and_other_accounts() {
         let data = json!({"DuelType":1,"CompletedAt":at,"End":{
             "MatchResult":{"Win":true,"NewTierIndex":80,"NewTierRank":0},
             "BattleInfo":{"SuccessiveWin":100},"BattleBanPickInfo":{"SuccessiveWin":100}}});
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(?,?,?,'complete',?)")
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES($1,$2,$3,'complete',$4)")
             .bind(a).bind(kind).bind(at).bind(data.to_string()).execute(&mut *db).await.unwrap();
     }
     let after = View::load(&mut db, a).await.unwrap();
@@ -415,18 +410,18 @@ async fn mission_history_restores_guild_story_ordeal_and_monster_records() {
     let a = u.user_info.account_id;
     let mut db = s.db.acquire().await.unwrap();
     for guild in [1, 2] {
-        sqlx::query("INSERT INTO community_claims(account,kind,target,period) VALUES(?,'guild_attend_total',?,'2026-10-01')")
+        crate::db::query("INSERT INTO community_claims(account,kind,target,period) VALUES($1,'guild_attend_total',$2,'2026-10-01')")
             .bind(a).bind(guild).execute(&mut *db).await.unwrap();
     }
-    sqlx::query(
-        "INSERT INTO guild_arena_decks(guild_id,account,season,deck,data) VALUES(1,?,1,1,?)",
+    crate::db::query(
+        "INSERT INTO guild_arena_decks(guild_id,account,season,deck,data) VALUES(1,$1,1,1,$2)",
     )
     .bind(a)
     .bind(json!({"SkillSlotIndices":[0,1,2]}).to_string())
     .execute(&mut *db)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO guild_arena_records(guild_id,enemy_guild,account,enemy,season,win,data) VALUES(1,2,?,999,1,1,'{}')")
+    crate::db::query("INSERT INTO guild_arena_records(guild_id,enemy_guild,account,enemy,season,win,data) VALUES(1,2,$1,999,1,1,'{}')")
         .bind(a).execute(&mut *db).await.unwrap();
     record(&mut db, a, "WinOrdealArena", 0, 0, 5).await.unwrap();
     record(&mut db, a, "ClearOrdealArenaTier", 2, 0, 1)
@@ -442,7 +437,7 @@ async fn mission_history_restores_guild_story_ordeal_and_monster_records() {
         .await
         .unwrap();
     let story = &s.tables.battle.rows("SubStoryUnlock")[0];
-    sqlx::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES(?,?,?,1,3)")
+    crate::db::query("INSERT INTO campaign_progress(account_id,chapter_id,dungeon_id,clear_count,best_star) VALUES($1,$2,$3,1,3)")
         .bind(a).bind(n(story,"ChapterIndex")).bind(n(story,"DungeonIndex")).execute(&mut *db).await.unwrap();
     worker_defeats(
         &mut db,
@@ -485,66 +480,20 @@ async fn mission_history_restores_guild_story_ordeal_and_monster_records() {
     ));
 }
 
-#[tokio::test]
-async fn arena_history_upgrades_legacy_summaries_and_triggers_to_preserve_duel_type() {
-    let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
-    let legacy=mission_history::ARENA_MISSION_SUMMARY.replace("'DuelType',COALESCE(json_extract(data,'$.DuelType'),0),", "");
-    for (name,event) in [("insert","INSERT"),("update","UPDATE OF status,data")] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER arena_mission_summary_{name}"))).execute(&db).await.unwrap();
-        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={} WHERE id=NEW.id; END",legacy.replace("data","NEW.data")))).execute(&db).await.unwrap();
-    }
-    let friendly=json!({"DuelType":1,"End":{"MatchResult":{"Win":true}}}).to_string();
-    sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,1,'complete',?)").bind(&friendly).execute(&db).await.unwrap();
-    mission_history::migrate_arena_history(&db).await.unwrap();
-    mission_history::migrate_arena_history(&db).await.unwrap();
-    sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,2,'battle','{}')").execute(&db).await.unwrap();
-    sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE status='battle'").bind(&friendly).execute(&db).await.unwrap();
-    sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,3,'complete',?)").bind(&friendly).execute(&db).await.unwrap();
-    let flags:Vec<i64>=sqlx::query_scalar("SELECT json_extract(mission_summary,'$.DuelType') FROM arena_runs ORDER BY id").fetch_all(&db).await.unwrap();
-    assert_eq!(flags,vec![1,1,1],"old rows, updates and inserts all retain the friendly marker");
-    let history=mission_history::History::load(&mut *db.acquire().await.unwrap(),7).await.unwrap();
-    assert_eq!(history.arena_count(0,"all",true),0);
-}
 
-#[tokio::test]
-async fn arena_retention_upgrades_legacy_triggers_to_ignore_friendly_duels() {
-    let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
-    // Simulate the previously installed archival triggers, which counted duels.
-    for name in ["arena_retention_finish","arena_retention_insert"] {
-        let sql:String=sqlx::query_scalar("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?").bind(name).fetch_one(&db).await.unwrap();
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {name}"))).execute(&db).await.unwrap();
-        sqlx::query(sqlx::AssertSqlSafe(sql.replace("COALESCE(json_extract(mission_summary,'$.DuelType'),0)!=1 AND ","").as_str())).execute(&db).await.unwrap();
-    }
-    mission_history::migrate_arena_retention(&db).await.unwrap();
-    for i in 0..26 {
-        let data=json!({"Season":1,"DuelType":if i==25 {0}else{1},"Heroes":[1],"End":{"MatchResult":{"Win":true,"NewTierIndex":if i==25 {11}else{70}},"BattleInfo":{"SuccessiveWin":if i==25 {1}else{100}}}});
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,?,'complete',?)").bind(i).bind(data.to_string()).execute(&db).await.unwrap();
-    }
-    let history=mission_history::History::load(&mut *db.acquire().await.unwrap(),7).await.unwrap();
-    assert_eq!(history.arena_count(0,"all",false),1);
-    assert_eq!(history.arena_count(0,"all",true),1);
-    assert_eq!(history.arena_best(0,"SuccessiveWin"),1);
-    assert_eq!(history.best_tier(0),11);
-}
 
 #[tokio::test]
 async fn arena_history_reads_its_summary_from_the_covering_index() {
-    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let big = "x".repeat(200_000);
     for (status, result) in [("complete", r#"{"Win":true}"#), ("battle", r#"{"Win":true}"#), ("complete", r#"{"Canceled":true}"#)] {
         let data = format!(r#"{{"CompletedAt":5,"Log":"{big}","End":{{"MatchResult":{result},"BattleInfo":{{"SuccessiveWin":3}}}}}}"#);
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,1,4,?,?)").bind(status).bind(data).execute(&db).await.unwrap();
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,1,4,$1,$2)").bind(status).bind(data).execute(&db).await.unwrap();
     }
     // Updates (e.g. a battle finishing) recompute the stored summary too.
-    sqlx::query(r#"UPDATE arena_runs SET status='complete',data='{"CompletedAt":9,"End":{"MatchResult":{"Win":false}}}' WHERE status='battle'"#).execute(&db).await.unwrap();
-    let plan: Vec<String> = sqlx::query(sqlx::AssertSqlSafe(format!("EXPLAIN QUERY PLAN {}", super::mission_history::arena_history_query())))
-        .bind(7).fetch_all(&db).await.unwrap().iter().map(|r| sqlx::Row::get::<String, _>(r, "detail")).collect();
-    assert!(plan.iter().any(|p| p.contains("COVERING INDEX arena_mission_history")), "{plan:?}");
-    let indexed: Vec<(i64, i64, String)> = sqlx::query_as(super::mission_history::arena_history_query()).bind(7).fetch_all(&db).await.unwrap();
-    let scanned: Vec<(i64, i64, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT kind,started,{} FROM arena_runs NOT INDEXED WHERE account=? AND status='complete' ORDER BY id", super::mission_history::ARENA_MISSION_SUMMARY)))
+    crate::db::query(r#"UPDATE arena_runs SET status='complete',data='{"CompletedAt":9,"End":{"MatchResult":{"Win":false}}}' WHERE status='battle'"#).execute(&db).await.unwrap();
+    let indexed: Vec<(i64, i64, String)> = crate::db::query_as(super::mission_history::arena_history_query()).bind(7).fetch_all(&db).await.unwrap();
+    let scanned: Vec<(i64, i64, String)> = crate::db::query_as(sqlx::AssertSqlSafe(format!("SELECT kind,started,{} FROM arena_runs WHERE account=$1 AND status='complete' ORDER BY id", super::mission_history::ARENA_MISSION_SUMMARY)))
         .bind(7).fetch_all(&db).await.unwrap();
     assert_eq!(indexed.len(), 3);
     assert_eq!(indexed, scanned);
@@ -553,8 +502,7 @@ async fn arena_history_reads_its_summary_from_the_covering_index() {
 
 #[tokio::test]
 async fn arena_retention_keeps_twenty_runs_and_preserves_mission_progress() {
-    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    crate::database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let day = |i: i64| 1_700_000_000 + i * 86_400;
     let date = |i: i64| chrono::DateTime::from_timestamp(day(i), 0).unwrap().date_naive().to_string();
     let big = "x".repeat(50_000);
@@ -568,8 +516,8 @@ async fn arena_retention_keeps_twenty_runs_and_preserves_mission_progress() {
         let win = i % 2 == 0;
         let data = json!({"Season":season,"DuelType":if friendly {1}else{0},"Heroes":[1,2],"Register":{"Big":big},"CompletedAt":day(i),
             "End":{"MatchResult":if canceled {json!({"Canceled":true})} else {json!({"Win":win,"NewTierIndex":i})},"BattleInfo":{"SuccessiveWin":i % 7}}});
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,?,'battle','{}')").bind(day(i)).execute(&db).await.unwrap();
-        sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE account=7 AND status='battle'").bind(data.to_string()).execute(&db).await.unwrap();
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,$1,'battle','{}')").bind(day(i)).execute(&db).await.unwrap();
+        crate::db::query("UPDATE arena_runs SET status='complete',data=$1 WHERE account=7 AND status='battle'").bind(data.to_string()).execute(&db).await.unwrap();
         if !canceled && !friendly {
             expected.0 += 1;
             expected.1 += win as i64;
@@ -578,13 +526,13 @@ async fn arena_retention_keeps_twenty_runs_and_preserves_mission_progress() {
         }
     }
     for i in 0..3 {
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,1,?,'complete',?)").bind(day(i))
+        crate::db::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,1,$1,'complete',$2)").bind(day(i))
             .bind(json!({"Season":1,"Heroes":[1],"End":{"MatchResult":{"Win":true}}}).to_string()).execute(&db).await.unwrap();
     }
-    let kept: Vec<(i64, i64)> = sqlx::query_as("SELECT kind,COUNT(*) FROM arena_runs WHERE account=7 GROUP BY kind ORDER BY kind").fetch_all(&db).await.unwrap();
+    let kept: Vec<(i64, i64)> = crate::db::query_as("SELECT kind,COUNT(*) FROM arena_runs WHERE account=7 GROUP BY kind ORDER BY kind").fetch_all(&db).await.unwrap();
     // 20 newest Victory runs, plus season 1's last run (ranking deck/squad).
     assert_eq!(kept, vec![(0, 21), (1, 3)]);
-    let season_one: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM arena_runs WHERE account=7 AND kind=0 AND season=1").fetch_one(&db).await.unwrap();
+    let season_one: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM arena_runs WHERE account=7 AND kind=0 AND season=1").fetch_one(&db).await.unwrap();
     assert_eq!(season_one, 1);
 
     let mut conn = db.acquire().await.unwrap();
@@ -602,18 +550,4 @@ async fn arena_retention_keeps_twenty_runs_and_preserves_mission_progress() {
     drop(conn);
 
     // Startup pass: histories recorded before the triggers existed are pruned.
-    for trigger in ["arena_retention_finish", "arena_retention_insert"] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}"))).execute(&db).await.unwrap();
-    }
-    for i in 0..25 {
-        sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(8,0,?,'complete',?)").bind(day(i))
-            .bind(json!({"Season":2,"Heroes":[1],"End":{"MatchResult":{"Win":true},"BattleInfo":{"SuccessiveWin":1}}}).to_string()).execute(&db).await.unwrap();
-    }
-    mission_history::migrate_arena_retention(&db).await.unwrap();
-    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM arena_runs WHERE account=8").fetch_one(&db).await.unwrap();
-    assert_eq!(remaining, 20);
-    let history = mission_history::History::load(&mut db.acquire().await.unwrap(), 8).await.unwrap();
-    assert_eq!(history.arena_count(0, "all", true), 25);
-    let triggers: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'arena_retention%'").fetch_one(&db).await.unwrap();
-    assert_eq!(triggers, 4);
 }

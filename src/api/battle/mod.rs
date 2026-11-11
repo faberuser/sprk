@@ -15,7 +15,8 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::PgConnection;
+use crate::db::RowExt;
 use std::collections::BTreeSet;
 mod campaign;
 pub(crate) mod entry_costs;
@@ -51,42 +52,7 @@ mod loot_booster;
 /// partial index and the preparation poller: SQLite only uses a partial index
 /// when the query repeats its WHERE terms, so the poller reads just pending rows
 /// instead of parsing every account's battle_state JSON every few seconds.
-pub(crate) const PENDING_DISPATCH_SIMULATION: &str = "kind='dispatch' AND json_extract(data,'$.SimulationVersion') IN (1,2) AND json_extract(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(json_array_length(json_extract(data,'$.SimulationResults')),0)<json_extract(data,'$.RepeatCount')";
-pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
-    for query in [
-        "CREATE TABLE IF NOT EXISTS challenge_results(season INTEGER NOT NULL,challenge INTEGER NOT NULL,account INTEGER NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,current_score INTEGER NOT NULL,current_time INTEGER NOT NULL,PRIMARY KEY(season,challenge,account))",
-        "CREATE TABLE IF NOT EXISTS challenge_teams(season INTEGER NOT NULL,challenge INTEGER NOT NULL,team TEXT NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(season,challenge,team))",
-        "CREATE TABLE IF NOT EXISTS battle_state(account INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,kind,idx))",
-        "CREATE TABLE IF NOT EXISTS battle_runs(account INTEGER PRIMARY KEY,run_id TEXT NOT NULL,started INTEGER NOT NULL,completed INTEGER NOT NULL DEFAULT 0,entry TEXT NOT NULL,begin_response TEXT NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS battle_rooms(id INTEGER PRIMARY KEY AUTOINCREMENT,family TEXT NOT NULL,master INTEGER NOT NULL,data TEXT NOT NULL,updated INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS battle_room_members(account INTEGER PRIMARY KEY,room INTEGER NOT NULL,joined INTEGER NOT NULL,updated INTEGER NOT NULL,FOREIGN KEY(room) REFERENCES battle_rooms(id) ON DELETE CASCADE)",
-        "CREATE TABLE IF NOT EXISTS battle_scores(family TEXT NOT NULL,boss INTEGER NOT NULL,season INTEGER NOT NULL,account INTEGER NOT NULL,day TEXT NOT NULL,score INTEGER NOT NULL,battle_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(family,boss,season,account,day))",
-        "CREATE TABLE IF NOT EXISTS battle_reward_claims(account INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,period TEXT NOT NULL,PRIMARY KEY(account,kind,idx,period))",
-        "CREATE TABLE IF NOT EXISTS battle_currencies(account INTEGER NOT NULL,kind TEXT NOT NULL,value INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account,kind))",
-        "CREATE TABLE IF NOT EXISTS eclipse_run_ids(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS battle_entry_holds(account INTEGER NOT NULL,owner TEXT NOT NULL,family TEXT NOT NULL,kind INTEGER NOT NULL,amount INTEGER NOT NULL CHECK(amount>0),expires INTEGER NOT NULL,PRIMARY KEY(account,owner,family,kind))",
-    ] { sqlx::query(query).execute(db).await?; }
-    // Legacy scores prove at least one completed fight per boss/day/season,
-    // though they cannot reconstruct multiple fights aggregated in that row.
-    // Seed that known minimum once; subsequent validated score writes count
-    // every fight transactionally, including fights without a boss kill.
-    sqlx::query("INSERT OR IGNORE INTO progression_metrics(account_id,day,kind,arg,arg2,value) SELECT account,day,'CompleteWorldBoss',boss,0,COUNT(*) FROM battle_scores WHERE family='world_boss' AND score>0 GROUP BY account,day,boss")
-        .execute(db).await?;
-    for (name,event,condition) in [
-        ("world_boss_complete_insert","INSERT","NEW.family='world_boss' AND NEW.score>0"),
-        ("world_boss_complete_update","UPDATE","NEW.family='world_boss' AND NEW.score>OLD.score"),
-    ] {
-        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END")))
-            .execute(db).await?;
-    }
-    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE INDEX IF NOT EXISTS battle_state_dispatch_pending ON battle_state(account,idx) WHERE {PENDING_DISPATCH_SIMULATION}")))
-        .execute(db).await?;
-    seasons::migrate_best_daily(db).await?;
-    // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.
-    sqlx::query("UPDATE battle_state AS gate SET data=json_set(data,'$.IsOpen',0,'$.IsOpened',json('false'),'$.RunVersion',2) WHERE kind='godking' AND COALESCE(json_extract(data,'$.RunVersion'),0)<2 AND EXISTS(SELECT 1 FROM battle_state AS clear WHERE clear.account=gate.account AND clear.kind='dungeon' AND json_extract(clear.data,'$.ChapterIndex')=gate.idx AND json_extract(clear.data,'$.CompletedTime')>=json_extract(gate.data,'$.OpenedTime'))")
-        .execute(db).await?;
-    Ok(())
-}
+pub(crate) const PENDING_DISPATCH_SIMULATION: &str = "kind='dispatch' AND sprk_json_int(data,'$.SimulationVersion') IN (1,2) AND sprk_json_text(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(sprk_json_array_length(data,'$.SimulationResults'),0)<sprk_json_int(data,'$.RepeatCount')";
 pub fn routes(tables: &crate::tables::BattleTable) -> axum::Router<AppState> {
     let mut r = axum::Router::new();
     for path in tables.contracts.keys() {
@@ -167,7 +133,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             return Ok(out);
         }
     }
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     if !crate::api::system::performance::observation(&format!("/{path}")) {
         item::init(&mut tx, s, a).await?;
     }
@@ -332,9 +298,9 @@ fn time(t: i64) -> String {
 fn day() -> String {
     chrono::Utc::now().format("%Y-%m-%d").to_string()
 }
-pub(crate) async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
+pub(crate) async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
     let data: Option<String> =
-        sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind=? AND idx=?")
+        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 AND idx=$3")
             .bind(a)
             .bind(kind)
             .bind(idx)
@@ -359,34 +325,34 @@ pub(crate) fn campaign_inspection_deck(s: &AppState, entry: &Value, played: i64)
     for slot in 0..4 { deck[format!("HeroIndex{}",slot+1)] = json!(ids.get(slot).copied().unwrap_or(0)); }
     Some(deck)
 }
-pub(crate) async fn put(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
-    sqlx::query("INSERT INTO battle_state(account,kind,idx,data) VALUES(?,?,?,?) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+pub(crate) async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
+    crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
     Ok(())
 }
-async fn list(db: &mut SqliteConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
+async fn list(db: &mut PgConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
     let rows: Vec<String> =
-        sqlx::query_scalar("SELECT data FROM battle_state WHERE account=? AND kind=? ORDER BY idx")
+        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 ORDER BY idx")
             .bind(a)
             .bind(kind)
             .fetch_all(db)
             .await?;
     rows.iter().map(|v| read_json(v)).collect()
 }
-async fn owned(db: &mut SqliteConnection, a: i64, heroes: &[i64]) -> Result<()> {
+async fn owned(db: &mut PgConnection, a: i64, heroes: &[i64]) -> Result<()> {
     for h in heroes {
         hero::info(db, a, *h as i32).await?;
     }
     Ok(())
 }
 async fn claim(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     kind: &str,
     idx: i64,
     period: &str,
 ) -> Result<()> {
-    let r = sqlx::query(
-        "INSERT OR IGNORE INTO battle_reward_claims(account,kind,idx,period) VALUES(?,?,?,?)",
+    let r = crate::db::query(
+        "INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
     )
     .bind(a)
     .bind(kind)
@@ -400,7 +366,7 @@ async fn claim(
     Ok(())
 }
 async fn reward_index(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     index: i64,
@@ -412,7 +378,7 @@ async fn reward_index(
     }
     Ok(())
 }
-async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) -> Result<Value> {
+async fn rewards(db: &mut PgConnection, s: &AppState, a: i64, r: Rewards) -> Result<Value> {
     crate::api::progression::record(db,a,"BattleRewardEquip",0,0,r.equipment.len() as i64).await?;
     let mut out = item::reward_response(db, s, a, r).await?;
     out["EquipItemInfos"] = out["EquipItemResults"].clone();
@@ -427,9 +393,9 @@ async fn rewards(db: &mut SqliteConnection, s: &AppState, a: i64, r: Rewards) ->
 pub(crate) async fn abandon_local_run_on_lobby(
     s: &AppState, a: i64, session: &str,
 ) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     let mut out = json!({});
-    let old = sqlx::query("SELECT run_id,entry FROM battle_runs WHERE account=? AND completed=0")
+    let old = crate::db::query("SELECT run_id,entry FROM battle_runs WHERE account=$1 AND completed=0")
         .bind(a).fetch_optional(&mut *tx).await?;
     if let Some(old) = old {
         let mut entry: Value = read_json(&old.get::<String, _>("entry"))?;
@@ -445,7 +411,7 @@ pub(crate) async fn abandon_local_run_on_lobby(
             entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut out).await?;
             entry["AbandonedOnLobby"] = json!(true);
             let run_id: String = old.get("run_id");
-            sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=? AND run_id=? AND completed=0")
+            crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND run_id=$3 AND completed=0")
                 .bind(entry.to_string()).bind(a).bind(&run_id).execute(&mut *tx).await?;
             tracing::info!(account=a, %run_id, "Released withdrawn local battle on lobby return");
         }
@@ -466,10 +432,10 @@ pub(crate) async fn punishment_lobby_snapshot(s: &AppState, a: i64) -> Result<Va
 }
 
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     // FirstLobby can run while party heartbeats write on another connection.
     // Reserve the writer before reading progress that may need repair.
-    sqlx::query("UPDATE accounts SET last_login=last_login WHERE account_id=?")
+    crate::db::query("SELECT pg_advisory_xact_lock($1)")
         .bind(a).execute(&mut *tx).await?;
     item::init(&mut tx, s, a).await?;
     entry_costs::abandon_on_login(&mut tx,s,a).await?;
@@ -519,7 +485,7 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     if !s.tables.battle.rows("ShakmehBoss").is_empty() {
         out["ShakemehPassiveInfos"] = dungeons::shakmeh_passives(&mut tx, s, a).await?;
     }
-    let currencies = sqlx::query("SELECT kind,value FROM battle_currencies WHERE account=?")
+    let currencies = crate::db::query("SELECT kind,value FROM battle_currencies WHERE account=$1")
         .bind(a)
         .fetch_all(&mut *tx)
         .await?;
@@ -528,22 +494,22 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     Ok(out)
 }
 
-pub(crate) async fn reset(db: &mut SqliteConnection, a: i64, keep_heroes: bool) -> Result<()> {
+pub(crate) async fn reset(db: &mut PgConnection, a: i64, keep_heroes: bool) -> Result<()> {
     let membership: bool =
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=?)")
+        crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=$1)")
             .bind(a)
             .fetch_one(&mut *db)
             .await?;
     if membership {
         rooms::remove_account(db, a).await?;
     }
-    sqlx::query("DELETE FROM battle_runs WHERE account=?")
+    crate::db::query("DELETE FROM battle_runs WHERE account=$1")
         .bind(a)
         .execute(&mut *db)
         .await?;
     // Keep earned leaderboard rewards/claims; resetting an account must not make them claimable twice.
-    sqlx::query(
-        "DELETE FROM battle_state WHERE account=? AND (?=0 OR kind NOT IN ('eclipse_deck'))",
+    crate::db::query(
+        "DELETE FROM battle_state WHERE account=$1 AND ($2=0 OR kind NOT IN ('eclipse_deck'))",
     )
     .bind(a)
     .bind(if keep_heroes { 1 } else { 0 })

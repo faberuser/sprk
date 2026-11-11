@@ -34,7 +34,7 @@ const KEYS: &[&str] = &[
     "PunishmentRaidKey",
 ];
 pub(crate) async fn charge(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     kind: i64,
@@ -49,7 +49,7 @@ pub(crate) async fn charge(
 
 // Deduct a validated cost without awarding stamina EXP twice.
 pub(super) async fn charge_reserved(
-    db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64, cost: i64,
+    db: &mut PgConnection, s: &AppState, a: i64, kind: i64, cost: i64,
 ) -> Result<Value> {
     if cost < 0 {
         return Err(rule("InvalidCost"));
@@ -87,7 +87,7 @@ pub(super) async fn charge_reserved(
     }
     if kind == 1 {
         let before = crate::api::account::stamina::chicken(db, s, a).await?;
-        sqlx::query("UPDATE user_info SET stamina=stamina-? WHERE account_id=? AND stamina>=?")
+        crate::db::query("UPDATE user_info SET stamina=stamina-$1 WHERE account_id=$2 AND stamina>=$3")
             .bind(cost).bind(a).bind(cost).execute(&mut *db).await?
             .rows_affected().eq(&1).then_some(()).ok_or_else(||rule("NotEnoughStamina"))?;
         let mut result = crate::api::account::stamina::chicken(db, s, a).await?;
@@ -102,8 +102,8 @@ pub(super) async fn charge_reserved(
         // time when its response agrees with that balance; otherwise start
         // a timer now without inventing elapsed recovery time.
         if !info.is_null() && n(&info, "RechargeTime") <= 0 {
-            if let Some(raw) = sqlx::query_scalar::<_, String>(
-                "SELECT begin_response FROM battle_runs WHERE account=?")
+            if let Some(raw) = crate::db::query_scalar::<String>(
+                "SELECT begin_response FROM battle_runs WHERE account=$1")
                 .bind(a).fetch_optional(&mut *db).await? {
                 let begin: Value = read_json(&raw)?;
                 let previous = &begin["StaminaResult"];
@@ -141,7 +141,7 @@ pub(super) async fn charge_reserved(
         let mut info = get(db, a, "key", kind).await?;
         let column = match kind { 11 => Some("world_boss_ticket"), 13 => Some("sword2"), _ => None };
         if let Some(column) = column {
-            let count:i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {column} FROM user_info WHERE account_id=?")))
+            let count:i64 = crate::db::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {column} FROM user_info WHERE account_id=$1")))
                 .bind(a).fetch_one(&mut *db).await?;
             let initial_record=info.is_null();
             if initial_record { info = json!({"Day":day()}); }
@@ -149,7 +149,7 @@ pub(super) async fn charge_reserved(
         }
         let (info, result) = crate::api::account::recharge::at(&info, def, overrides, initial, Utc::now(), cost)?;
         if let Some(column) = column {
-            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=? WHERE account_id=?")))
+            crate::db::query(sqlx::AssertSqlSafe(format!("UPDATE user_info SET {column}=$1 WHERE account_id=$2")))
                 .bind(n(&info,"Count")).bind(a).execute(&mut *db).await?;
         }
         put(db, a, "key", kind, &info).await?;
@@ -350,7 +350,7 @@ mod shakmeh_charge_tests {
         assert_eq!(result["NewValue"], 4);
     }
 }
-pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
+pub(super) async fn stamina_exp(db: &mut PgConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
     let rate = settings(s, "RaiderExpPerStamina", 100);
     let amount = cost.checked_mul(rate).filter(|v| *v >= 0)
         .ok_or_else(|| rule("InvalidCost"))?;
@@ -358,7 +358,7 @@ pub(super) async fn stamina_exp(db: &mut SqliteConnection, s: &AppState, a: i64,
     tutorial::team_exp(db, s, a, amount, &mut rewards).await?;
     Ok(json!(rewards.team_exp.first()))
 }
-pub(super) async fn key_snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn key_snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
     for (k, key) in KEYS.iter().enumerate().skip(5) {
         if s.tables.services.find("Stamina", &[("StaminaType", k as i64)]).is_some()
@@ -389,7 +389,7 @@ fn period(r: &Value) -> String {
     }
     "all".into()
 }
-pub(super) async fn tower(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
+pub(super) async fn tower(db: &mut PgConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
     let data = row(s, "Tower", &[("TowerIndex", id)])?;
     let p = period(data);
     let mut info = get(db, a, "tower", id).await?;
@@ -402,7 +402,7 @@ pub(super) async fn tower(db: &mut SqliteConnection, s: &AppState, a: i64, id: i
     Ok(info)
 }
 pub(super) async fn tower_list(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
 ) -> Result<Vec<Value>> {
@@ -413,7 +413,7 @@ pub(super) async fn tower_list(
     Ok(out)
 }
 
-async fn maze_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(Value, i64)> {
+async fn maze_progress(db: &mut PgConnection, s: &AppState, a: i64) -> Result<(Value, i64)> {
     // TowerType.Maze is the seven class towers, reset on the native monthly
     // schedule. Challenge Tower, Tower of Ordeals and Labyrinth are separate.
     let towers: Vec<_> = s.tables.battle.rows("Tower").iter().filter(|t| n(t, "Type") == 5).collect();
@@ -427,7 +427,7 @@ async fn maze_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Resul
     if state["Period"] != current {
         // Also migrate old daily claim receipts. A login or a new day must not
         // make an already collected milestone claimable again in this cycle.
-        let step: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(idx),0) FROM battle_reward_claims WHERE account=? AND kind='maze' AND period>=? AND period<=?")
+        let step: i64 = crate::db::query_scalar("SELECT COALESCE(MAX(idx),0) FROM battle_reward_claims WHERE account=$1 AND kind='maze' AND period>=$2 AND period<=$3")
             .bind(a).bind(&current).bind(day()).fetch_one(&mut *db).await?;
         state = json!({"Step":step,"Period":current});
         put(db, a, "maze_step", 0, &state).await?;
@@ -437,8 +437,8 @@ async fn maze_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Resul
 
 // Repair missing next-stage unlocks and party-clear overwrites from earned
 // dragon/Arcdim clears. Never grant rewards or change the recorded clear.
-pub(super) async fn repair_raid_progress(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
-    let cleared: BTreeSet<(i64,i64)> = sqlx::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=? AND clear_count>0")
+pub(super) async fn repair_raid_progress(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
+    let cleared: BTreeSet<(i64,i64)> = crate::db::query_as("SELECT chapter_id,dungeon_id FROM campaign_progress WHERE account_id=$1 AND clear_count>0")
         .bind(a).fetch_all(&mut *db).await?.into_iter().collect();
     let mut unlocked=std::collections::BTreeMap::<i64,i64>::new();
     for raid in s.tables.battle.rows("Raid").iter().filter(|v| matches!(n(v,"Type"),0..=3|16|17)) {
@@ -470,7 +470,7 @@ pub(super) fn floor<'a>(s: &'a AppState, r: &Request) -> Option<&'a Value> {
     })
 }
 // God King's Temple story completion is shared by Trials and Eclipse.
-pub(super) async fn require_godking_unlock(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
+pub(super) async fn require_godking_unlock(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
     let progress = campaign::progress(db, s, a, 65, 11).await?;
     if n(&progress, "FirstRewardedDiff") == 0 {
         return Err(rule("NotCompletedReqDungeon"));
@@ -479,7 +479,7 @@ pub(super) async fn require_godking_unlock(db: &mut SqliteConnection, s: &AppSta
 }
 
 // Original ContentsOpenCondition/SubQuest rows: 11580, 11790 and 11900.
-pub(super) async fn require_late_raid_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, battle_type: i64) -> Result<()> {
+pub(super) async fn require_late_raid_unlock(db: &mut PgConnection, s: &AppState, a: i64, battle_type: i64) -> Result<()> {
     let (chapter, dungeon) = match battle_type {
         40 | 45 | 46 => (10, 9),
         41 | 42 => (10, 30),
@@ -493,7 +493,7 @@ pub(super) async fn require_late_raid_unlock(db: &mut SqliteConnection, s: &AppS
 }
 
 // Room creation and battle entry must use the same earned dragon unlocks.
-pub(super) async fn require_dragon_unlock(db: &mut SqliteConnection, s: &AppState, a: i64, raid: &Value) -> Result<()> {
+pub(super) async fn require_dragon_unlock(db: &mut PgConnection, s: &AppState, a: i64, raid: &Value) -> Result<()> {
     if matches!(n(raid,"Type"),2|3) {
         let condition = raid["OpenCondition"].as_array().filter(|v| v.len() == 2)
             .ok_or_else(|| rule("NotOpenedDungeon"))?;
@@ -530,7 +530,7 @@ pub(super) async fn require_dragon_unlock(db: &mut SqliteConnection, s: &AppStat
 
 // Join checks use the same permanent unlocks as entry, without checking a
 // selected deck, reserving resources, or consuming a battle attempt.
-pub(super) async fn require_raid_join_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
+pub(super) async fn require_raid_join_unlock(db:&mut PgConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
     if matches!(n(raid,"Type"),0..=3) {require_dragon_unlock(db,s,a,raid).await?;}
     let dungeon=row(s,"CampaignDungeon",&[("ChapterIndex",n(raid,"ChapterIndex")),("DungeonIndex",n(raid,"DungeonIndex"))])?;
     let kind=n(dungeon,"BattleType");
@@ -539,7 +539,7 @@ pub(super) async fn require_raid_join_unlock(db:&mut SqliteConnection,s:&AppStat
     Ok(())
 }
 
-async fn require_raid_progress_unlock(db:&mut SqliteConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
+async fn require_raid_progress_unlock(db:&mut PgConnection,s:&AppState,a:i64,raid:&Value)->Result<()> {
     let condition=raid["OpenCondition"].as_array().filter(|v|v.len()==2).ok_or_else(||rule("NotOpenedDungeon"))?;
     let chapter=condition[0].as_i64().unwrap_or(0);let dungeon=condition[1].as_i64().unwrap_or(0);
     let minimum=s.tables.tutorials.dungeon_difficulty(chapter as i32,dungeon as i32);
@@ -553,7 +553,7 @@ async fn require_raid_progress_unlock(db:&mut SqliteConnection,s:&AppState,a:i64
 }
 
 pub(super) async fn validate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -562,7 +562,7 @@ pub(super) async fn validate(
     validate_inner(db, s, a, r, d, false, false).await
 }
 pub(super) async fn validate_inner(
-    db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, d: &Value, service: bool, dispatch: bool,
+    db: &mut PgConnection, s: &AppState, a: i64, r: &Request, d: &Value, service: bool, dispatch: bool,
 ) -> Result<()> {
     let battle_type = n(d, "BattleType");
     require_late_raid_unlock(db, s, a, battle_type).await?;
@@ -695,7 +695,7 @@ pub(super) async fn validate_inner(
         {
             return Err(rule("CannotEnterTowerFloor"));
         }
-        let level: i64 = sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?")
+        let level: i64 = crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&mut *db)
             .await?;
@@ -890,7 +890,7 @@ pub(super) async fn validate_inner(
     }
     seasons::validate(db, s, a, r).await
 }
-async fn tower_cost(db: &mut SqliteConnection, a: i64, kind: i64, amount: i64) -> Result<Value> {
+async fn tower_cost(db: &mut PgConnection, a: i64, kind: i64, amount: i64) -> Result<Value> {
     if amount == 0 {
         return Ok(Value::Null);
     }
@@ -908,7 +908,7 @@ async fn tower_cost(db: &mut SqliteConnection, a: i64, kind: i64, amount: i64) -
     .await
 }
 pub(super) async fn enter(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -991,7 +991,7 @@ pub(super) struct BattleOutcome<'a> {
 }
 
 pub(super) async fn finish(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -1079,7 +1079,8 @@ pub(super) async fn finish(
         {
             let index = reward.as_i64().unwrap_or(0);
             if index > 0 {
-                item::reward_with_loot_booster(db,s,a,index as i32,&mut extra,!first && super::loot_booster::active(entry)).await?;
+                let percent = if first {0} else {super::loot_booster::percent(db,s,a,r,entry).await?};
+                item::reward_with_loot_bonus(db,s,a,index as i32,&mut extra,percent).await?;
             }
         }
         out["TowerInfos"] = json!([t]);
@@ -1186,16 +1187,16 @@ fn carries_creatures(s: &AppState, id: i64) -> Result<bool> {
         .as_array()
         .is_some_and(|v| v.contains(&def["Type"])))
 }
-pub(super) async fn shakmeh_gauge(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
+pub(super) async fn shakmeh_gauge(db: &mut PgConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
     let max = n(row(s, "CurrencyType", &[("CurrencyType", 48)])?, "MaxValue");
     if max <= 0 {
         return Err(rule("ItemDataNotFound"));
     }
-    let value=sqlx::query_scalar::<_,i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=? AND kind='ShakmehMiddleBossPoint'),0)").bind(a).fetch_one(db).await?;
+    let value=crate::db::query_scalar::<i64>("SELECT COALESCE((SELECT value FROM battle_currencies WHERE account=$1 AND kind='ShakmehMiddleBossPoint'),0)").bind(a).fetch_one(db).await?;
     Ok((value, max))
 }
 pub(super) async fn shakmeh_passives(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
 ) -> Result<Value> {
@@ -1253,14 +1254,14 @@ pub(super) fn raid_data<'a>(s: &'a AppState, r: &Request) -> Result<&'a Value> {
         ],
     )
 }
-async fn daily_attempts(db: &mut SqliteConnection, a: i64, kind: &str, c: i64) -> Result<Value> {
+async fn daily_attempts(db: &mut PgConnection, a: i64, kind: &str, c: i64) -> Result<Value> {
     let mut p = get(db, a, kind, c).await?;
     if p.is_null() || p["Day"] != day() {
         p = json!({"ChapterIndex":c,"Day":day(),"ResetCount":0,"CompletedCount":0,"LastCompletedTime":null});
     }
     Ok(p)
 }
-pub(super) async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i64) -> Result<Value> {
+pub(super) async fn under(db: &mut PgConnection, s: &AppState, a: i64, c: i64) -> Result<Value> {
     let mut p = get(db, a, "under_prison", c).await?;
     if p.is_null() {
         p = json!({"ChapterIndex":c,"CompletedCount":0,"Diff":0,"MaxTryCount":settings(s,"UnderPrisonMaxDailyAttempts",3),"LastCompletedTime":null,"Day":day()});
@@ -1271,8 +1272,8 @@ pub(super) async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i6
     }
     // Older servers stored campaign difficulty (usually zero), not Stockade's
     // stage tier. Recover only tiers backed by successful, persisted clears.
-    let cleared: Vec<i64> = sqlx::query_scalar(
-        "SELECT dungeon_id FROM campaign_progress WHERE account_id=? AND chapter_id=? AND clear_count>0",
+    let cleared: Vec<i64> = crate::db::query_scalar(
+        "SELECT dungeon_id FROM campaign_progress WHERE account_id=$1 AND chapter_id=$2 AND clear_count>0",
     ).bind(a).bind(c).fetch_all(&mut *db).await?;
     for dungeon in cleared {
         if let Some(stage) = s.tables.battle.find(
@@ -1285,7 +1286,7 @@ pub(super) async fn under(db: &mut SqliteConnection, s: &AppState, a: i64, c: i6
     Ok(p)
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -1349,8 +1350,8 @@ pub(super) async fn execute(
                 }
                 t["ReceiveRewardTime"] = json!(time(now()));
             } else {
-                let active: Option<String> = sqlx::query_scalar(
-                    "SELECT entry FROM battle_runs WHERE account=? AND completed=0 AND started>=?",
+                let active: Option<String> = crate::db::query_scalar(
+                    "SELECT entry FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2",
                 )
                 .bind(a)
                 .bind(now() - settings(s, "BattleExpirySeconds", 14400))
@@ -1409,7 +1410,7 @@ pub(super) async fn execute(
             if id != n(&state, "Step") + 1 || cleared < n(def, "ClearFloor") {
                 return Err(rule("NotCleared"));
             }
-            let claimed = sqlx::query("INSERT OR IGNORE INTO battle_reward_claims(account,kind,idx,period) VALUES(?,'maze',?,?)")
+            let claimed = crate::db::query("INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES($1,'maze',$2,$3) ON CONFLICT DO NOTHING")
                 .bind(a).bind(id).bind(state["Period"].as_str().unwrap()).execute(&mut *db).await?;
             if claimed.rows_affected() != 1 { return Err(rule("AlreadyRewarded")); }
             reward_index(db, s, a, n(def, "RewardIndex"), &mut reward).await?;
@@ -1533,7 +1534,7 @@ pub(super) async fn execute(
             let cost = *costs.get(count).ok_or_else(|| rule("AlreadyCompleted"))?;
             let currency = hero::currency(db, a, "Gem", -cost).await?;
             let (sys, pay): (i64, i64) =
-                sqlx::query_as("SELECT gem,pay_gem FROM user_info WHERE account_id=?")
+                crate::db::query_as("SELECT gem,pay_gem FROM user_info WHERE account_id=$1")
                     .bind(a)
                     .fetch_one(&mut *db)
                     .await?;
@@ -1587,7 +1588,7 @@ pub(super) async fn execute(
             let group = int(r, "GroupIndex")?;
             let mut p = get(db, a, "punishment_open", group).await?;
             if action != "get_punishment_raid_info" {
-                let active: bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0 AND started>=?)")
+                let active: bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2)")
                     .bind(a).bind(now()-settings(s,"BattleExpirySeconds",14400)).fetch_one(&mut *db).await?;
                 if active {
                     return Err(rule("AlreadyOnBattleHero"));
@@ -1666,7 +1667,7 @@ pub(super) async fn execute(
                     .iter()
                     .filter(|v| n(v, "GroupIndex") == group)
                 {
-                    sqlx::query("DELETE FROM battle_state WHERE account=? AND kind='punishment_raid' AND idx=?")
+                    crate::db::query("DELETE FROM battle_state WHERE account=$1 AND kind='punishment_raid' AND idx=$2")
                         .bind(a).bind(campaign::key(n(definition,"RaidIndex"),n(definition,"RaidLevel"))).execute(&mut *db).await?;
                 }
                 p = json!({"GroupIndex":group,"DungeonType":kind,"IsOpen":1,"OpenedTime":time(now()),"ExpireTime":time((now()/86400+1)*86400),"OpenLevel":level,"ClearLevel":previous_level,"ClearCount":clears,"Day":day()});
@@ -1699,7 +1700,7 @@ pub(super) async fn execute(
 }
 
 pub(super) async fn punishment_clears(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     group: i64,

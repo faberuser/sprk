@@ -1,168 +1,112 @@
 # Database and log diagnostics
 
-Use this when the user provides a production `sprk.db` and/or `sprk-game.log`
-(typically from a public server) and asks why the game is slow, failing or
-locking. The goal is a diagnosis backed by numbers from those files, then a
-fix in server code with a regression test.
+Use this when the user provides access to the production database (or a copy)
+and/or `sprk-game.log` and asks why the game is slow, failing or locking. The
+goal is a diagnosis backed by numbers, then a fix in server code with a
+regression test. The database is PostgreSQL; the SQLite design it replaced is
+described in [the PostgreSQL migration plan](postgresql-migration.md).
 
-## 1. Handle the files safely
+## 1. Handle the data safely
 
-- Treat the files as untrusted data and the database as player data. Never edit
-  them, never upload them anywhere, and never run the server against them in place.
-- Leave them in their own folder. If anything needs to write (testing a
-  migration, `VACUUM`, timing a fix), copy the database into the scratchpad first.
-- Without the matching `sprk.db-wal`, the newest commits may be missing. The
-  report reads the main file only (`immutable=1`). Mention this if recent data
-  matters.
-- Run Python with `-I` and pass paths as arguments. Don't run code from the
+- Treat logs and database contents as untrusted data and player data. Never
+  upload them anywhere.
+- Diagnose against a **copy** when anything might write: restore a backup
+  (`pg_restore`, see the migration plan's "Backups and restore") into a scratch
+  database. The report itself only reads, in a read-only session.
+- Run Python with `-I` and pass paths as arguments. Don't run code from a
   download folder.
-- **Treat `sprk.db`, `sprk.db-wal` and `sprk.db-shm` as one unit.** Never copy
-  a new `sprk.db` over an old one while the old `-wal`/`-shm` files are still
-  beside it, and never move a database without its `-wal`. On the next open,
-  SQLite applies that WAL to the wrong main file and corrupts it ("freelist
-  leaf count too big", code 11 "database disk image is malformed"). This
-  happened to a scratch copy in Nov 2026 after a test process exited without
-  closing its pool. Use a new empty folder for every copy, and run
-  `PRAGMA integrity_check` on a copy before trusting results from it. The same
-  rule applies when restoring backups on the server.
+- A SQLite `sprk.db` from before the move is still a valid source: copy it with
+  `sprk-server migrate-sqlite` into a scratch database. Treat `sprk.db`,
+  `sprk.db-wal` and `sprk.db-shm` as one unit: copy them together into a new
+  empty folder, never over an older copy (a stray WAL corrupts the file).
 
 ## 2. Run the report
 
-From the `sprk-server` root:
+From the `sprk-server` root (`pip install "psycopg[binary]"` for the database
+part; connect as the owner role, which can read other sessions' activity and
+`pg_stat_statements`):
 
 ```bash
-python -I scripts/server/db_diagnostics.py --log <path/sprk-game.log> --db <path/sprk.db>
+python -I scripts/server/db_diagnostics.py --log <path/sprk-game.log> --database-url postgres://sprk_owner:...@host:5432/sprk
 ```
 
-Either flag can be used alone. Everything is read-only. The report prints:
+Either flag can be used alone. The report prints:
 
 | Section | What it means |
 | --- | --- |
-| `database is locked` codes, latency, paths | Should be **0** since the single-connection pool. Any occurrence means another process held the file or the pool was changed (see section 4). Failures under 50 ms are read-then-write transaction conflicts; failures near `busy_timeout` are expired lock waits. |
-| Pool acquire timeouts | A request queued longer than `acquire_timeout` (30 s). Something held the only connection far too long. |
-| `Database connection held long` by `holder` | Every checkout ≥ 250 ms of the single connection, with the HTTP path (or `background`) that held it. **The main lead**: every queued request waited behind these. Rank by total held time. |
-| `Slow HTTP request` by path | Requests ≥ 1 s, including time spent waiting in the queue. If a slow path has no matching "held long" entry, it waited behind someone else; look for holds just before it in the log. |
-| sqlx `slow statement` | Single statements ≥ 1 s. Before the queue these were mostly lock waits (`UPDATE … WHERE 0` lock-reservation statements). After it, they point to a truly slow query: check its plan. |
-| Largest tables, KB/account | Growth. Multiply KB/account by the expected player count to project size. |
-| Watched query plans | Queries that run on a timer or on hot paths. `SCAN` without a named index, or `USE TEMP B-TREE` on a large table, is a regression. |
-| `service_decks` beyond top 10 | Must be 0 once a server with the pruning migration has started. |
+| PostgreSQL contention errors | Deadlocks (40P01), serialization failures (40001), `lock_timeout`, `statement_timeout`, idle-in-transaction kills, too many connections, by path. A few deadlocks under heavy play are tolerable (the request fails and the client retries); a growing count names a hot row or an inconsistent lock order (see section 4). |
+| SQLite `database is locked` / holds | Only in logs from before the move. Kept to compare against the phase 0 baseline. |
+| Pool acquire timeouts, slow acquires | All pooled connections were busy. Look for long transactions first, then raise `SPRK_DB_MAX_CONNECTIONS` (default 16). |
+| `Slow HTTP request` by path | Requests of 1 s or more. With per-player locks a slow request can be waiting for the same player's previous transaction. |
+| sqlx `slow statement` | Single statements of 1 s or more, including lock waits. |
+| Largest tables, dead rows, last vacuum | Growth and bloat. A table with many dead rows and no recent vacuum needs autovacuum tuning (phase 6). |
+| Buffer cache hit rate | Below about 99% under load means the working set does not fit in `shared_buffers`/memory. |
+| Top statements (`pg_stat_statements`) | Where database time goes, by total time. Compare means before and after a fix. |
+| Long transactions, lock waits | Live view: who holds locks others wait for. A transaction open for seconds usually awaits non-database work it should not hold a transaction across. |
+| Plans of hot queries | Queries that run on a timer or hot paths. `Seq Scan` on a large table, or a `Filter` that parses JSON per row (`sprk_json...`), is a regression. |
 
-To dig further, the log has ANSI colour codes. Strip them first
-(`sed 's/\x1b\[[0-9;]*m//g'`), then grep around a timestamp to see what ran just
-before a slow request or long hold.
+## 3. How the server uses the database
 
-## 3. How the server uses SQLite (current design)
-
-- **One connection (a write queue).** `database::open_pool` uses
-  `max_connections(1)`. Requests wait in sqlx's async acquire queue instead of
-  competing for SQLite's file lock. This removed the 206 `database is locked`
-  errors in the Nov 2026 log, which came from SQLx's deferred `BEGIN`
-  read-then-write conflicts and lock polling across 5 connections. Pragmas: WAL,
-  `synchronous=NORMAL`, `busy_timeout=30s` (only for external processes),
-  `acquire_timeout=30s`.
-- **Hold tracking.** The `before_acquire`/`after_release` hooks time each
-  checkout. `performance::measure` sets the `REQUEST_PATH` task-local, so
-  holds are attributed to HTTP paths. Work in a `tokio::spawn` from a handler
-  shows as `background`.
-- **Read-only pool beside the writer.** `database::open_read_pool` opens
-  `READER_CONNECTIONS` (4) connections with `read_only(true)`, exposed as
-  `AppState.reads` (tests and tools default it to `db`). Only standalone reads
-  verified to never write use it: friend list/search, user inspection, the
-  mission-category check of `sync_seen_categories`, chat history, mail
-  list/count and the honor/global-mail "pending?" probes, lobby counts, the
-  lobby shop catalog, and the unchanged-revision checks in the progression and
-  hero-level notifiers. Many "get" endpoints write lazily (dispatch
-  normalization, shop stock setup), and reads inside an open writer
-  transaction must see its uncommitted writes, so those stay on `db`. A
-  misrouted write fails with SQLITE_READONLY; `database_tests.rs` runs every
-  routed endpoint against a real reader pool.
-- **Progression notifier off the writer.** After every gameplay mutation the
-  notifier appends the mission snapshot (~176 KB, 20–55 ms of CPU locally and
-  about 5× that on the production host). `progression::cache::get` builds it on
-  a reader inside one read transaction, together with the revision. It takes
-  the writer only when `item::init` or the daily login count would write
-  (first request of a new day). Before Nov 2026 the rebuild ran under the
-  writer and was the ~360 ms "held long" floor behind nearly every equip, shop
-  and hero endpoint.
-- **Per-account revisions.** `response_revisions` triggers bump the account
-  that owns each changed row. `friends` bumps both players, and conquest
-  history bumps the `AccountId` in its JSON. Only world boss `battle_scores`
-  and `credentials` bump the global `('progression', 0)` revision, which every
-  cache also checks. When the snapshot reads a new table, add it to
-  `revisions::migrate` with its owner. A global owner invalidates every online
-  player's cache. Startup drops and recreates these triggers, so owner changes
-  take effect on existing databases.
-- **Memory pragmas.** Writer `cache_size` 64 MB, each reader 16 MB,
-  `mmap_size` 256 MB (shared OS page cache), `temp_store=MEMORY`. These are
-  caps, not reservations; at most about 130 MB of SQLite cache plus the
-  mapped pages, which the kernel can reclaim.
-- **Indexes for periodic work.** `battle_state_dispatch_pending` is a partial
-  index whose `WHERE` is `battle::PENDING_DISPATCH_SIMULATION`. The dispatch
-  poller must repeat that exact condition, or SQLite falls back to a full scan.
-  `service_deck_rank` serves recommended decks.
-- **`service_decks` holds only the served top 10** per
-  (chapter, dungeon, difficulty, kind), ordered by `metric, account`.
-  `records::record_clear` prunes after every upsert, and the services migration
-  prunes legacy rows at startup. Space freed by pruning is reused but not
-  returned to disk until a manual `VACUUM`. That takes seconds with the server
-  stopped and needs free disk space equal to the database size: 620 MB became
-  403 MB on the Nov 2026 copy.
+- Two pools (`database::init_database`, `open_read_pool`): the main pool
+  (`SPRK_DB_MAX_CONNECTIONS`, default 16) and a read-only pool for
+  `AppState.reads` (`default_transaction_read_only`; a misrouted write fails).
+- Every session runs in UTC with `statement_timeout` 30 s, `lock_timeout` 10 s
+  and `idle_in_transaction_session_timeout` 60 s (role settings and pool
+  options).
+- **Per-player serialization.** The `acting_account` middleware records the
+  player of each POST request; `database::begin` takes that player's advisory
+  lock (`pg_advisory_xact_lock(account_id)`) in each transaction. One player's
+  transactions run one at a time, different players in parallel.
+- **Shared rows** take extra locks: a guild's members take turns through the
+  guild lock in community requests; party/raid rooms are read `FOR UPDATE`
+  before they are rewritten; arena requests take turns on the arena queue
+  lock; guild arena pairing try-locks the opponent guild and re-checks it.
+- SQL goes through `crate::db` (`query`, `query_scalar`, `query_as`,
+  `RowExt::get`), which binds and decodes like SQLite did. Schema, triggers and
+  `sprk_*` helper functions are in `migrations/`.
 
 ## 4. Rules when fixing
 
-- Do not raise `max_connections` on the main pool. It brings back the lock
-  errors. `database::tests::production_pool_queues_concurrent_read_then_write_transactions`
-  fails with `code: 5` under the old 5-connection settings.
-- Code must not acquire a second pool connection while holding a transaction
-  or connection, including a reader while holding the writer (readers can all
-  be held by requests queued for the writer). With one connection that waits for the full acquire timeout.
-  Most tests use single-connection pools, which catches this in tested paths.
-- Fix long holds by moving work out of the transaction: battle worker calls,
-  network I/O, sleeps, heavy JSON building. Shrink rewritten JSON blobs, or add
-  indexes. Don't fix them by adding connections.
-- For a new periodic or hot query, check `EXPLAIN QUERY PLAN` on a copy of the
-  production database and add it to `WATCHED_QUERIES` in the report script.
-- Server-only changes need no client release (see `AGENTS.md`). Run
-  `cargo test`, then report the before/after numbers from the report.
+- Never `.await` non-database work (battle worker calls, network I/O, sleeps,
+  heavy JSON building) inside a transaction: it holds the player's lock and
+  any row locks for that long.
+- A transaction that writes rows of **another** player or a shared entity
+  must lock them: an atomic single statement (`UPDATE ... SET n = n + $1`),
+  `SELECT ... FOR UPDATE`, or an advisory lock. Lock several entities in one
+  fixed order, or use the `try` variants and skip a busy one, as guild arena
+  pairing does. `crate::postgres::transaction` retries 40001/40P01 for code that can
+  run twice.
+- A failed statement aborts a PostgreSQL transaction. To try something that
+  may fail and continue, run it in a savepoint (`tx.begin()`).
+- For a new periodic or hot query, check its plan on a copy (`EXPLAIN`) and
+  add it to `WATCHED_QUERIES` in the report script. JSON fields used in
+  `WHERE` must use the same `sprk_json_int(...)` expression as an index (see
+  `migrations/0004` and `0005`).
+- CI type-checks every literal SQL statement against the schema
+  (`scripts/server/check_sql.py`). Server-only changes need no client release
+  (see `AGENTS.md`). Run `cargo test`, then report before/after numbers.
 
 ## 5. Measuring a request or startup on real data
 
-- To time a handler on production data, write a temporary `#[ignore]` test.
-  Open a scratch copy with `database::open_pool`, run `create_tables`, load
-  `GameTables` from `tables`, and call the handler (for example
-  `user::test_login` with the account's `login_id`). Install a
-  `tracing_subscriber` with the filter `sqlx::query=debug` to get every
-  statement's time.
-  Close the pool before exiting, and delete the harness afterwards.
-- Tests run on a single-threaded runtime. A "held long" warning there can
-  include blocking work that follows a query, because the connection's release
-  task can't run until the thread is free. Confirm startup timings with the
-  release binary instead, run in a scratch folder holding a copy of the
-  database: `RUST_LOG=info PORT=18080 BATTLE_WORKER_EXECUTABLE=does-not-exist
-  GAME_TABLES_PATH=<repo>/tables target/release/sprk-server.exe`. It stops after
-  migrations with "Conquest worker configured without a service key".
-- Startup baseline (Nov 2026, 620 MB database): database setup and
-  migrations about 1.1 s (longest hold 112 ms, since the ClearDungeon baseline
-  backfill skips stages that already have one), `GameTables::load` about 38–42 s
-  (JSON parsing of `tables/`, not the database),
-  login about 260–390 ms (about 500 statements, but only about 25 ms of SQL).
-- Login (Nov 2026, release build on the production copy, heaviest accounts):
-  200–330 ms before, 100–150 ms after these fixes. Expect about 5× that on the
-  production host. Friend profiles had scanned `CampaignDungeonTable` (~2800
-  rows) once per cleared stage of each friend (77–212 ms). Class buffs scanned
-  `EquipItem` once per owned item. Both now use indexes built once per loaded
-  table (`friend::main_story_stages`, `extensions::equip_item`). Login's
-  progression snapshot is built on a reader after the initializers commit.
-  What remains is mostly CPU: progression snapshot 24–53 ms, community
-  settlement 23–27 ms (writer), live 11–15 ms, equip items 13–17 ms (the
-  reply is 1.3–1.7 MB, about 70% `EquipItems`). Repeated `find` calls on
-  large tables inside per-row loops are the pattern to look for first.
+- Restore a backup (or copy a SQLite file with `migrate-sqlite`) into a
+  scratch database. To time a handler, write a temporary `#[ignore]` test that
+  connects with `crate::postgres::connect_read` or `connect`, loads
+  `GameTables` from `tables`, and calls the handler. `SPRK_PROFILE_DATABASE_URL`
+  drives the existing `profile_snapshot` harness. Install a
+  `tracing_subscriber` with the filter `sqlx::query=debug` for statement times.
+- Startup on the release binary in a scratch folder:
+  `DATABASE_URL=<scratch db> RUST_LOG=info PORT=18080 GAME_TABLES_PATH=<repo>/tables target/release/sprk-server.exe`.
+  `GameTables::load` dominates (about 25-40 s of JSON parsing, not the
+  database); migrations and startup recovery take under a second.
+- The SQLite-era baselines below (login 100-150 ms locally on the production
+  copy, about 5x that on the production host) are the reference for phase 6.
 
 ## 6. Known scaling notes (Nov 2026: 59 accounts, about 2000 targeted)
 
 - Estimated peak load at 2000 players: 200–500 online, about 20–100 database
-  requests/s. One connection is fine while typical holds stay at a few ms.
-  Watch the "held long" totals.
+  requests/s. On SQLite one connection served this while holds stayed at a
+  few ms; PostgreSQL runs different players in parallel. Watch lock waits and
+  the top statements instead of hold totals.
 - Dispatch preparation admits up to four simulations at once on the battle
   worker (`CONCURRENCY` in `cooperative_dispatch.rs`). Each pending job has
   its own task that takes a slot, prepares one repeat, saves it and queues
@@ -202,8 +146,7 @@ before a slow request or long hold.
   folded into `arena_history_archive` (per account, kind and UTC day:
   matches, wins, best streak, best tier), which mission history adds back, so
   arena missions are unaffected. Startup prunes histories recorded before the
-  triggers existed. Freed space is reused; run `VACUUM` once while stopped
-  to shrink the file.
+  triggers existed (on SQLite). Freed space is reused; autovacuum reclaims it.
 - `mails` rows are up to about 0.2 MB. Watch it in the largest-tables section.
 - **Bag-full rewards (Nov 2026).** A 100-fight raid dispatch rolled 706
   pieces into a full bag and held the writer for 24 s in production. Each
@@ -222,9 +165,11 @@ before a slow request or long hold.
   time per match. Honor registers the whole collection, so each
   `arena_runs` row is 1.2–1.5 MB. Fixes, with local times on the production
   copy (production is ~5× slower):
-  - Account-scoped `OnlineMatchUid` lookups write `+account` so SQLite uses
-    `arena_online_match_status`. Without planner statistics it chose the
-    account index and JSON-parsed every run of that player (41–75 ms → 0.1 ms).
+  - Account-scoped `OnlineMatchUid` lookups write `+account` so the planner
+    uses `arena_online_match_status` instead of the account index, which
+    JSON-parsed every run of that player (41–75 ms → 0.1 ms on SQLite). On
+    PostgreSQL the match result lookup selects ids through a `UNION` so the
+    JSON is only read through that index.
     `arena_completion_lookup_uses_match_index` checks the plans.
   - `battle_info_kind`, `get_match_rank`, inspection and season rewards count
     the rows ahead of one account (`ranked`) instead of building the whole
@@ -262,13 +207,12 @@ before a slow request or long hold.
 - `push_reward/get_push_reward` (polled every minute), `user/init_device_id`
   and `user/register_device_token` are routed and answer the same empty
   success without an unimplemented-endpoint warning.
-- **Hold labels.** Background holds name their task (`task:dispatch-preparation`,
-  `task:battle-connection`, `task:mail-notifications`, `ws:battle`, …). Use
-  `database::spawn_labelled` for new long-running tasks. The GM listener's
-  requests still show as `background`.
+- **Task labels.** Background work names its task (`task:dispatch-preparation`,
+  `task:battle-connection`, `task:mail-notifications`, `ws:battle`, …) in logs.
+  Use `database::spawn_labelled` for new long-running tasks.
 - **Unimplemented endpoints** log their method, path and field names only,
   never values (they carry live `SessionKey`s). `user/ping`,
   `user/set_push_notification` and `user/query_nick` are routed. Nicknames
   may repeat, because the username identifies players.
-- There is a single process and database file. Automated backups (the SQLite
-  backup API or Litestream) are still to do.
+- There is a single game process. The `postgres-backup` Compose service takes
+  a nightly `pg_dump` (see the migration plan's "Backups and restore").

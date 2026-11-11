@@ -13,6 +13,20 @@ struct Server {
     port: u16,
 }
 
+/// Fresh, empty PostgreSQL database on SPRK_TEST_POSTGRES_URL. The server
+/// applies its own migrations at startup.
+fn empty_database() -> String {
+    use sqlx::{AssertSqlSafe, Connection};
+    let admin = std::env::var("SPRK_TEST_POSTGRES_URL").expect("SPRK_TEST_POSTGRES_URL (README: PostgreSQL)");
+    let name = format!("sprk_t_{}_modes_{}", std::process::id(), uuid::Uuid::new_v4().simple());
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let mut conn = sqlx::PgConnection::connect(&admin).await.unwrap();
+        sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name}"))).execute(&mut conn).await.unwrap();
+    });
+    let (base, _) = admin.rsplit_once('/').expect("SPRK_TEST_POSTGRES_URL names a database");
+    format!("{base}/{name}")
+}
+
 impl Server {
     fn start(mode: &str) -> Self {
         let root =
@@ -24,10 +38,8 @@ impl Server {
         )
         .unwrap();
         // Bind ephemeral chat/battle ports in game mode. Invalid addresses and
-        // an unusable DB path ensure updates mode truly bypasses game startup.
-        if mode == "updates" {
-            std::fs::create_dir(root.join("sprk.db")).unwrap();
-        }
+        // no database ensure updates mode truly bypasses game startup.
+        let database = (mode != "updates").then(empty_database);
         let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = reservation.local_addr().unwrap().port();
         drop(reservation);
@@ -35,6 +47,9 @@ impl Server {
         let process = Command::new(env!("CARGO_BIN_EXE_sprk-server"))
             .current_dir(&root)
             .env_remove("SPRK_SERVICE_MODE")
+            .env_remove("DATABASE_URL")
+            .env_remove("DATABASE_MIGRATION_URL")
+            .envs(database.map(|url| ("DATABASE_URL", url)))
             .envs((mode != "default").then_some(("SPRK_SERVICE_MODE", mode)))
             .env("SPRK_UPDATES_DIR", root.join("client-updates"))
             .env("PORT", port.to_string())
@@ -135,7 +150,6 @@ fn updates_mode_runs_without_a_database_tables_or_game_transports() {
     assert!(server.get("/host.json").starts_with("HTTP/1.1 404"));
     assert!(server.get("/ws/chat").starts_with("HTTP/1.1 404"));
     assert!(server.get("/ws/battle").starts_with("HTTP/1.1 404"));
-    assert!(server.root.join("sprk.db").is_dir());
     let log = std::fs::read_to_string(server.root.join("server.log")).unwrap();
     assert!(!log.contains("Database initialized"));
     assert!(!log.contains("Message server listening"));
@@ -154,7 +168,8 @@ fn game_and_all_modes_expose_the_expected_endpoints() {
         assert!(server.get("/sprk/live/1/host_1.0_304dbdffe094.json").contains("https://play.example.test/cdn/"));
         server.upgrade("/ws/chat");
         server.upgrade("/ws/battle");
-        assert!(server.root.join("sprk.db").is_file());
+        let log = std::fs::read_to_string(server.root.join("server.log")).unwrap();
+        assert!(log.contains("Database initialized"), "{mode}: {log}");
         let expected = if mode == "all" {
             "HTTP/1.1 200"
         } else {

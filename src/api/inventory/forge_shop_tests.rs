@@ -17,18 +17,18 @@ fn forge_catalog(state: &AppState) -> Vec<Value> {
 }
 
 async fn seed_stock(state: &AppState, account: i64, shop: i32, expires: i64, rows: &[Value]) {
-    sqlx::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES (?,?,7,?,0,?)")
+    crate::db::query("INSERT INTO shop_stock(account_id,shop_index,revision,restock_time,restock_count,stock) VALUES ($1,$2,7,$3,0,$4)")
         .bind(account).bind(shop).bind(expires).bind(json!(rows).to_string())
         .execute(&state.db).await.unwrap();
 }
 
 async fn saved_stock(state: &AppState, account: i64, shop: i32) -> (i64, i64, i64, String) {
-    sqlx::query_as("SELECT revision,restock_time,restock_count,stock FROM shop_stock WHERE account_id=? AND shop_index=?")
+    crate::db::query_as("SELECT revision,restock_time,restock_count,stock FROM shop_stock WHERE account_id=$1 AND shop_index=$2")
         .bind(account).bind(shop).fetch_one(&state.db).await.unwrap()
 }
 
 async fn raid_points(state: &AppState, account: i64) -> i64 {
-    sqlx::query_scalar("SELECT raid_point FROM user_info WHERE account_id=?")
+    crate::db::query_scalar("SELECT raid_point FROM user_info WHERE account_id=$1")
         .bind(account)
         .fetch_one(&state.db)
         .await
@@ -75,7 +75,7 @@ async fn forge_ticket_repairs_incomplete_and_mismatched_stock_without_resetting_
         wrong["Count"] = json!(2);
         wrong["TargetPrice"] = json!(1);
         seed_stock(&state, account, 11, 0, &stale).await;
-        sqlx::query("UPDATE user_info SET raid_point=10000000 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET raid_point=10000000 WHERE account_id=$1")
             .bind(account)
             .execute(&state.db)
             .await
@@ -86,7 +86,7 @@ async fn forge_ticket_repairs_incomplete_and_mismatched_stock_without_resetting_
             .iso_week();
         let period = format!("week:{}:{}", week.year(), week.week());
         for (period, purchased) in [(&period[..], 2), ("week:2000:1", 4)] {
-            sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,11,407,?,?,123)")
+            crate::db::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES ($1,11,407,$2,$3,123)")
                 .bind(account).bind(period).bind(purchased).execute(&state.db).await.unwrap();
         }
 
@@ -108,7 +108,7 @@ async fn forge_ticket_repairs_incomplete_and_mismatched_stock_without_resetting_
         );
 
         // Another repair must not create a fresh weekly allowance.
-        sqlx::query("UPDATE shop_stock SET stock='[]' WHERE account_id=? AND shop_index=11")
+        crate::db::query("UPDATE shop_stock SET stock='[]' WHERE account_id=$1 AND shop_index=11")
             .bind(account)
             .execute(&state.db)
             .await
@@ -155,7 +155,7 @@ async fn forge_ticket_repairs_incomplete_and_mismatched_stock_without_resetting_
         assert_eq!(out["Result"], "SoldOut", "{out}");
         assert_eq!(raid_points(&state, account).await, balance);
         assert_eq!(count(&state, &u, 2815).await, before + 2);
-        let receipts: Vec<(String, i64)> = sqlx::query_as("SELECT period,purchased FROM shop_purchase_ledger WHERE account_id=? AND shop_index=11 AND item_index=407 ORDER BY period")
+        let receipts: Vec<(String, i64)> = crate::db::query_as("SELECT period,purchased FROM shop_purchase_ledger WHERE account_id=$1 AND shop_index=11 AND item_index=407 ORDER BY period")
             .bind(account).fetch_all(&state.db).await.unwrap();
         assert_eq!(receipts, vec![("week:2000:1".into(), 4), (period, 4)]);
     }
@@ -180,7 +180,7 @@ async fn forge_all_416_offers_charge_catalog_prices_grant_counts_and_enforce_lim
         1000
     );
     seed_stock(&state, account, 11, 0, &[]).await;
-    sqlx::query("UPDATE user_info SET raid_point=1000000000000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET raid_point=1000000000000 WHERE account_id=$1")
         .bind(account)
         .execute(&state.db)
         .await
@@ -202,8 +202,8 @@ async fn forge_all_416_offers_charge_catalog_prices_grant_counts_and_enforce_lim
         let amount = item::n(row, "Count") * quantity;
         let equip = state.tables.items.reward_item(id).unwrap().kind == "Equip";
         let before = if equip {
-            sqlx::query_scalar::<_, i64>(
-                "SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=?",
+            crate::db::query_scalar::<i64>(
+                "SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND item_index=$2",
             )
             .bind(account)
             .bind(id)
@@ -236,8 +236,8 @@ async fn forge_all_416_offers_charge_catalog_prices_grant_counts_and_enforce_lim
                 .iter()
                 .all(|r| r["ItemIndex"] == id && r["Star"] == row["Star"]));
             assert_eq!(
-                sqlx::query_scalar::<_, i64>(
-                    "SELECT COUNT(*) FROM equip_items WHERE account_id=? AND item_index=?"
+                crate::db::query_scalar::<i64>(
+                    "SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND item_index=$2"
                 )
                 .bind(account)
                 .bind(id)
@@ -247,7 +247,7 @@ async fn forge_all_416_offers_charge_catalog_prices_grant_counts_and_enforce_lim
                 before + amount
             );
             // Keep this exhaustive catalog audit independent of equipment bag capacity.
-            sqlx::query("DELETE FROM equip_items WHERE account_id=? AND item_index=?")
+            crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND item_index=$2")
                 .bind(account)
                 .bind(id)
                 .execute(&state.db)
@@ -325,7 +325,7 @@ async fn forge_fixed_catalog_invalidation_preserves_active_rotating_stock_and_re
     // These randomized slots intentionally differ from every authoritative source row.
     for (id, expires) in [(1, state.server_time() + 3600), (2, 0)] {
         seed_stock(&state, account, id, expires, &[row.clone()]).await;
-        sqlx::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES (?,?,1,'stock:7',1,123)")
+        crate::db::query("INSERT INTO shop_purchase_ledger(account_id,shop_index,item_index,period,purchased,purchased_time) VALUES ($1,$2,1,'stock:7',1,123)")
             .bind(account).bind(id).execute(&state.db).await.unwrap();
         let before = saved_stock(&state, account, id).await;
         for counters in [false, true] {
