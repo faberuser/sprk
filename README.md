@@ -110,7 +110,7 @@ curl --fail http://localhost:8081/health
 | `game`            | `http://localhost:8080` | service state in the `game-data` volume              |
 | `updates`         | `http://localhost:8081` | signed client releases in `SPRK_UPDATES_HOST_DIR`    |
 | `postgres`        | internal only           | game database in the `postgres-data` volume          |
-| `postgres-backup` | none                    | nightly `pg_dump` files in `SPRK_DB_BACKUP_HOST_DIR` |
+| `postgres-backup` | none                    | daily `pg_dump` files in `SPRK_DB_BACKUP_HOST_DIR`, optionally copied to `SPRK_DB_BACKUP_COPY_HOST_DIR` |
 
 The update service downloads and verifies its client release before
 listening, so its first start can take several minutes. Chat and battle use

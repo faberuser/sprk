@@ -101,8 +101,8 @@ services:
       retries: 5
       start_period: 30s
 
-  # Nightly pg_dump of the game database into a host directory outside the
-  # database volume, keeping SPRK_DB_BACKUP_DAYS days. Create the directory
+  # Daily pg_dump of the game database into a host directory outside the
+  # database volume, keeping the newest SPRK_DB_BACKUP_KEEP. Create the directory
   # first (writable by the postgres image's UID 999).
   postgres-backup:
     image: postgres:18
@@ -116,14 +116,25 @@ services:
       PGDATABASE: sprk
       PGUSER: sprk_owner
       PGPASSWORD: ${SPRK_DB_OWNER_PASSWORD:-}
-      SPRK_DB_BACKUP_DAYS: ${SPRK_DB_BACKUP_DAYS:-14}
+      SPRK_DB_BACKUP_KEEP: ${SPRK_DB_BACKUP_KEEP:-14}
       SPRK_DB_BACKUP_HOUR_UTC: ${SPRK_DB_BACKUP_HOUR_UTC:-4}
+      # Off-host copy (e.g. a NAS mounted on the host); empty disables it.
+      SPRK_DB_BACKUP_COPY: ${SPRK_DB_BACKUP_COPY_HOST_DIR:-}
+      SPRK_DB_BACKUP_COPY_KEEP: ${SPRK_DB_BACKUP_COPY_KEEP:-}
     user: "999:999"
     volumes:
       - ./scripts/docker/postgres-backup.sh:/usr/local/bin/sprk-postgres-backup:ro
       - type: bind
         source: ${SPRK_DB_BACKUP_HOST_DIR:-/srv/sprk/db-backups}
         target: /backups
+        bind:
+          create_host_path: false
+      # Without a copy directory this mounts the backup directory a second
+      # time, unused. Never created by Docker: a missing NAS mount stops this
+      # service instead of filling the local disk.
+      - type: bind
+        source: ${SPRK_DB_BACKUP_COPY_HOST_DIR:-${SPRK_DB_BACKUP_HOST_DIR:-/srv/sprk/db-backups}}
+        target: /backup-copy
         bind:
           create_host_path: false
 

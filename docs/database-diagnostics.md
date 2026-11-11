@@ -215,4 +215,4 @@ Either flag can be used alone. The report prints:
   `user/set_push_notification` and `user/query_nick` are routed. Nicknames
   may repeat, because the username identifies players.
 - There is a single game process. The `postgres-backup` Compose service takes
-  a nightly `pg_dump` (see the migration plan's "Backups and restore").
+  a daily `pg_dump` (see the migration plan's "Backups and restore").

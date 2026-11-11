@@ -205,9 +205,19 @@ later) only for several `game` containers.
 
 ### Backups and restore
 
-`postgres-backup` writes `sprk-<UTC time>.dump` (`pg_dump -Fc`) once at start
-and daily at `SPRK_DB_BACKUP_HOUR_UTC` (default 04:00), keeping
-`SPRK_DB_BACKUP_DAYS` (default 14). The dump of the production copy is 24 MB.
+`postgres-backup` writes `sprk-<UTC time>.dump` (`pg_dump -Fc`) daily at
+`SPRK_DB_BACKUP_HOUR_UTC` (default 04:00), and at start when the newest dump is
+over a day old. After each successful dump it keeps the newest
+`SPRK_DB_BACKUP_KEEP` files (default 14); a failed dump deletes nothing. The
+dump of the production copy is 24 MB.
+
+For an off-host copy, mount a NAS (or other storage) on the host and set
+`SPRK_DB_BACKUP_COPY_HOST_DIR` to that directory, writable by UID 999. Every
+run copies the dumps it is missing there (so it catches up after a NAS outage)
+and keeps the newest `SPRK_DB_BACKUP_COPY_KEEP` (default: same as
+`SPRK_DB_BACKUP_KEEP`). A failed copy only logs a warning. Docker never creates
+that directory: if the NAS is not mounted, `postgres-backup` does not start,
+rather than writing "NAS" copies onto the local disk.
 Copy the directory off the host as well; for point-in-time recovery add WAL
 archiving (pgBackRest or WAL-G) later. On AWS, RDS/Aurora backups replace this.
 
