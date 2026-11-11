@@ -59,7 +59,7 @@ partial class Program {
             int offset=FindFrameTimingSettings(isolated,out bool enabled);if(offset!=640 || enabled!=(originalFlag==1))throw new InvalidOperationException("Isolated timing flag mismatch.");
             if(isolated[402]!=logging)throw new InvalidOperationException("Storage conversion changed player logging.");
         }
-        Console.WriteLine("PASS: one-time storage migration, existing data preservation, preference scope, no future reimport, tombstone recovery, partial failure, concurrency and both timing fingerprints.");
+        Console.WriteLine("PASS: retired legacy import (no source reads, empty receipt, tombstone), retained legacy-branch coverage: existing data preservation, preference scope, no future reimport, tombstone recovery, partial failure, concurrency and both timing fingerprints.");
     }
 
 }

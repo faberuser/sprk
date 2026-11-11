@@ -12,7 +12,8 @@ using NVespa.NGlobal;
 
 // Retirement instructions and rollout queries: docs/client-storage-migration.md.
 public static class SprkStorageMigration {
-    public const bool LegacyMigrationEnabled=true;
+    // Retired 2026-11-11: new profiles no longer read masangsoft files or registry values.
+    public const bool LegacyMigrationEnabled=false;
     public const string MarkerName="sprk-storage-migration-v1.complete";
     const string ReceiptValue="Sprk.Storage.MigrationV1Receipt";
     static bool ready;
@@ -98,7 +99,8 @@ public static class SprkStorageMigration {
         for(int i=3;i<6;i++){int value;var parts=lines[i].Split('=');if(parts.Length!=2 || !Int32.TryParse(parts[1],out value) || value<0)throw new InvalidDataException("Invalid migration counters.");}
         return receipt;
     }
-    public static string Migrate(string oldRoot,string newRoot,Preferences preferences) {
+    public static string Migrate(string oldRoot,string newRoot,Preferences preferences){return Migrate(oldRoot,newRoot,preferences,LegacyMigrationEnabled);}
+    public static string Migrate(string oldRoot,string newRoot,Preferences preferences,bool importLegacy) {
         RejectAncestors(newRoot);Directory.CreateDirectory(newRoot);RejectLink(newRoot);
         string marker=Path.Combine(newRoot,MarkerName);
         // Check both receipts before ever inspecting the old path or registry.
@@ -109,7 +111,7 @@ public static class SprkStorageMigration {
             if(File.Exists(marker))return ValidateReceipt(File.ReadAllText(marker));
             saved=preferences.ReadReceipt();if(!String.IsNullOrEmpty(saved)){saved=ValidateReceipt(saved);AtomicWrite(marker,Encoding.UTF8.GetBytes(saved));return saved;}
             int files=0,prefs=0;bool source=false;
-            if(LegacyMigrationEnabled) {
+            if(importLegacy) {
                 source=Directory.Exists(oldRoot);files=CopyAccounts(oldRoot,newRoot);
                 foreach(var name in preferences.LegacyNames())if(AllowedPreference(name)){source=true;if(!preferences.Contains(name)){preferences.Copy(name);prefs++;}}
             }

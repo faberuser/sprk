@@ -13,6 +13,8 @@ public static class StorageMigrationTestRunner {
         public void SaveReceipt(string value){Receipt=value;}
     }
     static void Check(bool ok,string message){if(!ok)throw new Exception(message);}
+    // Legacy-copy coverage remains until the retired branch is deleted.
+    static string Legacy(string old,string next,Preferences prefs){return SprkStorageMigration.Migrate(old,next,prefs,true);}
     public static void Run(){
         string root=Path.Combine(Path.GetTempPath(),"SprkStorageTests-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
         string old=Path.Combine(root,"old"),next=Path.Combine(root,"new");Directory.CreateDirectory(old);Directory.CreateDirectory(next);
@@ -21,32 +23,40 @@ public static class StorageMigrationTestRunner {
         Directory.CreateDirectory(Path.Combine(old,"sprk-accounts.dat.sessions"));File.WriteAllText(Path.Combine(old,"sprk-accounts.dat.sessions","active.lock"),"locked");
         var prefs=new Preferences();prefs.Old["Sprk.Graphics.Method_h123"]="4";prefs.Old["KingsRaid_SystemOption_spec_h123"]="Original";prefs.Old["OfficialAccessToken"]="do not copy";prefs.Old["Sprk.Window.Mode_h123"]="1";
         prefs.New["Sprk.Graphics.Method_h123"]="2";
-        string receipt=SprkStorageMigration.Migrate(old,next,prefs);
+        string receipt=Legacy(old,next,prefs);
         Check(File.ReadAllText(Path.Combine(next,"sprk-accounts.dat"))=="saved accounts","Saved accounts lost");
         Check(File.ReadAllText(Path.Combine(next,"SprkServers",hash,"sprk-accounts.dat"))=="server accounts","Per-server account stores lost");
         Check(!File.Exists(Path.Combine(next,"official-cache.dat"))&&!Directory.Exists(Path.Combine(next,"sprk-accounts.dat.sessions")),"Official cache or active leases copied");
         Check(prefs.New["Sprk.Graphics.Method_h123"]=="2"&&prefs.New["KingsRaid_SystemOption_spec_h123"]=="Original"&&!prefs.New.ContainsKey("OfficialAccessToken")&&prefs.New["Sprk.Window.Mode_h123"]=="1","Preference scope/overwrite");
         Check(File.ReadAllText(file)=="saved accounts","Source was changed");
         File.WriteAllText(file,"future official data");prefs.Old["KingsRaid_SystemOption_spec_h123"]="future";File.Delete(Path.Combine(next,"sprk-accounts.dat"));
-        Check(SprkStorageMigration.Migrate(old,next,prefs)==receipt&&prefs.Reads==1&&!File.Exists(Path.Combine(next,"sprk-accounts.dat")),"Completed migration reread future old data");
+        Check(Legacy(old,next,prefs)==receipt&&prefs.Reads==1&&!File.Exists(Path.Combine(next,"sprk-accounts.dat")),"Completed migration reread future old data");
         File.Delete(Path.Combine(next,SprkStorageMigration.MarkerName));
-        Check(SprkStorageMigration.Migrate(old,next,prefs)==receipt&&prefs.Reads==1,"Registry tombstone did not prevent recopy");
+        Check(Legacy(old,next,prefs)==receipt&&prefs.Reads==1,"Registry tombstone did not prevent recopy");
         var empty=new Preferences();string absent=Path.Combine(root,"not-created"),fresh=Path.Combine(root,"fresh");
-        SprkStorageMigration.Migrate(absent,fresh,empty);Directory.CreateDirectory(absent);File.WriteAllText(Path.Combine(absent,"sprk-accounts.dat"),"future client");
-        SprkStorageMigration.Migrate(absent,fresh,empty);Check(!File.Exists(Path.Combine(fresh,"sprk-accounts.dat"))&&empty.Reads==1,"Fresh install imported later official data");
+        Legacy(absent,fresh,empty);Directory.CreateDirectory(absent);File.WriteAllText(Path.Combine(absent,"sprk-accounts.dat"),"future client");
+        Legacy(absent,fresh,empty);Check(!File.Exists(Path.Combine(fresh,"sprk-accounts.dat"))&&empty.Reads==1,"Fresh install imported later official data");
         var failure=new Preferences{Fail=true};failure.Old["Sprk.Graphics.Method_h123"]="3";string retry=Path.Combine(root,"retry");
-        bool threw=false;try{SprkStorageMigration.Migrate(old,retry,failure);}catch(IOException){threw=true;}
+        bool threw=false;try{Legacy(old,retry,failure);}catch(IOException){threw=true;}
         Check(threw&&failure.Receipt==null&&!File.Exists(Path.Combine(retry,SprkStorageMigration.MarkerName)),"Failed migration was marked complete");
-        failure.Fail=false;SprkStorageMigration.Migrate(old,retry,failure);Check(failure.New.Count==1&&File.Exists(Path.Combine(retry,SprkStorageMigration.MarkerName)),"Interrupted migration could not resume");
+        failure.Fail=false;Legacy(old,retry,failure);Check(failure.New.Count==1&&File.Exists(Path.Combine(retry,SprkStorageMigration.MarkerName)),"Interrupted migration could not resume");
         File.WriteAllText(Path.Combine(fresh,SprkStorageMigration.MarkerName),"corrupt");threw=false;
-        try{SprkStorageMigration.Migrate(absent,fresh,empty);}catch(InvalidDataException){threw=true;}
+        try{Legacy(absent,fresh,empty);}catch(InvalidDataException){threw=true;}
         Check(threw&&empty.Reads==1,"Corrupt receipt triggered a fresh old-data import");
         string busy=Path.Combine(root,"busy");Directory.CreateDirectory(busy);var locked=new Preferences();
         using(var gate=new FileStream(Path.Combine(busy,"sprk-storage-migration-v1.lock"),FileMode.Create,FileAccess.ReadWrite,FileShare.None)) {
-            threw=false;try{SprkStorageMigration.Migrate(old,busy,locked);}catch(IOException){threw=true;}
+            threw=false;try{Legacy(old,busy,locked);}catch(IOException){threw=true;}
             Check(threw&&locked.Reads==0,"Concurrent migration touched legacy storage");
         }
-        SprkStorageMigration.Migrate(old,busy,locked);Check(locked.Receipt!=null,"Lock retry failed");
+        Legacy(old,busy,locked);Check(locked.Receipt!=null,"Lock retry failed");
+        Check(!SprkStorageMigration.LegacyMigrationEnabled,"Legacy import is still enabled");
+        var retiredPrefs=new Preferences();retiredPrefs.Old["Sprk.Graphics.Method_h123"]="7";string retired=Path.Combine(root,"retired");
+        string retiredReceipt=SprkStorageMigration.Migrate(old,retired,retiredPrefs);
+        Check(retiredPrefs.Reads==0&&retiredPrefs.New.Count==0&&!File.Exists(Path.Combine(retired,"sprk-accounts.dat"))&&!Directory.Exists(Path.Combine(retired,"SprkServers")),"Retired migration read or copied legacy data");
+        Check(retiredReceipt.EndsWith("\nfiles=0\npreferences=0\nsource=0")&&retiredPrefs.Receipt==retiredReceipt&&File.ReadAllText(Path.Combine(retired,SprkStorageMigration.MarkerName))==retiredReceipt,"Retired migration receipt");
+        File.Delete(Path.Combine(retired,SprkStorageMigration.MarkerName));
+        Check(SprkStorageMigration.Migrate(old,retired,retiredPrefs)==retiredReceipt&&retiredPrefs.Reads==0,"Retired migration lost tombstone receipt");
+        Check(SprkStorageMigration.Migrate(old,next,prefs)==receipt&&prefs.Reads==1,"Retirement replaced an existing completion receipt");
         Check(Path.GetFullPath(root).StartsWith(Path.GetFullPath(Path.GetTempPath()),StringComparison.OrdinalIgnoreCase),"Invalid test cleanup root");Directory.Delete(root,true);
     }
 }
