@@ -282,10 +282,11 @@ async fn honor(
         };
         let mut deck = vec![];
         if matches!(kind, 3 | 4) {
-            let saved:Option<String>=sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND kind=? AND status='complete' AND json_extract(data,'$.Season')=? ORDER BY id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?;
+            // Honor keeps the registration in arena_snapshots; older runs inline.
+            let saved:Option<String>=sqlx::query_scalar::<_,Option<String>>("SELECT COALESCE(p.data,json_extract(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=? AND r.kind=? AND r.status='complete' AND json_extract(r.data,'$.Season')=? ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
             if let Some(saved) = saved {
                 let saved: Value = serde_json::from_str(&saved).map_err(|_| rule("Fail"))?;
-                for h in saved["Register"]["AccountInfo"]["HeroInfos"]
+                for h in saved["HeroInfos"]
                     .as_object()
                     .into_iter()
                     .flat_map(|v| v.values())

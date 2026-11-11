@@ -214,6 +214,47 @@ async fn account_with(
         json!({"UserInfo":u,"HeroInfos":map,"AiHeroInfos":{},"GroupHeroInfos":{},"DeckInfos":{},"Host":"","ServerGroup":"local","MatchServerHost":"","IsNpc":npc,"ArenaType":"Normal","TeamType":if npc{"Right"}else{"Left"},"Mmr":1000,"FightingPower":0,"Rank":0,"LeaderHeroIndex":heroes.first().copied().unwrap_or(0),"GuildInfo":[],"GuildSkills":[],"AccountBuffs":[],"ClassBuffDataBases":[],"GuildArenaBuffDataBases":[],"ExtraStatDataBases":[],"PetStatDataBases":[],"BattleInfo":null,"AvgFightingPower":0,"LuckyDeckIndex":0}),
     )
 }
+/// A run's registered AccountInfo. Honor keeps it in `arena_snapshots` (the
+/// run JSON holds null); older rows and Victory keep it inline.
+pub(crate) async fn registered_account(db: &mut SqliteConnection, run: i64, data: &Value) -> Result<Value> {
+    let inline = &data["Register"]["AccountInfo"];
+    if !inline.is_null() { return Ok(inline.clone()); }
+    let raw: Option<String> = sqlx::query_scalar("SELECT data FROM arena_snapshots WHERE run=?")
+        .bind(run).fetch_optional(&mut *db).await?;
+    parse(&raw.ok_or_else(|| rule("MatchingAborted"))?)
+}
+/// The stored `wait_match` reply of a paired run. Honor stores it without the
+/// two registrations (AccountInfos is []); rebuild them from the snapshots,
+/// in pairing order (lower run id on the left).
+async fn stored_wait(db: &mut SqliteConnection, data: &Value) -> Result<Value> {
+    let mut wait = data["Wait"].clone();
+    let (Some(uid), Some(true)) = (data["OnlineMatchUid"].as_i64(), wait["MatchInfo"]["AccountInfos"].as_array().map(Vec::is_empty)) else {
+        return Ok(wait);
+    };
+    let rows: Vec<String> = sqlx::query_scalar("SELECT p.data FROM arena_runs r JOIN arena_snapshots p ON p.run=r.id WHERE json_extract(r.data,'$.OnlineMatchUid')=? AND r.status IN ('waiting','battle') ORDER BY r.id")
+        .bind(uid).fetch_all(&mut *db).await?;
+    if rows.len() == 2 {
+        let mut accounts = rows.iter().map(|raw| parse::<Value>(raw)).collect::<Result<Vec<_>>>()?;
+        accounts[0]["TeamType"] = json!("Left");
+        accounts[1]["TeamType"] = json!("Right");
+        wait["MatchInfo"]["AccountInfos"] = json!(accounts);
+    }
+    Ok(wait)
+}
+/// Honor registration snapshots the whole requested collection (~30 queries
+/// per Hero, up to 200 Heroes). Build them on a reader before the writer is
+/// taken; registration validates ownership and limits under the writer and
+/// rebuilds any Hero missing here.
+pub(super) async fn prebuild(s: &AppState, a: i64, r: &Request, action: &str) -> Result<std::collections::HashMap<i64, Value>> {
+    let mut built = std::collections::HashMap::new();
+    if action != "register_match" || int(r, "ArenaType").ok() != Some(1) { return Ok(built); }
+    let Ok(heroes) = ids(r, "HeroIndices", 200) else { return Ok(built); };
+    let mut db = s.reads.acquire().await?;
+    for id in heroes {
+        if let Ok(hero) = cached_hero(&mut db, a, id).await { built.insert(id, hero); }
+    }
+    Ok(built)
+}
 async fn ensure_kind(db: &mut SqliteConnection, s: &AppState, a: i64, kind: i64) -> Result<()> {
     sqlx::query("INSERT OR IGNORE INTO arena_scores(account,kind,season,score) VALUES(?,?,?,?)")
         .bind(a)
@@ -300,7 +341,8 @@ async fn ranking_deck(db: &mut SqliteConnection, account: i64, season: i64, kind
     // Honor registration contains the eligible collection, not the final four.
     // Its draft persists the actual combat formation in Heroes before loading.
     // Never substitute another league/season, a friendly duel or a random team.
-    // Honor rows hold whole collections (~1.5 MB). Filter on the trigger-kept
+    // Older Honor rows hold whole collections inline (~1.5 MB; newer ones use
+    // arena_snapshots). Filter on the trigger-kept
     // `season`/`squad` columns (squad = non-friendly with 1-4 Heroes) so no
     // rejected row is JSON-parsed, then extract only the formation's Heroes.
     let saved: Option<(i64,String)> = sqlx::query_as("SELECT id,json_extract(data,'$.Heroes') FROM arena_runs WHERE account=? AND kind=? AND status='complete' AND season=? AND squad=1 ORDER BY id DESC LIMIT 1")
@@ -314,9 +356,9 @@ async fn ranking_deck(db: &mut SqliteConnection, account: i64, season: i64, kind
     // json_extract with two or more paths returns a JSON array (null for a
     // missing Hero). The leading placeholder path keeps a single Hero an array.
     let paths = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("SELECT json_extract(data,'$.__none__',{paths}) FROM arena_runs WHERE id=?");
+    let sql = format!("SELECT json_extract(COALESCE(p.data,json_extract(r.data,'$.Register.AccountInfo'),'{{}}'),'$.__none__',{paths}) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.id=?");
     let mut query = sqlx::query_scalar::<_, String>(sqlx::AssertSqlSafe(sql.as_str()));
-    for id in &ids { query = query.bind(format!("$.Register.AccountInfo.HeroInfos.\"{id}\"")); }
+    for id in &ids { query = query.bind(format!("$.HeroInfos.\"{id}\"")); }
     let registered: Value = parse(&query.bind(run).fetch_one(&mut *db).await?)?;
     let mut result = vec![];
     for (i, id) in ids.into_iter().enumerate() {
@@ -361,8 +403,9 @@ pub(crate) async fn battle_info_kind(db: &mut SqliteConnection, s: &AppState, a:
     out["WorldTierIndex"] = out["TierIndex"].clone();
     Ok(out)
 }
-pub(super) async fn execute(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,action:&str)->Result<Value>{
-    execute_inner(db,s,a,r,action,false).await
+/// Arena requests, with any Honor snapshots `prebuild` made on a reader.
+pub(super) async fn execute_prebuilt(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request,action:&str,prebuilt:std::collections::HashMap<i64,Value>)->Result<Value>{
+    execute_inner(db,s,a,r,action,false,prebuilt).await
 }
 pub(crate) async fn service_result(db:&mut SqliteConnection,s:&AppState,a:i64,r:&Request)->Result<Value>{
     complete_match(db,s,a,r,true).await
@@ -374,6 +417,7 @@ async fn execute_inner(
     r: &Request,
     action: &str,
     trusted: bool,
+    mut prebuilt: std::collections::HashMap<i64, Value>,
 ) -> Result<Value> {
     // Native polls, cancellation and result requests omit ArenaType. Resolve
     // their durable run instead of accidentally operating on Victory's partition.
@@ -464,7 +508,7 @@ async fn execute_inner(
             if kind==1 {
                 if heroes.len() < constant(s,"MatchingBanPickHeroCountMin",12) as usize {return Err(rule("NoHeroes"));}
                 for id in &heroes {
-                    let h=cached_hero(db,a,*id).await?;
+                    let h=match prebuilt.remove(id) { Some(h)=>h, None=>cached_hero(db,a,*id).await? };
                     if n(&h,"Level")<constant(s,"MatchingBanPickHeroLevelMin",1) || n(&h,"Star")<constant(s,"MatchingBanPickHeroStarMin",1) {return Err(rule("InvalidHero"));}
                     built.insert(*id,h);
                 }
@@ -476,7 +520,7 @@ async fn execute_inner(
                 return Err(rule("InvalidHero"));
             }
             let active = sqlx::query(
-                "SELECT data FROM arena_runs WHERE account=? AND status IN ('waiting','battle')",
+                "SELECT id,data FROM arena_runs WHERE account=? AND status IN ('waiting','battle')",
             )
             .bind(a)
             .fetch_optional(&mut *db)
@@ -484,7 +528,9 @@ async fn execute_inner(
             if let Some(active) = active {
                 let data: Value = parse(&active.get::<String, _>("data"))?;
                 if data["Heroes"] == json!(heroes) && n(&data, "Leader") == leader && n(&data,"DuelType")==duel && n(&data,"GroupId")==group {
-                    return Ok(data["Register"].clone());
+                    let mut register = data["Register"].clone();
+                    register["AccountInfo"] = registered_account(db, active.get("id"), &data).await?;
+                    return Ok(register);
                 }
                 return Err(rule("WaitMore"));
             }
@@ -502,8 +548,12 @@ async fn execute_inner(
             out["DeckInfo"] = if kind==1 {Value::Null} else {
                 json!({"HeroIndices":heroes,"LeaderHeroIndex":if leader==0{heroes[0]}else{leader}})
             };
-            let data = json!({"Kind":kind,"DuelType":duel,"GroupId":group,"InvitedOpponent":invited,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
-            sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data,last_poll) VALUES(?,?,?,'waiting',?,?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).bind(now()).execute(db).await?;
+            let mut data = json!({"Kind":kind,"DuelType":duel,"GroupId":group,"InvitedOpponent":invited,"Heroes":heroes,"Leader":leader,"Season":season(s).0,"Register":out,"Expires":now()+settings(s,"ArenaMatchExpirySeconds",900)});
+            if kind==1 { data["Register"]["AccountInfo"] = Value::Null; }
+            let run = sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data,last_poll) VALUES(?,?,?,'waiting',?,?)").bind(a).bind(kind).bind(now()).bind(data.to_string()).bind(now()).execute(&mut *db).await?.last_insert_rowid();
+            if kind==1 {
+                sqlx::query("INSERT INTO arena_snapshots(run,data) VALUES(?,?)").bind(run).bind(out["AccountInfo"].to_string()).execute(db).await?;
+            }
         }
         "cancel_match" => {
             if online::cancel_account(db, s, a).await? {
@@ -536,7 +586,7 @@ async fn execute_inner(
             let mut data: Value = parse(&run.get::<String, _>("data"))?;
             // Pairing wins over a simultaneous bot fallback/cancel poll.
             if data["OnlineMatchUid"].is_i64() {
-                return Ok(data["Wait"].clone());
+                return stored_wait(db, &data).await;
             }
             if flag(r, "ReserveCancel")? {
                 sqlx::query("UPDATE arena_runs SET status='canceled' WHERE id=?")
@@ -548,7 +598,7 @@ async fn execute_inner(
                 return Ok(out);
             }
             if run.get::<String, _>("status") == "battle" {
-                return Ok(data["Wait"].clone());
+                return stored_wait(db, &data).await;
             }
             sqlx::query("UPDATE arena_runs SET last_poll=? WHERE id=?")
                 .bind(now()).bind(id).execute(&mut *db).await?;
