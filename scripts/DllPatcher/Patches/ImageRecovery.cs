@@ -174,7 +174,7 @@ partial class Program
             .Replace("__SPRK_LIGHT_BATTLE_FALLBACK_IDS__", string.Join(",", battleFallbacks));
         var compilation = CSharpCompilation.Create("SprkImageRecovery", new[] { CSharpSyntaxTree.ParseText(source) }, refs,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
-        var images = new[] { 10, 15 }.Select(value => new ResourceDescription("SprkTpIcons." + value + ".png",
+        var images = new[] { 10, 15, 9900001 }.Select(value => new ResourceDescription("SprkTpIcons." + value + ".png",
             () => typeof(Program).Assembly.GetManifestResourceStream("DllPatcher.TpIcons." + value + ".png")!, true));
         using var compiled = new MemoryStream(); var result = compilation.Emit(compiled, manifestResources: images);
         if (!result.Success) throw new InvalidOperationException(string.Join("\n", result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));

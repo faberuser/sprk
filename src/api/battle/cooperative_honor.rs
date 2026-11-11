@@ -193,6 +193,29 @@ mod tests {
         let out=call(s,&users[0],"match/wait_match","PlayOfflineMatch=true").await;
         assert_eq!(out["Result"],"Success","{out}");
         assert_eq!(out["MatchInfo"]["ArenaType"],"BanPick");
+        // Collections live in arena_snapshots; the run JSON stays small.
+        let uid=number(&out["MatchInfo"],"Uid");
+        let rows:Vec<String>=sqlx::query_scalar("SELECT r.data FROM arena_runs r JOIN arena_snapshots p ON p.run=r.id WHERE json_extract(r.data,'$.OnlineMatchUid')=?")
+            .bind(uid).fetch_all(&s.db).await.unwrap();
+        assert_eq!(rows.len(),2);
+        for raw in &rows {
+            let data:Value=serde_json::from_str(raw).unwrap();
+            assert!(data["Register"]["AccountInfo"].is_null(),"{data}");
+            assert_eq!(data["Wait"]["MatchInfo"]["AccountInfos"],json!([]));
+        }
+        let heroes:Vec<i64>=sqlx::query_scalar("SELECT (SELECT COUNT(*) FROM json_each(data,'$.HeroInfos')) FROM arena_snapshots").fetch_all(&s.db).await.unwrap();
+        assert_eq!(heroes,vec![16,16]);
+        // The opponent's poll and a repeated poll rebuild the same full MatchInfo.
+        for u in users.iter().rev() {
+            let again=call(s,u,"match/wait_match","").await;
+            assert_eq!(again["MatchInfo"],out["MatchInfo"],"{again}");
+        }
+        assert_eq!(out["MatchInfo"]["AccountInfos"][0]["TeamType"],"Left");
+        assert_eq!(out["MatchInfo"]["AccountInfos"][1]["HeroInfos"].as_object().unwrap().len(),16);
+        // A repeated registration still answers with the whole collection.
+        let heroes=json!((1..=16).collect::<Vec<_>>()).to_string();
+        let repeated=call(s,&users[0],"match/register_match",&format!("ArenaType=BanPick&HeroIndices={heroes}&LeaderHeroIndex=1")).await;
+        assert_eq!(repeated["AccountInfo"]["HeroInfos"].as_object().unwrap().len(),16,"{repeated}");
         out
     }
     async fn balance(s:&AppState,u:&Value)->(i64,i64) {

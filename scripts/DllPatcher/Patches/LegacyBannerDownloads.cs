@@ -111,6 +111,21 @@ partial class Program
             throw new InvalidOperationException("BoardURL constant is not empty.");
         var metadata = JsonNode.Parse(File.ReadAllBytes(metadataPath))!;
         static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        // ConstantTable belongs to multiple native manifests.
+        var owners = new Dictionary<string,JsonNode>();
+        foreach (var name in new[] { "SPRK-NativeCombat.json", "SPRK-NativeLocalization.json" }) {
+            var path = Path.Combine(root,name);
+            if (!File.Exists(path)) continue;
+            var owner = JsonNode.Parse(File.ReadAllBytes(path))!;
+            if (owner["files"]?["TableJit/ConstantTable.jit"] is not JsonNode existing) continue;
+            var expected = existing["sha256"]!.GetValue<string>();
+            if (expected != Hash(original) && expected != Hash(cleaned))
+                throw new InvalidOperationException("ConstantTable integrity mismatch: " + name);
+            if (verify && expected != Hash(original))
+                throw new InvalidOperationException("Stale ConstantTable integrity: " + name);
+            existing["sha256"] = Hash(cleaned);
+            owners.Add(path,owner);
+        }
         using var resolver = new DefaultAssemblyResolver();
         resolver.AddSearchDirectory(Path.GetDirectoryName(dll)!);
         using var assembly = AssemblyDefinition.ReadAssembly(dll, new ReaderParameters { AssemblyResolver = resolver });
@@ -125,7 +140,7 @@ partial class Program
         PatchLegacyBannerDownloads(assembly.MainModule);
         var backup = Path.GetFullPath(Path.Combine("target/legacy-banner-backups", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fffffff")));
         Directory.CreateDirectory(backup);
-        foreach (var path in new[] { dll, tablePath, metadataPath }) File.Copy(path, Path.Combine(backup, Path.GetFileName(path)));
+        foreach (var path in new[] { dll, tablePath, metadataPath }.Concat(owners.Keys)) File.Copy(path, Path.Combine(backup, Path.GetFileName(path)));
         var entry = metadata["files"]!["TableJit/ConstantTable.jit"];
         if (entry == null) metadata["files"]!["TableJit/ConstantTable.jit"] = entry = new JsonObject { ["originalSha256"] = Hash(original) };
         entry["sha256"] = Hash(cleaned);
@@ -134,6 +149,7 @@ partial class Program
         File.Move(dll + ".legacy-banner-staged", dll, true);
         File.WriteAllBytes(tablePath, cleaned);
         File.WriteAllText(metadataPath, metadata.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+        foreach (var owner in owners) File.WriteAllText(owner.Key,owner.Value.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         InstallLegacyBannerRemoval(clientRoot, true);
     }
 }

@@ -30,9 +30,11 @@ $ManagedDir = Join-Path $ClientPath "King's Raid_Data\Managed"
 $DllPath = Join-Path $ManagedDir "Assembly-CSharp.dll"
 $AssetsPath = Join-Path $ClientPath "King's Raid_Data\resources.assets"
 
-# Replacement URL for localhost (must be 87 bytes with padding)
-$REPLACEMENT_URL = [System.Text.Encoding]::UTF8.GetBytes('http://127.0.0.1:8080/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json                   ')
-$ORIGINAL_URL = [System.Text.Encoding]::UTF8.GetBytes('https://kr-apne1-patchsrc.masangsoft.com/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json')
+# QueryHost (the host-list URL) is a fixed 87-byte string in resources.assets.
+# Its value is overwritten in place, padded with spaces, so the asset size never changes.
+$QUERY_HOST_FIELD = [System.Text.Encoding]::UTF8.GetBytes('"QueryHost" : "')
+$QUERY_HOST_LENGTH = 87
+$REPLACEMENT_URL = [System.Text.Encoding]::UTF8.GetBytes('http://127.0.0.1:8080/sprk/live/1/host_1.0_304dbdffe094.json'.PadRight($QUERY_HOST_LENGTH))
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -49,22 +51,6 @@ function Find-BytePattern {
         if ($match) { return $i }
     }
     return -1
-}
-
-function Replace-BytePattern {
-    param([byte[]]$Data, [byte[]]$Pattern, [byte[]]$Replacement)
-    if ($Pattern.Length -ne $Replacement.Length) {
-        Write-Error "Pattern and replacement must be the same length!"; return $null
-    }
-    $count = 0; $index = 0
-    while ($index -lt $Data.Length) {
-        $found = Find-BytePattern -Data $Data[$index..($Data.Length-1)] -Pattern $Pattern
-        if ($found -eq -1) { break }
-        $actualIndex = $index + $found
-        for ($i = 0; $i -lt $Replacement.Length; $i++) { $Data[$actualIndex + $i] = $Replacement[$i] }
-        $count++; $index = $actualIndex + $Pattern.Length
-    }
-    return @{ Data = $Data; Count = $count }
 }
 
 # ---------------------------------------------------------------------------
@@ -164,15 +150,15 @@ if ($Restore) {
     if ((Find-BytePattern -Data $data -Pattern $localhostPattern) -ne -1) {
         Write-Host "  Already patched to localhost. Nothing to do." -ForegroundColor Green
     } else {
-        # Find and replace original URL
-        $idx = Find-BytePattern -Data $data -Pattern $ORIGINAL_URL
-        if ($idx -eq -1) { Write-Error "Original URL not found in file!"; exit 1 }
-        $result = Replace-BytePattern -Data $data -Pattern $ORIGINAL_URL -Replacement $REPLACEMENT_URL
-        if ($result.Count -eq 0) { Write-Error "Failed to replace URL pattern!"; exit 1 }
-        $data = $result.Data
+        # Overwrite the QueryHost value in place
+        $idx = Find-BytePattern -Data $data -Pattern $QUERY_HOST_FIELD
+        if ($idx -eq -1) { Write-Error "QueryHost setting not found in file!"; exit 1 }
+        $start = $idx + $QUERY_HOST_FIELD.Length
+        if ($data[$start + $QUERY_HOST_LENGTH] -ne 34) { Write-Error "QueryHost value is not the expected $QUERY_HOST_LENGTH bytes!"; exit 1 }
+        [Array]::Copy($REPLACEMENT_URL, 0, $data, $start, $QUERY_HOST_LENGTH)
         if ($data.Length -ne $originalSize) { Write-Error "File size changed! Aborting."; exit 1 }
         [System.IO.File]::WriteAllBytes($AssetsPath, $data)
-        Write-Host "  Patched $($result.Count) occurrence(s) of the original URL." -ForegroundColor Green
+        Write-Host "  Patched QueryHost." -ForegroundColor Green
     }
 
     Write-Host ""

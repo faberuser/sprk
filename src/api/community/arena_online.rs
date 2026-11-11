@@ -45,7 +45,7 @@ pub(crate) async fn pair(
             continue;
         }
         let uid = id.min(other_id);
-        let mut accounts = vec![mine["Register"]["AccountInfo"].clone(),other["Register"]["AccountInfo"].clone()];
+        let mut accounts = vec![super::registered_account(db,id,mine).await?,super::registered_account(db,other_id,&other).await?];
         if id > other_id { accounts.swap(0,1); }
         accounts[0]["TeamType"] = json!("Left");
         accounts[1]["TeamType"] = json!("Right");
@@ -58,7 +58,10 @@ pub(crate) async fn pair(
             let wait = json!({"BaseResult":"Success","Result":"Success","MatchInfo":info,
                 "MatchedNpcInfo":null,"RelayBattleServerAddress":"","RelayBattleServerPort":0,
                 "SwordResult":match_tickets(db,s,account_id,kind,0).await?,"BattleInfo":battle_info_kind(db,s,account_id,kind).await?});
+            // Honor's MatchInfo repeats both ~600 KB registrations; store it
+            // without them (re-polls rebuild them from arena_snapshots).
             data["Wait"] = wait.clone();
+            if kind==1 { data["Wait"]["MatchInfo"]["AccountInfos"] = json!([]); }
             data["Opponent"] = json!(enemy);
             data["OnlineMatchUid"] = json!(uid);
             data["ServiceOwned"] = json!(true);

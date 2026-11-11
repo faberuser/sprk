@@ -538,6 +538,40 @@ No Sale follows native offer availability. Selector backgrounds use simple
 geometry so ornamental sprite borders cannot expand colliders over adjacent
 controls.
 
+### Special Shop search and bookmarks
+
+`--shop-search-only` installs the focused patch (`SprkShopSearch.dll`); add
+`--stage-only` to prepare it without replacing installed DLLs.
+`--verify-shop-search` checks every hook's IL stack, the helper's native bindings
+and runs the matching/bookmark self-tests. The full `--build-release` path
+installs and verifies it right after shop tags.
+
+Two client-only groups are added to `NewPayShopGroupTable` at runtime, before the
+sidebar is built, so selection, scrolling and the product list stay native:
+
+- **Bookmarks** and **Search** are Package's first two children, in that order.
+  Bookmarks is what clicking Package opens, and the lobby shop button
+  (`PayShopManagement.OpenNewPayShop()`, previously `"Hero"`) opens it as well.
+  Explicit links such as hero, Ruby and Gold shop shortcuts are unchanged.
+  Hot & New is hidden (its offers remain searchable). If a table has no Package
+  tab, both become top-level tabs and Search draws its own magnifier icon.
+- In both tabs the tag bar becomes a search field. The native bar and its screen-anchored background stay live. Only the tag pills, View All, the TAG label and the frame's click area are disabled, by component, and restored on leaving. The field re-fits to the frame whenever it moves or resizes. In Bookmarks it filters the
+  bookmarks. In Search, words are folded like the selector-ticket search (case,
+  spaces, punctuation, accents), and every word must match. Results are ordered
+  by tier: product name, then contained item and package-content names (one level
+  of `PackageItemHelper` expansion, plus currencies), then product/item
+  descriptions. Within a tier, native order is kept. If nothing matches exactly,
+  a typo-tolerant pass runs over names and contents. Only products whose category
+  is enabled in the shop are searched.
+
+Every `PayShopProductComponent` card and the `PayShopProductInfoPopup` image
+get a star toggle (`Common_Star`). Card stars keep drag-scrolling and take
+the click before the card. Card and popup stars stay in sync. Bookmarks are
+product indices stored per account on this device (`LocalAccountString`
+`SprkShopBookmarks`). They are not synced through the server. Unbookmarking inside
+Bookmarks leaves the card visible (hollow star) until the list is rebuilt. Use
+this to undo by mistake. Pooled sidebar buttons restore the native icon when reused.
+
 ### King's Pass artifacts in selectors
 
 `--artifact-selectors-only` adds Honorary Trophy (150900), Honorary Medal
@@ -880,4 +914,22 @@ client is IL2CPP, so its own rule could not be read directly.
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --gear-filter-options-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-gear-filter-options
+```
+
+## Host list URL (QueryHost)
+
+The client requests its host list (login and CDN servers) from the launcher's
+`SPRK_HOST_URL`, normally `/host.json`. Without it, `ResolveHostUrl` falls back
+to `QueryHost` in `resources.assets`. `--query-host-only` rewrites that setting
+(any existing http(s) URL) to
+`http://127.0.0.1:8080/sprk/live/1/host_1.0_304dbdffe094.json`. The value is a
+fixed 87-byte string inside a TextAsset, so it is replaced in place with space
+padding and the asset layout is unchanged. `--verify-query-host` requires exactly
+one QueryHost with the new URL. Both
+run last in `--build-release`, after every other step that re-saves
+`resources.assets`. The server serves only `/host.json` and `/sprk/live/...`.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --query-host-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-query-host
 ```

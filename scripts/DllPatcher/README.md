@@ -558,6 +558,13 @@ Preview rows use neutral state and highlight the currently previewed costume;
 shared ownership, purchase, equipment and Dressing Room state checks remain intact.
 This only changes the local model preview and does not grant costumes.
 
+In the Dressing Room, See Motions (`Button_Hide`) stays visible for every
+preview. Previously it hid whenever an unowned hair, weapon or accessory had
+`IsShow == false` (for example "Requires Costume" hairstyles). It opens on a
+snapshot (`JsonMarshaler.Clone`) of the previewed appearance: costume, hair,
+weapon and accessories, owned or not. Changes made inside See Motions do not
+alter the Dressing Room preview.
+
 ```powershell
 dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only --stage-only
 dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-motion-costumes --stage-only
@@ -566,7 +573,8 @@ dotnet run --project scripts/DllPatcher -- ../sprk-client --motion-costumes-only
 ```
 
 The full `--build-release` path installs and verifies this patch. Verification
-checks matching-hero enumeration, all three preview state refreshes, absence of
+checks matching-hero enumeration, all three preview state refreshes, the Dressing
+Room See Motions visibility/snapshot hooks, absence of
 ownership/visibility filters, native shared ownership handling, unchanged costume
 ownership method bodies, patch idempotence and the replacement method stack.
 

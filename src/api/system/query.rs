@@ -85,7 +85,8 @@ pub struct VersionedHost {
 
 /// Handle initial host query from client
 /// The client fetches this URL to get the list of available game servers
-/// Path: /Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json (or similar)
+/// Paths: /host.json (launcher) and /sprk/live/{version}/{hostfile} (QueryHost
+/// fallback in resources.assets).
 /// 
 /// IMPORTANT: Response must be an ARRAY of VersionedHost objects
 pub async fn get_host_info() -> Json<Vec<VersionedHost>> {

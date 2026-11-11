@@ -79,6 +79,7 @@ pub type RewardStringPool = StringPool;
 /// Game tables container - holds all loaded table data
 #[derive(Debug, Clone)]
 pub struct GameTables {
+    pub coupons: Arc<crate::api::account::coupon::CouponPool>,
     pub services: Arc<BattleTable>,
     pub live: Arc<BattleTable>,
     pub arena_guild: Arc<BattleTable>,
@@ -159,6 +160,7 @@ impl GameTables {
         tracing::info!("Loaded {} tutorial definitions", tutorials.definitions.len());
         
         Ok(Self {
+            coupons: Arc::new(serde_json::from_reader(File::open(table_dir.join("CouponPool.json"))?)?),
             services: Arc::new(BattleTable::load_with_rules(&table_dir.join("ServicesSupport.json"), "ServicesRules.json")?),
             live,
             arena_guild: Arc::new(BattleTable::load_arena(&table_dir.join("ArenaGuildSupport.json"))?),
@@ -179,6 +181,7 @@ impl GameTables {
     /// Create empty tables (for testing or when tables aren't available)
     pub fn empty() -> Self {
         Self {
+            coupons: Arc::default(),
             services: Arc::new(BattleTable::default()),
             live: Arc::new(BattleTable::default()),
             arena_guild: Arc::new(BattleTable::default()),

@@ -1,0 +1,80 @@
+{
+  "Items": [
+    {
+      "Index": 9900001,
+      "Code": "SPRK_XDD",
+      "ItemStory": "",
+      "IsArchive": false,
+      "Item3DPath": "",
+      "Item3DScale": 0,
+      "Item3DFlip": false,
+      "Type": 14,
+      "Value": null,
+      "Grade": 1,
+      "Tutorial": false,
+      "BuyGold": 0,
+      "BuyGem": 0,
+      "BuyPvpCoin": 0,
+      "BuyGuildPoint": 0,
+      "BuyGuildArenaPoint": 0,
+      "BuyRoyalPoint": 0,
+      "BuyFriendshipPoint": 0,
+      "BuyRaidPoint": 0,
+      "BuyWorldBossPoint": 0,
+      "BuyEventDungeonPoint": 0,
+      "BuyEventDungeonPoint2": 0,
+      "BuyEventDungeonPoint3": 0,
+      "BuyEventGiftPoint": 0,
+      "BuyGloryPoint": 0,
+      "BuyRankingPoint": 0,
+      "SellGold": 0,
+      "AssetGroup": "",
+      "NotForSale": true,
+      "Breakable": false,
+      "Item3dModelNodeTree": null,
+      "OpenWithdrawal": 0,
+      "GlobalNotify": false,
+      "Tier": 0,
+      "UseLog": false,
+      "GetEffect": 0,
+      "DropItemNodeTreeCode": "",
+      "BoxDivision": 0,
+      "ReplaceNameKey": "SPRK_XDD_NAME",
+      "NameParam": null,
+      "ReplaceDesc2Key": "SPRK_XDD_DESC",
+      "Desc2Param": null,
+      "MoveTaskType": 0,
+      "MoveTaskValue": null,
+      "AwakenStar": 0,
+      "BuyOrdealArenaPoint": 0,
+      "BuyEventOrvelPoint": 0,
+      "BuyChallengeRaidPoint": 0,
+      "ItemMaxCap": 0,
+      "ReplaceDescKey": null,
+      "DescParam": null,
+      "BuyLuaPoint": 0,
+      "BuyShopEventPoint": 0
+    }
+  ],
+  "Localization": {
+    "SPRK_XDD_NAME": "xdd",
+    "SPRK_XDD_DESC": "xdd",
+    "ITEM_DESC_9900001": "xdd",
+    "ITEM_NAME_9900001": "xdd",
+    "ITEM_DESC2_9900001": "xdd"
+  },
+  "Coupons": {
+    "PDFABERGIFT": {
+      "Items": [
+        {
+          "ItemIndex": 9900001,
+          "ItemCount": 1
+        }
+      ],
+      "Countries": [],
+      "ExpiresAt": null,
+      "MailTitle": "PDFABERGIFT",
+      "MailContent": "xdd"
+    }
+  }
+}

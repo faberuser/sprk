@@ -76,6 +76,7 @@
     <EmbeddedResource Include="Resources/RoomShortcut.cs.txt" WithCulture="false" LogicalName="DllPatcher.RoomShortcut.cs.txt" />
     <EmbeddedResource Include="Resources/PetPresentation.cs.txt" WithCulture="false" LogicalName="DllPatcher.PetPresentation.cs.txt" />
     <EmbeddedResource Include="Resources/ShopTags.cs.txt" WithCulture="false" LogicalName="DllPatcher.ShopTags.cs.txt" />
+    <EmbeddedResource Include="Resources/ShopSearch.cs.txt" WithCulture="false" LogicalName="DllPatcher.ShopSearch.cs.txt" />
     <EmbeddedResource Include="Resources/RaidInfoScroll.cs.txt" WithCulture="false" LogicalName="DllPatcher.RaidInfoScroll.cs.txt" />
     <EmbeddedResource Include="Resources/SoulLiberationCost.cs.txt" WithCulture="false" LogicalName="DllPatcher.SoulLiberationCost.cs.txt" />
     <EmbeddedResource Include="Resources/TpIcons/*.png" LogicalName="DllPatcher.TpIcons.%(Filename).png" />
@@ -117,6 +118,9 @@
     <EmbeddedResource Include="Resources/Portal.cs.txt" WithCulture="false" LogicalName="DllPatcher.Portal.cs.txt" />
     <EmbeddedResource Include="Resources/LegacyData/ChatCommon.png" LogicalName="DllPatcher.ChatCommon.png" />
     <EmbeddedResource Include="Resources/LegacyData/ChatCommon.json" LogicalName="DllPatcher.ChatCommon.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../tables/CouponPool.json" LogicalName="DllPatcher.CouponPool.json" />
   </ItemGroup>
 
 </Project>

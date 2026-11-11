@@ -191,9 +191,16 @@ async fn arena_rankings_share_standings_and_show_only_the_competitive_season_squ
         (0,season,"canceled",0,json!([3])),
         (1,season,"complete",0,json!((1..=12).collect::<Vec<_>>())),
     ] {
-        let data = json!({"Season":saved_season,"DuelType":duel,"Heroes":heroes,"Register":{"AccountInfo":{"HeroInfos":snapshot}}});
-        sqlx::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES(?,?,?,?,?)")
-            .bind(a).bind(kind).bind(status).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap();
+        // Honor registrations live in arena_snapshots; Victory rows keep theirs inline.
+        let separate = kind == 1;
+        let register = if separate { Value::Null } else { json!({"HeroInfos":snapshot}) };
+        let data = json!({"Season":saved_season,"DuelType":duel,"Heroes":heroes,"Register":{"AccountInfo":register}});
+        let run = sqlx::query("INSERT INTO arena_runs(account,kind,status,started,data) VALUES(?,?,?,?,?)")
+            .bind(a).bind(kind).bind(status).bind(now()).bind(data.to_string()).execute(&s.db).await.unwrap().last_insert_rowid();
+        if separate {
+            sqlx::query("INSERT INTO arena_snapshots(run,data) VALUES(?,?)")
+                .bind(run).bind(json!({"HeroInfos":snapshot}).to_string()).execute(&s.db).await.unwrap();
+        }
     }
     for (mode, first, expected) in [("Normal",b,json!([2,1])),("BanPick",a,json!([4,3,2,1]))] {
         let args = format!("ArenaType={mode}&StartRank=0&EndRank=99");

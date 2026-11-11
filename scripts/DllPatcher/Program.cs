@@ -79,6 +79,8 @@ namespace DllPatcher
             if (args.Contains("--verify-lavril-circle")) { InstallLavrilCircle(args[0],args.Contains("--stage-only"),true); return; }
             if (args.Contains("--soulstone-ownership-only")) { InstallSoulstoneOwnership(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-soulstone-ownership")) { InstallSoulstoneOwnership(args[0],args.Contains("--stage-only"),true); return; }
+            if (args.Contains("--coupon-items-only")) { InstallCouponItems(args[0],false); return; }
+            if (args.Contains("--verify-coupon-items")) { InstallCouponItems(args[0],true); return; }
             if (args.Contains("--costume-tickets-only")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),false); return; }
             if (args.Contains("--verify-costume-tickets")) { InstallCostumeTickets(args[0],args.Contains("--stage-only"),true); return; }
             if (args.Contains("--motion-costumes-only")) { InstallMotionCostumes(args[0],args.Contains("--stage-only")); return; }
@@ -111,6 +113,8 @@ namespace DllPatcher
             if (args.Contains("--verify-graphics-options")) { VerifyGraphicsOptionsFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--room-shortcut-only")) { InstallRoomShortcut(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-room-shortcut")) { VerifyRoomShortcutFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--query-host-only")) { InstallQueryHost(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-query-host")) { VerifyQueryHostFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--pet-presentation-only")) { InstallPetPresentation(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-pet-presentation")) { VerifyPetPresentationFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--inventory-expansion-only")) { InstallInventoryExpansion(args[0],args.Contains("--stage-only")); return; }
@@ -119,6 +123,8 @@ namespace DllPatcher
             if (args.Contains("--verify-special-shop")) { VerifySpecialShopFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--shop-tags-only")) { InstallShopTags(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-shop-tags")) { VerifyShopTagsFile(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--shop-search-only")) { InstallShopSearch(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-shop-search")) { VerifyShopSearchFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--raid-info-scroll-only")) { InstallRaidInfoScroll(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-raid-info-scroll")) { VerifyRaidInfoScrollFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--friend-presence-only")) { InstallFriendPresence(args[0]); return; }

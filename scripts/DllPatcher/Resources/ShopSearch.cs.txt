@@ -1,0 +1,634 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using NShared;
+using NShared.NJit;
+using NGame2.NAccount;
+using NGame2.NHelper;
+using NGame2.NUI.NComponent2.NPayShop;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+using UnityEngine;
+using ShopWindow = NGame2.NUI.NWindow.NPayShop.PayShop;
+using Math = System.Math;
+
+// Special Shop search and bookmarks. Two client-only shop groups are added to
+// the native category table so the sidebar, selection and product list stay
+// native: Package's first children are "Bookmarks" (opened by the lobby shop
+// button and by clicking Package) and "Search". Hot & New is hidden.
+public static class SprkShopSearch {
+    public const string SearchKey="SprkSearch",BookmarkKey="SprkBookmark",ParentKey="Package";
+    public const string SearchName="Search",BookmarkName="Bookmarks";
+    const string StorageKey="SprkShopBookmarks";
+    const BindingFlags Any=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
+
+    static readonly Dictionary<string,string> queries=new Dictionary<string,string>{{SearchKey,""},{BookmarkKey,""}};
+    static readonly Dictionary<int,string[]> textCache=new Dictionary<int,string[]>();
+    static Dictionary<int,int> pendingRank;
+    static NewPayShopGroupData searchGroup,bookmarkGroup;
+    static HashSet<int> bookmarks;
+    static List<int> bookmarkOrder;
+    static long bookmarkAccount=long.MinValue;
+    static LocalAccountString storage;
+    public static int LastCount=-1;
+    public static string LastCategory="";
+
+    public static bool IsVirtual(string category) { return category==SearchKey || category==BookmarkKey; }
+    public static string Query(string category) { string q;return category!=null && queries.TryGetValue(category,out q)?q:""; }
+    public static void SetQuery(string category,string value) { if(IsVirtual(category))queries[category]=value??""; }
+
+    // ---- Matching (same folding rules as the selector-ticket search) --------
+    public static string Fold(string value) {
+        if(String.IsNullOrEmpty(value))return "";
+        value=NGUIText.StripSymbols(value).Normalize(NormalizationForm.FormD);
+        var sb=new StringBuilder(value.Length);
+        foreach(char ch in value) {
+            var category=CharUnicodeInfo.GetUnicodeCategory(ch);
+            if(category==UnicodeCategory.NonSpacingMark || category==UnicodeCategory.SpacingCombiningMark || category==UnicodeCategory.EnclosingMark)continue;
+            if(Char.IsLetterOrDigit(ch))sb.Append(Char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+    public static string[] Terms(string query) {
+        if(String.IsNullOrEmpty(query))return new string[0];
+        return query.Split((char[])null,StringSplitOptions.RemoveEmptyEntries).Select(Fold).Where(t=>t.Length>0).Distinct().ToArray();
+    }
+    public static int Tolerance(string term) { return term.Length<4?0:term.Length<=5?1:term.Length<=8?2:3; }
+    // Smallest edit distance between the term and any substring of the text.
+    public static int Distance(string term,string text) {
+        int m=term.Length,n=text.Length;
+        if(m==0)return 0;
+        var d=new int[m+1,n+1];
+        for(int i=0;i<=m;i++)d[i,0]=i;
+        for(int i=1;i<=m;i++)for(int j=1;j<=n;j++) {
+            int cost=term[i-1]==text[j-1]?0:1;
+            int v=Math.Min(Math.Min(d[i-1,j]+1,d[i,j-1]+1),d[i-1,j-1]+cost);
+            if(i>1 && j>1 && term[i-1]==text[j-2] && term[i-2]==text[j-1])v=Math.Min(v,d[i-2,j-2]+1);
+            d[i,j]=v;
+        }
+        int best=m;
+        for(int j=0;j<=n;j++)best=Math.Min(best,d[m,j]);
+        return best;
+    }
+    // tiers: [0] product names, [1] names of the items/contents, [2] descriptions.
+    // Rank 0-2 is the lowest tier set needed for every word; -1 means no match.
+    public static int Rank(string[] terms,string[] tiers) {
+        if(terms.Length==0)return 0;
+        for(int tier=0;tier<tiers.Length;tier++) {
+            bool all=true;
+            foreach(var term in terms) {
+                bool found=false;
+                for(int t=0;t<=tier && !found;t++)found=tiers[t].IndexOf(term,StringComparison.Ordinal)>=0;
+                if(!found){all=false;break;}
+            }
+            if(all)return tier;
+        }
+        return -1;
+    }
+    // Typo-tolerant fallback over names and contents only.
+    public static bool Fuzzy(string[] terms,string[] tiers) {
+        if(terms.Length==0)return true;
+        var parts=tiers.Take(2).SelectMany(t=>t.Split(new[]{'|'},StringSplitOptions.RemoveEmptyEntries)).ToArray();
+        foreach(var term in terms) {
+            if(parts.Any(p=>p.IndexOf(term,StringComparison.Ordinal)>=0))continue;
+            int k=Tolerance(term);
+            if(k==0 || !parts.Any(p=>Distance(term,p)<=k))return false;
+        }
+        return true;
+    }
+    public static string Join(IEnumerable<string> values) {
+        return "|"+String.Join("|",values.Select(Fold).Where(v=>v.Length>0).Distinct().ToArray())+"|";
+    }
+
+    static string Loc(string key) {
+        if(String.IsNullOrEmpty(key))return "";
+        try { return LocalizationManager.GetStringDirect(key)??key; } catch { return key; }
+    }
+    static void AddItem(ItemData item,List<string> names,List<string> descs,bool expand) {
+        if(item==null)return;
+        try { names.Add(item.Name); } catch {}
+        try { names.Add(NGame2.NUtil.NStringProxy.ItemNameBuilder.GetItemName(item,null,true)); } catch {}
+        try { descs.Add(Loc(item.Description)); } catch {}
+        try { descs.Add(Loc(item.Description2)); } catch {}
+        if(!expand)return;
+        try {
+            if(!PackageItemHelper.IsPackageItem(item))return;
+            var fixedList=new List<RewardElementData>();var added=new List<RewardElementData>();
+            PackageItemHelper.GetRewardElementList(item,fixedList,added);
+            foreach(var element in fixedList.Concat(added)) {
+                if(element==null)continue;
+                var currency=element.GetCurrencyType();
+                if(currency!=CurrencyType.None){names.Add(currency==CurrencyType.Gem?"Ruby":currency.ToString());continue;}
+                AddItem(GameRoot.Instance.ItemDataContainer.GetDataByCode(element.ItemCode),names,descs,false);
+            }
+        } catch(Exception e) { Debug.LogWarning("[SprkShopSearch] package contents: "+e.Message); }
+    }
+    public static string[] Text(NewPayShopProductInfo info) {
+        string[] text;
+        if(textCache.TryGetValue(info.Index,out text))return text;
+        var names=new List<string>{Loc(info.CardTitle),Loc(info.ProductName),info.ProductName};
+        var items=new List<string>();var descs=new List<string>{Loc(info.ProductDesc),Loc(info.ProductDetailDesc)};
+        var container=GameRoot.Instance.ItemDataContainer;
+        var seen=new HashSet<int>();
+        void Add(ItemData item) { if(item!=null && seen.Add(item.Index))AddItem(item,items,descs,true); }
+        if(info.HeroItemIndex>0)Add(container.GetData(info.HeroItemIndex));
+        if(info.UseItemCode!=null)foreach(var code in info.UseItemCode)if(!String.IsNullOrEmpty(code))Add(container.GetDataByCode(code));
+        if(info.ItemInfos!=null)foreach(var item in info.ItemInfos)if(item!=null)Add(container.GetData(item.ItemIndex));
+        if(info.Gem>0 || info.FirstGem>0 || info.BonusGem>0 || info.DailyGem>0)items.Add("Ruby");
+        if(info.Gold>0)items.Add("Gold");
+        if(info.Mileage>0)items.Add("Mileage");
+        if(info.LuaPoint>0)items.Add("Lua");
+        text=new[]{Join(names),Join(items),Join(descs)};
+        textCache[info.Index]=text;
+        return text;
+    }
+
+    // ---- Bookmarks (per account, this device) ---------------------------------
+    static void LoadBookmarks() {
+        long account=LocalAccountDefine.AccountId;
+        if(bookmarks!=null && bookmarkAccount==account)return;
+        bookmarkAccount=account;bookmarks=new HashSet<int>();bookmarkOrder=new List<int>();
+        storage=new LocalAccountString(StorageKey);
+        string raw="";
+        try { raw=storage.Value??""; } catch(Exception e) { Debug.LogException(e); }
+        foreach(var part in raw.Split(',')) {
+            int index;
+            if(int.TryParse(part,NumberStyles.Integer,CultureInfo.InvariantCulture,out index) && index!=0 && bookmarks.Add(index))bookmarkOrder.Add(index);
+        }
+    }
+    public static string Serialize(IEnumerable<int> order) { return String.Join(",",order.Select(i=>i.ToString(CultureInfo.InvariantCulture)).ToArray()); }
+    public static bool IsBookmarked(int index) { LoadBookmarks();return bookmarks.Contains(index); }
+    public static bool Toggle(int index) {
+        LoadBookmarks();
+        bool on=!bookmarks.Contains(index);
+        if(on){bookmarks.Add(index);bookmarkOrder.Add(index);} else {bookmarks.Remove(index);bookmarkOrder.Remove(index);}
+        try { storage.Value=Serialize(bookmarkOrder); } catch(Exception e) { Debug.LogException(e); }
+        return on;
+    }
+    public static int BookmarkCount { get { LoadBookmarks();return bookmarks.Count; } }
+
+    // ---- Category table entries -------------------------------------------------
+    static NewPayShopGroupData Group(string key,string name,string parent,int sort) {
+        return new NewPayShopGroupData{PayShopCategoryType=key,CategoryName=name,ParentCategory=parent,IsCustomize=false,Sort=sort,IsEnable=true,
+            LinkCurrency=CurrencyType.None,EnableCondition=EGroupEnableConditionType.None,EPayShopCategoryType=NewPayShopCategoryType.None,
+            EParentCategory=parent==null?NewPayShopCategoryType.None:NewPayShopGroupDataContainer.StringToCategoryType(parent)};
+    }
+    public static void Inject(NewPayShopGroupDataContainer container) {
+        var all=container.GetAllData();
+        if(all==null)return;
+        var native=all.Where(g=>g!=null && !IsVirtual(g.PayShopCategoryType)).ToList();
+        // Hot & New is hidden from the sidebar.
+        string hotKey=NewPayShopCategoryType.HotNew.ToString();
+        foreach(var g in native.Where(g=>g.PayShopCategoryType==hotKey))g.IsEnable=false;
+        var hotCached=container.GetData(hotKey);
+        if(hotCached!=null)hotCached.IsEnable=false;
+        // Package's first two children: Bookmarks, then Search. Being first,
+        // Bookmarks is also what a click on Package opens.
+        bool hasParent=native.Any(g=>g.PayShopCategoryType==ParentKey && String.IsNullOrEmpty(g.ParentCategory));
+        var siblings=hasParent?native.Where(g=>g.ParentCategory==ParentKey).ToList()
+            :native.Where(g=>String.IsNullOrEmpty(g.ParentCategory) && g.PayShopCategoryType!=hotKey).ToList();
+        int first=siblings.Count==0?0:siblings.Min(g=>g.Sort);
+        string parent=hasParent?ParentKey:null;
+        bookmarkGroup=bookmarkGroup??Group(BookmarkKey,BookmarkName,parent,first-2);
+        searchGroup=searchGroup??Group(SearchKey,SearchName,parent,first-1);
+        bookmarkGroup.ParentCategory=parent;bookmarkGroup.Sort=first-2;bookmarkGroup.IsEnable=true;
+        searchGroup.ParentCategory=parent;searchGroup.Sort=first-1;searchGroup.IsEnable=true;
+        foreach(var g in new[]{bookmarkGroup,searchGroup})
+            g.EParentCategory=parent==null?NewPayShopCategoryType.None:NewPayShopGroupDataContainer.StringToCategoryType(parent);
+        var list=new List<NewPayShopGroupData>(native){searchGroup,bookmarkGroup};
+        var baseList=(JitRef<List<NewPayShopGroupData>>)typeof(JitDataContainer<NewPayShopGroupData>).GetProperty("BaseList",Any).GetValue(container,null);
+        baseList.JsonLoad_Set(list);
+        var dic=(JitDictionaryWithKey<string,NewPayShopGroupData>)typeof(JitDataContainerDefault<string,NewPayShopGroupData>).GetProperty("BaseDic",Any).GetValue(container,null);
+        var cache=dic.JsonLoad_Get();
+        lock(cache){cache[SearchKey]=searchGroup;cache[BookmarkKey]=bookmarkGroup;}
+    }
+
+    // ---- IL hooks -----------------------------------------------------------------
+    // Start of PayShop.Open: entries must exist before the sidebar is built.
+    public static void BeforeOpen(ShopWindow shop) {
+        try {
+            textCache.Clear();
+            Inject(GameRoot.Instance.NewPayShopGroupDataContainer);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+    // End of PayShop.Open.
+    public static void AfterOpen(ShopWindow shop) {
+        try {
+            var bar=shop.GetComponent<SprkShopSearchBar>();
+            if(bar==null)bar=shop.gameObject.AddComponent<SprkShopSearchBar>();
+            bar.Bind(shop);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+    // End of PayShopCategoryComponent.Open: name and icon for the added tabs.
+    public static void DecorateCategory(PayShopCategoryComponent component,NewPayShopGroupData data) {
+        try {
+            // Only top-level buttons have an icon (Search is top-level only without a Package tab).
+            SprkShopIcons.ApplyCategoryIcon(component,data!=null && data.PayShopCategoryType==SearchKey && String.IsNullOrEmpty(data.ParentCategory));
+            if(data==null || !IsVirtual(data.PayShopCategoryType))return;
+            component.SetName(data.PayShopCategoryType==SearchKey?SearchName:BookmarkName);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+    // End of PayShopProductList.GetRealDataList(category).
+    public static List<NewPayShopProductInfo> Products(List<NewPayShopProductInfo> native,PayShopProductList list,string category) {
+        LastCategory=category??"";
+        pendingRank=null;LastCount=-1;
+        if(!IsVirtual(category))return native;
+        try {
+            var manager=GlobalAutoBehaviour<AccountManager>.instance.NewPayShopProductManager;
+            IEnumerable<NewPayShopProductInfo> pool;
+            if(category==BookmarkKey) {
+                LoadBookmarks();
+                pool=bookmarkOrder.Select(i=>manager.Get(i)).Where(p=>p!=null);
+            } else {
+                var groups=GameRoot.Instance.NewPayShopGroupDataContainer;
+                pool=manager.GetValues().Where(p=>p!=null && Visible(groups,p.Category));
+            }
+            var terms=Terms(Query(category));
+            if(category==SearchKey && terms.Length==0){LastCount=0;return new List<NewPayShopProductInfo>();}
+            var ranks=new Dictionary<int,int>();
+            var result=new List<NewPayShopProductInfo>();
+            var candidates=pool.ToList();
+            foreach(var product in candidates) {
+                int rank=Rank(terms,Text(product));
+                if(rank<0)continue;
+                ranks[product.Index]=rank;result.Add(product);
+            }
+            if(result.Count==0 && terms.Length>0)
+                foreach(var product in candidates)
+                    if(Fuzzy(terms,Text(product))){ranks[product.Index]=3;result.Add(product);}
+            if(category==SearchKey && terms.Length>0)pendingRank=ranks;
+            LastCount=0;
+            return result;
+        } catch(Exception e) { Debug.LogException(e);return native; }
+    }
+    static bool Visible(NewPayShopGroupDataContainer groups,string category) {
+        if(String.IsNullOrEmpty(category) || IsVirtual(category))return false;
+        var group=groups.GetData(category);
+        if(group==null)return false;
+        // Hot & New is hidden from the sidebar, but its offers stay searchable.
+        if(!group.IsEnable && category!=NewPayShopCategoryType.HotNew.ToString())return false;
+        if(!String.IsNullOrEmpty(group.ParentCategory)) {
+            var parent=groups.GetData(group.ParentCategory);
+            if(parent==null || !parent.IsEnable)return false;
+        }
+        return true;
+    }
+    // End of PayShopProductList.Sort: relevance tiers, native order within a tier.
+    public static void AfterSort(PayShopProductList list,List<NewPayShopProductInfo> data) {
+        var ranks=pendingRank;pendingRank=null;
+        if(data==null)return;
+        if(IsVirtual(LastCategory))LastCount=data.Count;
+        if(ranks==null || data.Any(p=>!ranks.ContainsKey(p.Index)))return;
+        var sorted=data.OrderBy(p=>ranks[p.Index]).ToList();
+        data.Clear();data.AddRange(sorted);
+    }
+    // End of PayShopProductComponent.Init: bookmark toggle on every card.
+    public static void Decorate(PayShopProductComponent card,NewPayShopProductInfo info) {
+        try {
+            var star=card.GetComponent<SprkShopStar>();
+            if(star==null)star=card.gameObject.AddComponent<SprkShopStar>();
+            star.Bind(card,card.RootWidget,info,42,34f);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+    // End of PayShopProductInfoPopup.Init: the same toggle on the details popup.
+    public static void DecoratePopup(NGame2.NUI.NWindow.NPayShop.PayShopProductInfoPopup popup,NewPayShopProductInfo info) {
+        try {
+            var star=popup.GetComponent<SprkShopStar>();
+            if(star==null)star=popup.gameObject.AddComponent<SprkShopStar>();
+            UIWidget anchor=popup.ProductTexture!=null?popup.ProductTexture.GetComponent<UIWidget>():null;
+            if(anchor==null && popup.ProductTexture!=null)anchor=popup.ProductTexture.GetComponentInChildren<UIWidget>(true);
+            star.Bind(popup,anchor,info,56,30f);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+    // PayShopManagement.OpenNewPayShop() (the lobby button) opens Package > Bookmarks.
+    public static string DefaultCategory(string native) {
+        return BookmarkKey;
+    }
+}
+
+public static class SprkShopIcons {
+    static UIAtlas starAtlas;static string starSprite;
+    static Texture2D magnifier;
+    static readonly string[] StarNames={"Common_Star","Common_Star_2"};
+    public static bool Find(string[] names,out UIAtlas atlas,out string sprite) {
+        atlas=null;sprite=null;
+        foreach(var name in names)foreach(var candidate in Resources.FindObjectsOfTypeAll<UIAtlas>())
+            if(candidate!=null && candidate.GetSprite(name)!=null){atlas=candidate;sprite=name;return true;}
+        return false;
+    }
+    public static bool Star(out UIAtlas atlas,out string sprite) {
+        if(starAtlas==null)Find(StarNames,out starAtlas,out starSprite);
+        atlas=starAtlas;sprite=starSprite;return atlas!=null;
+    }
+    // No magnifier exists in the shop atlases; draw an anti-aliased one in white
+    // and tint it like the native menu icon.
+    public static Texture2D Magnifier() {
+        if(magnifier!=null)return magnifier;
+        const int size=96;
+        var pixels=new Color32[size*size];
+        float cx=40f,cy=56f,outer=27f,inner=19f;
+        for(int y=0;y<size;y++)for(int x=0;x<size;x++) {
+            float px=x+.5f,py=y+.5f;
+            float r=Mathf.Sqrt((px-cx)*(px-cx)+(py-cy)*(py-cy));
+            float ring=Mathf.Clamp01(Mathf.Min(r-inner+.75f,outer-r+.75f));
+            // Handle: thick segment towards the lower right.
+            Vector2 a=new Vector2(cx+outer*.68f,cy-outer*.68f),b=new Vector2(84f,12f),p=new Vector2(px,py);
+            float t=Mathf.Clamp01(Vector2.Dot(p-a,b-a)/(b-a).sqrMagnitude);
+            float handle=Mathf.Clamp01(7.5f-Vector2.Distance(p,a+(b-a)*t)+.75f);
+            byte alpha=(byte)(Mathf.Max(ring,handle)*255f);
+            pixels[y*size+x]=new Color32(255,255,255,alpha);
+        }
+        magnifier=new Texture2D(size,size,TextureFormat.RGBA32,false);
+        magnifier.wrapMode=TextureWrapMode.Clamp;magnifier.SetPixels32(pixels);magnifier.Apply(false,true);
+        magnifier.name="SprkShopMagnifier";
+        return magnifier;
+    }
+    public static void ApplyCategoryIcon(PayShopCategoryComponent component,bool search) {
+        if(component.CategoryImageSelector==null)return;
+        var target=typeof(NNguiExtension.UISpriteSelector).GetField("_targetSprite",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(component.CategoryImageSelector) as UISprite;
+        if(target==null)target=component.CategoryImageSelector.GetComponent<UISprite>();
+        if(target==null)target=component.CategoryImageSelector.GetComponentInChildren<UISprite>(true);
+        if(target==null){Debug.LogWarning("[SprkShopSearch] category icon sprite not found");return;}
+        var existing=target.transform.parent.Find("SprkSearchIcon");
+        if(!search) {
+            // Pooled sidebar buttons are reused for native categories.
+            if(existing!=null)existing.gameObject.SetActive(false);
+            target.enabled=true;
+            return;
+        }
+        UITexture icon=existing!=null?existing.GetComponent<UITexture>():null;
+        if(icon==null) {
+            icon=NGUITools.AddWidget<UITexture>(target.transform.parent.gameObject);
+            icon.name="SprkSearchIcon";
+            icon.shader=Shader.Find("Unlit/Transparent Colored");
+        }
+        icon.gameObject.SetActive(true);
+        icon.mainTexture=Magnifier();
+        int side=Math.Min(target.width,target.height);
+        icon.width=(int)(side*.82f);icon.height=icon.width;icon.depth=target.depth;
+        icon.color=target.color;
+        icon.transform.localPosition=target.transform.localPosition;icon.transform.localScale=target.transform.localScale;
+        target.enabled=false;
+    }
+}
+
+public sealed class SprkShopStar : MonoBehaviour {
+    NewPayShopProductInfo info;
+    GameObject root;UISprite sprite;UILabel glyph;bool shown;
+    static readonly Color On=new Color(1f,.84f,.25f,1f),Off=new Color(.42f,.40f,.38f,.45f);
+    public void Bind(Component owner,UIWidget anchor,NewPayShopProductInfo product,int size,float inset) {
+        info=product;
+        if(root==null) {
+            if(anchor==null)anchor=owner.GetComponentInChildren<UIWidget>(true);
+            Build(owner,anchor,size,inset);
+        }
+        Refresh();
+    }
+    void Build(Component owner,UIWidget anchor,int size,float inset) {
+        int depth=0;
+        var panel=anchor.panel??NGUITools.FindInParents<UIPanel>(anchor.gameObject);
+        foreach(var w in owner.GetComponentsInChildren<UIWidget>(true))
+            if(w.panel==null || w.panel==panel)depth=Math.Max(depth,w.depth);
+        root=new GameObject("SprkBookmark");root.layer=anchor.gameObject.layer;
+        root.transform.SetParent(anchor.transform,false);
+        var corners=anchor.localCorners;
+        root.transform.localPosition=new Vector3(corners[2].x-inset,corners[2].y-inset,0f);
+        int hitSize=size+22;
+        var hit=root.AddComponent<UIWidget>();hit.width=hitSize;hit.height=hitSize;hit.depth=depth+10;
+        UIAtlas atlas;string name;
+        if(SprkShopIcons.Star(out atlas,out name)) {
+            sprite=NGUITools.AddWidget<UISprite>(root);sprite.atlas=atlas;sprite.spriteName=name;
+            sprite.type=UIBasicSprite.Type.Simple;sprite.width=size;sprite.height=size;sprite.depth=depth+11;
+        } else {
+            glyph=NGUITools.AddWidget<UILabel>(root);
+            var font=owner.GetComponentsInChildren<UILabel>(true).FirstOrDefault(l=>l.bitmapFont!=null || l.trueTypeFont!=null);
+            if(font!=null){glyph.bitmapFont=font.bitmapFont;glyph.trueTypeFont=font.trueTypeFont;}
+            glyph.fontSize=size;glyph.width=size+16;glyph.height=size+16;glyph.depth=depth+11;
+            glyph.overflowMethod=UILabel.Overflow.ShrinkContent;glyph.alignment=NGUIText.Alignment.Center;
+            glyph.effectStyle=UILabel.Effect.Outline;glyph.effectColor=new Color(.2f,.13f,.05f,1f);
+        }
+        var collider=root.AddComponent<BoxCollider>();collider.size=new Vector3(hitSize,hitSize,1f);
+        var button=root.AddComponent<UIButton>();button.tweenTarget=null;
+        EventDelegate.Add(button.onClick,OnClick);
+        var scroll=NGUITools.FindInParents<UIScrollView>(anchor.gameObject);
+        if(scroll!=null)root.AddComponent<UIDragScrollView>().scrollView=scroll;
+    }
+    void OnClick() {
+        if(info==null)return;
+        SprkShopSearch.Toggle(info.Index);
+        Refresh();
+    }
+    void Refresh() {
+        bool on=info!=null && SprkShopSearch.IsBookmarked(info.Index);
+        shown=on;
+        root.SetActive(info!=null);
+        if(sprite!=null)sprite.color=on?On:Off;
+        if(glyph!=null){glyph.text=on?"★":"☆";glyph.color=on?On:Off;}
+    }
+    // Keeps cards in sync after toggling the same product in its popup.
+    void Update() {
+        if(root!=null && info!=null && SprkShopSearch.IsBookmarked(info.Index)!=shown)Refresh();
+    }
+}
+
+// The tag bar becomes a search field while Search or Bookmarks is selected.
+public sealed class SprkShopSearchBar : MonoBehaviour {
+    static readonly FieldInfo CurrentField=typeof(ShopWindow).GetField("_currentCategory",BindingFlags.Instance|BindingFlags.NonPublic);
+    ShopWindow shop;
+    Transform tagRoot;UISprite frame;UILabel tagLabel;
+    GameObject bar;UISprite field;UIInput input;UILabel inputLabel,title,count,hint;GameObject clear;
+    string shown;bool silent;float pending=-1f;bool styled;
+    Vector3 laidOut=new Vector3(float.NaN,0f,0f);
+    // Native tag-bar parts switched off while Search/Bookmarks is shown. Only
+    // component enabled flags are touched (native code toggles GameObjects),
+    // and exactly the ones switched off here are switched back on.
+    readonly HashSet<Behaviour> hiddenWidgets=new HashSet<Behaviour>();
+    readonly HashSet<Collider> hiddenColliders=new HashSet<Collider>();
+
+    public void Bind(ShopWindow window) { shop=window;shown=null; }
+    string Current { get { return CurrentField.GetValue(shop) as string ?? ""; } }
+
+    void Build() {
+        var tagList=shop.PayShopTagList;
+        tagRoot=tagList.transform.Find("Root");
+        if(tagRoot==null)return;
+        frame=tagRoot.Find("Sprite_TagFrame")?.GetComponent<UISprite>();
+        tagLabel=tagRoot.GetComponentsInChildren<UILabel>(true).FirstOrDefault(l=>l.name.Contains("TagLabel"));
+        if(frame==null || tagLabel==null)return;
+        // Inside the native bar, so its live background (anchored to the
+        // screen) stays visible behind the field at every resolution.
+        bar=new GameObject("SprkShopSearchBar");bar.layer=tagRoot.gameObject.layer;
+        bar.transform.SetParent(tagRoot,false);
+        title=NGUITools.AddWidget<UILabel>(bar);
+        Copy(tagLabel,title);title.name="Title";
+        var fieldGo=new GameObject("Input");fieldGo.layer=bar.layer;fieldGo.transform.SetParent(bar.transform,false);
+        field=fieldGo.AddComponent<UISprite>();
+        field.atlas=frame.atlas;field.spriteName=frame.spriteName;field.type=UIBasicSprite.Type.Sliced;
+        field.width=400;field.height=60;field.depth=frame.depth+2;
+        fieldGo.AddComponent<BoxCollider>();
+        inputLabel=NGUITools.AddWidget<UILabel>(fieldGo);inputLabel.name="Label_Search";
+        Copy(tagLabel,inputLabel);
+        inputLabel.pivot=UIWidget.Pivot.Left;inputLabel.alignment=NGUIText.Alignment.Left;
+        inputLabel.overflowMethod=UILabel.Overflow.ClampContent;inputLabel.supportEncoding=false;
+        inputLabel.height=44;inputLabel.depth=field.depth+1;
+        input=fieldGo.AddComponent<UIInput>();
+        input.label=inputLabel;input.characterLimit=40;
+        input.inputType=UIInput.InputType.Standard;input.validation=UIInput.Validation.None;
+        input.onReturnKey=UIInput.OnReturnKey.Submit;input.selectAllTextOnFocus=false;
+        input.activeTextColor=tagLabel.color;input.caretColor=tagLabel.color;
+        input.selectionColor=new Color(.85f,.68f,.36f,.45f);
+        input.value="";
+        EventDelegate.Add(input.onChange,OnChanged);
+        EventDelegate.Add(input.onSubmit,OnSubmitted);
+        count=NGUITools.AddWidget<UILabel>(fieldGo);count.name="Label_Count";
+        Copy(tagLabel,count);count.fontSize=Math.Max(18,tagLabel.fontSize-6);
+        count.pivot=UIWidget.Pivot.Right;count.alignment=NGUIText.Alignment.Right;
+        count.width=180;count.height=40;count.depth=field.depth+1;
+        count.color=new Color(tagLabel.color.r,tagLabel.color.g,tagLabel.color.b,.7f);
+        clear=new GameObject("Button_Clear");clear.layer=bar.layer;clear.transform.SetParent(fieldGo.transform,false);
+        UIAtlas closeAtlas;string closeSprite;
+        if(SprkShopIcons.Find(new[]{"PayShop_Tag_Close_Icon","Common_Close"},out closeAtlas,out closeSprite)) {
+            var x=clear.AddComponent<UISprite>();x.atlas=closeAtlas;x.spriteName=closeSprite;x.MakePixelPerfect();x.depth=field.depth+2;
+        } else {
+            var x=clear.AddComponent<UILabel>();Copy(tagLabel,x);x.text="X";x.width=40;x.height=40;x.depth=field.depth+2;
+        }
+        var clearCollider=clear.AddComponent<BoxCollider>();clearCollider.size=new Vector3(56f,56f,1f);
+        var clearButton=clear.AddComponent<UIButton>();clearButton.tweenTarget=clear;
+        EventDelegate.Add(clearButton.onClick,Clear);
+        // Empty-state hint over the product area.
+        var list=shop.PayShopProductList.transform;
+        var drag=list.GetComponentsInChildren<Transform>(true).FirstOrDefault(t=>t.name=="DragScrollView");
+        hint=NGUITools.AddWidget<UILabel>((drag!=null?drag.parent:list).gameObject);hint.name="SprkSearchHint";
+        Copy(tagLabel,hint);hint.width=1100;hint.height=120;hint.depth=frame.depth+5;
+        hint.overflowMethod=UILabel.Overflow.ShrinkContent;hint.alignment=NGUIText.Alignment.Center;hint.pivot=UIWidget.Pivot.Center;
+        hint.transform.localPosition=drag!=null?drag.localPosition:Vector3.zero;
+        bar.SetActive(false);hint.gameObject.SetActive(false);
+    }
+    // Fit the title and field to the live native frame (re-run when it moves or resizes).
+    void Layout() {
+        var corners=frame.worldCorners;
+        Vector3 bl=tagRoot.InverseTransformPoint(corners[0]),tr=tagRoot.InverseTransformPoint(corners[2]);
+        var key=new Vector3(bl.x,tr.x,(bl.y+tr.y)*.5f);
+        if(key==laidOut)return;
+        laidOut=key;
+        float mid=key.z;
+        Vector3 labelPos=tagRoot.InverseTransformPoint(tagLabel.transform.position);
+        title.transform.localPosition=labelPos;
+        float labelRight=labelPos.x+(tagLabel.pivot==UIWidget.Pivot.Left?tagLabel.width:tagLabel.pivot==UIWidget.Pivot.Right?0f:tagLabel.width*.5f);
+        float fieldLeft=labelRight+110f,fieldRight=tr.x-26f;
+        int width=Math.Max(200,(int)(fieldRight-fieldLeft));
+        field.transform.localPosition=new Vector3(fieldLeft+width*.5f,mid,0f);
+        field.width=width;
+        field.GetComponent<BoxCollider>().size=new Vector3(width,field.height,1f);
+        inputLabel.width=Math.Max(80,width-260);
+        inputLabel.transform.localPosition=new Vector3(-width*.5f+30f,0f,0f);
+        count.transform.localPosition=new Vector3(width*.5f-80f,0f,0f);
+        clear.transform.localPosition=new Vector3(width*.5f-38f,0f,0f);
+    }
+    IEnumerable<Transform> Content() {
+        var tagList=shop.PayShopTagList;
+        if(tagList.HotTagRoot!=null)yield return tagList.HotTagRoot.transform;
+        foreach(var t in new Component[]{tagList.HotTagPos,tagList.SelectedTagPos,tagList.AllTagPos,tagList.Sprite_OpenArrow})
+            if(t!=null)yield return t.transform;
+        var all=tagRoot.Find("OpenAllTagButton");
+        if(all!=null)yield return all;
+        yield return tagLabel.transform;
+    }
+    void HideNative() {
+        foreach(var root in Content()) {
+            if(root==null || root.IsChildOf(bar.transform))continue;
+            foreach(var w in root.GetComponentsInChildren<UIWidget>(true))
+                if(w.enabled){w.enabled=false;hiddenWidgets.Add(w);}
+            foreach(var c in root.GetComponentsInChildren<Collider>(true))
+                if(c.enabled){c.enabled=false;hiddenColliders.Add(c);}
+        }
+        // The frame stays visible but must not open the tag panel.
+        var hit=frame.GetComponent<Collider>();
+        if(hit!=null && hit.enabled){hit.enabled=false;hiddenColliders.Add(hit);}
+    }
+    void RestoreNative() {
+        foreach(var w in hiddenWidgets)if(w!=null)w.enabled=true;
+        foreach(var c in hiddenColliders)if(c!=null)c.enabled=true;
+        hiddenWidgets.Clear();hiddenColliders.Clear();
+    }
+    void OnDisable() { RestoreNative(); }
+    static void Copy(UILabel from,UILabel to) {
+        to.bitmapFont=from.bitmapFont;to.trueTypeFont=from.trueTypeFont;to.fontSize=from.fontSize;to.fontStyle=from.fontStyle;
+        to.color=from.color;to.effectStyle=from.effectStyle;to.effectColor=from.effectColor;to.effectDistance=from.effectDistance;
+        to.pivot=from.pivot;to.alignment=from.alignment;to.width=from.width;to.height=from.height;to.depth=from.depth+1;
+        to.overflowMethod=from.overflowMethod;to.applyGradient=false;
+    }
+    // Use a native hot-tag pill as the field background once one exists.
+    void MatchStyle() {
+        if(styled || field==null)return;
+        var pill=shop.PayShopTagList.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Sprite_BG" && s.atlas!=null && s.transform.parent!=null && s.transform.parent.name=="Group_Default");
+        if(pill==null)return;
+        field.atlas=pill.atlas;field.spriteName=pill.spriteName;field.type=UIBasicSprite.Type.Sliced;field.color=pill.color;
+        field.height=Math.Max(50,pill.height);
+        var collider=field.GetComponent<BoxCollider>();collider.size=new Vector3(field.width,field.height,1f);
+        styled=true;
+    }
+
+    void OnChanged() {
+        if(silent || input==null)return;
+        var category=Current;
+        if(!SprkShopSearch.IsVirtual(category))return;
+        string value=input.value??"";
+        if(value==SprkShopSearch.Query(category))return;
+        SprkShopSearch.SetQuery(category,value);
+        clear.SetActive(value.Length>0);
+        pending=Time.unscaledTime+.25f;
+    }
+    void OnSubmitted() { OnChanged();if(pending>=0f)Apply(); }
+    void Clear() {
+        var category=Current;
+        SprkShopSearch.SetQuery(category,"");
+        SetSilently("");clear.SetActive(false);
+        Apply();
+    }
+    void SetSilently(string value) { silent=true;try { input.value=value; } finally { silent=false; } }
+    void Apply() {
+        pending=-1f;
+        var category=Current;
+        if(!SprkShopSearch.IsVirtual(category))return;
+        try { shop.PayShopProductList.CreateList(category); } catch(Exception e) { Debug.LogException(e); }
+    }
+    void Update() {
+        if(shop==null)return;
+        if(bar==null){Build();if(bar==null)return;}
+        var category=Current;
+        bool on=SprkShopSearch.IsVirtual(category);
+        if(on)HideNative();
+        else if(hiddenWidgets.Count>0 || hiddenColliders.Count>0)RestoreNative();
+        if(category!=shown) {
+            bar.SetActive(on);
+            if(on) {
+                bool search=category==SprkShopSearch.SearchKey;
+                title.text=search?"SEARCH":"SAVED";
+                input.defaultText=search?"Search packages, items and descriptions":"Filter bookmarked packages";
+                string q=SprkShopSearch.Query(category);
+                SetSilently(q);clear.SetActive(q.Length>0);
+                if(input.isSelected)input.isSelected=false;
+            }
+            pending=-1f;shown=category;
+        }
+        if(!on){if(hint.gameObject.activeSelf)hint.gameObject.SetActive(false);return;}
+        MatchStyle();
+        Layout();
+        if(pending>=0f && Time.unscaledTime>=pending)Apply();
+        bool searchView=category==SprkShopSearch.SearchKey;
+        bool hasQuery=SprkShopSearch.Query(category).Trim().Length>0;
+        int n=SprkShopSearch.LastCategory==category?SprkShopSearch.LastCount:-1;
+        count.text=hasQuery && n>=0?(n==1?"1 result":n+" results"):searchView?"":(SprkShopSearch.BookmarkCount+" saved");
+        string message=null;
+        if(searchView && !hasQuery)message="Type a package, item or description to search every shop category.";
+        else if(n<=0 && hasQuery)message="No packages match \""+SprkShopSearch.Query(category).Trim()+"\".";
+        else if(!searchView && n<=0)message="No bookmarks yet. Tap the star on any package to save it here.";
+        hint.text=message??"";
+        if(hint.gameObject.activeSelf!=(message!=null))hint.gameObject.SetActive(message!=null);
+    }
+}

@@ -142,14 +142,15 @@ public static class SprkImageRecovery
     }
     static readonly Dictionary<int, Texture2D> tpIcons = new Dictionary<int, Texture2D>();
 
-    // These two valid legacy consumables have no native atlas entries. Keep the
-    // icons in the helper so every quality setting uses the same numbered art.
+    // Legacy TP consumables and the local coupon gift have no atlas entries.
+    // Embed their icons so every quality setting uses the same art.
     public static bool TryTpIcon(UIBundleLoader loader)
     {
         if (loader == null) return false;
         string path = loader.AssetPath;
         int value = String.Equals(path, "Icon/Item/TRANSCEND_10POINT", StringComparison.OrdinalIgnoreCase) ? 10
-            : String.Equals(path, "Icon/Item/TRANSCEND_15POINT", StringComparison.OrdinalIgnoreCase) ? 15 : 0;
+            : String.Equals(path, "Icon/Item/TRANSCEND_15POINT", StringComparison.OrdinalIgnoreCase) ? 15
+            : String.Equals(path, "Icon/Item/SPRK_XDD", StringComparison.OrdinalIgnoreCase) ? 9900001 : 0;
         if (value == 0) return false;
         Texture2D icon;
         if (!tpIcons.TryGetValue(value, out icon) || icon == null) {
@@ -164,7 +165,7 @@ public static class SprkImageRecovery
                 }
                 icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (!ImageConversion.LoadImage(icon, bytes, true)) throw new InvalidOperationException("Invalid TP icon: " + value);
-                icon.name = "SPRK " + value + " TP";
+                icon.name = value == 9900001 ? "xdd" : "SPRK " + value + " TP";
                 icon.hideFlags = HideFlags.HideAndDontSave;
                 tpIcons[value] = icon;
             }
@@ -406,7 +407,7 @@ public static class SprkImageRecovery
     static bool probedTpIcons;
     static void ProbeTpIcons()
     {
-        string report = Environment.GetEnvironmentVariable("SPRK_TP_ICON_PROBE");
+        string report = Environment.GetEnvironmentVariable("SPRK_COUPON_ITEM_PROBE") ?? Environment.GetEnvironmentVariable("SPRK_TP_ICON_PROBE");
         if (probedTpIcons || String.IsNullOrEmpty(report)) return;
         probedTpIcons = true;
         GameObject go = null;
@@ -415,6 +416,28 @@ public static class SprkImageRecovery
             go.AddComponent<UITexture>();
             var loader = go.AddComponent<UIBundleLoader>();
             typeof(UIBundleLoader).GetField("_uiTex", flags).SetValue(loader, go.GetComponent<UITexture>());
+            if (!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPRK_COUPON_ITEM_PROBE"))) {
+                var container = new NShared.ItemBaseDataContainer();
+                var packer = (NShared.NJit.JitPacker)typeof(NShared.NJit.JitDataContainer<NShared.ItemBaseData>).GetProperty("Packer",flags).GetValue(container,null);
+                packer.Deserialize(System.IO.File.ReadAllBytes(System.IO.Path.Combine(Application.dataPath,"Documents/Patch/StandaloneWindows/TableJit/ItemTable.jit")));
+                var item = container.GetData(9900001);
+                if (item == null || item.Code != "SPRK_XDD" || item.Type != NShared.ItemType.Etc || !item.NotForSale || item.SellGold != 0 || item.Breakable)
+                    throw new InvalidOperationException("xdd native item flags mismatch");
+                if (container.GetDataByCode("SPRK_XDD") != item || !container.GetItemDataListByType(NShared.ItemType.Etc).Contains(item))
+                    throw new InvalidOperationException("xdd missing from native Others index");
+                loader.SetAssetPath(UIHelper.GetItemIconPath(item.Code), (UIHelper.EAssetTextureAssign)4);
+                var gift = loader.UiTex.mainTexture as Texture2D;
+                if (gift == null || gift.name != "xdd" || gift.width != 96 || gift.height != 96)
+                    throw new InvalidOperationException("xdd icon did not bind through native loader");
+                loader.SetAssetPath("", (UIHelper.EAssetTextureAssign)4);
+                if (loader.UiTex.mainTexture != null) throw new InvalidOperationException("Pooled icon retained xdd art");
+                loader.SetAssetPath(UIHelper.GetItemIconPath(item.Code), (UIHelper.EAssetTextureAssign)4);
+                if (loader.UiTex.mainTexture != gift) throw new InvalidOperationException("xdd icon cache mismatch");
+                go.SetActive(false); go.SetActive(true);
+                if (loader.UiTex.mainTexture != gift) throw new InvalidOperationException("xdd icon lost on reuse");
+                System.IO.File.WriteAllText(report,"{\"success\":true,\"itemIndex\":9900001,\"others\":true,\"notForSale\":true,\"nativeIcon\":true,\"poolReset\":true,\"cacheReuse\":true}");
+                return;
+            }
             loader.SetAssetPath(UIHelper.GetItemIconPath("TRANSCEND_10POINT"), (UIHelper.EAssetTextureAssign)4);
             var ten = loader.UiTex.mainTexture;
             if (ten == null || ten.name != "SPRK 10 TP" || ten.width != 124 || ten.height != 124)

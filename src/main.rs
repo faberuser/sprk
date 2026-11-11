@@ -179,12 +179,12 @@ async fn game_router() -> anyhow::Result<Router> {
         .merge(api::live::routes(&state.tables.live))
         .merge(api::battle::routes(&state.tables.battle))
         .merge(api::community::routes(&state.tables.arena_guild))
-        // Initial host query (client fetches this first to get server info)
-        // Original path from client config
-        .route("/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json", get(api::system::query::get_host_info))
-        // Alternative shorter paths for patched clients
-        .route("/Masang_Tokyo/Live/{version}/{hostfile}", get(api::system::query::get_host_info))
+        // Initial host query (client fetches this first to get server info).
+        // The launcher passes SPRK_HOST_URL (normally /host.json). Without it the
+        // client falls back to QueryHost in resources.assets, which the release
+        // build sets to /sprk/live/1/host_1.0_304dbdffe094.json (DllPatcher QueryHost).
         .route("/host.json", get(api::system::query::get_host_info))
+        .route("/sprk/live/{version}/{hostfile}", get(api::system::query::get_host_info))
         // Auth endpoints (Masang login server API)
         .route("/api/auth/login/guest", post(api::account::auth::guest_login))
         .route("/api/auth/register", post(api::account::auth::register))
@@ -196,6 +196,7 @@ async fn game_router() -> anyhow::Result<Router> {
         // User authentication endpoints
         .route("/user/login", post(api::account::user::login))
         .route("/user/logout", post(api::account::user::logout))
+        .route("/promotion/use_coupon", post(api::account::coupon::use_coupon))
         .route("/user/get_certificate", post(api::account::user::get_certificate))
         // Ping endpoints
         .route("/ping", post(api::system::ping::ping))

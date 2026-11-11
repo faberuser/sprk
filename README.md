@@ -36,7 +36,7 @@ See [the scripts inventory](scripts/README.md) for active CI and development too
 
 ### Prerequisites
 
-- Rust 1.93+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
+- Rust 1.99+ ([Install from https://rustup.rs](https://rust-lang.org/tools/install/))
 - SQLite ([bundled with the project](https://www.sqlite.org/download.html))
 
 ### VS Code Rust analysis
@@ -119,9 +119,9 @@ docker compose logs -f game updates
 
 Compose pulls the published image and starts two services:
 
-| Service | Default host address | Persistent storage |
-| --- | --- | --- |
-| `game` | `http://localhost:8080` | SQLite database and service state in the `game-data` volume at `/data` |
+| Service   | Default host address    | Persistent storage                                                        |
+| --------- | ----------------------- | ------------------------------------------------------------------------- |
+| `game`    | `http://localhost:8080` | SQLite database and service state in the `game-data` volume at `/data`    |
 | `updates` | `http://localhost:8081` | Signed client releases in the host directory mounted at `/client-updates` |
 
 The update service downloads and verifies the image-pinned client release before

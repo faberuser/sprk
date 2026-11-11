@@ -229,7 +229,13 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     }
 }
 fn rejected(s:&AppState,path:&str,a:i64,code:String)->Value {
-    tracing::warn!(path,account=a,reason=%code,"Battle request rejected");
+    // Room keep-alives ignore their reply. Local rooms (the Dragon Raid
+    // tutorial) have no server room, so their 30 s pings are expected misses.
+    if code=="RoomNotExist" && path.rsplit('/').next().is_some_and(|action|action.starts_with("ping_")) {
+        tracing::debug!(path,account=a,"Room ping without a server room");
+    } else {
+        tracing::warn!(path,account=a,reason=%code,"Battle request rejected");
+    }
     let supported=s.tables.battle.contracts.get(path).and_then(|v|v["Results"].as_array())
         .is_some_and(|values|values.contains(&json!(code)));
     json!({"BaseResult":"Success","Result":if supported{code}else{"Fail".into()}})

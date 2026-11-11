@@ -237,6 +237,19 @@ before a slow request or long hold.
     full-row `json_set`, and drops the completed row's
     `Wait.MatchInfo.AccountInfos` (a ~1 MB copy of both registrations, only
     served while waiting/fighting): 276 ms → under 60 ms.
+  - **Nov 11 follow-up.** Production still logged `register_match` ~300 ms,
+    `wait_match` ~400 ms (pairing) and `task:battle-connection` ~300 ms
+    (settlement). Every write to a 1.2–1.8 MB row also re-ran the
+    `arena_runs` JSON triggers, which rewrite the row again. Honor now keeps
+    each registered `AccountInfo` in `arena_snapshots(run,data)`, written once
+    at registration (`Register.AccountInfo` is null in the run JSON; an
+    `AFTER DELETE` trigger drops it with the run). Pairing stores Honor's
+    `Wait.MatchInfo.AccountInfos` as `[]` and re-polls rebuild it
+    (`arena::stored_wait`), so polls, pairing, triggers and settlement handle
+    a few KB. `arena::prebuild` builds the registration's Hero snapshots on
+    the read pool before the writer is taken. Readers of old inline rows keep
+    working (`arena::registered_account`, `COALESCE` in ranking decks and
+    Honor season records).
 - **Hero snapshots** (`community::cached_hero`) fetch all ten equipped pieces
   in one statement. Applying a whole-roster Hero preset computes each Hero's
   final slots in memory and writes one row per changed Hero (it issued

@@ -64,6 +64,11 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         "CREATE UNIQUE INDEX IF NOT EXISTS arena_active_account ON arena_runs(account) WHERE status IN ('waiting','battle')",
         "CREATE INDEX IF NOT EXISTS arena_completed_squad ON arena_runs(account,kind,json_extract(data,'$.Season'),id DESC) WHERE status='complete'",
         "CREATE INDEX IF NOT EXISTS arena_online_match_status ON arena_runs(json_extract(data,'$.OnlineMatchUid'),status) WHERE json_extract(data,'$.OnlineMatchUid') IS NOT NULL",
+        // Honor registers whole collections (~600 KB). Kept beside the run so
+        // the run JSON that polls, pairing, triggers and completion rewrite
+        // stays small; deleting or pruning a run removes its snapshot.
+        "CREATE TABLE IF NOT EXISTS arena_snapshots(run INTEGER PRIMARY KEY,data TEXT NOT NULL)",
+        "CREATE TRIGGER IF NOT EXISTS arena_snapshots_cleanup AFTER DELETE ON arena_runs BEGIN DELETE FROM arena_snapshots WHERE run=OLD.id; END",
         "CREATE TABLE IF NOT EXISTS arena_scores(account INTEGER NOT NULL,kind INTEGER NOT NULL,season INTEGER NOT NULL,score INTEGER NOT NULL,wins INTEGER NOT NULL DEFAULT 0,losses INTEGER NOT NULL DEFAULT 0,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account,kind,season))",
         "CREATE TABLE IF NOT EXISTS guild_battle_scores(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,kind TEXT NOT NULL,season INTEGER NOT NULL,stage INTEGER NOT NULL,score INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild_id,account,kind,season,stage))",
         "CREATE INDEX IF NOT EXISTS guild_battle_scores_account_kind ON guild_battle_scores(account,kind)",
@@ -137,14 +142,17 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             }
         }
     }
+    let action = path.rsplit('/').next().unwrap_or("");
+    let arena = matches!(path.split('/').next(), Some("match" | "global_arena"));
+    // Honor snapshots are reads: build them before queueing for the writer.
+    let prebuilt = if arena { arena::prebuild(s, a, &r, action).await? } else { Default::default() };
     let mut tx = s.db.begin().await?;
     if !crate::api::system::performance::observation(&format!("/{path}")) {
         item::init(&mut tx, s, a).await?;
     }
-    let action = path.rsplit('/').next().unwrap_or("");
     let result = match path.split('/').next().unwrap_or("") {
         "guild" => guild::execute(&mut tx, s, a, &r, action).await,
-        "match" | "global_arena" => arena::execute(&mut tx, s, a, &r, action).await,
+        "match" | "global_arena" => arena::execute_prebuilt(&mut tx, s, a, &r, action, prebuilt).await,
         _ => warfare::execute(&mut tx, s, a, &r, path).await,
     };
     match result {
