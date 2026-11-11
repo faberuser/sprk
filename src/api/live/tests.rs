@@ -66,11 +66,11 @@ async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_it
         assert!(indices.insert(n(product, "Index")));
         assert!(product["ProductType"].is_string());
         assert!(product["PriceType"].is_string());
-        if [3094170, 3094594, 3094595, 50000301, 50000302, 50000303].contains(&n(product, "Index")) {
+        if [3094170, 3094594, 3094595, 3094623, 50000301, 50000302, 50000303].contains(&n(product, "Index")) {
             assert_eq!(product["Price"], 0);
             assert_eq!(product["Flag"], "Free");
         } else {
-            assert!(n(product, "Price") > 0);
+            assert!(n(product, "Price") > 0, "{product}");
         }
         assert_eq!(product["Begin"], 0);
         assert_eq!(product["End"], 0);

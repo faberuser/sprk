@@ -1070,22 +1070,35 @@ async fn package_claim_rolls_back_on_missing_reward_data() {
 #[tokio::test]
 async fn package_and_selector_rewards_have_native_shapes() {
     let (state, u) = setup().await;
+    // HashMap order differs per process: choose deterministically, and skip
+    // disabled selectors (they offer only disabled, ungrantable rewards).
     let (&id, selector) = state
         .tables
         .inventory
         .selectors
         .iter()
-        .find(|(_, s)| {
-            s["ItemIndices"].as_array().unwrap().iter().all(|i| {
-                state
-                    .tables
-                    .items
-                    .reward_item(i.as_i64().unwrap() as i32)
-                    .is_some_and(|m| m.kind == "Item")
-            })
+        .filter(|(&id, s)| {
+            !crate::models::item::disabled_reward(id)
+                && s["ItemIndices"].as_array().unwrap().iter().all(|i| {
+                    let i = i.as_i64().unwrap() as i32;
+                    !crate::models::item::disabled_reward(i)
+                        && state.tables.items.reward_item(i).is_some_and(|m| m.kind == "Item")
+                })
         })
+        .min_by_key(|(&id, _)| id)
         .unwrap();
     let target = selector["ItemIndices"][0].as_i64().unwrap();
+    // Every disabled selector is refused before anything is consumed.
+    let disabled: Vec<i32> = state.tables.inventory.selectors.keys().copied()
+        .filter(|id| crate::models::item::disabled_reward(*id)).collect();
+    for &blocked in &disabled {
+        let choice = state.tables.inventory.selectors[&blocked]["ItemIndices"][0].as_i64().unwrap();
+        put(&state, &u, blocked, 1).await;
+        let refused = item::use_package_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={blocked}&ItemCount=1&SelectItemIndex={choice}"))).await.unwrap().0;
+        assert_ne!(refused["Result"], "Success", "{blocked}: {refused}");
+        assert_eq!(count(&state, &u, blocked).await, 1, "{blocked} must not be consumed");
+    }
     put(&state, &u, id, 2).await;
     let bad = item::use_package_select_item(
         State(state.clone()),
@@ -2112,7 +2125,7 @@ async fn gear_tickets_all_definitions_accept_native_and_json_forms() {
             .all(|id| state.tables.inventory.equipment.contains_key(&(id.as_i64().unwrap() as i32))))
         .map(|(ticket, _)| *ticket).collect();
     tickets.sort_unstable();
-    assert_eq!(tickets.len(), 459);
+    assert_eq!(tickets.len(), 460);
     for ticket in tickets {
         let selector = &state.tables.inventory.equipment_selectors[&ticket];
         let target = selector["ItemIndices"][0].as_i64().unwrap() as i32;

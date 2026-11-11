@@ -873,6 +873,9 @@ async fn execute(
             out["RewardResults"] = json!(results);
         }
         "use_package_select_item" => {
+            if crate::models::item::disabled_reward(index) {
+                return Err(rule("InvalidItemType"));
+            }
             let selector = state
                 .tables
                 .inventory
@@ -887,7 +890,8 @@ async fn execute(
             {
                 return Err(rule("ImpossibleSelectItem"));
             }
-            if state
+            // Disabled rewards grant nothing: never consume a selector for one.
+            if crate::models::item::disabled_reward(selected) || state
                 .tables
                 .items
                 .reward_item(selected)
@@ -910,7 +914,9 @@ async fn execute(
                 &mut r,
             )
             .await?;
-            out["RewardItemResult"] = r.items[0].clone();
+            // A grant without an item result (e.g. a pet) rolls the request back
+            // instead of panicking after the selector was consumed.
+            out["RewardItemResult"] = r.items.first().cloned().ok_or_else(|| rule("ImpossibleSelectItem"))?;
         }
         "use_weapon_unique_select_item" | "use_equip_option_select_item" => {
             let selector = state
