@@ -482,12 +482,13 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
             assert_eq!(finished["DispatchBattleInfo"]["WinCount"],1);
             assert_eq!(finished["DispatchBattleInfo"]["LoseCount"],1);
             assert_eq!(stamina().await.unwrap(),10000-cost);
-            let mails:i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Dispatch equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap();
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.account_id=? AND m.title='Dispatch equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
-            assert!(mails>0 || finished["ItemResults"].as_array().is_some_and(|v|!v.is_empty()),
-                "Dispatch {raid}/{level} must grant item rewards or mail rolled equipment: {finished}");
+            let mails:i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap();
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.account_id=? AND m.title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
+            assert!(mails>0 || finished["EquipItemResults"].as_array().is_some_and(|v|!v.is_empty())
+                || finished["ItemResults"].as_array().is_some_and(|v|!v.is_empty()),
+                "Dispatch {raid}/{level} must grant inventory rewards or mail overflow: {finished}");
             assert_ne!(call(&s,&u,"dispatch/request_complete_dispatch",&slot_args).await["Result"],"Success");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Dispatch equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
+            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
             assert_eq!(call(&s,&u,"dispatch/get_dispatch_list","").await["DispatchBattleInfos"],json!([]));
         }
     }

@@ -66,11 +66,11 @@ async fn recovered_shop_is_delivered_to_native_lobby_with_readable_prices_and_it
         assert!(indices.insert(n(product, "Index")));
         assert!(product["ProductType"].is_string());
         assert!(product["PriceType"].is_string());
-        if [3094170, 3094594, 3094595, 50000301, 50000302, 50000303].contains(&n(product, "Index")) {
+        if [3094170, 3094594, 3094595, 3094623, 50000301, 50000302, 50000303].contains(&n(product, "Index")) {
             assert_eq!(product["Price"], 0);
             assert_eq!(product["Flag"], "Free");
         } else {
-            assert!(n(product, "Price") > 0);
+            assert!(n(product, "Price") > 0, "{product}");
         }
         assert_eq!(product["Begin"], 0);
         assert_eq!(product["End"], 0);
@@ -175,8 +175,8 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     let catalog = shop_snapshot(&s, a).await.unwrap();
     let products = catalog["PayShopProductInfos"].as_array().unwrap();
     let free: Vec<_> = products.iter().filter(|p| n(p, "Price") == 0).collect();
-    assert_eq!(free.len(), 6);
-    for (id, item, amount) in [(3094170, 94170, 1), (3094594, 94594, 1), (3094595, 94595, 1),
+    assert_eq!(free.len(), 7);
+    for (id, item, amount) in [(3094170, 94170, 1), (3094594, 94594, 1), (3094595, 94595, 1), (3094623, 94623, 1),
         (50000301, 990001, 100), (50000302, 990002, 100), (50000303, 990003, 100)] {
         let product = free.iter().find(|p| n(p, "Index") == id).unwrap();
         assert_eq!(product["Flag"], "Free");
@@ -218,6 +218,35 @@ async fn free_shop_packages_are_once_daily_and_restore_after_reset() {
     // A client cannot turn an ordinary paid package into a free purchase.
     let paid = call(&s, &u, "shop/buy_payshop_product", "Index=3093009&Price=0").await;
     assert_ne!(paid["Result"], "Success");
+}
+
+#[tokio::test]
+async fn class_unique_weapon_selector_shop_purchase_costs_2000_and_redeems() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    let product = s.tables.live.rules["Products"].as_array().unwrap().iter()
+        .find(|p| n(p, "Index") == 3600101).unwrap();
+    assert_eq!(product["Category"], "Equipment");
+    assert_eq!(product["ProductName"], "Class Unique Weapon Selector");
+    assert_eq!(product["Price"], 2000);
+    assert_eq!(product["PurchasableCount"], 0);
+    let before = balance(&s, &u, "gem").await;
+    ok(&call(&s, &u, "shop/buy_payshop_product", "Index=3600101&Quantity=7&Price=1").await);
+    assert_eq!(balance(&s, &u, "gem").await, before - 14000);
+    for weapon in 900001..=900007 {
+        let body = Bytes::from(format!("SessionKey={}&ItemIndex=600101&WeaponUniqueItemIndex={weapon}&ItemCount=1", u["UserInfo"]["SessionKey"].as_str().unwrap()));
+        let result = crate::api::inventory::item::use_weapon_unique_select_item(State(s.clone()), body).await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipItemResults"][0]["ItemIndex"], weapon);
+        assert_eq!(result["EquipItemResults"][0]["Star"], 0);
+    }
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    sqlx::query("UPDATE user_info SET gem=1999,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    assert_ne!(call(&s, &u, "shop/buy_payshop_product", "Index=3600101").await["Result"], "Success");
+    assert_eq!(balance(&s, &u, "gem").await, 1999);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT count FROM items WHERE account_id=? AND item_index=600101")
+        .bind(a).fetch_one(&s.db).await.unwrap(), 0);
 }
 
 #[tokio::test]

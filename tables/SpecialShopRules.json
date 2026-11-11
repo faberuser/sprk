@@ -5309,7 +5309,10 @@
       "ProductName": "2022 Daily Gift",
       "ItemCode": "PACKAGE_PAY_EVERYDAY_PRESENT_1221",
       "ItemIndex": 94623,
-      "ItemCount": 1
+      "ItemCount": 1,
+      "Price": 0,
+      "PurchasableCount": 1,
+      "ResetSeconds": 86400
     },
     {
       "Index": 3093286,
@@ -10783,6 +10786,19 @@
       "PurchasableCount": 0,
       "ResetSeconds": 0,
       "IconPath": "Icon/Item/COSTUME_SELECT_ITEM_97_LIGHT_BALANCE_210427"
+    },
+    {
+      "Index": 3600101,
+      "Category": "Equipment",
+      "ProductName": "Class Unique Weapon Selector",
+      "ItemCode": "SPRK_CLASS_UNIQUE_WEAPON_SELECTOR",
+      "ItemIndex": 600101,
+      "ItemCount": 1,
+      "PriceType": "Gem",
+      "Price": 2000,
+      "PurchasableCount": 0,
+      "ResetSeconds": 0,
+      "IconPath": "Icon/Item/WEAPON_UNIQUE_SELECT_ITEM"
     }
   ],
   "SkippedPackages": [

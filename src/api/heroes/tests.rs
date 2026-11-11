@@ -1278,6 +1278,54 @@ async fn transcend_pages_parse_native_pairs_enforce_points_and_persist() {
     assert_eq!(get(&s, &u, 1).await["TranscendSkillPage1"], "[]");
 }
 #[tokio::test]
+async fn void_rune_shops_allow_repeat_purchases_beyond_old_caps_at_original_prices() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let offers: Vec<_> = s.tables.hero_shop.shop_items.iter()
+        .filter(|r| (45123..=45127).contains(&item::n(r, "ItemIndex"))).collect();
+    assert!(!offers.is_empty());
+    let mut runes = std::collections::BTreeSet::new();
+    for row in &offers {
+        assert_eq!(item::n(row, "PurchasableCount"), 0, "{row}");
+        runes.insert(item::n(row, "ItemIndex"));
+    }
+    assert_eq!(runes, (45123..=45127).collect());
+    // Exercise the actual Arena, World Boss, Honor and Challenge shop paths.
+    // Guild-level rows are covered above without bypassing guild membership.
+    for (shop_id, currency) in [(3, "PvpCoin"), (12, "WorldBossPoint"), (15, "GloryPoint"), (38, "ChallengeRaidPoint")] {
+        let row = offers.iter().find(|r| item::n(r, "ShopIndex") == shop_id).unwrap();
+        let index = item::n(row, "Index");
+        let rune = item::n(row, "ItemIndex") as i32;
+        let price = item::n(row, "TargetPrice");
+        assert!(price > 0);
+        let current = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 1000000 - item::n(&current, "NewValue")).await.unwrap();
+        let before = count(&s, &u, rune).await;
+        for amount in [3, 4] {
+            let req = format!("ShopIndex={shop_id}&ShopItemIndex={index}&ShopItemPurchaseCount={amount}");
+            let result = shop::buy_shop_item(State(s.clone()), form(&u, &req)).await.unwrap().0;
+            assert_eq!(result["Result"], "Success", "{result}");
+            assert_eq!(result["ShopItem"]["Sold"], 0);
+        }
+        assert_eq!(count(&s, &u, rune).await, before + 7);
+        let remaining = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        assert_eq!(item::n(&remaining, "NewValue"), 1000000 - price * 7);
+        let listed = shop::get_shop_list(State(s.clone()), form(&u, &format!("ShopIndex={shop_id}"))).await.unwrap().0;
+        let offer = listed["ShopItems"].as_array().unwrap().iter().find(|r| item::n(r, "ListNo") == index).unwrap();
+        assert_eq!(offer["Sold"], 0);
+        assert_eq!(offer["PurchasableCount"], 0);
+        assert_eq!(offer["Purchased"], 7);
+        hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, -item::n(&remaining, "NewValue")).await.unwrap();
+        let rejected = shop::buy_shop_item(State(s.clone()), form(&u,
+            &format!("ShopIndex={shop_id}&ShopItemIndex={index}&ShopItemPurchaseCount=1"))).await.unwrap().0;
+        assert_ne!(rejected["Result"], "Success");
+        assert_eq!(count(&s, &u, rune).await, before + 7);
+        let empty = hero::currency(&mut s.db.acquire().await.unwrap(), a, currency, 0).await.unwrap();
+        assert_eq!(item::n(&empty, "NewValue"), 0);
+    }
+}
+
+#[tokio::test]
 async fn inn_shop_lists_actual_item_codes_and_atomic_friendship_purchases() {
     let (s, u) = setup().await;
     let r = shop::get_shop_list(State(s.clone()), form(&u, "ShopIndex=10"))
@@ -2274,4 +2322,31 @@ async fn ashen_costumes_sell_for_3000_rubies_and_retain_dedicated_tickets() {
         assert_eq!(claim["Result"],"Success","{claim}");assert_eq!(count(&s,&u,ticket).await,0);
         assert_eq!(balance(&s,&u,"gem").await,before-3000);
     }
+}
+
+#[tokio::test]
+async fn applying_a_preset_moves_gear_back_and_reports_every_removed_piece() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    let key=s.tables.hero_shop.preset_slots.iter().find(|(_,v)|v["IsPaid"]==false).unwrap().0.clone();
+    let mut tx=s.db.begin().await.unwrap();let mut rewards=crate::api::tutorial::Rewards::default();
+    item::give(&mut tx,&s,a,ItemGrant{index:1001,count:2,star:0,custom:0},&mut rewards).await.unwrap();
+    tx.commit().await.unwrap();let x=rewards.equipment[0].slot_index;let y=rewards.equipment[1].slot_index;
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(x).bind(a).execute(&s.db).await.unwrap();
+    assert_eq!(hero::add_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0["Result"],"Success");
+    // After saving, the piece moves to Hero 2 (not part of the preset) and
+    // Hero 1 wears another one.
+    sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,2,2,1,1)").bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=? WHERE account_id=? AND hero_index=1").bind(y).bind(a).execute(&s.db).await.unwrap();
+    sqlx::query("UPDATE heroes SET equip_item_slot_index_2=? WHERE account_id=? AND hero_index=2").bind(x).bind(a).execute(&s.db).await.unwrap();
+    let out=hero::set_hero_storage_slot(State(s.clone()),form(&u,&format!("StorageKey={key}"))).await.unwrap().0;
+    assert_eq!(out["Result"],"Success","{out}");
+    assert_eq!(get(&s,&u,1).await["EquipItemSlotIndex1"],x);
+    assert_eq!(get(&s,&u,2).await["EquipItemSlotIndex2"],0);
+    let removed=out["UnEquippedSlotIndices"].as_array().unwrap();
+    assert!(removed.contains(&serde_json::json!(x)) && removed.contains(&serde_json::json!(y)),"{out}");
+    let wearing:i64=sqlx::query_scalar("SELECT count(*) FROM heroes WHERE account_id=? AND ? IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10)")
+        .bind(a).bind(x).fetch_one(&s.db).await.unwrap();
+    assert_eq!(wearing,1,"a piece is worn by exactly one Hero");
+    let heroes=out["Heroes"].as_array().unwrap();
+    assert_eq!(heroes.iter().find(|h|h["HeroIndex"]==1).unwrap()["EquipItemSlotIndex1"],x);
 }

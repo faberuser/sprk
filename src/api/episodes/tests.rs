@@ -179,6 +179,45 @@ async fn episodes_battles_charge_stamina_award_tokens_once_and_allow_farming() {
 }
 
 #[tokio::test]
+async fn rebel_clause_special_three_accepts_archived_loaned_party_and_preserves_account_heroes() {
+    let (s,u)=setup().await;let a=u.user_info.account_id;
+    clear(&s,a,10,1).await;
+    clear(&s,a,30039,12).await;
+    // Archive: stage 13 borrows group 2 at level 60, requires Gau (5), and
+    // allows up to four heroes. The other choices need not be owned.
+    let before:Vec<(i64,i64,i64)>=sqlx::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+    let borrowed=[5,6,83,85];
+    sqlx::query("DELETE FROM heroes WHERE account_id=? AND hero_index IN (5,6,83,85)")
+        .bind(a).execute(&s.db).await.unwrap();
+    let original:Vec<(i64,i64,i64)>=sqlx::query_as("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+    assert!(original.len()<=before.len());
+    for heroes in ["[6,83,85]","[5,6,83,85,1]","[5,2147483647]"] {
+        let failed=battle(&s,&u,"begin_campaign",&format!("ChapterIndex=30039&DungeonIndex=13&DungeonDifficulty=0&HeroIndices={heroes}")).await;
+        assert_ne!(failed["Result"],"Success","{failed}");
+    }
+    let entry=format!("ChapterIndex=30039&DungeonIndex=13&DungeonDifficulty=0&HeroIndices={}",json!(borrowed));
+    let started=battle(&s,&u,"begin_campaign",&entry).await;
+    assert_eq!(started["Result"],"Success","{started}");
+    let saved:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+        .bind(a).fetch_one(&s.db).await.unwrap();
+    let saved:Value=serde_json::from_str(&saved).unwrap();
+    assert_eq!(saved["LoanedHeroIndices"],json!(borrowed));
+    assert_eq!(saved["DeckSnapshot"],json!([]));
+    sqlx::query("UPDATE battle_runs SET started=? WHERE account=?")
+        .bind(chrono::Utc::now().timestamp()-60).bind(a).execute(&s.db).await.unwrap();
+    let args=format!("ChapterIndex=30039&DungeonIndex=13&DungeonDifficulty=0&Completed=true&Star=3&AliveHeroIndices={}",json!(borrowed));
+    let done=battle(&s,&u,"end_campaign",&args).await;
+    assert_eq!(done["Result"],"Success","{done}");
+    assert_eq!(done["HeroExpResults"],json!([]));
+    assert!(done["ItemResults"].as_array().unwrap().iter().any(|v|v["ItemIndex"]==47031 && v["AddCount"]==50));
+    assert_eq!(sqlx::query_as::<_,(i64,i64,i64)>("SELECT hero_index,level,exp FROM heroes WHERE account_id=? ORDER BY hero_index")
+        .bind(a).fetch_all(&s.db).await.unwrap(),original);
+    assert_eq!(battle(&s,&u,"end_campaign",&args).await,done);
+}
+
+#[tokio::test]
 async fn episodes_concurrent_milestone_claims_grant_one_reward() {
     let (s,u)=setup().await;let a=u.user_info.account_id;give(&s,a,47023,1000).await;
     assert_eq!(call(&s,&u,"give_gift_item","HeroIndex=835&ItemIndices=47023&ItemCount=1000").await["Result"],"Success");

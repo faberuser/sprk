@@ -1,0 +1,340 @@
+using System;
+using System.Collections.Generic;
+using Math = System.Math;
+using NGame2.NAccount;
+using NGame2.NUI;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+using NShared;
+using NVespa;
+using NVespa.NGlobal;
+using NVespa.NSingleton;
+
+// Hero Info skill-tier shortcut. When a tier lacks books, owned selector
+// tickets convert straight into the slot's class book: class tickets
+// (SKILLBOOK_SELECT_<CLASS>) and slot tickets (SKILLBOOK_SELECT_n) directly,
+// general tickets (PACKAGE_SKILLBOOK_ALL) through their matching slot ticket.
+// Every step is a native 1:1 use_package_select_item request.
+public static class SprkSkillBookTickets {
+    public struct Route {
+        public ItemData Ticket;
+        public int Count;
+        // Zero for a direct ticket; otherwise the selector the ticket yields first.
+        public int Via;
+    }
+
+    static bool Selector(ItemData item, out SelectItemData row) {
+        row = null;
+        if (item == null || item.Type != ItemType.PackageSelectItem) return false;
+        row = GameRoot.Instance.SelectItemDataContainer.GetData(item.Code);
+        return row != null && row.SelectType != SelectItemPopupType.RuneSelectItem && row.ItemIndices != null;
+    }
+
+    // Book -> (ticket, via) from the static tables, built once per item table. Skill
+    // tier states are evaluated for every hero in the list, so availability must not
+    // rescan the whole item table. Per book: direct tickets, then general tickets.
+    sealed class Entry { public ItemData Ticket; public int Via; }
+    static object indexSource;
+    static Dictionary<int, List<Entry>> index;
+
+    static Dictionary<int, List<Entry>> Index() {
+        var items = GameRoot.Instance.ItemDataContainer;
+        if (index != null && ReferenceEquals(indexSource, items)) return index;
+        var direct = new Dictionary<int, List<Entry>>();
+        var chained = new Dictionary<int, List<Entry>>();
+        var selectors = new List<KeyValuePair<ItemData, SelectItemData>>();
+        foreach (var ticket in items.GetAllData()) {
+            SelectItemData row;
+            if (Selector(ticket, out row)) selectors.Add(new KeyValuePair<ItemData, SelectItemData>(ticket, row));
+        }
+        foreach (var pair in selectors) {
+            var seen = new HashSet<int>();
+            foreach (int pick in pair.Value.ItemIndices) {
+                if (!seen.Add(pick)) continue;
+                List<Entry> list;
+                if (!direct.TryGetValue(pick, out list)) direct[pick] = list = new List<Entry>();
+                list.Add(new Entry { Ticket = pair.Key });
+            }
+        }
+        foreach (var pair in selectors) {
+            var served = new HashSet<int>();
+            foreach (int via in pair.Value.ItemIndices) {
+                SelectItemData viaRow;
+                if (!Selector(items.GetData(via), out viaRow)) continue;
+                foreach (int book in viaRow.ItemIndices) {
+                    // A ticket that already yields the book directly, or through an earlier selector, is listed once.
+                    if (SprkHeroMaterialTickets.Matches(book, pair.Value.ItemIndices) || !served.Add(book)) continue;
+                    List<Entry> list;
+                    if (!chained.TryGetValue(book, out list)) chained[book] = list = new List<Entry>();
+                    list.Add(new Entry { Ticket = pair.Key, Via = via });
+                }
+            }
+        }
+        foreach (var pair in chained) {
+            List<Entry> list;
+            if (!direct.TryGetValue(pair.Key, out list)) direct[pair.Key] = list = new List<Entry>();
+            list.AddRange(pair.Value);
+        }
+        index = direct;
+        indexSource = items;
+        return index;
+    }
+
+    // Owned, unlocked tickets for book: direct tickets first (class and slot tickets), then general tickets.
+    public static List<Route> Routes(int book) {
+        var routes = new List<Route>();
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        List<Entry> entries;
+        if (book <= 0 || account == null || !Index().TryGetValue(book, out entries)) return routes;
+        foreach (var entry in entries) {
+            var owned = account.ItemManager.Get(entry.Ticket.Index);
+            if (owned == null || owned.Count <= 0 || owned.Locked != 0) continue;
+            if (entry.Via != 0) {
+                // The intermediate stack is consumed by the second request; a locked stack would reject it.
+                var via = account.ItemManager.Get(entry.Via);
+                if (via != null && via.Locked != 0) continue;
+            }
+            routes.Add(new Route { Ticket = entry.Ticket, Count = owned.Count, Via = entry.Via });
+        }
+        return routes;
+    }
+
+    // Replaces SkillBookInfo.CurItemCount in Helper.GetSkillDetailInfo's tier-status test only,
+    // so tiers, the Skills tab badge and hero-list indicators treat tickets as books.
+    // CurItemCount itself stays the real book count for requests and planning.
+    public static int Usable(Helper.SkillBookInfo book) {
+        if (book.BookItemData == null) return book.CurItemCount;
+        return WithTickets(book.BookItemData, book.CurItemCount);
+    }
+
+    public sealed class Conversion { public int Ticket, Via, Book, Count; }
+
+    // Owned tickets shared across several books: a class or general ticket can
+    // serve any of a hero's slots, so every slot draws from one balance.
+    public sealed class Pool {
+        readonly Dictionary<int, int> left = new Dictionary<int, int>();
+        readonly Dictionary<int, List<Route>> routes = new Dictionary<int, List<Route>>();
+        public readonly List<Conversion> Conversions = new List<Conversion>();
+        List<Route> For(int book) {
+            List<Route> list;
+            if (!routes.TryGetValue(book, out list)) {
+                list = Routes(book);
+                routes[book] = list;
+                foreach (var route in list) if (!left.ContainsKey(route.Ticket.Index)) left[route.Ticket.Index] = route.Count;
+            }
+            return list;
+        }
+        public int Available(int book) {
+            long total = 0;
+            foreach (var route in For(book)) total += left[route.Ticket.Index];
+            return (int)Math.Min(int.MaxValue, total);
+        }
+        // Reserves up to count tickets for book, direct tickets first; returns the books covered.
+        public int Take(int book, int count) {
+            int taken = 0;
+            foreach (var route in For(book)) {
+                if (taken >= count) break;
+                int use = Math.Min(left[route.Ticket.Index], count - taken);
+                if (use <= 0) continue;
+                left[route.Ticket.Index] -= use;
+                taken += use;
+                var merged = Conversions.Find(c => c.Ticket == route.Ticket.Index && c.Via == route.Via && c.Book == book);
+                if (merged != null) merged.Count += use;
+                else Conversions.Add(new Conversion { Ticket = route.Ticket.Index, Via = route.Via, Book = book, Count = use });
+            }
+            return taken;
+        }
+    }
+
+    static int Owned(int item) {
+        var account = GlobalAutoBehaviour<AccountManager>.instance;
+        var owned = account == null ? null : account.ItemManager.Get(item);
+        return owned == null ? 0 : owned.Count;
+    }
+
+    static int WithTickets(ItemData book, int count) {
+        if (book == null || count < 0) return count;
+        return (int)Math.Min(int.MaxValue, (long)count + new Pool().Available(book.Index));
+    }
+
+    // Last value each counter displayed, so ticket-only refreshes skip unchanged counters
+    // and never cancel a native "+N" book tween.
+    sealed class LastShown { public int Value; }
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UpgradeBookItemIconComponent, LastShown> Shown =
+        new System.Runtime.CompilerServices.ConditionalWeakTable<UpgradeBookItemIconComponent, LastShown>();
+
+    // Called at the start of UpgradeBookItemIconComponent.SetItemCount: books plus convertible tickets.
+    public static int Display(UpgradeBookItemIconComponent counter, int count) {
+        if (counter == null) return count;
+        int shown = WithTickets(counter.ItemData, count);
+        Shown.GetOrCreateValue(counter).Value = shown;
+        return shown;
+    }
+
+    // Native counters only react to book changes; ticket purchases and conversions update here.
+    public static void RefreshCounters(IEnumerable<UpgradeBookItemIconComponent> counters) {
+        if (counters == null) return;
+        foreach (var counter in counters) {
+            if (counter == null || counter.ItemData == null) continue;
+            int books = Owned(counter.ItemData.Index);
+            LastShown last;
+            if (Shown.TryGetValue(counter, out last) && last.Value == WithTickets(counter.ItemData, books)) continue;
+            counter.SetItemCount(books);
+        }
+    }
+
+    // Redeems reserved tickets in order through native 1:1 requests (at most 1,000 per request).
+    // done(true) once every book has arrived; done(false) after a failure, with earlier conversions kept.
+    public static void Redeem(List<Conversion> plan, Action<bool> done) {
+        var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+        if (requester == null) { done(false); return; }
+        var steps = new List<int[]>();
+        foreach (var c in plan)
+            for (int left = c.Count; left > 0; left -= 1000) {
+                int n = Math.Min(1000, left);
+                if (c.Via != 0) { steps.Add(new[] { c.Ticket, c.Via, n }); steps.Add(new[] { c.Via, c.Book, n }); }
+                else steps.Add(new[] { c.Ticket, c.Book, n });
+            }
+        RedeemStep(steps, 0, requester, requester.SessionKey, done);
+    }
+
+    static void RedeemStep(List<int[]> steps, int at, object owner, string session, Action<bool> done) {
+        if (at >= steps.Count) { done(true); return; }
+        var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+        if (requester == null || !ReferenceEquals(requester, owner) || requester.SessionKey != session) { done(false); return; }
+        var step = steps[at];
+        if (Owned(step[0]) < step[2]) { done(false); return; }
+        bool completed = false;
+        requester.Request(new NShared.UsePackageSelectItem.Request { ItemIndex = step[0], SelectItemIndex = step[1], ItemCount = step[2] },
+            (NShared.UsePackageSelectItem.Response response) => {
+                if (completed) return;
+                completed = true;
+                var now = SingletonUpdater<WebServiceManager>.instance.Requester;
+                if (!ReferenceEquals(now, owner) || now.SessionKey != session || response == null) { done(false); return; }
+                if (response.BaseResult != BaseResultType.Success || response.Result != NShared.UsePackageSelectItem.ResultType.Success) {
+                    MessagePopup.OpenError(response.Result);
+                    done(false);
+                    return;
+                }
+                var account = GlobalAutoBehaviour<AccountManager>.instance;
+                account.ItemManager.Apply(response.ItemResult);
+                account.ItemManager.Apply(response.RewardItemResult);
+                RedeemStep(steps, at + 1, owner, session, done);
+            });
+    }
+
+    // Replaces HeroSkillDesc.LearnExtendSkill's listener calls; the native
+    // listener still owns the confirmation, request and prison fallback.
+    public static void Extend(HeroSkillDesc.Listener listener, int slot, int extend, bool enough, HeroSkillDesc desc) {
+        if (listener == null) return;
+        if (desc == null || desc.HeroInfo == null || desc.ExtendSkills == null || extend < 1 || extend > desc.ExtendSkills.Length) {
+            listener.ExtendSkill(slot, extend, enough);
+            return;
+        }
+        var book = Helper.GetSkillBookInfo(desc.HeroInfo, slot);
+        int required = desc.ExtendSkills[extend - 1].ExtendInfo.ExtendItemCount;
+        if (book.BookItemData == null || required <= 0) { listener.ExtendSkill(slot, extend, false); return; }
+        // Tier status counts tickets and is only rebuilt by Refresh: decide from real books.
+        if (book.CurItemCount >= required) { listener.ExtendSkill(slot, extend, true); return; }
+        var routes = Routes(book.BookItemData.Index);
+        if (routes.Count == 0) { listener.ExtendSkill(slot, extend, false); return; }
+        var use = new UseBook(listener, desc, slot, extend, book.BookItemData.Index, required);
+        if (routes.Count == 1) { use.Show(routes[0]); return; }
+        var choices = new List<Tuple<ItemData,int>>();
+        foreach (var route in routes) choices.Add(new Tuple<ItemData,int>(route.Ticket, route.Count));
+        SelectItemMessagePopup.Open2("Skill Book Tickets", "Choose a ticket for " + book.BookItemData.Name + ".", choices,
+            (popup, index, count) => {
+                foreach (var route in Routes(use.material))
+                    if (route.Ticket.Index == index) { use.Show(route); return; }
+            });
+    }
+
+    public sealed class UseBook : SelectionItemUsePopup.IListener, SprkHeroMaterialTickets.ITicketPrefill {
+        readonly HeroSkillDesc.Listener listener;
+        readonly HeroSkillDesc desc;
+        readonly int slot, extend;
+        public readonly int material, required;
+        int ticket, via;
+        string session;
+        bool waiting;
+        int attempt;
+        public UseBook(HeroSkillDesc.Listener listener, HeroSkillDesc desc, int slot, int extend, int material, int required) {
+            this.listener = listener; this.desc = desc; this.slot = slot; this.extend = extend; this.material = material; this.required = required;
+        }
+        public int Ticket { get { return ticket; } }
+        public int Material { get { return material; } }
+        public int Required { get { return required; } }
+        public int Via { get { return via; } }
+
+        public void Show(Route route) {
+            var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+            var account = GlobalAutoBehaviour<AccountManager>.instance;
+            var book = GameRoot.Instance.ItemDataContainer.GetData(material);
+            var owned = account.ItemManager.Get(route.Ticket.Index);
+            if (requester == null || book == null || owned == null || owned.Count <= 0) return;
+            ticket = route.Ticket.Index; via = route.Via; session = requester.SessionKey;
+            var have = account.ItemManager.Get(material);
+            SelectionItemUsePopup.Open(new SelectionPopupItemInfo(route.Ticket, owned.Count),
+                new List<SelectionPopupItemInfo> { new SelectionPopupItemInfo(book, have == null ? 0 : have.Count) }, this);
+        }
+
+        public void OnClickOk(SelectionItemUsePopup popup, int usingItemIndex, int selecteditemIndex, int itemCount) {
+            if (waiting || ticket == 0 || usingItemIndex != ticket || selecteditemIndex != material || itemCount <= 0 || itemCount > 1000) return;
+            var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+            var account = GlobalAutoBehaviour<AccountManager>.instance;
+            if (requester == null || requester.SessionKey != session) { popup.Close(); return; }
+            var owned = account.ItemManager.Get(ticket);
+            if (owned == null || owned.Count < itemCount) { popup.Close(); return; }
+            waiting = true;
+            int current = ++attempt;
+            UIHelper.EnableButton(popup.ButtonOk, false);
+            Step(popup, requester, ticket, via != 0 ? via : material, itemCount, current);
+        }
+
+        // Each step is one native 1:1 conversion; a general ticket takes two.
+        void Step(SelectionItemUsePopup popup, object owner, int use, int select, int count, int current) {
+            var requester = SingletonUpdater<WebServiceManager>.instance.Requester;
+            if (requester == null || !ReferenceEquals(requester, owner) || requester.SessionKey != session) { waiting = false; return; }
+            bool completed = false;
+            requester.Request(new NShared.UsePackageSelectItem.Request { ItemIndex = use, SelectItemIndex = select, ItemCount = count },
+                (NShared.UsePackageSelectItem.Response response) => {
+                    if (completed || current != attempt) return;
+                    completed = true;
+                    var now = SingletonUpdater<WebServiceManager>.instance.Requester;
+                    if (!ReferenceEquals(now, owner) || now.SessionKey != session) { waiting = false; return; }
+                    if (response == null) { Finish(popup, false); return; }
+                    if (response.BaseResult != BaseResultType.Success || response.Result != NShared.UsePackageSelectItem.ResultType.Success) {
+                        // A failed first step converted nothing, so the popup stays open for a retry.
+                        // A failed second step leaves the slot tickets in inventory.
+                        Finish(popup, use == ticket);
+                        MessagePopup.OpenError(response.Result);
+                        return;
+                    }
+                    // Native observers refresh the skill window's book counters.
+                    var account = GlobalAutoBehaviour<AccountManager>.instance;
+                    account.ItemManager.Apply(response.ItemResult);
+                    account.ItemManager.Apply(response.RewardItemResult);
+                    if (select != material) { Step(popup, owner, select, material, count, current); return; }
+                    Finish(popup, false);
+                    Continue();
+                });
+        }
+
+        // Rebuild the tier states, then hand an affordable tier to the native confirmation.
+        void Continue() {
+            if (desc == null || desc.HeroInfo == null) return;
+            desc.Refresh();
+            var book = Helper.GetSkillBookInfo(desc.HeroInfo, slot);
+            if (book.BookItemData != null && book.BookItemData.Index == material && book.CurItemCount >= required)
+                listener.ExtendSkill(slot, extend, true);
+        }
+
+        // keepOpen: a first-step failure leaves nothing converted, so the player can retry.
+        void Finish(SelectionItemUsePopup popup, bool keepOpen) {
+            waiting = false;
+            if (popup == null) return;
+            UIHelper.EnableButton(popup.ButtonOk, true);
+            if (!keepOpen) popup.Close();
+        }
+    }
+}

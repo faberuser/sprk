@@ -1,3 +1,9 @@
+#[path = "forge_shop_tests.rs"]
+mod forge_shop;
+
+#[path = "retired_rewards_tests.rs"]
+mod retired_rewards;
+
 use crate::api::{
     account::user,
     inventory::{craft, item},
@@ -1064,22 +1070,35 @@ async fn package_claim_rolls_back_on_missing_reward_data() {
 #[tokio::test]
 async fn package_and_selector_rewards_have_native_shapes() {
     let (state, u) = setup().await;
+    // HashMap order differs per process: choose deterministically, and skip
+    // disabled selectors (they offer only disabled, ungrantable rewards).
     let (&id, selector) = state
         .tables
         .inventory
         .selectors
         .iter()
-        .find(|(_, s)| {
-            s["ItemIndices"].as_array().unwrap().iter().all(|i| {
-                state
-                    .tables
-                    .items
-                    .reward_item(i.as_i64().unwrap() as i32)
-                    .is_some_and(|m| m.kind == "Item")
-            })
+        .filter(|(&id, s)| {
+            !crate::models::item::disabled_reward(id)
+                && s["ItemIndices"].as_array().unwrap().iter().all(|i| {
+                    let i = i.as_i64().unwrap() as i32;
+                    !crate::models::item::disabled_reward(i)
+                        && state.tables.items.reward_item(i).is_some_and(|m| m.kind == "Item")
+                })
         })
+        .min_by_key(|(&id, _)| id)
         .unwrap();
     let target = selector["ItemIndices"][0].as_i64().unwrap();
+    // Every disabled selector is refused before anything is consumed.
+    let disabled: Vec<i32> = state.tables.inventory.selectors.keys().copied()
+        .filter(|id| crate::models::item::disabled_reward(*id)).collect();
+    for &blocked in &disabled {
+        let choice = state.tables.inventory.selectors[&blocked]["ItemIndices"][0].as_i64().unwrap();
+        put(&state, &u, blocked, 1).await;
+        let refused = item::use_package_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={blocked}&ItemCount=1&SelectItemIndex={choice}"))).await.unwrap().0;
+        assert_ne!(refused["Result"], "Success", "{blocked}: {refused}");
+        assert_eq!(count(&state, &u, blocked).await, 1, "{blocked} must not be consumed");
+    }
     put(&state, &u, id, 2).await;
     let bad = item::use_package_select_item(
         State(state.clone()),
@@ -1136,6 +1155,38 @@ async fn package_and_selector_rewards_have_native_shapes() {
     assert_eq!(count(&state, &u, package).await, 0);
     let _ = def;
 }
+#[tokio::test]
+async fn class_unique_weapon_selector_is_dedicated_and_regular_pools_are_restored() {
+    let (state, u) = setup().await;
+    let ticket = 600101;
+    assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"], json!([900001,900002,900003,900004,900005,900006,900007]));
+    put(&state, &u, ticket, 7).await;
+    for selected in 900001..=900007 {
+        let result = item::use_weapon_unique_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={ticket}&WeaponUniqueItemIndex={selected}&ItemCount=1")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], "Success", "{result}");
+        assert_eq!(result["EquipItemResults"][0]["ItemIndex"], selected);
+        assert_eq!(result["EquipItemResults"][0]["Star"], 0);
+    }
+    assert_eq!(count(&state, &u, ticket).await, 0);
+    for ticket in [2000,700066,700314,700338,700308,700067,700335,700334,700333,700316] {
+        assert_eq!(state.tables.inventory.equipment_selectors[&ticket]["ItemIndices"].as_array().unwrap().len(), 91);
+        put(&state, &u, ticket, 1).await;
+        let result = item::use_weapon_unique_select_item(State(state.clone()),
+            form(&u, &format!("ItemIndex={ticket}&WeaponUniqueItemIndex=900001&ItemCount=1")))
+            .await.unwrap().0;
+        assert_eq!(result["Result"], "WeaponUniqueNotSelectable");
+        assert_eq!(count(&state, &u, ticket).await, 1);
+    }
+    put(&state, &u, 600101, 1).await;
+    let rejected = item::use_weapon_unique_select_item(State(state.clone()),
+        form(&u, "ItemIndex=600101&WeaponUniqueItemIndex=1001&ItemCount=1"))
+        .await.unwrap().0;
+    assert_eq!(rejected["Result"], "WeaponUniqueNotSelectable");
+    assert_eq!(count(&state, &u, 600101).await, 1);
+}
+
 #[tokio::test]
 async fn equipment_selectors_enforce_choices_and_inventory_capacity() {
     let (state, u) = setup().await;
@@ -2074,7 +2125,7 @@ async fn gear_tickets_all_definitions_accept_native_and_json_forms() {
             .all(|id| state.tables.inventory.equipment.contains_key(&(id.as_i64().unwrap() as i32))))
         .map(|(ticket, _)| *ticket).collect();
     tickets.sort_unstable();
-    assert_eq!(tickets.len(), 459);
+    assert_eq!(tickets.len(), 460);
     for ticket in tickets {
         let selector = &state.tables.inventory.equipment_selectors[&ticket];
         let target = selector["ItemIndices"][0].as_i64().unwrap() as i32;

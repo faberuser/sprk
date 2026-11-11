@@ -62,6 +62,7 @@
     "Description": "SPRK-designed balance, not a recovered historical formula. Filled shards keep native gauge conversion.",
     "Version": 1,
     "FragmentsPerSqrtWave": 10,
+    "FragmentRewardMultiplier": 4,
     "MaxFragmentsPerRun": 100,
     "BonusEveryClearedWaves": 10,
     "MaxBonusBundlesPerRun": 5

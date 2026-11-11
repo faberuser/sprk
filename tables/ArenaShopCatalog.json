@@ -21,7 +21,7 @@
       "ItemCode": "VOID_RUNE_2",
       "Count": 1,
       "Star": 0,
-      "PurchasableCount": 2,
+      "PurchasableCount": 0,
       "DailyReset": false,
       "WeeklyReset": true,
       "MonthlyResetDate": null,

@@ -76,7 +76,7 @@ partial class Program
                         (called.HasThis && instruction.OpCode != OpCodes.Newobj ? 1 : 0) :
                     throw new InvalidOperationException("Unsupported arena result instruction: " + instruction);
             }
-            else consumed = pop == StackBehaviour.Pop0 ? 0 : pop.ToString().Split('_').Length;
+            else consumed = pop == StackBehaviour.Pop0 ? 0 : pop == StackBehaviour.PopAll ? depth : pop.ToString().Split('_').Length;
             if (depth < consumed) throw new InvalidOperationException("Arena result stack underflow at " + instruction);
             depth -= consumed;
             var push = instruction.OpCode.StackBehaviourPush;

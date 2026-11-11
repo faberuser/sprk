@@ -19,6 +19,26 @@ partial class Program {
         var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(managed);
         using var assembly=AssemblyDefinition.ReadAssembly(dll,new ReaderParameters{AssemblyResolver=resolver});
         var module=assembly.MainModule;var worker=helper.MainModule.Types.Single(t=>t.Name=="SprkDispatch");
+        var requester=module.GetTypes().Single(t=>t.Name=="WebServiceRequester");
+        var webResponse=requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded");
+        if(!webResponse.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="CaptureRewards")) {
+            var parse=webResponse.Body.Instructions.Single(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="JsonMarshaler" && m.Name=="Parse");
+            var textField=(FieldReference)parse.Previous.Operand;
+            var resultField=(FieldReference)parse.Next.Operand;
+            var next=parse.Next.Next;var il=webResponse.Body.GetILProcessor();
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldloc_0),Instruction.Create(OpCodes.Ldfld,textField),
+                Instruction.Create(OpCodes.Ldloc_0),Instruction.Create(OpCodes.Ldfld,resultField),Instruction.Create(OpCodes.Box,resultField.FieldType),
+                Instruction.Create(OpCodes.Call,module.ImportReference(worker.Methods.Single(m=>m.Name=="CaptureRewards")))})il.InsertBefore(next,i);
+        }
+        var callback=requester.NestedTypes.SelectMany(t=>t.Methods).Single(m=>m.Name=="<ProcessWebResponseThreaded>b__0");
+        if(!callback.Body.Instructions.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="ApplyRewards")) {
+            var get=callback.Body.Instructions.Single(i=>i.Operand is MethodReference m && m.Name=="get_OnBaseResponse");
+            var resultField=(FieldReference)get.Next.Next.Operand;
+            // Apply before OnBaseResponse's level updates and native completion UI.
+            var first=callback.Body.Instructions[0];var il=callback.Body.GetILProcessor();
+            foreach(var i in new[]{Instruction.Create(OpCodes.Ldarg_0),Instruction.Create(OpCodes.Ldfld,resultField),Instruction.Create(OpCodes.Box,resultField.FieldType),
+                Instruction.Create(OpCodes.Call,module.ImportReference(worker.Methods.Single(m=>m.Name=="ApplyRewards")))})il.InsertBefore(first,i);
+        }
         // SprkDispatch owns background state refresh and simulation. Keep native
         // explicit start/cancel/claim requests and their callbacks, but stop the
         // overlapping lazy, temporary-time, selected-info and end-time loops.
@@ -96,8 +116,17 @@ partial class Program {
         var calls=assembly.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody)
             .SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<MethodReference>()
             .Where(m=>m.DeclaringType.Name=="SprkDispatch").ToArray();
-        foreach(var name in new[]{"Ensure","Tick","Seed","StartRejected","Started"})
+        foreach(var name in new[]{"Ensure","Tick","Seed","StartRejected","Started","CaptureRewards","ApplyRewards"})
             if(calls.Count(m=>m.Name==name)!=1)throw new InvalidOperationException("Missing or duplicate dispatch hook: "+name);
+        var requester=assembly.MainModule.GetTypes().Single(t=>t.Name=="WebServiceRequester");
+        var response=requester.Methods.Single(m=>m.Name=="ProcessWebResponseThreaded").Body.Instructions.ToList();
+        var parse=response.FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="JsonMarshaler" && m.Name=="Parse");
+        var capture=response.FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="CaptureRewards");
+        if(parse<0 || capture<=parse)throw new InvalidOperationException("Dispatch rewards must be captured after response parsing");
+        var callback=requester.NestedTypes.SelectMany(t=>t.Methods).Single(m=>m.Name=="<ProcessWebResponseThreaded>b__0").Body.Instructions.ToList();
+        var apply=callback.FindIndex(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkDispatch" && m.Name=="ApplyRewards");
+        var baseResponse=callback.FindIndex(i=>i.Operand is MethodReference m && m.Name=="get_OnBaseResponse");
+        if(apply<0 || baseResponse<=apply)throw new InvalidOperationException("Dispatch inventory must be applied on the main thread before base response updates");
         var code=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).ToArray();
         foreach(var literal in new[]{"Progressive","SimulationResults","TimeMs","Outcome"})
             if(!code.Any(i=>i.OpCode==OpCodes.Ldstr && Equals(i.Operand,literal)))throw new InvalidOperationException("Missing progressive dispatch field: "+literal);
@@ -110,7 +139,7 @@ partial class Program {
         }
         if(code.Any(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="DispatchHelper" && m.Name=="SendRQGetDispatchList"))
             throw new InvalidOperationException("Dispatch simulator must apply its response without a second list request.");
-        Console.WriteLine("Verified progressive dispatch fields, continuation, native simulation and unique startup/tick/seed/error hooks.");
+        Console.WriteLine("Verified progressive dispatch, native simulation, unique hooks and main-thread inventory reward delivery.");
     }
     static void TestDispatch() {
         string Resource(string name) {
@@ -125,7 +154,7 @@ partial class Program {
         using var output=new MemoryStream();var emitted=compilation.Emit(output);
         if(!emitted.Success)throw new InvalidOperationException(string.Join("\n",emitted.Diagnostics));
         System.Reflection.Assembly.Load(output.ToArray()).GetType("DispatchTestRunner")!.GetMethod("Run")!.Invoke(null,null);
-        Console.WriteLine("PASS: dispatch first result before 200 repeats, immutable retries, persisted-prefix resume, fair slots, timeout and session change.");
+        Console.WriteLine("PASS: dispatch preparation, retries, resume, fairness, timeout, session change and claim/cancel inventory delivery.");
     }
 
 }

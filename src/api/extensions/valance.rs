@@ -372,15 +372,12 @@ async fn craft(
         .equipment
         .get_mut(0)
         .ok_or_else(|| rule("InvalidRewardData"))?;
-    if !chosen.is_empty() {
-        item::make_options(
-            state,
-            id,
-            eq,
-            &chosen.iter().map(|v| *v as i32).collect::<Vec<_>>(),
-        )?;
+    if chosen.is_empty() {
+        eq.identified = 0;
+    } else {
+        // The native selector sends an additional skill, not a normal stat.
+        select_unique(state, eq, &chosen.iter().map(|v| *v as i32).collect::<Vec<_>>())?;
     }
-    eq.identified = 0;
     save_equip(db, account, eq).await?;
     out["EquipItemResult"] = json!(eq);
     out["ItemResults"] = json!(removed);

@@ -89,7 +89,9 @@ takes the last slot beside the existing dropdowns and copies their pill sprite.
 Natively stacked dropdowns share one slot. Narrowed dropdowns keep their arrow's
 native inset from the pill edge. The Physical/Magical ticket gets a row above its
 column headings using the native `Common_Box_2` input box. Both use the window's
-font and the `Common_Close` clear button. Matching ignores case, spaces,
+font and the `Common_Close` clear button, inset inside the blue background with
+reserved text space. The probe checks its icon/hit-area inset and clear action
+across all seven layouts. Matching ignores case, spaces,
 punctuation and accents. Every word must match the localized hero name or title,
 the hero's internal English code name, or the item/costume name. When no entry in
 the ticket matches exactly, matching becomes typo-tolerant. Words of 4-5 letters
@@ -110,6 +112,41 @@ The fixture loads lobby atlases from the `HighAndMidSpec` bundle folder.
 `open:<weapon|treasure|artifact|soul|hero|attr|costume>` and `type:<query>`
 leave a fixture on screen for screenshots. The full release build installs and
 verifies this patch.
+
+The same patch adds a selector-style class dropdown and search field above the
+middle `HeroPortraitList` grid in Hero Info. Class and name filters intersect;
+clearing search retains the class, and reopening resets both. The original
+portraits, selected hero and full preferred-hero order are preserved. The scroll
+viewport and drag area reserve the top row once per window instance. The
+`ticket-search-probe` mode `hero-info-test` checks combined filtering, empty
+results, clearing, full-list bookmark moves, selection, reopening and layout
+idempotence on the real Unity client using an isolated Login fixture.
+
+`--selector-acquire-state-only` fixes stale grayscale on Acquire after a selector
+filter/search temporarily disables the button. In both
+`WeaponUniqueSelect.SetItemDescription(ItemData)` and its `SoulStoneSelect`
+override, it changes only the native `UIHelper.EnableButton(Button_Buy, true,
+false, false)` grayscale argument to `true`. The resulting `(true, true, false)`
+keeps Acquire enabled and clears stale grayscale without forcing gray. Native
+empty/null handling, eligibility and selection stay intact. The ticket-search
+probe also checks Acquire's click/grayscale state through selection, hidden
+results, clearing, reselection and reopening for weapon, treasure, artifact and
+soulstone tickets. Installation patches the current DLL to
+preserve existing patches, validates both exact call/argument shapes and IL
+stacks, checks idempotence, stages and re-verifies the result, then checks for
+client/shared-worker processes and backs up the DLL before replacement.
+Unexpected or ambiguous native shapes fail closed.
+
+```powershell
+dotnet run --project scripts/DllPatcher -- ../sprk-client --selector-acquire-state-only --stage-only
+dotnet run --project scripts/DllPatcher -- ../sprk-client --verify-selector-acquire-state --stage-only
+```
+
+Stage-only writes `Assembly-CSharp.dll.selector-acquire-state-staged` beside the
+current DLL without replacing it. Omit `--stage-only` from the first command to
+install (restart the client afterward); omit it from the verification command
+to check the installed DLL. Full `--build-release` installs and verifies this
+fix immediately after TicketSearch.
 
 `--arena-practice-only` adds Arena Practice immediately after Battlefield of
 Ordeals. Its Practice button opens the native four-hero Arena party selector,
@@ -172,6 +209,37 @@ field is absent. `--verify-technomagic-awaken-target` checks hooks, native
 members and IL. Installation also runs the native request encoder against the
 compiled helper. The full release build installs it before `Currency64`.
 
+`--forge-awaken-chance-only` adds a success-rate slider to normal/UW/UT Forge
+awakening. Each stop is a distinct positive chance achievable with the available
+eligible materials, using the target's next-star success table and failure bonus.
+For example, a one-star target with two zero-star copies has just 50% and 100%
+stops. There are no fixed percentage intervals or empty-material stop. Selection defaults to the
+highest achievable chance, capped at 100%, whenever a target is selected or its
+star/failure bonus changes. The readout shows the actual achievable chance,
+including the native failure bonus. The planner minimizes awakening points and
+then material count for each distinct achievable chance. Ties prefer
+lower-star duplicates before universal stones. Locked gear and native-ineligible
+stones/gear are excluded. Native material icons, gold cost, button and request
+arrays are refreshed; awakening still attempts only the next star when pressed.
+Manual material selection remains available. `--verify-forge-awaken-chance`
+checks hooks, eligibility/table calls and IL stacks. Installation compares the
+planner with exhaustive subsets for 350 inventories, including mixed materials,
+nonlinear rates, failure bonuses and the two-copy 50%/100% example. A single
+achievable chance is selected automatically with dragging disabled; no eligible
+materials disables dragging and selects nothing.
+The slider sits in a separate row above Gold and Awaken Gear; the track and
+right-aligned success readout span the combined width of those controls. Track
+widgets widen while the thumb and row height retain their original proportions.
+The target/result,
+materials/success-rate and complete stat/effect scroll groups move upward together;
+their internal spacing and stat viewport size are preserved. Layout is applied
+once per pooled window. An active discount banner fits beside the raised instruction.
+The opt-in Login automation action `forge-awaken-chance-probe` exercises the
+native prefab, normal/UW/UT selection, dynamic stops across next-star tables,
+single/empty inventories, stones, locks, manual edits and failure
+refresh; `text: "preview"` retains its isolated fixture for a screenshot.
+The full release build installs and verifies the patch.
+
 `--skill-upgrade-all-only` adds an upgrade-all button (labelled Upgrade) to the
 hero Skills tab's skill-book row. It clones the HeroList window's native All Heroes button as a taller sliced
 button with a larger label. The four book counters get narrower count boxes
@@ -186,7 +254,15 @@ turns into `ExtendAll=1`. The server applies every tier and book cost in one
 transaction (locked or reserved books are excluded). It returns `ItemResults`
 and `SkillExtends` alongside the native `ItemResult`; a parser hook captures
 them, so all book counts and tiers update through native account managers.
-Native single-tier requests are unchanged. `--verify-skill-upgrade-all` checks
+Native single-tier requests are unchanged. The plan also counts owned skill-book
+selection tickets (see `--hero-material-tickets-only`) from one shared pool in
+slot order, so a ticket that could serve several slots is counted once. The
+confirmation lists books taken from tickets and each ticket used. Confirming
+first redeems those tickets through native `use_package_select_item` requests
+(at most 1,000 per request, two steps for general tickets) and then sends the
+upgrade-all request. If a redemption fails, it stops; converted books stay owned
+and the button replans. This helper references `SprkHeroMaterialTickets.dll`,
+which the release build installs first. `--verify-skill-upgrade-all` checks
 hooks and IL. Installation also runs the native encoder and response parser
 against the compiled helper. The full release build installs it before
 `Currency64`.
@@ -277,6 +353,35 @@ refresh counts and awakening availability after use. With no matching ticket,
 essences retain the native crafting action; fragments show an unavailable-ticket
 notice because they cannot be crafted. Transcendence stones, limit break,
 and other screens retain their native behavior.
+The same patch adds a skill-book shortcut to Hero Info's skill window. Tapping
+a skill tier that lacks books offers owned, unlocked selection tickets that
+yield that slot's class book instead of the native Underground Prison prompt.
+Class tickets (`SKILLBOOK_SELECT_<CLASS>`) and slot tickets
+(`SKILLBOOK_SELECT_n`) convert directly. General tickets
+(`PACKAGE_SKILLBOOK_ALL`) convert 1:1:1 through the matching slot ticket in two
+native `use_package_select_item` requests. A locked slot-ticket stack blocks
+that route because the server cannot consume it. Direct tickets are listed
+before general ones; multiple tickets open the chooser. The native use popup
+offers only the needed book, preselected, with the quantity set to the tier's
+shortage, capped as above. After the books arrive, the window refreshes and an
+affordable tier opens the native upgrade confirmation. If the general ticket's
+second step fails, the slot tickets stay in inventory. With no usable ticket,
+or with enough books already owned, the native path runs.
+Book counters in the Skills tab and skill window show owned books plus every
+owned ticket that can become that book. A class or general ticket therefore
+appears under each slot it can serve. A hook at the start of
+`UpgradeBookItemIconComponent.SetItemCount` adds the tickets. The Skills tab's
+item observer refreshes counters whose total changed after ticket-only updates,
+such as shop purchases, without interrupting the native "+N" book animation.
+Tier status counts the same tickets. In `Helper.GetSkillDetailInfo`, the
+`CurItemCount` load in the tier comparison is replaced by
+`SprkSkillBookTickets.Usable`. A tier that tickets can pay for therefore shows
+the native UPGRADE marker, upgrade arrows, the Skills tab badge and hero-list
+indicators. `SkillBookInfo.CurItemCount` stays the real book count. Tapping
+such a tier re-checks real books: enough books open the native confirmation;
+otherwise the ticket popup opens first. Ticket availability uses a book → ticket
+index built once from the static item tables. Hero-list badge checks therefore
+avoid rescanning the item table.
 `--verify-hero-material-tickets` checks the scoped hooks, signatures and observer;
 installation also runs isolated service/UI probes against the exact helper source
 for successful/failed use, duplicate requests/responses, stale sessions, depleted
@@ -284,11 +389,29 @@ tickets, multiple ticket choices, and fallback behavior. These probes do not use
 player inventory. Both installation and verification run in `--build-release`.
 
 `--awakening-materials-only` hides gray inventory equipment and awakening stones
-inside gear awakening, then compacts that material grid. It retains the native
-eligibility and selected-item checks and restores items on later refreshes.
-`--verify-awakening-materials` checks the scoped hooks and IL stack. Stage this
-patch and automation before running `python scripts/client/verify_awakening_materials.py`
-for isolated native icon/grid visibility, restoration and spacing checks.
+inside gear awakening, then compacts that material grid. It also rejects every
+nonzero equipment lock flag in the shared native awakening-material predicate,
+so locked artifacts, unique weapons and unique treasures cannot be selected as
+materials. Locked gear remains usable as the awakening target. Native soul-weapon,
+metadata and required-level checks remain intact, as do selected-item checks and
+restoration on later refreshes. Compaction also requests native next-frame grid
+layout: initialization while the window hierarchy is hidden must not leave all
+icons at the first-slot origin on cold opens or pooled reopens. All five equipped
+and unequipped sort fields are initialized in the constructor to the native
+close/reset defaults. Previously they started at zero and became one only after
+closing, so the first open after each game restart used different ordering and
+arrows. User sort toggles and the native comparators remain unchanged. The full
+release build installs this patch.
+`--verify-awakening-materials` checks the selection/visibility hooks, retained
+native checks, immediate/deferred layout, constructor/reset default parity,
+80 native sort-toggle transitions with sprite arguments, IL stack, patch
+idempotence and 16 lock/null/eligibility cases. Install this patch and `--automation-only`, launch
+an isolated client with `scripts/automation/client_automation.py`, then send the
+`awakening-material-probe` action on the Login scene. It checks eight native icons
+across a cold hidden initialization and two pooled reopens without sorting, plus
+compact filtering, hide-all, restore-all and spacing. It also checks two fresh
+native window instances start with all five reset defaults, and verifies the
+sort arrows in both directions. Repeat in a new client process to cover restart.
 
 Tower continuous-battle startup uses `--continuous-battle-only` (and
 `--verify-continuous-battle`). Its native popup keeps a 32-bit serialized prefab
@@ -454,6 +577,22 @@ pool, the new 102-hero Light ticket, shared asset evidence, native table/localiz
 baking, focused staging/verification and signed release requirements.
 
 ## Soul Weapon advancement playback
+
+`--soul-upgrade-flash-only` shortens the advancement flash particle's lifetime
+from 1.5 seconds to 0.35 seconds and selects unscaled particle time. The original
+size-100 flash holds almost full opacity for roughly the first 66% of its life,
+which looks like a one-second freeze even while the cinematic continues behind
+it. The shorter flash still covers the background change at 1.9 seconds in both
+A1/A2 timelines. `--verify-soul-upgrade-flash` checks the installed asset; both
+modes accept `--stage-only`. The full release build applies and verifies it.
+
+The asset transformation changes only that particle's lifetime and clock. It
+roundtrips the native bundle, verifies all other objects byte-for-byte and
+preserves every other field of the flash particle. The patched bundle is tracked
+under `client-overrides/files` and included in signed client updates. Gameplay,
+cinematic events, result reveal timing, sounds and existing lifecycle safeguards
+remain unchanged. This visual fix is not evidence that old crash reports share
+the same cause; the recording shows no crash or frame-time telemetry.
 
 `--soul-upgrade-playback-only` (optionally `--stage-only`) installs scoped A1/A2
 result playback safeguards. `--verify-soul-upgrade-playback` verifies the installed

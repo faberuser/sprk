@@ -15,6 +15,12 @@ use std::collections::BTreeSet;
 
 /// Called inside the same transaction that permanently removes equipment.
 pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, slot: i64) -> Result<()> {
+    forget_equipments(db, account, &BTreeSet::from([slot])).await
+}
+/// `forget_equipment` for many pieces at once: storage rows and presets are
+/// read, rewritten and saved once per batch instead of once per piece.
+pub(crate) async fn forget_equipments(db: &mut SqliteConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
+    if slots.is_empty() { return Ok(()); }
     let rows = sqlx::query("SELECT idx,data FROM extension_state WHERE account_id=? AND kind='equip_storage'")
         .bind(account).fetch_all(&mut *db).await?;
     for row in rows {
@@ -23,7 +29,7 @@ pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, sl
         let mut changed=false;
         for part in 1..=10 {
             let key=format!("EquipItemSlotIndex{part}");
-            if n(&value,&key)==slot { value[key]=json!(0); changed=true; }
+            if slots.contains(&n(&value,&key)) { value[key]=json!(0); changed=true; }
         }
         if changed {
             sqlx::query("UPDATE extension_state SET data=? WHERE account_id=? AND kind='equip_storage' AND idx=?")
@@ -38,7 +44,7 @@ pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, sl
         let mut changed=false;
         for preset in &mut presets {
             let parts:Vec<usize>=preset["EquipItemSlotIndex"].as_array().into_iter().flatten().enumerate()
-                .filter(|(_,value)|value.as_i64()==Some(slot)).map(|(part,_)|part).collect();
+                .filter(|(_,value)|value.as_i64().is_some_and(|slot|slots.contains(&slot))).map(|(part,_)|part).collect();
             for part in parts {
                 preset["EquipItemSlotIndex"][part]=json!(0);
                 if let Some(uid)=preset["EquipItemUid"].as_array_mut().and_then(|a|a.get_mut(part)) { *uid=json!(""); }
@@ -51,8 +57,8 @@ pub(crate) async fn forget_equipment(db: &mut SqliteConnection, account: i64, sl
                 .bind(json!(presets).to_string()).bind(account).bind(row.get::<String,_>("storage_key")).execute(&mut *db).await?;
         }
     }
-    sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index=?")
-        .bind(account).bind(slot).execute(&mut *db).await?;
+    sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+        .bind(account).bind(json!(slots).to_string()).execute(&mut *db).await?;
     Ok(())
 }
 
@@ -170,6 +176,15 @@ pub(crate) async fn execute(
                 }
                 let mut used = BTreeSet::new();
                 let mut equips = vec![];
+                // Whole-roster presets reference ~500 pieces: load the stored
+                // gear they name in one statement instead of two per slot.
+                let named: Vec<i64> = presets.iter()
+                    .flat_map(|p| p["EquipItemSlotIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64))
+                    .filter(|slot| *slot > 0).collect();
+                let mut gear: std::collections::HashMap<i64, sqlx::sqlite::SqliteRow> =
+                    sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND inventory_type=0 AND slot_index IN (SELECT value FROM json_each(?))")
+                        .bind(account).bind(json!(named).to_string()).fetch_all(&mut *db).await?
+                        .into_iter().map(|r| (r.get::<i64, _>("slot_index"), r)).collect();
                 for p in &mut presets {
                     let h = hero::info(db, account, n(p, "HeroIndex") as i32).await?;
                     let page = n(p, "ApplySkillPage");
@@ -193,8 +208,7 @@ pub(crate) async fn execute(
                         if slot <= 0 {
                             continue;
                         }
-                        let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0)")
-                            .bind(account).bind(slot).fetch_one(&mut *db).await?;
+                        let exists = gear.contains_key(&slot);
                         let uid_matches = uids.get(part).and_then(Value::as_str)
                             .is_none_or(|uid| uid.is_empty() || uid == slot.to_string());
                         if !exists || !uid_matches {
@@ -206,42 +220,57 @@ pub(crate) async fn execute(
                         if !used.insert(slot) {
                             return Err(rule("EquipSlotDataNotFound"));
                         }
-                        let r=sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0").bind(account).bind(slot).fetch_optional(&mut *db).await?.ok_or_else(||rule("EquipSlotDataNotFound"))?;
-                        equips.push(EquipItemInfo::from_row(&r));
+                        if !gear.contains_key(&slot) {
+                            // A fallback to the Hero's currently worn piece.
+                            let r=sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index=? AND inventory_type=0").bind(account).bind(slot).fetch_optional(&mut *db).await?.ok_or_else(||rule("EquipSlotDataNotFound"))?;
+                            gear.insert(slot, r);
+                        }
+                        equips.push(EquipItemInfo::from_row(&gear[&slot]));
                     }
                 }
                 let current = hero::snapshot(db, account).await?;
                 let mut removed = BTreeSet::new();
+                // Each Hero's final ten slots are decided in memory and written
+                // with one statement, only for Heroes whose gear changes: a
+                // whole-roster preset issued ~2000 single-column updates.
+                // Preset Heroes take their saved gear; others lose any piece a
+                // preset now uses. Every piece taken off is reported.
+                let mut wanted: std::collections::HashMap<i64, Vec<i64>> = std::collections::HashMap::new();
+                for p in &presets {
+                    let slots = p["EquipItemSlotIndex"].as_array().unwrap().iter().map(|slot| slot.as_i64().unwrap()).collect();
+                    wanted.insert(n(p, "HeroIndex"), slots);
+                }
                 for h in &current {
                     let v = serde_json::to_value(h)
                         .map_err(|e| ServerError::Internal(e.to_string()))?;
-                    let saved = presets
-                        .iter()
-                        .any(|p| n(p, "HeroIndex") == h.hero_index as i64);
-                    for i in 1..=10 {
-                        let slot = n(&v, &format!("EquipItemSlotIndex{i}"));
-                        if saved || used.contains(&slot) {
-                            if slot > 0 {
-                                removed.insert(slot);
+                    let before: Vec<i64> = (1..=10).map(|i| n(&v, &format!("EquipItemSlotIndex{i}"))).collect();
+                    let saved = wanted.get(&(h.hero_index as i64));
+                    let mut after = before.clone();
+                    for (part, slot) in before.iter().enumerate() {
+                        if saved.is_some() || used.contains(slot) {
+                            if *slot > 0 {
+                                removed.insert(*slot);
                             }
-                            sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{i}=0 WHERE account_id=? AND hero_index=?")).bind(account).bind(h.hero_index).execute(&mut *db).await?;
+                            after[part] = 0;
                         }
+                    }
+                    if let Some(slots) = saved {
+                        after = slots.clone();
+                    }
+                    if after != before {
+                        let mut update = sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_2=?,equip_item_slot_index_3=?,equip_item_slot_index_4=?,equip_item_slot_index_5=?,equip_item_slot_index_6=?,equip_item_slot_index_7=?,equip_item_slot_index_8=?,equip_item_slot_index_9=?,equip_item_slot_index_10=? WHERE account_id=? AND hero_index=?");
+                        for slot in &after { update = update.bind(*slot); }
+                        update.bind(account).bind(h.hero_index).execute(&mut *db).await?;
                     }
                 }
                 for p in &presets {
                     let id = n(p, "HeroIndex") as i32;
-                    for (i, slot) in p["EquipItemSlotIndex"]
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .enumerate()
-                    {
-                        sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{}=? WHERE account_id=? AND hero_index=?",i+1)).bind(slot.as_i64().unwrap()).bind(account).bind(id).execute(&mut *db).await?;
-                    }
                     let mut d = hero::details(db, account, id).await?;
-                    d["ApplySkillPage"] = p["ApplySkillPage"].clone();
-                    d["ApplyRunePage"] = p["ApplyRunePage"].clone();
-                    hero::save_details(db, account, id, &d).await?;
+                    if d["ApplySkillPage"] != p["ApplySkillPage"] || d["ApplyRunePage"] != p["ApplyRunePage"] {
+                        d["ApplySkillPage"] = p["ApplySkillPage"].clone();
+                        d["ApplyRunePage"] = p["ApplyRunePage"].clone();
+                        hero::save_details(db, account, id, &d).await?;
+                    }
                 }
                 for p in &mut presets {
                     p["EquipItemUid"] = json!(p["EquipItemSlotIndex"].as_array().unwrap().iter()

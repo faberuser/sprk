@@ -12,19 +12,21 @@ using NVespa.NGlobal;
 using NVespa.NSingleton;
 
 public static class SprkHeroMaterialTickets {
+    // Ticket listeners whose quantity starts at the remaining shortage.
+    public interface ITicketPrefill { int Ticket { get; } int Material { get; } int Required { get; } }
     public static int InitialCount(int required, int owned, int tickets) {
         return (int)Math.Min(Math.Max(0L, (long)required - owned), Math.Min(1000L, Math.Max(0, tickets)));
     }
     public static void Prefill(SelectionItemUsePopup popup, SelectionItemUsePopup.IListener listener, List<ItemIconComponent> choices) {
-        var use = listener as UseTicket;
+        var use = listener as ITicketPrefill;
         if (use == null || popup.InputSelectedCount == null) return;
         var account = GlobalAutoBehaviour<AccountManager>.instance;
-        var owned = account.ItemManager.Get(use.material);
-        var tickets = account.ItemManager.Get(use.ticket);
-        popup.InputSelectedCount.value = InitialCount(use.required, owned == null ? 0 : owned.Count,
+        var owned = account.ItemManager.Get(use.Material);
+        var tickets = account.ItemManager.Get(use.Ticket);
+        popup.InputSelectedCount.value = InitialCount(use.Required, owned == null ? 0 : owned.Count,
             tickets == null ? 0 : tickets.Count).ToString(System.Globalization.CultureInfo.InvariantCulture);
         popup.OnChangeInputSelectCount();
-        if (choices != null && choices.Count == 1 && choices[0] != null && choices[0].ItemIndex == use.material)
+        if (choices != null && choices.Count == 1 && choices[0] != null && choices[0].ItemIndex == use.Material)
             ((ItemIconComponent.Listener)popup).OnClick(choices[0]);
     }
     public static bool Matches(int target, int[] rewards) {
@@ -103,8 +105,11 @@ public static class SprkHeroMaterialTickets {
             new List<SelectionPopupItemInfo> { new SelectionPopupItemInfo(material, target == null ? 0 : target.Count) },
             new UseTicket(ticket.Index, material.Index, required, requester.SessionKey));
     }
-    sealed class UseTicket : SelectionItemUsePopup.IListener {
+    sealed class UseTicket : SelectionItemUsePopup.IListener, ITicketPrefill {
         public readonly int ticket, material, required;
+        public int Ticket { get { return ticket; } }
+        public int Material { get { return material; } }
+        public int Required { get { return required; } }
         readonly string session;
         bool waiting;
         public UseTicket(int ticket, int material, int required, string session) { this.ticket = ticket; this.material = material; this.required = required; this.session = session; }

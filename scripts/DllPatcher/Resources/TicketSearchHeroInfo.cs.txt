@@ -1,0 +1,170 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using NGame2;
+using NGame2.NUI;
+using NGame2.NUI.NComponent2;
+using NGame2.NUI.NWindow;
+using NNguiExtension;
+using NShared;
+using NVespa.NGlobal;
+using UnityEngine;
+
+public sealed class SprkHeroGridState : MonoBehaviour {
+    public UIComboBox classes;
+    // Keep the full native order, including hidden entries, for bookmark moves.
+    public List<HeroPortraitComponent> heroes=new List<HeroPortraitComponent>();
+    void OnDisable() { if(classes!=null && classes.RootWindow!=null)classes.RootWindow.HidePopup(); }
+}
+
+public static partial class SprkTicketSearch {
+    // Hero Info's middle frame is 722 units wide, about half a ticket window.
+    // The ticket controls are scaled as a unit so their art keeps its proportions,
+    // then spread over the four portrait columns (visible span about -334..334).
+    // Row band: frame top (~453) to the trimmed grid clip top (358).
+    const float HeroRowScale=.82f,HeroRowY=397f;
+    // Two equal boxes meeting at the centre; their art has ~13-unit transparent
+    // end caps, so the visible edges line up with the outer portrait columns.
+    const float HeroClassBack=340f,HeroClassX=-170f;   // -340..0
+    const float HeroSearchWidth=340f,HeroSearchX=170f; //    0..340
+    public const string HeroRowName="SprkHeroFilterRow";
+
+    // Hero Info is several windows; another window's full-screen drag area can sit
+    // above this list's base panel. Its own panel above the portrait grid keeps the
+    // class filter and search field clickable.
+    static Transform FilterRow(HeroPortraitList window,Transform frame) {
+        var row=frame.Find(HeroRowName);
+        if(row==null) {
+            var go=new GameObject(HeroRowName);go.layer=frame.gameObject.layer;
+            go.transform.SetParent(frame,false);
+            go.AddComponent<UIPanel>();
+            row=go.transform;
+        }
+        // Recomputed on every open: window managers may move this window's panels.
+        int depth=window.GetComponentsInChildren<UIPanel>(true).Where(p=>!p.transform.IsChildOf(row))
+            .Select(p=>p.depth).DefaultIfEmpty(0).Max()+1;
+        row.GetComponent<UIPanel>().depth=depth;
+        foreach(var popup in row.GetComponentsInChildren<UIPopupRoot>(true))
+            foreach(var panel in popup.GetComponentsInChildren<UIPanel>(true))panel.depth=depth+10;
+        return row;
+    }
+
+    public static void BeforeHeroGrid(HeroPortraitList window) {
+        var box=Box(window);
+        if(box!=null)box.ResetSilently();
+        var state=window.GetComponent<SprkHeroGridState>();
+        if(state!=null) {
+            state.heroes.Clear();
+            if(state.classes!=null)state.classes.SelectItem(0,false);
+        }
+    }
+
+    public static void AfterHeroGrid(HeroPortraitList window) {
+        try {
+            var state=window.GetComponent<SprkHeroGridState>();
+            if(state==null)state=window.gameObject.AddComponent<SprkHeroGridState>();
+            state.heroes=Field<List<HeroPortraitComponent>>(window,"_heroPortraitList").ToList();
+            var grid=window.HeroListGrid;
+            var frame=grid.transform.parent;
+            var row=FilterRow(window,frame);
+            var box=Ensure(window,row,"Search hero");
+            if(state.classes==null) {
+                // Clone the selector ticket's actual class control and popup.
+                var prefab=VespaResource.Load<GameObject>(WeaponUniqueSelect.PrefabPath);
+                var filter=prefab.GetComponentInChildren<SelectFilter>(true);
+                var source=Field<UIComboBox>(filter,"ComboBoxSub");
+                var combo=UnityEngine.Object.Instantiate(source,row,false);
+                combo.name="SprkHeroClass";
+                combo.OnChanged=null;
+                combo.ConditionGameObjects=new UIComboBox.ShowOrHideObjects[0];
+                // The ticket prefab is not under its AtlasAssignerController here.
+                foreach(var assigner in combo.GetComponentsInChildren<NGame2.NUI.NAtlasAssignComponent.AtlasAssignerBase>(true))assigner.Assign();
+                foreach(var widget in combo.GetComponentsInChildren<UIWidget>(true))widget.SetAnchor((Transform)null);
+                var geometry=Capture(combo.transform);
+                // Size by the visible background: the ticket combo's widget is narrower than its art.
+                int back=geometry.childWidths.Where(p=>p.Key is UISprite).Select(p=>p.Value).DefaultIfEmpty(geometry.width).Max();
+                int backLocal=(int)Math.Round(HeroClassBack/HeroRowScale);
+                Apply(combo.transform,geometry,0f,(int)Math.Round(backLocal*(float)geometry.width/back));
+                combo.transform.localScale=Vector3.one*HeroRowScale;
+                combo.transform.localPosition=new Vector3(HeroClassX,HeroRowY-5f*HeroRowScale,0f);
+                // Hit area matches the visible background so it never reaches into the grid.
+                var backSprite=combo.GetComponentsInChildren<UISprite>(true).Where(s=>s.GetComponentInParent<UIPopupRoot>()==null)
+                    .OrderByDescending(s=>s.width).FirstOrDefault();
+                var comboHit=combo.GetComponent<BoxCollider>();
+                if(comboHit!=null && backSprite!=null) {
+                    comboHit.center=new Vector3(backSprite.transform.localPosition.x,backSprite.transform.localPosition.y,0f);
+                    comboHit.size=new Vector3(backSprite.width,backSprite.height,comboHit.size.z);
+                }
+                combo.gameObject.SetActive(true);
+                combo.Clear();
+                // Centre the selection on the box; a symmetric width keeps long names clear of the arrow.
+                var arrow=combo.GetComponentsInChildren<UISprite>(true).FirstOrDefault(s=>s.name=="Sprite_Dir");
+                float textLeft=arrow!=null?arrow.transform.localPosition.x+arrow.width*.5f+8f:-backLocal*.5f+40f;
+                float backX=backSprite!=null?backSprite.transform.localPosition.x:0f;
+                float half=Math.Min(backX-textLeft,backLocal*.5f-34f);
+                var selected=combo.SelectedLabel;
+                selected.overflowMethod=UILabel.Overflow.ShrinkContent;
+                selected.pivot=UIWidget.Pivot.Center;selected.alignment=NGUIText.Alignment.Center;
+                selected.width=(int)(half*2f);selected.height=52;
+                selected.transform.localPosition=new Vector3(backX,selected.transform.localPosition.y,0f);
+                foreach(var popupPanel in combo.RootWindow.GetComponentsInChildren<UIPanel>(true))
+                    popupPanel.depth=row.GetComponent<UIPanel>().depth+10;
+                // Keep the popup as wide as the collapsed field.
+                int popup=backLocal-24;
+                foreach(var widget in combo.RootWindow.GetComponentsInChildren<UIWidget>(true))
+                    if(widget.width>popup)widget.width=widget is UILabel?popup-36:popup;
+                foreach(var hit in combo.RootWindow.GetComponentsInChildren<BoxCollider>(true))
+                    hit.size=new Vector3(Math.Min(popup,hit.size.x),hit.size.y,hit.size.z);
+                combo.AddItem(0,"All Classes");
+                foreach(var tag in FilterHelper.GetListOrderCreatureTagType())
+                    combo.AddItem((int)tag,LocalizationManager.GetString(tag));
+                combo.Reposition();combo.SelectFirstItem(false);
+                combo.OnChanged=delegate(int key){box.Apply();};
+                state.classes=combo;
+                // Reserve a fixed row, once per window. Keep the viewport's bottom edge.
+                const float trim=96f;
+                grid.transform.localPosition+=new Vector3(0f,-trim,0f);
+                var clip=grid.ClippingPanel;
+                var region=clip.baseClipRegion;
+                clip.baseClipRegion=new Vector4(region.x,region.y+trim*.5f,region.z,region.w-trim);
+                var drag=grid.DragScrollView;
+                if(drag!=null) {
+                    drag.transform.localPosition+=new Vector3(0f,trim*.5f,0f);
+                    var widget=drag.GetComponent<UIWidget>();if(widget!=null)widget.height-=(int)trim;
+                    var hit=drag.GetComponent<BoxCollider>();if(hit!=null)hit.size-=new Vector3(0f,trim,0f);
+                }
+            }
+            box.styleSource=state.classes.GetComponentsInChildren<UISprite>(true)
+                .Where(s=>s.GetComponentInParent<UIPopupRoot>()==null).OrderByDescending(s=>s.width).FirstOrDefault();
+            box.content.transform.localScale=Vector3.one*HeroRowScale;
+            SizeField(box,new Vector3(HeroSearchX,HeroRowY,0f),(int)Math.Round(HeroSearchWidth/HeroRowScale));
+            box.pool=()=>state.heroes.Where(h=>h!=null && (state.classes.CurrentKey<=0 || (int)h.CreatureData.TagType==state.classes.CurrentKey))
+                .Select(h=>HeroText(h.HeroInfo.HeroIndex));
+            box.rebuild=()=>ApplyHeroGrid(window,state,box);
+            grid.Grid.hideInactive=true;
+            ApplyHeroGrid(window,state,box);
+        } catch(Exception e) { Debug.LogException(e); }
+    }
+
+    static void ApplyHeroGrid(HeroPortraitList window,SprkHeroGridState state,SprkTicketSearchBox box) {
+        foreach(var hero in state.heroes)if(hero!=null)
+            hero.gameObject.SetActive((state.classes.CurrentKey<=0 || (int)hero.CreatureData.TagType==state.classes.CurrentKey)
+                && (!box.Active || box.Accepts(HeroText(hero.HeroInfo.HeroIndex))));
+        UIHelper.RepositionGrid(window.HeroListGrid);
+        ResetScroll(window.HeroListGrid);
+    }
+
+    // Native callers supply indices in the complete preferred-hero list. Filtering
+    // must never reinterpret those indices as positions among visible portraits.
+    public static bool MoveHeroGrid(HeroPortraitList window,int from,int to,bool bookmarked) {
+        var state=window.GetComponent<SprkHeroGridState>();
+        if(state==null)return true;
+        if(from<0 || to<0 || from>=state.heroes.Count || to>=state.heroes.Count)return false;
+        var hero=state.heroes[from];
+        state.heroes.RemoveAt(from);state.heroes.Insert(to,hero);
+        hero.SetBookmarkedSmall(bookmarked);
+        for(int i=0;i<state.heroes.Count;i++)state.heroes[i].transform.SetSiblingIndex(i);
+        ApplyHeroGrid(window,state,Box(window));
+        return false;
+    }
+}

@@ -7,9 +7,12 @@ namespace DllPatcher;
 partial class Program {
     // Search fields for selector tickets: unique weapons/treasures, artifacts,
     // soul weapons, hero tickets (both layouts) and costume tickets.
-    enum TicketSearchHook { Start, End, GuardBool, GuardVoid }
+    enum TicketSearchHook { Start, End, GuardBool, GuardVoid, HandleMove }
 
     static readonly (string Type,string Method,int Params,string Helper,TicketSearchHook Hook)[] TicketSearchHooks = {
+        ("NGame2.NUI.NWindow.HeroPortraitList","Open",2,"BeforeHeroGrid",TicketSearchHook.Start),
+        ("NGame2.NUI.NWindow.HeroPortraitList","Open",2,"AfterHeroGrid",TicketSearchHook.End),
+        ("NGame2.NUI.NWindow.HeroPortraitList","MoveGridItem",3,"MoveHeroGrid",TicketSearchHook.HandleMove),
         ("NGame2.NUI.NWindow.SelectFilter","InitFilter",5,"BeforeFilter",TicketSearchHook.Start),
         ("NGame2.NUI.NWindow.SelectFilter","InitFilter",5,"AfterFilter",TicketSearchHook.End),
         ("NGame2.NUI.NWindow.WeaponUniqueSelect","CheckAddEquipItem",1,"MatchEquip",TicketSearchHook.GuardBool),
@@ -28,7 +31,7 @@ partial class Program {
         method.Body.Instructions.Count(i=>i.Operand is MethodReference m && m.DeclaringType.Name=="SprkTicketSearch" && m.Name==helper);
 
     static byte[] CompileTicketSearch(string managed,string helperPath) {
-        var trees=new[]{"TicketSearch","TicketSearchProbe"}.Select(name=> {
+        var trees=new[]{"TicketSearch","TicketSearchHeroInfo","TicketSearchProbe"}.Select(name=> {
             using var resource=typeof(Program).Assembly.GetManifestResourceStream("DllPatcher."+name+".cs.txt")!;
             using var reader=new StreamReader(resource);return CSharpSyntaxTree.ParseText(reader.ReadToEnd());
         }).ToArray();
@@ -61,8 +64,13 @@ partial class Program {
                     break;
                 case TicketSearchHook.GuardBool:
                 case TicketSearchHook.GuardVoid:
+                case TicketSearchHook.HandleMove:
                     il.InsertBefore(first,il.Create(OpCodes.Ldarg_0));
                     il.InsertBefore(first,il.Create(OpCodes.Ldarg_1));
+                    if(hook.Hook==TicketSearchHook.HandleMove) {
+                        il.InsertBefore(first,il.Create(OpCodes.Ldarg_2));
+                        il.InsertBefore(first,il.Create(OpCodes.Ldarg_3));
+                    }
                     il.InsertBefore(first,il.Create(OpCodes.Call,call));
                     il.InsertBefore(first,il.Create(OpCodes.Brtrue,first));
                     if(hook.Hook==TicketSearchHook.GuardBool)il.InsertBefore(first,il.Create(OpCodes.Ldc_I4_0));
@@ -88,6 +96,11 @@ partial class Program {
                         throw new InvalidOperationException("Ticket search must lay out on every return: "+hook.Method);
                     break;
                 default:
+                    if(hook.Hook==TicketSearchHook.HandleMove) {
+                        if(calls!=1 || body[4].Operand is not MethodReference {Name:"MoveHeroGrid"} || body[5].OpCode!=OpCodes.Brtrue || body[6].OpCode!=OpCodes.Ret || body[5].Operand!=body[7])
+                            throw new InvalidOperationException("Hero grid must preserve full-list bookmark indices while filtered.");
+                        break;
+                    }
                     if(calls!=1 || body[2].Operand is not MethodReference {Name:var guard} || guard!=hook.Helper || body[3].OpCode!=OpCodes.Brtrue)
                         throw new InvalidOperationException("Ticket search guard missing: "+hook.Type+"."+hook.Method);
                     var native=(Instruction)body[3].Operand;
@@ -118,6 +131,8 @@ partial class Program {
         var strings=helper.MainModule.GetTypes().SelectMany(t=>t.Methods).Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Select(i=>i.Operand).OfType<string>().ToHashSet();
         foreach(var name in new[]{"Common_Box_2","Common_Close","CreateHeroPortraitList","SetHeroList","SelectHero","_callback","_buyItemData"})
             if(!strings.Contains(name))throw new InvalidOperationException("Ticket search must reuse native element: "+name);
+        foreach(var name in new[]{"SprkHeroClass","SprkHeroFilterRow","Search hero","_heroPortraitList"})
+            if(!strings.Contains(name))throw new InvalidOperationException("Hero Info filter binding missing: "+name);
         Console.WriteLine("PASS: ticket search hooks, IL stack, native list eligibility and helper bindings.");
     }
 

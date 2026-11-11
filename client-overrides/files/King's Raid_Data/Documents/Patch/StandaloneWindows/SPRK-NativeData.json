@@ -7,7 +7,7 @@
       "originalSha256": "b8a41aa7b3653c17676dcd27bcf511c2ac2bdc1db62b9f32ebd12eb96197ab4f"
     },
     "LocalizationJit/LocalizationAll_English.jit": {
-      "sha256": "e284a26eb3ed6cca81b1db0d6309adcd3077683b851fb2f42e96c69d9da958be",
+      "sha256": "3ece8cdc6a38bad612295983740a354ccef810884d0d5c4dd02467358012f545",
       "originalSha256": "e7337c433c268741668da9d390201db3b497f2fc33dbf574feab8e80ea55fed0"
     },
     "TableJit/AccessoryCostumeTable.jit": {
@@ -83,7 +83,7 @@
       "originalSha256": "9fe85fe191b375f02124ea953dcf788fa34f811230a7ab47a9f1baafb03632b1"
     },
     "TableJit/ShopItemTable.jit": {
-      "sha256": "71e46f097da081242889bb5e552d3081983ced649cf098225b9f4615a0992ed1",
+      "sha256": "3430278eb5534ffcc8d85de28a0d3a8d2e31f463a7e88b0d02cb2ccb6a879279",
       "originalSha256": "f9befbe469e7c167c8f30e75aeb7d8d6fcc0b49b21e4a72239cf164718f0e1b6"
     },
     "TableJit/WeaponCostumeTable.jit": {
@@ -91,11 +91,11 @@
       "originalSha256": "cd8441e99fc8564460cbe02370f852afc6551df0bab82d45bbf9746025d0a2b1"
     },
     "TableJit/WeaponUniqueSelectItemTable.jit": {
-      "sha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28",
+      "sha256": "1bcea9325b4352127969e00fc351ba5656b3e813369a64d01cf188f11f48b1a9",
       "originalSha256": "5305fb34d45468f6b30b8316146657d84562e9d0da42114106635a08f158fa28"
     },
     "TableJit/ItemTable.jit": {
-      "sha256": "247cf88713b5a430b7a0a62ad213f5446ec776dadd0d8bc0e5343b456a858fe6",
+      "sha256": "26a64ebf665c1e5a483a5917df71629052cc72695ff26796c52db9d5c54bc106",
       "originalSha256": "72d9404c61449b05eaec317ce82f1720b04ea99507d4a82be43d3f797fd5bb3a"
     },
     "TableJit/CostumeSelectItemTable.jit": {
@@ -105,6 +105,10 @@
     "TableJit/CostumeGroupTable.jit": {
       "sha256": "7f488601a2f5ad7e41b367dd23377c73ef6b91a1b878dfac78d6f0e96b21a01d",
       "originalSha256": "8e467a59191f91079522d9e5efde58e13e5d40d1929a03a9664e51420591570d"
+    },
+    "TableJit/InfinityTable.jit": {
+      "originalSha256": "a96f41e4fdf2f1c58405cb860b2760b6ceb592b5bdd9baa9516f2f02162f5f44",
+      "sha256": "397be10a0f3b39d9c3560df89a434900d3641ddcf5c608372208fa197137e517"
     }
   },
   "staticRuntimeDataOverrides": false,

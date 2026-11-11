@@ -44,6 +44,22 @@ async fn read_pool_serves_routed_reads_and_rejects_writes() {
         assert_eq!(value["BaseResult"], "Success", "{value}");
     }
 
+    // Inspection and mission-category validation run on readers, so they never
+    // queue behind (or wait for) a writer held by another request.
+    {
+        let writer = s.db.acquire().await.unwrap();
+        let inspected = tokio::time::timeout(std::time::Duration::from_secs(5),
+            api::community::friend::inspect_user(State(s.clone()), form(&format!("TargetAccountId={account}"))))
+            .await.expect("inspection waited for the writer").unwrap().0;
+        assert_eq!(inspected["Result"], "Success", "{inspected}");
+        assert!(inspected["CachedAccountInfo"]["HeroInfos"].as_object().is_some_and(|h| !h.is_empty()), "{inspected}");
+        drop(writer);
+    }
+    let opened = api::progression::mission_categories(&mut s.reads.acquire().await.unwrap(), &s, account).await.unwrap();
+    let category = format!("{}:{}", opened[0]["MainCategoryIndex"], opened[0]["SubCategoryIndex"]);
+    let seen = api::progression::mission_history_sync::sync(State(s.clone()), form(&format!("SeenCategories=[\"{category}\"]"))).await.unwrap().0;
+    assert_eq!(seen["SeenMissionCategories"], json!([category]), "{seen}");
+
     let mut headers = axum::http::HeaderMap::new();
     headers.insert("x-sprk-compact-lobby", "1".parse().unwrap());
     let request = || api::account::lobby::EnterLobbyRequest { session_id: None, session_key: Some(key.clone()) };

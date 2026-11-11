@@ -71,6 +71,14 @@ pub(super) fn is_story_entry(s: &AppState, entry: &Value) -> bool {
         || entry["ScenarioDungeon"]==true && matches!(battle_type,Some(1|2|10))
 }
 
+fn forced_campaign_heroes(d: &Value, r: &Request) -> Result<Vec<i64>> {
+    let forced = if boolean(r, "ScenarioDungeon", false)?
+        && d["ScenarioForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()) {
+        &d["ScenarioForcedHeroIndex"]
+    } else { &d["ForcedHeroIndex"] };
+    Ok(forced.as_array().into_iter().flatten().filter_map(Value::as_i64).filter(|id| *id > 0).collect())
+}
+
 fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i64>> {
     let scenario = boolean(r, "ScenarioDungeon", false)?;
     let preset = s.tables.battle.find("DungeonHeroSet", &[
@@ -80,10 +88,13 @@ fn loaned_campaign_heroes(s: &AppState, d: &Value, r: &Request) -> Result<Vec<i6
     if !preset.is_some_and(|v| v["IsScenario"] != true || scenario) {
         return Ok(vec![]);
     }
-    let forced = if scenario && d["ScenarioForcedHeroIndex"].as_array().is_some_and(|v| !v.is_empty()) {
-        &d["ScenarioForcedHeroIndex"]
-    } else { &d["ForcedHeroIndex"] };
-    Ok(forced.as_array().into_iter().flatten().filter_map(Value::as_i64).filter(|id| *id > 0).collect())
+    // A fixed stat/level preset can offer a whole selectable roster. ForcedHeroIndex
+    // is only its mandatory subset (e.g. Gau in Rebel Clause special dungeon 3).
+    let group = n(preset.unwrap(), "HeroListSetDataIndex");
+    let heroes: Vec<i64> = s.tables.battle.rows("DungeonHeroListSet").iter()
+        .filter(|row| n(row, "GroupIndex") == group)
+        .map(|row| n(row, "HeroIndex")).filter(|id| *id > 0).collect();
+    if heroes.is_empty() { forced_campaign_heroes(d, r) } else { Ok(heroes) }
 }
 
 pub(super) async fn validate_dispatch(
@@ -189,7 +200,7 @@ async fn validate_inner(
         }
     } else {
         let loaned = loaned_campaign_heroes(s, d, r)?;
-        if loaned.iter().any(|id| !heroes.contains(id)) {
+        if !loaned.is_empty() && forced_campaign_heroes(d, r)?.iter().any(|id| !heroes.contains(id)) {
             return Err(rule("NotMatchHeroIndices"));
         }
         let selected: Vec<i64> = heroes.iter().copied().filter(|id| !loaned.contains(id)).collect();
@@ -393,7 +404,8 @@ async fn begin_local_inner(
     } else if !loaned_campaign_heroes(s, d, r)?.is_empty() {
         // Fixed story actors are built from DungeonHeroSet by the client, not
         // account gear. Do not publish a player-deck recommendation for them.
-        entry["LoanedHeroIndices"] = json!(loaned_campaign_heroes(s, d, r)?);
+        let loaned = loaned_campaign_heroes(s, d, r)?;
+        entry["LoanedHeroIndices"] = json!(party.iter().filter(|id| loaned.contains(id)).collect::<Vec<_>>());
         json!([])
     } else { crate::api::services::records::snapshot(db,a,&party).await? };
     out["RunId"] = json!(run_id);

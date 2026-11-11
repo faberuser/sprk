@@ -458,33 +458,49 @@ async fn break_equipment(
     if ids.is_empty() {
         return Err(rule("InvalidMaterial"));
     }
-    let mut rewards = Rewards::default();
+    // Validate and roll every piece first, then remove them and grant the
+    // summed materials once per item: batches of up to 1000 pieces otherwise
+    // re-read presets and wrote inventory rows piece by piece.
+    let all = state.tables.extensions.rows("EquipItemBreak");
+    let mut rows: std::collections::HashMap<(i32, i32), usize> = std::collections::HashMap::new();
+    let mut grants: Vec<(i32, i64)> = vec![];
+    let mut removed = BTreeSet::new();
     for slot in ids {
         let eq = material_checked(db, account, slot, true).await?;
-        let data = meta(state, eq.item_index)?;
-        let all = state.tables.extensions.rows("EquipItemBreak");
-        let r = if n(data, "SetIndex") > 0 {
-            all.iter().find(|r| {
-                n(r, "Tier") == n(data, "Tier")
-                    && n(r, "DetailIndex") == n(data, "DetailIndex")
-                    && n(r, "SetIndex") == n(data, "SetIndex")
-            })
-        } else {
-            all.iter()
-                .find(|r| n(r, "ItemIndex") == eq.item_index as i64)
-                .or_else(|| {
+        let key = (eq.item_index, eq.star);
+        let row = match rows.get(&key) {
+            Some(row) => *row,
+            None => {
+                let data = meta(state, eq.item_index)?;
+                let found = if n(data, "SetIndex") > 0 {
+                    all.iter().position(|r| {
+                        n(r, "Tier") == n(data, "Tier")
+                            && n(r, "DetailIndex") == n(data, "DetailIndex")
+                            && n(r, "SetIndex") == n(data, "SetIndex")
+                    })
+                } else {
                     all.iter()
-                        .filter(|r| {
-                            n(r, "Tier") == n(data, "Tier")
-                                && n(r, "DetailIndex") == n(data, "DetailIndex")
-                                && n(r, "SetIndex") == 0
-                                && n(r, "ItemIndex") == 0
-                                && n(r, "Star") <= eq.star as i64
+                        .position(|r| n(r, "ItemIndex") == eq.item_index as i64)
+                        .or_else(|| {
+                            all.iter()
+                                .enumerate()
+                                .filter(|(_, r)| {
+                                    n(r, "Tier") == n(data, "Tier")
+                                        && n(r, "DetailIndex") == n(data, "DetailIndex")
+                                        && n(r, "SetIndex") == 0
+                                        && n(r, "ItemIndex") == 0
+                                        && n(r, "Star") <= eq.star as i64
+                                })
+                                .max_by_key(|(_, r)| n(r, "Star"))
+                                .map(|(i, _)| i)
                         })
-                        .max_by_key(|r| n(r, "Star"))
-                })
-        }
-        .ok_or_else(|| rule("ItemDataNotFound"))?;
+                }
+                .ok_or_else(|| rule("ItemDataNotFound"))?;
+                rows.insert(key, found);
+                found
+            }
+        };
+        let r = &all[row];
         for i in 1..=5 {
             let max = n(r, &format!("MaxItemCount{i}"));
             let mut count = if max > 0 {
@@ -498,22 +514,31 @@ async fn break_equipment(
                 }
             }
             if count > 0 {
-                item::give(
-                    db,
-                    state,
-                    account,
-                    ItemGrant {
-                        index: n(r, &format!("ItemIndex{i}")) as i32,
-                        count: count as i32,
-                        star: 0,
-                        custom: 0,
-                    },
-                    &mut rewards,
-                )
-                .await?;
+                let index = n(r, &format!("ItemIndex{i}")) as i32;
+                match grants.iter_mut().find(|(item, _)| *item == index) {
+                    Some((_, total)) => *total += count,
+                    None => grants.push((index, count)),
+                }
             }
         }
-        remove_equip(db, account, eq.slot_index).await?;
+        removed.insert(eq.slot_index as i64);
+    }
+    remove_equips(db, account, &removed).await?;
+    let mut rewards = Rewards::default();
+    for (index, count) in grants {
+        item::give(
+            db,
+            state,
+            account,
+            ItemGrant {
+                index,
+                count: i32::try_from(count).map_err(|_| rule("InvalidItemCount"))?,
+                star: 0,
+                custom: 0,
+            },
+            &mut rewards,
+        )
+        .await?;
     }
     let r = item::reward_response(db, state, account, rewards).await?;
     Ok(json!({"BaseResult":"Success","Result":"Success","ItemResults":r["ItemResults"]}))

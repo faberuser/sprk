@@ -97,7 +97,7 @@ public sealed class SprkTicketSearchBox : MonoBehaviour {
     }
 }
 
-public static class SprkTicketSearch {
+public static partial class SprkTicketSearch {
     public struct Geometry {
         public Vector3 position;public int width;public Vector3 collider;
         public Dictionary<Transform,Vector3> childPositions;public Dictionary<UIWidget,int> childWidths;
@@ -525,6 +525,9 @@ public static class SprkTicketSearch {
         input.onReturnKey=UIInput.OnReturnKey.Submit;input.selectAllTextOnFocus=false;
         input.activeTextColor=TextColor;input.caretColor=new Color(.953f,.925f,.855f,1f);
         input.selectionColor=new Color(.85f,.68f,.36f,.45f);
+        // A runtime-added UIInput has no serialized value; its Start() dereferences it
+        // and would leave the field unable to take keyboard input.
+        input.value="";
         EventDelegate.Add(input.onChange,box.OnChanged);
         EventDelegate.Add(input.onSubmit,box.OnSubmitted);
 
@@ -551,8 +554,8 @@ public static class SprkTicketSearch {
         collider.center=Vector3.zero;collider.size=new Vector3(width,RowHeight,1);
         // Inset past the pill's end caps (also fine for the plain box).
         box.label.transform.localPosition=new Vector3(-width*.5f+46f,0f,0f);
-        box.label.width=Math.Max(60,width-46-66);
-        box.clear.transform.localPosition=new Vector3(width*.5f-50f,0f,0f);
+        box.label.width=Math.Max(60,width-46-98);
+        box.clear.transform.localPosition=new Vector3(width*.5f-70f,0f,0f);
     }
 
     // ---- Layout -------------------------------------------------------------

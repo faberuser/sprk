@@ -31,11 +31,18 @@ PENDING_DISPATCH = (
     "COALESCE(json_array_length(json_extract(data,'$.SimulationResults')),0)"
     "<json_extract(data,'$.RepeatCount')"
 )
+ARENA_ACCOUNT = "SELECT account FROM arena_runs GROUP BY account ORDER BY COUNT(*) DESC LIMIT 1"
 WATCHED_QUERIES = {
     "dispatch poller (every 3s)": f"SELECT account,idx FROM battle_state WHERE {PENDING_DISPATCH} ORDER BY account,idx",
     "recommended decks": "SELECT data FROM service_decks WHERE chapter=1 AND dungeon=1 AND difficulty=0 AND kind=0 ORDER BY metric,account LIMIT 10",
     "mail check": "SELECT COUNT(*),COALESCE(MAX(mail_id),0) FROM mails WHERE account_id=1 AND is_received=0 AND (expires_at IS NULL OR expires_at='' OR datetime(expires_at)>datetime('now'))",
     "mail notifications (every 250ms)": "SELECT q.mail_id FROM mail_notifications q LEFT JOIN mails m ON m.mail_id=q.mail_id ORDER BY q.mail_id LIMIT 256",
+    # Arena lookups for the player with the most runs (Honor rows are ~1.5 MB).
+    # Account-scoped match lookups must use arena_online_match_status, and the
+    # ranking deck must filter on the season/squad columns, never on JSON.
+    "arena battle login (per match)": f"SELECT EXISTS(SELECT 1 FROM arena_runs WHERE +account=({ARENA_ACCOUNT}) AND status IN ('battle','complete') AND json_extract(data,'$.OnlineMatchUid')=-1)",
+    "arena match result lookup": f"SELECT kind FROM arena_runs WHERE +account=({ARENA_ACCOUNT}) AND (id=-1 OR json_extract(data,'$.OnlineMatchUid')=-1) ORDER BY id DESC LIMIT 1",
+    "arena ranking deck (per ranked player)": f"SELECT id,json_extract(data,'$.Heroes') FROM arena_runs WHERE account=({ARENA_ACCOUNT}) AND kind=1 AND status='complete' AND season=(SELECT MAX(season) FROM arena_scores) AND squad=1 ORDER BY id DESC LIMIT 1",
 }
 
 

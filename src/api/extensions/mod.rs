@@ -248,14 +248,13 @@ async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, di
     if eq.locked != 0 {
         return Err(rule("LockedEquip"));
     }
-    let clauses = (1..=10)
-        .map(|i| format!("equip_item_slot_index_{i}={slot}"))
-        .collect::<Vec<_>>()
-        .join(" OR ");
-    let worn: bool = sqlx::query_scalar(&format!(
-        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND ({clauses}))"
-    ))
+    // One prepared statement for every slot (formatting the slot into the SQL
+    // prepared a new statement per piece in batch breaks).
+    let worn: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM heroes WHERE account_id=? AND ? IN (equip_item_slot_index_1,equip_item_slot_index_2,equip_item_slot_index_3,equip_item_slot_index_4,equip_item_slot_index_5,equip_item_slot_index_6,equip_item_slot_index_7,equip_item_slot_index_8,equip_item_slot_index_9,equip_item_slot_index_10))",
+    )
     .bind(account)
+    .bind(slot)
     .fetch_one(&mut *db)
     .await?;
     let pending: bool = sqlx::query_scalar(
@@ -272,6 +271,16 @@ async fn material_checked(db: &mut SqliteConnection, account: i64, slot: i64, di
         return Err(rule("InvalidMaterial"));
     }
     Ok(eq)
+}
+/// `remove_equip` for a batch: presets and storage are rewritten once.
+async fn remove_equips(db: &mut SqliteConnection, account: i64, slots: &BTreeSet<i64>) -> Result<()> {
+    crate::api::heroes::presets::forget_equipments(db, account, slots).await?;
+    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+        .bind(account)
+        .bind(json!(slots).to_string())
+        .execute(&mut *db)
+        .await?;
+    Ok(())
 }
 async fn remove_equip(db: &mut SqliteConnection, account: i64, slot: i32) -> Result<()> {
     crate::api::heroes::presets::forget_equipment(db, account, slot as i64).await?;

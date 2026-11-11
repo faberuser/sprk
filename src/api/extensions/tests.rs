@@ -1451,6 +1451,154 @@ async fn valance_craft_honors_owned_hero_material_discount() {
 }
 
 #[tokio::test]
+async fn valance_craft_selected_skill_is_identified_and_uses_discounted_materials() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES(?,111,111,5)")
+        .bind(a)
+        .execute(&s.db)
+        .await
+        .unwrap();
+    give(&s, a, 990001, 45900).await;
+    give(&s, a, 990000, 34).await;
+    let r = call(&s, &u, "valance_craft",
+        "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None&SelectEquipOptionIndices=8101").await;
+    assert_eq!(r["Result"], "Success", "{r}");
+    let eq = &r["EquipItemResult"];
+    assert_eq!(eq["ExtraOptionIndex1"], 8101);
+    assert_eq!(
+        eq["ExtraOptionStep1"],
+        s.tables.inventory.options[&8101]["Steps"]
+    );
+    assert_eq!(eq["ExtraOptionIndex2"], 0);
+    assert_eq!(eq["ExtraOptionStep2"], 0);
+    assert_eq!(eq["Identified"], 1);
+    let saved = equip(&mut s.db.acquire().await.unwrap(), a, n(eq, "SlotIndex"))
+        .await
+        .unwrap();
+    assert_eq!(json!(saved), *eq);
+    assert_eq!(gold(&s).await, 91000000);
+    for id in [990001, 990000] {
+        let remaining: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?",
+        )
+        .bind(a)
+        .bind(id)
+        .fetch_one(&s.db)
+        .await
+        .unwrap();
+        assert_eq!(remaining, 0, "material {id}");
+    }
+    // A paid selection must not be unidentified and rerolled by identification.
+    let rejected = call(
+        &s,
+        &u,
+        "valance_identified",
+        &format!("EquipItemSlotIndices=[{}]", saved.slot_index),
+    )
+    .await;
+    assert_ne!(rejected["Result"], "Success", "{rejected}");
+    let unchanged = equip(
+        &mut s.db.acquire().await.unwrap(),
+        a,
+        saved.slot_index as i64,
+    )
+    .await
+    .unwrap();
+    assert_eq!(json!(unchanged), *eq);
+    assert_eq!(gold(&s).await, 91000000);
+}
+
+#[tokio::test]
+async fn valance_craft_selected_skills_work_for_every_selectable_recipe() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    sqlx::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=?")
+        .bind(a).execute(&s.db).await.unwrap();
+    for id in [990001, 990002, 990003, 990000] { give(&s, a, id, 100000000).await; }
+    let mut covered = BTreeSet::new();
+    let mut crafted = 0;
+    for recipe in s.tables.extensions.rows("ValanceCraft") {
+        let Some(groups) = recipe["EquipOptionGroupIndex"].as_array() else { continue };
+        if groups.is_empty() { continue; }
+        let group = groups[0].as_i64().unwrap() as i32;
+        let chosen = s.tables.inventory.option_groups[&group][0];
+        covered.insert((n(recipe, "SetType"), group));
+        // Native WWWForm scalar and JSON-array forms must select the same skill.
+        for selection in [chosen.to_string(), format!("[{chosen}]")] {
+            let before = gold(&s).await;
+            let args = format!("SetType={}&CreatureTagType={}&PartType={}&SubPartType={}&SelectEquipOptionIndices={selection}",
+                n(recipe,"SetType"), n(recipe,"CreatureTagType"), n(recipe,"EquipPartType"), n(recipe,"EquipItemSubType"));
+            let r = call(&s, &u, "valance_craft", &args).await;
+            assert_eq!(r["Result"], "Success", "{args}: {r}");
+            let eq = &r["EquipItemResult"];
+            assert_eq!(eq["Identified"], 1, "{args}");
+            assert_eq!(eq["ExtraOptionIndex1"], chosen, "{args}");
+            assert_eq!(eq["ExtraOptionStep1"], s.tables.inventory.options[&chosen]["Steps"]);
+            assert_eq!(eq["ExtraOptionIndex2"], 0);
+            assert_eq!(eq["ExtraOptionStep2"], 0);
+            let data = &s.tables.inventory.equipment[&(n(eq,"ItemIndex") as i32)];
+            let mut normal = BTreeSet::new();
+            normal.extend(data["OptionIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64));
+            for g in data["OptionGroupIndex"].as_array().into_iter().flatten().filter_map(Value::as_i64) {
+                normal.extend(s.tables.inventory.option_groups[&(g as i32)].iter().map(|v| *v as i64));
+            }
+            for slot in 1..=n(data,"OptionCount").clamp(0,4) {
+                let option = n(eq,&format!("OptionIndex{slot}"));
+                assert!(normal.contains(&option), "normal stat replaced by a skill: {args}: {eq}");
+                assert_ne!(option, chosen as i64);
+            }
+            let saved = equip(&mut s.db.acquire().await.unwrap(), a, n(eq,"SlotIndex")).await.unwrap();
+            assert_eq!(json!(saved), *eq);
+            assert_eq!(gold(&s).await, before - n(recipe,"ReqGold"));
+            assert_eq!(r["ItemResults"][0]["AddCount"], -n(recipe,"MaterialItemCount") - n(recipe,"AdditionalMaterialItemCount"));
+            assert_eq!(r["ItemResults"][1]["AddCount"], -n(recipe,"SubMaterialItemCount"));
+            sqlx::query("DELETE FROM equip_items WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            crafted += 1;
+        }
+    }
+    assert_eq!(covered, (1..=3).flat_map(|set| (10001..=10004).map(move |group| (set,group))).collect());
+    assert_eq!(crafted, 294, "every selectable recipe in both request forms");
+    println!("Validated {crafted} selected-skill crafts across every selectable recipe and both request forms");
+}
+
+#[tokio::test]
+async fn valance_craft_selected_skill_failures_roll_back_all_costs_and_rewards() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    give(&s, a, 990001, 54000).await;
+    give(&s, a, 990000, 40).await;
+    let args = "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None";
+    async fn snapshot(s: &AppState, a: i64) -> (i64, Vec<(i32,i32)>, i64, i64) {
+        let materials = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index,item_id")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        let equipment = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        let crafts = sqlx::query_scalar("SELECT COALESCE(SUM(value),0) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+            .bind(a).fetch_one(&s.db).await.unwrap();
+        (gold(s).await, materials, equipment, crafts)
+    }
+    for selection in ["[8201]", "[101]", "[0]", "[-1]", "[2147483647]", "[8101,8101]", "[8101,8102]", "8101&SelectEquipOptionIndices=8102"] {
+        let before = snapshot(&s,a).await;
+        let r = call(&s,&u,"valance_craft",&format!("{args}&SelectEquipOptionIndices={selection}")).await;
+        assert_ne!(r["Result"], "Success", "{selection}: {r}");
+        assert_eq!(snapshot(&s,a).await, before, "{selection}");
+    }
+    // Valid choices with insufficient gold, base/additional material, or sub-material.
+    for (gold, material, sub) in [(8999999,54000,40), (100000000,53999,40), (100000000,54000,39)] {
+        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(gold).bind(a).execute(&s.db).await.unwrap();
+        for (id,count) in [(990001,material),(990000,sub)] {
+            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=?")
+                .bind(count).bind(a).bind(id).execute(&s.db).await.unwrap();
+        }
+        let before = snapshot(&s,a).await;
+        let r = call(&s,&u,"valance_craft",&format!("{args}&SelectEquipOptionIndices=[8101]")).await;
+        assert_ne!(r["Result"], "Success", "{r}");
+        assert_eq!(snapshot(&s,a).await, before);
+    }
+}
+
+#[tokio::test]
 async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
@@ -1693,6 +1841,100 @@ async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
     let result=call(&s,&u,"awaken_equip",&format!("EquipItemSlotIndex={target}&MaterialItemInfors=5301&MaterialItemInfors=1")).await;
     assert_eq!(result["Result"],"Success","{result}");
     assert_eq!(result["ResultEquipItem"]["Star"],1);
+}
+
+async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: i64, stone_type: i64) {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let data = meta(&s, item_index).unwrap();
+    let detail = row(&s, "EquipItemDetail", &[("DetailIndex", n(data, "DetailIndex"))]).unwrap();
+    assert_eq!(n(detail, "EquipItemDetailType"), detail_type);
+    let price = row(&s, "EquipAwakenPrice", &[
+        ("DetailIndex", n(data, "DetailIndex")), ("Tier", n(data, "Tier")), ("Star", 0),
+    ]).unwrap();
+    assert!(n(price, "ReqGold") > 0);
+    let equips = give(&s, a, item_index, 3).await.equipment;
+    let target = equips[0].slot_index;
+    let unlocked = equips[1].slot_index;
+    let locked = equips[2].slot_index;
+    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(locked).execute(&s.db).await.unwrap();
+    let stone = s.tables.extensions.rows("AwakenStone").iter()
+        .find(|r| n(r, "Type") == stone_type && r["IsAllowNPC"] == true
+            && r["ItemIndices"].as_array().is_none_or(Vec::is_empty))
+        .map(|r| n(r, "ItemIndex") as i32);
+    assert_eq!(stone.is_some(), stone_type != 0);
+    let stone_args = if let Some(id) = stone {
+        give(&s, a, id, 2).await;
+        format!("&MaterialItemInfors=[{id},1]")
+    } else { String::new() };
+    let before_gold = gold(&s).await;
+    let before_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+        .bind(a).fetch_all(&s.db).await.unwrap().iter()
+        .map(|r| json!(EquipItemInfo::from_row(r))).collect();
+    let before_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+        .bind(a).fetch_all(&s.db).await.unwrap();
+
+    // Check the actual validation reason, independently of native result mapping.
+    let args = format!("EquipItemSlotIndex={target}&MaterialSlotIndices=[{unlocked},{locked}]{stone_args}");
+    let req = Request::parse_with_integer_arrays(args.as_bytes(), &["MaterialSlotIndices", "MaterialItemInfors"]).unwrap();
+    let mut tx = s.db.begin().await.unwrap();
+    let err = equipment::execute(&mut tx, &s, a, &req, "awaken_equip").await.unwrap_err();
+    assert!(matches!(err, ServerError::InvalidRequest(ref code) if code == "LockedEquip"), "{err:?}");
+    tx.rollback().await.unwrap();
+
+    for materials in [
+        locked.to_string(),
+        format!("[{unlocked},{locked}]"),
+        format!("[\"{locked}\",\"{unlocked}\"]"),
+        format!("{unlocked}&MaterialSlotIndices={locked}"),
+    ] {
+        let out = call(&s, &u, "awaken_equip", &format!(
+            "EquipItemSlotIndex={target}&MaterialSlotIndices={materials}{stone_args}"
+        )).await;
+        // LockedEquip is not mapped to the native LockedEquipItemExists here.
+        assert_eq!(out["Result"], "Fail", "item {item_index}: {out}");
+        assert_eq!(gold(&s).await, before_gold);
+        let after_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+            .bind(a).fetch_all(&s.db).await.unwrap().iter()
+            .map(|r| json!(EquipItemInfo::from_row(r))).collect();
+        assert_eq!(after_equips, before_equips, "item {item_index}: equipment changed");
+        let after_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+            .bind(a).fetch_all(&s.db).await.unwrap();
+        assert_eq!(after_items, before_items, "item {item_index}: inventory changed");
+    }
+
+    // The same batch must be valid once unlocked, not rejected for another rule.
+    sqlx::query("UPDATE equip_items SET locked=0 WHERE account_id=? AND slot_index=?")
+        .bind(a).bind(locked).execute(&s.db).await.unwrap();
+    let out = call(&s, &u, "awaken_equip", &args).await;
+    assert_eq!(out["Result"], "Success", "item {item_index}: {out}");
+    assert_eq!(out["ResultEquipItem"]["Star"], 1);
+    assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold"));
+    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)")
+        .bind(a).bind(unlocked).bind(locked).fetch_one(&s.db).await.unwrap();
+    assert_eq!(remaining, 0);
+    if let Some(id) = stone {
+        let before = before_items.iter().find(|r| r.0 == id).unwrap().1;
+        let after: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            .bind(a).bind(id).fetch_one(&s.db).await.unwrap();
+        assert_eq!(after, before - 1);
+    }
+}
+
+#[tokio::test]
+async fn awakening_locked_artifact_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(150044, 12, 0).await;
+}
+
+#[tokio::test]
+async fn awakening_locked_unique_weapon_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(1001, 11, 42).await;
+}
+
+#[tokio::test]
+async fn awakening_locked_unique_treasure_material_preserves_inventory_and_gold() {
+    assert_awakening_rejects_locked_material(102014, 14, 43).await;
 }
 
 #[tokio::test]
@@ -2139,6 +2381,97 @@ async fn locked_punishment_rune_equips_once_and_retains_lock_and_rolls() {
     assert_ne!(item::break_rune(State(s.clone()),request).await.unwrap().0["Result"],"Success");
 }
 
+#[test]
+fn soul_judgment_reward_group_matches_pre_doomsday_archive() {
+    let tables = crate::tables::test_tables();
+    let config = tables
+        .extensions
+        .find("LocalSoulStoneRestore", &[("Index", 1)])
+        .unwrap();
+    assert_eq!(config["SoulStoneChancePer10000"], 2000);
+    assert_eq!(config["EtherItemGroup"], "SOUL_APPRISE_GROUP[2:3:4]");
+    // Archived build1558 ItemGroupTable, also referenced by RewardTable 65011.
+    let group = tables.item_groups.get("SOUL_APPRISE_GROUP").unwrap();
+    assert_eq!(group.total_rate, 1000);
+    let actual: Vec<_> = group
+        .sub_data_list
+        .iter()
+        .map(|r| (r.item_code.as_str(), r.rate, r.item_min, r.item_max))
+        .collect();
+    assert_eq!(
+        actual,
+        vec![
+            ("SOULSTONE_RANDOM_ITEM_GROUP", 200, 1, 1),
+            ("SOULWEAPON_ETHER_2", 250, 15, 15),
+            ("SOULWEAPON_ETHER_3", 300, 10, 10),
+            ("SOULWEAPON_ETHER_4", 250, 5, 5),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn soul_judgment_grants_each_archived_ether_tier_and_quantity() {
+    for (code, count) in [
+        ("SOULWEAPON_ETHER_2", 15),
+        ("SOULWEAPON_ETHER_3", 10),
+        ("SOULWEAPON_ETHER_4", 5),
+    ] {
+        let (mut s, u) = setup().await;
+        let a = u.user_info.account_id;
+        let tables = std::sync::Arc::make_mut(&mut s.tables);
+        std::sync::Arc::make_mut(&mut tables.extensions)
+            .0
+            .get_mut("LocalSoulStoneRestore")
+            .unwrap()[0]["SoulStoneChancePer10000"] = json!(0);
+        // Force each real group outcome, retaining its native item/count and
+        // the production Ether filter. No probabilistic assertions are needed.
+        let group = std::sync::Arc::make_mut(&mut tables.item_groups)
+            .entries
+            .get_mut("SOUL_APPRISE_GROUP")
+            .unwrap();
+        for row in &mut group.sub_data_list {
+            row.rate = if row.item_code == code { 1 } else { 0 };
+        }
+        group.total_rate = 1;
+        let index = s.tables.get_item_index(code).unwrap();
+        give(&s, a, 45080, 200).await;
+        give(&s, a, 5251, 1).await;
+        let before: i64 = sqlx::query_scalar(
+            "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",
+        )
+        .bind(a)
+        .bind(index)
+        .fetch_one(&s.db)
+        .await
+        .unwrap();
+        let out = call(&s, &u, "restore_soul_stone", "SoulStoneRestoreIndex=1").await;
+        assert_eq!(out["Result"], "Success", "{out}");
+        assert_eq!(out["ItemResults"].as_array().unwrap().len(), 1);
+        assert_eq!(out["ItemResults"][0]["ItemIndex"], index);
+        assert_eq!(out["ItemResults"][0]["AddCount"], count);
+        assert_eq!(out["ItemResults"][0]["NewCount"], before + count);
+        assert_eq!(out["SoulStoneMileage"], 1);
+        assert_eq!(out["SelectSoulStoneIndices"], json!([]));
+        assert_eq!(out["RemovedItemResultInfos"].as_array().unwrap().len(), 1);
+        assert_eq!(out["RemovedItemResultInfos"][0]["ItemIndex"], 45080);
+        let after: i64 =
+            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+                .bind(a)
+                .bind(index)
+                .fetch_one(&s.db)
+                .await
+                .unwrap();
+        assert_eq!(after, before + count);
+        let protection: i64 =
+            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
+                .bind(a)
+                .fetch_one(&s.db)
+                .await
+                .unwrap();
+        assert_eq!(protection, 1);
+    }
+}
+
 #[tokio::test]
 async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     let (mut s, u) = setup().await;
@@ -2163,7 +2496,16 @@ async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     assert_eq!(ether["Result"], "Success", "{ether}");
     assert_eq!(ether["SoulStoneMileage"], 20);
     assert_eq!(ether["SelectSoulStoneIndices"], json!([]));
-    assert_eq!(ether["ItemResults"][0]["ItemIndex"], 5100);
+    let ether_index = n(&ether["ItemResults"][0], "ItemIndex");
+    let expected = [
+        ("SOULWEAPON_ETHER_2", 15),
+        ("SOULWEAPON_ETHER_3", 10),
+        ("SOULWEAPON_ETHER_4", 5),
+    ]
+    .into_iter()
+    .find(|(code, _)| s.tables.get_item_index(code).map(i64::from) == Some(ether_index))
+    .unwrap();
+    assert_eq!(ether["ItemResults"][0]["AddCount"], expected.1);
     let protection: i64 =
         sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
             .bind(a)
@@ -2593,4 +2935,47 @@ async fn multiplayer_hero_snapshots_carry_visible_accessories() {
     let cached = crate::api::community::cached_hero(&mut db, a, 1).await.unwrap();
     assert_eq!(cached["SprkAccessories"], stacked);
     assert_eq!(cached["AccessoryPositionInfo1"], custom);
+}
+
+#[tokio::test]
+async fn batch_break_clears_every_reference_once_and_grants_summed_materials() {
+    let (s, u) = setup().await;
+    let a = u.user_info.account_id;
+    let mut slots = vec![];
+    for _ in 0..3 { slots.push(give(&s, a, 70004, 1).await.equipment.remove(0)); }
+    let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
+    let stored = call(&s, &u, "add_equip_storage_slot", &format!(
+        "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[2,4]&EquipItemSlotIndex=[{},{}]",
+        armor.slot_index, slots[0].slot_index)).await;
+    assert_eq!(stored["Result"], "Success", "{stored}");
+    let preset = json!([{"HeroIndex":1,"EquipItemSlotIndex":[0,slots[1].slot_index,0,slots[0].slot_index],"EquipItemUid":["",slots[1].uid,"",slots[0].uid],"EquipItemRunePage":[0,1,0,2]}]);
+    sqlx::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES(?,'batch',?)")
+        .bind(a).bind(preset.to_string()).execute(&s.db).await.unwrap();
+    let before: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&s.db).await.unwrap();
+    let ids = slots.iter().map(|e| e.slot_index.to_string()).collect::<Vec<_>>().join(",");
+    let result = call(&s, &u, "break_equip", &format!("EquipItemSlotIndices=[{ids}]")).await;
+    assert_eq!(result["Result"], "Success", "{result}");
+    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+        .bind(a).bind(format!("[{ids}]")).fetch_one(&s.db).await.unwrap();
+    assert_eq!(remaining, 0);
+    let mut db = s.db.acquire().await.unwrap();
+    let storage = get(&mut db, a, "equip_storage", 1).await.unwrap();
+    assert_eq!((storage["EquipItemSlotIndex2"].as_i64(), storage["EquipItemSlotIndex4"].as_i64()), (Some(armor.slot_index as i64), Some(0)));
+    let saved: String = sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key='batch'").bind(a).fetch_one(&mut *db).await.unwrap();
+    let saved: Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(saved[0]["EquipItemSlotIndex"], json!([0,0,0,0]));
+    assert_eq!(saved[0]["EquipItemUid"], json!(["","","",""]));
+    // Materials are summed per item and granted once; the reported new counts
+    // match the inventory change.
+    let after: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&mut *db).await.unwrap();
+    let results = result["ItemResults"].as_array().unwrap();
+    assert!(!results.is_empty(), "{result}");
+    let mut indices = std::collections::BTreeSet::new();
+    for r in results {
+        let index = r["ItemIndex"].as_i64().unwrap();
+        assert!(indices.insert(index), "one result per material: {result}");
+        let old = before.iter().find(|(i, _)| *i == index).map(|v| v.1).unwrap_or(0);
+        let new = after.iter().find(|(i, _)| *i == index).map(|v| v.1).unwrap();
+        assert!(new > old, "{index}: {old} -> {new}");
+    }
 }

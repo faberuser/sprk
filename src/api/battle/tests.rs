@@ -2767,11 +2767,9 @@ async fn dragon_dispatch_infers_raid_and_settles_once() {
         assert_eq!(finish["DispatchBattleInfo"]["WinCount"],2);
         assert_eq!(finish["TeamExpResult"]["AddValue"],2*cost*10);
         if chapter == 905 {
-            let raw: String = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND title='Dispatch equipment rewards' ORDER BY mail_id DESC LIMIT 1")
-                .bind(a).fetch_one(&s.db).await.unwrap();
-            let gear: Vec<crate::models::equip::EquipItemInfo> = read_json(&raw).unwrap();
+            let gear: Vec<crate::models::equip::EquipItemInfo> = read_value(finish["EquipItemResults"].clone()).unwrap();
             assert!(!gear.is_empty());
-            assert!(gear.iter().all(|v| v.slot_index == 0 && v.uid.is_empty()));
+            assert!(gear.iter().all(|v| v.slot_index > 0 && !v.uid.is_empty()));
         } else {
             assert!(!finish["ItemResults"].as_array().unwrap().is_empty());
         }

@@ -88,7 +88,7 @@ async fn complete(s:&AppState,run:&mut Run)->Result<()> {
         if heroes.len()!=4 {return Err(rule("InvalidHero"));}
         accounts[side]["HeroInfos"].as_object_mut().unwrap().retain(|id,_|id.parse::<i64>().is_ok_and(|id|heroes.contains(&id)));
         accounts[side]["LeaderHeroIndex"]=json!(heroes[0]);
-        sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.Heroes',json(?),'$.Leader',?) WHERE account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
+        sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.Heroes',json(?),'$.Leader',?) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
             .bind(json!(heroes).to_string()).bind(heroes[0]).bind(a).bind(number(&run.payload,"MatchUid")).execute(&mut *db).await?;
     }
     db.commit().await?;

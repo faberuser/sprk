@@ -34,6 +34,9 @@ namespace DllPatcher
             if (args.Contains("--verify-preset-disposal")) { InstallPresetDisposal(args[0], true); return; }
             if (args.Contains("--friendly-duel-menu-only")) { InstallFriendlyDuelMenu(args[0], false); return; }
             if (args.Contains("--verify-friendly-duel-menu")) { InstallFriendlyDuelMenu(args[0], true); return; }
+            if (args.Contains("--valance-s3-speed-only")) { InstallValanceSkillSpeed(args[0], false); return; }
+            if (args.Contains("--verify-valance-s3-speed")) { InstallValanceSkillSpeed(args[0], true); return; }
+            if (args.Contains("--verify-godking-background")) { VerifyGodkingBackground(args[0]); return; }
             if (args.Contains("--godking-recharge-prompt-only")) { InstallGodkingRechargePrompt(args[0], false); return; }
             if (args.Contains("--verify-godking-recharge-prompt")) { InstallGodkingRechargePrompt(args[0], true); return; }
             if (args.Contains("--honor-ticket-recharge-only")) { InstallHonorTicketRecharge(args[0], false); return; }
@@ -61,6 +64,8 @@ namespace DllPatcher
             if (args.Contains("--technomagic-enchant-refresh-only")) { InstallTechnomagicEnchantRefresh(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-enchant-refresh")) { InstallTechnomagicEnchantRefresh(args[0],false,true); return; }
             if (args.Contains("--technomagic-awaken-target-only")) { InstallTechnomagicAwakenTarget(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--forge-awaken-chance-only")) { InstallForgeAwakenChance(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-forge-awaken-chance")) { VerifyForgeAwakenChanceFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--skill-upgrade-all-only")) { InstallSkillUpgradeAll(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-skill-upgrade-all")) { VerifySkillUpgradeAllFile(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-technomagic-awaken-target")) { VerifyTechnomagicAwakenTargetFile(args[0],args.Contains("--stage-only")); return; }
@@ -135,6 +140,8 @@ namespace DllPatcher
                 RestoreSoulWeaponCinematic(args[0], args[source + 1], args.Contains("--stage-only")); return;
             }
             if (args.Contains("--verify-soul-weapon-cinematic")) { VerifySoulWeaponCinematicFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--soul-upgrade-flash-only")) { InstallSoulUpgradeFlash(args[0], args.Contains("--stage-only"), false); return; }
+            if (args.Contains("--verify-soul-upgrade-flash")) { InstallSoulUpgradeFlash(args[0], args.Contains("--stage-only"), true); return; }
             if (args.Contains("--selector-count-limit-only")) { InstallSelectorCountLimit(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-selector-count-limit")) { VerifySelectorCountLimitFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-selector-count-limit")) { TestSelectorCountLimit(args[0]); return; }
@@ -159,6 +166,15 @@ namespace DllPatcher
             if (args.Contains("--honor-only")) { InstallHonor(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-honor")) { VerifyHonorFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--self-test-legendary-rune-tickets")) { TestLegendaryRuneTickets(); return; }
+            if (args.Contains("--class-weapon-selectors-only")) { InstallClassWeaponSelectors(args[0], false); return; }
+            if (args.Contains("--void-rune-shop-limits-only")) { InstallVoidRuneShopLimits(args[0], false); return; }
+            if (args.Contains("--verify-void-rune-shop-limits")) { InstallVoidRuneShopLimits(args[0], true); return; }
+            if (args.Contains("--verify-class-weapon-selectors")) { InstallClassWeaponSelectors(args[0], true); return; }
+            if (args.Contains("--punishment-rewards-only")) { InstallPunishmentRewards(args[0], false); return; }
+            if (args.Contains("--punishment-level-selection-only")) { InstallPunishmentLevelSelection(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-punishment-level-selection")) { VerifyPunishmentLevelSelectionFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--self-test-punishment-level-selection")) { TestPunishmentLevelSelection(args[0]); return; }
+            if (args.Contains("--verify-punishment-rewards")) { InstallPunishmentRewards(args[0], true); return; }
             if (args.Contains("--legendary-rune-tickets-only")) { RestoreLegendaryRuneTickets(args[0], false); return; }
             if (args.Contains("--verify-legendary-rune-tickets")) { RestoreLegendaryRuneTickets(args[0], true); return; }
             if (args.Contains("--team-exp-refresh-only")) { InstallTeamExpRefresh(args[0], args.Contains("--stage-only")); return; }
@@ -167,6 +183,8 @@ namespace DllPatcher
             if (args.Contains("--verify-artifact-source-filter")) { VerifyArtifactSourceFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--ticket-search-only")) { InstallTicketSearch(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-ticket-search")) { VerifyTicketSearchFile(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--selector-acquire-state-only")) { InstallSelectorAcquireState(args[0], args.Contains("--stage-only")); return; }
+            if (args.Contains("--verify-selector-acquire-state")) { VerifySelectorAcquireStateFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--hero-rune-filter-only")) { InstallHeroRuneFilter(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-hero-rune-filter")) { VerifyHeroRuneFilterFile(args[0], args.Contains("--stage-only")); return; }
             if (args.Contains("--runes-only")) { InstallRuneCategories(args[0], args.Contains("--stage-only")); return; }
@@ -253,6 +271,8 @@ namespace DllPatcher
             if (args.Contains("--craft-only")) { InstallCrafting(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--conquest-only")) { InstallConquest(args[0],args.Contains("--stage-only")); return; }
             if (args.Contains("--verify-mission-worker")) { VerifyMissionWorker(args[0],args.Contains("--stage-only")); return; }
+            if (args.Contains("--dispatch-selection-only")) { InstallDispatchSelection(args[0],false); return; }
+            if (args.Contains("--verify-dispatch-selection")) { InstallDispatchSelection(args[0],true); return; }
             if (args.Contains("--self-test-dispatch")) { TestDispatch(); return; }
             if (args.Contains("--verify-dispatch")) { VerifyDispatchFile(args[0]); return; }
             if (args.Contains("--self-test-honor-buff")) { TestHonorBuff(); return; }
@@ -345,6 +365,7 @@ namespace DllPatcher
                 PatchVoiceLanguage(module);
                 PatchShopFeaturedCatalog(module);
                 PatchShopPurchaseLimits(module);
+                PatchPunishmentLevelSelection(module);
                 PatchPetFeeding(module);
                 PatchSelectorCountLimit(module);
                 PatchCraftShortcut(module);

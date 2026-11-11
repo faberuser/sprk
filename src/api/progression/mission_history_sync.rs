@@ -14,10 +14,17 @@ pub(crate) async fn sync(State(s): State<AppState>, body: Bytes) -> Result<Json<
     if incoming.len() > 2048 {
         return Err(rule("InvalidCount"));
     }
-    let mut tx = s.db.begin().await?;
     let mut pairs = BTreeSet::new();
     if !incoming.is_empty() {
-        let opened = mission_categories(&mut tx, &s, account).await?;
+        // Opening a category needs the progression view (~all Heroes and
+        // quests). Load it on a reader before taking the writer, which then
+        // only records the acknowledgements.
+        let opened = {
+            let mut reads = s.reads.begin().await?;
+            let opened = mission_categories(&mut reads, &s, account).await?;
+            reads.commit().await?;
+            opened
+        };
         for key in incoming {
             let (main, sub) = key.split_once(':').ok_or_else(|| rule("InvalidValue"))?;
             let (main, sub): (i64, i64) = (
@@ -35,6 +42,7 @@ pub(crate) async fn sync(State(s): State<AppState>, body: Bytes) -> Result<Json<
             pairs.insert((main, sub));
         }
     }
+    let mut tx = s.db.begin().await?;
     for (main, sub) in pairs {
         sqlx::query("INSERT OR IGNORE INTO mission_category_seen(account_id,main_category,sub_category) VALUES(?,?,?)")
             .bind(account).bind(main).bind(sub).execute(&mut *tx).await?;

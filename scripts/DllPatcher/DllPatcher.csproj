@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Resources/SoftenSoulUpgradeFlash.py" LogicalName="DllPatcher.SoftenSoulUpgradeFlash.py" />
+    <EmbeddedResource Include="Resources/ClassWeaponSelectorRules.json" LogicalName="DllPatcher.ClassWeaponSelectorRules.json" />
+    <EmbeddedResource Include="../../tables/DivinePunishmentSupport.json" LogicalName="DllPatcher.DivinePunishmentSupport.json" />
     <EmbeddedResource Include="Resources/Accessories.cs.txt" WithCulture="false" LogicalName="DllPatcher.Accessories.cs.txt" />
     <EmbeddedResource Include="Resources/FixLavrilCircle.py" LogicalName="DllPatcher.FixLavrilCircle.py" />
     <EmbeddedResource Include="Resources/LinePetProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.LinePetProbe.cs.txt" />
@@ -21,6 +24,8 @@
     <EmbeddedResource Include="Resources/HeroRuneFilter.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroRuneFilter.cs.txt" />
     <EmbeddedResource Include="Resources/TicketSearch*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/TechnomagicAwakenTarget.cs.txt" WithCulture="false" LogicalName="DllPatcher.TechnomagicAwakenTarget.cs.txt" />
+    <EmbeddedResource Include="Resources/ForgeAwakenChance.cs.txt" WithCulture="false" LogicalName="DllPatcher.ForgeAwakenChance.cs.txt" />
+    <EmbeddedResource Include="Resources/ForgeAwakenChanceProbe.cs.txt" WithCulture="false" LogicalName="DllPatcher.ForgeAwakenChanceProbe.cs.txt" />
     <EmbeddedResource Include="Resources/SkillUpgradeAll.cs.txt" WithCulture="false" LogicalName="DllPatcher.SkillUpgradeAll.cs.txt" />
     <EmbeddedResource Include="Resources/ArenaPractice*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/GearPresetPortraits*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
@@ -30,6 +35,8 @@
     <EmbeddedResource Include="Resources/HeroMaterialTickets.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroMaterialTickets.cs.txt" />
     <EmbeddedResource Include="Resources/EssenceCraftTickets.cs.txt" WithCulture="false" LogicalName="DllPatcher.EssenceCraftTickets.cs.txt" />
     <EmbeddedResource Include="Resources/HeroMaterialTicketsTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.HeroMaterialTicketsTests.cs.txt" />
+    <EmbeddedResource Include="Resources/SkillBookTickets.cs.txt" WithCulture="false" LogicalName="DllPatcher.SkillBookTickets.cs.txt" />
+    <EmbeddedResource Include="Resources/SkillBookTicketsTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.SkillBookTicketsTests.cs.txt" />
     <EmbeddedResource Include="Resources/LobbyAvatarStability.cs.txt" WithCulture="false" LogicalName="DllPatcher.LobbyAvatarStability.cs.txt" />
     <EmbeddedResource Include="Resources/SoulUpgradePlayback.cs.txt" WithCulture="false" LogicalName="DllPatcher.SoulUpgradePlayback.cs.txt" />
     <EmbeddedResource Include="../../tables/CostumeTicketRules.json" LogicalName="DllPatcher.CostumeTicketRules.json" />
@@ -95,6 +102,7 @@
     <EmbeddedResource Include="Resources/LegacyData/RestoredSelectors.json" LogicalName="DllPatcher.RestoredSelectors.json" />
     <EmbeddedResource Include="Resources/DispatchTests.cs.txt" WithCulture="false" LogicalName="DllPatcher.DispatchTests.cs.txt" />
     <EmbeddedResource Include="Resources/Dispatch.cs.txt" WithCulture="false" LogicalName="DllPatcher.Dispatch.cs.txt" />
+    <EmbeddedResource Include="Resources/DispatchSelection*.cs.txt" WithCulture="false" LogicalName="DllPatcher.%(Filename).txt" />
     <EmbeddedResource Include="Resources/Automation.cs.txt" WithCulture="false" LogicalName="DllPatcher.Automation.cs.txt" />
     <EmbeddedResource Include="Resources/LegacyData/ReconstructedRaids.json" LogicalName="DllPatcher.ReconstructedRaids.json" />
     <EmbeddedResource Include="Resources/LegacyData/RestoredPunishmentSkills.json" LogicalName="DllPatcher.RestoredPunishmentSkills.json" />

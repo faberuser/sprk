@@ -13,6 +13,8 @@ partial class Program
             throw new InvalidOperationException("Release builds require a fresh client workspace without a staged DLL.");
 
         TestLegendaryRuneTickets();
+        InstallPunishmentRewards(clientRoot, false);
+        InstallPunishmentRewards(clientRoot, true);
         RestoreLegendaryRuneTickets(clientRoot, false);
         Main(new[] { clientRoot, "--stage-only" });
         if (!File.Exists(staged))
@@ -84,6 +86,8 @@ partial class Program
         VerifyArtifactSourceFilterFile(clientRoot);
         InstallTicketSearch(clientRoot, false);
         VerifyTicketSearchFile(clientRoot);
+        InstallSelectorAcquireState(clientRoot, false);
+        VerifySelectorAcquireStateFile(clientRoot);
         InstallSoulstoneOwnership(clientRoot, false);
         InstallSoulstoneOwnership(clientRoot, false, true);
         InstallTeamExpRefresh(clientRoot, false);
@@ -113,9 +117,13 @@ partial class Program
         VerifyPetFeedingFile(clientRoot);
         TestPetFeeding(clientRoot);
         TestShopPurchaseLimits(clientRoot);
+        VerifyPunishmentLevelSelectionFile(clientRoot, false);
+        TestPunishmentLevelSelection(clientRoot);
         VerifySelectorCountLimitFile(clientRoot, false);
         TestSelectorCountLimit(clientRoot);
         VerifySoulWeaponCinematicFile(clientRoot, false);
+        InstallSoulUpgradeFlash(clientRoot, false, false);
+        InstallSoulUpgradeFlash(clientRoot, false, true);
         VerifySoulLiberationCostFile(clientRoot);
         VerifyStoryAutoFile(clientRoot);
         TestStoryAutoRecovery();
@@ -133,6 +141,8 @@ partial class Program
         TestSoulUpgradePlayback(clientRoot);
         InstallCostumeTickets(clientRoot, false, false);
         InstallCostumeTickets(clientRoot, false, true);
+        InstallClassWeaponSelectors(clientRoot, false);
+        InstallClassWeaponSelectors(clientRoot, true);
         // Run last: helpers compile against the baseline API, then currency
         // signatures and every compiled consumer are migrated together.
         InstallHeroMaterialTickets(clientRoot, false);
@@ -149,6 +159,8 @@ partial class Program
         InstallPresetDisposal(clientRoot, true);
         InstallAwakeningMaterials(clientRoot, false);
         VerifyAwakeningMaterialsFile(clientRoot);
+        InstallForgeAwakenChance(clientRoot, false);
+        VerifyForgeAwakenChanceFile(clientRoot);
         InstallTechnomagicRefresh(clientRoot, false);
         InstallTechnomagicRefresh(clientRoot, false, true);
         InstallTechnomagicEnchantRefresh(clientRoot, false);
@@ -161,6 +173,9 @@ partial class Program
         InstallPartyRetry(clientRoot, false, true);
         InstallGodkingRechargePrompt(clientRoot, false);
         InstallGodkingRechargePrompt(clientRoot, true);
+        VerifyGodkingBackground(clientRoot);
+        InstallValanceSkillSpeed(clientRoot, false);
+        InstallValanceSkillSpeed(clientRoot, true);
         InstallHonorTicketRecharge(clientRoot, false);
         InstallHonorTicketRecharge(clientRoot, true);
         InstallTeamLevelBuffReset(clientRoot, false);
@@ -171,6 +186,8 @@ partial class Program
         InstallFriendlyDuelMenu(clientRoot, true);
         InstallHonorDuel(clientRoot, false);
         InstallHonorDuel(clientRoot, false, true);
+        InstallDispatchSelection(clientRoot, false);
+        InstallDispatchSelection(clientRoot, true);
         VerifyOrdealUnlockFile(clientRoot, false);
         InstallMariaLegendBird(clientRoot);
         InstallMariaLegendBird(clientRoot,true);
@@ -185,6 +202,8 @@ partial class Program
         InstallLinePets(clientRoot, false, true);
         RestoreLinePetCurrency(clientRoot, false);
         RestoreLinePetCurrency(clientRoot, true);
+        InstallVoidRuneShopLimits(clientRoot, false);
+        InstallVoidRuneShopLimits(clientRoot, true);
         RestoreConquestDungeonIcons(clientRoot, false);
         RestoreConquestDungeonIcons(clientRoot, true);
         InstallHeroDeathVoices(clientRoot, false);

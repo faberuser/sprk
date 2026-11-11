@@ -17,8 +17,7 @@
       "IncludeNpcHeroes": false,
       "ItemIndices": [],
       "SoulStoneChancePer10000": 2000,
-      "EtherItemIndex": 5100,
-      "EtherCount": 1
+      "EtherItemGroup": "SOUL_APPRISE_GROUP[2:3:4]"
     }
   ]
 }

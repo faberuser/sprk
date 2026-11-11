@@ -161,6 +161,29 @@ public sealed partial class SprkAutomation : MonoBehaviour
             cmd=JsonUtility.FromJson<Command>(File.ReadAllText(inbox)); File.Delete(inbox);
             Guid parsed;
             if(cmd == null || !Guid.TryParseExact(cmd.id,"N",out parsed)) throw new InvalidOperationException("Invalid command ID");
+            if(cmd.action=="dispatch-selection-probe") {
+                string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
+                if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("dispatch-selection-"))
+                    throw new InvalidOperationException("Dispatch selection fixture requires isolated Login and dispatch-selection profile");
+                var probe=System.Reflection.Assembly.Load("SprkDispatchSelection").GetType("SprkDispatchSelectionProbe");
+                var result=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(result);Write(reply);return;
+            }
+            if(cmd.action=="godking-background-probe") {
+                reply=Snapshot(cmd.id);
+                foreach(var window in UnityEngine.Object.FindObjectsOfType<ContentUIGodkingTrialDungeonList>()) {
+                    var texture=window.transform.Find("Panel/Root/Bg").GetComponent<UITexture>();
+                    reply.materials.Add(new Dictionary<string,object>{{"texture",texture.mainTexture==null?null:texture.mainTexture.name},
+                        {"shader",texture.shader==null?null:texture.shader.name},{"alpha",texture.finalAlpha},{"depth",texture.depth},
+                        {"enabled",texture.enabled},{"active",texture.gameObject.activeInHierarchy},{"uv",texture.uvRect.ToString()},
+                        {"color",texture.color.ToString()},{"region",texture.drawRegion.ToString()},
+                        {"panels",String.Join(";",texture.GetComponentsInParent<UIPanel>().Select(p=>p.name+":"+p.alpha+":"+p.depth))},
+                        {"loader",texture.GetComponent<NGame2.NUI.UIBundleLoader>().AssetPath},
+                        {"drawCall",texture.drawCall==null?null:texture.drawCall.name},
+                        {"visible",texture.isVisible},{"layer",texture.gameObject.layer}});
+                }
+                Write(reply);return;
+            }
             if(cmd.action=="preview-shadow-probe") {
                 string profile=Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE");
                 if(SceneManager.GetActiveScene().name!="Login" || String.IsNullOrEmpty(profile) || !profile.StartsWith("preview-shadow-"))
@@ -260,7 +283,13 @@ public sealed partial class SprkAutomation : MonoBehaviour
             }
             if(cmd.action=="awakening-material-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Awakening material fixture requires isolated Login");
-                ProbeAwakeningMaterials();reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening icon visibility, compact grid positions, hide-all, restore-all and eligibility refresh round trips.");Write(reply);return;
+                busy=true;StartCoroutine(ProbeAwakeningMaterials(cmd));return;
+            }
+            if(cmd.action=="forge-awaken-chance-probe") {
+                if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Forge chance fixture requires isolated Login");
+                var probe=System.Reflection.Assembly.Load("SprkForgeAwakenChance").GetType("SprkForgeAwakenChanceProbe");
+                var result=(string)probe.GetMethod("Run").Invoke(null,new object[]{cmd.text});
+                reply=Snapshot(cmd.id);reply.materials.Add(result);Write(reply);return;
             }
             if(cmd.action=="arena-ranking-probe") {
                 if(SceneManager.GetActiveScene().name!="Login")throw new InvalidOperationException("Ranking fixture requires isolated Login");
@@ -1346,35 +1375,99 @@ public sealed partial class SprkAutomation : MonoBehaviour
         if((int)view.GetType().GetField("_subCategoryIndex",flags).GetValue(view)!=1)throw new Exception("Blasphemy rune selection failed");
         go.SetActive(false);
     }
-    void ProbeAwakeningMaterials() {
-        var host=new GameObject("AwakeningMaterialFixture");host.SetActive(false);
-        var view=host.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>();
-        var gridRoot=new GameObject("AwakeningMaterialGridFixture");
-        var scroll=gridRoot.AddComponent<NVespa.NNGUIExtension.UIScrollGrid>();
-        var rows=new GameObject("Grid");rows.transform.SetParent(gridRoot.transform,false);
-        var grid=rows.AddComponent<UIGrid>();grid.arrangement=UIGrid.Arrangement.Horizontal;grid.maxPerLine=3;grid.cellWidth=100;grid.cellHeight=100;
-        scroll.Grid=grid;view.AwakeInvenItemListGrid=scroll;
-        var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Instance;
-        var visibility=view.GetType().GetMethod("SprkSetMaterialVisibility",flags);
-        var compact=view.GetType().GetMethod("SprkCompactMaterialGrid",flags);
-        if(visibility==null || compact==null)throw new Exception("Awakening material patch missing");
-        var icons=new List<NGame2.NUI.NComponent2.ItemIconComponent>();
-        for(int i=0;i<6;i++) {
-            var go=new GameObject("Material"+i);go.transform.SetParent(rows.transform,false);
-            var icon=go.AddComponent<NGame2.NUI.NComponent2.ItemIconComponent>();icon.RootWidget=go.AddComponent<UIWidget>();icons.Add(icon);
+    void CheckAwakeningSortInitialization(NGame2.NUI.NWindow.HeroEquipAwaken view) {
+        var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic;
+        var type=view.GetType();
+        var names=new[]{"ReqLevel","Grade","Star","HeroLevel","HeroGrade"};
+        foreach(var name in names) {
+            var field=type.GetField("_"+name+"SortType",flags);
+            if(Convert.ToInt32(field.GetValue(view))!=1)throw new Exception("Cold awakening sort differs from native close/reset default: "+name);
+            var sprites=type.GetField("Sort"+name+"Sprites",flags);
+            var info=Activator.CreateInstance(sprites.FieldType);
+            foreach(var direction in new[]{"Up","Down"}) {
+                var go=new GameObject(name+direction);go.transform.SetParent(view.transform,false);
+                info.GetType().GetField("Sprite"+direction).SetValue(info,go.AddComponent<UISprite>());
+            }
+            sprites.SetValue(view,info);
         }
-        for(int pass=0;pass<4;pass++) {
-            for(int i=0;i<icons.Count;i++)visibility.Invoke(null,new object[]{icons[i],pass==0?(i!=0 && i!=2 && i!=5):pass==1});
-            compact.Invoke(view,null);
-            int expected=pass==0?3:pass==1?0:6;
-            var active=grid.GetChildList();
-            if(!grid.hideInactive || active.Count!=expected)throw new Exception("Hidden awakening materials still occupy grid cells: "+pass);
-            for(int i=0;i<active.Count;i++) {
-                if(Mathf.Abs(active[i].localPosition.x-(i%3)*100)>0.1f || Mathf.Abs(active[i].localPosition.y+(i/3)*100)>0.1f)throw new Exception("Awakening material grid has gaps");
-                if(active[i].GetComponent<NGame2.NUI.NComponent2.ItemIconComponent>().RootWidget.isGrayscale)throw new Exception("Visible awakening material is gray");
+        var setup=type.GetMethod("SetupSortButton",flags);
+        // Verify each arrow reflects each sort direction, independently of the
+        // prefab's initial visibility, then leave the cold/reopen defaults intact.
+        foreach(int direction in new[]{1,0,1}) {
+            foreach(var name in names) {
+                var field=type.GetField("_"+name+"SortType",flags);
+                field.SetValue(view,Enum.ToObject(field.FieldType,direction));
+            }
+            setup.Invoke(view,null);
+            foreach(var name in names) {
+                var info=type.GetField("Sort"+name+"Sprites",flags).GetValue(view);
+                var up=(UISprite)info.GetType().GetField("SpriteUp").GetValue(info);
+                var down=(UISprite)info.GetType().GetField("SpriteDown").GetValue(info);
+                if(up.gameObject.activeSelf!=(direction==0) || down.gameObject.activeSelf!=(direction==1))throw new Exception("Awakening sort arrow disagrees with state: "+name);
             }
         }
-        gridRoot.SetActive(false);
+    }
+    IEnumerator ProbeAwakeningMaterials(Command cmd) {
+        var host=new GameObject("AwakeningMaterialFixture");host.SetActive(false);
+        var gridRoot=new GameObject("AwakeningMaterialGridFixture");
+        Reply failure=null;
+        UIGrid grid=null;
+        NGame2.NUI.NWindow.HeroEquipAwaken view=null;
+        System.Reflection.MethodInfo visibility=null,compact=null;
+        var icons=new List<NGame2.NUI.NComponent2.ItemIconComponent>();
+        Action<int> check=expected=>{
+            var active=grid.GetChildList();
+            if(!grid.hideInactive || active.Count!=expected)throw new Exception("Hidden awakening materials still occupy grid cells");
+            for(int i=0;i<active.Count;i++) {
+                if(Mathf.Abs(active[i].localPosition.x-(i%3)*100)>0.1f || Mathf.Abs(active[i].localPosition.y+(i/3)*100)>0.1f)throw new Exception("Awakening material grid has gaps or overlapping slots");
+                if(active[i].GetComponent<NGame2.NUI.NComponent2.ItemIconComponent>().RootWidget.isGrayscale)throw new Exception("Visible awakening material is gray");
+            }
+        };
+        try {
+            view=host.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>();
+            CheckAwakeningSortInitialization(view);
+            // A second new component must not depend on a previously closed window.
+            var fresh=new GameObject("FreshAwakeningSortFixture");fresh.SetActive(false);fresh.transform.SetParent(host.transform,false);
+            CheckAwakeningSortInitialization(fresh.AddComponent<NGame2.NUI.NWindow.HeroEquipAwaken>());
+            var scroll=gridRoot.AddComponent<NVespa.NNGUIExtension.UIScrollGrid>();
+            var rows=new GameObject("Grid");rows.transform.SetParent(gridRoot.transform,false);
+            grid=rows.AddComponent<UIGrid>();grid.arrangement=UIGrid.Arrangement.Horizontal;grid.maxPerLine=3;grid.cellWidth=100;grid.cellHeight=100;
+            scroll.Grid=grid;view.AwakeInvenItemListGrid=scroll;
+            var flags=System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Instance;
+            visibility=view.GetType().GetMethod("SprkSetMaterialVisibility",flags);
+            compact=view.GetType().GetMethod("SprkCompactMaterialGrid",flags);
+            if(visibility==null || compact==null)throw new Exception("Awakening material patch missing");
+            for(int i=0;i<8;i++) {
+                var go=new GameObject("Material"+i);go.transform.SetParent(rows.transform,false);
+                var icon=go.AddComponent<NGame2.NUI.NComponent2.ItemIconComponent>();icon.RootWidget=go.AddComponent<UIWidget>();icons.Add(icon);
+            }
+        } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        // Exercise a cold hidden initialization and already-started pooled
+        // reopens. No sorting or second eligibility refresh is allowed to fix it.
+        for(int cycle=0;cycle<3 && failure==null;cycle++) {
+            try {
+                gridRoot.SetActive(false);grid.enabled=false;
+                foreach(var icon in icons) {
+                    visibility.Invoke(null,new object[]{icon,false});
+                    icon.transform.localPosition=Vector3.zero;
+                }
+                compact.Invoke(view,null);
+                if(grid.GetChildList().Count!=0 || !grid.enabled)throw new Exception("Hidden awakening grid did not retain a deferred layout request");
+                gridRoot.SetActive(true);
+            } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+            yield return null;yield return null;
+            if(failure==null)try {check(icons.Count);}catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        }
+        if(failure==null)try {
+            for(int pass=0;pass<4;pass++) {
+                for(int i=0;i<icons.Count;i++)visibility.Invoke(null,new object[]{icons[i],pass==0?(i!=0 && i!=2 && i!=5):pass==1});
+                compact.Invoke(view,null);check(pass==0?3:pass==1?0:icons.Count);
+            }
+        } catch(Exception e){failure=new Reply{id=cmd.id,ok=false,error=e.ToString()};}
+        gridRoot.SetActive(false);UnityEngine.Object.Destroy(gridRoot);UnityEngine.Object.Destroy(host);
+        busy=false;
+        if(failure!=null){Write(failure);yield break;}
+        var reply=Snapshot(cmd.id);reply.materials.Add("PASS: native awakening fresh-instance sort defaults and all five arrows in both directions; cold-open and pooled-reopen deferred layout, eight distinct slots without sorting, compact hide-all/restore-all and eligibility refresh round trips.");Write(reply);
     }
     IEnumerator ProbeTowerContinuous(Command cmd) {
         var type=typeof(NGame2.NUI.NWindow.NBattle.AutoNextBattle);

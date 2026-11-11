@@ -77,6 +77,7 @@ struct Release {
 
 #[derive(Deserialize)]
 struct Asset {
+    id: u64,
     name: String,
     browser_download_url: String,
     size: u64,
@@ -202,8 +203,77 @@ fn verify_manifest(raw: &[u8], public_key: &str, scratch: &Path) -> Result<Manif
     Ok(manifest)
 }
 
-async fn download(client: &reqwest::Client, url: &str, path: &Path, limit: u64) -> Result<()> {
-    let mut response = client.get(url).send().await?.error_for_status()?;
+/// Pause before each further round over an asset's routes. GitHub's
+/// `releases/download` route has returned 504 for hours while the REST asset
+/// route still served the same bytes.
+const RETRY_DELAYS: [Duration; 4] = [
+    Duration::from_secs(2),
+    Duration::from_secs(5),
+    Duration::from_secs(15),
+    Duration::from_secs(30),
+];
+
+/// A download route: URL and optional `Accept` header.
+type Route = (String, Option<&'static str>);
+
+/// The asset's browser URL, then the same asset through the REST API. Both are
+/// verified against the signed manifest afterwards, so the route cannot admit
+/// other content.
+fn routes(asset: &Asset, repo: &str) -> Vec<Route> {
+    vec![
+        (asset.browser_download_url.clone(), None),
+        (
+            format!("https://api.github.com/repos/{repo}/releases/assets/{}", asset.id),
+            Some("application/octet-stream"),
+        ),
+    ]
+}
+
+/// Server-side or network failures that a later attempt may not repeat.
+fn transient(error: &anyhow::Error) -> bool {
+    error.chain().filter_map(|e| e.downcast_ref::<reqwest::Error>()).any(|e| match e.status() {
+        Some(status) => status.is_server_error() || status.as_u16() == 429 || status.as_u16() == 408,
+        None => e.is_timeout() || e.is_connect() || e.is_request() || e.is_body(),
+    })
+}
+
+/// Try every route each round; retry rounds only while some failure was transient.
+async fn fetch(
+    client: &reqwest::Client,
+    routes: &[Route],
+    path: &Path,
+    limit: u64,
+    delays: &[Duration],
+) -> Result<()> {
+    let mut last = None;
+    for round in 0..=delays.len() {
+        if round > 0 {
+            tokio::time::sleep(delays[round - 1]).await;
+        }
+        let mut retry = false;
+        for (url, accept) in routes {
+            match download(client, url, *accept, path, limit).await {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    tracing::warn!(attempt = round + 1, %url, error = %format!("{error:#}"), "Client release download failed");
+                    retry |= transient(&error);
+                    last = Some(error);
+                }
+            }
+        }
+        if !retry {
+            break;
+        }
+    }
+    Err(last.context("No download route")?)
+}
+
+async fn download(client: &reqwest::Client, url: &str, accept: Option<&str>, path: &Path, limit: u64) -> Result<()> {
+    let mut request = client.get(url);
+    if let Some(accept) = accept {
+        request = request.header(reqwest::header::ACCEPT, accept);
+    }
+    let mut response = request.send().await?.error_for_status()?;
     ensure!(
         response.content_length().unwrap_or(0) <= limit,
         "Download exceeds size limit"
@@ -293,14 +363,18 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(900))
         .build()?;
-    download(
+    fetch(
         &client,
-        &format!(
-            "https://api.github.com/repos/{}/releases/tags/{}",
-            config.repo, config.tag
-        ),
+        &[(
+            format!(
+                "https://api.github.com/repos/{}/releases/tags/{}",
+                config.repo, config.tag
+            ),
+            None,
+        )],
         &work.join("github.json"),
         JSON_LIMIT,
+        &RETRY_DELAYS,
     )
     .await?;
     let release: Release = serde_json::from_slice(&fs::read(work.join("github.json"))?)?;
@@ -310,11 +384,12 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
     );
     let manifest_asset = asset(&release, MANIFEST_ASSET, &config.repo, &config.tag)?;
     let archive_asset = asset(&release, ARCHIVE_ASSET, &config.repo, &config.tag)?;
-    download(
+    fetch(
         &client,
-        &manifest_asset.browser_download_url,
+        &routes(manifest_asset, &config.repo),
         &work.join("manifest.json"),
         JSON_LIMIT,
+        &RETRY_DELAYS,
     )
     .await?;
     let raw = fs::read(work.join("manifest.json"))?;
@@ -336,11 +411,12 @@ pub(super) async fn sync(root: PathBuf, config: Config) -> Result<()> {
             archive_asset.size <= ARCHIVE_LIMIT,
             "Release archive exceeds 2 GiB limit"
         );
-        download(
+        fetch(
             &client,
-            &archive_asset.browser_download_url,
+            &routes(archive_asset, &config.repo),
             &work.join(ARCHIVE_ASSET),
             archive_asset.size,
+            &RETRY_DELAYS,
         )
         .await?;
         ensure!(
@@ -851,23 +927,69 @@ mod tests {
         let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
         let client = reqwest::Client::new();
         let destination = f.root.join("download");
-        download(&client, &format!("http://{address}/ok"), &destination, 5)
+        download(&client, &format!("http://{address}/ok"), None, &destination, 5)
             .await
             .unwrap();
         assert_eq!(fs::read(&destination).unwrap(), b"hello");
         assert!(
-            download(&client, &format!("http://{address}/ok"), &destination, 4)
+            download(&client, &format!("http://{address}/ok"), None, &destination, 4)
                 .await
                 .is_err()
         );
         assert!(download(
             &client,
             &format!("http://{address}/fail"),
+            None,
             &destination,
             100
         )
         .await
         .is_err());
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn fetch_falls_back_to_the_api_route_and_retries_only_transient_failures() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let f = Fixture::new();
+        let flaky = std::sync::Arc::new(AtomicUsize::new(0));
+        let missing = std::sync::Arc::new(AtomicUsize::new(0));
+        let (flaky_hits, missing_hits) = (flaky.clone(), missing.clone());
+        let router = axum::Router::new()
+            .route("/browser", axum::routing::get(|| async { axum::http::StatusCode::GATEWAY_TIMEOUT }))
+            .route("/api", axum::routing::get(|headers: axum::http::HeaderMap| async move {
+                if headers.get("accept").is_some_and(|v| v == "application/octet-stream") {
+                    Ok("signed bytes")
+                } else {
+                    Err(axum::http::StatusCode::NOT_ACCEPTABLE)
+                }
+            }))
+            .route("/flaky", axum::routing::get(move || async move {
+                if flaky_hits.fetch_add(1, Ordering::SeqCst) < 2 { Err(axum::http::StatusCode::BAD_GATEWAY) } else { Ok("late") }
+            }))
+            .route("/missing", axum::routing::get(move || async move {
+                missing_hits.fetch_add(1, Ordering::SeqCst);
+                axum::http::StatusCode::NOT_FOUND
+            }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let client = reqwest::Client::new();
+        let destination = f.root.join("download");
+        let url = |path: &str| format!("http://{address}{path}");
+        let delays = [Duration::ZERO; 4];
+        // A browser-route 504 falls through to the API route (with its Accept header).
+        fetch(&client, &[(url("/browser"), None), (url("/api"), Some("application/octet-stream"))], &destination, 100, &delays)
+            .await.unwrap();
+        assert_eq!(fs::read(&destination).unwrap(), b"signed bytes");
+        // Transient failures are retried in later rounds.
+        fetch(&client, &[(url("/flaky"), None)], &destination, 100, &delays).await.unwrap();
+        assert_eq!(fs::read(&destination).unwrap(), b"late");
+        assert_eq!(flaky.load(Ordering::SeqCst), 3);
+        // Permanent failures stop after one round; persistent 5xx gives up after every delay.
+        assert!(fetch(&client, &[(url("/missing"), None)], &destination, 100, &delays).await.is_err());
+        assert_eq!(missing.load(Ordering::SeqCst), 1);
+        assert!(fetch(&client, &[(url("/browser"), None)], &destination, 100, &delays).await.is_err());
         server.abort();
     }
 }
