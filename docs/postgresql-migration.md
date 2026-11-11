@@ -165,7 +165,9 @@ run on separate connections.
 - `DATABASE_URL` (app role) is required. `DATABASE_MIGRATION_URL` (owner role)
   applies migrations at startup; without it `DATABASE_URL` is used.
   `DATABASE_READ_URL` optionally points the read pool elsewhere (a replica
-  later). `SPRK_DB_MAX_CONNECTIONS` sizes each pool (default 16).
+  later). `SPRK_DB_MAX_CONNECTIONS` sizes each pool, main and read alike
+  (default 16, so up to 32 connections); PostgreSQL allows 100 in total, so
+  keep it at 45 or below unless `max_connections` is raised.
 - Sessions run in UTC with `statement_timeout` 30 s, `lock_timeout` 10 s and
   `idle_in_transaction_session_timeout` 60 s. The read pool sets
   `default_transaction_read_only`.

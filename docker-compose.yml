@@ -30,6 +30,9 @@ services:
       # URL-safe passwords (letters, digits, - and _).
       DATABASE_URL: postgres://sprk_app:${SPRK_DB_APP_PASSWORD:-}@postgres:5432/sprk
       DATABASE_MIGRATION_URL: postgres://sprk_owner:${SPRK_DB_OWNER_PASSWORD:-}@postgres:5432/sprk
+      # Connections per pool (main and read pool each). PostgreSQL allows 100
+      # in total by default, so keep this at 45 or below.
+      SPRK_DB_MAX_CONNECTIONS: ${SPRK_DB_MAX_CONNECTIONS:-16}
     depends_on:
       postgres:
         condition: service_healthy
