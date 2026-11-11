@@ -85,9 +85,9 @@ async fn grant_scaled_bundle(
             {
                 return Err(rule("InvalidItemType"));
             }
-            use rand::Rng;
+            use rand::RngExt;
             let star =
-                rand::thread_rng().gen_range(drop.star_min..=drop.star_max.max(drop.star_min));
+                rand::rng().random_range(drop.star_min..=drop.star_max.max(drop.star_min));
             let count = items
                 .entry((id, star, drop.custom_option_index))
                 .or_default();

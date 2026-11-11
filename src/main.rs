@@ -183,7 +183,7 @@ async fn game_router() -> anyhow::Result<Router> {
         // Original path from client config
         .route("/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json", get(api::system::query::get_host_info))
         // Alternative shorter paths for patched clients
-        .route("/Masang_Tokyo/Live/:version/:hostfile", get(api::system::query::get_host_info))
+        .route("/Masang_Tokyo/Live/{version}/{hostfile}", get(api::system::query::get_host_info))
         .route("/host.json", get(api::system::query::get_host_info))
         // Auth endpoints (Masang login server API)
         .route("/api/auth/login/guest", post(api::account::auth::guest_login))
@@ -208,6 +208,8 @@ async fn game_router() -> anyhow::Result<Router> {
         .route("/user/ping", post(api::account::client::ping))
         .route("/user/set_push_notification", post(api::account::client::set_push_notification))
         .route("/push_reward/get_push_reward", post(api::account::client::get_push_reward))
+        .route("/user/init_device_id", post(api::account::client::acknowledge_device))
+        .route("/user/register_device_token", post(api::account::client::acknowledge_device))
         // First lobby entry
         .route("/first/lobby", post(api::account::lobby::first_lobby))
         .route("/user/first_lobby", post(api::account::lobby::first_lobby))
@@ -387,7 +389,7 @@ async fn game_router() -> anyhow::Result<Router> {
         .merge(api::system::cheat::public_routes())
         // CDN endpoints for patch/asset downloads
         .route("/cdn/LastBuildVersion.txt", get(api::system::cdn::get_last_build_version))
-        .route("/cdn/:version/patch.json", get(api::system::cdn::get_patch_json))
+        .route("/cdn/{version}/patch.json", get(api::system::cdn::get_patch_json))
         // Catch-all for unimplemented endpoints
         .fallback(api::system::fallback::handle_fallback)
         // Middleware

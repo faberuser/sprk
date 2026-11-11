@@ -1,6 +1,6 @@
 //! Password accounts and expiring, server-validated authentication tickets.
 use axum::{extract::State, http::HeaderMap, Json};
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::Row;
@@ -123,7 +123,7 @@ pub async fn delete_account(State(state): State<AppState>, Json(body): Json<Dele
     for table in tables {
         if table=="accounts" {continue;}
         let quoted=format!("\"{}\"",table.replace('"',"\"\""));
-        let columns=sqlx::query(&format!("PRAGMA table_info({quoted})")).fetch_all(&mut *tx).await?;
+        let columns=sqlx::query(sqlx::AssertSqlSafe(format!("PRAGMA table_info({quoted})"))).fetch_all(&mut *tx).await?;
         let mut keys:Vec<&str>=vec![];
         for column in &columns {
             let name:&str=column.get("name");
@@ -134,13 +134,13 @@ pub async fn delete_account(State(state): State<AppState>, Json(body): Json<Dele
         }
         if !keys.is_empty() {
             let clause=keys.iter().map(|k|format!("\"{k}\"=?")).collect::<Vec<_>>().join(" OR ");
-            let sql=format!("DELETE FROM {quoted} WHERE {clause}");let mut query=sqlx::query(&sql);
+            let sql=format!("DELETE FROM {quoted} WHERE {clause}");let mut query=sqlx::query(sqlx::AssertSqlSafe(sql.as_str()));
             for _ in &keys{query=query.bind(session.account_id);}
             query.execute(&mut *tx).await?;
         }
     }
     for table in ["auth_tickets","account_claims","credentials"] {
-        sqlx::query(&format!("DELETE FROM {table} WHERE login_id=?")).bind(&login).execute(&mut *tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM {table} WHERE login_id=?"))).bind(&login).execute(&mut *tx).await?;
     }
     sqlx::query("DELETE FROM auth_attempts WHERE username=?").bind(&username).execute(&mut *tx).await?;
     // Retain only an anonymous, banned ID tombstone to prevent ID reuse and stale
@@ -174,7 +174,7 @@ pub async fn change_password(State(state): State<AppState>, Json(body): Json<Cha
         if !PasswordHash::new(&previous).map(|h| Argon2::default().verify_password(body.current_password.as_bytes(), &h).is_ok()).unwrap_or(false) {
             return Err(ServerError::Authentication("Current password is incorrect.".into()));
         }
-        Argon2::default().hash_password(body.new_password.as_bytes(), &SaltString::generate(&mut OsRng))
+        Argon2::default().hash_password(body.new_password.as_bytes())
             .map(|h| h.to_string()).map_err(|_| ServerError::Internal("Password service unavailable".into()))
     }).await.map_err(|_| ServerError::Internal("Password service unavailable".into()))??;
     drop(permit);
@@ -196,7 +196,7 @@ pub async fn register(State(state): State<AppState>, Json(body): Json<Credential
     let username = validate(&body)?;
     throttle(&state.db, &username).await?;
     let permit = PASSWORD_WORK.try_acquire().map_err(|_| ServerError::Authentication("Server busy. Please try again.".into()))?;
-    let hash = tokio::task::spawn_blocking(move || Argon2::default().hash_password(body.password.as_bytes(), &SaltString::generate(&mut OsRng)).map(|h| h.to_string()))
+    let hash = tokio::task::spawn_blocking(move || Argon2::default().hash_password(body.password.as_bytes()).map(|h| h.to_string()))
         .await.map_err(|_| ServerError::Internal("Password service unavailable".into()))?
         .map_err(|_| ServerError::Internal("Password service unavailable".into()))?;
     drop(permit);
@@ -225,7 +225,7 @@ pub async fn password_login(State(state): State<AppState>, Json(body): Json<Cred
     let valid = tokio::task::spawn_blocking(move || {
         if stored.is_empty() {
             // Do comparable work for unknown users.
-            let _ = Argon2::default().hash_password(body.password.as_bytes(), &SaltString::generate(&mut OsRng));
+            let _ = Argon2::default().hash_password(body.password.as_bytes());
             false
         } else {
             PasswordHash::new(&stored).map(|h| Argon2::default().verify_password(body.password.as_bytes(), &h).is_ok()).unwrap_or(false)
@@ -272,6 +272,17 @@ pub(crate) async fn consume_game_ticket(db: &DbPool, ticket: &str, login_id: &st
 mod tests {
     use super::*;
     use axum::{body::Bytes, http::HeaderValue};
+
+    /// Stored hashes must keep verifying across argon2 upgrades. This PHC string
+    /// was produced by argon2 0.5.3 (`Argon2::default()`, fixed salt).
+    #[test]
+    fn verifies_password_hashes_from_argon2_0_5() {
+        let stored = "$argon2id$v=19$m=19456,t=2,p=1$c3Byay1sZWdhY3ktc2FsdA$0mCsHAoUrKgIXNAZb64dH9JVAHMwSRs4Z1mxolhE5PQ";
+        let hash = PasswordHash::new(stored).unwrap();
+        assert!(Argon2::default().verify_password(b"legacy password", &hash).is_ok());
+        assert!(Argon2::default().verify_password(b"wrong password", &hash).is_err());
+    }
+
     #[tokio::test]
     async fn delete_account_requires_password_and_confirmation_and_purges_only_target() {
         let db=sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
@@ -294,7 +305,7 @@ mod tests {
         assert_eq!(delete_account(State(s.clone()),request("correct password","DELETE")).await.unwrap().0["status"],"success");
         assert!(s.get_session("session1").is_none());assert!(s.get_session("session2").is_some());
         for table in ["credentials","auth_tickets","friends"] {
-            let count:i64=sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}")).fetch_one(&s.db).await.unwrap();assert_eq!(count,0, "{table}");
+            let count:i64=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM {table}"))).fetch_one(&s.db).await.unwrap();assert_eq!(count,0, "{table}");
         }
         let remaining:Vec<(i64,i64)>=sqlx::query_as("SELECT account_id,gold FROM user_info").fetch_all(&s.db).await.unwrap();assert_eq!(remaining,vec![(2,123)]);
         let tombstone:(String,i64)=sqlx::query_as("SELECT nick,is_banned FROM accounts WHERE account_id=1").fetch_one(&s.db).await.unwrap();assert_eq!(tombstone,("Deleted player".into(),1));

@@ -412,7 +412,7 @@ pub(super) mod tests {
             "UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?",
         ] {
             let explain=format!("EXPLAIN QUERY PLAN {sql}");
-            let mut query=sqlx::query_as::<_,(i64,i64,i64,String)>(&explain);
+            let mut query=sqlx::query_as::<_,(i64,i64,i64,String)>(sqlx::AssertSqlSafe(explain.as_str()));
             for _ in 0..sql.matches('?').count() {query=query.bind(1_i64);}
             let plan=query.fetch_all(&s.db).await.unwrap();
             assert!(plan.iter().any(|row|row.3.contains("arena_online_match_status")),"{sql}: {plan:?}");

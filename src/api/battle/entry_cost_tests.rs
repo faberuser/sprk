@@ -48,9 +48,9 @@ async fn cursed_flasks_fill_once_from_paid_victories_and_never_refunded_losses()
     tx.commit().await.unwrap();assert_eq!(progress().await,before+1);
 }
 async fn balance(s: &AppState, a: i64, column: &str) -> i64 {
-    sqlx::query_scalar(&format!(
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT {column} FROM user_info WHERE account_id=?"
-    ))
+    )))
     .bind(a)
     .fetch_one(&s.db)
     .await

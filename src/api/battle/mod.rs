@@ -76,10 +76,10 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
         ("world_boss_complete_insert","INSERT","NEW.family='world_boss' AND NEW.score>0"),
         ("world_boss_complete_update","UPDATE","NEW.family='world_boss' AND NEW.score>OLD.score"),
     ] {
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS progress_{name} AFTER {event} ON battle_scores WHEN {condition} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account,NEW.day,'CompleteWorldBoss',NEW.boss,0,1) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+1; END")))
             .execute(db).await?;
     }
-    sqlx::query(&format!("CREATE INDEX IF NOT EXISTS battle_state_dispatch_pending ON battle_state(account,idx) WHERE {PENDING_DISPATCH_SIMULATION}"))
+    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE INDEX IF NOT EXISTS battle_state_dispatch_pending ON battle_state(account,idx) WHERE {PENDING_DISPATCH_SIMULATION}")))
         .execute(db).await?;
     seasons::migrate_best_daily(db).await?;
     // Close legacy gates whose paid run already awarded a victory. Preserve clears and loot.

@@ -619,7 +619,7 @@ async fn recommended_decks_keep_only_the_served_ranking_and_use_indexes() {
     let plan = |sql: String| {
         let db = db.clone();
         async move {
-            sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}")).fetch_all(&db).await.unwrap()
+            sqlx::query(sqlx::AssertSqlSafe(format!("EXPLAIN QUERY PLAN {sql}"))).fetch_all(&db).await.unwrap()
                 .iter().map(|r| r.get::<String, _>("detail")).collect::<Vec<_>>().join("; ")
         }
     };

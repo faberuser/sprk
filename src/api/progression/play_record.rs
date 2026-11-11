@@ -158,7 +158,7 @@ pub(crate) async fn migrate(pool: &crate::database::DbPool) -> anyhow::Result<()
         } else {
             "MAX(value,excluded.value)"
         };
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS play_record_{name} AFTER {event} ON {table} WHEN {condition} BEGIN INSERT INTO play_record_values(account_id,kind,idx,value) VALUES({account},'{kind}',{idx},{value}) ON CONFLICT(account_id,kind,idx) DO UPDATE SET value={update}; END")).execute(&mut *tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS play_record_{name} AFTER {event} ON {table} WHEN {condition} BEGIN INSERT INTO play_record_values(account_id,kind,idx,value) VALUES({account},'{kind}',{idx},{value}) ON CONFLICT(account_id,kind,idx) DO UPDATE SET value={update}; END"))).execute(&mut *tx).await?;
     }
     tx.commit().await?;
     Ok(())

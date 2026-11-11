@@ -510,7 +510,7 @@ async fn world_boss_hp_scores_settle_once_without_consuming_tickets() {
     assert_eq!(balance(&s, "world_boss_ticket").await, 2);
 }
 async fn balance(s: &AppState, col: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT {col} FROM user_info LIMIT 1"))
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {col} FROM user_info LIMIT 1")))
         .fetch_one(&s.db)
         .await
         .unwrap()

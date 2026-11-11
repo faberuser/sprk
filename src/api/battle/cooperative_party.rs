@@ -1117,7 +1117,7 @@ mod tests {
                     for (part,base) in [(1,1000),(7,103000)] {
                         let slot=sqlx::query("INSERT INTO equip_items(account_id,item_index,star,level) VALUES(?,?,5,20)")
                             .bind(account(user)).bind(base+hero).execute(&s.db).await.unwrap().last_insert_rowid();
-                        sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?"))
+                        sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?")))
                             .bind(slot).bind(account(user)).bind(hero).execute(&s.db).await.unwrap();
                     }
                 }

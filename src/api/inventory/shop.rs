@@ -158,7 +158,7 @@ async fn stock(
                     .collect();
             }
             use rand::seq::SliceRandom;
-            rows.shuffle(&mut rand::thread_rng());
+            rows.shuffle(&mut rand::rng());
             rows.truncate(n(shop, "MaxStock") as usize);
             for (i, r) in rows.iter_mut().enumerate() {
                 r["Index"] = json!(i + 1);

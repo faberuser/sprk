@@ -181,7 +181,7 @@ fn buffs(s: &AppState) -> Vec<i64> {
         .map(|v| n(v, "Index"))
         .collect::<Vec<_>>();
     use rand::seq::SliceRandom;
-    pool.shuffle(&mut rand::thread_rng());
+    pool.shuffle(&mut rand::rng());
     pool.truncate(3);
     pool
 }

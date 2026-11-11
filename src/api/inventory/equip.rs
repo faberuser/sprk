@@ -143,10 +143,10 @@ pub async fn set_equip(
                 // Unequip from the other hero by setting all matching slots to 0
                 for slot in 1..=10 {
                     let column = format!("equip_item_slot_index_{}", slot);
-                    sqlx::query(&format!(
+                    sqlx::query(sqlx::AssertSqlSafe(format!(
                         "UPDATE heroes SET {} = 0 WHERE account_id = ? AND hero_index = ? AND {} = ?",
                         column, column
-                    ))
+                    )))
                     .bind(session.account_id)
                     .bind(other_hero_index)
                     .bind(equip_slot_index)
@@ -160,10 +160,10 @@ pub async fn set_equip(
 
         // Check if something is currently in the target slot and unequip it
         let slot_column = format!("equip_item_slot_index_{}", part_index);
-        let current_in_slot = sqlx::query(&format!(
+        let current_in_slot = sqlx::query(sqlx::AssertSqlSafe(format!(
             "SELECT {} as current_equip FROM heroes WHERE account_id = ? AND hero_index = ?",
             slot_column
-        ))
+        )))
         .bind(session.account_id)
         .bind(hero_index)
         .fetch_optional(&mut *tx)
@@ -182,7 +182,7 @@ pub async fn set_equip(
             "UPDATE heroes SET {} = ? WHERE account_id = ? AND hero_index = ?",
             slot_column
         );
-        sqlx::query(&query)
+        sqlx::query(sqlx::AssertSqlSafe(query.as_str()))
             .bind(equip_slot_index)
             .bind(session.account_id)
             .bind(hero_index)
@@ -270,10 +270,10 @@ pub async fn unset_equip(
         // Find which hero has this equipment and unequip it
         for slot in 1..=10 {
             let column = format!("equip_item_slot_index_{}", slot);
-            let result = sqlx::query(&format!(
+            let result = sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE heroes SET {} = 0 WHERE account_id = ? AND {} = ?",
                 column, column
-            ))
+            )))
             .bind(session.account_id)
             .bind(equip_slot_index)
             .execute(&mut *tx)

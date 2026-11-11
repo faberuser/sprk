@@ -124,7 +124,7 @@ async fn unequip_all_preserves_native_repeated_slots_and_clears_every_gear_posit
     }
     for encoding in ["native", "array", "json"] {
         for (part, slot) in slots.iter().enumerate() {
-            sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{}=? WHERE account_id=? AND hero_index=1", part+1))
+            sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{}=? WHERE account_id=? AND hero_index=1", part+1)))
                 .bind(slot).bind(a).execute(&s.db).await.unwrap();
         }
         let body = match encoding {
@@ -2477,7 +2477,7 @@ async fn native_equip_replacement_preserves_other_parts_and_accepts_slot_ten() {
     assert_eq!(response.un_equipped_slot_index, vec![slots[4]]);
     slots[4] = slots[10];
     for part in 1..=10 {
-        let saved: i32 = sqlx::query_scalar(&format!("SELECT equip_item_slot_index_{part} FROM heroes WHERE account_id=? AND hero_index=1"))
+        let saved: i32 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT equip_item_slot_index_{part} FROM heroes WHERE account_id=? AND hero_index=1")))
             .bind(u.user_info.account_id).fetch_one(&state.db).await.unwrap();
         assert_eq!(saved, slots[part-1], "part {part}");
     }

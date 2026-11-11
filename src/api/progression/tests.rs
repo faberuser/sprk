@@ -1559,7 +1559,7 @@ async fn battle_missions_world_boss_history_migration_and_score_writes_are_idemp
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
     for trigger in ["progress_world_boss_complete_insert","progress_world_boss_complete_update"] {
-        sqlx::query(&format!("DROP TRIGGER {trigger}")).execute(&s.db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}"))).execute(&s.db).await.unwrap();
     }
     for family in ["world_boss","event_world_boss","challenge"] {
         sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score,battle_time) VALUES(?,1,1,?,date('now'),1000,60)")

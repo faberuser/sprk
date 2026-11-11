@@ -118,7 +118,7 @@ async fn inn_recruitment_actions_have_independent_daily_cooldowns() {
         let after: (i64, i64, i32) = sqlx::query_as("SELECT u.gold,u.friendship_point,i.friendly_point FROM user_info u JOIN hero_friendly_info i ON i.account_id=u.account_id WHERE u.account_id=?")
             .bind(account).fetch_one(&s.db).await.unwrap();
         assert_eq!(before, after);
-        sqlx::query(&format!("UPDATE hero_friendly_info SET {column}='2000-01-01 00:00:00' WHERE account_id=?"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE hero_friendly_info SET {column}='2000-01-01 00:00:00' WHERE account_id=?")))
             .bind(account).execute(&s.db).await.unwrap();
         assert_eq!(inn_action(&s, &u, recruit, action).await.result, "Success");
     }
@@ -626,7 +626,7 @@ async fn put(s: &AppState, u: &user::LoginResponse, id: i32, count: i64) {
     sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES (?,?,?) ON CONFLICT(account_id,item_index) DO UPDATE SET count=excluded.count").bind(u.user_info.account_id).bind(id).bind(count).execute(&s.db).await.unwrap();
 }
 async fn balance(s: &AppState, u: &user::LoginResponse, key: &str) -> i64 {
-    sqlx::query_scalar(&format!("SELECT {key} FROM user_info WHERE account_id=?"))
+    sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT {key} FROM user_info WHERE account_id=?")))
         .bind(u.user_info.account_id)
         .fetch_one(&s.db)
         .await

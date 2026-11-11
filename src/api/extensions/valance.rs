@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::Rng;
+use rand::RngExt;
 
 pub(super) fn unique_options(state: &AppState, data: &Value, eq: &mut EquipItemInfo) -> Result<()> {
     let mut pool: BTreeSet<i64> = data["UniqueOptionIndex"]
@@ -220,7 +220,7 @@ pub(super) async fn execute(
             if total <= 0 {
                 return Err(rule("ItemDataNotFound"));
             }
-            let mut roll = rand::thread_rng().gen_range(0..total);
+            let mut roll = rand::rng().random_range(0..total);
             let count = n(
                 rows.into_iter()
                     .find(|v| {

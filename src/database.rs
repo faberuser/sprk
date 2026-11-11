@@ -485,9 +485,9 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         ("user_info", "event_dungeon_point", "INTEGER NOT NULL DEFAULT 0"),
     ] {
         use sqlx::Row;
-        let columns = sqlx::query(&format!("PRAGMA table_info({table})")).fetch_all(pool).await?;
+        let columns = sqlx::query(sqlx::AssertSqlSafe(format!("PRAGMA table_info({table})"))).fetch_all(pool).await?;
         if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-            sqlx::query(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE {table} ADD COLUMN {column} {definition}")))
                 .execute(pool).await?;
         }
     }
@@ -498,7 +498,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         for prefix in ["option_renew_count", "is_renewed_option"] {
             let column = format!("{prefix}_{slot}");
             if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-                sqlx::query(&format!("ALTER TABLE equip_items ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"))
+                sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE equip_items ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0")))
                     .execute(pool).await?;
             }
         }
@@ -522,7 +522,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         use sqlx::Row;
         let columns = sqlx::query("PRAGMA table_info(mails)").fetch_all(pool).await?;
         if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-            sqlx::query(&format!("ALTER TABLE mails ADD COLUMN {column} {definition}")).execute(pool).await?;
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE mails ADD COLUMN {column} {definition}"))).execute(pool).await?;
         }
     }
 
@@ -543,7 +543,7 @@ pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
         use sqlx::Row;
         let columns=sqlx::query("PRAGMA table_info(items)").fetch_all(pool).await?;
         if !columns.iter().any(|r|r.get::<String,_>("name")==column) {
-            sqlx::query(&format!("ALTER TABLE items ADD COLUMN {column} {definition}")).execute(pool).await?;
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE items ADD COLUMN {column} {definition}"))).execute(pool).await?;
         }
     }
 

@@ -2,8 +2,8 @@ FROM python:3.12-slim-bookworm AS illustration-model
 COPY scripts/DllPatcher/prepare_illustration_runtime.py /prepare.py
 RUN python /prepare.py --server /models
 
-FROM rust:1.93-bookworm AS chef
-RUN cargo install cargo-chef --version 0.1.77 --locked
+FROM rust:1.99-bookworm AS chef
+RUN cargo install cargo-chef --version 0.1.78 --locked
 WORKDIR /build
 
 FROM chef AS planner

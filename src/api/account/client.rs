@@ -32,6 +32,18 @@ pub async fn get_push_reward(State(state): State<AppState>, body: Bytes) -> Resu
     Ok(Json(json!({"BaseResult":"Success","Result":"Success"})))
 }
 
+/// `user/init_device_id` (DeviceId, CountryCode; sent from the login flow) and
+/// `user/register_device_token` (DeviceToken, empty when push is disabled).
+/// Both expect only a plain success. Without a push sender the server has no
+/// use for device ids or tokens, so they are acknowledged without being stored,
+/// and never fail: a failed reply would open a global error popup.
+pub async fn acknowledge_device(State(state): State<AppState>, body: Bytes) -> Result<Json<Value>> {
+    if let Ok(req) = Request::parse(&body) {
+        let _ = req.account(&state);
+    }
+    Ok(Json(json!({"BaseResult":"Success","Result":"Success"})))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,6 +65,10 @@ mod tests {
         for key in ["live", "gone"] {
             let reward = get_push_reward(State(state.clone()), Bytes::from(format!("SessionKey={key}"))).await.unwrap().0;
             assert_eq!(reward, json!({"BaseResult":"Success","Result":"Success"}));
+            for body in [format!("SessionKey={key}&DeviceId=abc&CountryCode=US"), format!("SessionKey={key}&DeviceToken="), String::new()] {
+                let device = acknowledge_device(State(state.clone()), Bytes::from(body)).await.unwrap().0;
+                assert_eq!(device, json!({"BaseResult":"Success","Result":"Success"}));
+            }
         }
     }
 }

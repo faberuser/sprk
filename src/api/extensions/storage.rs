@@ -204,14 +204,14 @@ pub(super) async fn execute(
                 if slot > 0 {
                     for p in 1..=10 {
                         let col = format!("equip_item_slot_index_{p}");
-                        let owners:Vec<i32>=sqlx::query_scalar(&format!("SELECT hero_index FROM heroes WHERE account_id=? AND hero_index<>? AND {col}=?")).bind(account).bind(hero_id).bind(slot).fetch_all(&mut *db).await?;
+                        let owners:Vec<i32>=sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT hero_index FROM heroes WHERE account_id=? AND hero_index<>? AND {col}=?"))).bind(account).bind(hero_id).bind(slot).fetch_all(&mut *db).await?;
                         if let Some(owner) = owners.first() {
                             old_hero = *owner;
                             old_removed.push(slot);
                         }
-                        sqlx::query(&format!(
+                        sqlx::query(sqlx::AssertSqlSafe(format!(
                             "UPDATE heroes SET {col}=0 WHERE account_id=? AND {col}=?"
-                        ))
+                        )))
                         .bind(account)
                         .bind(slot)
                         .execute(&mut *db)
@@ -219,7 +219,7 @@ pub(super) async fn execute(
                     }
                     equipped.push(slot);
                 }
-                sqlx::query(&format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?")).bind(slot).bind(account).bind(hero_id).execute(&mut *db).await?;
+                sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?"))).bind(slot).bind(account).bind(hero_id).execute(&mut *db).await?;
             }
             v["LinkInfo"] = json!(json!([hero_id]).to_string());
             out["NewHeroIndex"] = json!(hero_id);

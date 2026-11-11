@@ -491,8 +491,8 @@ async fn arena_history_upgrades_legacy_summaries_and_triggers_to_preserve_duel_t
     crate::database::create_tables(&db).await.unwrap();
     let legacy=mission_history::ARENA_MISSION_SUMMARY.replace("'DuelType',COALESCE(json_extract(data,'$.DuelType'),0),", "");
     for (name,event) in [("insert","INSERT"),("update","UPDATE OF status,data")] {
-        sqlx::query(&format!("DROP TRIGGER arena_mission_summary_{name}")).execute(&db).await.unwrap();
-        sqlx::query(&format!("CREATE TRIGGER arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={} WHERE id=NEW.id; END",legacy.replace("data","NEW.data"))).execute(&db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER arena_mission_summary_{name}"))).execute(&db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={} WHERE id=NEW.id; END",legacy.replace("data","NEW.data")))).execute(&db).await.unwrap();
     }
     let friendly=json!({"DuelType":1,"End":{"MatchResult":{"Win":true}}}).to_string();
     sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(7,0,1,'complete',?)").bind(&friendly).execute(&db).await.unwrap();
@@ -514,8 +514,8 @@ async fn arena_retention_upgrades_legacy_triggers_to_ignore_friendly_duels() {
     // Simulate the previously installed archival triggers, which counted duels.
     for name in ["arena_retention_finish","arena_retention_insert"] {
         let sql:String=sqlx::query_scalar("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?").bind(name).fetch_one(&db).await.unwrap();
-        sqlx::query(&format!("DROP TRIGGER {name}")).execute(&db).await.unwrap();
-        sqlx::query(&sql.replace("COALESCE(json_extract(mission_summary,'$.DuelType'),0)!=1 AND ","")).execute(&db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {name}"))).execute(&db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(sql.replace("COALESCE(json_extract(mission_summary,'$.DuelType'),0)!=1 AND ","").as_str())).execute(&db).await.unwrap();
     }
     mission_history::migrate_arena_retention(&db).await.unwrap();
     for i in 0..26 {
@@ -540,11 +540,11 @@ async fn arena_history_reads_its_summary_from_the_covering_index() {
     }
     // Updates (e.g. a battle finishing) recompute the stored summary too.
     sqlx::query(r#"UPDATE arena_runs SET status='complete',data='{"CompletedAt":9,"End":{"MatchResult":{"Win":false}}}' WHERE status='battle'"#).execute(&db).await.unwrap();
-    let plan: Vec<String> = sqlx::query(&format!("EXPLAIN QUERY PLAN {}", super::mission_history::arena_history_query()))
+    let plan: Vec<String> = sqlx::query(sqlx::AssertSqlSafe(format!("EXPLAIN QUERY PLAN {}", super::mission_history::arena_history_query())))
         .bind(7).fetch_all(&db).await.unwrap().iter().map(|r| sqlx::Row::get::<String, _>(r, "detail")).collect();
     assert!(plan.iter().any(|p| p.contains("COVERING INDEX arena_mission_history")), "{plan:?}");
     let indexed: Vec<(i64, i64, String)> = sqlx::query_as(super::mission_history::arena_history_query()).bind(7).fetch_all(&db).await.unwrap();
-    let scanned: Vec<(i64, i64, String)> = sqlx::query_as(&format!("SELECT kind,started,{} FROM arena_runs NOT INDEXED WHERE account=? AND status='complete' ORDER BY id", super::mission_history::ARENA_MISSION_SUMMARY))
+    let scanned: Vec<(i64, i64, String)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT kind,started,{} FROM arena_runs NOT INDEXED WHERE account=? AND status='complete' ORDER BY id", super::mission_history::ARENA_MISSION_SUMMARY)))
         .bind(7).fetch_all(&db).await.unwrap();
     assert_eq!(indexed.len(), 3);
     assert_eq!(indexed, scanned);
@@ -603,7 +603,7 @@ async fn arena_retention_keeps_twenty_runs_and_preserves_mission_progress() {
 
     // Startup pass: histories recorded before the triggers existed are pruned.
     for trigger in ["arena_retention_finish", "arena_retention_insert"] {
-        sqlx::query(&format!("DROP TRIGGER {trigger}")).execute(&db).await.unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {trigger}"))).execute(&db).await.unwrap();
     }
     for i in 0..25 {
         sqlx::query("INSERT INTO arena_runs(account,kind,started,status,data) VALUES(8,0,?,'complete',?)").bind(day(i))

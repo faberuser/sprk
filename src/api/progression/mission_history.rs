@@ -35,11 +35,11 @@ pub(crate) async fn migrate_arena_history(db: &sqlx::SqlitePool) -> Result<()> {
     let summary = ARENA_MISSION_SUMMARY.replace("data", "NEW.data");
     for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF status,data")] {
         // Replace old trigger definitions as well as backfilling old summaries.
-        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_mission_summary_{name}")).execute(&mut *tx).await?;
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={summary} WHERE id=NEW.id; END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER IF EXISTS arena_mission_summary_{name}"))).execute(&mut *tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS arena_mission_summary_{name} AFTER {event} ON arena_runs WHEN NEW.status='complete' BEGIN UPDATE arena_runs SET mission_summary={summary} WHERE id=NEW.id; END")))
             .execute(&mut *tx).await?;
     }
-    sqlx::query(&format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND (mission_summary IS NULL OR json_type(mission_summary,'$.DuelType') IS NULL)"))
+    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE arena_runs SET mission_summary={ARENA_MISSION_SUMMARY} WHERE status='complete' AND (mission_summary IS NULL OR json_type(mission_summary,'$.DuelType') IS NULL)")))
         .execute(&mut *tx).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS arena_mission_history ON arena_runs(account,status,id,kind,started,mission_summary) WHERE status='complete'")
         .execute(&mut *tx).await?;
@@ -97,15 +97,15 @@ pub(crate) async fn migrate_arena_retention(db: &sqlx::SqlitePool) -> Result<()>
     let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
     for column in ["season", "nonduel", "squad"] {
         if !columns.iter().any(|c| c == column) {
-            sqlx::query(&format!("ALTER TABLE arena_runs ADD COLUMN {column} INTEGER")).execute(db).await?;
+            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE arena_runs ADD COLUMN {column} INTEGER"))).execute(db).await?;
         }
     }
     let keys = ARENA_RETENTION_KEYS.replace("data", "NEW.data");
     for (name, event) in [("insert", "INSERT"), ("update", "UPDATE OF data")] {
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_retention_keys_{name} AFTER {event} ON arena_runs BEGIN UPDATE arena_runs SET {keys} WHERE id=NEW.id; END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS arena_retention_keys_{name} AFTER {event} ON arena_runs BEGIN UPDATE arena_runs SET {keys} WHERE id=NEW.id; END")))
             .execute(db).await?;
     }
-    sqlx::query(&format!("UPDATE arena_runs SET {ARENA_RETENTION_KEYS} WHERE nonduel IS NULL")).execute(db).await?;
+    sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE arena_runs SET {ARENA_RETENTION_KEYS} WHERE nonduel IS NULL"))).execute(db).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS arena_retention ON arena_runs(account,kind,id,status,season,nonduel,squad)")
         .execute(db).await?;
     let [archive, delete] = arena_prune_statements("NEW.account");
@@ -114,21 +114,21 @@ pub(crate) async fn migrate_arena_retention(db: &sqlx::SqlitePool) -> Result<()>
         ("finish", "UPDATE OF status", "OLD.status IN ('waiting','battle') AND NEW.status NOT IN ('waiting','battle')"),
         ("insert", "INSERT", "NEW.status NOT IN ('waiting','battle')"),
     ] {
-        sqlx::query(&format!("DROP TRIGGER IF EXISTS arena_retention_{name}")).execute(&mut *trigger_tx).await?;
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS arena_retention_{name} AFTER {event} ON arena_runs WHEN {condition} BEGIN {archive}; {delete}; END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER IF EXISTS arena_retention_{name}"))).execute(&mut *trigger_tx).await?;
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS arena_retention_{name} AFTER {event} ON arena_runs WHEN {condition} BEGIN {archive}; {delete}; END")))
             .execute(&mut *trigger_tx).await?;
     }
     trigger_tx.commit().await?;
     // Existing histories: one transaction per account over the limit.
-    let accounts: Vec<i64> = sqlx::query_scalar(&format!(
-        "SELECT DISTINCT account FROM (SELECT account FROM arena_runs WHERE status NOT IN ('waiting','battle') GROUP BY account,kind HAVING COUNT(*)>{ARENA_RUNS_KEPT})"))
+    let accounts: Vec<i64> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT DISTINCT account FROM (SELECT account FROM arena_runs WHERE status NOT IN ('waiting','battle') GROUP BY account,kind HAVING COUNT(*)>{ARENA_RUNS_KEPT})")))
         .fetch_all(db).await?;
     let mut pruned = 0u64;
     for account in accounts {
         let [archive, delete] = arena_prune_statements("?");
         let mut tx = db.begin().await?;
-        sqlx::query(&archive).bind(account).execute(&mut *tx).await?;
-        pruned += sqlx::query(&delete).bind(account).execute(&mut *tx).await?.rows_affected();
+        sqlx::query(sqlx::AssertSqlSafe(archive.as_str())).bind(account).execute(&mut *tx).await?;
+        pruned += sqlx::query(sqlx::AssertSqlSafe(delete.as_str())).bind(account).execute(&mut *tx).await?.rows_affected();
         tx.commit().await?;
     }
     if pruned > 0 {

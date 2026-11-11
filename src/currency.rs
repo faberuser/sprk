@@ -10,15 +10,15 @@ pub(crate) async fn migrate(pool: &crate::database::DbPool) -> anyhow::Result<()
         "guild_raid_ticket", "world_boss_ticket"];
     let invalid = columns.iter().map(|c| format!("typeof(NEW.{c})!='integer' OR NEW.{c}<0")).collect::<Vec<_>>().join(" OR ");
     for event in ["INSERT", "UPDATE"] {
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS currency64_user_{event} BEFORE {event} ON user_info WHEN {invalid} OR NEW.gem>9223372036854775807-NEW.pay_gem BEGIN SELECT RAISE(ABORT,'Invalid 64-bit currency balance'); END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS currency64_user_{event} BEFORE {event} ON user_info WHEN {invalid} OR NEW.gem>9223372036854775807-NEW.pay_gem BEGIN SELECT RAISE(ABORT,'Invalid 64-bit currency balance'); END")))
             .execute(pool).await?;
-        sqlx::query(&format!("CREATE TRIGGER IF NOT EXISTS currency64_battle_{event} BEFORE {event} ON battle_currencies WHEN typeof(NEW.value)!='integer' OR NEW.value<0 BEGIN SELECT RAISE(ABORT,'Invalid 64-bit currency balance'); END"))
+        sqlx::query(sqlx::AssertSqlSafe(format!("CREATE TRIGGER IF NOT EXISTS currency64_battle_{event} BEFORE {event} ON battle_currencies WHEN typeof(NEW.value)!='integer' OR NEW.value<0 BEGIN SELECT RAISE(ABORT,'Invalid 64-bit currency balance'); END")))
             .execute(pool).await?;
     }
     // Audit without modifying player balances. A corrupt earlier balance needs
     // explicit recovery; silently coercing REAL to INTEGER would lose currency.
     let invalid = invalid.replace("NEW.", "");
-    let bad: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM user_info WHERE {invalid} OR gem>9223372036854775807-pay_gem"))
+    let bad: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!("SELECT COUNT(*) FROM user_info WHERE {invalid} OR gem>9223372036854775807-pay_gem")))
         .fetch_one(pool).await?;
     let bad_events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM battle_currencies WHERE typeof(value)!='integer' OR value<0").fetch_one(pool).await?;
     anyhow::ensure!(bad == 0 && bad_events == 0, "Invalid existing currency balances: {bad} user rows, {bad_events} event rows");
@@ -36,9 +36,9 @@ pub(crate) async fn user(db: &mut SqliteConnection, account: i64, column: &str, 
         delta.checked_neg().and_then(|v| v.checked_add(held)).ok_or_else(|| rule("NotEnoughCurrency"))?
     } else { 0 };
     let maximum = i64::MAX - delta.max(0);
-    let value: Option<i64> = sqlx::query_scalar(&format!(
+    let value: Option<i64> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "UPDATE user_info SET {column}={column}+? WHERE account_id=? AND typeof({column})='integer' AND {column} BETWEEN ? AND ? RETURNING {column}"
-    )).bind(delta).bind(account).bind(minimum).bind(maximum).fetch_optional(db).await?;
+    ))).bind(delta).bind(account).bind(minimum).bind(maximum).fetch_optional(db).await?;
     value.ok_or_else(|| rule(&format!("NotEnough{}", column.split('_').map(|part| {
         let mut chars = part.chars();
         chars.next().map(|c| c.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default()

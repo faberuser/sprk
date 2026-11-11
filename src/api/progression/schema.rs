@@ -38,7 +38,7 @@ pub(crate) async fn migrate(pool: &DbPool) -> anyhow::Result<()> {
         ("mail_received","mails","UPDATE","NEW.is_received=1 AND OLD.is_received=0","ReceiveMail","0","0","1"),
     ] {
         let sql=format!("CREATE TRIGGER IF NOT EXISTS progression_{name} AFTER {op} ON {table} WHEN {when} BEGIN INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(NEW.account_id,date('now'),'{kind}',{arg},{arg2},{amount}) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+excluded.value; END");
-        sqlx::query(&sql).execute(pool).await?;
+        sqlx::query(sqlx::AssertSqlSafe(sql.as_str())).execute(pool).await?;
     }
     // Recover already completed greetings from the actual Inn state. Re-running
     // startup must not add credit again or overwrite a larger existing metric.

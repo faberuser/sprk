@@ -31,7 +31,7 @@ pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
     ] {sqlx::query(q).execute(db).await?;}
     // Older servers stored every account's deck although only the ranked
     // prefix is served. Prune before indexing so the index build stays small.
-    sqlx::query(&format!("DELETE FROM service_decks WHERE rowid IN (SELECT rowid FROM (SELECT rowid,ROW_NUMBER() OVER (PARTITION BY chapter,dungeon,difficulty,kind ORDER BY metric,account) AS rank FROM service_decks) WHERE rank>{})", records::RECOMMENDED_DECKS))
+    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM service_decks WHERE rowid IN (SELECT rowid FROM (SELECT rowid,ROW_NUMBER() OVER (PARTITION BY chapter,dungeon,difficulty,kind ORDER BY metric,account) AS rank FROM service_decks) WHERE rank>{})", records::RECOMMENDED_DECKS)))
         .execute(db).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS service_deck_rank ON service_decks(chapter,dungeon,difficulty,kind,metric,account)")
         .execute(db).await?;

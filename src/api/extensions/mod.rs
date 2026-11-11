@@ -322,8 +322,8 @@ fn currency_type(v: i64) -> Result<&'static str> {
     }
 }
 fn roll(chance: i64, scale: i64) -> bool {
-    use rand::Rng;
-    rand::thread_rng().gen_range(0..scale) < chance.clamp(0, scale)
+    use rand::RngExt;
+    rand::rng().random_range(0..scale) < chance.clamp(0, scale)
 }
 
 pub(crate) async fn get(db: &mut SqliteConnection, account: i64, kind: &str, id: i64) -> Result<Value> {

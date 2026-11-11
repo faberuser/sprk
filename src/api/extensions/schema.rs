@@ -26,9 +26,9 @@ pub(crate) async fn migrate(db: &DbPool) -> anyhow::Result<()> {
     {
         let col = EquipItemInfo::column(key);
         if v.is_number() && !columns.contains(&col) {
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "ALTER TABLE equip_items ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
-            ))
+            )))
             .execute(db)
             .await?;
         }

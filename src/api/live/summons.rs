@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 
 fn definition(s: &AppState, id: i64) -> Result<(&Value, &Value)> {
     let cfg = &s.tables.live.rules["Summons"][id.to_string()];
@@ -329,7 +329,7 @@ pub(super) async fn execute(
             }
             .to_owned();
             if !selected.is_empty() && (i >= n(d, "Bid") || pity) {
-                let chosen = *selected.choose(&mut rand::thread_rng()).unwrap();
+                let chosen = *selected.choose(&mut rand::rng()).unwrap();
                 // Starter's native hero list includes newer heroes absent from
                 // the older server override map. Their native pools exist.
                 code = cfg["HeroGroups"][chosen.to_string()].as_str()

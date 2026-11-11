@@ -1,6 +1,6 @@
 use super::*;
 use crate::models::item::ItemGrant;
-use rand::Rng;
+use rand::RngExt;
 
 /// CachedHeroInfo needs the rolls of every rune referenced by its rune pages,
 /// including inactive pages. Account login resolves these from EquipItemInfos;
@@ -202,10 +202,10 @@ pub(super) async fn execute(
         "PunishmentRuneOption",
         &[("Index", n(data, "MainOptionIndex"))],
     )?;
-    let mut stats = json!({"EquipItemSlotIndex":eq.slot_index,"MainOptionIndex":n(data,"MainOptionIndex"),"MainOptionValue":rand::thread_rng().gen_range(n(option,"OptionValueMin0")..=n(option,"OptionValueMax0"))});
+    let mut stats = json!({"EquipItemSlotIndex":eq.slot_index,"MainOptionIndex":n(data,"MainOptionIndex"),"MainOptionValue":rand::rng().random_range(n(option,"OptionValueMin0")..=n(option,"OptionValueMax0"))});
     for i in 1..=3 {
         stats[format!("ExtraSkillIndex{i}")] = data[format!("ExtraSkillIndex{i}")].clone();
-        stats[format!("ExtraSkillValue{i}")] = json!(rand::thread_rng().gen_range(
+        stats[format!("ExtraSkillValue{i}")] = json!(rand::rng().random_range(
             n(data, &format!("ExtraSkillValue{i}Min"))..=n(data, &format!("ExtraSkillValue{i}Max"))
         ));
     }
@@ -245,7 +245,7 @@ pub(crate) async fn dismantle(
             let max = n(drop, &format!("MaxItemCount{i}"));
             if max > 0 {
                 let count =
-                    rand::thread_rng().gen_range(n(drop, &format!("MinItemCount{i}"))..=max);
+                    rand::rng().random_range(n(drop, &format!("MinItemCount{i}"))..=max);
                 item::give(
                     db,
                     state,
