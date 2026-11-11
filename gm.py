@@ -33,7 +33,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import argparse
-import sqlite3
+import re
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -177,31 +177,43 @@ def pretty(data: dict):
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
-def cmd_maxheroes(source_db, output_db):
-    """Create an isolated, reproducible combat fixture without altering the source."""
-    source, output = Path(source_db).resolve(), Path(output_db).resolve()
-    if source == output or output.exists():
-        raise ValueError("Output must be a new database path, different from the source")
+def cmd_maxheroes(source_url, output_db):
+    """Create an isolated, reproducible combat fixture without altering the source.
+
+    Clones the source database (a copy, not the live one: CREATE DATABASE ...
+    TEMPLATE needs it idle) into a new database on the same server, then edits
+    the clone. Needs psycopg: pip install "psycopg[binary]".
+    """
+    try:
+        import psycopg
+    except ImportError:
+        raise RuntimeError('maxheroes needs psycopg: pip install "psycopg[binary]"') from None
+    base, _, source_name = source_url.rpartition('/')
+    source_name = source_name.split('?')[0]
+    if not re.fullmatch(r'[a-z_][a-z0-9_]{0,62}', output_db) or output_db == source_name:
+        raise ValueError("Output must be a new database name (lowercase letters, digits, _), different from the source")
+    with psycopg.connect(f'{base}/postgres', autocommit=True) as admin:
+        admin.execute(f'CREATE DATABASE "{output_db}" TEMPLATE "{source_name}"')
+    output = Path(f'{output_db}.fixture.json').resolve()
     root = Path(__file__).parent
-    shop = json.loads((root / 'tables/HeroShopSupport.json').read_text())
-    ext = json.loads((root / 'tables/ExtensionSupport.json').read_text())
-    inv = json.loads((root / 'tables/InventorySupport.json').read_text())
+    shop = json.loads((root / 'tables/HeroShopSupport.json').read_text(encoding='utf-8'))
+    ext = json.loads((root / 'tables/ExtensionSupport.json').read_text(encoding='utf-8'))
+    inv = json.loads((root / 'tables/InventorySupport.json').read_text(encoding='utf-8'))
     star = max(shop['Stars'], key=lambda r: (r['Transcended'], r['Star']))
     equipment = {r['ItemIndex']: r for r in ext['EquipItem']}
     details = {r['DetailIndex']: r for r in ext['EquipItemDetail']}
-    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True) as src, sqlite3.connect(output) as db:
-        src.backup(db)
+    with psycopg.connect(f'{base}/{output_db}') as db:
         heroes = db.execute('SELECT account_id,hero_index FROM heroes').fetchall()
-        report = dict(source=str(source), output=str(output), test_only=True, heroes=[])
+        report = dict(source=source_name, output=output_db, test_only=True, heroes=[])
         for account, hero in heroes:
             creature = shop['Heroes'].get(str(hero))
             if not creature:
                 continue
             level = star['MaxHeroLevel']
             skill = min(level, 91)
-            db.execute('UPDATE heroes SET level=?,star=?,transcend=?,exp=0,skill_level_1=?,skill_level_2=?,skill_level_3=?,skill_level_4=? WHERE account_id=? AND hero_index=?',
+            db.execute('UPDATE heroes SET level=%s,star=%s,transcend=%s,exp=0,skill_level_1=%s,skill_level_2=%s,skill_level_3=%s,skill_level_4=%s WHERE account_id=%s AND hero_index=%s',
                        (level,star['Star'],star['Transcended'],skill,skill,skill,skill,account,hero))
-            old = db.execute('SELECT data FROM hero_details WHERE account_id=? AND hero_index=?',(account,hero)).fetchone()
+            old = db.execute('SELECT data FROM hero_details WHERE account_id=%s AND hero_index=%s',(account,hero)).fetchone()
             extra = json.loads(old[0]) if old else {}
             for slot in range(1,5): extra[f'SkillExtend{slot}'] = int(shop['Constants']['MaxSkillExtend'])
             choices, spent = [], 0
@@ -230,7 +242,7 @@ def cmd_maxheroes(source_db, output_db):
             other_pages = [r for r in extra.get('HeroRunePageInfos', []) if r.get('RunePage') != 1]
             extra.update(ApplyRunePage=1, HeroRunePageInfos=rune_page + other_pages)
 
-            db.execute('INSERT OR REPLACE INTO hero_details(account_id,hero_index,data) VALUES(?,?,?)',(account,hero,json.dumps(extra)))
+            db.execute('INSERT INTO hero_details(account_id,hero_index,data) VALUES(%s,%s,%s) ON CONFLICT(account_id,hero_index) DO UPDATE SET data=excluded.data',(account,hero,json.dumps(extra)))
             loadout = {1:1000+hero,7:103000+hero,8:102000+hero,9:101000+hero,10:104000+hero}
             for part in (2,3,4,6):
                 candidates = [r for r in equipment.values() if r['PartType']==part and r['Tier']==8
@@ -247,17 +259,17 @@ def cmd_maxheroes(source_db, output_db):
                 if not meta: raise ValueError(f'Missing equipment {item}')
                 detail = details[meta['DetailIndex']]
                 eq_level = min(level, detail['MaxLevel']) if detail['MaxLevelByHero'] and detail['MaxLevel'] else detail['MaxLevel']
-                slot = db.execute('INSERT INTO equip_items(account_id,item_index,star,level,identified,rune_slot_count) VALUES(?,?,?,?,1,?)',
-                                  (account,item,detail['MaxStar'],eq_level,meta['MaxRuneCount'])).lastrowid
+                slot = db.execute('INSERT INTO equip_items(account_id,item_index,star,level,identified,rune_slot_count) VALUES(%s,%s,%s,%s,1,%s) RETURNING slot_index',
+                                  (account,item,detail['MaxStar'],eq_level,meta['MaxRuneCount'])).fetchone()[0]
                 available = list(meta.get('OptionIndex') or [])
                 for group in meta.get('OptionGroupIndex') or []: available.extend(inv['OptionGroups'].get(str(group),[]))
                 available = list(dict.fromkeys(available))
                 # Prefer attack, HP, crit and speed when those rolls are legal for this item.
                 available.sort(key=lambda v:([1,2,5,8].index(v//100) if v//100 in [1,2,5,8] else 10,v))
                 for i,option in enumerate(available[:detail['OptionCount']],1):
-                    db.execute(f'UPDATE equip_items SET option_index_{i}=?,option_step_{i}=? WHERE slot_index=?',
+                    db.execute(f'UPDATE equip_items SET option_index_{i}=%s,option_step_{i}=%s WHERE slot_index=%s',
                                (option,inv['Options'][str(option)]['Steps'],slot))
-                db.execute(f'UPDATE heroes SET equip_item_slot_index_{part}=? WHERE account_id=? AND hero_index=?',(slot,account,hero))
+                db.execute(f'UPDATE heroes SET equip_item_slot_index_{part}=%s WHERE account_id=%s AND hero_index=%s',(slot,account,hero))
                 if part == 1 and meta['IsOpenSoulWeapon']:
                     soul = dict(EquipItemSlotIndex=slot,ItemIndex=item,
                                 Grade=max(r['Grade'] for r in ext['SoulWeaponUpgrade']),
@@ -265,19 +277,18 @@ def cmd_maxheroes(source_db, output_db):
                                 ReinforceRatio=0,Exp=0,OptionRatio1=500,OptionRatio2=500,
                                 OptionBonusRatio1=0,OptionBonusRatio2=0,RenewOptionCount=0,
                                 CreatedTime='2026-10-01 00:00:00')
-                    db.execute('INSERT OR REPLACE INTO extension_state(account_id,kind,idx,data) VALUES(?,?,?,?)',
+                    db.execute('INSERT INTO extension_state(account_id,kind,idx,data) VALUES(%s,%s,%s,%s) ON CONFLICT(account_id,kind,idx) DO UPDATE SET data=excluded.data',
                                (account,'soul',slot,json.dumps(soul)))
                 equipped.append(dict(part=part,item=item,star=detail['MaxStar'],level=eq_level))
             report['heroes'].append(dict(account=account,hero=hero,level=level,star=star['Star'],transcend=star['Transcended'],skill=skill,perks=choices,runes=rune_page,equipment=equipped))
         # GM equipment must leave room for ordinary battle rewards.
         max_extend = max(r['EquipItemExtendCount'] for r in inv['Extensions'] if r['InventoryType'] == 0)
         for account in sorted({account for account, _ in heroes}):
-            db.execute('INSERT INTO inventory_settings(account_id,inventory_extend) VALUES(?,?) ON CONFLICT(account_id) DO UPDATE SET inventory_extend=excluded.inventory_extend', (account,max_extend))
+            db.execute('INSERT INTO inventory_settings(account_id,inventory_extend) VALUES(%s,%s) ON CONFLICT(account_id) DO UPDATE SET inventory_extend=excluded.inventory_extend', (account,max_extend))
         report['inventory_extend'] = max_extend
-        db.commit()
     report['scope'] = 'Max core hero progression, skill extensions, recommended perks within native budget, 5-star UW/UT, T8 dragon gear, A2/20 soul weapons. Top-grade compatible attack/HP rune page. Existing artifacts retained.'
-    output.with_suffix('.fixture.json').write_text(json.dumps(report,indent=2))
-    print(json.dumps(dict(database=str(output),heroes=len(report['heroes']),report=str(output.with_suffix('.fixture.json')))))
+    output.write_text(json.dumps(report,indent=2))
+    print(json.dumps(dict(database=output_db,heroes=len(report['heroes']),report=str(output))))
 
 def cmd_allheroes(cfg, level=90, star=5):
     print(f"\n>> Grant all heroes (level={level}, star={star}) ...")
@@ -490,8 +501,8 @@ def build_parser() -> argparse.ArgumentParser:
     export = sub.add_parser("export-players", help="Export all player IDs, usernames, nicknames and online status")
     export.add_argument("--output", default="players.csv", help="New .csv or .json output file (default: players.csv)")
     mh = sub.add_parser('maxheroes', help='Create a separate max-core-hero raid test database')
-    mh.add_argument('--source-db', required=True)
-    mh.add_argument('--output-db', required=True)
+    mh.add_argument('--source-url', required=True, help='PostgreSQL URL of a database copy to clone')
+    mh.add_argument('--output-db', required=True, help='Name of the new fixture database (same server)')
 
     ah = sub.add_parser("allheroes", help="Grant all 103 core heroes")
     ah.add_argument("--level", type=int, default=90)
@@ -556,7 +567,7 @@ def main():
         return
 
     if args.command == 'maxheroes':
-        cmd_maxheroes(args.source_db, args.output_db)
+        cmd_maxheroes(args.source_url, args.output_db)
         return
 
     if not cfg.get("account_id"):

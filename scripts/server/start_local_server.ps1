@@ -31,6 +31,38 @@ $executable = Join-Path $project 'target\release\sprk-server.exe'
 $logs = Join-Path $project 'target\local-server'
 New-Item -ItemType Directory -Force -Path $logs | Out-Null
 
+# Game database: PostgreSQL. Without DATABASE_URL (in .env or the terminal),
+# run a loopback-only server in Docker with a persistent volume.
+if (-not $env:DATABASE_URL) {
+    $container = 'sprk-postgres-local'
+    $port = if ($env:SPRK_LOCAL_DB_PORT) { $env:SPRK_LOCAL_DB_PORT } else { '54320' }
+    $status = & docker ps -a --filter "name=^$container$" --format '{{.Status}}'
+    if ($LASTEXITCODE -ne 0) { throw 'Docker is needed for the local PostgreSQL database. Start Docker Desktop or set DATABASE_URL.' }
+    if (-not $status) {
+        & docker run -d --name $container -e POSTGRES_PASSWORD=sprk-local -e POSTGRES_DB=sprk `
+            -p "127.0.0.1:${port}:5432" -v sprk-postgres-local:/var/lib/postgresql postgres:18 | Out-Null
+    } elseif ($status -notlike 'Up*') {
+        & docker start $container | Out-Null
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Could not start the local PostgreSQL container.' }
+    # Probe TCP: during first-time initialization the server listens on its socket only.
+    $ready = $false
+    for ($attempt = 0; $attempt -lt 120; $attempt++) {
+        & docker exec $container pg_isready -h 127.0.0.1 -U postgres -d sprk *> $null
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        Start-Sleep -Milliseconds 500
+    }
+    if (-not $ready) { throw 'The local PostgreSQL container did not become ready.' }
+    $env:DATABASE_URL = "postgres://postgres:sprk-local@127.0.0.1:${port}/sprk"
+}
+# Copy the SQLite database from before the PostgreSQL move, once. Later runs
+# find accounts in PostgreSQL and leave it untouched.
+$sqlite = Join-Path $project 'sprk.db'
+if (Test-Path -LiteralPath $sqlite) {
+    & $executable migrate-sqlite $sqlite --if-empty --report (Join-Path $logs 'sqlite-copy-report.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Copying sprk.db into PostgreSQL failed; no services were started.' }
+}
+
 $env:SPRK_UPDATES_DIR = $updates
 $env:SPRK_SERVICE_MODE = 'updates'
 $env:PORT = '8081'
