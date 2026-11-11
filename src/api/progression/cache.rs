@@ -47,7 +47,7 @@ pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Re
     // End the read transaction before taking SQLite's write lock in login().
     // Its initializers intentionally acquire that lock before reading progress.
     tx.commit().await?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, state, account).await?;
     touch_day(&mut tx, account).await?;
     let value = snapshot(&mut tx, state, account).await?;
@@ -75,8 +75,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn cached_state_invalidates_for_commits_rollbacks_other_accounts_and_resets() {
-        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-        crate::database::create_tables(&db).await.unwrap();
+        let db = crate::database::test_pool().await;
         let state = AppState::new(db, crate::tables::test_tables());
         let user = crate::api::account::user::test_login(State(state.clone()), axum::body::Bytes::from_static(b"LoginId=cache-test")).await.unwrap().0;
         let (account, key) = (user.user_info.account_id, user.user_info.session_key);
@@ -84,11 +83,11 @@ mod tests {
         let session = state.get_session(&key).unwrap();
         let revision = session.progression_cache.lock().await.as_ref().unwrap().revision;
         // No-op writes must not invalidate or create writer work on cache hits.
-        sqlx::query("UPDATE user_info SET team_level=team_level WHERE account_id=?").bind(account).execute(&state.db).await.unwrap();
-        let before: i64 = sqlx::query_scalar("SELECT total_changes()").fetch_one(&state.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET team_level=team_level WHERE account_id=$1").bind(account).execute(&state.db).await.unwrap();
+        let before: i64 = crate::database::row_changes(&state.db).await;
         let repeated = get(&state, &key, account).await.unwrap();
         assert_eq!(first["AchievementInfos"], repeated["AchievementInfos"]);
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT total_changes()").fetch_one(&state.db).await.unwrap(), before);
+        assert_eq!(crate::database::row_changes(&state.db).await, before);
         assert_eq!(session.progression_cache.lock().await.as_ref().unwrap().revision, revision);
         let start=std::time::Instant::now();
         for _ in 0..5 { login(&state, account).await.unwrap(); }
@@ -96,35 +95,35 @@ mod tests {
         let start=std::time::Instant::now();
         for _ in 0..5 { get(&state, &key, account).await.unwrap(); }
         println!("Progression debug fixture, 5 requests: full snapshot={:.2}ms, cached={:.2}ms",uncached.as_secs_f64()*1000.0,start.elapsed().as_secs_f64()*1000.0);
-        let mut tx = state.db.begin().await.unwrap();
-        sqlx::query("UPDATE user_info SET team_level=10 WHERE account_id=?").bind(account).execute(&mut *tx).await.unwrap();
+        let mut tx = crate::database::begin(&state.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET team_level=10 WHERE account_id=$1").bind(account).execute(&mut *tx).await.unwrap();
         tx.rollback().await.unwrap();
         get(&state, &key, account).await.unwrap();
         assert_eq!(session.progression_cache.lock().await.as_ref().unwrap().revision, revision);
-        sqlx::query("UPDATE user_info SET team_level=10 WHERE account_id=?").bind(account).execute(&state.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET team_level=10 WHERE account_id=$1").bind(account).execute(&state.db).await.unwrap();
         let changed = get(&state, &key, account).await.unwrap();
         assert_ne!(first["AchievementInfos"], changed["AchievementInfos"]);
         let changed_revision = session.progression_cache.lock().await.as_ref().unwrap().revision;
         assert!(changed_revision > revision);
         // Another player's own progress must not invalidate this player's cache.
-        let other: i64 = sqlx::query_scalar("INSERT INTO accounts(login_id) VALUES('other-cache-account') RETURNING account_id").fetch_one(&state.db).await.unwrap();
-        sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,1,5)").bind(other).execute(&state.db).await.unwrap();
-        sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,date('now'),'AddEquip',1,0,1)").bind(other).execute(&state.db).await.unwrap();
-        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('raid',1,1,?,date('now'),10)").bind(other).execute(&state.db).await.unwrap();
+        let other: i64 = crate::db::query_scalar("INSERT INTO accounts(login_id) VALUES('other-cache-account') RETURNING account_id").fetch_one(&state.db).await.unwrap();
+        crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,1,5)").bind(other).execute(&state.db).await.unwrap();
+        crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,sprk_date('now'),'AddEquip',1,0,1)").bind(other).execute(&state.db).await.unwrap();
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('raid',1,1,$1,sprk_date('now'),10)").bind(other).execute(&state.db).await.unwrap();
         get(&state, &key, account).await.unwrap();
         assert_eq!(session.progression_cache.lock().await.as_ref().unwrap().revision, changed_revision);
         // Cross-account ranking/friendship dependencies cannot reuse old data.
-        sqlx::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES(?,?,'accepted')").bind(other).bind(account).execute(&state.db).await.unwrap();
+        crate::db::query("INSERT INTO friends(account_id,friend_account_id,status) VALUES($1,$2,'accepted')").bind(other).bind(account).execute(&state.db).await.unwrap();
         get(&state, &key, account).await.unwrap();
         let befriended = session.progression_cache.lock().await.as_ref().unwrap().revision;
         assert!(befriended.0 > changed_revision.0 && befriended.1 == changed_revision.1);
-        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',1,1,?,date('now'),10)").bind(other).execute(&state.db).await.unwrap();
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',1,1,$1,sprk_date('now'),10)").bind(other).execute(&state.db).await.unwrap();
         get(&state, &key, account).await.unwrap();
         let ranked = session.progression_cache.lock().await.as_ref().unwrap().revision;
         assert!(ranked.0 == befriended.0 && ranked.1 > befriended.1);
         // A friendship row moving to a different player bumps both old and new owners.
-        let third: i64 = sqlx::query_scalar("INSERT INTO accounts(login_id) VALUES('third-cache-account') RETURNING account_id").fetch_one(&state.db).await.unwrap();
-        sqlx::query("UPDATE friends SET friend_account_id=? WHERE account_id=?").bind(third).bind(other).execute(&state.db).await.unwrap();
+        let third: i64 = crate::db::query_scalar("INSERT INTO accounts(login_id) VALUES('third-cache-account') RETURNING account_id").fetch_one(&state.db).await.unwrap();
+        crate::db::query("UPDATE friends SET friend_account_id=$1 WHERE account_id=$2").bind(third).bind(other).execute(&state.db).await.unwrap();
         get(&state, &key, account).await.unwrap();
         assert!(session.progression_cache.lock().await.as_ref().unwrap().revision.0 > ranked.0);
         assert_eq!(crate::api::system::revisions::get(&mut state.db.acquire().await.unwrap(), "progression", third).await.unwrap(), 2);

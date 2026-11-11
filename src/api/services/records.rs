@@ -2,7 +2,7 @@ use super::*;
 use crate::api::heroes;
 use std::collections::BTreeSet;
 
-pub(crate) async fn arena_history(db:&mut SqliteConnection,s:&AppState,owner:i64,kind:i64,accounts:&[Value],participants:&[i64],win_left:bool,play_ms:i64,logs:&str)->Result<()> {
+pub(crate) async fn arena_history(db:&mut PgConnection,s:&AppState,owner:i64,kind:i64,accounts:&[Value],participants:&[i64],win_left:bool,play_ms:i64,logs:&str)->Result<()> {
     if logs.is_empty() || accounts.len()!=2 {return Ok(());}
     let winner=usize::from(!win_left);let loser=1-winner;
     let before=|side:usize|accounts[side]["BattleInfo"]["MatchScore"].as_i64().unwrap_or(0);
@@ -16,7 +16,7 @@ pub(crate) async fn arena_history(db:&mut SqliteConnection,s:&AppState,owner:i64
 }
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -26,7 +26,7 @@ pub(super) async fn execute(
     match path {
         "replay/save_replay" | "internal/b2m_save_replay" => save(db, s, a, r, trusted).await,
         "replay/get_replay" => {
-            let row=sqlx::query("SELECT r.* FROM service_replays r JOIN service_replay_accounts p ON p.replay=r.id WHERE r.id=? AND p.account=?")
+            let row=crate::db::query("SELECT r.* FROM service_replays r JOIN service_replay_accounts p ON p.replay=r.id WHERE r.id=$1 AND p.account=$2")
                 .bind(r.number("ReplayUid",0)?).bind(a).fetch_optional(db).await?.ok_or_else(||rule("Fail"))?;
             Ok(json!({"Replay":replay(&row,true)}))
         }
@@ -39,7 +39,7 @@ pub(super) async fn execute(
             if !(1..=100).contains(&count) {
                 return Err(rule("Fail"));
             }
-            let rows=sqlx::query("SELECT r.id,r.info FROM service_replays r JOIN service_replay_accounts p ON p.replay=r.id WHERE p.account=? AND r.kind=? ORDER BY r.id DESC LIMIT ?").bind(a).bind(kind).bind(count).fetch_all(db).await?;
+            let rows=crate::db::query("SELECT r.id,r.info FROM service_replays r JOIN service_replay_accounts p ON p.replay=r.id WHERE p.account=$1 AND r.kind=$2 ORDER BY r.id DESC LIMIT $3").bind(a).bind(kind).bind(count).fetch_all(db).await?;
             Ok(json!({"Replays":rows.iter().map(|r|replay(r,false)).collect::<Vec<_>>()}))
         }
         "recommend_deck/get_recommend_deck_list" => {
@@ -59,10 +59,10 @@ pub(super) async fn execute(
             }
             let mut out = vec![];
             for kind in 0..=1 {
-                let rows=sqlx::query("SELECT data FROM service_decks WHERE chapter=? AND dungeon=? AND difficulty=? AND kind=? ORDER BY metric,account LIMIT ?").bind(c).bind(d).bind(diff).bind(kind).bind(RECOMMENDED_DECKS).fetch_all(&mut *db).await?;
+                let rows=crate::db::query("SELECT data FROM service_decks WHERE chapter=$1 AND dungeon=$2 AND difficulty=$3 AND kind=$4 ORDER BY metric,account LIMIT $5").bind(c).bind(d).bind(diff).bind(kind).bind(RECOMMENDED_DECKS).fetch_all(&mut *db).await?;
                 for (i, row) in rows.iter().enumerate() {
                     let mut v: Value =
-                        serde_json::from_str(row.get("data")).map_err(|_| rule("Fail"))?;
+                        serde_json::from_str(&row.get::<String, _>("data")).map_err(|_| rule("Fail"))?;
                     v["Type"] = json!(if kind == 0 { "Level" } else { "Time" });
                     v["Rank"] = json!(i + 1);
                     out.push(v);
@@ -73,11 +73,11 @@ pub(super) async fn execute(
         _ => honor(db, s, a, r, path).await,
     }
 }
-fn replay(r: &sqlx::sqlite::SqliteRow, data: bool) -> Value {
+fn replay(r: &sqlx::postgres::PgRow, data: bool) -> Value {
     json!({"Uid":r.get::<i64,_>("id"),"Info":r.get::<String,_>("info"),"Data":if data{Some(r.get::<String,_>("data"))}else{None}})
 }
 async fn save(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -112,8 +112,8 @@ async fn save(
         }
     }
     for id in &accounts {
-        let exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id=? AND is_banned=0)",
+        let exists: bool = crate::db::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM accounts WHERE account_id=$1 AND is_banned=0)",
         )
         .bind(id)
         .fetch_one(&mut *db)
@@ -123,33 +123,33 @@ async fn save(
         }
     }
     let owner = if trusted { accounts[0] } else { a };
-    let old:Option<i64>=sqlx::query_scalar("SELECT id FROM service_replays WHERE owner=? AND kind=? AND data=? ORDER BY id DESC LIMIT 1").bind(owner).bind(kind).bind(logs).fetch_optional(&mut *db).await?;
+    let old:Option<i64>=crate::db::query_scalar("SELECT id FROM service_replays WHERE owner=$1 AND kind=$2 AND data=$3 ORDER BY id DESC LIMIT 1").bind(owner).bind(kind).bind(logs).fetch_optional(&mut *db).await?;
     let id = match old {
         Some(id) => id,
-        None => sqlx::query(
-            "INSERT INTO service_replays(owner,kind,info,data,created) VALUES(?,?,?,?,?)",
+        None => crate::db::query_scalar::<i64>(
+            "INSERT INTO service_replays(owner,kind,info,data,created) VALUES($1,$2,$3,$4,$5) RETURNING id",
         )
         .bind(owner)
         .bind(kind)
         .bind(info)
         .bind(logs)
         .bind(now())
-        .execute(&mut *db)
+        .fetch_one(&mut *db)
         .await?
-        .last_insert_rowid(),
+        ,
     };
     for id2 in accounts {
-        sqlx::query("INSERT OR IGNORE INTO service_replay_accounts(replay,account) VALUES(?,?)")
+        crate::db::query("INSERT INTO service_replay_accounts(replay,account) VALUES($1,$2) ON CONFLICT DO NOTHING")
             .bind(id)
             .bind(id2)
             .execute(&mut *db)
             .await?;
     }
-    sqlx::query("DELETE FROM service_replays WHERE id IN (SELECT id FROM service_replays WHERE owner=? ORDER BY id DESC LIMIT -1 OFFSET ?)").bind(owner).bind(setting(s,"ReplayLimitPerAccount",100).clamp(1,1000)).execute(db).await?;
+    crate::db::query("DELETE FROM service_replays WHERE id IN (SELECT id FROM service_replays WHERE owner=$1 ORDER BY id DESC OFFSET $2)").bind(owner).bind(setting(s,"ReplayLimitPerAccount",100).clamp(1,1000)).execute(db).await?;
     Ok(json!({"ReplayUid":id}))
 }
 /// Snapshot at entry so later level-ups, selling, and equipment changes do not rewrite a recommendation.
-pub(crate) async fn snapshot(db: &mut SqliteConnection, a: i64, party: &[i64]) -> Result<Value> {
+pub(crate) async fn snapshot(db: &mut PgConnection, a: i64, party: &[i64]) -> Result<Value> {
     let mut hs = vec![];
     let mut equips = vec![];
     let mut seen = BTreeSet::new();
@@ -170,7 +170,7 @@ pub(crate) async fn snapshot(db: &mut SqliteConnection, a: i64, party: &[i64]) -
 pub(crate) const RECOMMENDED_DECKS: i64 = 10;
 
 pub(crate) async fn record_clear(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     entry: &Value,
     seconds: i64,
@@ -185,18 +185,18 @@ pub(crate) async fn record_clear(
         .map(|v| v.iter().map(|h| n(h, "Level")).sum::<i64>())
         .unwrap_or(0);
     for (kind, metric) in [(0, levels), (1, seconds)] {
-        sqlx::query("INSERT INTO service_decks(account,chapter,dungeon,difficulty,kind,metric,data) VALUES(?,?,?,?,?,?,?) ON CONFLICT(account,chapter,dungeon,difficulty,kind) DO UPDATE SET metric=excluded.metric,data=excluded.data WHERE excluded.metric<service_decks.metric")
+        crate::db::query("INSERT INTO service_decks(account,chapter,dungeon,difficulty,kind,metric,data) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(account,chapter,dungeon,difficulty,kind) DO UPDATE SET metric=excluded.metric,data=excluded.data WHERE excluded.metric<service_decks.metric")
             .bind(a).bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(metric).bind(v.to_string()).execute(&mut *db).await?;
         // Only the ranked prefix is ever served. Rows only improve and pruned
         // rows can never re-enter, so keeping it bounds storage per dungeon
         // without changing recommendations.
-        sqlx::query("DELETE FROM service_decks WHERE chapter=?1 AND dungeon=?2 AND difficulty=?3 AND kind=?4 AND account NOT IN (SELECT account FROM service_decks WHERE chapter=?1 AND dungeon=?2 AND difficulty=?3 AND kind=?4 ORDER BY metric,account LIMIT ?5)")
+        crate::db::query("DELETE FROM service_decks WHERE chapter=$1 AND dungeon=$2 AND difficulty=$3 AND kind=$4 AND account NOT IN (SELECT account FROM service_decks WHERE chapter=$1 AND dungeon=$2 AND difficulty=$3 AND kind=$4 ORDER BY metric,account LIMIT $5)")
             .bind(n(entry,"ChapterIndex")).bind(n(entry,"DungeonIndex")).bind(n(entry,"DungeonDifficulty")).bind(kind).bind(RECOMMENDED_DECKS).execute(&mut *db).await?;
     }
     Ok(())
 }
 async fn honor(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -215,11 +215,11 @@ async fn honor(
     // Rank source is persisted server score state; no ranking payload is accepted from clients.
     let source=match kind {
         1=>"SELECT account AS id,season,MAX(score) AS score,0 AS wins,0 AS losses,MAX(boss) AS idx FROM battle_scores WHERE family='world_boss' GROUP BY account,season",
-        2=>"SELECT guild_id AS id,season,SUM(score) AS score,0 AS wins,0 AS losses,0 AS idx FROM guild_battle_scores WHERE kind='suppress' GROUP BY guild_id,season",
+        2=>"SELECT guild_id AS id,season,SUM(score)::bigint AS score,0 AS wins,0 AS losses,0 AS idx FROM guild_battle_scores WHERE kind='suppress' GROUP BY guild_id,season",
         3=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=0",
         _=>"SELECT account AS id,season,score,wins,losses,0 AS idx FROM arena_scores WHERE kind=1"
     };
-    let seasons: Vec<i64> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+    let seasons: Vec<i64> = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT DISTINCT season FROM ({source}) ORDER BY season DESC"
     )))
     .fetch_all(&mut *db)
@@ -229,12 +229,12 @@ async fn honor(
     } else {
         season
     };
-    let rows=sqlx::query(sqlx::AssertSqlSafe(format!("SELECT *,ROW_NUMBER() OVER(ORDER BY score DESC,id) AS ranking FROM ({source}) WHERE season=? ORDER BY score DESC,id"))).bind(selected).fetch_all(&mut *db).await?;
+    let rows=crate::db::query(sqlx::AssertSqlSafe(format!("SELECT *,ROW_NUMBER() OVER(ORDER BY score DESC,id) AS ranking FROM ({source}) WHERE season=$1 ORDER BY score DESC,id"))).bind(selected).fetch_all(&mut *db).await?;
     let group = s.tables.services.rules["ServerGroup"]
         .as_str()
         .unwrap_or("Local");
     let me = if kind == 2 {
-        sqlx::query_scalar::<_, i64>("SELECT guild_id FROM guild_members WHERE account_id=?")
+        crate::db::query_scalar::<i64>("SELECT guild_id FROM guild_members WHERE account_id=$1")
             .bind(a)
             .fetch_optional(&mut *db)
             .await?
@@ -261,7 +261,7 @@ async fn honor(
             continue;
         }
         let (name, level, picture) = if kind == 2 {
-            let user = sqlx::query("SELECT name,level FROM guilds WHERE guild_id=?")
+            let user = crate::db::query("SELECT name,level FROM guilds WHERE guild_id=$1")
                 .bind(id)
                 .fetch_optional(&mut *db)
                 .await?;
@@ -270,7 +270,7 @@ async fn honor(
                 None => continue,
             }
         } else {
-            let u=sqlx::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=?").bind(id).fetch_optional(&mut *db).await?;
+            let u=crate::db::query("SELECT a.nick,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u USING(account_id) WHERE a.account_id=$1").bind(id).fetch_optional(&mut *db).await?;
             match u {
                 Some(u) => (
                     u.get::<String, _>("nick"),
@@ -283,7 +283,7 @@ async fn honor(
         let mut deck = vec![];
         if matches!(kind, 3 | 4) {
             // Honor keeps the registration in arena_snapshots; older runs inline.
-            let saved:Option<String>=sqlx::query_scalar::<_,Option<String>>("SELECT COALESCE(p.data,json_extract(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=? AND r.kind=? AND r.status='complete' AND json_extract(r.data,'$.Season')=? ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
+            let saved:Option<String>=crate::db::query_scalar::<Option<String>>("SELECT COALESCE(p.data,sprk_json_text(r.data,'$.Register.AccountInfo')) FROM arena_runs r LEFT JOIN arena_snapshots p ON p.run=r.id WHERE r.account=$1 AND r.kind=$2 AND r.status='complete' AND sprk_json_int(r.data,'$.Season')=$3 ORDER BY r.id DESC LIMIT 1").bind(id).bind(if kind==3{0}else{1}).bind(selected).fetch_optional(&mut *db).await?.flatten();
             if let Some(saved) = saved {
                 let saved: Value = serde_json::from_str(&saved).map_err(|_| rule("Fail"))?;
                 for h in saved["HeroInfos"]

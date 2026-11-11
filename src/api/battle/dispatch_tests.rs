@@ -3,7 +3,7 @@ use super::*;
 async fn fixture(deferred: bool) -> (AppState, Value) {
     let (s, u) = setup().await;
     let a = account(&u);
-    sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=1000 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -62,17 +62,17 @@ async fn offline_dispatch_overdue_estimate_refreshes_without_fabricating_results
 #[tokio::test]
 async fn dispatch_polling_writes_only_when_progress_changes() {
     let (s,u)=fixture(true).await;let a=account(&u);
-    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+    let before:i64=crate::database::row_changes(&s.db).await;
     assert!(call(&s,&u,"dispatch/get_dispatch_list","").await["DispatchBattleInfos"].as_array().unwrap().is_empty());
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before);
+    assert_eq!(crate::database::row_changes(&s.db).await,before);
     let job=start(&s,&u,2).await;let slot=n(&job,"SlotIndex");
     let mut saved=job.clone();saved["SimulationResults"]=json!([{"Outcome":1,"TimeMs":60000}]);
     saved["State"]=json!("Battle");saved["StartTimestamp"]=json!(now()+60);saved["FinishTimestamp"]=json!(now()+120);
     put(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot,&saved).await.unwrap();
     call(&s,&u,"dispatch/get_dispatch_list","").await; // normalize derived state once
-    let before:i64=sqlx::query_scalar("SELECT total_changes()").fetch_one(&s.db).await.unwrap();
+    let before:i64=crate::database::row_changes(&s.db).await;
     for _ in 0..3 {call(&s,&u,"dispatch/get_dispatch_list","").await;}
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT total_changes()").fetch_one(&s.db).await.unwrap(),before);
+    assert_eq!(crate::database::row_changes(&s.db).await,before);
     let mut saved=get(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot).await.unwrap();
     saved["StartTimestamp"]=json!(now()-300);saved["FinishTimestamp"]=json!(now()-1);
     put(&mut s.db.acquire().await.unwrap(),a,"dispatch",slot,&saved).await.unwrap();
@@ -115,7 +115,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         )
         .await
         .unwrap();
-        sqlx::query("UPDATE heroes SET level=59 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=59 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -125,12 +125,12 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
             "Success"
         );
         assert_eq!(stamina(&s, &u).await, 1000);
-        sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?")
+        crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
             .unwrap();
-        sqlx::query("UPDATE user_info SET stamina=999 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET stamina=999 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -139,7 +139,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
             call(&s, &u, "dispatch/start_dispatch", &args).await["Result"],
             "Success"
         );
-        sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET stamina=1000 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -175,7 +175,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
             "Success"
         );
         finish_now(&s, &u, n(job, "SlotIndex")).await;
-        let mail_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?")
+        let mail_before: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -188,7 +188,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
         assert_eq!(stamina(&s, &u).await, 700);
         assert_eq!(done["TeamExpResult"]["AddValue"], 3000);
         assert_eq!(done["EquipItemInfos"], done["EquipItemResults"]);
-        let mail_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=?")
+        let mail_after: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -212,7 +212,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
                 .unwrap()
                 .is_empty()
         );
-        sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET stamina=1000 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -220,7 +220,7 @@ async fn technomagic_dispatch_preserves_entry_gates_and_charges_and_rewards_only
     }
 }
 async fn stamina(s: &AppState, u: &Value) -> i64 {
-    sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?")
+    crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1")
         .bind(account(u))
         .fetch_one(&s.db)
         .await
@@ -281,10 +281,10 @@ async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
             put(&mut db,a,"dispatch",slot,&saved).await.unwrap();
             let free = item::free_slots(&mut db,&s,a,0).await.unwrap();
             for _ in 0..(free-spaces) {
-                sqlx::query("INSERT INTO equip_items(account_id,item_index) VALUES(?,1001)")
+                crate::db::query("INSERT INTO equip_items(account_id,item_index) VALUES($1,1001)")
                     .bind(a).execute(&mut *db).await.unwrap();
             }
-            let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            let before: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
                 .bind(a).fetch_one(&mut *db).await.unwrap();
             drop(db);
             let path = if cancel {"dispatch/cancel_dispatch"} else {"dispatch/request_complete_dispatch"};
@@ -294,7 +294,7 @@ async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
             let equipment = done["EquipItemResults"].as_array().unwrap();
             assert_eq!(equipment.len(),spaces as usize,"{done}");
             assert_eq!(done["EquipItemInfos"],done["EquipItemResults"]);
-            let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            let after: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
                 .bind(a).fetch_one(&s.db).await.unwrap();
             assert_eq!(after-before,spaces);
             for equip in equipment {
@@ -302,7 +302,7 @@ async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
                     .await.unwrap();
                 assert_eq!(&json!(saved),equip,"Inventory must preserve the exact rolled equipment");
             }
-            let mails: Vec<String> = sqlx::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=? AND reward_equipment IS NOT NULL ORDER BY mail_id")
+            let mails: Vec<String> = crate::db::query_scalar("SELECT reward_equipment FROM mails WHERE account_id=$1 AND reward_equipment IS NOT NULL ORDER BY mail_id")
                 .bind(a).fetch_all(&s.db).await.unwrap();
             let mailed: Vec<Value> = mails.iter().flat_map(|raw| serde_json::from_str::<Vec<Value>>(raw).unwrap()).collect();
             assert_eq!(mailed.len(),(6-spaces) as usize);
@@ -312,10 +312,10 @@ async fn dispatch_equipment_fills_inventory_and_mails_only_overflow_once() {
                 assert_eq!(equip["ItemIndex"],s.tables.get_item_index("ARMOR_HEAVY_8_6_4").unwrap());
             }
             assert_ne!(call(&s,&u,path,&args).await["Result"],"Success");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
                 .bind(a).fetch_one(&s.db).await.unwrap(),after);
-            assert_eq!(sqlx::query_scalar::<_,String>("SELECT COALESCE(json_group_array(reward_equipment),'[]') FROM (SELECT reward_equipment FROM mails WHERE account_id=? AND reward_equipment IS NOT NULL ORDER BY mail_id)")
-                .bind(a).fetch_one(&s.db).await.unwrap(),json!(mails).to_string());
+            assert_eq!(crate::db::query_scalar::<serde_json::Value>("SELECT COALESCE(json_agg(reward_equipment ORDER BY mail_id),'[]')::text FROM mails WHERE account_id=$1 AND reward_equipment IS NOT NULL")
+                .bind(a).fetch_one(&s.db).await.unwrap(),json!(mails));
         }
     }
 }
@@ -552,7 +552,7 @@ async fn dispatch_persisted_mixed_results_complete_offline_and_rewards_follow_wi
 #[tokio::test]
 async fn progressive_dispatch_exposes_first_result_before_all_repeats_and_keeps_entry_clock() {
     let (s, u) = fixture(true).await;
-    sqlx::query("UPDATE user_info SET stamina=100000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=100000 WHERE account_id=$1")
         .bind(account(&u)).execute(&s.db).await.unwrap();
     let mut job = start(&s, &u, 200).await;
     let a = account(&u);
@@ -623,7 +623,7 @@ async fn legend_costumes_discount_dispatch_stamina_like_the_native_window() {
     // Five Legend costumes save 2% each; an ordinary costume and a Legend
     // costume without the booster add nothing.
     for costume in [1212, 4515, 10010, 2519, 1112, 2520, 6808] {
-        sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES(?,?)").bind(a).bind(costume).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO costumes(account_id,costume_index) VALUES($1,$2)").bind(a).bind(costume).execute(&s.db).await.unwrap();
     }
     assert_eq!(bonuses::dispatch_stamina_discount(&mut s.db.acquire().await.unwrap(), &s, a).await.unwrap(), 10);
     let job = start(&s, &u, 10).await;

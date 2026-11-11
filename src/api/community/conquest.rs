@@ -103,7 +103,7 @@ pub(crate) fn party_dungeon_index(s: &AppState, level: i64) -> Result<i64> {
     if !(1..=3).contains(&level) {return Err(rule("WrongDungeonIndex"));}
     Ok(n(definition(s,current(s),level)?,"Index"))
 }
-async fn registration(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result<Value> {
+async fn registration(db: &mut PgConnection, s: &AppState, g: i64) -> Result<Value> {
     let session=current(s);
     let mut value=get(db,g,"guild_conquest",session.index).await?;
     if value.is_null() { value=json!({"Applied":false,"AppliedTime":null,"GroupIndex":0,"SessionIndex":session.index}); }
@@ -113,18 +113,18 @@ async fn registration(db: &mut SqliteConnection, s: &AppState, g: i64) -> Result
     }
     Ok(value)
 }
-async fn apply(db: &mut SqliteConnection, g: i64, session: Session, value: &mut Value) -> Result<()> {
+async fn apply(db: &mut PgConnection, g: i64, session: Session, value: &mut Value) -> Result<()> {
     // Four guilds per local group; the archived group reward table has four places.
-    let registered:i64=sqlx::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_conquest' AND idx=? AND json_extract(data,'$.Applied')=1")
+    let registered:i64=crate::db::query_scalar("SELECT COUNT(*) FROM community_state WHERE kind='guild_conquest' AND idx=$1 AND sprk_json_int(data,'$.Applied')=1")
         .bind(session.index).fetch_one(&mut *db).await?;
     value["Applied"]=json!(true);value["AppliedTime"]=json!(time(now()));
     value["GroupIndex"]=json!(registered/4+1);
-    let members:Vec<i64>=sqlx::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=? ORDER BY account_id")
+    let members:Vec<i64>=crate::db::query_scalar("SELECT account_id FROM guild_members WHERE guild_id=$1 ORDER BY account_id")
         .bind(g).fetch_all(&mut *db).await?;
     value["Members"]=json!(members);
     put(db,g,"guild_conquest",session.index,value).await
 }
-async fn plays(db: &mut SqliteConnection, s: &AppState, g: i64, session: i64) -> Result<Vec<Value>> {
+async fn plays(db: &mut PgConnection, s: &AppState, g: i64, session: i64) -> Result<Vec<Value>> {
     let mut result=vec![];
     for level in 1..=3 {
         let key=session*10+level;
@@ -144,8 +144,8 @@ fn info(g: i64, registration: &Value, plays: &[Value]) -> Value {
         "AppliedTime":registration["AppliedTime"],"RaidIndex":RAID,"Level":1,
         "MonsterHp0":play["MonsterHp0"],"TotalDamage":plays.iter().map(|v|n(v,"TotalDamage")).sum::<i64>(),"ServerGroup":"local"})
 }
-pub(super) async fn rankers(db: &mut SqliteConnection, s: &AppState, session: i64, group: Option<i64>) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT c.owner,c.data,COALESCE(SUM(b.score),0) AS score FROM community_state c JOIN guilds g ON g.guild_id=c.owner LEFT JOIN guild_battle_scores b ON b.guild_id=c.owner AND b.kind='suppress' AND b.season=c.idx WHERE c.kind='guild_conquest' AND c.idx=? AND json_extract(c.data,'$.Applied')=1 GROUP BY c.owner ORDER BY score DESC,c.owner")
+pub(super) async fn rankers(db: &mut PgConnection, s: &AppState, session: i64, group: Option<i64>) -> Result<Vec<Value>> {
+    let rows=crate::db::query("SELECT c.owner,c.data,COALESCE(SUM(b.score)::bigint,0) AS score FROM community_state c JOIN guilds g ON g.guild_id=c.owner LEFT JOIN guild_battle_scores b ON b.guild_id=c.owner AND b.kind='suppress' AND b.season=c.idx WHERE c.kind='guild_conquest' AND c.idx=$1 AND sprk_json_int(c.data,'$.Applied')=1 GROUP BY c.owner,c.kind,c.idx ORDER BY score DESC,c.owner")
         .bind(session).fetch_all(&mut *db).await?;
     let mut result=vec![];
     for row in rows {
@@ -157,8 +157,8 @@ pub(super) async fn rankers(db: &mut SqliteConnection, s: &AppState, session: i6
     }
     Ok(result)
 }
-async fn member_scores(db: &mut SqliteConnection, s: &AppState, g: i64, session: i64) -> Result<Vec<Value>> {
-    let rows=sqlx::query("SELECT m.account_id,COALESCE(SUM(b.score),0) AS score FROM guild_members m LEFT JOIN guild_battle_scores b ON b.account=m.account_id AND b.guild_id=m.guild_id AND b.kind='suppress' AND b.season=? WHERE m.guild_id=? GROUP BY m.account_id ORDER BY score DESC,m.account_id")
+async fn member_scores(db: &mut PgConnection, s: &AppState, g: i64, session: i64) -> Result<Vec<Value>> {
+    let rows=crate::db::query("SELECT m.account_id,COALESCE(SUM(b.score)::bigint,0) AS score FROM guild_members m LEFT JOIN guild_battle_scores b ON b.account=m.account_id AND b.guild_id=m.guild_id AND b.kind='suppress' AND b.season=$1 WHERE m.guild_id=$2 GROUP BY m.account_id ORDER BY score DESC,m.account_id")
         .bind(session).bind(g).fetch_all(&mut *db).await?;
     let mut result=vec![];
     for row in rows {
@@ -169,8 +169,8 @@ async fn member_scores(db: &mut SqliteConnection, s: &AppState, g: i64, session:
     }
     Ok(result)
 }
-pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
-    let previous=sqlx::query("SELECT owner,idx,data FROM community_state c WHERE kind='guild_conquest' AND idx<? AND EXISTS(SELECT 1 FROM guild_battle_scores b WHERE b.guild_id=c.owner AND b.account=? AND b.kind='suppress' AND b.season=c.idx AND b.score>0) AND NOT EXISTS(SELECT 1 FROM community_claims x WHERE x.account=? AND x.kind='guild_conquest_session_reward' AND x.period=CAST(c.idx AS TEXT)) ORDER BY idx LIMIT 100")
+pub(super) async fn settle(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
+    let previous=crate::db::query("SELECT owner,idx,data FROM community_state c WHERE kind='guild_conquest' AND idx<$1 AND EXISTS(SELECT 1 FROM guild_battle_scores b WHERE b.guild_id=c.owner AND b.account=$2 AND b.kind='suppress' AND b.season=c.idx AND b.score>0) AND NOT EXISTS(SELECT 1 FROM community_claims x WHERE x.account=$3 AND x.kind='guild_conquest_session_reward' AND x.period=CAST(c.idx AS TEXT)) ORDER BY idx LIMIT 100")
         .bind(current(s).index).bind(a).bind(a).fetch_all(&mut *db).await?;
     for registration in previous {
         let g=registration.get::<i64,_>("owner");let period=registration.get::<i64,_>("idx");
@@ -180,13 +180,13 @@ pub(super) async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64) -> R
         let rank=n(mine,"Rank")+1;
         let Some(reward)=s.tables.arena_guild.rows("GuildSuppressReward").iter()
             .find(|v|rank>=n(v,"MinRank")&&rank<=n(v,"MaxRank")) else {continue;};
-        let inserted=sqlx::query("INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,'guild_conquest_session_reward',0,?)")
+        let inserted=crate::db::query("INSERT INTO community_claims(account,kind,target,period) VALUES($1,'guild_conquest_session_reward',0,$2) ON CONFLICT DO NOTHING")
             .bind(a).bind(period.to_string()).execute(&mut *db).await?.rows_affected();
         if inserted>0 {progression::mail_reward(db,s,a,n(reward,"RewardIndex"),"Guild Conquest session reward").await?;}
     }
     Ok(())
 }
-pub(crate) async fn tickets(db: &mut SqliteConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
+pub(crate) async fn tickets(db: &mut PgConnection, s: &AppState, a: i64, cost: i64) -> Result<Value> {
     // Custom (server-issued) stamina. Reset to the table's two keys each UTC day;
     // it does not accumulate offline or accept ruby recharges.
     if cost<0 {return Err(rule("InvalidCost"));}
@@ -205,8 +205,8 @@ pub(crate) async fn tickets(db: &mut SqliteConnection, s: &AppState, a: i64, cos
         "FullRechargeRemainTime":if count>=grant {0}else{(stamp(s).div_euclid(86400)+1)*86400-stamp(s)},
         "RechargeCount":0,"IsHide":false}))
 }
-pub(crate) async fn combat_buffs(db:&mut SqliteConnection,s:&AppState,a:i64)->Result<Value> {
-    let g: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?").bind(a).fetch_optional(&mut *db).await?;
+pub(crate) async fn combat_buffs(db:&mut PgConnection,s:&AppState,a:i64)->Result<Value> {
+    let g: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1").bind(a).fetch_optional(&mut *db).await?;
     let guild = if let Some(g) = g { guild::state(db,s,g).await? } else { Value::Null };
     let skills=guild["SkillInfos"].as_array().into_iter().flatten().filter(|v|n(v,"EffectSkillIndex")>0)
         .map(|v|json!({"GuildSkillIndex":v["SkillIndex"],"GuildSkillLevel":v["GuildSkillLevel"],"SkillIndex":v["EffectSkillIndex"]})).collect::<Vec<_>>();
@@ -230,7 +230,7 @@ pub(crate) async fn combat_buffs(db:&mut SqliteConnection,s:&AppState,a:i64)->Re
     }
     Ok(json!({"GuildSkills":skills,"AccountBuffs":[],"ClassBuffDataBases":classes,"ExtraStatDatas":stats,"PetStatDataBases":conditions}))
 }
-pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, action: &str) -> Result<Value> {
+pub(super) async fn execute(db: &mut PgConnection, s: &AppState, a: i64, r: &Request, action: &str) -> Result<Value> {
     let (g,role)=guild::membership(db,a).await?;guild::contents_available(db,a).await?;
     settle(db,s,a).await?;
     let session=current(s);let mut registration=registration(db,s,g).await?;
@@ -271,7 +271,7 @@ pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: 
                 let mut boards=vec![];
                 for rank in &ranks {
                     let guild_id=n(rank,"GuildId");let guild=guild::state(db,s,guild_id).await?;
-                    let histories=sqlx::query_scalar::<_,String>("SELECT data FROM community_state WHERE owner=? AND kind='guild_conquest_history' AND json_extract(data,'$.SessionIndex')=? ORDER BY idx DESC LIMIT 100")
+                    let histories=crate::db::query_scalar::<String>("SELECT data FROM community_state WHERE owner=$1 AND kind='guild_conquest_history' AND sprk_json_int(data,'$.SessionIndex')=$2 ORDER BY idx DESC LIMIT 100")
                         .bind(guild_id).bind(session.index).fetch_all(&mut *db).await?;
                     let histories=histories.iter().map(|v|parse::<Value>(v)).collect::<Result<Vec<_>>>()?;
                     boards.push(json!({"GuildInfo":guild,"GuildSuppressPlayInfos":plays(db,s,guild_id,session.index).await?,
@@ -285,7 +285,7 @@ pub(super) async fn execute(db: &mut SqliteConnection, s: &AppState, a: i64, r: 
     }
     Ok(result)
 }
-pub(crate) async fn validate(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request) -> Result<i64> {
+pub(crate) async fn validate(db: &mut PgConnection, s: &AppState, a: i64, r: &Request) -> Result<i64> {
     guild::contents_available(db,a).await?;let (g,_)=guild::membership(db,a).await?;
     let session=current(s);
     if session.state(stamp(s))!="Battle" {return Err(rule("NotOpenedDungeon"));}
@@ -307,7 +307,7 @@ pub(crate) async fn validate(db: &mut SqliteConnection, s: &AppState, a: i64, r:
     }
     Ok(n(definition(s,session,level)?,"BanIndex"))
 }
-pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request, entry: &mut Value, out: &mut Value) -> Result<()> {
+pub(crate) async fn enter(db: &mut PgConnection, s: &AppState, a: i64, r: &Request, entry: &mut Value, out: &mut Value) -> Result<()> {
     let (g,_)=guild::membership(db,a).await?;let session=current(s);let requested=r.number("RaidLevel",0)?;let level=if requested>100 {requested-100} else {requested};
     let plays=plays(db,s,g,session.index).await?;let play=&plays[(level-1) as usize];
     let mut guild_info=info(g,&registration(db,s,g).await?,&plays);
@@ -324,7 +324,7 @@ pub(crate) async fn enter(db: &mut SqliteConnection, s: &AppState, a: i64, r: &R
     Ok(())
 }
 pub(crate) async fn finish(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -360,19 +360,19 @@ pub(crate) async fn finish(
     }
     play["KilledByMe"] = json!(false);
     put(db, g, "guild_conquest_play", session * 10 + level, &play).await?;
-    sqlx::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES(?,?,'suppress',?,?,?) ON CONFLICT(guild_id,account,kind,season,stage) DO UPDATE SET score=score+excluded.score")
+    crate::db::query("INSERT INTO guild_battle_scores(guild_id,account,kind,season,stage,score) VALUES($1,$2,'suppress',$3,$4,$5) ON CONFLICT(guild_id,account,kind,season,stage) DO UPDATE SET score=guild_battle_scores.score+excluded.score")
         .bind(g).bind(a).bind(session).bind(level).bind(credited).execute(&mut *db).await?;
     let user=user(db,a).await?;
     let history=json!({"GuildId":g,"ServerGroup":"local","AccountId":a,"NickName":user["NickName"],
         "BattleTime":time(now()),"Score":credited,"RaidIndex":RAID,"Level":level,"SessionIndex":session});
-    let key:i64=sqlx::query_scalar("SELECT COALESCE(MAX(idx),0)+1 FROM community_state WHERE owner=? AND kind='guild_conquest_history'")
+    let key:i64=crate::db::query_scalar("SELECT COALESCE(MAX(idx),0)+1 FROM community_state WHERE owner=$1 AND kind='guild_conquest_history'")
         .bind(g).fetch_one(&mut *db).await?;
     put(db,g,"guild_conquest_history",key,&history).await?;
     if killed {
-        let members:Vec<i64>=sqlx::query_scalar("SELECT account FROM guild_battle_scores WHERE guild_id=? AND kind='suppress' AND season=? AND stage=? AND score>0")
+        let members:Vec<i64>=crate::db::query_scalar("SELECT account FROM guild_battle_scores WHERE guild_id=$1 AND kind='suppress' AND season=$2 AND stage=$3 AND score>0")
             .bind(g).bind(session).bind(level).fetch_all(&mut *db).await?;
         for member in members {
-            let inserted=sqlx::query("INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,'guild_conquest_kill',?,?)")
+            let inserted=crate::db::query("INSERT INTO community_claims(account,kind,target,period) VALUES($1,'guild_conquest_kill',$2,$3) ON CONFLICT DO NOTHING")
                 .bind(member).bind(level).bind(session.to_string()).execute(&mut *db).await?.rows_affected();
             if inserted>0 {progression::mail_reward(db,s,member,n(definition(s,Session::by_index(session),level)?,"KillRewardIndex"),"Guild Conquest boss defeated").await?;}
         }

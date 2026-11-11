@@ -52,7 +52,7 @@ fn position(s: &AppState, wave: i64) -> Result<Value> {
     Err(rule("DungeonNotFound"))
 }
 
-async fn start_wave(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<i64> {
+async fn start_wave(db: &mut PgConnection, s: &AppState, a: i64) -> Result<i64> {
     let record = n(&get(db, a, "eclipse_record", 0).await?, "BestWave");
     Ok(n(
         row(s, "EclipseStart", &[("RecordWave", record)])?,
@@ -62,7 +62,7 @@ async fn start_wave(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<i
 }
 
 pub(super) async fn info(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     decks: Vec<Value>,
@@ -84,7 +84,7 @@ pub(super) async fn info(
     }}))
 }
 
-pub(super) async fn ensure_available(db: &mut SqliteConnection, a: i64) -> Result<()> {
+pub(super) async fn ensure_available(db: &mut PgConnection, a: i64) -> Result<()> {
     if get(db, a, "eclipse", 0).await?["IsPlayEclipse"] == true {
         return Err(rule("AlreadyOnBattleHero"));
     }
@@ -92,7 +92,7 @@ pub(super) async fn ensure_available(db: &mut SqliteConnection, a: i64) -> Resul
 }
 
 pub(super) async fn begin(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -132,7 +132,7 @@ pub(super) async fn begin(
         {
             return Err(rule("DungeonNotFound"));
         }
-        let active: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=? AND completed=0 AND started>=?)")
+        let active: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_runs WHERE account=$1 AND completed=0 AND started>=$2)")
             .bind(a).bind(now()-settings(s,"BattleExpirySeconds",14400)).fetch_one(&mut *db).await?;
         if active {
             return Err(rule("AlreadyOnBattleHero"));
@@ -159,11 +159,11 @@ pub(super) async fn begin(
         }
         dispatch::ensure_available(db, a, &seen.into_iter().collect::<Vec<_>>(), None).await?;
         // Keep identities unique even after a GM reset deletes battle_state.
-        let match_id = sqlx::query("INSERT INTO eclipse_run_ids(account) VALUES(?)")
+        let match_id = crate::db::query_scalar::<i64>("INSERT INTO eclipse_run_ids(account) VALUES($1) RETURNING id")
             .bind(a)
-            .execute(&mut *db)
+            .fetch_one(&mut *db)
             .await?
-            .last_insert_rowid();
+            ;
         if match_id > i32::MAX as i64 {
             return Err(rule("Fail"));
         }
@@ -225,7 +225,7 @@ fn dungeon_info(run: &Value) -> Value {
 }
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -347,7 +347,7 @@ pub(super) async fn execute(
 }
 
 pub(super) async fn end_campaign(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -388,7 +388,7 @@ pub(super) async fn end_campaign(
     Ok(out)
 }
 
-async fn settle(db: &mut SqliteConnection, s: &AppState, a: i64, run: &mut Value) -> Result<Value> {
+async fn settle(db: &mut PgConnection, s: &AppState, a: i64, run: &mut Value) -> Result<Value> {
     claim(db, a, "eclipse", n(run, "MatchIndex"), "run").await?;
     let mut records = run["Records"].as_array().cloned().unwrap_or_default();
     if run["TeamActive"] == true {

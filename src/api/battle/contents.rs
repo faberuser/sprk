@@ -3,7 +3,7 @@ use super::*;
 // PunishmentRaidContext uses the native contents contract and OfflinePlay.
 // Adapt it to the shared transactional lifecycle without changing client combat.
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,

@@ -1,40 +1,21 @@
-//! PostgreSQL tests run against the server named by SPRK_TEST_POSTGRES_URL
-//! (a role that may create databases). Each test creates and drops its own
-//! database. Without the variable they are skipped, unless
-//! SPRK_REQUIRE_POSTGRES is set (CI), which turns the skip into a failure.
+//! Tests of the PostgreSQL foundation: schema parity with the final SQLite
+//! schema (tests/fixtures/sqlite_schema.sql), the ported triggers, constraints,
+//! the account lock and the retry wrapper.
 use super::*;
 use sqlx::{AssertSqlSafe, Row};
 use std::collections::BTreeSet;
 
 struct TestDb {
     pool: PgPool,
-    admin: PgPool,
-    options: PgConnectOptions,
-    name: String,
 }
 
 impl TestDb {
     async fn new() -> Option<Self> {
-        let Ok(url) = std::env::var("SPRK_TEST_POSTGRES_URL") else {
-            assert!(std::env::var_os("SPRK_REQUIRE_POSTGRES").is_none(),
-                "SPRK_REQUIRE_POSTGRES is set but SPRK_TEST_POSTGRES_URL is not");
-            eprintln!("skipped: set SPRK_TEST_POSTGRES_URL to run PostgreSQL tests");
-            return None;
-        };
-        let admin = PgPoolOptions::new().max_connections(1).connect(&url).await
-            .expect("connect to SPRK_TEST_POSTGRES_URL");
-        let name = format!("sprk_test_{}", uuid::Uuid::new_v4().simple());
-        sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name}"))).execute(&admin).await.unwrap();
-        let options = connect_options(&url, false).unwrap().database(&name);
-        let pool = PgPoolOptions::new().max_connections(8).connect_with(options.clone()).await.unwrap();
-        migrate(&pool).await.expect("migrations apply to an empty database");
-        Some(Self { pool, admin, options, name })
+        Some(Self { pool: crate::database::test_pool().await })
     }
 
     async fn drop(self) {
         self.pool.close().await;
-        sqlx::query(AssertSqlSafe(format!("DROP DATABASE {} WITH (FORCE)", self.name)))
-            .execute(&self.admin).await.unwrap();
     }
 }
 
@@ -42,17 +23,12 @@ fn sqlstate(error: &sqlx::Error) -> Option<String> {
     error.as_database_error().and_then(|e| e.code()).map(|c| c.into_owned())
 }
 
-/// Fresh SQLite schema as the running server creates it.
-async fn sqlite_schema() -> (crate::database::DbPool, std::path::PathBuf) {
-    let path = std::env::temp_dir().join(format!("sprk-pg-parity-{}.sqlite", uuid::Uuid::new_v4()));
-    let pool = crate::database::open_pool(&path).await.unwrap();
-    crate::database::create_tables(&pool).await.unwrap();
-    (pool, path)
-}
-
-async fn close_sqlite(pool: crate::database::DbPool, path: std::path::PathBuf) {
-    pool.close().await;
-    crate::database::remove_test_database(&path).await;
+/// The final SQLite schema, with its triggers, in a private in-memory database.
+pub(crate) async fn sqlite_schema() -> sqlx::SqlitePool {
+    let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
+        .connect("sqlite::memory:").await.unwrap();
+    sqlx::raw_sql(include_str!("../tests/fixtures/sqlite_schema.sql")).execute(&pool).await.unwrap();
+    pool
 }
 
 #[tokio::test]
@@ -61,12 +37,12 @@ async fn migrations_cover_every_sqlite_column() {
     // Rerunning is a no-op.
     migrate(&db.pool).await.unwrap();
 
-    let (sqlite, path) = sqlite_schema().await;
+    let sqlite = sqlite_schema().await;
     let expected: BTreeSet<String> = sqlx::query_scalar(
         "SELECT m.name||'.'||p.name FROM sqlite_master m, pragma_table_info(m.name) p \
          WHERE m.type='table' AND m.name NOT LIKE 'sqlite_%'")
         .fetch_all(&sqlite).await.unwrap().into_iter().collect();
-    close_sqlite(sqlite, path).await;
+    sqlite.close().await;
 
     let actual: BTreeSet<String> = sqlx::query_scalar(
         "SELECT table_name||'.'||column_name FROM information_schema.columns \
@@ -200,7 +176,7 @@ where
 #[tokio::test]
 async fn ported_triggers_match_sqlite_triggers() {
     let Some(db) = TestDb::new().await else { return };
-    let (sqlite, path) = sqlite_schema().await;
+    let sqlite = sqlite_schema().await;
     for statement in trigger_script() {
         sqlx::query(AssertSqlSafe(statement.clone())).execute(&sqlite).await
             .unwrap_or_else(|e| panic!("SQLite: {statement}: {e}"));
@@ -241,7 +217,7 @@ async fn ported_triggers_match_sqlite_triggers() {
     sqlx::query("UPDATE equip_items SET account_id=1 WHERE account_id=2").execute(&db.pool).await.unwrap();
     assert_eq!(revision("equipment", 2).await, equipment + 1, "moving a row bumps its old owner");
 
-    close_sqlite(sqlite, path).await;
+    sqlite.close().await;
     db.drop().await;
 }
 
@@ -326,12 +302,68 @@ async fn transaction_retries_serialization_failures() {
 #[tokio::test]
 async fn read_pool_rejects_writes() {
     let Some(db) = TestDb::new().await else { return };
-    let reads = PgPoolOptions::new().max_connections(1)
-        .connect_with(db.options.clone().options([("default_transaction_read_only", "on")])).await.unwrap();
+    let reads = crate::database::test_read_pool(&db.pool).await;
     let error = sqlx::query("INSERT INTO accounts(login_id) VALUES('x')").execute(&reads).await.unwrap_err();
     assert_eq!(sqlstate(&error).as_deref(), Some("25006"));
     let zone: String = sqlx::query_scalar("SHOW timezone").fetch_one(&reads).await.unwrap();
     assert_eq!(zone, "UTC");
     reads.close().await;
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn request_transactions_serialize_per_acting_account() {
+    let Some(db) = TestDb::new().await else { return };
+    let pool = db.pool.clone();
+    // A transaction of account 1's request is open...
+    let held = crate::database::ACTING_ACCOUNT.scope(1, crate::database::begin(&pool)).await.unwrap();
+    // ...so account 1's next transaction waits, while account 2's and
+    // background work (no acting account) proceed.
+    let same = tokio::spawn(crate::database::ACTING_ACCOUNT.scope(1, {
+        let pool = pool.clone();
+        async move { crate::database::begin(&pool).await.map(|tx| drop(tx)) }
+    }));
+    let other = crate::database::ACTING_ACCOUNT.scope(2, crate::database::begin(&pool));
+    tokio::time::timeout(Duration::from_secs(2), other).await.expect("another player must not wait").unwrap();
+    tokio::time::timeout(Duration::from_secs(2), crate::database::begin(&pool)).await.expect("background work must not wait").unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert!(!same.is_finished(), "the same player's transaction must wait");
+    held.commit().await.unwrap();
+    tokio::time::timeout(Duration::from_secs(2), same).await.expect("released at commit").unwrap().unwrap();
+    db.drop().await;
+}
+
+#[tokio::test]
+async fn acting_account_middleware_prevents_lost_updates_within_one_player() {
+    use axum::extract::State;
+    use tower::ServiceExt;
+    let Some(db) = TestDb::new().await else { return };
+    let state = crate::state::AppState::new(db.pool.clone(), crate::tables::test_tables());
+    let login = crate::api::account::user::test_login(State(state.clone()), axum::body::Bytes::from_static(b"LoginId=acting-account")).await.unwrap().0;
+    sqlx::query("CREATE TABLE counter(id bigint PRIMARY KEY, value bigint NOT NULL)").execute(&db.pool).await.unwrap();
+    sqlx::query("INSERT INTO counter VALUES (1, 0)").execute(&db.pool).await.unwrap();
+    // A handler with a read-then-write race, as many game handlers have.
+    async fn bump(State(state): State<crate::state::AppState>) -> &'static str {
+        let mut tx = crate::database::begin(&state.db).await.unwrap();
+        let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&mut *tx).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(2)).await;
+        sqlx::query("UPDATE counter SET value=$1 WHERE id=1").bind(value + 1).execute(&mut *tx).await.unwrap();
+        tx.commit().await.unwrap();
+        "ok"
+    }
+    let app = axum::Router::new().route("/bump", axum::routing::post(bump))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), crate::api::system::middleware::acting_account))
+        .with_state(state.clone());
+    let body = format!("SessionKey={}", login.user_info.session_key);
+    let requests = (0..20).map(|_| {
+        let (app, body) = (app.clone(), body.clone());
+        tokio::spawn(async move {
+            app.oneshot(axum::http::Request::post("/bump").header("content-type", "application/x-www-form-urlencoded")
+                .body(axum::body::Body::from(body)).unwrap()).await.unwrap().status()
+        })
+    }).collect::<Vec<_>>();
+    for request in requests { assert!(request.await.unwrap().is_success()); }
+    let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&db.pool).await.unwrap();
+    assert_eq!(value, 20, "one player's parallel requests must not lose updates");
     db.drop().await;
 }

@@ -2,7 +2,7 @@
 use super::*;
 
 pub(crate) async fn calculate(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     battle: i64,
@@ -10,8 +10,8 @@ pub(crate) async fn calculate(
     let honor_gold = crate::api::inventory::honor_buff::bonus(db, s).await?;
     let guild_bonus = crate::api::community::guild_reward_boost(db, s, a).await?;
     crate::api::inventory::item::normalize_booster_timers(db, s, a).await?;
-    let active: Vec<i32> = sqlx::query_scalar(
-        "SELECT item_index FROM item_boosters WHERE account_id=? AND end_time>datetime('now')",
+    let active: Vec<i32> = crate::db::query_scalar(
+        "SELECT item_index FROM item_boosters WHERE account_id=$1 AND end_time>sprk_datetime('now')",
     )
     .bind(a)
     .fetch_all(&mut *db)
@@ -32,7 +32,7 @@ pub(crate) async fn calculate(
         }
     }
     let costumes: Vec<i32> =
-        sqlx::query_scalar("SELECT costume_index FROM costumes WHERE account_id=?")
+        crate::db::query_scalar("SELECT costume_index FROM costumes WHERE account_id=$1")
             .bind(a)
             .fetch_all(db)
             .await?;
@@ -60,14 +60,14 @@ pub(crate) async fn calculate(
 /// Dispatch stamina saving, as the native dispatch window shows it: the sum of
 /// `SaveDispatchStamina` booster abilities on owned Legend costumes.
 pub(crate) async fn dispatch_stamina_discount(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
 ) -> Result<i64> {
     const LEGEND: i64 = 2;
     const BOOSTER: i64 = 1;
     let costumes: Vec<i32> =
-        sqlx::query_scalar("SELECT costume_index FROM costumes WHERE account_id=?")
+        crate::db::query_scalar("SELECT costume_index FROM costumes WHERE account_id=$1")
             .bind(a)
             .fetch_all(db)
             .await?;

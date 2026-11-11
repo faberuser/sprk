@@ -17,7 +17,7 @@ fn repair_final_claim(state: &AppState, info: &mut Value) -> bool {
     false
 }
 
-pub(super) async fn snapshot(db: &mut SqliteConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
+pub(super) async fn snapshot(db: &mut PgConnection,state: &AppState,account:i64)->Result<Vec<Value>> {
     let mut infos=list(db,account,"npc").await?;
     for info in &mut infos {
         if repair_final_claim(state,info) {
@@ -27,7 +27,7 @@ pub(super) async fn snapshot(db: &mut SqliteConnection,state: &AppState,account:
     Ok(infos)
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,

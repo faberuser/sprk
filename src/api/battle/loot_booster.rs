@@ -2,7 +2,7 @@
 use super::*;
 
 pub(super) async fn prepare(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -44,7 +44,7 @@ pub(super) async fn prepare(
     if price <= 0 || n(booster, "Value") != 100 {
         return Err(rule("InvalidCost"));
     }
-    let balance: i64 = sqlx::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=?")
+    let balance: i64 = crate::db::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=$1")
         .bind(a)
         .fetch_one(&mut *db)
         .await?;
@@ -52,11 +52,11 @@ pub(super) async fn prepare(
         return Err(rule("NotEnoughGem"));
     }
     let owner = uuid::Uuid::new_v4().to_string();
-    sqlx::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES(?,?,'Currency',4,?,?)")
+    crate::db::query("INSERT INTO battle_entry_holds(account,owner,family,kind,amount,expires) VALUES($1,$2,'Currency',4,$3,$4)")
         .bind(a).bind(&owner).bind(price).bind(now()+settings(s,"BattleExpirySeconds",14400))
         .execute(&mut *db).await?;
     let previous: Option<String> =
-        sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=? AND completed=1")
+        crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1 AND completed=1")
             .bind(a)
             .fetch_optional(&mut *db)
             .await?;
@@ -120,7 +120,7 @@ mod tests {
         (s, u)
     }
     async fn gems(s: &AppState, a: i64) -> i64 {
-        sqlx::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=?")
+        crate::db::query_scalar("SELECT gem+pay_gem FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -137,7 +137,7 @@ mod tests {
     }
 
     async fn use_item(s: &AppState, u: &Value, id: i32, potion: bool) -> Value {
-        sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,1) ON CONFLICT(account_id,item_index) DO UPDATE SET count=count+1")
+        crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,$2,1) ON CONFLICT(account_id,item_index) DO UPDATE SET count=items.count+1")
             .bind(account(u)).bind(id).execute(&s.db).await.unwrap();
         let body=Bytes::from(format!("SessionKey={}&ItemIndex={id}&ItemCount=1",u["UserInfo"]["SessionKey"].as_str().unwrap()));
         let response=if potion {item::use_potion_item(State(s.clone()),body).await} else {item::use_booster_item(State(s.clone()),body).await};
@@ -154,7 +154,7 @@ mod tests {
         assert_eq!(used["ItemResult"]["AddCount"],-1);
         assert_eq!(used["ItemTimeDurationInfo"]["ItemIndex"],110005);
         use_item(&s,&u,110005,false).await;
-        let duration:i64=sqlx::query_scalar("SELECT strftime('%s',end_time)-strftime('%s',start_time) FROM item_boosters WHERE account_id=? AND item_index=110005")
+        let duration:i64=crate::db::query_scalar("SELECT sprk_epoch(end_time)-sprk_epoch(start_time) FROM item_boosters WHERE account_id=$1 AND item_index=110005")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(duration,7200);
         assert!(item::booster_login(&s,a).await.unwrap().iter().any(|v|v["ItemIndex"]==110005));
@@ -166,7 +166,7 @@ mod tests {
         assert_eq!(out["EquipItemInfos"].as_array().unwrap().len(),2);
         assert_eq!(out["EquipItemBoostInfos"].as_array().unwrap().len(),1);
         assert_eq!(gems(&s,a).await,before+137,"The timed item never charges rubies");
-        sqlx::query("UPDATE item_boosters SET end_time=datetime('now','-1 second') WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE item_boosters SET end_time=sprk_datetime('now','-1 second') WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         assert_eq!(call(&s,&u,"campaign/begin_campaign",ENTRY).await["Result"],"Success");
         let plain=call(&s,&u,"campaign/end_campaign",END).await;
         assert_eq!(fragments(&plain),2);
@@ -271,9 +271,9 @@ mod tests {
             assert_eq!(fragments(&done),4,"Only the two successful unboosted drops");
             assert!(done["ItemResults"].as_array().unwrap().iter().all(|v|n(v,"AddBoosterCount")==0));
             assert_eq!(gems(&s,a).await,before,"Dispatch cannot select or charge the paid loot option");
-            let count:i64=sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap();
+            let count:i64=crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap();
             let _=call(&s,&u,path,&format!("SlotIndex={slot}")).await;
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap(),count,"Retry cannot duplicate loot");
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=20001").bind(a).fetch_one(&s.db).await.unwrap(),count,"Retry cannot duplicate loot");
         }
     }
 
@@ -386,7 +386,7 @@ mod tests {
             json!({"RemainCount":1,"MaxCount":3})
         );
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -398,7 +398,7 @@ mod tests {
     async fn loot_booster_reserves_paid_rubies_releases_failures_and_rejects_insufficient_funds() {
         let (s, u) = fixture().await;
         let a = account(&u);
-        sqlx::query("UPDATE user_info SET gem=5,pay_gem=15 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gem=5,pay_gem=15 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -413,7 +413,7 @@ mod tests {
             .await["Result"],
             "Success"
         );
-        let mut db = s.db.begin().await.unwrap();
+        let mut db = crate::database::begin(&s.db).await.unwrap();
         assert!(
             item::money(&mut db, a, "Gem", -1).await.is_err(),
             "Reserved rubies cannot be spent elsewhere"
@@ -430,7 +430,7 @@ mod tests {
         assert_eq!(failed["ItemBoosterResult"]["RemainCount"], 1);
         assert_eq!(gems(&s, a).await, 20);
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -446,8 +446,8 @@ mod tests {
             .await["Result"],
             "Success"
         );
-        let mut db = s.db.begin().await.unwrap();
-        let raw: String = sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?")
+        let mut db = crate::database::begin(&s.db).await.unwrap();
+        let raw: String = crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1")
             .bind(a)
             .fetch_one(&mut *db)
             .await
@@ -456,7 +456,7 @@ mod tests {
         super::super::entry_costs::settle(&mut db, &s, a, &mut entry, false, &mut json!({}))
             .await
             .unwrap();
-        sqlx::query("UPDATE battle_runs SET completed=1,entry=? WHERE account=?")
+        crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2")
             .bind(entry.to_string())
             .bind(a)
             .execute(&mut *db)
@@ -464,7 +464,7 @@ mod tests {
             .unwrap();
         db.commit().await.unwrap();
         assert_eq!(gems(&s, a).await, 20, "Abandonment costs nothing");
-        let mut db = s.db.begin().await.unwrap();
+        let mut db = crate::database::begin(&s.db).await.unwrap();
         let mut progress = campaign::progress(&mut db, &s, a, 1, 1).await.unwrap();
         progress["FirstRewardedDiff"] = json!(2);
         progress["LootRewardedDiff"] = json!(2);
@@ -489,7 +489,7 @@ mod tests {
             0,
             "The stage charge consumes 5 free and 15 paid rubies"
         );
-        sqlx::query("UPDATE user_info SET gem=4,pay_gem=15 WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gem=4,pay_gem=15 WHERE account_id=$1")
             .bind(a)
             .execute(&s.db)
             .await
@@ -506,7 +506,7 @@ mod tests {
         );
         assert_eq!(gems(&s, a).await, 19);
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM battle_entry_holds")
+            crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),
@@ -533,7 +533,7 @@ pub(super) fn active(entry: &Value) -> bool {
 /// campaign::complete_dispatch with zero instead: dispatch never inherits item boosters
 /// from either dispatch start or collection time.
 pub(super) async fn percent(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
@@ -550,8 +550,8 @@ pub(super) async fn percent(
     }
     let battle = campaign::dungeon(s, r)?["BattleType"].clone();
     item::normalize_booster_timers(db, s, a).await?;
-    let timers: Vec<i32> = sqlx::query_scalar(
-        "SELECT item_index FROM item_boosters WHERE account_id=? AND start_time<=datetime('now') AND end_time>datetime('now')",
+    let timers: Vec<i32> = crate::db::query_scalar(
+        "SELECT item_index FROM item_boosters WHERE account_id=$1 AND start_time<=sprk_datetime('now') AND end_time>sprk_datetime('now')",
     ).bind(a).fetch_all(db).await?;
     let mut percent = if active(entry) { 100_i64 } else { 0 };
     for id in timers {
@@ -566,7 +566,7 @@ pub(super) async fn percent(
 }
 
 pub(super) async fn settle(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     entry: &mut Value,
     won: bool,

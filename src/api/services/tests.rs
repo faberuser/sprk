@@ -1,13 +1,8 @@
 use super::*;
-use crate::{api::account::user, database};
+use crate::api::account::user;
 use std::sync::Arc;
 async fn setup() -> (AppState, Value) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let mut s = AppState::new(db, crate::tables::test_tables());
     s.battle_service_key = Arc::new(Some("test-battle-service-secret-32-characters".into()));
     let u = json!(
@@ -39,8 +34,8 @@ fn ok(v: &Value) {
 async fn godking_recharge_accepts_free_paid_and_large_ruby_balances() {
     let (s,u)=setup().await;let a=aid(&u);
     for (free,paid) in [(1000_i64,0_i64),(0,1000),(3_000_000_000,0),(500,500)] {
-        sqlx::query("UPDATE user_info SET gem=?,pay_gem=? WHERE account_id=?").bind(free).bind(paid).bind(a).execute(&s.db).await.unwrap();
-        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='stamina_recharges'").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET gem=$1,pay_gem=$2 WHERE account_id=$3").bind(free).bind(paid).bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='stamina_recharges'").bind(a).execute(&s.db).await.unwrap();
         crate::api::battle::put(&mut s.db.acquire().await.unwrap(),a,"key",21,&json!({"Count":0,"Day":chrono::Utc::now().format("%Y-%m-%d").to_string()})).await.unwrap();
         let out=call(&s,&u,"user/recharge_stamina","StaminaType=GodkingTrialKey").await;
         ok(&out);
@@ -89,7 +84,7 @@ async fn every_automatic_entry_currency_publishes_a_future_timer_when_depleted()
     let a=aid(&u);
     let now=chrono::Utc::now();
     let mut db=s.db.acquire().await.unwrap();
-    sqlx::query("UPDATE user_info SET stamina=0,stamina_recharge_time=?,sword=0,sword2=0,guild_raid_ticket=0,world_boss_ticket=0 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET stamina=0,stamina_recharge_time=$1,sword=0,sword2=0,guild_raid_ticket=0,world_boss_ticket=0 WHERE account_id=$2")
         .bind(now.timestamp()).bind(a).execute(&mut *db).await.unwrap();
     for def in s.tables.services.rows("Stamina").iter().filter(|d|n(d,"UpdateType")>0) {
         let k=n(def,"StaminaType");
@@ -101,7 +96,7 @@ async fn every_automatic_entry_currency_publishes_a_future_timer_when_depleted()
     }
     for (kind, value) in [("tickets", json!({"Value":0,"RechargeTime":now.timestamp()})),
         ("guild_ticket", json!({"Day":now.date_naive().to_string(),"Count":0}))] {
-        sqlx::query("INSERT INTO community_state(owner,kind,idx,data) VALUES(?,?,0,?) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data")
+        crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,0,$3) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data")
             .bind(a).bind(kind).bind(value.to_string()).execute(&mut *db).await.unwrap();
     }
     drop(db);
@@ -132,7 +127,7 @@ async fn arcdim_ruby_recharge_limits_reset_weekly_and_preserve_the_countdown() {
     let mut db=s.db.acquire().await.unwrap();
     crate::api::battle::put(&mut db,a,"key",29,&json!({"Day":today.to_string(),"Count":0})).await.unwrap();
     crate::api::extensions::put(&mut db,a,"stamina_recharges",29,&json!({"Day":monday.to_string(),"Count":2})).await.unwrap();
-    sqlx::query("UPDATE user_info SET gem=10000 WHERE account_id=?").bind(a).execute(&mut *db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=10000 WHERE account_id=$1").bind(a).execute(&mut *db).await.unwrap();
     drop(db);
     assert_ne!(call(&s,&u,"user/recharge_stamina","StaminaType=TechnoEnchantKey").await["Result"],"Success");
     let mut db=s.db.acquire().await.unwrap();
@@ -151,13 +146,13 @@ async fn arcdim_ruby_recharge_limits_reset_weekly_and_preserve_the_countdown() {
     let result=call(&s,&u,"user/get_stamina","StaminaType=TechnoEnchantKey").await;
     assert_eq!(result["StaminaResult"]["NewValue"],10);
     assert_eq!(result["StaminaResult"]["RechargeCount"],2);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),7500);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),7500);
 }
 #[tokio::test]
 async fn stamina_prices_regeneration_limits_and_rollback() {
     let (s, u) = setup().await;
-    sqlx::query(
-        "UPDATE user_info SET stamina=0,stamina_recharge_time=strftime('%s','now')-65,gem=5000",
+    crate::db::query(
+        "UPDATE user_info SET stamina=0,stamina_recharge_time=sprk_epoch('now')-65,gem=5000",
     )
     .execute(&s.db)
     .await
@@ -199,7 +194,7 @@ async fn stamina_prices_regeneration_limits_and_rollback() {
     .await;
     ok(&v);
     assert_eq!(v["StaminaResults"][1]["NewValue"], 9);
-    sqlx::query("UPDATE user_info SET gem=0")
+    crate::db::query("UPDATE user_info SET gem=0")
         .execute(&s.db)
         .await
         .unwrap();
@@ -331,7 +326,7 @@ async fn authoritative_campaign_requires_credentials_run_binding_and_applies_onc
     .await
     .unwrap();
     ok(&out);
-    let gold: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+    let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
         .bind(a)
         .fetch_one(&s.db)
         .await
@@ -343,7 +338,7 @@ async fn authoritative_campaign_requires_credentials_run_binding_and_applies_onc
     );
     assert_eq!(
         gold,
-        sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?")
+        crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -394,7 +389,7 @@ async fn world_boss_honor_ranking_accepts_max_scores_on_multiple_days() {
     let (s,u)=setup().await;
     let a=aid(&u);
     for day in ["2026-10-27","2026-10-28"] {
-        sqlx::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,?,?,?)")
+        crate::db::query("INSERT INTO battle_scores(family,boss,season,account,day,score) VALUES('world_boss',3,43,$1,$2,$3)")
             .bind(a).bind(day).bind(i64::MAX).execute(&s.db).await.unwrap();
     }
     let v=call(&s,&u,"records_of_honor/get_records_of_honor_ranking_list","ContentType=1&Season=43").await;
@@ -407,8 +402,8 @@ async fn world_boss_honor_ranking_accepts_max_scores_on_multiple_days() {
 async fn honor_ranking_uses_scores_and_deterministic_ties() {
     let (s, u) = setup().await;
     let a = aid(&u);
-    sqlx::query(
-        "INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES(?,0,7,1234,4,2)",
+    crate::db::query(
+        "INSERT INTO arena_scores(account,kind,season,score,wins,losses) VALUES($1,0,7,1234,4,2)",
     )
     .bind(a)
     .execute(&s.db)
@@ -449,7 +444,7 @@ async fn honor_ranking_uses_scores_and_deterministic_ties() {
 async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_pay_twice() {
     let (s, u) = setup().await;
     let a = aid(&u);
-    sqlx::query("UPDATE user_info SET team_level=60 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET team_level=60 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -467,13 +462,13 @@ async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_p
     .await
     .unwrap();
     assert_eq!(v["Result"], "WaitMore");
-    let row = sqlx::query("SELECT id,data FROM arena_runs WHERE account=? AND status='battle'")
+    let row = crate::db::query("SELECT id,data FROM arena_runs WHERE account=$1 AND status='battle'")
         .bind(a)
         .fetch_one(&s.db)
         .await
         .unwrap();
     let id = row.get::<i64, _>("id");
-    let data: Value = serde_json::from_str(row.get("data")).unwrap();
+    let data: Value = serde_json::from_str(&row.get::<String, _>("data")).unwrap();
     let season = n(&data, "Season");
     ok(&execute_request(
         &s,
@@ -501,7 +496,7 @@ async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_p
     .await
     .unwrap();
     ok(&v);
-    let coins: i64 = sqlx::query_scalar("SELECT pvp_coin FROM user_info WHERE account_id=?")
+    let coins: i64 = crate::db::query_scalar("SELECT pvp_coin FROM user_info WHERE account_id=$1")
         .bind(a)
         .fetch_one(&s.db)
         .await
@@ -519,7 +514,7 @@ async fn arena_service_claim_blocks_client_results_and_callback_retries_do_not_p
     );
     assert_eq!(
         coins,
-        sqlx::query_scalar::<_, i64>("SELECT pvp_coin FROM user_info WHERE account_id=?")
+        crate::db::query_scalar::<i64>("SELECT pvp_coin FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -540,7 +535,7 @@ async fn authoritative_cancel_refunds_pve_reservations_once() {
     )
     .await
     .unwrap();
-    let before: i64 = sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?")
+    let before: i64 = crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1")
         .bind(a)
         .fetch_one(&s.db)
         .await
@@ -576,7 +571,7 @@ async fn authoritative_cancel_refunds_pve_reservations_once() {
     .unwrap();
     assert_ne!(result["Result"], "Success");
     assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT stamina FROM user_info WHERE account_id=?")
+        crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -587,12 +582,11 @@ async fn authoritative_cancel_refunds_pve_reservations_once() {
 
 #[tokio::test]
 async fn recommended_decks_keep_only_the_served_ranking_and_use_indexes() {
-    let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let ranked = |kind: i64| {
         let db = db.clone();
         async move {
-            sqlx::query_scalar::<_, i64>("SELECT account FROM service_decks WHERE chapter=1 AND dungeon=2 AND difficulty=0 AND kind=? ORDER BY metric,account")
+            crate::db::query_scalar::<i64>("SELECT account FROM service_decks WHERE chapter=1 AND dungeon=2 AND difficulty=0 AND kind=$1 ORDER BY metric,account")
                 .bind(kind).fetch_all(&db).await.unwrap()
         }
     };
@@ -610,21 +604,14 @@ async fn recommended_decks_keep_only_the_served_ranking_and_use_indexes() {
     // A pruned account that later improves enters the ranking and displaces the last entry.
     clear(15, 1).await;
     assert_eq!(ranked(1).await, [15, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    // Legacy databases held every account's deck; startup migration prunes them.
-    for account in 20..25 {
-        sqlx::query("INSERT INTO service_decks VALUES(?,1,2,0,0,?,'{}')").bind(account).bind(1000 + account).execute(&db).await.unwrap();
-    }
-    migrate(&db).await.unwrap();
-    assert_eq!(ranked(0).await, (1..=10).collect::<Vec<_>>());
     let plan = |sql: String| {
         let db = db.clone();
         async move {
-            sqlx::query(sqlx::AssertSqlSafe(format!("EXPLAIN QUERY PLAN {sql}"))).fetch_all(&db).await.unwrap()
-                .iter().map(|r| r.get::<String, _>("detail")).collect::<Vec<_>>().join("; ")
+            crate::database::explain(&db, &sql).await
         }
     };
     let decks = plan("SELECT data FROM service_decks WHERE chapter=1 AND dungeon=2 AND difficulty=0 AND kind=0 ORDER BY metric,account LIMIT 10".into()).await;
-    assert!(decks.contains("service_deck_rank") && !decks.contains("TEMP B-TREE"), "{decks}");
+    assert!(decks.contains("service_deck_rank") && !decks.contains("Sort"), "{decks}");
     let dispatch = plan(format!("SELECT account,idx FROM battle_state WHERE {} ORDER BY account,idx", crate::api::battle::PENDING_DISPATCH_SIMULATION)).await;
     assert!(dispatch.contains("battle_state_dispatch_pending"), "{dispatch}");
 }
@@ -636,20 +623,20 @@ async fn honor_tickets_recharge_like_victory_at_double_the_ruby_price() {
         .as_str().unwrap().parse::<i64>().unwrap();
     // Honor holds 20 tickets to Victory's 10, so a full refill costs twice as much.
     assert_eq!(price(13),price(2)*2);
-    sqlx::query("UPDATE user_info SET sword2=0,gem=1000,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET sword2=0,gem=1000,pay_gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let v=call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await;
     ok(&v);
     assert_eq!(v["StaminaResult"]["Type"],"Sword2");
     assert_eq!(v["StaminaResult"]["NewValue"],20);
     assert_eq!(v["CurrencyResult"]["AddValue"],-price(13));
-    let stored:i64=sqlx::query_scalar("SELECT sword2 FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let stored:i64=crate::db::query_scalar("SELECT sword2 FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(stored,20);
     // Recharging again after spending keeps working, with no daily cap.
-    sqlx::query("UPDATE user_info SET sword2=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET sword2=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     ok(&call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await);
     // Without enough rubies the recharge fails and grants nothing.
-    sqlx::query("UPDATE user_info SET sword2=0,gem=0,pay_gem=0 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET sword2=0,gem=0,pay_gem=0 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s,&u,"user/recharge_stamina","StaminaType=Sword2").await["Result"],"Success");
-    let stored:i64=sqlx::query_scalar("SELECT sword2 FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let stored:i64=crate::db::query_scalar("SELECT sword2 FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(stored,0);
 }

@@ -1,16 +1,10 @@
 use super::*;
 use crate::{
     api::{account::user, community::mail, inventory::item},
-    database,
 };
 
 async fn setup() -> (AppState, String, i64) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let s = AppState::new(db, crate::tables::test_tables());
     let u = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=coupon-test"))
         .await
@@ -40,13 +34,13 @@ async fn coupon_mail_claim_and_sale_rejection() {
         "AlreadyReceived"
     );
     let mails: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='PDFABERGIFT'")
+        crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='PDFABERGIFT'")
             .bind(a)
             .fetch_one(&s.db)
             .await
             .unwrap();
     assert_eq!(mails, 1);
-    let id: i64 = sqlx::query_scalar("SELECT mail_id FROM coupon_redemptions WHERE account_id=?")
+    let id: i64 = crate::db::query_scalar("SELECT mail_id FROM coupon_redemptions WHERE account_id=$1")
         .bind(a)
         .fetch_one(&s.db)
         .await
@@ -57,7 +51,7 @@ async fn coupon_mail_claim_and_sale_rejection() {
         .0;
     assert_eq!(claimed["Result"], "Success", "{claimed}");
     let count: i64 =
-        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=9900001")
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=9900001")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -72,7 +66,7 @@ async fn coupon_mail_claim_and_sale_rejection() {
     .0;
     assert_ne!(sold["Result"], "Success");
     let count: i64 =
-        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=9900001")
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=9900001")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -135,7 +129,7 @@ async fn coupon_validation_and_authentication() {
         redeem(&s, &key, "CouponCode=PDFABERGIFT&CountryCode=TH").await["Result"],
         "CouponExpired"
     );
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM coupon_redemptions")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM coupon_redemptions")
         .fetch_one(&s.db)
         .await
         .unwrap();
@@ -145,23 +139,19 @@ async fn coupon_validation_and_authentication() {
 #[tokio::test]
 async fn coupon_retries_and_failed_mail_are_atomic() {
     let (s, key, _) = setup().await;
-    sqlx::query("CREATE TRIGGER fail_coupon_mail BEFORE INSERT ON mails WHEN NEW.title='PDFABERGIFT' BEGIN SELECT RAISE(ABORT,'test failure'); END")
-        .execute(&s.db).await.unwrap();
+    crate::database::fail_trigger(&s.db, "fail_coupon_mail", "BEFORE INSERT ON mails", Some("NEW.title='PDFABERGIFT'"), "test failure").await;
     assert!(use_coupon(
         State(s.clone()),
         body(&key, "CouponCode=PDFABERGIFT&CountryCode=TH")
     )
     .await
     .is_err());
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM coupon_redemptions")
+    let count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM coupon_redemptions")
         .fetch_one(&s.db)
         .await
         .unwrap();
     assert_eq!(count, 0);
-    sqlx::query("DROP TRIGGER fail_coupon_mail")
-        .execute(&s.db)
-        .await
-        .unwrap();
+    crate::database::drop_fail_trigger(&s.db, "fail_coupon_mail", "mails").await;
     let (one, two) = tokio::join!(
         redeem(&s, &key, "CouponCode=PDFABERGIFT&CountryCode=TH"),
         redeem(&s, &key, "CouponCode=PDFABERGIFT&CountryCode=TH")

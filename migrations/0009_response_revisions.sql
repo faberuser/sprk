@@ -67,11 +67,11 @@ DECLARE
     old_owner bigint;
 BEGIN
     IF new_match THEN
-        new_owner := COALESCE(sprk_json_int(NEW.data -> 'AccountId'), 0);
+        new_owner := COALESCE(sprk_json_int(NEW.data, '$.AccountId'), 0);
         PERFORM sprk_revision_bump('progression', new_owner);
     END IF;
     IF old_match THEN
-        old_owner := COALESCE(sprk_json_int(OLD.data -> 'AccountId'), 0);
+        old_owner := COALESCE(sprk_json_int(OLD.data, '$.AccountId'), 0);
         IF NOT (new_match AND old_owner = new_owner) THEN
             PERFORM sprk_revision_bump('progression', old_owner);
         END IF;

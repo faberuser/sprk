@@ -1,8 +1,5 @@
-//! PostgreSQL foundation for the SQLite → PostgreSQL port
-//! (docs/postgresql-migration.md). Nothing in the running server uses this yet:
-//! the game still opens `sprk.db` through `database`. Ported code builds on the
-//! pool, migrations, account lock and retry wrapper defined here.
-#![allow(dead_code)] // Used by tests until the port switches AppState over.
+//! PostgreSQL connection settings, migrations, locks and the retry wrapper
+//! (docs/postgresql-migration.md).
 
 use futures_util::future::BoxFuture;
 use sqlx::{
@@ -63,6 +60,15 @@ pub(crate) async fn connect_read(url: &str) -> Result<PgPool, sqlx::Error> {
         .await
 }
 
+/// One-connection pool for startup work such as migrations.
+pub(crate) async fn connect_single(url: &str) -> Result<PgPool, sqlx::Error> {
+    PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(30))
+        .connect_with(connect_options(url, false)?)
+        .await
+}
+
 /// Apply pending migrations. Run with the owner role; the app role only has
 /// SELECT/INSERT/UPDATE/DELETE.
 pub(crate) async fn migrate(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
@@ -87,6 +93,7 @@ pub(crate) async fn lock_account(conn: &mut PgConnection, account_id: i64) -> Re
 /// Lock several accounts (cross-player writes such as friend points or
 /// duels) in ascending order, so two requests never wait on each other in
 /// opposite order.
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 pub(crate) async fn lock_accounts(conn: &mut PgConnection, accounts: &[i64]) -> Result<(), sqlx::Error> {
     let mut accounts = accounts.to_vec();
     accounts.sort_unstable();
@@ -97,8 +104,35 @@ pub(crate) async fn lock_accounts(conn: &mut PgConnection, accounts: &[i64]) -> 
     Ok(())
 }
 
+/// Advisory lock classes for shared, non-account entities (two-int4 key form,
+/// separate from the account keyspace).
+const GUILD_LOCK: i32 = 1;
+
+/// Serialize read-modify-write of a guild's shared rows (guild_*
+/// community_state, member list, guild arena/raid/conquest state). Take it
+/// after the account lock, never before.
+pub(crate) async fn lock_guild(conn: &mut PgConnection, guild_id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1, $2)")
+        .bind(GUILD_LOCK)
+        .bind(i32::try_from(guild_id).map_err(|_| sqlx::Error::Protocol(format!("guild id {guild_id} out of range")))?)
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+/// Like `lock_guild`, but returns false instead of waiting (for a second
+/// guild, such as a guild arena opponent: waiting could deadlock).
+pub(crate) async fn try_lock_guild(conn: &mut PgConnection, guild_id: i64) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar("SELECT pg_try_advisory_xact_lock($1, $2)")
+        .bind(GUILD_LOCK)
+        .bind(i32::try_from(guild_id).map_err(|_| sqlx::Error::Protocol(format!("guild id {guild_id} out of range")))?)
+        .fetch_one(conn)
+        .await
+}
+
 /// SQLSTATE 40001 (serialization failure) or 40P01 (deadlock detected): the
 /// transaction did nothing and can run again.
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 pub(crate) fn is_retryable(error: &sqlx::Error) -> bool {
     matches!(
         error.as_database_error().and_then(|e| e.code()).as_deref(),
@@ -107,6 +141,7 @@ pub(crate) fn is_retryable(error: &sqlx::Error) -> bool {
 }
 
 /// Errors that may carry a database error, so the retry wrapper can see it.
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 pub(crate) trait DatabaseFailure {
     fn database_error(&self) -> Option<&sqlx::Error>;
 }
@@ -129,6 +164,7 @@ impl DatabaseFailure for anyhow::Error {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 pub(crate) enum Isolation {
     /// PostgreSQL's default. Pair read-then-write paths with `lock_account`,
     /// `SELECT ... FOR UPDATE` or a single atomic UPDATE.
@@ -138,6 +174,7 @@ pub(crate) enum Isolation {
 }
 
 /// Attempts per transaction, including the first.
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 const MAX_ATTEMPTS: u32 = 5;
 
 /// Run `work` in a transaction and commit it, rerunning the whole
@@ -146,6 +183,7 @@ const MAX_ATTEMPTS: u32 = 5;
 /// outside the database (notifications, HTTP, channel sends); do those after
 /// this returns. Keep it short: no table lookups or other awaits on
 /// non-database work while the transaction is open.
+#[cfg_attr(not(test), allow(dead_code))] // building block; see docs section 3
 pub(crate) async fn transaction<T, E, F>(pool: &PgPool, isolation: Isolation, mut work: F) -> Result<T, E>
 where
     F: for<'c> FnMut(&'c mut PgConnection) -> BoxFuture<'c, Result<T, E>>,

@@ -4,3 +4,4 @@ scripts/docker/*.sh text eol=lf
 config/postgres/initdb/*.sh text eol=lf
 # sqlx checksums migration bytes; keep them identical on every checkout.
 migrations/*.sql text eol=lf
+tests/fixtures/*.sql text eol=lf

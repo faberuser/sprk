@@ -39,12 +39,12 @@ async fn fixture_for_players(raid: i64, level: i64, players: usize) -> (AppState
         // Highest Technomagic tiers allow only one hero of each class.
         let heroes:Vec<i64>=(next..next+counts[i]).map(|h|if raid>=201 && h==5 {10}else{h}).collect();next+=counts[i];
         for hero in &heroes {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES(?,?,?,100,5,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES($1,$2,$3,100,5,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
         rosters.push(heroes);
     }
-    sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=100,star=5,transcend=5").execute(&s.db).await.unwrap();
     let created=call(&s,&users[0],"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel={level}&Opened=1")).await;
     assert_eq!(created["Result"],"Success","raid {raid}: {created}");
     let room=n(&created,"RoomNo");
@@ -75,14 +75,14 @@ async fn arcdim_fixture(raid:i64,level:i64,host_second:bool)->(AppState,Vec<Valu
     let def=row(&s,"Raid",&[("Index",raid),("Level",level)]).unwrap();
     for (index,user) in users.iter().enumerate() {
         let a=account(user);unlock(&s,a).await;
-        sqlx::query("UPDATE user_info SET stamina=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET stamina=10000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         put(&mut s.db.acquire().await.unwrap(),a,"raid",raid,&json!({"RaidIndex":raid,"RaidLevel":level})).await.unwrap();
         for h in index as i64*4+1..=index as i64*4+4 {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES(?,?,?,100,5,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star,transcend) VALUES($1,$2,$3,100,5,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(h).bind(h).execute(&s.db).await.unwrap();
         }
     }
-    sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5").execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE heroes SET level=100,star=5,transcend=5").execute(&s.db).await.unwrap();
     let room=call(&s,&users[0],"raid/create_raid_room",&format!("RaidIndex={raid}&RaidLevel={level}&Opened=1")).await;
     assert_eq!(room["Result"],"Success","{room}");let room=n(&room,"RoomNo");
     assert_eq!(call(&s,&users[1],"raid/join_raid_room",&format!("RoomNo={room}")).await["Result"],"Success");
@@ -121,7 +121,7 @@ async fn arcdim_ready_and_battle_start_preserve_both_wave_teams() {
         for (index,info) in accounts.iter().enumerate() {
             assert_eq!(info["HeroInfos"].as_object().unwrap().len(),4);
             assert_eq!(info["GroupHeroInfos"].as_object().unwrap().len(),if (index==0)==host_second {4}else{0});
-            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(account(&users[index])).fetch_one(&s.db).await.unwrap();
+            let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(account(&users[index])).fetch_one(&s.db).await.unwrap();
             let entry:Value=read_json(&raw).unwrap();assert_eq!(entry["Heroes"].as_array().unwrap().len(),4);
             assert_eq!(entry["Request"]["GroupHeroIndices"],json!(if (index==0)==host_second {(index as i64*4+1..=index as i64*4+4).collect::<Vec<_>>()}else{vec![]}).to_string());
         }
@@ -176,7 +176,7 @@ async fn arcdim_party_wins_unlock_next_stage_for_both_players_without_regressing
         worker_packet(&s,"raid-worker","WorkerResult",result.clone()).await.unwrap();
         for user in &users {
             let a=account(user);let mut db=s.db.acquire().await.unwrap();
-            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&mut *db).await.unwrap();
+            let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(a).fetch_one(&mut *db).await.unwrap();
             let entry:Value=read_json(&raw).unwrap();
             if won {
                 assert_eq!(entry["PartyEndResponse"]["CompletedRaidInfo"]["RaidIndex"],raid);
@@ -290,8 +290,8 @@ async fn native_arcdim_coop_transitions_to_zeta_and_settles_both_players() {
         let mut results=vec![];
         for client in clients {results.push(tokio::time::timeout(std::time::Duration::from_secs(180),client).await.expect("Arcdim native transition timed out").unwrap());}
         assert_eq!(results[0],results[1]);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),2);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
         println!("Native Arcdim {raid}: Delta cleared, Zeta team created with correct ownership, both players settled");
         server.abort();
     }
@@ -320,7 +320,7 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
         let count=if over_player {5}else{3};
         let deck:serde_json::Map<_,_>=(20..20+count).map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
         for hero in 20..20+count {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
         put(&mut s.db.acquire().await.unwrap(),a,"party_member",1,&json!({"DeckHeros":deck,"SubDeckHeros":{},"IsBattleReady":true})).await.unwrap();
@@ -332,8 +332,8 @@ async fn challenge_two_players_fill_eight_heroes_and_reject_oversized_rosters() 
                     &format!("AccountIds=[{}]",account(&users[0])))
         } else {args[0].clone()}; // Three + three + three exceeds the shared cap.
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&host).await["Result"],"NotMatchHeroIndices");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
     }
 }
 
@@ -391,17 +391,17 @@ async fn field_and_technomagic_coop_accept_full_rosters_and_enforce_caps() {
         }
         let report=json!({"RunId":id,"Win":true,"Creatures":creatures,"TimeMs":60000,"MaxWaveIndex":1});
         worker_packet(&s,"raid-worker","WorkerResult",report.clone()).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),3);
-        let count_before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap();
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),3);
+        let count_before:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap();
         for user in &users {
-            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(account(user)).fetch_one(&s.db).await.unwrap();
+            let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(account(user)).fetch_one(&s.db).await.unwrap();
             let entry:Value=read_json(&raw).unwrap();let ended=&entry["PartyEndResponse"];
             assert_eq!(ended["CompletedRaidInfo"]["RaidIndex"],raid);
             assert_eq!(ended["CompletedRaidInfo"]["RaidLevel"],(level+1).min(if raid<100 {2}else{9}));
             assert!(!ended["ItemResults"].as_array().unwrap().is_empty() || !ended["EquipItemInfos"].as_array().unwrap().is_empty(),"raid {raid} must award loot");
         }
         worker_packet(&s,"raid-worker","WorkerResult",report).await.unwrap();
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap(),count_before);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items").fetch_one(&s.db).await.unwrap(),count_before);
     }
     for (raid,over_player,over_total) in [(31,false,true),(32,true,false),(34,false,true),(201,true,false),(203,false,true)] {
         let (s,users,args)=fixture(raid,1).await;let _worker=fake_worker(&s).await;
@@ -410,15 +410,15 @@ async fn field_and_technomagic_coop_accept_full_rosters_and_enforce_caps() {
         let count=if over_player {n(def,"DeckCountPerPlayer")+1}else{3};
         let deck:serde_json::Map<_,_>=(20..20+count).map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
         for hero in 20..20+count {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
         put(&mut s.db.acquire().await.unwrap(),a,"party_member",1,&json!({"DeckHeros":deck,"SubDeckHeros":{},"IsBattleReady":true})).await.unwrap();
-        let before:Vec<i64>=sqlx::query_scalar("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+        let before:Vec<i64>=crate::db::query_scalar("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
         assert_eq!(call(&s,&users[0],"campaign/begin_campaign",&args[0]).await["Result"],"NotMatchHeroIndices","raid {raid}, total={over_total}");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),before);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),before);
     }
 }
 
@@ -427,12 +427,12 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
     for raid in [41,42,43,44,301,302,303] {
         for level in [1,if raid<100 {2}else{9}] {
             let (s,u)=setup().await;let a=account(&u);unlock(&s,a).await;
-            sqlx::query("UPDATE user_info SET stamina=10000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE user_info SET stamina=10000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
             for hero in (1..=10).chain([21,40]) {
-                sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+                crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                     .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
             }
-            sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
             let def=row(&s,"Raid",&[("Index",raid),("Level",level)]).unwrap();
             let chapter=n(def,"ChapterIndex");let dungeon=n(def,"DungeonIndex");
             let data=row(&s,"CampaignDungeon",&[("ChapterIndex",chapter),("DungeonIndex",dungeon)]).unwrap();
@@ -452,10 +452,10 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
                 let invalid=format!("ChapterIndex={chapter}&DungeonIndex={dungeon}&Difficulty=0&RepeatCount=2&DeckIndex=1&HeroIndices=[1,5,21,40,2,3,4]");
                 assert_ne!(call(&s,&u,"dispatch/start_dispatch",&invalid).await["Result"],"Success","Four warriors must fail the stage's class limit");
             }
-            sqlx::query("UPDATE heroes SET level=1 WHERE account_id=? AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE heroes SET level=1 WHERE account_id=$1 AND hero_index=1").bind(a).execute(&s.db).await.unwrap();
             assert_ne!(call(&s,&u,"dispatch/start_dispatch",&args).await["Result"],"Success");
-            sqlx::query("UPDATE heroes SET level=100 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-            let stamina=||sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db);
+            crate::db::query("UPDATE heroes SET level=100 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+            let stamina=||crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db);
             assert_eq!(stamina().await.unwrap(),10000);
             let start=call(&s,&u,"dispatch/start_dispatch",&format!("{args}&RaidIndex=999&RaidLevel=999")).await;
             if start["Result"]!="Success" {
@@ -482,13 +482,13 @@ async fn field_and_technomagic_dispatch_infers_solo_raid_and_settles_flat_roster
             assert_eq!(finished["DispatchBattleInfo"]["WinCount"],1);
             assert_eq!(finished["DispatchBattleInfo"]["LoseCount"],1);
             assert_eq!(stamina().await.unwrap(),10000-cost);
-            let mails:i64=sqlx::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap();
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.account_id=? AND m.title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
+            let mails:i64=crate::db::query_scalar("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap();
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mail_notifications q JOIN mails m ON m.mail_id=q.mail_id WHERE m.account_id=$1 AND m.title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
             assert!(mails>0 || finished["EquipItemResults"].as_array().is_some_and(|v|!v.is_empty())
                 || finished["ItemResults"].as_array().is_some_and(|v|!v.is_empty()),
                 "Dispatch {raid}/{level} must grant inventory rewards or mail overflow: {finished}");
             assert_ne!(call(&s,&u,"dispatch/request_complete_dispatch",&slot_args).await["Result"],"Success");
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM mails WHERE account_id=? AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM mails WHERE account_id=$1 AND title='Battle equipment rewards'").bind(a).fetch_one(&s.db).await.unwrap(),mails);
             assert_eq!(call(&s,&u,"dispatch/get_dispatch_list","").await["DispatchBattleInfos"],json!([]));
         }
     }
@@ -499,11 +499,11 @@ async fn field_and_technomagic_solo_subparty_is_counted_once() {
     for (raid,total,sub) in [(41,4,0),(42,6,2),(43,6,2),(44,7,3),(301,7,3),(302,7,3),(303,7,3)] {
         let (s,u)=setup().await;let a=account(&u);unlock(&s,a).await;
         for hero in 1..=10 {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
-        sqlx::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE user_info SET stamina=1000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE heroes SET level=100").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET stamina=1000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
         for level in [1,if raid<100 {2}else{9}] {
             let def=row(&s,"Raid",&[("Index",raid),("Level",level)]).unwrap();
             put(&mut s.db.acquire().await.unwrap(),a,"raid",n(def,"ClearRaidIndex"),
@@ -516,14 +516,14 @@ async fn field_and_technomagic_solo_subparty_is_counted_once() {
             let wire=heroes.iter().map(|id|format!("HeroIndices={id}"))
                 .chain(support.iter().map(|id|format!("AiHeroIndices={id}"))).collect::<Vec<_>>().join("&");
             let entry=format!("{prefix}&{wire}");
-            let before:i64=sqlx::query_scalar("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+            let before:i64=crate::db::query_scalar("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
             for invalid in [
                 format!("{prefix}&HeroIndices={}&AiHeroIndices={}",json!((1..=total+1).collect::<Vec<_>>()),json!(support)),
                 format!("{prefix}&HeroIndices={}&AiHeroIndices=[99]",json!(heroes)),
                 format!("{entry}&GroupHeroIndices=[1]"),
             ] {
                 assert_eq!(call(&s,&u,"campaign/begin_campaign",&invalid).await["Result"],"NotMatchHeroIndices","{invalid}");
-                assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+                assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
             }
             if sub>0 {
                 for invalid in [
@@ -537,7 +537,7 @@ async fn field_and_technomagic_solo_subparty_is_counted_once() {
             }
             let result=call(&s,&u,"campaign/begin_campaign",&entry).await;
             assert_eq!(result["Result"],"Success","raid {raid}/{level}: {result}");
-            let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(a).fetch_one(&s.db).await.unwrap();
+            let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(a).fetch_one(&s.db).await.unwrap();
             let stored:Value=read_json(&raw).unwrap();assert_eq!(stored["Heroes"],json!(heroes));
             let end=format!("{prefix}&Completed=true&Star=3&AliveHeroIndices=[1]");
             let ended=call(&s,&u,"campaign/end_campaign",&end).await;
@@ -559,7 +559,7 @@ async fn technomagic_class_limit_counts_support_once_and_all_coop_members_togeth
     for (i,roster) in [vec![1,5,2],vec![21,40],vec![3,4]].iter().enumerate() {
         let a=account(&users[i]);
         for hero in roster {
-            sqlx::query("INSERT OR IGNORE INTO heroes(account_id,hero_id,hero_index,level,star) VALUES(?,?,?,100,5)")
+            crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,level,star) VALUES($1,$2,$3,100,5) ON CONFLICT DO NOTHING")
                 .bind(a).bind(hero).bind(hero).execute(&s.db).await.unwrap();
         }
         let deck:serde_json::Map<_,_>=roster.iter().map(|h|(h.to_string(),json!({"HeroIndex":h}))).collect();
@@ -567,7 +567,7 @@ async fn technomagic_class_limit_counts_support_once_and_all_coop_members_togeth
     }
     let result=call(&s,&users[0],"campaign/begin_campaign",&args[0].replace("HeroIndices=[1,2,3]","HeroIndices=[1,5,2]")).await;
     assert_eq!(result["Result"],"NotMatchHeroIndices","Four distinct warriors across owners violate the three-per-class raid rule");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs").fetch_one(&s.db).await.unwrap(),0);
 }
 
 #[tokio::test]
@@ -629,8 +629,8 @@ async fn native_field_and_technomagic_coop_wave_and_settlement() {
             results.push(tokio::time::timeout(std::time::Duration::from_secs(240),task).await.expect("Native raid timed out").unwrap());
         }
         assert!(results.windows(2).all(|r|r[0]==r[1]));
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),3);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=1").fetch_one(&s.db).await.unwrap(),3);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds").fetch_one(&s.db).await.unwrap(),0);
         println!("Native raid {raid}: combat logs and authoritative settlement for all three accounts; win={}",results[0]["Win"]);
         server.abort();
     }
@@ -672,13 +672,13 @@ fn retry_inbox(peer: &mut RetryPeer) -> (Vec<String>, Vec<Value>) {
 }
 
 async fn retry_holds(s: &AppState) -> Vec<(i64,i64)> {
-    sqlx::query_as("SELECT account,SUM(amount) FROM battle_entry_holds GROUP BY account ORDER BY account").fetch_all(&s.db).await.unwrap()
+    crate::db::query_as("SELECT account,SUM(amount)::bigint FROM battle_entry_holds GROUP BY account ORDER BY account").fetch_all(&s.db).await.unwrap()
 }
 
 #[tokio::test]
 async fn party_retry_unanimous_vote_restarts_the_room_without_charging_costs() {
     let (s,users,args,mut worker,mut peers,old)=retry_fixture().await;
-    let stamina:Vec<i64>=sqlx::query_scalar("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
+    let stamina:Vec<i64>=crate::db::query_scalar("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap();
     let held=retry_holds(&s).await;
     retry_say(&s,&users[1],&peers[1],"sprk-retry:propose").await;
     for (i,peer) in peers.iter_mut().enumerate() {
@@ -703,7 +703,7 @@ async fn party_retry_unanimous_vote_restarts_the_room_without_charging_costs() {
         let start:Value=serde_json::from_str(restart.splitn(3,'|').nth(2).unwrap()).unwrap();
         assert_eq!(start["RaidIndex"],31);assert_eq!(start["HeroIndices"].as_array().unwrap().len(),deck);
     }
-    let room:String=sqlx::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    let room:String=crate::db::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
     assert_eq!(read_json::<Value>(&room).unwrap()["CoopRunId"],next);
     // Guests' old holds are released; like a native start, each guest's new
     // hold is placed when that client confirms through begin_campaign.
@@ -711,12 +711,12 @@ async fn party_retry_unanimous_vote_restarts_the_room_without_charging_costs() {
     // Every client follows the native PartyBattleStart path into the new run.
     for (i,user) in users.iter().enumerate() {
         let begun=call(&s,user,"campaign/begin_campaign",&args[i]).await;assert_eq!(begun["Result"],"Success","{begun}");
-        let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=? AND completed=0").bind(account(user)).fetch_one(&s.db).await.unwrap();
+        let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1 AND completed=0").bind(account(user)).fetch_one(&s.db).await.unwrap();
         assert_eq!(read_json::<Value>(&raw).unwrap()["CoopRunId"],next);
     }
     // Nothing was charged for the abandoned attempt: same holds, same stamina.
     assert_eq!(retry_holds(&s).await,held);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),stamina);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT stamina FROM user_info ORDER BY account_id").fetch_all(&s.db).await.unwrap(),stamina);
 }
 
 #[tokio::test]
@@ -760,16 +760,16 @@ async fn party_retry_timeout_and_failed_restart_keep_the_current_battle() {
     assert!(!s.conquest.runs.get(&old).unwrap().lock().await.payload["RetryVote"].is_null());
     // Nobody can afford the entry any more: the restart rolls back entirely.
     let held=retry_holds(&s).await;
-    let room:String=sqlx::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET stamina=0").execute(&s.db).await.unwrap();
+    let room:String=crate::db::query_scalar("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET stamina=0").execute(&s.db).await.unwrap();
     retry_say(&s,&users[1],&peers[1],"sprk-retry:yes:2").await;
     retry_say(&s,&users[2],&peers[2],"sprk-retry:yes:2").await;
     let (notices,_)=retry_inbox(&mut peers[1]);
     assert!(notices.last().unwrap().starts_with("Cancel|2|Failed|"),"{notices:?}");
     assert!(s.conquest.runs.contains_key(&old) && s.conquest.runs.len()==1,"no orphaned replacement run");
     assert_eq!(retry_holds(&s).await,held);
-    assert_eq!(sqlx::query_scalar::<_,String>("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap(),room);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),3);
+    assert_eq!(crate::db::query_scalar::<String>("SELECT data FROM battle_rooms").fetch_one(&s.db).await.unwrap(),room);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_runs WHERE completed=0").fetch_one(&s.db).await.unwrap(),3);
 }
 
 #[tokio::test]
@@ -787,11 +787,11 @@ async fn party_retry_restarts_only_players_still_in_battle_and_needs_the_master(
     let (notices,_)=retry_inbox(&mut peers[0]);
     let start:Value=serde_json::from_str(notices.iter().find(|v|v.starts_with("Restart|1|")).unwrap().splitn(3,'|').nth(2).unwrap()).unwrap();
     assert!(start["AccountIds"].as_array().unwrap().iter().all(|v|*v!=json!(exited)),"{start}");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members").fetch_one(&s.db).await.unwrap(),3);
-    let raw:String=sqlx::query_scalar("SELECT entry FROM battle_runs WHERE account=?").bind(exited).fetch_one(&s.db).await.unwrap();
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members").fetch_one(&s.db).await.unwrap(),3);
+    let raw:String=crate::db::query_scalar("SELECT entry FROM battle_runs WHERE account=$1").bind(exited).fetch_one(&s.db).await.unwrap();
     assert_ne!(read_json::<Value>(&raw).unwrap()["CoopRunId"],handle.lock().await.id);
     for i in 0..2 {assert_eq!(call(&s,&users[i],"campaign/begin_campaign",&args[i]).await["Result"],"Success");}
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=?").bind(exited).fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_entry_holds WHERE account=$1").bind(exited).fetch_one(&s.db).await.unwrap(),0);
 
     // When the room master has exited, nobody can restart the master's start.
     let (s,users,_,_worker,mut peers,_)=retry_fixture().await;
@@ -807,14 +807,14 @@ async fn crashed_player_relogin_mid_battle_leaves_room_and_battle_continues() {
     // The crashed client's sockets are gone; it comes back with a full login.
     s.conquest.peers.remove(&crashed);
     super::super::party_messages::new_login(&s,crashed).await.unwrap();
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=?").bind(crashed).fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM battle_room_members WHERE account=$1").bind(crashed).fetch_one(&s.db).await.unwrap(),0);
     {
         let run=s.conquest.runs.get(&old).unwrap().clone();let run=run.lock().await;
         assert!(run.departed.contains(&crashed),"AI keeps the crashed player's heroes");
         assert!(run.result.is_none(),"the others keep playing");
     }
     // Not a member any more: invites reach it and it can create its own room.
-    let room:i64=sqlx::query_scalar("SELECT id FROM battle_rooms").fetch_one(&s.db).await.unwrap();
+    let room:i64=crate::db::query_scalar("SELECT id FROM battle_rooms").fetch_one(&s.db).await.unwrap();
     let created=call(&s,&users[2],"raid/create_raid_room","RaidIndex=31&RaidLevel=1&Opened=1").await;
     assert_eq!(created["Result"],"Success","{created}");
     assert_ne!(n(&created,"RoomNo"),room);

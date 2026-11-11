@@ -2,7 +2,7 @@
 use super::item::{n, rule};
 use crate::{error::Result, state::AppState};
 use serde_json::{json, Value};
-use sqlx::SqliteConnection;
+use sqlx::PgConnection;
 
 pub(crate) fn definition(s: &AppState, index: i32) -> Option<i64> {
     let token = s.tables.arena_guild.rows("HonorSeasonBooster").iter()
@@ -15,18 +15,18 @@ pub(crate) fn definition(s: &AppState, index: i32) -> Option<i64> {
     buff.get(1)?.as_str()?.parse::<i64>().ok().filter(|v| *v > 0)
 }
 
-pub(crate) async fn activate(db: &mut SqliteConnection, s: &AppState, percent: i64, count: i32) -> Result<Value> {
+pub(crate) async fn activate(db: &mut PgConnection, s: &AppState, percent: i64, count: i32) -> Result<Value> {
     let (period, _, end) = crate::api::community::arena::season(s);
     let added = percent.checked_mul(i64::from(count)).ok_or_else(|| rule("InvalidItemCount"))?;
-    let total: i64 = sqlx::query_scalar("INSERT INTO community_state(owner,kind,idx,data) VALUES(0,'honor_item_buff',?,json_object('GoldPercent',?,'Expires',?)) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=json_object('GoldPercent',CAST(json_extract(data,'$.GoldPercent') AS INTEGER)+?,'Expires',?) RETURNING CAST(json_extract(data,'$.GoldPercent') AS INTEGER)")
+    let total: i64 = crate::db::query_scalar("INSERT INTO community_state(owner,kind,idx,data) VALUES(0,'honor_item_buff',$1,jsonb_build_object('GoldPercent',$2::bigint,'Expires',$3::bigint)::text) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=jsonb_build_object('GoldPercent',sprk_json_int(community_state.data,'$.GoldPercent')+$4::bigint,'Expires',$5::bigint)::text RETURNING CAST(sprk_json_int(data,'$.GoldPercent') AS BIGINT)")
         .bind(period).bind(added).bind(end).bind(added).bind(end).fetch_one(db).await?;
     let expires = chrono::DateTime::from_timestamp(end, 0).ok_or_else(|| rule("Fail"))?.format("%Y-%m-%d %H:%M:%S UTC").to_string();
     Ok(json!({"AddedGoldPercent":added,"GoldPercent":total,"Expires":end,"Message":format!("Server gold gains increased by {added}%. Active Honor token bonus: {total}%. Applies to all players until the next Honor rewards calculation ({expires}).")}))
 }
 
-pub(crate) async fn bonus(db: &mut SqliteConnection, s: &AppState) -> Result<i64> {
+pub(crate) async fn bonus(db: &mut PgConnection, s: &AppState) -> Result<i64> {
     let period = crate::api::community::arena::season(s).0;
-    let percent: Option<i64> = sqlx::query_scalar("SELECT CAST(json_extract(data,'$.GoldPercent') AS INTEGER) FROM community_state WHERE owner=0 AND kind='honor_item_buff' AND idx=? AND CAST(json_extract(data,'$.Expires') AS INTEGER)>?")
+    let percent: Option<i64> = crate::db::query_scalar("SELECT CAST(sprk_json_int(data,'$.GoldPercent') AS BIGINT) FROM community_state WHERE owner=0 AND kind='honor_item_buff' AND idx=$1 AND CAST(sprk_json_int(data,'$.Expires') AS BIGINT)>$2")
         .bind(period).bind(chrono::Utc::now().timestamp()).fetch_optional(db).await?;
     Ok(percent.unwrap_or(0))
 }
@@ -48,7 +48,7 @@ mod tests {
         let account = a["UserInfo"]["AccountId"].as_i64().unwrap();
         let other = b["UserInfo"]["AccountId"].as_i64().unwrap();
         for index in [110033, 110034, 110035] {
-            sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,?,2)").bind(account).bind(index).execute(&s.db).await.unwrap();
+            crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,$2,2)").bind(account).bind(index).execute(&s.db).await.unwrap();
         }
         let before = crate::api::battle::bonuses::calculate(&mut s.db.acquire().await.unwrap(), &s, other, 1).await.unwrap();
         assert_eq!(definition(&s, 110034), Some(3));
@@ -66,9 +66,9 @@ mod tests {
         let logged = login(&s, "honor-buff-other").await;
         assert_eq!(logged["UserInfo"]["AccountId"], other);
         assert_eq!(bonus(&mut s.db.acquire().await.unwrap(), &s).await.unwrap(), 12);
-        sqlx::query("UPDATE community_state SET data=json_set(data,'$.Expires',0) WHERE kind='honor_item_buff'").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE community_state SET data=sprk_json_set(data,'$.Expires',0) WHERE kind='honor_item_buff'").execute(&s.db).await.unwrap();
         assert_eq!(bonus(&mut s.db.acquire().await.unwrap(), &s).await.unwrap(), 0);
-        sqlx::query("UPDATE community_state SET idx=idx-1,data=json_set(data,'$.Expires',9223372036854775807) WHERE kind='honor_item_buff'").execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE community_state SET idx=idx-1,data=sprk_json_set(data,'$.Expires',9223372036854775807) WHERE kind='honor_item_buff'").execute(&s.db).await.unwrap();
         assert_eq!(bonus(&mut s.db.acquire().await.unwrap(), &s).await.unwrap(), 0);
     }
     #[tokio::test]
@@ -76,11 +76,11 @@ mod tests {
         let s = setup().await;
         let a = login(&s, "honor-buff-failure").await;
         let account = a["UserInfo"]["AccountId"].as_i64().unwrap();
-        sqlx::query("INSERT INTO items(account_id,item_index,count) VALUES(?,110034,1)").bind(account).execute(&s.db).await.unwrap();
+        crate::db::query("INSERT INTO items(account_id,item_index,count) VALUES($1,110034,1)").bind(account).execute(&s.db).await.unwrap();
         for (index, count) in [(110034,2),(110034,0),(110034,1001),(110033,1),(110037,1)] {
             assert_ne!(use_token(&s, &a, index, count).await["Result"], "Success");
             assert_eq!(bonus(&mut s.db.acquire().await.unwrap(), &s).await.unwrap(), 0);
-            assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count FROM items WHERE account_id=? AND item_index=110034").bind(account).fetch_one(&s.db).await.unwrap(), 1);
+            assert_eq!(crate::db::query_scalar::<i64>("SELECT count FROM items WHERE account_id=$1 AND item_index=110034").bind(account).fetch_one(&s.db).await.unwrap(), 1);
         }
         assert_eq!(use_token(&s, &a, 110034, 1).await["Result"], "Success");
         assert_ne!(use_token(&s, &a, 110034, 1).await["Result"], "Success");

@@ -15,7 +15,8 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::PgConnection;
+use crate::db::RowExt;
 use std::collections::BTreeSet;
 pub(crate) mod arena;
 pub(crate) mod duel;
@@ -39,8 +40,8 @@ mod conquest_tests;
 pub(crate) use conquest::{enter as conquest_enter, finish as conquest_finish, validate as conquest_validate, tickets as conquest_tickets};
 pub(crate) use warfare::{raid_enter, raid_finish, raid_validate};
 
-pub(crate) async fn guild_reward_boost(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
-    let guild_id: Option<i64> = sqlx::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=?")
+pub(crate) async fn guild_reward_boost(db: &mut PgConnection, s: &AppState, a: i64) -> Result<(i64, i64)> {
+    let guild_id: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
         .bind(a).fetch_optional(&mut *db).await?;
     let Some(g) = guild_id else { return Ok((0, 0)); };
     let info = guild::state(db, s, g).await?;
@@ -55,38 +56,6 @@ pub(crate) async fn guild_reward_boost(db: &mut SqliteConnection, s: &AppState, 
     Ok(result)
 }
 
-pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
-    for q in [
-        "CREATE TABLE IF NOT EXISTS community_state(owner INTEGER NOT NULL,kind TEXT NOT NULL,idx INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(owner,kind,idx))",
-        "CREATE TABLE IF NOT EXISTS community_claims(account INTEGER NOT NULL,kind TEXT NOT NULL,target INTEGER NOT NULL,period TEXT NOT NULL,PRIMARY KEY(account,kind,target,period))",
-        "CREATE TABLE IF NOT EXISTS guild_requests(account INTEGER NOT NULL,guild_id INTEGER NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(account,guild_id),FOREIGN KEY(guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE)",
-        "CREATE TABLE IF NOT EXISTS arena_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,account INTEGER NOT NULL,kind INTEGER NOT NULL,started INTEGER NOT NULL,status TEXT NOT NULL,data TEXT NOT NULL)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS arena_active_account ON arena_runs(account) WHERE status IN ('waiting','battle')",
-        "CREATE INDEX IF NOT EXISTS arena_completed_squad ON arena_runs(account,kind,json_extract(data,'$.Season'),id DESC) WHERE status='complete'",
-        "CREATE INDEX IF NOT EXISTS arena_online_match_status ON arena_runs(json_extract(data,'$.OnlineMatchUid'),status) WHERE json_extract(data,'$.OnlineMatchUid') IS NOT NULL",
-        // Honor registers whole collections (~600 KB). Kept beside the run so
-        // the run JSON that polls, pairing, triggers and completion rewrite
-        // stays small; deleting or pruning a run removes its snapshot.
-        "CREATE TABLE IF NOT EXISTS arena_snapshots(run INTEGER PRIMARY KEY,data TEXT NOT NULL)",
-        "CREATE TRIGGER IF NOT EXISTS arena_snapshots_cleanup AFTER DELETE ON arena_runs BEGIN DELETE FROM arena_snapshots WHERE run=OLD.id; END",
-        "CREATE TABLE IF NOT EXISTS arena_scores(account INTEGER NOT NULL,kind INTEGER NOT NULL,season INTEGER NOT NULL,score INTEGER NOT NULL,wins INTEGER NOT NULL DEFAULT 0,losses INTEGER NOT NULL DEFAULT 0,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account,kind,season))",
-        "CREATE TABLE IF NOT EXISTS guild_battle_scores(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,kind TEXT NOT NULL,season INTEGER NOT NULL,stage INTEGER NOT NULL,score INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild_id,account,kind,season,stage))",
-        "CREATE INDEX IF NOT EXISTS guild_battle_scores_account_kind ON guild_battle_scores(account,kind)",
-        "CREATE TABLE IF NOT EXISTS guild_arena_decks(guild_id INTEGER NOT NULL,account INTEGER NOT NULL,season INTEGER NOT NULL,deck INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,season,deck))",
-        "CREATE TABLE IF NOT EXISTS friendly_duels(group_id INTEGER PRIMARY KEY,requester INTEGER NOT NULL,opponent INTEGER NOT NULL,status TEXT NOT NULL,expires INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS guild_arena_records(id INTEGER PRIMARY KEY AUTOINCREMENT,guild_id INTEGER NOT NULL,enemy_guild INTEGER NOT NULL,account INTEGER NOT NULL,enemy INTEGER NOT NULL,season INTEGER NOT NULL,win INTEGER NOT NULL,data TEXT NOT NULL)",
-    ] {sqlx::query(q).execute(db).await?;}
-    crate::api::progression::mission_history::migrate_arena_history(db).await?;
-    crate::api::progression::mission_history::migrate_arena_retention(db).await?;
-    // Queue polls touch only this column. Rewriting `data` (up to ~1.5 MB for
-    // Honor registrations) on every poll re-ran its JSON triggers each time.
-    let columns: Vec<String> = sqlx::query_scalar("SELECT name FROM pragma_table_info('arena_runs')").fetch_all(db).await?;
-    if !columns.iter().any(|c| c == "last_poll") {
-        sqlx::query("ALTER TABLE arena_runs ADD COLUMN last_poll INTEGER").execute(db).await?;
-    }
-    sqlx::query("CREATE INDEX IF NOT EXISTS arena_waiting_queue ON arena_runs(kind,started) WHERE status='waiting'").execute(db).await?;
-    Ok(())
-}
 pub fn routes(t: &crate::tables::BattleTable) -> axum::Router<AppState> {
     let mut router = axum::Router::new();
     for p in t.contracts.keys() {
@@ -146,9 +115,18 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
     let arena = matches!(path.split('/').next(), Some("match" | "global_arena"));
     // Honor snapshots are reads: build them before queueing for the writer.
     let prebuilt = if arena { arena::prebuild(s, a, &r, action).await? } else { Default::default() };
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     if !crate::api::system::performance::observation(&format!("/{path}")) {
+        // Takes the account lock: one request per player at a time.
         item::init(&mut tx, s, a).await?;
+        // Guild content reads and rewrites rows shared by all members (guild
+        // raid HP, conquest, guild arena, member list). The single SQLite
+        // writer serialized these; now members of one guild take turns.
+        if !arena {
+            let guild: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
+                .bind(a).fetch_optional(&mut *tx).await?;
+            if let Some(g) = guild { crate::postgres::lock_guild(&mut tx, g).await?; }
+        }
     }
     let result = match path.split('/').next().unwrap_or("") {
         "guild" => guild::execute(&mut tx, s, a, &r, action).await,
@@ -273,9 +251,9 @@ fn row<'a>(s: &'a AppState, t: &str, f: &[(&str, i64)]) -> Result<&'a Value> {
 fn parse<T: serde::de::DeserializeOwned>(v: &str) -> Result<T> {
     serde_json::from_str(v).map_err(|e| ServerError::Internal(e.to_string()))
 }
-async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
+async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
     let v: Option<String> =
-        sqlx::query_scalar("SELECT data FROM community_state WHERE owner=? AND kind=? AND idx=?")
+        crate::db::query_scalar("SELECT data FROM community_state WHERE owner=$1 AND kind=$2 AND idx=$3")
             .bind(a)
             .bind(kind)
             .bind(idx)
@@ -285,19 +263,19 @@ async fn get(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64) -> Result<
         .transpose()
         .map(|v| v.unwrap_or(Value::Null))
 }
-async fn put(db: &mut SqliteConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
-    sqlx::query("INSERT INTO community_state(owner,kind,idx,data) VALUES(?,?,?,?) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
+    crate::db::query("INSERT INTO community_state(owner,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(owner,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
     Ok(())
 }
 async fn claim(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     k: &str,
     target: i64,
     period: &str,
 ) -> Result<()> {
-    if sqlx::query(
-        "INSERT OR IGNORE INTO community_claims(account,kind,target,period) VALUES(?,?,?,?)",
+    if crate::db::query(
+        "INSERT INTO community_claims(account,kind,target,period) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
     )
     .bind(a)
     .bind(k)
@@ -313,7 +291,7 @@ async fn claim(
     Ok(())
 }
 async fn reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     idx: i64,
@@ -325,19 +303,19 @@ async fn reward(
     Ok(())
 }
 async fn rewards(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     reward: Rewards,
 ) -> Result<Value> {
     item::reward_response(db, s, a, reward).await
 }
-pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
+pub(crate) async fn cached_hero(db: &mut PgConnection, a: i64, id: i64) -> Result<Value> {
     let mut h = hero::info(db, a, id as i32).await?;
     // All ten equipped pieces in one statement: snapshots run per Hero, and
     // Honor/inspection build up to ~200 of them in one transaction.
     let slots: Vec<i64> = (1..=10).map(|part| n(&h, &format!("EquipItemSlotIndex{part}"))).collect();
-    let rows = sqlx::query("SELECT * FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+    let rows = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
         .bind(a)
         .bind(json!(slots).to_string())
         .fetch_all(&mut *db)
@@ -356,14 +334,14 @@ pub(crate) async fn cached_hero(db: &mut SqliteConnection, a: i64, id: i64) -> R
     crate::api::extensions::cosmetics::complete_snapshot_appearance(db, a, &mut h).await?;
     Ok(h)
 }
-async fn user(db: &mut SqliteConnection, a: i64) -> Result<Value> {
-    let r=sqlx::query("SELECT a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=?").bind(a).fetch_optional(db).await?.ok_or_else(||rule("GuildMemberNotFound"))?;
+async fn user(db: &mut PgConnection, a: i64) -> Result<Value> {
+    let r=crate::db::query("SELECT a.nick,a.last_login,u.team_level,u.avatar_hero_index FROM accounts a JOIN user_info u ON u.account_id=a.account_id WHERE a.account_id=$1").bind(a).fetch_optional(db).await?.ok_or_else(||rule("GuildMemberNotFound"))?;
     Ok(
         json!({"AccountId":a,"Nick":r.get::<String,_>("nick"),"TeamLevel":r.get::<i64,_>("team_level"),"AvatarHeroIndex":r.get::<i64,_>("avatar_hero_index"),"LastLoginTime":r.get::<Option<String>,_>("last_login"),"MatchScore":0,"SeasonWin":0,"SeasonLose":0}),
     )
 }
 pub(crate) async fn validate_shop(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     shop: i64,
@@ -387,7 +365,7 @@ pub(crate) async fn validate_shop(
     Ok(level)
 }
 pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     item::init(&mut tx, s, a).await?;
     arena::settle(&mut tx, s, a).await?;
     warfare::settle(&mut tx, s, a).await?;
@@ -404,13 +382,13 @@ pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
     Ok(out)
 }
 pub(crate) async fn guild_ticket(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     amount: i64,
 ) -> Result<Value> {
     let mut info = get(db,a,"guild_ticket",0).await?;
-    let current:i64 = sqlx::query_scalar("SELECT guild_raid_ticket FROM user_info WHERE account_id=?")
+    let current:i64 = crate::db::query_scalar("SELECT guild_raid_ticket FROM user_info WHERE account_id=$1")
         .bind(a).fetch_one(&mut *db).await?;
     info["Count"] = json!(if info.is_null(){current.max(2)}else{current});
     let def = s.tables.services.find("Stamina", &[("StaminaType",10)])
@@ -425,17 +403,17 @@ pub(crate) async fn guild_ticket(
         let refreshed=crate::api::account::recharge::at(&saved,def,overrides,current,chrono::Utc::now(),0)?;
         saved=refreshed.0; result=refreshed.1; result["AddValue"]=json!(added);
     }
-    sqlx::query("UPDATE user_info SET guild_raid_ticket=? WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET guild_raid_ticket=$1 WHERE account_id=$2")
         .bind(n(&saved,"Count")).bind(a).execute(&mut *db).await?;
     put(db,a,"guild_ticket",0,&saved).await?;
     Ok(result)
 }
 pub(crate) async fn ensure_available(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     heroes: &[i64],
 ) -> Result<()> {
-    let rows:Vec<String>=sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND status IN ('waiting','battle') AND COALESCE(json_extract(data,'$.Expires'),started+900)>=?").bind(a).bind(now()).fetch_all(&mut *db).await?;
+    let rows:Vec<String>=crate::db::query_scalar("SELECT data FROM arena_runs WHERE account=$1 AND status IN ('waiting','battle') AND COALESCE(sprk_json_int(data,'$.Expires'),started+900)>=$2").bind(a).bind(now()).fetch_all(&mut *db).await?;
     for v in rows {
         let v: Value = parse(&v)?;
         if v["Heroes"]

@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -65,8 +65,8 @@ pub(super) async fn execute(
                     if !state.tables.hero_shop.costumes.contains_key(&(*b as i32)) {
                         return Err(rule("CostumeDataNotFound"));
                     }
-                    sqlx::query(
-                        "INSERT OR IGNORE INTO costumes(account_id,costume_index) VALUES(?,?)",
+                    crate::db::query(
+                        "INSERT INTO costumes(account_id,costume_index) VALUES($1,$2) ON CONFLICT DO NOTHING",
                     )
                     .bind(account)
                     .bind(b)
@@ -211,7 +211,7 @@ pub(crate) fn equip_accessory(accessories: &mut Vec<Value>, id: i64, part: i64, 
     accessories.push(json!({"Index":id,"Part":part,"PositionInfo":position}));
 }
 
-pub(crate) async fn equipped_accessories(db: &mut SqliteConnection, account: i64, h: &Value) -> Result<Vec<Value>> {
+pub(crate) async fn equipped_accessories(db: &mut PgConnection, account: i64, h: &Value) -> Result<Vec<Value>> {
     if let Some(values) = h["SprkAccessories"].as_array() {
         return Ok(values.clone());
     }
@@ -252,7 +252,7 @@ fn transform(raw: &str) -> Value {
 // worker. The worker re-encodes absent native transforms as `{}`, which
 // clients parse as scale 0 and render invisibly, so send the complete
 // accessory list and explicit transforms for every occupied native slot.
-pub(crate) async fn complete_snapshot_appearance(db: &mut SqliteConnection, account: i64, h: &mut Value) -> Result<()> {
+pub(crate) async fn complete_snapshot_appearance(db: &mut PgConnection, account: i64, h: &mut Value) -> Result<()> {
     let accessories = equipped_accessories(db, account, h).await?;
     for part in 1..=6 {
         let id = n(h, &format!("AccessoryCostumeIndex{part}"));
@@ -275,9 +275,9 @@ pub(super) fn accessory_key(hero_id: i32, accessory: i64) -> Result<i64> {
     Ok(((hero_id as i64) << 32) | accessory)
 }
 
-async fn owned_body(db: &mut SqliteConnection, account: i64, id: i64) -> Result<bool> {
-    Ok(sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM costumes WHERE account_id=? AND costume_index=?)",
+async fn owned_body(db: &mut PgConnection, account: i64, id: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM costumes WHERE account_id=$1 AND costume_index=$2)",
     )
     .bind(account)
     .bind(id)

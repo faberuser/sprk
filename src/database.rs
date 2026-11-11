@@ -1,649 +1,246 @@
-use sqlx::{sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous}, Pool, Sqlite};
-use std::{path::Path, sync::{Arc, Mutex}, time::{Duration, Instant}};
+//! Game database: PostgreSQL. Schema lives in `migrations/`; connection
+//! settings, the account lock and the retry wrapper in `crate::postgres`.
+use std::{path::Path, sync::Arc};
 
-pub type DbPool = Pool<Sqlite>;
+pub type DbPool = sqlx::PgPool;
 
 tokio::task_local! {
-    /// HTTP path of the request running in this task, for attributing slow holds.
+    /// HTTP path of the request running in this task, for slow-request logs.
     pub(crate) static REQUEST_PATH: Arc<str>;
+    /// The player this request acts for (set by the acting_account middleware).
+    pub(crate) static ACTING_ACCOUNT: i64;
 }
 
-/// Spawn background work whose connection holds are reported under `label`
-/// rather than the generic "background" (task-locals do not cross spawns).
+/// Begin a write transaction. Within a player's request it first takes that
+/// player's account lock, so one player's transactions run one at a time (as
+/// on the single SQLite writer) while different players run in parallel.
+/// Background work has no acting account and takes explicit locks instead.
+pub(crate) async fn begin(pool: &DbPool) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    if let Ok(account) = ACTING_ACCOUNT.try_with(|a| *a) {
+        crate::postgres::lock_account(&mut tx, account).await?;
+    }
+    Ok(tx)
+}
+
+/// Spawn background work labelled `label` in logs rather than "background"
+/// (task-locals do not cross spawns).
 pub(crate) fn spawn_labelled<F>(label: &'static str, work: F) -> tokio::task::JoinHandle<F::Output>
 where F: std::future::Future + Send + 'static, F::Output: Send + 'static {
     tokio::spawn(REQUEST_PATH.scope(Arc::from(label), work))
 }
 
-/// Holding the single connection this long delays every queued request.
-const SLOW_HOLD: Duration = Duration::from_millis(250);
-
-/// Tracks who holds the pool's only connection and since when. With one
-/// connection, checkout and release strictly alternate, so one slot is exact.
-#[derive(Clone, Default)]
-struct HoldTracker(Arc<Mutex<Option<(Instant, Arc<str>)>>>);
-
-impl HoldTracker {
-    fn acquired(&self) {
-        let holder = REQUEST_PATH.try_with(Arc::clone).unwrap_or_else(|_| Arc::from("background"));
-        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some((Instant::now(), holder));
-    }
-    fn released(&self) -> Option<(Arc<str>, Duration)> {
-        let (since, holder) = self.0.lock().unwrap_or_else(|e| e.into_inner()).take()?;
-        Some((holder, since.elapsed()))
-    }
+fn database_url() -> anyhow::Result<String> {
+    std::env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!(
+        "DATABASE_URL is not set; it must name the game's PostgreSQL database (see docs/postgresql-migration.md)"))
 }
 
+/// Run pending migrations with the owner role (DATABASE_MIGRATION_URL, or
+/// DATABASE_URL when one role does both), then open the app pool.
+pub async fn init_database() -> anyhow::Result<DbPool> {
+    let url = database_url()?;
+    let migration_url = std::env::var("DATABASE_MIGRATION_URL").unwrap_or_else(|_| url.clone());
+    let owner = crate::postgres::connect_single(&migration_url).await?;
+    crate::postgres::migrate(&owner).await?;
+    owner.close().await;
+
+    let pool = crate::postgres::connect(&url).await?;
+    refuse_unmigrated_sqlite(&pool).await?;
+    tracing::info!("Database initialized successfully");
+    Ok(pool)
+}
+
+/// The SQLite file is the only copy of the player data until the copy tool
+/// has loaded it. Starting on an empty PostgreSQL database next to it would
+/// let players create accounts whose IDs collide with the import.
+async fn refuse_unmigrated_sqlite(pool: &DbPool) -> anyhow::Result<()> {
+    let sqlite = std::env::var("SPRK_SQLITE_PATH").unwrap_or_else(|_| "sprk.db".into());
+    if !Path::new(&sqlite).exists() {
+        return Ok(());
+    }
+    let accounts: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM accounts").fetch_one(pool).await?;
+    anyhow::ensure!(accounts > 0,
+        "{sqlite} exists but the PostgreSQL database has no accounts. Copy it with `sprk-server migrate-sqlite {sqlite}` \
+         before starting the game, or move the file away if it is not needed.");
+    Ok(())
+}
+
+/// Read-only pool for `AppState.reads`: same server for now, a replica later.
+pub(crate) async fn open_read_pool() -> anyhow::Result<DbPool> {
+    let url = std::env::var("DATABASE_READ_URL").or_else(|_| database_url())?;
+    Ok(crate::postgres::connect_read(&url).await?)
+}
+
+/// Connections per test pool.
 #[cfg(test)]
-pub(crate) async fn remove_test_database(path: &Path) {
-    // SQLite's worker threads/Windows scanners can retain a handle briefly after
-    // Pool::close completes. Retry only sharing violations; keep other failures.
+pub(crate) const TEST_POOL_SIZE: u32 = 8;
+
+/// Delete a test SQLite file. Windows can hold the handle briefly after the
+/// pool closes; retry only sharing violations.
+#[cfg(test)]
+pub(crate) async fn remove_sqlite_file(path: &Path) {
     for attempt in 0..20 {
         match std::fs::remove_file(path) {
             Ok(()) => return,
             Err(error) if cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)) && attempt < 19 => {
                 tokio::time::sleep(std::time::Duration::from_millis(25)).await;
             }
-            Err(error) => panic!("Could not remove test database {}: {error}", path.display()),
+            Err(error) => panic!("Could not remove {}: {error}", path.display()),
         }
     }
 }
 
-/// Open the production pool as a single-writer queue.
-///
-/// SQLite permits one writer at a time. With several pooled connections, SQLx's
-/// deferred `BEGIN` lets a transaction read first and fail its later write with
-/// `SQLITE_BUSY`/`SQLITE_BUSY_SNAPSHOT` (no busy-timeout retry applies), and
-/// concurrent writers poll the file lock until `busy_timeout` expires. One
-/// connection makes requests wait in the pool's async acquire queue instead, so
-/// in-process writers can never conflict. Code already runs on single-connection
-/// pools in tests, so nested pool use while holding a transaction is not relied on.
-pub(crate) async fn open_pool(path: &Path) -> anyhow::Result<DbPool> {
-    open_tracked_pool(path, HoldTracker::default()).await
+/// Fresh, migrated database for one test, cloned from a template that is
+/// migrated once per schema version. Needs SPRK_TEST_POSTGRES_URL: a server
+/// where the role may create databases (README: PostgreSQL).
+#[cfg(test)]
+pub(crate) async fn test_pool() -> DbPool {
+    test_support::database(false).await
 }
 
-async fn open_tracked_pool(path: &Path, tracker: HoldTracker) -> anyhow::Result<DbPool> {
-    let on_acquire = tracker.clone();
-    Ok(SqlitePoolOptions::new()
-        .max_connections(1)
-        .min_connections(1)
-        // Time spent queued behind other requests' transactions.
-        .acquire_timeout(Duration::from_secs(30))
-        .before_acquire(move |_, _| {
-            on_acquire.acquired();
-            Box::pin(async { Ok(true) })
-        })
-        .after_release(move |_, _| {
-            if let Some((holder, held)) = tracker.released() {
-                if held >= SLOW_HOLD {
-                    tracing::warn!(holder = %holder, held_ms = held.as_millis() as u64,
-                        "Database connection held long; queued requests waited behind it");
-                }
-            }
-            Box::pin(async { Ok(true) })
-        })
-        .connect_with(
-            SqliteConnectOptions::new()
-                .filename(path)
-                .create_if_missing(true)
-                .journal_mode(SqliteJournalMode::Wal)
-                // Safe with WAL: no corruption on crash; only an OS/power loss
-                // can drop the most recent commits. Avoids an fsync per commit.
-                .synchronous(SqliteSynchronous::Normal)
-                // Only external processes (admin tools, backups) can hold the
-                // file lock now; wait for them rather than failing requests.
-                .busy_timeout(Duration::from_secs(30))
-                .pragma("cache_size", WRITER_CACHE_KIB)
-                .pragma("mmap_size", MMAP_BYTES)
-                .pragma("temp_store", "MEMORY"),
-        )
-        .await?)
+/// Make writes fail, to test rollback paths: `timing` is e.g.
+/// "BEFORE INSERT ON mails", `when` an optional row condition.
+#[cfg(test)]
+pub(crate) async fn fail_trigger(db: &DbPool, name: &str, timing: &str, when: Option<&str>, message: &str) {
+    let when = when.map(|w| format!("WHEN ({w})")).unwrap_or_default();
+    sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
+        "CREATE OR REPLACE FUNCTION sprk_test_fail() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN RAISE EXCEPTION '%', TG_ARGV[0]; END $f$; \
+         CREATE TRIGGER {name} {timing} FOR EACH ROW {when} EXECUTE FUNCTION sprk_test_fail('{}')", message.replace('\'', "''"))))
+        .execute(db).await.unwrap();
 }
 
-/// Page cache for the writer (negative = KiB): the hot working set stays in
-/// memory across transactions instead of being re-read from the OS cache.
-const WRITER_CACHE_KIB: &str = "-65536";
-/// Reader connections are numerous; they rely mostly on the shared mapping.
-const READER_CACHE_KIB: &str = "-16384";
-/// Map the database file so reads copy no pages through SQLite's VFS. Pages
-/// are shared OS cache across all connections; the WAL is never mapped.
-const MMAP_BYTES: &str = "268435456";
-/// Matches the client's in-flight read cap (SprkNetworkPerformance.MaxParallelReads).
-pub(crate) const READER_CONNECTIONS: u32 = 4;
-
-/// Open read-only connections beside the single writer. In WAL mode readers
-/// never block the writer or each other, and each statement or transaction
-/// sees the latest committed state. SQLite rejects any write on these with
-/// SQLITE_READONLY, so a misrouted mutation fails loudly instead of racing.
-/// Must be opened after the writer pool (which sets WAL and creates -shm).
-pub(crate) async fn open_read_pool(path: &Path) -> anyhow::Result<DbPool> {
-    Ok(SqlitePoolOptions::new()
-        .max_connections(READER_CONNECTIONS)
-        .min_connections(1)
-        .acquire_timeout(Duration::from_secs(30))
-        .connect_with(
-            SqliteConnectOptions::new()
-                .filename(path)
-                .read_only(true)
-                .busy_timeout(Duration::from_secs(30))
-                .pragma("cache_size", READER_CACHE_KIB)
-                .pragma("mmap_size", MMAP_BYTES)
-                .pragma("temp_store", "MEMORY"),
-        )
-        .await?)
+/// Rows written so far in this test database, like SQLite's total_changes().
+/// The first call installs a counting trigger on every table.
+#[cfg(test)]
+pub(crate) async fn row_changes(db: &DbPool) -> i64 {
+    sqlx::raw_sql(r#"
+        CREATE SEQUENCE IF NOT EXISTS sprk_test_writes;
+        CREATE OR REPLACE FUNCTION sprk_test_count_write() RETURNS trigger LANGUAGE plpgsql
+            AS $f$ BEGIN PERFORM nextval('sprk_test_writes'); RETURN NULL; END $f$;
+        DO $d$ DECLARE t text; BEGIN
+            FOR t IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                     WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname NOT LIKE '!_sqlx%' ESCAPE '!'
+                       AND NOT EXISTS (SELECT 1 FROM pg_trigger g WHERE g.tgrelid = c.oid AND g.tgname = 'sprk_test_count_write')
+            LOOP
+                EXECUTE format('CREATE TRIGGER sprk_test_count_write AFTER INSERT OR UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION sprk_test_count_write()', t);
+            END LOOP;
+        END $d$;"#).execute(db).await.unwrap();
+    crate::db::query_scalar("SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM sprk_test_writes")
+        .fetch_one(db).await.unwrap()
 }
 
-/// Initialize the SQLite database with the required tables
-pub async fn init_database() -> anyhow::Result<DbPool> {
-    let pool = open_pool(Path::new("sprk.db")).await?;
-
-    // Run migrations
-    create_tables(&pool).await?;
-    
-    tracing::info!("Database initialized successfully");
-    
-    Ok(pool)
+/// The plan of `sql` with every `$n` bound to 1 and sequential scans
+/// disabled, so tiny test tables still show whether an index is usable.
+#[cfg(test)]
+pub(crate) async fn explain(db: &DbPool, sql: &str) -> String {
+    let params = sql.match_indices('$')
+        .filter_map(|(i, _)| sql[i + 1..].split(|c: char| !c.is_ascii_digit()).next()?.parse::<usize>().ok())
+        .max().unwrap_or(0);
+    let mut tx = db.begin().await.unwrap();
+    sqlx::query("SET LOCAL enable_seqscan = off").execute(&mut *tx).await.unwrap();
+    let mut query = crate::db::query_scalar::<String>(sqlx::AssertSqlSafe(format!("EXPLAIN {sql}")));
+    for _ in 0..params { query = query.bind(1_i64); }
+    let plan = query.fetch_all(&mut *tx).await.unwrap().join("
+");
+    tx.rollback().await.unwrap();
+    plan
 }
 
-pub(crate) async fn create_tables(pool: &DbPool) -> anyhow::Result<()> {
-    crate::api::account::auth::create_tables(pool).await?;
-    crate::api::account::coupon::migrate(pool).await?;
-    // Users/Accounts table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS accounts (
-            account_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            login_id TEXT UNIQUE NOT NULL,
-            login_method INTEGER NOT NULL DEFAULT 0,
-            device_id TEXT,
-            nick TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            last_login TEXT,
-            session_key TEXT,
-            aes_key TEXT,
-            country_code TEXT DEFAULT 'US',
-            is_banned INTEGER NOT NULL DEFAULT 0
-        )
-    "#).execute(pool).await?;
+/// Remove a trigger made by `fail_trigger`.
+#[cfg(test)]
+pub(crate) async fn drop_fail_trigger(db: &DbPool, name: &str, table: &str) {
+    sqlx::query(sqlx::AssertSqlSafe(format!("DROP TRIGGER {name} ON {table}"))).execute(db).await.unwrap();
+}
 
-    // User info table (currencies, levels, etc.)
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS user_info (
-            account_id INTEGER PRIMARY KEY,
-            gold INTEGER NOT NULL DEFAULT 0,
-            gem INTEGER NOT NULL DEFAULT 0,
-            pay_gem INTEGER NOT NULL DEFAULT 0,
-            pvp_coin INTEGER NOT NULL DEFAULT 0,
-            stamina INTEGER NOT NULL DEFAULT 200,
-            stamina_recharge_time INTEGER NOT NULL DEFAULT 0,
-            team_level INTEGER NOT NULL DEFAULT 1,
-            team_exp INTEGER NOT NULL DEFAULT 0,
-            sword INTEGER NOT NULL DEFAULT 5,
-            sword_recharge_time INTEGER NOT NULL DEFAULT 0,
-            sword2 INTEGER NOT NULL DEFAULT 0,
-            avatar_hero_index INTEGER NOT NULL DEFAULT 0,
-            royal_point INTEGER NOT NULL DEFAULT 0,
-            raid_point INTEGER NOT NULL DEFAULT 0,
-            mileage INTEGER NOT NULL DEFAULT 0,
-            friendship_point INTEGER NOT NULL DEFAULT 0,
-            guild_raid_ticket INTEGER NOT NULL DEFAULT 0,
-            world_boss_ticket INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
+/// Close `db` and open a new pool on the same database ("server restart").
+#[cfg(test)]
+pub(crate) async fn reconnect(db: DbPool) -> DbPool {
+    let options = db.connect_options().as_ref().clone();
+    db.close().await;
+    sqlx::postgres::PgPoolOptions::new().max_connections(8).connect_with(options).await.unwrap()
+}
 
-    // Heroes table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS heroes (
-            unique_hero_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            hero_id INTEGER NOT NULL,
-            hero_index INTEGER NOT NULL,
-            star INTEGER NOT NULL DEFAULT 2,
-            level INTEGER NOT NULL DEFAULT 1,
-            exp INTEGER NOT NULL DEFAULT 0,
-            transcend INTEGER NOT NULL DEFAULT 0,
-            awakened INTEGER NOT NULL DEFAULT 0,
-            skill_level_1 INTEGER NOT NULL DEFAULT 1,
-            skill_level_2 INTEGER NOT NULL DEFAULT 1,
-            skill_level_3 INTEGER NOT NULL DEFAULT 1,
-            skill_level_4 INTEGER NOT NULL DEFAULT 1,
-            unique_weapon_id INTEGER NOT NULL DEFAULT 0,
-            closeness INTEGER NOT NULL DEFAULT 0,
-            is_bookmarked INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_1 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_2 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_3 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_4 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_5 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_6 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_7 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_8 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_9 INTEGER NOT NULL DEFAULT 0,
-            equip_item_slot_index_10 INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, hero_id)
-        )
-    "#).execute(pool).await?;
-
-    // Equipment items table - matches EquipItemInfo structure
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS equip_items (
-            slot_index INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            item_index INTEGER NOT NULL,
-            star INTEGER NOT NULL DEFAULT 0,
-            level INTEGER NOT NULL DEFAULT 0,
-            exp INTEGER NOT NULL DEFAULT 0,
-            option_index_1 INTEGER NOT NULL DEFAULT 0,
-            option_step_1 INTEGER NOT NULL DEFAULT 0,
-            option_index_2 INTEGER NOT NULL DEFAULT 0,
-            option_step_2 INTEGER NOT NULL DEFAULT 0,
-            option_index_3 INTEGER NOT NULL DEFAULT 0,
-            option_step_3 INTEGER NOT NULL DEFAULT 0,
-            option_index_4 INTEGER NOT NULL DEFAULT 0,
-            option_step_4 INTEGER NOT NULL DEFAULT 0,
-            rune_slot_count INTEGER NOT NULL DEFAULT 0,
-            rune_item_index_1 INTEGER NOT NULL DEFAULT 0,
-            rune_item_index_2 INTEGER NOT NULL DEFAULT 0,
-            rune_item_index_3 INTEGER NOT NULL DEFAULT 0,
-            created_time TEXT NOT NULL DEFAULT (datetime('now')),
-            upgrade_star_fail_bonus INTEGER NOT NULL DEFAULT 0,
-            locked INTEGER NOT NULL DEFAULT 0,
-            inventory_type INTEGER NOT NULL DEFAULT 0,
-            identified INTEGER NOT NULL DEFAULT 1,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Regular items table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS items (
-            item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            item_index INTEGER NOT NULL,
-            count INTEGER NOT NULL DEFAULT 1,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, item_index)
-        )
-    "#).execute(pool).await?;
-
-    // Guild table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS guilds (
-            guild_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            notice TEXT,
-            level INTEGER NOT NULL DEFAULT 1,
-            exp INTEGER NOT NULL DEFAULT 0,
-            master_account_id INTEGER NOT NULL,
-            member_count INTEGER NOT NULL DEFAULT 1,
-            max_members INTEGER NOT NULL DEFAULT 30,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (master_account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Guild members table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS guild_members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL UNIQUE,
-            guild_id INTEGER NOT NULL,
-            role INTEGER NOT NULL DEFAULT 0,
-            contribution INTEGER NOT NULL DEFAULT 0,
-            joined_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id)
-        )
-    "#).execute(pool).await?;
-
-    // Mail table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS mails (
-            mail_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            sender TEXT NOT NULL DEFAULT 'System',
-            title TEXT NOT NULL,
-            content TEXT,
-            reward_gold INTEGER DEFAULT 0,
-            reward_gem INTEGER DEFAULT 0,
-            reward_items TEXT,
-            is_read INTEGER NOT NULL DEFAULT 0,
-            is_received INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            expires_at TEXT,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Friend table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS friends (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            friend_account_id INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            FOREIGN KEY (friend_account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, friend_account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Campaign progress table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS campaign_progress (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            chapter_id INTEGER NOT NULL,
-            dungeon_id INTEGER NOT NULL,
-            clear_count INTEGER NOT NULL DEFAULT 0,
-            best_star INTEGER NOT NULL DEFAULT 0,
-            is_unlocked INTEGER NOT NULL DEFAULT 0,
-            completed_time TEXT,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, chapter_id, dungeon_id)
-        )
-    "#).execute(pool).await?;
-
-    // Tutorial progress - stores completed tutorial indices
-    // tutorial_index matches the Index field in TutorialTable.json
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS tutorial_progress (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            tutorial_index INTEGER NOT NULL,
-            is_completed INTEGER NOT NULL DEFAULT 0,
-            completed_time TEXT,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, tutorial_index)
-        )
-    "#).execute(pool).await?;
-
-    // Attendance/Daily login
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS attendance (
-            account_id INTEGER PRIMARY KEY,
-            current_day INTEGER NOT NULL DEFAULT 0,
-            total_days INTEGER NOT NULL DEFAULT 0,
-            last_attendance TEXT NOT NULL DEFAULT '',
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Achievements table
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS achievements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            achievement_id INTEGER NOT NULL,
-            category INTEGER NOT NULL DEFAULT 0,
-            current_value INTEGER NOT NULL DEFAULT 0,
-            target_value INTEGER NOT NULL DEFAULT 0,
-            is_completed INTEGER NOT NULL DEFAULT 0,
-            is_rewarded INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, achievement_id)
-        )
-    "#).execute(pool).await?;
-
-    // Sessions table for managing active sessions
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_id TEXT PRIMARY KEY,
-            account_id INTEGER NOT NULL,
-            aes_key TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            last_activity TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Hero Inn - Hero Friendly state table for tracking hero recruitment progress
-    // This tracks the player's progress with heroes in the Hero's Inn
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS hero_friendly_state (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            account_id INTEGER NOT NULL,
-            hero_index INTEGER NOT NULL,
-            friendly_point INTEGER NOT NULL DEFAULT 0,
-            step INTEGER NOT NULL DEFAULT 0,
-            action_reset_count INTEGER NOT NULL DEFAULT 0,
-            last_greeting_time TEXT,
-            last_conversation_time TEXT,
-            last_gift_time TEXT,
-            is_lock INTEGER NOT NULL DEFAULT 0,
-            selected_time TEXT,
-            visit_period INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id),
-            UNIQUE(account_id, hero_index)
-        )
-    "#).execute(pool).await?;
-
-    // Hero Inn - Player's current hero inn session
-    // Tracks which heroes are currently available in the inn
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS hero_friendly_info (
-            account_id INTEGER PRIMARY KEY,
-            hero_index INTEGER NOT NULL DEFAULT 0,
-            selected_hero_index INTEGER NOT NULL DEFAULT 0,
-            friendly_point INTEGER NOT NULL DEFAULT 0,
-            last_greeting_time TEXT,
-            last_conversation_time TEXT,
-            last_gift_time TEXT,
-            selected_time TEXT,
-            selected_hero_indices TEXT,
-            last_roulette_time TEXT,
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Hero Inn Roulette - Track daily spin counts
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS hero_inn_roulette_spins (
-            account_id INTEGER NOT NULL,
-            spin_date TEXT NOT NULL,
-            spin_count INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (account_id, spin_date),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Inventory - Track consumable items
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS inventory (
-            account_id INTEGER NOT NULL,
-            item_code INTEGER NOT NULL,
-            count INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (account_id, item_code),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Shop Purchases - Track shop item purchase counts
-    sqlx::query(r#"
-        CREATE TABLE IF NOT EXISTS shop_purchases (
-            account_id INTEGER NOT NULL,
-            shop_index INTEGER NOT NULL,
-            item_index INTEGER NOT NULL,
-            purchase_count INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (account_id, shop_index, item_index),
-            FOREIGN KEY (account_id) REFERENCES accounts(account_id)
-        )
-    "#).execute(pool).await?;
-
-    // Existing accounts used the old forced-skip flow. Preserve that preference;
-    // login explicitly opts newly created accounts into the tutorial.
-    sqlx::query("CREATE TABLE IF NOT EXISTS tutorial_settings (account_id INTEGER PRIMARY KEY, is_skipped INTEGER NOT NULL DEFAULT 0, FOREIGN KEY (account_id) REFERENCES accounts(account_id))")
-        .execute(pool).await?;
-    sqlx::query("INSERT OR IGNORE INTO tutorial_settings (account_id, is_skipped) SELECT account_id, 1 FROM accounts")
-        .execute(pool).await?;
-
-    // Additive migrations also work with databases created by earlier builds.
-    for (table, column, definition) in [
-        ("accounts", "last_logout", "TEXT"),
-        ("tutorial_progress", "completion_response", "TEXT"),
-        ("user_info", "event_dungeon_point", "INTEGER NOT NULL DEFAULT 0"),
-    ] {
-        use sqlx::Row;
-        let columns = sqlx::query(sqlx::AssertSqlSafe(format!("PRAGMA table_info({table})"))).fetch_all(pool).await?;
-        if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE {table} ADD COLUMN {column} {definition}")))
-                .execute(pool).await?;
-        }
-    }
-
-    let columns = sqlx::query("PRAGMA table_info(equip_items)").fetch_all(pool).await?;
-    for slot in 1..=4 {
-        use sqlx::Row;
-        for prefix in ["option_renew_count", "is_renewed_option"] {
-            let column = format!("{prefix}_{slot}");
-            if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-                sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE equip_items ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0")))
-                    .execute(pool).await?;
-            }
-        }
-    }
-
-    for statement in [
-        "CREATE TABLE IF NOT EXISTS friend_points (account_id INTEGER NOT NULL, friend_id INTEGER NOT NULL, last_send_time TEXT, last_recv_time TEXT, PRIMARY KEY(account_id, friend_id))",
-        "CREATE TABLE IF NOT EXISTS friend_daily (account_id INTEGER PRIMARY KEY, day TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0, removed INTEGER NOT NULL DEFAULT 0)",
-        "CREATE TABLE IF NOT EXISTS global_mails (global_id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL DEFAULT 'System', title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', reward_gold INTEGER NOT NULL DEFAULT 0, reward_gem INTEGER NOT NULL DEFAULT 0, reward_items TEXT, reward_stamina INTEGER NOT NULL DEFAULT 0, reward_equipment TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), expires_at TEXT, opens_at TEXT)",
-        "CREATE TABLE IF NOT EXISTS global_mail_deliveries (account_id INTEGER NOT NULL, global_id INTEGER NOT NULL, mail_id INTEGER NOT NULL, PRIMARY KEY(account_id, global_id))",
-        "CREATE TABLE IF NOT EXISTS chat_messages (message_id INTEGER PRIMARY KEY AUTOINCREMENT, sender_id INTEGER NOT NULL, group_type TEXT NOT NULL, channel INTEGER NOT NULL DEFAULT 1, guild_id INTEGER NOT NULL DEFAULT 0, receiver_id INTEGER NOT NULL DEFAULT 0, protocol TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
-        "CREATE INDEX IF NOT EXISTS chat_channel_history ON chat_messages(group_type, channel, message_id)",
-        "CREATE INDEX IF NOT EXISTS chat_whisper_history ON chat_messages(receiver_id, sender_id, message_id)",
-        "CREATE INDEX IF NOT EXISTS mail_inbox ON mails(account_id, is_received, mail_id)",
-    ] { sqlx::query(statement).execute(pool).await?; }
-    for (column, definition) in [
-        ("read_time", "TEXT"), ("received_time", "TEXT"), ("opens_at", "TEXT"),
-        ("reward_stamina", "INTEGER NOT NULL DEFAULT 0"), ("reward_equipment", "TEXT"),
-        ("global_id", "INTEGER"), ("receipt", "TEXT"), ("reward_currencies", "TEXT"),
-    ] {
-        use sqlx::Row;
-        let columns = sqlx::query("PRAGMA table_info(mails)").fetch_all(pool).await?;
-        if !columns.iter().any(|row| row.get::<String, _>("name") == column) {
-            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE mails ADD COLUMN {column} {definition}"))).execute(pool).await?;
-        }
-    }
-
-    // Every mail writer participates automatically. Trigger inserts commit or
-    // roll back with the reward transaction; sockets only read committed rows.
-    for statement in [
-        "CREATE TABLE IF NOT EXISTS mail_notifications(mail_id INTEGER PRIMARY KEY,account_id INTEGER NOT NULL,is_global INTEGER NOT NULL)",
-        "CREATE TRIGGER IF NOT EXISTS mail_arrival_notification AFTER INSERT ON mails BEGIN INSERT INTO mail_notifications(mail_id,account_id,is_global) VALUES(NEW.mail_id,NEW.account_id,NEW.global_id IS NOT NULL); END",
-    ] { sqlx::query(statement).execute(pool).await?; }
-
-    for statement in [
-        "CREATE TABLE IF NOT EXISTS inventory_settings(account_id INTEGER PRIMARY KEY, inventory_extend INTEGER NOT NULL DEFAULT 0, chest_extend INTEGER NOT NULL DEFAULT 0)",
-        "CREATE TABLE IF NOT EXISTS inventory_ticket_redemptions(account_id INTEGER NOT NULL,token TEXT NOT NULL,request TEXT NOT NULL,response TEXT NOT NULL,PRIMARY KEY(account_id,token))",
-        "CREATE TABLE IF NOT EXISTS craft_slots(account_id INTEGER NOT NULL, slot_index INTEGER NOT NULL, craft_index INTEGER NOT NULL DEFAULT 0, item_index INTEGER NOT NULL DEFAULT 0, item_count INTEGER NOT NULL DEFAULT 0, complete_time INTEGER NOT NULL DEFAULT 0, paid_gold INTEGER NOT NULL DEFAULT 0, materials TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(account_id,slot_index))",
-        "CREATE TABLE IF NOT EXISTS item_boosters(account_id INTEGER NOT NULL, item_index INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL, PRIMARY KEY(account_id,item_index))",
-    ] { sqlx::query(statement).execute(pool).await?; }
-    for (column,definition) in [("locked","INTEGER NOT NULL DEFAULT 0"),("created_time","TEXT")] {
-        use sqlx::Row;
-        let columns=sqlx::query("PRAGMA table_info(items)").fetch_all(pool).await?;
-        if !columns.iter().any(|r|r.get::<String,_>("name")==column) {
-            sqlx::query(sqlx::AssertSqlSafe(format!("ALTER TABLE items ADD COLUMN {column} {definition}"))).execute(pool).await?;
-        }
-    }
-
-    for statement in [
-        "CREATE TABLE IF NOT EXISTS hero_presets(account_id INTEGER NOT NULL,storage_key TEXT NOT NULL,name TEXT NOT NULL DEFAULT '',data TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(account_id,storage_key))",
-        "CREATE TABLE IF NOT EXISTS hero_details(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,data TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(account_id,hero_index))",
-        "CREATE TABLE IF NOT EXISTS costumes(account_id INTEGER NOT NULL,costume_index INTEGER NOT NULL,created_time TEXT NOT NULL DEFAULT (datetime('now')),PRIMARY KEY(account_id,costume_index))",
-        "CREATE TABLE IF NOT EXISTS costume_presets(account_id INTEGER NOT NULL,hero_index INTEGER NOT NULL,slot_index INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account_id,hero_index,slot_index))",
-        "CREATE TABLE IF NOT EXISTS lobby_appearance(account_id INTEGER PRIMARY KEY,avatar_hero_index INTEGER NOT NULL,costume_index INTEGER NOT NULL,hair_costume_index INTEGER NOT NULL,weapon_costume_index INTEGER NOT NULL,hide_unique_weapon INTEGER NOT NULL,snapshot TEXT)",
-        "CREATE TABLE IF NOT EXISTS shop_stock(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,revision INTEGER NOT NULL DEFAULT 1,restock_time INTEGER NOT NULL DEFAULT 0,restock_count INTEGER NOT NULL DEFAULT 0,stock TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(account_id,shop_index))",
-        "CREATE TABLE IF NOT EXISTS shop_purchase_ledger(account_id INTEGER NOT NULL,shop_index INTEGER NOT NULL,item_index INTEGER NOT NULL,period TEXT NOT NULL,purchased INTEGER NOT NULL DEFAULT 0,purchased_time INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(account_id,shop_index,item_index,period))",
-    ] { sqlx::query(statement).execute(pool).await?; }
-
-    // Upgrade the earlier cosmetic-only lobby snapshot without losing it.
-    let columns = sqlx::query("PRAGMA table_info(lobby_appearance)").fetch_all(pool).await?;
-    if !columns.iter().any(|row| {
-        use sqlx::Row;
-        row.get::<String, _>("name") == "snapshot"
-    }) {
-        sqlx::query("ALTER TABLE lobby_appearance ADD COLUMN snapshot TEXT").execute(pool).await?;
-    }
-
-    crate::api::progression::schema::migrate(pool).await?;
-    crate::api::extensions::schema::migrate(pool).await?;
-    crate::api::battle::migrate(pool).await?;
-    crate::api::services::migrate(pool).await?;
-    crate::api::community::migrate(pool).await?;
-    crate::api::system::storage::migrate(pool).await?;
-    crate::api::progression::play_record::migrate(pool).await?;
-    for query in [
-        "CREATE INDEX IF NOT EXISTS heroes_account_index ON heroes(account_id,hero_index)",
-        "CREATE INDEX IF NOT EXISTS equip_account_inventory ON equip_items(account_id,inventory_type,slot_index)",
-        "CREATE INDEX IF NOT EXISTS friends_incoming ON friends(friend_account_id,status)",
-    ] { sqlx::query(query).execute(pool).await?; }
-    crate::api::system::revisions::migrate(pool).await?;
-    crate::currency::migrate(pool).await?;
-    Ok(())
+/// Read-only pool on the same test database as `db`.
+#[cfg(test)]
+pub(crate) async fn test_read_pool(db: &DbPool) -> DbPool {
+    let options = db.connect_options().as_ref().clone().options([("default_transaction_read_only", "on")]);
+    sqlx::postgres::PgPoolOptions::new().max_connections(2).connect_with(options).await.unwrap()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) mod test_support {
+    use sqlx::{postgres::{PgConnectOptions, PgPoolOptions}, AssertSqlSafe, Connection, PgConnection};
+    use std::{str::FromStr, sync::atomic::{AtomicU64, Ordering}};
+    use tokio::sync::OnceCell;
 
-    #[tokio::test]
-    async fn hold_tracker_attributes_connection_time_to_the_request_path() {
-        let path = std::env::temp_dir().join(format!("sprk-db-hold-{}.sqlite", uuid::Uuid::new_v4()));
-        let tracker = HoldTracker::default();
-        let pool = open_tracked_pool(&path, tracker.clone()).await.unwrap();
-        // Simulate a slow handler holding the only connection.
-        REQUEST_PATH.scope(Arc::from("/test/slow"), async {
-            let conn = pool.acquire().await.unwrap();
-            let (_, holder) = tracker.0.lock().unwrap().clone().expect("checkout recorded");
-            assert_eq!(&*holder, "/test/slow");
-            tokio::time::sleep(Duration::from_millis(30)).await;
-            drop(conn);
-        }).await;
-        // Release runs on a pool task; it consumes the record. Re-arm a probe:
-        // a fresh checkout from a background task must be labelled as such.
-        let conn = pool.acquire().await.unwrap();
-        let (_, holder) = tracker.0.lock().unwrap().clone().expect("checkout recorded");
-        assert_eq!(&*holder, "background");
-        drop(conn);
-        pool.close().await;
-        // Measured hold duration, on a tracker independent of the pool's
-        // asynchronous release task.
-        let direct = HoldTracker::default();
-        REQUEST_PATH.scope(Arc::from("/test/slow"), async { direct.acquired() }).await;
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        let (holder, held) = direct.released().unwrap();
-        assert_eq!((&*holder, held >= Duration::from_millis(30)), ("/test/slow", true));
-        assert!(direct.released().is_none(), "a release without checkout must not report");
-        remove_test_database(&path).await;
+    static TEMPLATE: OnceCell<String> = OnceCell::const_new();
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+
+    pub(crate) fn admin_options() -> PgConnectOptions {
+        let url = std::env::var("SPRK_TEST_POSTGRES_URL").expect(
+            "SPRK_TEST_POSTGRES_URL is not set. Tests need a PostgreSQL server where the role can create \
+             databases, e.g. postgres://postgres:dev@127.0.0.1:5432/postgres (README: PostgreSQL)");
+        PgConnectOptions::from_str(&url).expect("valid SPRK_TEST_POSTGRES_URL")
     }
 
-    // Reproduces the production "database is locked" pattern: deferred
-    // transactions that read, yield to other requests, then write.
-    #[tokio::test]
-    async fn production_pool_queues_concurrent_read_then_write_transactions() {
-        let path = std::env::temp_dir().join(format!("sprk-db-queue-{}.sqlite", uuid::Uuid::new_v4()));
-        let pool = open_pool(&path).await.unwrap();
-        let mode: String = sqlx::query_scalar("PRAGMA journal_mode").fetch_one(&pool).await.unwrap();
-        let sync: i64 = sqlx::query_scalar("PRAGMA synchronous").fetch_one(&pool).await.unwrap();
-        assert_eq!((mode.as_str(), sync), ("wal", 1));
-        sqlx::query("CREATE TABLE counter(id INTEGER PRIMARY KEY, value INTEGER NOT NULL)").execute(&pool).await.unwrap();
-        sqlx::query("INSERT INTO counter VALUES (1, 0)").execute(&pool).await.unwrap();
-        let tasks: Vec<_> = (0..40).map(|_| {
-            let pool = pool.clone();
-            tokio::spawn(async move {
-                let mut tx = pool.begin().await?;
-                let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&mut *tx).await?;
-                tokio::time::sleep(Duration::from_millis(2)).await;
-                sqlx::query("UPDATE counter SET value=? WHERE id=1").bind(value + 1).execute(&mut *tx).await?;
-                tx.commit().await
-            })
-        }).collect();
-        for task in tasks { task.await.unwrap().expect("transaction must queue, not fail with SQLITE_BUSY"); }
-        let value: i64 = sqlx::query_scalar("SELECT value FROM counter WHERE id=1").fetch_one(&pool).await.unwrap();
-        assert_eq!(value, 40, "queued transactions must not lose updates");
-        pool.close().await;
-        remove_test_database(&path).await;
+    /// Template name derived from the migrations, so a schema change builds
+    /// a new template and an unchanged one is reused across test runs.
+    fn template_name() -> String {
+        let mut hash: u64 = 0xcbf29ce484222325;
+        for m in crate::postgres::MIGRATOR.iter() {
+            for b in m.version.to_le_bytes().iter().chain(m.checksum.iter()) {
+                hash = (hash ^ u64::from(*b)).wrapping_mul(0x100000001b3);
+            }
+        }
+        format!("sprk_tpl_{hash:016x}")
+    }
+
+    async fn template() -> &'static str {
+        TEMPLATE.get_or_init(|| async {
+            let name = template_name();
+            let mut admin = PgConnection::connect_with(&admin_options()).await.expect("connect to SPRK_TEST_POSTGRES_URL");
+            // Serialize template creation across concurrent test processes.
+            sqlx::query("SELECT pg_advisory_lock(hashtext('sprk test template'))").execute(&mut admin).await.unwrap();
+            let exists: bool = crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)")
+                .bind(&name).fetch_one(&mut admin).await.unwrap();
+            if !exists {
+                let building = format!("{name}_build");
+                sqlx::query(AssertSqlSafe(format!("DROP DATABASE IF EXISTS {building}"))).execute(&mut admin).await.unwrap();
+                sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {building}"))).execute(&mut admin).await.unwrap();
+                let mut build = PgConnection::connect_with(&admin_options().database(&building)).await.unwrap();
+                crate::postgres::MIGRATOR.run_direct(None, &mut build, false).await.expect("migrations apply to an empty database");
+                build.close().await.unwrap();
+                // Rename last, so other processes never clone a half-built template.
+                sqlx::query(AssertSqlSafe(format!("ALTER DATABASE {building} RENAME TO {name}"))).execute(&mut admin).await.unwrap();
+            }
+            // Leftovers of earlier runs (a panicking test cannot drop its
+            // database). Databases still in use by another run are skipped.
+            let pid = std::process::id();
+            let stale: Vec<String> = crate::db::query_scalar(
+                "SELECT datname FROM pg_database WHERE (datname LIKE 'sprk\\_t\\_%' AND datname NOT LIKE $1) \
+                 OR (datname LIKE 'sprk\\_tpl\\_%' AND datname<>$2)")
+                .bind(format!("sprk\\_t\\_{pid}\\_%")).bind(&name).fetch_all(&mut admin).await.unwrap();
+            for db in stale {
+                let _ = sqlx::query(AssertSqlSafe(format!("DROP DATABASE IF EXISTS {db}"))).execute(&mut admin).await;
+            }
+            sqlx::query("SELECT pg_advisory_unlock(hashtext('sprk test template'))").execute(&mut admin).await.unwrap();
+            admin.close().await.unwrap();
+            name
+        }).await
+    }
+
+    pub(crate) async fn database(read_only: bool) -> crate::database::DbPool {
+        let template = template().await;
+        let name = format!("sprk_t_{}_{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed));
+        let mut admin = PgConnection::connect_with(&admin_options()).await.unwrap();
+        sqlx::query(AssertSqlSafe(format!("CREATE DATABASE {name} TEMPLATE {template}"))).execute(&mut admin).await.unwrap();
+        admin.close().await.unwrap();
+        let mut settings = vec![("timezone", "UTC")];
+        if read_only { settings.push(("default_transaction_read_only", "on")); }
+        PgPoolOptions::new()
+            .max_connections(crate::database::TEST_POOL_SIZE)
+            .connect_with(admin_options().database(&name).options(settings))
+            .await
+            .unwrap()
     }
 }

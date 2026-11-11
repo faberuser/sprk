@@ -2,7 +2,7 @@ use super::*;
 use crate::models::item::ItemGrant;
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -49,7 +49,7 @@ pub(super) async fn execute(
                 return Err(rule("AlreadyEquippedRune"));
             }
             if old_equip > 0 && !preserve {
-                let locked: Option<i32> = sqlx::query_scalar("SELECT locked FROM equip_items WHERE account_id=? AND slot_index=?")
+                let locked: Option<i32> = crate::db::query_scalar("SELECT locked FROM equip_items WHERE account_id=$1 AND slot_index=$2")
                     .bind(account).bind(old_equip).fetch_optional(&mut *db).await?;
                 // The native UI disables deletion for locked Punishment runes.
                 // Enforce that rule on the server as well.
@@ -109,7 +109,7 @@ pub(super) async fn execute(
                     }
                     let data = row(state, "PunishmentRune", &[("PunishmentRuneIndex", new_id)])?;
                     put(db, account, "rune_equipment", new_equip, &json!(eq)).await?;
-                    sqlx::query("UPDATE equip_items SET inventory_type=3 WHERE account_id=? AND slot_index=?").bind(account).bind(new_equip).execute(&mut *db).await?;
+                    crate::db::query("UPDATE equip_items SET inventory_type=3 WHERE account_id=$1 AND slot_index=$2").bind(account).bind(new_equip).execute(&mut *db).await?;
                     out["RemoveEquipItemSlotIndex"] = json!(new_equip);
                     data
                 } else {
@@ -148,9 +148,9 @@ pub(super) async fn execute(
 }
 // A rune remains owned when it moves onto a page. Preserve the stack's lock
 // and battle reservations while allowing this non-destructive transfer.
-async fn move_inventory_rune_to_page(db: &mut SqliteConnection, account: i64, index: i32) -> Result<Value> {
+async fn move_inventory_rune_to_page(db: &mut PgConnection, account: i64, index: i32) -> Result<Value> {
     let reserved = crate::api::battle::entry_costs::held(db, account, "Item", index as i64).await?;
-    let row = sqlx::query("UPDATE items SET count=count-1 WHERE account_id=? AND item_index=? AND count>=? RETURNING count,locked")
+    let row = crate::db::query("UPDATE items SET count=count-1 WHERE account_id=$1 AND item_index=$2 AND count>=$3 RETURNING count,locked")
         .bind(account).bind(index).bind(1 + reserved).fetch_optional(&mut *db).await?
         .ok_or_else(|| rule("RuneItemNotOwned"))?;
     Ok(json!({"ItemIndex":index,"AddCount":-1,"NewCount":row.get::<i32,_>("count"),"Locked":row.get::<i32,_>("locked"),"AddBoosterCount":0,"AddNPCBoosterCount":0,"AddBonusAssignedItemPercent":0,"IsFirstClearReward":false}))

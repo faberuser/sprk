@@ -14,29 +14,12 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::PgConnection;
+use crate::db::RowExt;
 mod internal;
 pub(crate) mod records;
 #[cfg(test)]
 mod tests;
-pub(crate) async fn migrate(db: &SqlitePool) -> Result<()> {
-    for q in [
-        "CREATE TABLE IF NOT EXISTS service_replays(id INTEGER PRIMARY KEY AUTOINCREMENT,owner INTEGER NOT NULL,kind INTEGER NOT NULL,info TEXT NOT NULL,data TEXT NOT NULL,created INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS service_replay_accounts(replay INTEGER NOT NULL,account INTEGER NOT NULL,PRIMARY KEY(replay,account),FOREIGN KEY(replay) REFERENCES service_replays(id) ON DELETE CASCADE)",
-        "CREATE INDEX IF NOT EXISTS service_replay_account ON service_replay_accounts(account,replay)",
-        "CREATE TABLE IF NOT EXISTS service_decks(account INTEGER NOT NULL,chapter INTEGER NOT NULL,dungeon INTEGER NOT NULL,difficulty INTEGER NOT NULL,kind INTEGER NOT NULL,metric INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(account,chapter,dungeon,difficulty,kind))",
-        "CREATE TABLE IF NOT EXISTS service_results(run TEXT PRIMARY KEY,account INTEGER NOT NULL,request TEXT NOT NULL,response TEXT NOT NULL,created INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS service_servers(name TEXT PRIMARY KEY,data TEXT NOT NULL,seen INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS service_reports(id INTEGER PRIMARY KEY AUTOINCREMENT,kind TEXT NOT NULL,data TEXT NOT NULL,created INTEGER NOT NULL)"
-    ] {sqlx::query(q).execute(db).await?;}
-    // Older servers stored every account's deck although only the ranked
-    // prefix is served. Prune before indexing so the index build stays small.
-    sqlx::query(sqlx::AssertSqlSafe(format!("DELETE FROM service_decks WHERE rowid IN (SELECT rowid FROM (SELECT rowid,ROW_NUMBER() OVER (PARTITION BY chapter,dungeon,difficulty,kind ORDER BY metric,account) AS rank FROM service_decks) WHERE rank>{})", records::RECOMMENDED_DECKS)))
-        .execute(db).await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS service_deck_rank ON service_decks(chapter,dungeon,difficulty,kind,metric,account)")
-        .execute(db).await?;
-    Ok(())
-}
 pub fn routes(t: &crate::tables::BattleTable) -> axum::Router<AppState> {
     let mut r = axum::Router::new();
     for path in t.contracts.keys() {
@@ -99,11 +82,9 @@ pub(crate) async fn execute_request(
             }
         }
     }
-    let mut tx = s.db.begin().await?;
-    // Acquire the write lock before any read-modify-write sequence, including service requests.
-    sqlx::query("UPDATE service_servers SET seen=seen WHERE name='' ")
-        .execute(&mut *tx)
-        .await?;
+    let mut tx = crate::database::begin(&s.db).await?;
+    // Serialize the account's read-modify-write sequences, including service requests.
+    crate::postgres::lock_account(&mut *tx, a).await?;
     let result = if service {
         internal::execute(&mut tx, s, a, &r, headers, path).await
     } else if path.starts_with("user/") {

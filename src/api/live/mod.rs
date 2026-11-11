@@ -17,7 +17,7 @@ use axum::{
     Json,
 };
 use serde_json::{json, Value};
-use sqlx::SqliteConnection;
+use sqlx::PgConnection;
 mod events;
 mod offers;
 mod pets;
@@ -79,7 +79,7 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             }
         }
     }
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     item::init(&mut tx, s, a).await?;
     let action = path.rsplit('/').next().unwrap_or("");
     let result = match path.split('/').next().unwrap_or("") {
@@ -217,7 +217,7 @@ fn currency_name(s: &AppState, id: i64) -> Result<&str> {
         .ok_or_else(|| rule("InvalidCost"))
 }
 async fn charge(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     kind: i64,
@@ -232,7 +232,7 @@ async fn charge(
     hero::currency(db, a, currency_name(s, kind)?, -cost).await
 }
 async fn consume_code(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     code: &str,
@@ -251,7 +251,7 @@ async fn consume_code(
     .await
 }
 async fn group(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     code: &str,
@@ -276,7 +276,7 @@ async fn group(
     .await
 }
 async fn reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     index: i64,
@@ -288,7 +288,7 @@ async fn reward(
     Ok(())
 }
 pub(crate) async fn snapshot(s: &AppState, a: i64) -> Result<Value> {
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     item::init(&mut tx, s, a).await?;
     let mut out = summons::snapshot(&mut tx, s, a).await?;
     merge(&mut out, pets::snapshot(&mut tx, s, a).await?);
@@ -313,7 +313,7 @@ pub(crate) async fn shop_snapshot(s: &AppState, a: i64) -> Result<Value> {
 }
 
 pub(crate) async fn validate_purchase_dungeon(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     c: i64,
@@ -328,7 +328,7 @@ pub(crate) async fn validate_purchase_dungeon(
         .tables
         .get_item_index(data["BoosterItemCode"].as_str().unwrap_or(""))
         .ok_or_else(|| rule("ItemDataNotFound"))?;
-    let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM item_boosters WHERE account_id=? AND item_index=? AND end_time>datetime('now'))").bind(a).bind(id).fetch_one(db).await?;
+    let active:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM item_boosters WHERE account_id=$1 AND item_index=$2 AND end_time>sprk_datetime('now'))").bind(a).bind(id).fetch_one(db).await?;
     if !active {
         return Err(rule("NotOpenedDungeon"));
     }

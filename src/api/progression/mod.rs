@@ -12,7 +12,7 @@ use crate::{
 };
 use axum::{body::Bytes, extract::State, Json};
 use serde_json::{json, Value};
-use sqlx::SqliteConnection;
+use sqlx::PgConnection;
 use std::collections::BTreeSet;
 mod attendance;
 pub mod notifications;
@@ -51,21 +51,21 @@ endpoints!(
     attendance_info
 );
 pub(super) async fn claim(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     family: &str,
     id: i64,
     step: i64,
     p: &str,
 ) -> Result<()> {
-    let changed=sqlx::query("INSERT OR IGNORE INTO progression_claims(account_id,family,idx,step,period) VALUES(?,?,?,?,?)").bind(account).bind(family).bind(id).bind(step).bind(p).execute(db).await?.rows_affected();
+    let changed=crate::db::query("INSERT INTO progression_claims(account_id,family,idx,step,period) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING").bind(account).bind(family).bind(id).bind(step).bind(p).execute(db).await?.rows_affected();
     if changed != 1 {
         return Err(rule("AlreadyReceived"));
     }
     Ok(())
 }
 pub(crate) async fn record(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     kind: &str,
     arg: i64,
@@ -75,7 +75,7 @@ pub(crate) async fn record(
     if value <= 0 {
         return Ok(());
     }
-    sqlx::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES(?,date('now'),?,?,?,?) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=value+excluded.value").bind(account).bind(kind).bind(arg).bind(arg2).bind(value).execute(db).await?;
+    crate::db::query("INSERT INTO progression_metrics(account_id,day,kind,arg,arg2,value) VALUES($1,sprk_date('now'),$2,$3,$4,$5) ON CONFLICT(account_id,day,kind,arg,arg2) DO UPDATE SET value=LEAST(progression_metrics.value::numeric+excluded.value,9223372036854775807)::bigint").bind(account).bind(kind).bind(arg).bind(arg2).bind(value).execute(db).await?;
     Ok(())
 }
 pub(crate) mod cache;
@@ -84,7 +84,7 @@ pub(crate) async fn login(state: &AppState, account: i64) -> Result<Value> {
     // Commit the initializers, then build the read-only snapshot on a reader
     // (it sees that commit) so the writer is held for milliseconds, not the
     // ~50 ms (~250 ms on the production host) the snapshot takes.
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, state, account).await?;
     touch_day(&mut tx, account).await?;
     tx.commit().await?;
@@ -94,19 +94,19 @@ pub(crate) async fn login(state: &AppState, account: i64) -> Result<Value> {
     Ok(out)
 }
 /// Read-only: whether `touch_day` would write nothing (today is already counted).
-async fn day_touched(db: &mut SqliteConnection, account: i64) -> Result<bool> {
-    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM progression_login WHERE account_id=? AND last_day=date('now'))")
+async fn day_touched(db: &mut PgConnection, account: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM progression_login WHERE account_id=$1 AND last_day=sprk_date('now'))")
         .bind(account).fetch_one(db).await?)
 }
-async fn touch_day(db: &mut SqliteConnection, account: i64) -> Result<()> {
-    let changed=sqlx::query("INSERT INTO progression_login(account_id,days,last_day) VALUES(?,1,date('now')) ON CONFLICT(account_id) DO UPDATE SET days=days+1,last_day=excluded.last_day WHERE last_day!=excluded.last_day").bind(account).execute(&mut *db).await?.rows_affected();
+async fn touch_day(db: &mut PgConnection, account: i64) -> Result<()> {
+    let changed=crate::db::query("INSERT INTO progression_login(account_id,days,last_day) VALUES($1,1,sprk_date('now')) ON CONFLICT(account_id) DO UPDATE SET days=progression_login.days+1,last_day=excluded.last_day WHERE progression_login.last_day!=excluded.last_day").bind(account).execute(&mut *db).await?.rows_affected();
     if changed > 0 {
         record(db, account, "LoginDaily", 0, 0, 1).await?;
     }
     Ok(())
 }
 pub(crate) async fn snapshot(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Value> {
@@ -124,7 +124,7 @@ pub(crate) async fn snapshot(
     out["OpendMissionCategories"] = opened_mission_categories(state, &view);
     out["PlayRecordInfos"] = json!(play_records);
     let main: Option<(i64, i64)> =
-        sqlx::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=?")
+        crate::db::query_as("SELECT step,progress FROM progression_main_quest WHERE account_id=$1")
             .bind(account)
             .fetch_optional(&mut *db)
             .await?;
@@ -133,8 +133,8 @@ pub(crate) async fn snapshot(
     }
     let (attendance_datas, attendance_infos) = attendance::snapshot(db, state, account, &view).await?;
     out["AttendanceDatas"] = json!(attendance_datas);
-    let products: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT product_index,created_time FROM progression_entitlements WHERE account_id=?",
+    let products: Vec<(i64, String)> = crate::db::query_as(
+        "SELECT product_index,created_time FROM progression_entitlements WHERE account_id=$1",
     )
     .bind(account)
     .fetch_all(&mut *db)
@@ -142,7 +142,7 @@ pub(crate) async fn snapshot(
     out["PlayerProductPurchaseInfos"] = json!(products.iter().map(|(id,time)| json!({"ProductIndex":id,"PurchasedCount":1,"PurchasedTime":time,"StartTime":time})).collect::<Vec<_>>());
     out["AttendanceInfos"] = json!(attendance_infos);
     let events: Vec<String> =
-        sqlx::query_scalar("SELECT data FROM progression_world_events WHERE account_id=?")
+        crate::db::query_scalar("SELECT data FROM progression_world_events WHERE account_id=$1")
             .bind(account)
             .fetch_all(db)
             .await?;
@@ -153,7 +153,7 @@ pub(crate) async fn snapshot(
     Ok(out)
 }
 pub(crate) async fn mission_categories(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
 ) -> Result<Value> {
@@ -172,7 +172,7 @@ fn opened_mission_categories(state: &AppState, view: &View) -> Value {
 pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result<Json<Value>> {
     let req = Request::parse_with_arrays(&body, &["AchievementIndices", "Steps", "SubQuestIndices"])?;
     let account = req.account(&state)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     item::init(&mut tx, &state, account).await?;
     touch_day(&mut tx, account).await?;
     match execute(&mut tx, &state, account, &req, action).await {
@@ -205,7 +205,7 @@ pub(super) async fn handle(state: AppState, body: Bytes, action: &str) -> Result
     }
 }
 pub(super) async fn db_reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     r: &Value,
@@ -251,14 +251,14 @@ pub(super) async fn db_reward(
     Ok(())
 }
 async fn achievement_reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     row: &Value,
     rewards: &mut Rewards,
     booster: &mut Option<Value>,
 ) -> Result<Vec<Value>> {
-    let level: i64 = sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?")
+    let level: i64 = crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1")
         .bind(account)
         .fetch_one(&mut *db)
         .await?;
@@ -363,7 +363,7 @@ fn arrays(req: &Request, key: &str) -> Result<Vec<i64>> {
     Ok(v)
 }
 async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -509,8 +509,8 @@ async fn execute(
             out["RewardResults"] = json!(results);
         }
         "progress_client_main_quest" => {
-            let current: Option<(i64, i64)> = sqlx::query_as(
-                "SELECT step,progress FROM progression_main_quest WHERE account_id=?",
+            let current: Option<(i64, i64)> = crate::db::query_as(
+                "SELECT step,progress FROM progression_main_quest WHERE account_id=$1",
             )
             .bind(account)
             .fetch_optional(&mut *db)
@@ -525,7 +525,7 @@ async fn execute(
                 return Err(rule("NotClientOnly"));
             }
             let progress = (old + 1).min(n(r, "ReqProgress").max(1));
-            sqlx::query("INSERT INTO progression_main_quest(account_id,step,progress) VALUES(?,?,?) ON CONFLICT(account_id) DO UPDATE SET step=excluded.step,progress=excluded.progress").bind(account).bind(step).bind(progress).execute(&mut *db).await?;
+            crate::db::query("INSERT INTO progression_main_quest(account_id,step,progress) VALUES($1,$2,$3) ON CONFLICT(account_id) DO UPDATE SET step=excluded.step,progress=excluded.progress").bind(account).bind(step).bind(progress).execute(&mut *db).await?;
             out["Progress"] = json!(progress);
         }
         "get_clear_mission_reward" | "get_newbie_mission_reward" => {
@@ -669,7 +669,7 @@ async fn execute(
 }
 
 async fn world_reward(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -703,7 +703,7 @@ async fn world_reward(
         {
             return Err(rule("DungeonNotFound"));
         }
-        let data:Option<String>=sqlx::query_scalar("SELECT data FROM progression_world_events WHERE account_id=? AND chapter=? AND dungeon=? AND event=?").bind(account).bind(chapter).bind(dungeon).bind(event).fetch_optional(&mut *db).await?;
+        let data:Option<String>=crate::db::query_scalar("SELECT data FROM progression_world_events WHERE account_id=$1 AND chapter=$2 AND dungeon=$3 AND event=$4").bind(account).bind(chapter).bind(dungeon).bind(event).fetch_optional(&mut *db).await?;
         let data: Value = serde_json::from_str(&data.ok_or_else(|| rule("WorldMapEventNotFound"))?)
             .map_err(|_| rule("WorldMapEventNotFound"))?;
         if data["Completed"] != true {
@@ -754,7 +754,7 @@ async fn world_reward(
         for r in data["Rewards"].as_array().into_iter().flatten() {
             db_reward(db, state, account, r, &mut rewards).await?;
         }
-        sqlx::query("DELETE FROM progression_world_events WHERE account_id=? AND chapter=? AND dungeon=? AND event=?").bind(account).bind(chapter).bind(dungeon).bind(event).execute(&mut *db).await?;
+        crate::db::query("DELETE FROM progression_world_events WHERE account_id=$1 AND chapter=$2 AND dungeon=$3 AND event=$4").bind(account).bind(chapter).bind(dungeon).bind(event).execute(&mut *db).await?;
         removed.push(data);
     }
     let r = item::reward_response(db, state, account, rewards).await?;

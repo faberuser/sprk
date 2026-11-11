@@ -1,15 +1,9 @@
 use crate::models::item::ItemGrant;
 use super::*;
 use crate::api::account::user;
-use crate::database;
 
 async fn setup() -> (AppState, user::LoginResponse) {
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(1)
-        .connect("sqlite::memory:")
-        .await
-        .unwrap();
-    database::create_tables(&db).await.unwrap();
+    let db = crate::database::test_pool().await;
     let state = AppState::new(db, crate::tables::test_tables());
     let u = user::test_login(
         State(state.clone()),
@@ -18,7 +12,7 @@ async fn setup() -> (AppState, user::LoginResponse) {
     .await
     .unwrap()
     .0;
-    sqlx::query("UPDATE user_info SET gold=100000000,gem=100000")
+    crate::db::query("UPDATE user_info SET gold=100000000,gem=100000")
         .execute(&state.db)
         .await
         .unwrap();
@@ -59,11 +53,11 @@ async fn option_enhancement_accepts_native_per_step_cost_and_limits_batches() {
         let eq = give(&s, a, 810009, 1).await.equipment.remove(0);
         give(&s, a, 43055, 1152 * dust_steps).await;
         // Replace any initial inventory dust when imposing the material limit.
-        sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+        crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=43055")
             .bind(1152 * dust_steps + 7).bind(a).execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2")
             .bind(768000 * gold_steps + 11).bind(a).execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE equip_items SET option_index_1=101,option_index_2=101,option_index_3=101,option_index_4=101,option_index_5=0,option_step_1=0,option_step_2=0,option_step_3=0,option_step_4=0 WHERE slot_index=?")
+        crate::db::query("UPDATE equip_items SET option_index_1=101,option_index_2=101,option_index_3=101,option_index_4=101,option_index_5=0,option_step_1=0,option_step_2=0,option_step_3=0,option_step_4=0 WHERE slot_index=$1")
             .bind(eq.slot_index).execute(&s.db).await.unwrap();
         let out = call(&s, &u, action, &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
         assert_eq!(out["Result"], "Success", "{out}");
@@ -73,10 +67,10 @@ async fn option_enhancement_accepts_native_per_step_cost_and_limits_batches() {
         assert_eq!(gold(&s).await, 768000 * (gold_steps as i64 - expected_steps) + 11);
         assert_eq!(out["CurrencyResult"]["AddValue"], -768000 * expected_steps);
         assert_eq!(out["ItemResult"]["AddCount"], -1152 * expected_steps);
-        let dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+        let dust: i64 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=43055")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(dust, 1152 * (dust_steps as i64 - expected_steps) + 7);
-        let persisted: i64 = sqlx::query_scalar("SELECT option_step_1+option_step_2+option_step_3+option_step_4 FROM equip_items WHERE slot_index=?")
+        let persisted: i64 = crate::db::query_scalar("SELECT option_step_1+option_step_2+option_step_3+option_step_4 FROM equip_items WHERE slot_index=$1")
             .bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
         assert_eq!(persisted, expected_steps);
     }
@@ -88,10 +82,10 @@ async fn option_enhancement_errors_are_native_and_preserve_inventory() {
     let a = u.user_info.account_id;
     let eq = give(&s, a, 810009, 1).await.equipment.remove(0);
     give(&s, a, 43055, 10000).await;
-    sqlx::query("UPDATE equip_items SET option_index_1=101,option_step_1=9,option_index_2=0,option_index_3=0,option_index_4=0,option_index_5=101,option_step_5=9 WHERE slot_index=?")
+    crate::db::query("UPDATE equip_items SET option_index_1=101,option_step_1=9,option_index_2=0,option_index_3=0,option_index_4=0,option_index_5=101,option_step_5=9 WHERE slot_index=$1")
         .bind(eq.slot_index).execute(&s.db).await.unwrap();
     let before_gold = gold(&s).await;
-    let before_dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+    let before_dust: i64 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=43055")
         .bind(a).fetch_one(&s.db).await.unwrap();
     for (slot, material, count, expected) in [
         (eq.slot_index, 43055, 2304, "MaterialItemCountMismatch"),
@@ -104,24 +98,24 @@ async fn option_enhancement_errors_are_native_and_preserve_inventory() {
     assert_eq!(gold(&s).await, before_gold);
     // Failed resource checks must leave both option slots and balances intact.
     for (gold, dust, expected) in [(0, before_dust, "NotEnoughGold"), (before_gold, 0, "NotEnoughMaterialItem")] {
-        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?")
+        crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2")
             .bind(gold).bind(a).execute(&s.db).await.unwrap();
-        sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+        crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=43055")
             .bind(dust).bind(a).execute(&s.db).await.unwrap();
         let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
         assert_eq!(out["Result"], expected, "{out}");
-        let unchanged: (i64, i64) = sqlx::query_as("SELECT option_step_1,option_step_5 FROM equip_items WHERE slot_index=?")
+        let unchanged: (i64, i64) = crate::db::query_as("SELECT option_step_1,option_step_5 FROM equip_items WHERE slot_index=$1")
             .bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
         assert_eq!(unchanged, (9, 9));
     }
-    sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=43055")
+    crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=43055")
         .bind(before_dust).bind(a).execute(&s.db).await.unwrap();
     let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
     assert_eq!(out["Result"], "Success", "{out}");
     assert_eq!(out["ResultEquipItem"]["OptionStep1"], 10);
     assert_eq!(out["ResultEquipItem"]["OptionStep5"], 10);
     assert_eq!(gold(&s).await, before_gold - 2 * 768000);
-    let dust: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=43055")
+    let dust: i64 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=43055")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(dust, before_dust - 2 * 1152);
     let out = call(&s, &u, "max_upgrade_equip_option", &format!("EquipItemSlotIndex={}&MaterialItemIndex=43055&MaterialItemCount=1152", eq.slot_index)).await;
@@ -134,7 +128,7 @@ async fn public_awakening_stones_obey_equipment_type() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
     let large_gold=7_782_963_002_i64;
-    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(large_gold).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(large_gold).bind(a).execute(&s.db).await.unwrap();
     let eq = give(&s, a, 1001, 1).await.equipment.remove(0);
     give(&s, a, 5301, 1).await;
     let r = call(
@@ -158,7 +152,7 @@ async fn public_awakening_stones_obey_equipment_type() {
 #[tokio::test]
 async fn awakening_stones_check_the_entire_unique_weapon_roster() {
     let (s,u)=setup().await;let a=u.user_info.account_id;
-    sqlx::query("UPDATE user_info SET gold=10000000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=10000000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let weapons:Vec<_>=s.tables.extensions.rows("EquipItem").iter()
         .filter(|r|r["IsOpenSoulWeapon"]==true && n(r,"PartType")==1).cloned().collect();
     assert!(weapons.iter().any(|r|n(r,"ItemIndex")==1080));
@@ -182,11 +176,11 @@ async fn technomagic_migration_preserves_first_skill_in_inventory_and_storage() 
     let id=n(data,"ItemIndex") as i32;
     for storage in [0,1] {
         let eq=give(&s,a,id,1).await.equipment.remove(0);
-        sqlx::query("UPDATE equip_items SET extra_option_index_1=123,extra_option_step_1=4,extra_option_index_2=456,extra_option_step_2=7,inventory_type=? WHERE slot_index=?")
+        crate::db::query("UPDATE equip_items SET extra_option_index_1=123,extra_option_step_1=4,extra_option_index_2=456,extra_option_step_2=7,inventory_type=$1 WHERE slot_index=$2")
             .bind(storage).bind(eq.slot_index).execute(&s.db).await.unwrap();
     }
     for _ in 0..2 {schema::migrate_technomagic(&s.db,&s.tables).await.unwrap();}
-    let rows:Vec<(i64,i64,i64,i64)>=sqlx::query_as("SELECT extra_option_index_1,extra_option_step_1,extra_option_index_2,extra_option_step_2 FROM equip_items WHERE item_index=? AND account_id=?")
+    let rows:Vec<(i64,i64,i64,i64)>=crate::db::query_as("SELECT extra_option_index_1,extra_option_step_1,extra_option_index_2,extra_option_step_2 FROM equip_items WHERE item_index=$1 AND account_id=$2")
         .bind(id).bind(a).fetch_all(&s.db).await.unwrap();
     assert_eq!(rows,vec![(123,4,0,0);2]);
     let mut eq=EquipItemInfo::default();
@@ -285,7 +279,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
         call(&s, &u, "valance_identified", &args).await["Result"],
         "Success"
     );
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='IdentifiedEquip'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT SUM(value)::bigint FROM progression_metrics WHERE account_id=$1 AND kind='IdentifiedEquip'")
         .bind(a).fetch_one(&s.db).await.unwrap(),1);
     let enchant = s
         .tables
@@ -308,7 +302,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["ResultEquipItem"]["EnchantOptionIndex1"], r["NewValanceEnchantOptionInfo"]["EnchantOptionIndex1"]);
-    let pending_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=? AND slot_index=?")
+    let pending_count: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap();
     assert_eq!(pending_count, 0);
     let r = call(&s, &u, "valance_enchant",
@@ -348,7 +342,7 @@ async fn valance_identification_and_enchantment_restore_pending_choices() {
 #[tokio::test]
 async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
     let (s, u) = setup().await;
-    sqlx::query("UPDATE user_info SET team_level=2")
+    crate::db::query("UPDATE user_info SET team_level=2")
         .execute(&s.db)
         .await
         .unwrap();
@@ -371,7 +365,7 @@ async fn team_and_class_buff_upgrades_validate_price_points_and_replays() {
         call(&s, &u, "reinforce_team_level_buff", args).await["Result"],
         "Success"
     );
-    sqlx::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE hero_index=1")
+    crate::db::query("UPDATE heroes SET level=100,star=5,transcend=5 WHERE hero_index=1")
         .execute(&s.db)
         .await
         .unwrap();
@@ -403,10 +397,10 @@ async fn team_buffs_unlock_on_login_and_lobby_without_resetting_paid_upgrades() 
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
     assert!(u.team_level_buff_infos.is_empty(), "Level one has no buffs");
-    sqlx::query("UPDATE user_info SET team_level=10 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET team_level=10 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let upgraded = json!({"OpenBuffLevel":2,"BuffReinforce":1,"UpdatedTime":"2026-01-01T00:00:00Z"});
     put(&mut *s.db.acquire().await.unwrap(),a,"team_buff",2,&upgraded).await.unwrap();
-    let before: (i64,i64) = sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let before: (i64,i64) = crate::db::query_as("SELECT gold,gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     let login = user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     let expected: BTreeSet<i64> = s.tables.inventory.team_levels.iter()
         .filter(|r| n(r,"Level")<=10 && (n(r,"TeamLevelBuffOptionIndex")>0 || n(r,"TeamLevelBuffBonusOptionIndex")>0))
@@ -418,10 +412,10 @@ async fn team_buffs_unlock_on_login_and_lobby_without_resetting_paid_upgrades() 
     }
     let lobby = first_lobby(&s,a).await.unwrap();
     assert_eq!(lobby["TeamLevelBuffInfos"],json!(login.team_level_buff_infos));
-    assert_eq!(sqlx::query_as::<_,(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    assert_eq!(crate::db::query_as::<(i64,i64)>("SELECT gold,gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
     assert!(buffs::unlock_team_buffs(&mut *s.db.acquire().await.unwrap(),&s,a).await.unwrap().is_empty());
     // New accounts can bootstrap the same free records through first-lobby too.
-    sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='team_buff'").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='team_buff'").bind(a).execute(&s.db).await.unwrap();
     assert_eq!(first_lobby(&s,a).await.unwrap()["TeamLevelBuffInfos"].as_array().unwrap().len(),expected.len());
 }
 
@@ -563,7 +557,7 @@ async fn costume_unlocks_reject_forged_prices_and_survive_reconnect() {
         call(&s, &u, "buy_customizing_costumes", args).await["Result"],
         "Success"
     );
-    sqlx::query("INSERT INTO costumes(account_id,costume_index) VALUES(?,114)")
+    crate::db::query("INSERT INTO costumes(account_id,costume_index) VALUES($1,114)")
         .bind(a)
         .execute(&s.db)
         .await
@@ -766,7 +760,7 @@ async fn multiple_accessories_persist_remove_individually_and_reset_together() {
 async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks() {
     let (s,u)=setup().await;
     let a=u.user_info.account_id;
-    sqlx::query("UPDATE user_info SET gem=10000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gem=10000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let rows=s.tables.extensions.rows("AccessoryCostume");
     let mut spent=0;
     let mut acquired=0;
@@ -828,7 +822,7 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
         .unwrap();
     let id = n(data, "Index");
     let price = n(data, "ReqBuyGem");
-    sqlx::query("UPDATE user_info SET gem=0,pay_gem=0 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET gem=0,pay_gem=0 WHERE account_id=$1")
         .bind(a)
         .execute(&s.db)
         .await
@@ -847,7 +841,7 @@ async fn all_accessories_can_be_purchased_with_atomic_price_and_balance_checks()
     .unwrap()
     .is_null());
     assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT gem FROM user_info WHERE account_id=?")
+        crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -912,9 +906,9 @@ async fn gear_custom_native_save_load_preserves_pairs_empty_slots_and_hero_gear(
     let secondary = give(&s, a, 70004, 1).await.equipment.remove(0);
     let artifact = give(&s, a, 151001, 1).await.equipment.remove(0);
     let accessory = give(&s, a, 81004, 1).await.equipment.remove(0);
-    sqlx::query("UPDATE heroes SET equip_item_slot_index_1=?,equip_item_slot_index_3=?,equip_item_slot_index_7=777 WHERE account_id=? AND hero_index=1")
+    crate::db::query("UPDATE heroes SET equip_item_slot_index_1=$1,equip_item_slot_index_3=$2,equip_item_slot_index_7=777 WHERE account_id=$3 AND hero_index=1")
         .bind(weapon.slot_index).bind(accessory.slot_index).bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,equip_item_slot_index_2) VALUES (?,2,2,?)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,equip_item_slot_index_2) VALUES ($1,2,2,$2)")
         .bind(a).bind(armor.slot_index).execute(&s.db).await.unwrap();
     let renamed = call(&s, &u, "change_equip_storage_slot_name", "EquipStorageSlotIndex=1&Name=MyGear").await;
     assert_eq!(renamed["Result"], "Success");
@@ -950,23 +944,23 @@ async fn preset_disposal_discards_pending_rolls_and_clears_references_immediatel
         let saved = give(&s, a, 70004, 1).await.equipment.remove(0);
         let current = give(&s, a, 70004, 1).await.equipment.remove(0);
         let armor = give(&s, a, 890203, 1).await.equipment.remove(0);
-        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+        crate::db::query("UPDATE heroes SET equip_item_slot_index_4=$1 WHERE account_id=$2 AND hero_index=1")
             .bind(saved.slot_index).bind(a).execute(&s.db).await.unwrap();
         let saved_result = call(&s, &u, "add_equip_storage_slot", &format!(
             "EquipStorageSlotIndex=1&HeroIndex=1&HeroPartIndex=[2,4]&EquipItemSlotIndex=[{},{}]",
             armor.slot_index, saved.slot_index)).await;
         assert_eq!(saved_result["Result"], "Success", "{saved_result}");
-        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+        crate::db::query("UPDATE heroes SET equip_item_slot_index_4=$1 WHERE account_id=$2 AND hero_index=1")
             .bind(current.slot_index).bind(a).execute(&s.db).await.unwrap();
-        sqlx::query("INSERT INTO equipment_pending(account_id,slot_index,kind,data) VALUES(?,?,'enchant','{\"Index\":5088,\"Slot\":1,\"Step\":0}')")
+        crate::db::query("INSERT INTO equipment_pending(account_id,slot_index,kind,data) VALUES($1,$2,'enchant','{\"Index\":5088,\"Slot\":1,\"Step\":0}')")
             .bind(a).bind(saved.slot_index).execute(&s.db).await.unwrap();
         let snapshot=json!([{"HeroIndex":1,"EquipItemSlotIndex":[0,0,0,saved.slot_index],"EquipItemUid":["","","",saved.uid],"EquipItemRunePage":[0,0,0,2]}]);
         for owner in [a,a+100] {
-            sqlx::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES(?,'disposal',?)")
+            crate::db::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES($1,'disposal',$2)")
                 .bind(owner).bind(snapshot.to_string()).execute(&s.db).await.unwrap();
         }
         let locked=give(&s,a,70004,1).await.equipment.remove(0);
-        sqlx::query("UPDATE equip_items SET locked=1 WHERE slot_index=?").bind(locked.slot_index).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE equip_items SET locked=1 WHERE slot_index=$1").bind(locked.slot_index).execute(&s.db).await.unwrap();
         let rejected=if action=="sell" {
             item::sell_equip(State(s.clone()),Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{},{}]",u.user_info.session_key,saved.slot_index,locked.slot_index))).await.unwrap().0
         } else {
@@ -975,7 +969,7 @@ async fn preset_disposal_discards_pending_rolls_and_clears_references_immediatel
         assert_ne!(rejected["Result"],"Success","{rejected}");
         let mut db=s.db.acquire().await.unwrap();
         assert_eq!(get(&mut db,a,"equip_storage",1).await.unwrap()["EquipItemSlotIndex4"],saved.slot_index,"failed batches must roll back preset cleanup");
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),1);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM equipment_pending WHERE account_id=$1 AND slot_index=$2").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),1);
         drop(db);
         let result = if action == "sell" {
             item::sell_equip(State(s.clone()), Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{}]", u.user_info.session_key, saved.slot_index)))
@@ -986,9 +980,9 @@ async fn preset_disposal_discards_pending_rolls_and_clears_references_immediatel
         assert_eq!(result["Result"], "Success", "{action}: {result}");
         let mut db = s.db.acquire().await.unwrap();
         assert_eq!(get(&mut db,a,"equip_storage",1).await.unwrap()["EquipItemSlotIndex4"], 0);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT count(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT count(*) FROM equipment_pending WHERE account_id=$1 AND slot_index=$2").bind(a).bind(saved.slot_index).fetch_one(&mut *db).await.unwrap(),0);
         for owner in [a,a+100] {
-            let value:String=sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key='disposal'").bind(owner).fetch_one(&mut *db).await.unwrap();
+            let value:String=crate::db::query_scalar("SELECT data FROM hero_presets WHERE account_id=$1 AND storage_key='disposal'").bind(owner).fetch_one(&mut *db).await.unwrap();
             let value:Value=serde_json::from_str(&value).unwrap();
             assert_eq!(value[0]["EquipItemSlotIndex"][3],if owner==a {0}else{saved.slot_index});
             assert_eq!(value[0]["EquipItemUid"][3],if owner==a {""}else{saved.uid.as_str()});
@@ -1005,7 +999,7 @@ async fn preset_disposal_discards_pending_rolls_and_clears_references_immediatel
         drop(db);
         assert_eq!(call(&s,&u,"set_equip_storage_slot","EquipStorageSlotIndex=1&HeroIndex=1").await["Result"],"Success");
         // A genuine equipped item is still protected from both operations.
-        sqlx::query("UPDATE heroes SET equip_item_slot_index_4=? WHERE account_id=? AND hero_index=1")
+        crate::db::query("UPDATE heroes SET equip_item_slot_index_4=$1 WHERE account_id=$2 AND hero_index=1")
             .bind(current.slot_index).bind(a).execute(&s.db).await.unwrap();
         assert_ne!(call(&s,&u,"break_equip",&format!("EquipItemSlotIndices=[{}]", current.slot_index)).await["Result"],"Success");
         assert_ne!(item::sell_equip(State(s.clone()),Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{}]",u.user_info.session_key,current.slot_index)))
@@ -1020,7 +1014,7 @@ async fn deleted_gear_presets_reconcile_on_rename_and_login() {
     for index in [1,2] {
         assert_eq!(call(&s,&u,"add_equip_storage_slot",&format!("EquipStorageSlotIndex={index}&HeroIndex=1&HeroPartIndex=[4]&EquipItemSlotIndex=[{}]",eq.slot_index)).await["Result"],"Success");
     }
-    sqlx::query("DELETE FROM equip_items WHERE account_id=? AND slot_index=?").bind(a).bind(eq.slot_index).execute(&s.db).await.unwrap();
+    crate::db::query("DELETE FROM equip_items WHERE account_id=$1 AND slot_index=$2").bind(a).bind(eq.slot_index).execute(&s.db).await.unwrap();
     let renamed=call(&s,&u,"change_equip_storage_slot_name","EquipStorageSlotIndex=1&Name=AfterSale").await;
     assert_eq!(renamed["Result"],"Success","{renamed}");
     assert_eq!(renamed["EquipPresetInfo"]["EquipItemSlotIndex"][3],0);
@@ -1054,7 +1048,7 @@ async fn gear_custom_invalid_native_pairs_rollback_saved_preset() {
         let lobby = first_lobby(&s, a).await.unwrap();
         assert_eq!(lobby["EquipPresetInfos"][0], saved["EquipPresetInfo"]);
     }
-    sqlx::query("UPDATE equip_items SET inventory_type=1 WHERE account_id=? AND slot_index=?")
+    crate::db::query("UPDATE equip_items SET inventory_type=1 WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(armor.slot_index).execute(&s.db).await.unwrap();
     let before = hero::info(&mut s.db.acquire().await.unwrap(), a, 1).await.unwrap();
     let rejected = call(&s, &u, "set_equip_storage_slot", "EquipStorageSlotIndex=1&HeroIndex=1").await;
@@ -1149,13 +1143,13 @@ async fn npc_valance_login_repairs_old_claim_once_without_granting_rewards() {
     let a=u.user_info.account_id;
     let cost=n(s.tables.extensions.find("NPCFriendlyPoint",&[("HeroIndex",111),("Step",1)]).unwrap(),"ReqFriendlyPoint");
     put(&mut s.db.acquire().await.unwrap(),a,"npc",111,&json!({"HeroIndex":111,"Step":2,"FriendlyPoint":cost+9000,"EndRewardCount":0})).await.unwrap();
-    let before:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let before:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     let login=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     let info=login.npc_friendly_infos.iter().find(|r|r["HeroIndex"]==111).unwrap();
     assert_eq!(*info,json!({"HeroIndex":111,"Step":1,"FriendlyPoint":9000,"EndRewardCount":1}));
     let again=user::test_login(State(s.clone()),Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(again.npc_friendly_infos,login.npc_friendly_infos);
-    let after:i64=sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let after:i64=crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(before,after);
 }
 
@@ -1204,13 +1198,13 @@ async fn reforge_same_stat_requires_a_strictly_larger_value() {
     eq=equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap();
     eq.option_step_1=4;
     save_equip(&mut s.db.acquire().await.unwrap(),a,&eq).await.unwrap();
-    let gems:i64=sqlx::query_scalar("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    let gems:i64=crate::db::query_scalar("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     // No valid outcome: preserve balances, counters and pending state.
     let rejected=call(&s,&u,"renew_equip_option",&args).await;
     assert_ne!(rejected["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT gem FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),gems);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gem FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),gems);
     assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap()),json!(eq));
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=? AND slot_index=?").bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap(),0);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1 AND slot_index=$2").bind(a).bind(eq.slot_index).fetch_one(&s.db).await.unwrap(),0);
     // At capped HP, a different stat is the only eligible result.
     std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).inventory).option_groups.insert(11,vec![9002,9003]);
     let rolled=call(&s,&u,"renew_equip_option",&args).await;
@@ -1281,15 +1275,15 @@ async fn enchant_same_stat_strictly_improves_and_capped_rolls_are_not_charged() 
         eq = serde_json::from_value(value).unwrap();
         save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
         let before_gold = gold(&s).await;
-        let before_items: i64 = sqlx::query_scalar("SELECT SUM(count) FROM items WHERE account_id=? AND item_index=45021")
+        let before_items: i64 = crate::db::query_scalar("SELECT SUM(count)::bigint FROM items WHERE account_id=$1 AND item_index=45021")
             .bind(a).fetch_one(&s.db).await.unwrap();
         let rejected = call(&s, &u, "enchant_equip", &args).await;
         assert_ne!(rejected["Result"], "Success", "{rejected}");
         assert_eq!(gold(&s).await, before_gold);
-        let after_items: i64 = sqlx::query_scalar("SELECT SUM(count) FROM items WHERE account_id=? AND item_index=45021")
+        let after_items: i64 = crate::db::query_scalar("SELECT SUM(count)::bigint FROM items WHERE account_id=$1 AND item_index=45021")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(before_items, after_items);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=?")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap(), 0);
         let rows = &mut std::sync::Arc::make_mut(&mut std::sync::Arc::make_mut(&mut s.tables).extensions).0;
         rows.get_mut("EquipEnchantOptionItem").unwrap().iter_mut()
@@ -1321,7 +1315,7 @@ async fn technomagic_reforge_charges_materials_for_both_options_without_currency
         let fragment = n(price, "RenewItemIndex2") as i32;
         give(&s, a, 2200, 2).await;
         give(&s, a, fragment, 600).await;
-        let currencies: (i64, i64) = sqlx::query_as("SELECT gold,gem FROM user_info WHERE account_id=?")
+        let currencies: (i64, i64) = crate::db::query_as("SELECT gold,gem FROM user_info WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap();
         for slot in 1..=2 {
             let args = format!("EquipItemSlotIndex={}&OptionSlotIndex={slot}", eq.slot_index);
@@ -1346,12 +1340,12 @@ async fn technomagic_reforge_charges_materials_for_both_options_without_currency
             }
             current = r["ResultEquipItem"].clone();
             for id in [2200, fragment] {
-                let remaining: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?")
+                let remaining: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=$2")
                     .bind(a).bind(id).fetch_one(&s.db).await.unwrap();
                 assert_eq!(remaining, (2-slot) * if id == 2200 { 1 } else { 300 });
             }
         }
-        assert_eq!(sqlx::query_as::<_, (i64, i64)>("SELECT gold,gem FROM user_info WHERE account_id=?")
+        assert_eq!(crate::db::query_as::<(i64, i64)>("SELECT gold,gem FROM user_info WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap(), currencies);
         // An unfunded retry must leave the item and pending choice unchanged.
         let rejected = call(&s, &u, "renew_equip_option",
@@ -1359,7 +1353,7 @@ async fn technomagic_reforge_charges_materials_for_both_options_without_currency
         assert_ne!(rejected["Result"], "Success");
         let saved = equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap();
         assert_eq!(json!(saved), current);
-        let pending: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=?")
+        let pending: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equipment_pending WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap();
         assert_eq!(pending, 0);
     }
@@ -1383,7 +1377,7 @@ async fn technomagic_reforge_rolls_back_ticket_when_fragments_are_insufficient()
     let rejected = call(&s, &u, "renew_equip_option", &args).await;
     assert_ne!(rejected["Result"], "Success");
     for (id, expected) in [(2200, 1), (fragment, 299)] {
-        assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?")
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(a).bind(id).fetch_one(&s.db).await.unwrap(), expected);
     }
     assert_eq!(json!(equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap()),
@@ -1437,14 +1431,14 @@ async fn rerolls_recover_pending_options_and_reject_forged_confirmation() {
 async fn valance_craft_honors_owned_hero_material_discount() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES(?,111,111,5)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES($1,111,111,5)")
         .bind(a).execute(&s.db).await.unwrap();
     give(&s, a, 990001, 3400).await;
     let r = call(&s, &u, "valance_craft",
         "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None&SelectEquipOptionIndices=[]").await;
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["EquipItemResult"]["Identified"], 0);
-    let remaining: i64 = sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=990001")
+    let remaining: i64 = crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=990001")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(remaining, 0);
     assert_eq!(gold(&s).await, 91000000);
@@ -1454,7 +1448,7 @@ async fn valance_craft_honors_owned_hero_material_discount() {
 async fn valance_craft_selected_skill_is_identified_and_uses_discounted_materials() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
-    sqlx::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES(?,111,111,5)")
+    crate::db::query("INSERT INTO heroes(account_id,hero_id,hero_index,star) VALUES($1,111,111,5)")
         .bind(a)
         .execute(&s.db)
         .await
@@ -1479,8 +1473,8 @@ async fn valance_craft_selected_skill_is_identified_and_uses_discounted_material
     assert_eq!(json!(saved), *eq);
     assert_eq!(gold(&s).await, 91000000);
     for id in [990001, 990000] {
-        let remaining: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=? AND item_index=?",
+        let remaining: i64 = crate::db::query_scalar(
+            "SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1 AND item_index=$2",
         )
         .bind(a)
         .bind(id)
@@ -1513,7 +1507,7 @@ async fn valance_craft_selected_skill_is_identified_and_uses_discounted_material
 async fn valance_craft_selected_skills_work_for_every_selectable_recipe() {
     let (s, u) = setup().await;
     let a = u.user_info.account_id;
-    sqlx::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=?")
+    crate::db::query("UPDATE user_info SET gold=1000000000000 WHERE account_id=$1")
         .bind(a).execute(&s.db).await.unwrap();
     for id in [990001, 990002, 990003, 990000] { give(&s, a, id, 100000000).await; }
     let mut covered = BTreeSet::new();
@@ -1553,7 +1547,7 @@ async fn valance_craft_selected_skills_work_for_every_selectable_recipe() {
             assert_eq!(gold(&s).await, before - n(recipe,"ReqGold"));
             assert_eq!(r["ItemResults"][0]["AddCount"], -n(recipe,"MaterialItemCount") - n(recipe,"AdditionalMaterialItemCount"));
             assert_eq!(r["ItemResults"][1]["AddCount"], -n(recipe,"SubMaterialItemCount"));
-            sqlx::query("DELETE FROM equip_items WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("DELETE FROM equip_items WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
             crafted += 1;
         }
     }
@@ -1570,11 +1564,11 @@ async fn valance_craft_selected_skill_failures_roll_back_all_costs_and_rewards()
     give(&s, a, 990000, 40).await;
     let args = "SetType=Gargoria&CreatureTagType=Knight&PartType=Armor&SubPartType=None";
     async fn snapshot(s: &AppState, a: i64) -> (i64, Vec<(i32,i32)>, i64, i64) {
-        let materials = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=? ORDER BY item_index,item_id")
+        let materials = crate::db::query_as("SELECT item_index,count FROM items WHERE account_id=$1 ORDER BY item_index,item_id")
             .bind(a).fetch_all(&s.db).await.unwrap();
-        let equipment = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=?")
+        let equipment = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1")
             .bind(a).fetch_one(&s.db).await.unwrap();
-        let crafts = sqlx::query_scalar("SELECT COALESCE(SUM(value),0) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+        let crafts = crate::db::query_scalar("SELECT COALESCE(SUM(value)::bigint,0) FROM progression_metrics WHERE account_id=$1 AND kind='CraftEquip'")
             .bind(a).fetch_one(&s.db).await.unwrap();
         (gold(s).await, materials, equipment, crafts)
     }
@@ -1586,9 +1580,9 @@ async fn valance_craft_selected_skill_failures_roll_back_all_costs_and_rewards()
     }
     // Valid choices with insufficient gold, base/additional material, or sub-material.
     for (gold, material, sub) in [(8999999,54000,40), (100000000,53999,40), (100000000,54000,39)] {
-        sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(gold).bind(a).execute(&s.db).await.unwrap();
+        crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(gold).bind(a).execute(&s.db).await.unwrap();
         for (id,count) in [(990001,material),(990000,sub)] {
-            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=?")
+            crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=$3")
                 .bind(count).bind(a).bind(id).execute(&s.db).await.unwrap();
         }
         let before = snapshot(&s,a).await;
@@ -1618,7 +1612,7 @@ async fn valance_craft_uses_recipe_and_preserves_materials_on_failure() {
     assert_eq!(r["Result"], "Success", "{r}");
     assert_eq!(r["EquipItemResult"]["Identified"], 0);
     assert_eq!(gold(&s).await, 99000000);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT SUM(value) FROM progression_metrics WHERE account_id=? AND kind='CraftEquip'")
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT SUM(value)::bigint FROM progression_metrics WHERE account_id=$1 AND kind='CraftEquip'")
         .bind(a).fetch_one(&s.db).await.unwrap(),1);
 }
 #[tokio::test]
@@ -1647,7 +1641,7 @@ async fn tickets_change_names_and_awakenings_without_replay() {
         .await["Result"],
         "Success"
     );
-    let nick: String = sqlx::query_scalar("SELECT nick FROM accounts WHERE account_id=?")
+    let nick: String = crate::db::query_scalar("SELECT nick FROM accounts WHERE account_id=$1")
         .bind(a)
         .fetch_one(&s.db)
         .await
@@ -1811,7 +1805,7 @@ async fn accessory_ownership_is_per_hero_and_compensation_requires_every_eligibl
 }
 
 async fn gold(s: &AppState) -> i64 {
-    sqlx::query_scalar("SELECT gold FROM user_info")
+    crate::db::query_scalar("SELECT gold FROM user_info")
         .fetch_one(&s.db)
         .await
         .unwrap()
@@ -1830,9 +1824,9 @@ async fn artifact_awakening_accepts_native_material_forms_and_persists_once() {
         assert_eq!(result["Success"],true);
         assert_eq!(result["ResultEquipItem"]["Star"],1);
         assert_eq!(gold(&s).await,before-50000);
-        let saved:i64=sqlx::query_scalar("SELECT star FROM equip_items WHERE slot_index=?").bind(x).fetch_one(&s.db).await.unwrap();
+        let saved:i64=crate::db::query_scalar("SELECT star FROM equip_items WHERE slot_index=$1").bind(x).fetch_one(&s.db).await.unwrap();
         assert_eq!(saved,1);
-        assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE slot_index=?").bind(y).fetch_one(&s.db).await.unwrap(),0);
+        assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE slot_index=$1").bind(y).fetch_one(&s.db).await.unwrap(),0);
         assert_ne!(call(&s,&u,"awaken_equip",&args).await["Result"],"Success");
         assert_eq!(gold(&s).await,before-50000);
     }
@@ -1857,7 +1851,7 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
     let target = equips[0].slot_index;
     let unlocked = equips[1].slot_index;
     let locked = equips[2].slot_index;
-    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?")
+    crate::db::query("UPDATE equip_items SET locked=1 WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(locked).execute(&s.db).await.unwrap();
     let stone = s.tables.extensions.rows("AwakenStone").iter()
         .find(|r| n(r, "Type") == stone_type && r["IsAllowNPC"] == true
@@ -1869,10 +1863,10 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
         format!("&MaterialItemInfors=[{id},1]")
     } else { String::new() };
     let before_gold = gold(&s).await;
-    let before_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+    let before_equips: Vec<Value> = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 ORDER BY slot_index")
         .bind(a).fetch_all(&s.db).await.unwrap().iter()
         .map(|r| json!(EquipItemInfo::from_row(r))).collect();
-    let before_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+    let before_items: Vec<(i32, i32, i32)> = crate::db::query_as("SELECT item_index,count,locked FROM items WHERE account_id=$1 ORDER BY item_index")
         .bind(a).fetch_all(&s.db).await.unwrap();
 
     // Check the actual validation reason, independently of native result mapping.
@@ -1895,28 +1889,28 @@ async fn assert_awakening_rejects_locked_material(item_index: i32, detail_type: 
         // LockedEquip is not mapped to the native LockedEquipItemExists here.
         assert_eq!(out["Result"], "Fail", "item {item_index}: {out}");
         assert_eq!(gold(&s).await, before_gold);
-        let after_equips: Vec<Value> = sqlx::query("SELECT * FROM equip_items WHERE account_id=? ORDER BY slot_index")
+        let after_equips: Vec<Value> = crate::db::query("SELECT * FROM equip_items WHERE account_id=$1 ORDER BY slot_index")
             .bind(a).fetch_all(&s.db).await.unwrap().iter()
             .map(|r| json!(EquipItemInfo::from_row(r))).collect();
         assert_eq!(after_equips, before_equips, "item {item_index}: equipment changed");
-        let after_items: Vec<(i32, i32, i32)> = sqlx::query_as("SELECT item_index,count,locked FROM items WHERE account_id=? ORDER BY item_index")
+        let after_items: Vec<(i32, i32, i32)> = crate::db::query_as("SELECT item_index,count,locked FROM items WHERE account_id=$1 ORDER BY item_index")
             .bind(a).fetch_all(&s.db).await.unwrap();
         assert_eq!(after_items, before_items, "item {item_index}: inventory changed");
     }
 
     // The same batch must be valid once unlocked, not rejected for another rule.
-    sqlx::query("UPDATE equip_items SET locked=0 WHERE account_id=? AND slot_index=?")
+    crate::db::query("UPDATE equip_items SET locked=0 WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(locked).execute(&s.db).await.unwrap();
     let out = call(&s, &u, "awaken_equip", &args).await;
     assert_eq!(out["Result"], "Success", "item {item_index}: {out}");
     assert_eq!(out["ResultEquipItem"]["Star"], 1);
     assert_eq!(gold(&s).await, before_gold - n(price, "ReqGold"));
-    let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)")
+    let remaining: i64 = crate::db::query_scalar("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND slot_index IN ($2,$3)")
         .bind(a).bind(unlocked).bind(locked).fetch_one(&s.db).await.unwrap();
     assert_eq!(remaining, 0);
     if let Some(id) = stone {
         let before = before_items.iter().find(|r| r.0 == id).unwrap().1;
-        let after: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        let after: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(a).bind(id).fetch_one(&s.db).await.unwrap();
         assert_eq!(after, before - 1);
     }
@@ -2002,7 +1996,7 @@ async fn soul_weapon_advancement_ticket_unlocks_plain_weapon_and_persists() {
     assert_eq!(retry["Result"], "AlreadySameOrGreaterGrade");
     let login = user::test_login(State(s.clone()), Bytes::from_static(b"LoginId=extensions-test")).await.unwrap().0;
     assert_eq!(login.soul_weapon_infos, vec![soul.clone()]);
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=5350")
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=5350")
         .bind(a).fetch_one(&s.db).await.unwrap(), 1);
 }
 
@@ -2029,16 +2023,16 @@ async fn soul_weapon_advancement_ticket_preserves_ether_and_refunds_existing_inv
     assert_eq!(refunds.len(), 1);
     assert_eq!(refunds[0]["AddCount"], 700);
     let refund_id = refunds[0]["ItemIndex"].as_i64().unwrap();
-    let before: i32 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+    let before: i32 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
         .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap();
     assert_ne!(call(&s, &u, "item/soul_weapon_ability_ticket", &args).await["Result"], "Success");
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
         .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap(), before);
     // A valid higher upgrade can calculate refunds, then fail ticket consumption.
     // Neither the refund nor the upgraded soul may survive that transaction.
     assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
         &format!("ItemIndex=5364&TargetEquipItemSlotIndex={slot}")).await["Result"], "ItemNotOwned");
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
         .bind(a).bind(refund_id).fetch_one(&s.db).await.unwrap(), before);
     assert_eq!(get(&mut s.db.acquire().await.unwrap(), a, "soul", slot as i64).await.unwrap(), r["TargetSoulWeaponInfo"]);
 }
@@ -2050,10 +2044,10 @@ async fn soul_weapon_advancement_ticket_rejections_leave_inventory_and_souls_unc
     let slot = give(&s, a, 1001, 1).await.equipment[0].slot_index;
     give(&s, a, 5350, 1).await;
     let args = format!("ItemIndex=5350&TargetEquipItemSlotIndex={slot}");
-    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?")
+    crate::db::query("UPDATE equip_items SET locked=1 WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(slot).execute(&s.db).await.unwrap();
     assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket", &args).await["Result"], "LockedEquipItemExists");
-    sqlx::query("UPDATE equip_items SET locked=0 WHERE account_id=? AND slot_index=?")
+    crate::db::query("UPDATE equip_items SET locked=0 WHERE account_id=$1 AND slot_index=$2")
         .bind(a).bind(slot).execute(&s.db).await.unwrap();
     assert_eq!(call(&s, &u, "item/soul_weapon_ability_ticket",
         &format!("ItemIndex=5352&TargetEquipItemSlotIndex={slot}")).await["Result"], "SoulWeaponInfoNotFound");
@@ -2151,7 +2145,7 @@ async fn soul_weapon_ether_accepts_native_arrays_and_rolls_back_failed_injection
     let original = get(&mut s.db.acquire().await.unwrap(), account, "soul", slot as i64).await.unwrap();
     let initial_gold = gold(&s).await;
     let inventory = || async {
-        sqlx::query_as::<_, (i32, i32)>("SELECT item_index,count FROM items WHERE account_id=? AND item_index IN (5100,5103) ORDER BY item_index")
+        crate::db::query_as::<(i32, i32)>("SELECT item_index,count FROM items WHERE account_id=$1 AND item_index IN (5100,5103) ORDER BY item_index")
             .bind(account).fetch_all(&s.db).await.unwrap()
     };
     let initial_inventory = inventory().await;
@@ -2292,7 +2286,7 @@ async fn rune_pages_consume_preserve_and_restore_without_duplication() {
     .await;
     assert_eq!(r["Result"], "Success", "{r}");
     let count: i32 =
-        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=100001")
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=100001")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -2322,7 +2316,7 @@ async fn locked_rune_equips_and_preserves_inventory_lock() {
     assert_eq!(equipped["Result"], "Success", "{equipped}");
     assert_eq!(equipped["ItemResults"][0]["Locked"], 1);
     assert_eq!(equipped["ItemResults"][0]["NewCount"], 1);
-    let locked: (i32,i32) = sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001")
+    let locked: (i32,i32) = crate::db::query_as("SELECT count,locked FROM items WHERE account_id=$1 AND item_index=100001")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(locked, (1,1));
     let break_request=Bytes::from(format!("SessionKey={}&ItemIndices=[100001]&Counts=[1]",u.user_info.session_key));
@@ -2333,20 +2327,20 @@ async fn locked_rune_equips_and_preserves_inventory_lock() {
     assert_eq!(relogin.items.iter().find(|r|r.item_index==100001).unwrap().locked,1);
     let restored=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
     assert_eq!(restored["Result"],"Success","{restored}");
-    let locked: (i32,i32) = sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001")
+    let locked: (i32,i32) = crate::db::query_as("SELECT count,locked FROM items WHERE account_id=$1 AND item_index=100001")
         .bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(locked, (2,1));
     assert_eq!(restored["ItemResults"][0]["Locked"],1);
     // The lock must survive even when equipping the last copy leaves a
     // zero-count inventory row until the rune is preserved and returned.
-    sqlx::query("UPDATE items SET count=1 WHERE account_id=? AND item_index=100001").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET count=1 WHERE account_id=$1 AND item_index=100001").bind(a).execute(&s.db).await.unwrap();
     let last=call(&s,&u,"equip_rune",args).await;
     assert_eq!(last["Result"],"Success","{last}");
     assert_eq!(last["ItemResults"][0]["NewCount"],0);
     assert_eq!(last["ItemResults"][0]["Locked"],1);
     let returned=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
     assert_eq!(returned["Result"],"Success","{returned}");
-    let locked: (i32,i32)=sqlx::query_as("SELECT count,locked FROM items WHERE account_id=? AND item_index=100001").bind(a).fetch_one(&s.db).await.unwrap();
+    let locked: (i32,i32)=crate::db::query_as("SELECT count,locked FROM items WHERE account_id=$1 AND item_index=100001").bind(a).fetch_one(&s.db).await.unwrap();
     assert_eq!(locked,(1,1));
 }
 
@@ -2360,7 +2354,7 @@ async fn locked_punishment_rune_equips_once_and_retains_lock_and_rolls() {
     assert_eq!(crafted["Result"],"Success","{crafted}");
     let slot=n(&crafted["EquipItemResult"],"SlotIndex");
     let rolled=crafted["EquipItemResult"]["PunishmentRuneOption"].clone();
-    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?").bind(a).bind(slot).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE equip_items SET locked=1 WHERE account_id=$1 AND slot_index=$2").bind(a).bind(slot).execute(&s.db).await.unwrap();
     let args=format!("HeroIndex=1&RunePage=1&SlotNum=1&ItemIndex=100262&EquipItemSlotIndex={slot}");
     let result=call(&s,&u,"equip_rune",&args).await;
     assert_eq!(result["Result"],"Success","{result}");
@@ -2375,7 +2369,7 @@ async fn locked_punishment_rune_equips_once_and_retains_lock_and_rolls() {
     assert_eq!(loaded.locked,1);assert_eq!(loaded.punishment_rune_option.as_ref(),Some(&rolled));
     let restored=call(&s,&u,"unequip_rune","HeroIndex=1&RunePage=1&SlotNum=1&IsPreserve=true").await;
     assert_eq!(restored["Result"],"Success","{restored}");
-    let locked:i32=sqlx::query_scalar("SELECT locked FROM equip_items WHERE account_id=? AND slot_index=?").bind(a).bind(slot).fetch_one(&s.db).await.unwrap();
+    let locked:i32=crate::db::query_scalar("SELECT locked FROM equip_items WHERE account_id=$1 AND slot_index=$2").bind(a).bind(slot).fetch_one(&s.db).await.unwrap();
     assert_eq!(locked,1);
     let request=Bytes::from(format!("SessionKey={}&EquipItemSlotIndices=[{slot}]",u.user_info.session_key));
     assert_ne!(item::break_rune(State(s.clone()),request).await.unwrap().0["Result"],"Success");
@@ -2436,8 +2430,8 @@ async fn soul_judgment_grants_each_archived_ether_tier_and_quantity() {
         let index = s.tables.get_item_index(code).unwrap();
         give(&s, a, 45080, 200).await;
         give(&s, a, 5251, 1).await;
-        let before: i64 = sqlx::query_scalar(
-            "SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=?),0)",
+        let before: i64 = crate::db::query_scalar(
+            "SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=$2),0)",
         )
         .bind(a)
         .bind(index)
@@ -2455,7 +2449,7 @@ async fn soul_judgment_grants_each_archived_ether_tier_and_quantity() {
         assert_eq!(out["RemovedItemResultInfos"].as_array().unwrap().len(), 1);
         assert_eq!(out["RemovedItemResultInfos"][0]["ItemIndex"], 45080);
         let after: i64 =
-            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=?")
+            crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
                 .bind(a)
                 .bind(index)
                 .fetch_one(&s.db)
@@ -2463,7 +2457,7 @@ async fn soul_judgment_grants_each_archived_ether_tier_and_quantity() {
                 .unwrap();
         assert_eq!(after, before + count);
         let protection: i64 =
-            sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
+            crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=5251")
                 .bind(a)
                 .fetch_one(&s.db)
                 .await
@@ -2507,7 +2501,7 @@ async fn soul_judgment_ether_mileage_and_protection_follow_native_flow() {
     .unwrap();
     assert_eq!(ether["ItemResults"][0]["AddCount"], expected.1);
     let protection: i64 =
-        sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=5251")
+        crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=5251")
             .bind(a)
             .fetch_one(&s.db)
             .await
@@ -2581,14 +2575,14 @@ async fn native_equipment_grind_rejects_locked_duplicates_and_rolls_back_entire_
     let equipment=give(&s,a,1001,2).await.equipment;
     let first=equipment[0].slot_index;
     let second=equipment[1].slot_index;
-    sqlx::query("UPDATE equip_items SET locked=1 WHERE account_id=? AND slot_index=?").bind(a).bind(second).execute(&s.db).await.unwrap();
-    let before:i64=sqlx::query_scalar("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap();
+    crate::db::query("UPDATE equip_items SET locked=1 WHERE account_id=$1 AND slot_index=$2").bind(a).bind(second).execute(&s.db).await.unwrap();
+    let before:i64=crate::db::query_scalar("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap();
     let result=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={first}&EquipItemSlotIndices={second}")).await;
     assert_eq!(result["Result"],"LockedEquipItemExists","{result}");
     let result=call(&s,&u,"break_equip",&format!("EquipItemSlotIndices={first}&EquipItemSlotIndices={first}")).await;
     assert_ne!(result["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=? AND slot_index IN (?,?)").bind(a).bind(first).bind(second).fetch_one(&s.db).await.unwrap(),2);
-    assert_eq!(sqlx::query_scalar::<_,i64>("SELECT COALESCE(SUM(count),0) FROM items WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(),before);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COUNT(*) FROM equip_items WHERE account_id=$1 AND slot_index IN ($2,$3)").bind(a).bind(first).bind(second).fetch_one(&s.db).await.unwrap(),2);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT COALESCE(SUM(count)::bigint,0) FROM items WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(),before);
 }
 
 #[tokio::test]
@@ -2618,7 +2612,7 @@ async fn accessory_items_accept_native_encoded_positions_and_survive_relogin() {
         let info: Value = serde_json::from_str(result["PlayerAccessoryCostumeInfo"]["PositionInfo"].as_str().unwrap()).unwrap();
         assert_eq!(info, position);
         assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
-        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=?")
+        assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=$2")
             .bind(a).bind(id).fetch_one(&s.db).await.unwrap(), 1);
         used += 1;
     }
@@ -2638,7 +2632,7 @@ async fn accessory_item_invalid_native_positions_do_not_consume_or_grant() {
         let wire = urlencoding::encode(&escaped);
         let args = format!("ItemIndex=3100017&AccessoryCostumeIndex=3100017&HeroIndex=1&PositionInfo={wire}");
         assert_ne!(call(&s, &u, "item/use_accessory_select_item", &args).await["Result"], "Success");
-        assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=3100017")
+        assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=3100017")
             .bind(a).fetch_one(&s.db).await.unwrap(), 1);
         assert!(get(&mut s.db.acquire().await.unwrap(), a, "accessory", cosmetics::accessory_key(1, 3100017).unwrap()).await.unwrap().is_null());
     }
@@ -2672,8 +2666,8 @@ async fn exp_flasks_reattach_same_type_until_stock_runs_out_and_persist() {
         assert_eq!(h.details["FlaskItemIndex"], if completed < 3 { 40001 } else { 0 });
         assert_eq!(h.details["FlaskExp"], 0);
     }
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 0);
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40005").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 0);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=40005").bind(a).fetch_one(&s.db).await.unwrap(), 3);
 }
 
 #[tokio::test]
@@ -2712,7 +2706,7 @@ async fn cursed_ruby_flasks_equip_fill_from_stamina_cancel_and_reattach() {
     }
     give(&s,a,40201,1).await;
     assert_ne!(call(&s,&u,"item/use_flask_item","HeroIndex=1&ItemIndex=40201").await["Result"],"Success");
-    assert_eq!(sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=40201").bind(a).fetch_one(&s.db).await.unwrap(),1);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=40201").bind(a).fetch_one(&s.db).await.unwrap(),1);
 }
 
 #[tokio::test]
@@ -2744,15 +2738,15 @@ async fn exp_flask_completion_keeps_locked_replacement_stock_and_never_switches_
     give(&s, a, 40001, 2).await;
     give(&s, a, 40002, 3).await;
     assert_eq!(call(&s, &u, "item/use_flask_item", "HeroIndex=1&ItemIndex=40001").await["Result"], "Success");
-    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=40001").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET locked=1 WHERE account_id=$1 AND item_index=40001").bind(a).execute(&s.db).await.unwrap();
     let mut tx = s.db.begin().await.unwrap();
     let (result, items) = consumables::fill_flask(&mut tx, &s, a, 1, 200).await.unwrap().unwrap();
     assert_eq!(result["FilledFlaskCount"], 1);
     assert_eq!(result["Info"]["ItemIndex"], 0);
     assert_eq!(items.len(), 1);
     tx.commit().await.unwrap();
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 1);
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=40002").bind(a).fetch_one(&s.db).await.unwrap(), 3);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=40001").bind(a).fetch_one(&s.db).await.unwrap(), 1);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=40002").bind(a).fetch_one(&s.db).await.unwrap(), 3);
 }
 
 #[tokio::test]
@@ -2770,8 +2764,8 @@ async fn technomagic_restoration_accepts_max_star_locked_gear_and_native_costs()
     assert_eq!(result["ResultEquipItem"]["ItemIndex"], 901101);
     assert_eq!(result["ResultEquipItem"]["Star"], 0);
     assert_eq!(result["ResultEquipItem"]["Locked"], 1);
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 90000000);
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 163);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), 90000000);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 163);
 }
 
 #[tokio::test]
@@ -2780,7 +2774,7 @@ async fn technomagic_awaken_charges_displayed_target_star_costs_and_preserves_fa
     let a=u.user_info.account_id;
     give(&s,a,990101,5000).await;
     let stones=|s:AppState|async move {
-        sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=990101")
+        crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=990101")
             .bind(a).fetch_one(&s.db).await.unwrap()
     };
     for (id,base) in [(911101,10),(901101,15)] {
@@ -2791,17 +2785,17 @@ async fn technomagic_awaken_charges_displayed_target_star_costs_and_preserves_fa
         for star in 0..5 {
             let expected=base*(1<<star);
             let price=i64::from(expected)*100000;
-            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
-            sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=990101").bind(expected-1).bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE user_info SET gold=100000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=990101").bind(expected-1).bind(a).execute(&s.db).await.unwrap();
             let rejected=call(&s,&u,"valance_awaken",&args).await;
             assert_ne!(rejected["Result"],"Success","{id} {star}: {rejected}");
             assert_eq!(stones(s.clone()).await,expected-1);assert_eq!(gold(&s).await,100000000);
             assert_eq!(equip(&mut s.db.acquire().await.unwrap(),a,eq.slot_index as i64).await.unwrap().star,star);
-            sqlx::query("UPDATE items SET count=5000 WHERE account_id=? AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
-            sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price-1).bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE items SET count=5000 WHERE account_id=$1 AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(price-1).bind(a).execute(&s.db).await.unwrap();
             assert_ne!(call(&s,&u,"valance_awaken",&args).await["Result"],"Success");
             assert_eq!(stones(s.clone()).await,5000);assert_eq!(gold(&s).await,price-1);
-            sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+            crate::db::query("UPDATE user_info SET gold=100000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
             let result=call(&s,&u,"valance_awaken",&args).await;
             assert_eq!(result["Result"],"Success","{result}");
             assert_eq!(result["ResultEquipItem"]["Star"],star+1);
@@ -2822,7 +2816,7 @@ async fn technomagic_awaken_to_target_star_charges_every_step_atomically() {
     let a=u.user_info.account_id;
     give(&s,a,990101,5000).await;
     let stones=|s:AppState|async move {
-        sqlx::query_scalar::<_,i32>("SELECT count FROM items WHERE account_id=? AND item_index=990101")
+        crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=990101")
             .bind(a).fetch_one(&s.db).await.unwrap()
     };
     let mut eq=give(&s,a,911101,1).await.equipment.remove(0);
@@ -2837,15 +2831,15 @@ async fn technomagic_awaken_to_target_star_charges_every_step_atomically() {
         assert_eq!(result["Result"],"CannotAwakenMore","{target}: {result}");
     }
     let args=format!("EquipItemSlotIndex={slot}&TargetStar=4");
-    sqlx::query("UPDATE items SET count=? WHERE account_id=? AND item_index=990101").bind(need-1).bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET count=$1 WHERE account_id=$2 AND item_index=990101").bind(need-1).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(price).bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s,&u,"valance_awaken",&args).await["Result"],"Success");
     assert_eq!((stones(s.clone()).await,gold(&s).await,star(s.clone()).await),(need-1,price,1));
-    sqlx::query("UPDATE items SET count=5000 WHERE account_id=? AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price-1).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET count=5000 WHERE account_id=$1 AND item_index=990101").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(price-1).bind(a).execute(&s.db).await.unwrap();
     assert_ne!(call(&s,&u,"valance_awaken",&args).await["Result"],"Success");
     assert_eq!((stones(s.clone()).await,gold(&s).await,star(s.clone()).await),(5000,price-1,1));
-    sqlx::query("UPDATE user_info SET gold=? WHERE account_id=?").bind(price+7).bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=$1 WHERE account_id=$2").bind(price+7).bind(a).execute(&s.db).await.unwrap();
     let result=call(&s,&u,"valance_awaken",&args).await;
     assert_eq!(result["Result"],"Success","{result}");
     assert_eq!(result["ResultEquipItem"]["Star"],4);
@@ -2853,7 +2847,7 @@ async fn technomagic_awaken_to_target_star_charges_every_step_atomically() {
     assert_eq!(result["ItemResults"][0]["AddCount"],-need);
     assert_eq!((stones(s.clone()).await,gold(&s).await,star(s.clone()).await),(5000-need,7,4));
     // Omitting TargetStar keeps the native one-star request.
-    sqlx::query("UPDATE user_info SET gold=100000000 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=100000000 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     let result=call(&s,&u,"valance_awaken",&format!("EquipItemSlotIndex={slot}")).await;
     assert_eq!(result["ResultEquipItem"]["Star"],5,"{result}");
     assert_eq!(stones(s.clone()).await,5000-need-160);
@@ -2876,13 +2870,13 @@ async fn technomagic_restoration_rejections_use_native_messages_and_preserve_cos
     assert_eq!(call(&s, &u, "upgrade_equip_tier", "EquipItemSlotIndex=2147483647").await["Result"], "EquipNotOwned");
     eq.star = 5;
     save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
-    sqlx::query("UPDATE items SET locked=1 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET locked=1 WHERE account_id=$1 AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
     assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughMaterialItem");
-    sqlx::query("UPDATE items SET locked=0 WHERE account_id=? AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
-    sqlx::query("UPDATE user_info SET gold=9999999 WHERE account_id=?").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE items SET locked=0 WHERE account_id=$1 AND item_index=990000").bind(a).execute(&s.db).await.unwrap();
+    crate::db::query("UPDATE user_info SET gold=9999999 WHERE account_id=$1").bind(a).execute(&s.db).await.unwrap();
     assert_eq!(call(&s, &u, "upgrade_equip_tier", &args).await["Result"], "NotEnoughGold");
-    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT gold FROM user_info WHERE account_id=?").bind(a).fetch_one(&s.db).await.unwrap(), 9999999);
-    assert_eq!(sqlx::query_scalar::<_, i32>("SELECT count FROM items WHERE account_id=? AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 203);
+    assert_eq!(crate::db::query_scalar::<i64>("SELECT gold FROM user_info WHERE account_id=$1").bind(a).fetch_one(&s.db).await.unwrap(), 9999999);
+    assert_eq!(crate::db::query_scalar::<i32>("SELECT count FROM items WHERE account_id=$1 AND item_index=990000").bind(a).fetch_one(&s.db).await.unwrap(), 203);
     assert_eq!(equip(&mut s.db.acquire().await.unwrap(), a, eq.slot_index as i64).await.unwrap().item_index, 911101);
 }
 
@@ -2895,7 +2889,7 @@ async fn technomagic_restoration_preserves_equipped_hero_for_locked_and_unlocked
         let mut eq = give(&s, a, 911101, 1).await.equipment.remove(0);
         eq.star = 5; eq.identified = 1; eq.locked = locked;
         save_equip(&mut s.db.acquire().await.unwrap(), a, &eq).await.unwrap();
-        sqlx::query("UPDATE heroes SET equip_item_slot_index_2=? WHERE account_id=? AND hero_index=1")
+        crate::db::query("UPDATE heroes SET equip_item_slot_index_2=$1 WHERE account_id=$2 AND hero_index=1")
             .bind(eq.slot_index).bind(a).execute(&s.db).await.unwrap();
         let result = call(&s, &u, "upgrade_equip_tier", &format!("EquipItemSlotIndex={}", eq.slot_index)).await;
         assert_eq!(result["Result"], "Success", "{result}");
@@ -2949,25 +2943,25 @@ async fn batch_break_clears_every_reference_once_and_grants_summed_materials() {
         armor.slot_index, slots[0].slot_index)).await;
     assert_eq!(stored["Result"], "Success", "{stored}");
     let preset = json!([{"HeroIndex":1,"EquipItemSlotIndex":[0,slots[1].slot_index,0,slots[0].slot_index],"EquipItemUid":["",slots[1].uid,"",slots[0].uid],"EquipItemRunePage":[0,1,0,2]}]);
-    sqlx::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES(?,'batch',?)")
+    crate::db::query("INSERT INTO hero_presets(account_id,storage_key,data) VALUES($1,'batch',$2)")
         .bind(a).bind(preset.to_string()).execute(&s.db).await.unwrap();
-    let before: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&s.db).await.unwrap();
+    let before: Vec<(i64, i64)> = crate::db::query_as("SELECT item_index,count FROM items WHERE account_id=$1").bind(a).fetch_all(&s.db).await.unwrap();
     let ids = slots.iter().map(|e| e.slot_index.to_string()).collect::<Vec<_>>().join(",");
     let result = call(&s, &u, "break_equip", &format!("EquipItemSlotIndices=[{ids}]")).await;
     assert_eq!(result["Result"], "Success", "{result}");
-    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=? AND slot_index IN (SELECT value FROM json_each(?))")
+    let remaining: i64 = crate::db::query_scalar("SELECT count(*) FROM equip_items WHERE account_id=$1 AND slot_index IN (SELECT sprk_json_ints($2))")
         .bind(a).bind(format!("[{ids}]")).fetch_one(&s.db).await.unwrap();
     assert_eq!(remaining, 0);
     let mut db = s.db.acquire().await.unwrap();
     let storage = get(&mut db, a, "equip_storage", 1).await.unwrap();
     assert_eq!((storage["EquipItemSlotIndex2"].as_i64(), storage["EquipItemSlotIndex4"].as_i64()), (Some(armor.slot_index as i64), Some(0)));
-    let saved: String = sqlx::query_scalar("SELECT data FROM hero_presets WHERE account_id=? AND storage_key='batch'").bind(a).fetch_one(&mut *db).await.unwrap();
+    let saved: String = crate::db::query_scalar("SELECT data FROM hero_presets WHERE account_id=$1 AND storage_key='batch'").bind(a).fetch_one(&mut *db).await.unwrap();
     let saved: Value = serde_json::from_str(&saved).unwrap();
     assert_eq!(saved[0]["EquipItemSlotIndex"], json!([0,0,0,0]));
     assert_eq!(saved[0]["EquipItemUid"], json!(["","","",""]));
     // Materials are summed per item and granted once; the reported new counts
     // match the inventory change.
-    let after: Vec<(i64, i64)> = sqlx::query_as("SELECT item_index,count FROM items WHERE account_id=?").bind(a).fetch_all(&mut *db).await.unwrap();
+    let after: Vec<(i64, i64)> = crate::db::query_as("SELECT item_index,count FROM items WHERE account_id=$1").bind(a).fetch_all(&mut *db).await.unwrap();
     let results = result["ItemResults"].as_array().unwrap();
     assert!(!results.is_empty(), "{result}");
     let mut indices = std::collections::BTreeSet::new();

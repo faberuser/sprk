@@ -8,24 +8,32 @@ fn native_number(v:&Value,key:&str)->i64 {
 }
 
 pub(crate) async fn pair(
-    db: &mut SqliteConnection, s: &AppState, a: i64, id: i64, mine: &Value,
+    db: &mut PgConnection, s: &AppState, a: i64, id: i64, mine: &Value,
 ) -> Result<Option<Value>> {
     let Some(worker) = cooperative::arena_worker(s).await else { return Ok(None); };
     let kind=n(mine,"Kind");
     let friendly=n(mine,"DuelType")==1;
     let cutoff = now() - settings(s, "ArenaQueueStaleSeconds", 15).clamp(6, 120);
-    let candidates: Vec<(i64, i64, String)> = sqlx::query_as(
-        "SELECT id,account,data FROM arena_runs WHERE kind=? AND status='waiting' AND account!=? AND started>=? AND COALESCE(last_poll,started)>=? AND season=? ORDER BY started,id LIMIT 100")
+    let candidates: Vec<(i64, i64, String)> = crate::db::query_as(
+        "SELECT id,account,data FROM arena_runs WHERE kind=$1 AND status='waiting' AND account!=$2 AND started>=$3 AND COALESCE(last_poll,started)>=$4 AND season=$5 ORDER BY started,id LIMIT 100")
         .bind(kind).bind(a).bind(now()-settings(s,"ArenaMatchExpirySeconds",900)).bind(cutoff)
         .bind(season(s).0).fetch_all(&mut *db).await?;
     if !friendly && n(&match_tickets(db,s,a,kind,0).await?,"NewValue") < 1 {
         return Err(rule("NotEnoughSword"));
     }
     let mut mine_validated=false;
-    for (other_id, b, raw) in candidates {
+    for (other_id, b, _) in candidates {
         // Being logged in alone is insufficient: candidates must also have a
         // recently polled queue entry. Cancelled/bot/in-battle rows never qualify.
         if !s.sessions.iter().any(|v|v.account_id==b) { continue; }
+        // This transaction holds our own account lock. Never wait for the
+        // candidate's (its own poll may be pairing with us, which would
+        // deadlock): skip a busy candidate. Holding its lock, re-read its row,
+        // which another match may have taken since the scan.
+        let free: bool = crate::db::query_scalar("SELECT pg_try_advisory_xact_lock($1)").bind(b).fetch_one(&mut *db).await?;
+        if !free { continue; }
+        let Some(raw): Option<String> = crate::db::query_scalar("SELECT data FROM arena_runs WHERE id=$1 AND account=$2 AND status='waiting'")
+            .bind(other_id).bind(b).fetch_optional(&mut *db).await? else { continue; };
         let other: Value = parse(&raw)?;
         if friendly != (n(&other,"DuelType")==1) {continue;}
         if friendly && (n(mine,"GroupId")!=n(&other,"GroupId") || n(mine,"InvitedOpponent")!=b || n(&other,"InvitedOpponent")!=a) {continue;}
@@ -67,8 +75,10 @@ pub(crate) async fn pair(
             data["ServiceOwned"] = json!(true);
             data["OnlineCharged"] = json!(false);
             data["Started"] = json!(now());
-            sqlx::query("UPDATE arena_runs SET status='battle',data=? WHERE id=? AND status='waiting'")
-                .bind(data.to_string()).bind(row_id).execute(&mut *db).await?;
+            let updated = crate::db::query("UPDATE arena_runs SET status='battle',data=$1 WHERE id=$2 AND status='waiting'")
+                .bind(data.to_string()).bind(row_id).execute(&mut *db).await?.rows_affected();
+            // Both queue entries are locked above; a changed one aborts the pairing.
+            if updated != 1 { return Err(rule("MatchingAborted")); }
             if account_id==a {response=wait;}
         }
         cooperative::create_arena(s, worker, info);
@@ -77,7 +87,7 @@ pub(crate) async fn pair(
     Ok(None)
 }
 
-async fn eligible(db:&mut SqliteConnection,a:i64,data:&Value)->Result<bool> {
+async fn eligible(db:&mut PgConnection,a:i64,data:&Value)->Result<bool> {
     let heroes:Vec<i64>=data["Heroes"].as_array().into_iter().flatten().filter_map(Value::as_i64).collect();
     match owned(db,a,&heroes).await {
         Ok(())=>Ok(true),
@@ -86,22 +96,22 @@ async fn eligible(db:&mut SqliteConnection,a:i64,data:&Value)->Result<bool> {
     }
 }
 
-async fn cancel_waiter(db:&mut SqliteConnection,a:i64,id:i64,data:&Value)->Result<()> {
+async fn cancel_waiter(db:&mut PgConnection,a:i64,id:i64,data:&Value)->Result<()> {
     if n(data,"DuelType")==1 {
         super::super::duel::cancel_waiting(db,a,n(data,"InvitedOpponent"),n(data,"GroupId")).await
     } else {
-        sqlx::query("UPDATE arena_runs SET status='canceled',data=json_set(data,'$.QueueCancelReason','HeroUnavailable') WHERE id=? AND account=? AND status='waiting'")
+        crate::db::query("UPDATE arena_runs SET status='canceled',data=sprk_json_set(data,'$.QueueCancelReason','HeroUnavailable') WHERE id=$1 AND account=$2 AND status='waiting'")
             .bind(id).bind(a).execute(db).await?;
         Ok(())
     }
 }
 
-async fn canceled_response(db:&mut SqliteConnection,s:&AppState,a:i64,kind:i64)->Result<Value> {
+async fn canceled_response(db:&mut PgConnection,s:&AppState,a:i64,kind:i64)->Result<Value> {
     Ok(json!({"BaseResult":"Success","Result":"Canceled","SwordResult":match_tickets(db,s,a,kind,0).await?}))
 }
 
-pub(crate) async fn charge(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result<()> {
-    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT account,data FROM arena_runs WHERE status='battle' AND json_extract(data,'$.OnlineMatchUid')=? ORDER BY id")
+pub(crate) async fn charge(db:&mut PgConnection,s:&AppState,uid:i64)->Result<()> {
+    let rows:Vec<(i64,String)>=crate::db::query_as("SELECT account,data FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$1 ORDER BY id")
         .bind(uid).fetch_all(&mut *db).await?;
     if rows.len()!=2 {return Err(rule("MatchingAborted"));}
     for (a,raw) in rows {
@@ -109,15 +119,15 @@ pub(crate) async fn charge(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
         if n(&data,"Season")!=season(s).0 {return Err(rule("MatchingAborted"));}
         if data["OnlineCharged"]!=true {
             if n(&data,"DuelType")!=1 {match_tickets(db,s,a,n(&data,"Kind"),-1).await?;}
-            sqlx::query("UPDATE arena_runs SET data=json_set(data,'$.OnlineCharged',json('true')) WHERE +account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
+            crate::db::query("UPDATE arena_runs SET data=sprk_json_set(data,'$.OnlineCharged',('true')::jsonb) WHERE +account=$1 AND status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$2")
                 .bind(a).bind(uid).execute(&mut *db).await?;
         }
     }
     Ok(())
 }
 
-pub(crate) async fn finish(db:&mut SqliteConnection,s:&AppState,uid:i64,winner:i64,body:&Value,give_up:Option<i64>)->Result<()> {
-    let rows:Vec<(i64,String)>=sqlx::query_as("SELECT account,data FROM arena_runs WHERE status='battle' AND json_extract(data,'$.OnlineMatchUid')=? ORDER BY id")
+pub(crate) async fn finish(db:&mut PgConnection,s:&AppState,uid:i64,winner:i64,body:&Value,give_up:Option<i64>)->Result<()> {
+    let rows:Vec<(i64,String)>=crate::db::query_as("SELECT account,data FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$1 ORDER BY id")
         .bind(uid).fetch_all(&mut *db).await?;
     if rows.is_empty() {return Ok(());} // duplicate worker delivery
     if rows.len()!=2 || !rows.iter().any(|(a,_)|*a==winner) {return Err(rule("MatchingAborted"));}
@@ -134,15 +144,15 @@ pub(crate) async fn finish(db:&mut SqliteConnection,s:&AppState,uid:i64,winner:i
         // itself: patching them afterwards rewrote each ~1.5 MB Honor row again.
         service_result(db,s,a,&req).await?;
         if n(&data,"DuelType")==1 {
-            sqlx::query("UPDATE friendly_duels SET status='complete' WHERE group_id=?")
+            crate::db::query("UPDATE friendly_duels SET status='complete' WHERE group_id=$1")
                 .bind(n(&data,"GroupId")).execute(&mut *db).await?;
         }
     }
     Ok(())
 }
 
-pub(crate) async fn cancel_account(db:&mut SqliteConnection,s:&AppState,a:i64)->Result<bool> {
-    let raw:Option<String>=sqlx::query_scalar("SELECT data FROM arena_runs WHERE account=? AND status='battle' AND json_extract(data,'$.OnlineMatchUid') IS NOT NULL")
+pub(crate) async fn cancel_account(db:&mut PgConnection,s:&AppState,a:i64)->Result<bool> {
+    let raw:Option<String>=crate::db::query_scalar("SELECT data FROM arena_runs WHERE account=$1 AND status='battle' AND sprk_json_int(data,'$.OnlineMatchUid') IS NOT NULL")
         .bind(a).fetch_optional(&mut *db).await?;
     if let Some(raw)=raw {
         let data:Value=parse(&raw)?;let uid=n(&data,"OnlineMatchUid");
@@ -157,8 +167,8 @@ pub(crate) async fn cancel_account(db:&mut SqliteConnection,s:&AppState,a:i64)->
     Ok(false)
 }
 
-pub(crate) async fn cancel(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result<()> {
-    let rows:Vec<(i64,i64,String)>=sqlx::query_as("SELECT id,account,data FROM arena_runs WHERE status='battle' AND json_extract(data,'$.OnlineMatchUid')=?")
+pub(crate) async fn cancel(db:&mut PgConnection,s:&AppState,uid:i64)->Result<()> {
+    let rows:Vec<(i64,i64,String)>=crate::db::query_as("SELECT id,account,data FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$1")
         .bind(uid).fetch_all(&mut *db).await?;
     for (id,a,raw) in rows {
         let mut data:Value=parse(&raw)?;
@@ -171,20 +181,20 @@ pub(crate) async fn cancel(db:&mut SqliteConnection,s:&AppState,uid:i64)->Result
             "PrevTierRank":info["Rank"],"NewTierRank":info["Rank"],"PrevTotalRank":info["Rank"],"NewTotalRank":info["Rank"],
             "SwordResult":match_tickets(db,s,a,kind,0).await?,"CurrencyResults":[],"ItemResults":[],"HeroExpResults":[]}});
         data["End"][if kind==1{"BattleBanPickInfo"}else{"BattleInfo"}]=info;
-        sqlx::query("UPDATE arena_runs SET status='complete',data=? WHERE id=?")
+        crate::db::query("UPDATE arena_runs SET status='complete',data=$1 WHERE id=$2")
             .bind(data.to_string()).bind(id).execute(&mut *db).await?;
         if n(&data,"DuelType")==1 {
-            sqlx::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=?")
+            crate::db::query("UPDATE friendly_duels SET status='canceled' WHERE group_id=$1")
                 .bind(n(&data,"GroupId")).execute(&mut *db).await?;
         }
     }
     Ok(())
 }
 
-pub(crate) async fn recover(db:&mut SqliteConnection,s:&AppState)->Result<()> {
-    let ids:Vec<i64>=sqlx::query_scalar("SELECT DISTINCT json_extract(data,'$.OnlineMatchUid') FROM arena_runs WHERE status='battle' AND json_extract(data,'$.OnlineMatchUid') IS NOT NULL")
+pub(crate) async fn recover(db:&mut PgConnection,s:&AppState)->Result<()> {
+    let ids:Vec<i64>=crate::db::query_scalar("SELECT DISTINCT sprk_json_int(data,'$.OnlineMatchUid') FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid') IS NOT NULL")
         .fetch_all(&mut *db).await?;
     for uid in ids {cancel(db,s,uid).await?;}
-    sqlx::query("UPDATE arena_runs SET status='canceled' WHERE status='waiting'").execute(&mut *db).await?;
+    crate::db::query("UPDATE arena_runs SET status='canceled' WHERE status='waiting'").execute(&mut *db).await?;
     Ok(())
 }

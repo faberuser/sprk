@@ -7,13 +7,13 @@ CREATE TABLE accounts (
     login_method bigint NOT NULL DEFAULT 0,
     device_id text,
     nick text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    last_login timestamptz,
+    created_at text NOT NULL DEFAULT sprk_now(),
+    last_login text,
     session_key text,
     aes_key text,
     country_code text DEFAULT 'US',
     is_banned bigint NOT NULL DEFAULT 0,
-    last_logout timestamptz
+    last_logout text
 );
 
 -- Currency guards replace SQLite's currency64_user_* triggers: bigint already
@@ -99,7 +99,7 @@ CREATE TABLE equip_items (
     rune_item_index_1 bigint NOT NULL DEFAULT 0,
     rune_item_index_2 bigint NOT NULL DEFAULT 0,
     rune_item_index_3 bigint NOT NULL DEFAULT 0,
-    created_time timestamptz NOT NULL DEFAULT now(),
+    created_time text NOT NULL DEFAULT sprk_now(),
     upgrade_star_fail_bonus bigint NOT NULL DEFAULT 0,
     locked bigint NOT NULL DEFAULT 0,
     inventory_type bigint NOT NULL DEFAULT 0,
@@ -132,7 +132,7 @@ CREATE TABLE equip_items (
     option_renew_count_5 bigint NOT NULL DEFAULT 0,
     option_step_5 bigint NOT NULL DEFAULT 0,
     renew_enchant_option_slot_index bigint NOT NULL DEFAULT 0,
-    punishment_rune_option jsonb
+    punishment_rune_option text
 ) WITH (fillfactor = 85);
 CREATE INDEX equip_account_inventory ON equip_items (account_id, inventory_type, slot_index);
 
@@ -142,7 +142,7 @@ CREATE TABLE items (
     item_index bigint NOT NULL,
     count bigint NOT NULL DEFAULT 1,
     locked bigint NOT NULL DEFAULT 0,
-    created_time timestamptz,
+    created_time text,
     UNIQUE (account_id, item_index)
 ) WITH (fillfactor = 85);
 
@@ -155,7 +155,7 @@ CREATE TABLE guilds (
     master_account_id bigint NOT NULL REFERENCES accounts(account_id),
     member_count bigint NOT NULL DEFAULT 1,
     max_members bigint NOT NULL DEFAULT 30,
-    created_at timestamptz NOT NULL DEFAULT now()
+    created_at text NOT NULL DEFAULT sprk_now()
 );
 
 CREATE TABLE guild_members (
@@ -164,7 +164,7 @@ CREATE TABLE guild_members (
     guild_id bigint NOT NULL REFERENCES guilds(guild_id),
     role bigint NOT NULL DEFAULT 0,
     contribution bigint NOT NULL DEFAULT 0,
-    joined_at timestamptz NOT NULL DEFAULT now()
+    joined_at text NOT NULL DEFAULT sprk_now()
 );
 
 CREATE TABLE mails (
@@ -175,19 +175,19 @@ CREATE TABLE mails (
     content text,
     reward_gold bigint DEFAULT 0,
     reward_gem bigint DEFAULT 0,
-    reward_items jsonb,
+    reward_items text,
     is_read bigint NOT NULL DEFAULT 0,
     is_received bigint NOT NULL DEFAULT 0,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    expires_at timestamptz,
-    read_time timestamptz,
-    received_time timestamptz,
-    opens_at timestamptz,
+    created_at text NOT NULL DEFAULT sprk_now(),
+    expires_at text,
+    read_time text,
+    received_time text,
+    opens_at text,
     reward_stamina bigint NOT NULL DEFAULT 0,
-    reward_equipment jsonb,
+    reward_equipment text,
     global_id bigint,
-    receipt jsonb,
-    reward_currencies jsonb
+    receipt text,
+    reward_currencies text
 );
 CREATE INDEX mail_inbox ON mails (account_id, is_received, mail_id);
 
@@ -196,7 +196,7 @@ CREATE TABLE friends (
     account_id bigint NOT NULL REFERENCES accounts(account_id),
     friend_account_id bigint NOT NULL REFERENCES accounts(account_id),
     status text NOT NULL DEFAULT 'pending',
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at text NOT NULL DEFAULT sprk_now(),
     UNIQUE (account_id, friend_account_id)
 );
 CREATE INDEX friends_incoming ON friends (friend_account_id, status);
@@ -209,7 +209,7 @@ CREATE TABLE campaign_progress (
     clear_count bigint NOT NULL DEFAULT 0,
     best_star bigint NOT NULL DEFAULT 0,
     is_unlocked bigint NOT NULL DEFAULT 0,
-    completed_time timestamptz,
+    completed_time text,
     UNIQUE (account_id, chapter_id, dungeon_id)
 );
 
@@ -218,8 +218,8 @@ CREATE TABLE tutorial_progress (
     account_id bigint NOT NULL REFERENCES accounts(account_id),
     tutorial_index bigint NOT NULL,
     is_completed bigint NOT NULL DEFAULT 0,
-    completed_time timestamptz,
-    completion_response jsonb,
+    completed_time text,
+    completion_response text,
     UNIQUE (account_id, tutorial_index)
 );
 
@@ -251,8 +251,8 @@ CREATE TABLE sessions (
     session_id text PRIMARY KEY,
     account_id bigint NOT NULL REFERENCES accounts(account_id),
     aes_key text NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    last_activity timestamptz NOT NULL DEFAULT now()
+    created_at text NOT NULL DEFAULT sprk_now(),
+    last_activity text NOT NULL DEFAULT sprk_now()
 );
 
 CREATE TABLE hero_friendly_state (
@@ -262,11 +262,11 @@ CREATE TABLE hero_friendly_state (
     friendly_point bigint NOT NULL DEFAULT 0,
     step bigint NOT NULL DEFAULT 0,
     action_reset_count bigint NOT NULL DEFAULT 0,
-    last_greeting_time timestamptz,
-    last_conversation_time timestamptz,
-    last_gift_time timestamptz,
+    last_greeting_time text,
+    last_conversation_time text,
+    last_gift_time text,
     is_lock bigint NOT NULL DEFAULT 0,
-    selected_time timestamptz,
+    selected_time text,
     visit_period bigint NOT NULL DEFAULT 0,
     UNIQUE (account_id, hero_index)
 );
@@ -276,13 +276,13 @@ CREATE TABLE hero_friendly_info (
     hero_index bigint NOT NULL DEFAULT 0,
     selected_hero_index bigint NOT NULL DEFAULT 0,
     friendly_point bigint NOT NULL DEFAULT 0,
-    last_greeting_time timestamptz,
-    last_conversation_time timestamptz,
-    last_gift_time timestamptz,
-    selected_time timestamptz,
+    last_greeting_time text,
+    last_conversation_time text,
+    last_gift_time text,
+    selected_time text,
     -- Comma-separated hero indices ("19,28,31"), not JSON.
     selected_hero_indices text,
-    last_roulette_time timestamptz
+    last_roulette_time text
 );
 
 CREATE TABLE hero_inn_roulette_spins (
@@ -310,8 +310,8 @@ CREATE TABLE shop_purchases (
 CREATE TABLE friend_points (
     account_id bigint NOT NULL,
     friend_id bigint NOT NULL,
-    last_send_time timestamptz,
-    last_recv_time timestamptz,
+    last_send_time text,
+    last_recv_time text,
     PRIMARY KEY (account_id, friend_id)
 );
 
@@ -329,12 +329,12 @@ CREATE TABLE global_mails (
     content text NOT NULL DEFAULT '',
     reward_gold bigint NOT NULL DEFAULT 0,
     reward_gem bigint NOT NULL DEFAULT 0,
-    reward_items jsonb,
+    reward_items text,
     reward_stamina bigint NOT NULL DEFAULT 0,
-    reward_equipment jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    expires_at timestamptz,
-    opens_at timestamptz
+    reward_equipment text,
+    created_at text NOT NULL DEFAULT sprk_now(),
+    expires_at text,
+    opens_at text
 );
 
 CREATE TABLE global_mail_deliveries (
@@ -352,8 +352,8 @@ CREATE TABLE chat_messages (
     guild_id bigint NOT NULL DEFAULT 0,
     receiver_id bigint NOT NULL DEFAULT 0,
     protocol text NOT NULL,
-    content jsonb NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now()
+    content text NOT NULL,
+    created_at text NOT NULL DEFAULT sprk_now()
 );
 CREATE INDEX chat_channel_history ON chat_messages (group_type, channel, message_id);
 CREATE INDEX chat_whisper_history ON chat_messages (receiver_id, sender_id, message_id);
@@ -374,8 +374,8 @@ CREATE TABLE inventory_settings (
 CREATE TABLE inventory_ticket_redemptions (
     account_id bigint NOT NULL,
     token text NOT NULL,
-    request jsonb NOT NULL,
-    response jsonb NOT NULL,
+    request text NOT NULL,
+    response text NOT NULL,
     PRIMARY KEY (account_id, token)
 );
 
@@ -387,15 +387,15 @@ CREATE TABLE craft_slots (
     item_count bigint NOT NULL DEFAULT 0,
     complete_time bigint NOT NULL DEFAULT 0,
     paid_gold bigint NOT NULL DEFAULT 0,
-    materials jsonb NOT NULL DEFAULT '[]',
+    materials text NOT NULL DEFAULT '[]',
     PRIMARY KEY (account_id, slot_index)
 );
 
 CREATE TABLE item_boosters (
     account_id bigint NOT NULL,
     item_index bigint NOT NULL,
-    start_time timestamptz NOT NULL,
-    end_time timestamptz NOT NULL,
+    start_time text NOT NULL,
+    end_time text NOT NULL,
     PRIMARY KEY (account_id, item_index)
 );
 
@@ -403,21 +403,21 @@ CREATE TABLE hero_presets (
     account_id bigint NOT NULL,
     storage_key text NOT NULL,
     name text NOT NULL DEFAULT '',
-    data jsonb NOT NULL DEFAULT '[]',
+    data text NOT NULL DEFAULT '[]',
     PRIMARY KEY (account_id, storage_key)
 );
 
 CREATE TABLE hero_details (
     account_id bigint NOT NULL,
     hero_index bigint NOT NULL,
-    data jsonb NOT NULL DEFAULT '{}',
+    data text NOT NULL DEFAULT '{}',
     PRIMARY KEY (account_id, hero_index)
 );
 
 CREATE TABLE costumes (
     account_id bigint NOT NULL,
     costume_index bigint NOT NULL,
-    created_time timestamptz NOT NULL DEFAULT now(),
+    created_time text NOT NULL DEFAULT sprk_now(),
     PRIMARY KEY (account_id, costume_index)
 );
 
@@ -425,7 +425,7 @@ CREATE TABLE costume_presets (
     account_id bigint NOT NULL,
     hero_index bigint NOT NULL,
     slot_index bigint NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (account_id, hero_index, slot_index)
 );
 
@@ -436,7 +436,7 @@ CREATE TABLE lobby_appearance (
     hair_costume_index bigint NOT NULL,
     weapon_costume_index bigint NOT NULL,
     hide_unique_weapon bigint NOT NULL,
-    snapshot jsonb
+    snapshot text
 );
 
 CREATE TABLE shop_stock (
@@ -445,7 +445,7 @@ CREATE TABLE shop_stock (
     revision bigint NOT NULL DEFAULT 1,
     restock_time bigint NOT NULL DEFAULT 0,
     restock_count bigint NOT NULL DEFAULT 0,
-    stock jsonb NOT NULL DEFAULT '[]',
+    stock text NOT NULL DEFAULT '[]',
     PRIMARY KEY (account_id, shop_index)
 );
 
@@ -492,7 +492,7 @@ CREATE TABLE coupon_redemptions (
     account_id bigint NOT NULL REFERENCES accounts(account_id),
     code text NOT NULL,
     mail_id bigint NOT NULL,
-    redeemed_at timestamptz NOT NULL DEFAULT now(),
+    redeemed_at text NOT NULL DEFAULT sprk_now(),
     PRIMARY KEY (account_id, code)
 );
 
@@ -504,7 +504,7 @@ CREATE TABLE client_storage_reports (
     source_present bigint NOT NULL,
     files_copied bigint NOT NULL,
     preferences_copied bigint NOT NULL,
-    first_seen timestamptz NOT NULL DEFAULT now(),
-    last_seen timestamptz NOT NULL DEFAULT now(),
+    first_seen text NOT NULL DEFAULT sprk_now(),
+    last_seen text NOT NULL DEFAULT sprk_now(),
     PRIMARY KEY (account_id, installation)
 );

@@ -9,7 +9,9 @@ RETURNS void LANGUAGE sql AS $$
     INSERT INTO progression_metrics (account_id, day, kind, arg, arg2, value)
     VALUES (p_account, p_day, p_kind, p_arg, p_arg2, p_value)
     ON CONFLICT (account_id, day, kind, arg, arg2)
-    DO UPDATE SET value = progression_metrics.value + EXCLUDED.value
+    -- Saturate: SQLite turned an overflowing sum into a float; a counter must
+    -- never fail the gameplay write that triggered it.
+    DO UPDATE SET value = LEAST(progression_metrics.value::numeric + EXCLUDED.value, 9223372036854775807)::bigint
 $$;
 
 CREATE FUNCTION sprk_play_record_add(p_account bigint, p_kind text, p_idx bigint, p_value bigint)
@@ -17,7 +19,7 @@ RETURNS void LANGUAGE sql AS $$
     INSERT INTO play_record_values (account_id, kind, idx, value)
     VALUES (p_account, p_kind, p_idx, p_value)
     ON CONFLICT (account_id, kind, idx)
-    DO UPDATE SET value = play_record_values.value + EXCLUDED.value
+    DO UPDATE SET value = LEAST(play_record_values.value::numeric + EXCLUDED.value, 9223372036854775807)::bigint
 $$;
 
 CREATE FUNCTION sprk_play_record_max(p_account bigint, p_kind text, p_idx bigint, p_value bigint)
@@ -80,8 +82,8 @@ CREATE TRIGGER equip_items_records AFTER INSERT OR UPDATE OF star ON equip_items
 -- extension_state: play_record_soul_{grade,reinforce}[_new]
 CREATE FUNCTION sprk_soul_records() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    PERFORM sprk_play_record_max(NEW.account_id, 'soul_grade', 0, COALESCE(sprk_json_int(NEW.data -> 'Grade'), 0));
-    PERFORM sprk_play_record_max(NEW.account_id, 'soul_reinforce', 0, COALESCE(sprk_json_int(NEW.data -> 'ReinforceLevel'), 0));
+    PERFORM sprk_play_record_max(NEW.account_id, 'soul_grade', 0, COALESCE(sprk_json_int(NEW.data, '$.Grade'), 0));
+    PERFORM sprk_play_record_max(NEW.account_id, 'soul_reinforce', 0, COALESCE(sprk_json_int(NEW.data, '$.ReinforceLevel'), 0));
     RETURN NULL;
 END $$;
 CREATE TRIGGER extension_state_soul_records AFTER INSERT OR UPDATE ON extension_state
@@ -92,7 +94,7 @@ CREATE FUNCTION sprk_arena_score_records() RETURNS trigger LANGUAGE plpgsql AS $
 BEGIN
     IF NEW.wins > OLD.wins THEN
         PERFORM sprk_play_record_max(NEW.account, 'arena_score', 0, NEW.score);
-        PERFORM sprk_play_record_max(NEW.account, 'arena_streak', 0, COALESCE(sprk_json_int(NEW.data -> 'SuccessiveWin'), 0));
+        PERFORM sprk_play_record_max(NEW.account, 'arena_streak', 0, COALESCE(sprk_json_int(NEW.data, '$.SuccessiveWin'), 0));
         PERFORM sprk_play_record_add(NEW.account, 'arena_wins', 0, NEW.wins - OLD.wins);
     END IF;
     IF NEW.losses > OLD.losses THEN
@@ -228,20 +230,20 @@ CREATE TRIGGER shop_stock_restock AFTER UPDATE ON shop_stock FOR EACH ROW
 -- AFTER triggers that updated the row again; a BEFORE trigger sets the same
 -- values on the row being written.
 CREATE FUNCTION sprk_arena_runs_derive() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE duel bigint := sprk_json_int(NEW.data -> 'DuelType');
+DECLARE duel bigint := sprk_json_int(NEW.data, '$.DuelType');
 BEGIN
-    NEW.season := sprk_json_int(NEW.data -> 'Season');
+    NEW.season := sprk_json_int(NEW.data, '$.Season');
     NEW.nonduel := CASE WHEN duel IS NOT DISTINCT FROM 1 THEN 0 ELSE 1 END;
     NEW.squad := CASE WHEN NEW.nonduel = 1
-        AND COALESCE(sprk_json_array_length(NEW.data -> 'Heroes') BETWEEN 1 AND 4, false) THEN 1 ELSE 0 END;
+        AND COALESCE(sprk_json_array_length(NEW.data, '$.Heroes') BETWEEN 1 AND 4, false) THEN 1 ELSE 0 END;
     IF NEW.status = 'complete' THEN
         NEW.mission_summary := jsonb_build_object(
-            'DuelType', COALESCE(NULLIF(NEW.data -> 'DuelType', 'null'::jsonb), '0'::jsonb),
-            'CompletedAt', NEW.data -> 'CompletedAt',
+            'DuelType', COALESCE(sprk_json(NEW.data, '$.DuelType'), '0'::jsonb),
+            'CompletedAt', sprk_json(NEW.data, '$.CompletedAt'),
             'End', jsonb_build_object(
-                'MatchResult', NEW.data #> '{End,MatchResult}',
-                'BattleInfo', jsonb_build_object('SuccessiveWin', NEW.data #> '{End,BattleInfo,SuccessiveWin}'),
-                'BattleBanPickInfo', jsonb_build_object('SuccessiveWin', NEW.data #> '{End,BattleBanPickInfo,SuccessiveWin}')));
+                'MatchResult', sprk_json(NEW.data, '$.End.MatchResult'),
+                'BattleInfo', jsonb_build_object('SuccessiveWin', sprk_json(NEW.data, '$.End.BattleInfo.SuccessiveWin')),
+                'BattleBanPickInfo', jsonb_build_object('SuccessiveWin', sprk_json(NEW.data, '$.End.BattleBanPickInfo.SuccessiveWin'))))::text;
     END IF;
     RETURN NEW;
 END $$;
@@ -273,17 +275,17 @@ BEGIN
 
     INSERT INTO arena_history_archive (account, kind, day, matches, wins, best_streak, best_tier)
     SELECT account, kind,
-        to_char(to_timestamp(GREATEST(COALESCE(sprk_json_int(mission_summary -> 'CompletedAt'), 0), started)) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+        to_char(to_timestamp(GREATEST(COALESCE(sprk_json_int(mission_summary, '$.CompletedAt'), 0), started)) AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
         count(*),
-        count(*) FILTER (WHERE COALESCE(sprk_json_int(mission_summary #> '{End,MatchResult,Win}'), 0) = 1),
-        max(COALESCE(sprk_json_int(CASE kind WHEN 1 THEN mission_summary #> '{End,BattleBanPickInfo,SuccessiveWin}'
-                                             ELSE mission_summary #> '{End,BattleInfo,SuccessiveWin}' END), 0)),
-        max(COALESCE(sprk_json_int(mission_summary #> '{End,MatchResult,NewTierIndex}'), 0))
+        count(*) FILTER (WHERE COALESCE(sprk_json_int(mission_summary, '$.End.MatchResult.Win'), 0) = 1),
+        max(COALESCE(sprk_json_int(mission_summary, CASE kind WHEN 1 THEN '$.End.BattleBanPickInfo.SuccessiveWin'
+                                                              ELSE '$.End.BattleInfo.SuccessiveWin' END), 0)),
+        max(COALESCE(sprk_json_int(mission_summary, '$.End.MatchResult.NewTierIndex'), 0))
     FROM arena_runs
     WHERE id = ANY (expired) AND status = 'complete'
-      AND COALESCE(sprk_json_int(mission_summary -> 'DuelType'), 0) <> 1
-      AND jsonb_typeof(mission_summary #> '{End,MatchResult}') = 'object'
-      AND COALESCE(sprk_json_int(mission_summary #> '{End,MatchResult,Canceled}'), 0) <> 1
+      AND COALESCE(sprk_json_int(mission_summary, '$.DuelType'), 0) <> 1
+      AND sprk_json_type(mission_summary, '$.End.MatchResult') = 'object'
+      AND COALESCE(sprk_json_int(mission_summary, '$.End.MatchResult.Canceled'), 0) <> 1
     GROUP BY account, kind, 3
     ON CONFLICT (account, kind, day) DO UPDATE SET
         matches = arena_history_archive.matches + EXCLUDED.matches,

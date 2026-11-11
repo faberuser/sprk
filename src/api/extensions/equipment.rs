@@ -3,7 +3,7 @@ use crate::models::item::ItemGrant;
 use rand::{seq::IndexedRandom, RngExt};
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -267,7 +267,7 @@ pub(super) async fn execute(
             out["ItemResults"] = json!([]);
         }
         "upgrade_equip_tier" => {
-            let pending:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND slot_index=?)").bind(account).bind(eq.slot_index).fetch_one(&mut *db).await?;
+            let pending:bool=crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=$1 AND slot_index=$2)").bind(account).bind(eq.slot_index).fetch_one(&mut *db).await?;
             if pending {
                 return Err(rule("UnconfirmedOption"));
             }
@@ -327,8 +327,8 @@ pub(super) async fn execute(
             // Restoration keeps the same equipment slot on the server. The
             // native client removes and reapplies it using this owner field.
             let parts = (1..=10).map(|part| format!("equip_item_slot_index_{part}")).collect::<Vec<_>>().join(",");
-            let owner: Option<i32> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
-                "SELECT hero_index FROM heroes WHERE account_id=? AND ? IN ({parts}) ORDER BY hero_index LIMIT 1")))
+            let owner: Option<i32> = crate::db::query_scalar(sqlx::AssertSqlSafe(format!(
+                "SELECT hero_index FROM heroes WHERE account_id=$1 AND $2 IN ({parts}) ORDER BY hero_index LIMIT 1")))
                 .bind(account).bind(eq.slot_index).fetch_optional(&mut *db).await?;
             out["EquipHeroIndex"] = json!(owner.unwrap_or(0));
             out["NewEquipStorageSlotInfo"] = Value::Null;
@@ -357,10 +357,10 @@ pub(super) async fn execute(
             if material_cost <= 0 || gold_cost <= 0 {
                 return Err(rule("InvalidReqGold"));
             }
-            let owned: i64 = sqlx::query_scalar("SELECT count FROM items WHERE account_id=? AND item_index=? AND locked=0")
+            let owned: i64 = crate::db::query_scalar("SELECT count FROM items WHERE account_id=$1 AND item_index=$2 AND locked=0")
                 .bind(account).bind(n(price, "MaterialItemIndex"))
                 .fetch_optional(&mut *db).await?.unwrap_or(0);
-            let gold: i64 = sqlx::query_scalar("SELECT gold FROM user_info WHERE account_id=?")
+            let gold: i64 = crate::db::query_scalar("SELECT gold FROM user_info WHERE account_id=$1")
                 .bind(account).fetch_one(&mut *db).await?;
             let owned = owned - crate::api::battle::entry_costs::held(db, account, "Item", n(price, "MaterialItemIndex")).await?;
             let gold = gold - crate::api::battle::entry_costs::held(db, account, "Currency", 3).await?;
@@ -449,7 +449,7 @@ pub(super) fn item_pairs(req: &Request, key: &str) -> Result<Vec<(i64, i64)>> {
         .collect()
 }
 async fn break_equipment(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -544,14 +544,14 @@ async fn break_equipment(
     Ok(json!({"BaseResult":"Success","Result":"Success","ItemResults":r["ItemResults"]}))
 }
 pub(super) async fn pending(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     slot: i32,
     kind: &str,
     value: &Value,
 ) -> Result<()> {
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=? AND kind=?)",
+    let exists: bool = crate::db::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM equipment_pending WHERE account_id=$1 AND kind=$2)",
     )
     .bind(account)
     .bind(kind)
@@ -560,7 +560,7 @@ pub(super) async fn pending(
     if exists {
         return Err(rule("UnconfirmedOption"));
     }
-    sqlx::query("INSERT INTO equipment_pending(account_id,slot_index,kind,data) VALUES(?,?,?,?)")
+    crate::db::query("INSERT INTO equipment_pending(account_id,slot_index,kind,data) VALUES($1,$2,$3,$4)")
         .bind(account)
         .bind(slot)
         .bind(kind)
@@ -638,7 +638,7 @@ fn reforge_option(state: &AppState, candidates: &[i64], current: i64, current_st
     choose_option(&pool)
 }
 async fn renew(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -824,7 +824,7 @@ async fn renew(
     Ok(out)
 }
 async fn confirm(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account: i64,
     req: &Request,
     eq: EquipItemInfo,
@@ -837,8 +837,8 @@ async fn confirm(
     } else {
         "option"
     };
-    let text: Option<String> = sqlx::query_scalar(
-        "SELECT data FROM equipment_pending WHERE account_id=? AND slot_index=? AND kind=?",
+    let text: Option<String> = crate::db::query_scalar(
+        "SELECT data FROM equipment_pending WHERE account_id=$1 AND slot_index=$2 AND kind=$3",
     )
     .bind(account)
     .bind(eq.slot_index)
@@ -892,7 +892,7 @@ async fn confirm(
     }
     let result: EquipItemInfo = serde_json::from_value(value).map_err(|_| rule("InvalidOption"))?;
     save_equip(db, account, &result).await?;
-    sqlx::query("DELETE FROM equipment_pending WHERE account_id=? AND slot_index=? AND kind=?")
+    crate::db::query("DELETE FROM equipment_pending WHERE account_id=$1 AND slot_index=$2 AND kind=$3")
         .bind(account)
         .bind(eq.slot_index)
         .bind(kind)
@@ -901,7 +901,7 @@ async fn confirm(
     Ok(json!({"BaseResult":"Success","Result":"Success","ResultEquipItem":result}))
 }
 async fn enchant(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,

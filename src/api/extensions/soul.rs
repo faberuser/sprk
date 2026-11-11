@@ -3,7 +3,7 @@ use crate::models::item::ItemGrant;
 use rand::RngExt;
 
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -252,8 +252,8 @@ pub(super) async fn execute(
                 .await?;
                 info["EquipItemSlotIndex"] = json!(target);
                 put(db, account, "soul", target, &info).await?;
-                sqlx::query(
-                    "DELETE FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?",
+                crate::db::query(
+                    "DELETE FROM extension_state WHERE account_id=$1 AND kind='soul' AND idx=$2",
                 )
                 .bind(account)
                 .bind(slot)
@@ -307,7 +307,7 @@ pub(super) fn stats(state: &AppState, info: &mut Value) -> Result<()> {
 }
 
 async fn break_soul(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -324,7 +324,7 @@ async fn break_soul(
             return Err(rule("SoulWeaponNotFound"));
         }
         // Removing the soul record inside this transaction lets the ordinary material checks apply.
-        sqlx::query("DELETE FROM extension_state WHERE account_id=? AND kind='soul' AND idx=?")
+        crate::db::query("DELETE FROM extension_state WHERE account_id=$1 AND kind='soul' AND idx=$2")
             .bind(account)
             .bind(slot)
             .execute(&mut *db)
@@ -365,7 +365,7 @@ async fn break_soul(
     Ok(json!({"BaseResult":"Success","Result":"Success","ItemResults":rewards.items}))
 }
 async fn limit_break(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -451,7 +451,7 @@ async fn limit_break(
 }
 
 async fn restore(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account: i64,
     req: &Request,
@@ -519,7 +519,7 @@ async fn restore(
             rand::rng().random_range(0..10000) < n(config, "SoulStoneChancePer10000")
         };
         if soulstone {
-            let protection: i64 = sqlx::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=? AND item_index=5251),0)")
+            let protection: i64 = crate::db::query_scalar("SELECT COALESCE((SELECT count FROM items WHERE account_id=$1 AND item_index=5251),0)")
                 .bind(account).fetch_one(&mut *db).await?;
             let protected = protection > 0;
             if protected { removed.push(item::consume(db, account, 5251, 1).await?); }

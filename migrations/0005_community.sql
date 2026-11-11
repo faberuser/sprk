@@ -4,7 +4,7 @@ CREATE TABLE community_state (
     owner bigint NOT NULL,
     kind text NOT NULL,
     idx bigint NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (owner, kind, idx)
 );
 
@@ -32,8 +32,8 @@ CREATE TABLE arena_runs (
     kind bigint NOT NULL,
     started bigint NOT NULL,
     status text NOT NULL,
-    data jsonb NOT NULL,
-    mission_summary jsonb,
+    data text NOT NULL,
+    mission_summary text,
     season bigint,
     nonduel bigint,
     squad bigint,
@@ -44,14 +44,14 @@ CREATE UNIQUE INDEX arena_active_account ON arena_runs (account) WHERE status IN
 -- same value, so ported queries should filter on season.
 CREATE INDEX arena_completed_squad ON arena_runs (account, kind, season, id DESC) WHERE status = 'complete';
 CREATE INDEX arena_mission_history ON arena_runs (account, status, id, kind, started) INCLUDE (mission_summary) WHERE status = 'complete';
-CREATE INDEX arena_online_match_status ON arena_runs (sprk_json_int(data -> 'OnlineMatchUid'), status)
-    WHERE sprk_json_int(data -> 'OnlineMatchUid') IS NOT NULL;
+CREATE INDEX arena_online_match_status ON arena_runs (sprk_json_int(data, '$.OnlineMatchUid'), status)
+    WHERE sprk_json_int(data, '$.OnlineMatchUid') IS NOT NULL;
 CREATE INDEX arena_retention ON arena_runs (account, kind, id, status, season, nonduel, squad);
 CREATE INDEX arena_waiting_queue ON arena_runs (kind, started) WHERE status = 'waiting';
 
 CREATE TABLE arena_snapshots (
     run bigint PRIMARY KEY,
-    data jsonb NOT NULL
+    data text NOT NULL
 );
 
 CREATE TABLE arena_scores (
@@ -61,7 +61,7 @@ CREATE TABLE arena_scores (
     score bigint NOT NULL,
     wins bigint NOT NULL DEFAULT 0,
     losses bigint NOT NULL DEFAULT 0,
-    data jsonb NOT NULL DEFAULT '{}',
+    data text NOT NULL DEFAULT '{}',
     PRIMARY KEY (account, kind, season)
 );
 
@@ -81,7 +81,7 @@ CREATE TABLE guild_arena_decks (
     account bigint NOT NULL,
     season bigint NOT NULL,
     deck bigint NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (account, season, deck)
 );
 
@@ -101,5 +101,5 @@ CREATE TABLE guild_arena_records (
     enemy bigint NOT NULL,
     season bigint NOT NULL,
     win bigint NOT NULL,
-    data jsonb NOT NULL
+    data text NOT NULL
 );

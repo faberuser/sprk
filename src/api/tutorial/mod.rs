@@ -13,7 +13,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::{Row, SqliteConnection};
+use sqlx::{PgConnection};
+use crate::db::RowExt;
 use std::collections::BTreeSet;
 
 #[derive(Debug, Deserialize)]
@@ -72,7 +73,7 @@ pub async fn begin_tutorial(
     let account_id = account(&state, &req)?;
     let (index, _) = definition(&state, &req)?;
     // Beginning a sequence is not evidence that its scripted battle has been won.
-    sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index) VALUES (?, ?) ON CONFLICT(account_id, tutorial_index) DO NOTHING")
+    crate::db::query("INSERT INTO tutorial_progress (account_id, tutorial_index) VALUES ($1, $2) ON CONFLICT(account_id, tutorial_index) DO NOTHING")
         .bind(account_id).bind(index).execute(&state.db).await?;
     Ok(Json(TutorialResponse {
         base_result: "Success",
@@ -101,7 +102,7 @@ pub(crate) struct Rewards {
 }
 
 pub(crate) async fn currency(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account_id: i64,
     kind: &str,
     amount: i64,
@@ -116,7 +117,7 @@ pub(crate) async fn currency(
 }
 
 pub(crate) async fn team_exp(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account_id: i64,
     amount: i64,
@@ -125,7 +126,7 @@ pub(crate) async fn team_exp(
     if amount == 0 {
         return Ok(());
     }
-    let row = sqlx::query("SELECT team_level, team_exp FROM user_info WHERE account_id = ?")
+    let row = crate::db::query("SELECT team_level, team_exp FROM user_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_one(&mut *db)
         .await?;
@@ -137,7 +138,7 @@ pub(crate) async fn team_exp(
         .max()
         .ok_or_else(|| ServerError::Internal("Missing team levels".into()))?;
     let (level, exp) = add_exp(levels, old_level, row.get("team_exp"), amount, cap);
-    sqlx::query("UPDATE user_info SET team_level = ?, team_exp = ? WHERE account_id = ?")
+    crate::db::query("UPDATE user_info SET team_level = $1, team_exp = $2 WHERE account_id = $3")
         .bind(level)
         .bind(exp)
         .bind(account_id)
@@ -150,19 +151,19 @@ pub(crate) async fn team_exp(
 }
 
 pub(crate) async fn equipment(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account_id: i64,
     mut item: EquipItemInfo,
     rewards: &mut Rewards,
 ) -> Result<()> {
-    let result = sqlx::query("INSERT INTO equip_items (account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)")
+    let result = crate::db::query_scalar::<i64>("INSERT INTO equip_items (account_id, item_index, star, level, exp, option_index_1, option_step_1, option_index_2, option_step_2, option_index_3, option_step_3, option_index_4, option_step_4, rune_slot_count, rune_item_index_1, rune_item_index_2, rune_item_index_3, created_time, identified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 1) RETURNING slot_index")
         .bind(account_id).bind(item.item_index).bind(item.star).bind(item.level).bind(item.exp)
         .bind(item.option_index_1).bind(item.option_step_1).bind(item.option_index_2).bind(item.option_step_2)
         .bind(item.option_index_3).bind(item.option_step_3).bind(item.option_index_4).bind(item.option_step_4)
         .bind(item.rune_slot_count).bind(item.rune_item_index_1).bind(item.rune_item_index_2).bind(item.rune_item_index_3)
-        .bind(&item.created_time).execute(&mut *db).await?;
-    item.slot_index = result.last_insert_rowid() as i32;
-    sqlx::query("UPDATE equip_items SET option_renew_count_1 = ?, is_renewed_option_1 = ?, option_renew_count_2 = ?, is_renewed_option_2 = ?, option_renew_count_3 = ?, is_renewed_option_3 = ?, option_renew_count_4 = ?, is_renewed_option_4 = ? WHERE slot_index = ? AND account_id = ?")
+        .bind(&item.created_time).fetch_one(&mut *db).await?;
+    item.slot_index = result as i32;
+    crate::db::query("UPDATE equip_items SET option_renew_count_1 = $1, is_renewed_option_1 = $2, option_renew_count_2 = $3, is_renewed_option_2 = $4, option_renew_count_3 = $5, is_renewed_option_3 = $6, option_renew_count_4 = $7, is_renewed_option_4 = $8 WHERE slot_index = $9 AND account_id = $10")
         .bind(item.option_renew_count_1).bind(item.is_renewed_option_1)
         .bind(item.option_renew_count_2).bind(item.is_renewed_option_2)
         .bind(item.option_renew_count_3).bind(item.is_renewed_option_3)
@@ -175,7 +176,7 @@ pub(crate) async fn equipment(
 }
 
 pub(crate) async fn grant_item(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account_id: i64,
     grant: ItemGrant,
@@ -198,7 +199,7 @@ pub(crate) async fn grant_item(
         .ok_or_else(|| ServerError::Internal(format!("Missing item metadata {index}")))?;
     if data.kind == "Hero" {
         // hero_id is account-local in the existing schema; never overwrite an owned hero.
-        let result = sqlx::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level, transcend) SELECT ?, COALESCE(MAX(hero_id), 0) + 1, ?, ?, ?, ? FROM heroes WHERE account_id = ? HAVING NOT EXISTS (SELECT 1 FROM heroes WHERE account_id = ? AND hero_index = ?)")
+        let result = crate::db::query("INSERT INTO heroes (account_id, hero_id, hero_index, star, level, transcend) SELECT $1, COALESCE(MAX(hero_id), 0) + 1, $2, $3, $4, $5 FROM heroes WHERE account_id = $6 HAVING NOT EXISTS (SELECT 1 FROM heroes WHERE account_id = $7 AND hero_index = $8)")
             .bind(account_id).bind(data.hero_index).bind(data.star).bind(data.level).bind(data.transcend)
             .bind(account_id).bind(account_id).bind(data.hero_index).execute(&mut *db).await?;
         if result.rows_affected() > 0 {
@@ -230,7 +231,7 @@ pub(crate) async fn grant_item(
             equipment(db, account_id, item, rewards).await?;
         }
     } else {
-        let row = sqlx::query("INSERT INTO items (account_id, item_index, count) VALUES (?, ?, ?) ON CONFLICT(account_id, item_index) DO UPDATE SET count = count + excluded.count RETURNING count, locked")
+        let row = crate::db::query("INSERT INTO items (account_id, item_index, count) VALUES ($1, $2, $3) ON CONFLICT(account_id, item_index) DO UPDATE SET count = items.count + excluded.count RETURNING count, locked")
             .bind(account_id).bind(index).bind(count).fetch_one(&mut *db).await?;
         rewards.items.push(json!({"ItemIndex": index, "AddCount": count, "NewCount": row.get::<i32, _>("count"), "AddBoosterCount": 0, "AddNPCBoosterCount": 0, "AddBonusAssignedItemPercent": 0, "Locked": row.get::<i32,_>("locked"), "IsFirstClearReward": false}));
     }
@@ -238,7 +239,7 @@ pub(crate) async fn grant_item(
 }
 
 async fn reward_action(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account_id: i64,
     action: &[String],
@@ -254,7 +255,7 @@ async fn reward_action(
     match (action[0].as_str(), values.as_slice()) {
         ("AddHeroExp", [amount, heroes @ ..]) if *amount >= 0 && !heroes.is_empty() => {
             for index in heroes {
-                let row = sqlx::query("SELECT level, exp, star, transcend FROM heroes WHERE account_id = ? AND hero_index = ?")
+                let row = crate::db::query("SELECT level, exp, star, transcend FROM heroes WHERE account_id = $1 AND hero_index = $2")
                     .bind(account_id).bind(index).fetch_optional(&mut *db).await?;
                 // Alternate tutorial routes can run without all four starter heroes.
                 let Some(row) = row else {
@@ -277,8 +278,8 @@ async fn reward_action(
                     *amount as i64,
                     cap,
                 );
-                sqlx::query(
-                    "UPDATE heroes SET level = ?, exp = ? WHERE account_id = ? AND hero_index = ?",
+                crate::db::query(
+                    "UPDATE heroes SET level = $1, exp = $2 WHERE account_id = $3 AND hero_index = $4",
                 )
                 .bind(level)
                 .bind(exp)
@@ -290,8 +291,8 @@ async fn reward_action(
             }
         }
         ("SetHeroStar", [index, star]) => {
-            sqlx::query(
-                "UPDATE heroes SET star = MAX(star, ?) WHERE account_id = ? AND hero_index = ?",
+            crate::db::query(
+                "UPDATE heroes SET star = GREATEST(star, $1) WHERE account_id = $2 AND hero_index = $3",
             )
             .bind(star)
             .bind(account_id)
@@ -326,12 +327,12 @@ async fn reward_action(
     Ok(())
 }
 
-pub(crate) async fn hero_info(db: &mut SqliteConnection, account_id: i64, index: i32) -> Result<Value> {
+pub(crate) async fn hero_info(db: &mut PgConnection, account_id: i64, index: i32) -> Result<Value> {
     crate::api::heroes::info(db, account_id, index).await
 }
 
 async fn grant_rewards(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     state: &AppState,
     account_id: i64,
     data: &TutorialDefinition,
@@ -398,9 +399,9 @@ async fn grant_rewards(
     team_exp(db, state, account_id, rewards.team_exp_to_add, rewards).await?;
     for &(chapter, dungeon) in &data.dungeons {
         let now = state.server_time_str();
-        sqlx::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) VALUES (?, ?, ?, 1, 3, 1, ?) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET clear_count = MAX(clear_count, 1), best_star = MAX(best_star, 3), is_unlocked = 1, completed_time = COALESCE(completed_time, excluded.completed_time)")
+        crate::db::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, clear_count, best_star, is_unlocked, completed_time) VALUES ($1, $2, $3, 1, 3, 1, $4) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET clear_count = GREATEST(campaign_progress.clear_count, 1), best_star = GREATEST(campaign_progress.best_star, 3), is_unlocked = 1, completed_time = COALESCE(campaign_progress.completed_time, excluded.completed_time)")
             .bind(account_id).bind(chapter).bind(dungeon).bind(&now).execute(&mut *db).await?;
-        let row = sqlx::query("SELECT clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? AND chapter_id = ? AND dungeon_id = ?")
+        let row = crate::db::query("SELECT clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 AND chapter_id = $2 AND dungeon_id = $3")
             .bind(account_id).bind(chapter).bind(dungeon).fetch_one(&mut *db).await?;
         let difficulty = state.tables.tutorials.dungeon_difficulty(chapter, dungeon);
         rewards.dungeons.push(json!({"ChapterIndex": chapter, "DungeonIndex": dungeon,
@@ -413,7 +414,7 @@ async fn grant_rewards(
             .get_campaign_dungeon(chapter, dungeon + 1)
             .is_some()
         {
-            sqlx::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) VALUES (?, ?, ?, 1) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET is_unlocked = 1")
+            crate::db::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) VALUES ($1, $2, $3, 1) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET is_unlocked = 1")
                 .bind(account_id).bind(chapter).bind(dungeon + 1).execute(&mut *db).await?;
         }
     }
@@ -423,11 +424,11 @@ async fn grant_rewards(
 /// Preserve the reward receipt on retry, but return current totals so an old
 /// request cannot undo later purchases, hero upgrades, or equipment changes in the client.
 async fn refresh_receipt(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     account_id: i64,
     response: &mut Value,
 ) -> Result<()> {
-    let user = sqlx::query("SELECT * FROM user_info WHERE account_id = ?")
+    let user = crate::db::query("SELECT * FROM user_info WHERE account_id = $1")
         .bind(account_id)
         .fetch_one(&mut *db)
         .await?;
@@ -453,15 +454,15 @@ async fn refresh_receipt(
     }
     if let Some(items) = response["ItemResults"].as_array_mut() {
         for item in items {
-            let count: Option<i64> = sqlx::query_scalar(
-                "SELECT count FROM items WHERE account_id = ? AND item_index = ?",
+            let count: Option<i64> = crate::db::query_scalar(
+                "SELECT count FROM items WHERE account_id = $1 AND item_index = $2",
             )
             .bind(account_id)
             .bind(item["ItemIndex"].as_i64())
             .fetch_optional(&mut *db)
             .await?;
             item["NewCount"] = json!(count.unwrap_or(0));
-            let locked:Option<i32>=sqlx::query_scalar("SELECT locked FROM items WHERE account_id=? AND item_index=?").bind(account_id).bind(item["ItemIndex"].as_i64()).fetch_optional(&mut *db).await?;
+            let locked:Option<i32>=crate::db::query_scalar("SELECT locked FROM items WHERE account_id=$1 AND item_index=$2").bind(account_id).bind(item["ItemIndex"].as_i64()).fetch_optional(&mut *db).await?;
             item["Locked"]=json!(locked.unwrap_or(0));
         }
     }
@@ -479,7 +480,7 @@ async fn refresh_receipt(
         let mut current = Vec::new();
         for item in equipment.iter() {
             if let Some(row) =
-                sqlx::query("SELECT * FROM equip_items WHERE account_id = ? AND slot_index = ?")
+                crate::db::query("SELECT * FROM equip_items WHERE account_id = $1 AND slot_index = $2")
                     .bind(account_id)
                     .bind(item["SlotIndex"].as_i64())
                     .fetch_optional(&mut *db)
@@ -498,7 +499,7 @@ async fn refresh_receipt(
     }
     if let Some(dungeons) = response["DungeonInfos"].as_array_mut() {
         for dungeon in dungeons {
-            let row = sqlx::query("SELECT clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = ? AND chapter_id = ? AND dungeon_id = ?")
+            let row = crate::db::query("SELECT clear_count, best_star, completed_time FROM campaign_progress WHERE account_id = $1 AND chapter_id = $2 AND dungeon_id = $3")
                 .bind(account_id).bind(dungeon["ChapterIndex"].as_i64()).bind(dungeon["DungeonIndex"].as_i64()).fetch_one(&mut *db).await?;
             let difficulty = dungeon["MaxStar"].as_i64().unwrap_or(0) / 10;
             dungeon["MaxStar"] = json!(difficulty * 10 + row.get::<i64, _>("best_star"));
@@ -515,7 +516,7 @@ pub async fn complete_tutorial(
 ) -> Result<Json<Value>> {
     let account_id = account(&state, &req)?;
     let (index, data) = definition(&state, &req)?;
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     if matches!(index,20001|20002) && !clause_stage_cleared(&mut tx, account_id).await? {
         return Err(ServerError::InvalidRequest("Clause requires clearing stage 1-20".into()));
     }
@@ -525,7 +526,7 @@ pub async fn complete_tutorial(
 }
 
 async fn complete_in_transaction(
-    tx: &mut SqliteConnection,
+    tx: &mut PgConnection,
     state: &AppState,
     account_id: i64,
     index: i32,
@@ -533,10 +534,10 @@ async fn complete_in_transaction(
 ) -> Result<Value> {
     let now = state.server_time_str();
     // First statement acquires the SQLite write lock. A concurrent completion must wait.
-    let claimed = sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, ?, 1, ?) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
+    let claimed = crate::db::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES ($1, $2, 1, $3) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
         .bind(account_id).bind(index).bind(&now).execute(&mut *tx).await?.rows_affected() > 0;
     if !claimed {
-        let row = sqlx::query("SELECT completed_time, completion_response FROM tutorial_progress WHERE account_id = ? AND tutorial_index = ?")
+        let row = crate::db::query("SELECT completed_time, completion_response FROM tutorial_progress WHERE account_id = $1 AND tutorial_index = $2")
             .bind(account_id).bind(index).fetch_one(&mut *tx).await?;
         let mut response = match row.get::<Option<String>, _>("completion_response") {
             Some(response) => {
@@ -562,22 +563,22 @@ async fn complete_in_transaction(
     let response = json!({"BaseResult": "Success", "Result": "Success", "Info": {"TutorialIndex": index, "CompletedTime": now},
         "CurrencyResults": rewards.currencies, "ItemResults": rewards.items, "EquipItemResults": rewards.equipment,
         "HeroInfos": heroes, "TeamExpResultInfos": rewards.team_exp, "StaminaResultInfos": [stamina], "DungeonInfos": rewards.dungeons});
-    sqlx::query("UPDATE tutorial_progress SET completion_response = ? WHERE account_id = ? AND tutorial_index = ?")
+    crate::db::query("UPDATE tutorial_progress SET completion_response = $1 WHERE account_id = $2 AND tutorial_index = $3")
         .bind(response.to_string()).bind(account_id).bind(index).execute(&mut *tx).await?;
     Ok(response)
 }
 
-async fn clause_stage_cleared(db: &mut SqliteConnection, account_id: i64) -> Result<bool> {
-    Ok(sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=? AND chapter_id=1 AND dungeon_id=20 AND clear_count>0)")
+async fn clause_stage_cleared(db: &mut PgConnection, account_id: i64) -> Result<bool> {
+    Ok(crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM campaign_progress WHERE account_id=$1 AND chapter_id=1 AND dungeon_id=20 AND clear_count>0)")
         .bind(account_id).fetch_one(db).await?)
 }
 
 /// Original event 10034 starts 20001, whose last step invokes 20002 to award Clause.
 /// Recover both missed/skipped steps after 1-20, preserving their own receipts.
 pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> Result<()> {
-    let mut tx = state.db.begin().await?;
+    let mut tx = crate::database::begin(&state.db).await?;
     // Serialize this recovery with native tutorial completion before reading eligibility.
-    sqlx::query("UPDATE accounts SET account_id=account_id WHERE account_id=?")
+    crate::db::query("SELECT pg_advisory_xact_lock($1)")
         .bind(account_id).execute(&mut *tx).await?;
     if clause_stage_cleared(&mut tx, account_id).await? {
         for index in [20001,20002] {
@@ -593,7 +594,7 @@ pub(crate) async fn restore_clause_reward(state: &AppState, account_id: i64) -> 
 /// Tutorial skip suppresses the cave's story sequence, but 7-7 still needs its flag.
 /// Recover only after both real cave battles were cleared; never grant battle progress.
 pub(crate) async fn restore_skipped_cave_story(state: &AppState, account_id: i64) -> Result<()> {
-    sqlx::query("INSERT INTO tutorial_progress (account_id,tutorial_index,is_completed,completed_time) SELECT ?,70001,1,datetime('now') WHERE EXISTS(SELECT 1 FROM tutorial_settings WHERE account_id=? AND is_skipped=1) AND (SELECT COUNT(*) FROM campaign_progress WHERE account_id=? AND chapter_id=117 AND dungeon_id IN (3,4) AND clear_count>0)=2 ON CONFLICT(account_id,tutorial_index) DO UPDATE SET is_completed=1,completed_time=excluded.completed_time WHERE tutorial_progress.is_completed=0")
+    crate::db::query("INSERT INTO tutorial_progress (account_id,tutorial_index,is_completed,completed_time) SELECT $1,70001,1,sprk_datetime('now') WHERE EXISTS(SELECT 1 FROM tutorial_settings WHERE account_id=$2 AND is_skipped=1) AND (SELECT COUNT(*) FROM campaign_progress WHERE account_id=$3 AND chapter_id=117 AND dungeon_id IN (3,4) AND clear_count>0)=2 ON CONFLICT(account_id,tutorial_index) DO UPDATE SET is_completed=1,completed_time=excluded.completed_time WHERE tutorial_progress.is_completed=0")
         .bind(account_id).bind(account_id).bind(account_id).execute(&state.db).await?;
     Ok(())
 }
@@ -603,7 +604,7 @@ pub async fn get_tutorial_progress(
     Form(req): Form<TutorialRequest>,
 ) -> Result<Json<Value>> {
     let account_id = account(&state, &req)?;
-    let rows = sqlx::query("SELECT tutorial_index, completed_time FROM tutorial_progress WHERE account_id = ? AND is_completed = 1 ORDER BY tutorial_index")
+    let rows = crate::db::query("SELECT tutorial_index, completed_time FROM tutorial_progress WHERE account_id = $1 AND is_completed = 1 ORDER BY tutorial_index")
         .bind(account_id).fetch_all(&state.db).await?;
     let tutorials: Vec<_> = rows
         .iter()
@@ -622,12 +623,12 @@ pub async fn skip_tutorial(
     Form(req): Form<TutorialRequest>,
 ) -> Result<Json<TutorialResponse>> {
     let account_id = account(&state, &req)?;
-    let mut tx = state.db.begin().await?;
-    sqlx::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
+    let mut tx = crate::database::begin(&state.db).await?;
+    crate::db::query("INSERT INTO tutorial_settings (account_id, is_skipped) VALUES ($1, 1) ON CONFLICT(account_id) DO UPDATE SET is_skipped = 1")
         .bind(account_id).execute(&mut *tx).await?;
     // Skipping suppresses the World Tree story battle, but the path to 1-18
     // still requires its completion flag. Grant no battle clears or rewards.
-    sqlx::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES (?, 14000, 1, datetime('now')) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
+    crate::db::query("INSERT INTO tutorial_progress (account_id, tutorial_index, is_completed, completed_time) VALUES ($1, 14000, 1, sprk_datetime('now')) ON CONFLICT(account_id, tutorial_index) DO UPDATE SET is_completed = 1, completed_time = excluded.completed_time WHERE tutorial_progress.is_completed = 0")
         .bind(account_id).execute(&mut *tx).await?;
     // A skipped introduction still needs the basic party to play campaign battles.
     let mut rewards = Rewards::default();
@@ -654,7 +655,7 @@ pub async fn skip_tutorial(
         &mut rewards,
     )
     .await?;
-    sqlx::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) VALUES (?, 1, 1, 1) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET is_unlocked = 1")
+    crate::db::query("INSERT INTO campaign_progress (account_id, chapter_id, dungeon_id, is_unlocked) VALUES ($1, 1, 1, 1) ON CONFLICT(account_id, chapter_id, dungeon_id) DO UPDATE SET is_unlocked = 1")
         .bind(account_id).execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(TutorialResponse {

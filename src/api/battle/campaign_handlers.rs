@@ -9,7 +9,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use crate::db::RowExt;
 
 /// Campaign chapter info
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -48,8 +48,8 @@ pub async fn get_campaign_info(
         .ok_or(ServerError::SessionExpired)?;
 
     // Get campaign progress
-    let progress_rows = sqlx::query(
-        "SELECT chapter_id, dungeon_id, clear_count, best_star, is_unlocked FROM campaign_progress WHERE account_id = ? ORDER BY chapter_id, dungeon_id"
+    let progress_rows = crate::db::query(
+        "SELECT chapter_id, dungeon_id, clear_count, best_star, is_unlocked FROM campaign_progress WHERE account_id = $1 ORDER BY chapter_id, dungeon_id"
     )
     .bind(session.account_id)
     .fetch_all(&state.db)

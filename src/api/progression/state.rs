@@ -123,7 +123,7 @@ pub(super) struct View {
     pub conquest_kills: i64,
 }
 impl View {
-    pub async fn load(db: &mut SqliteConnection, account: i64) -> Result<Self> {
+    pub async fn load(db: &mut PgConnection, account: i64) -> Result<Self> {
         let heroes: Vec<Value> = hero::snapshot(db, account)
             .await?
             .into_iter()
@@ -138,32 +138,32 @@ impl View {
             equipped_slots: heroes.iter().flat_map(|h|(1..=10).map(move |part|n(h,&format!("EquipItemSlotIndex{part}"))))
                 .filter(|slot|*slot>0).collect(),
             heroes,
-            equipment: sqlx::query_scalar::<_,String>("SELECT json_object('SlotIndex',slot_index,'ItemIndex',item_index,'Star',star,'InventoryType',inventory_type) FROM equip_items WHERE account_id=?")
+            equipment: crate::db::query_scalar::<String>("SELECT jsonb_build_object('SlotIndex',slot_index,'ItemIndex',item_index,'Star',star,'InventoryType',inventory_type)::text FROM equip_items WHERE account_id=$1")
                 .bind(account).fetch_all(&mut *db).await?.into_iter()
                 .map(|data|serde_json::from_str(&data)).collect::<std::result::Result<_,_>>()
                 .map_err(|e|ServerError::Internal(format!("Invalid mission equipment: {e}")))?,
             npc_friendly: crate::api::extensions::list(db, account, "npc").await?,
-            guild_damage: sqlx::query_as::<_, (String, i64)>("SELECT kind,SUM(score) FROM guild_battle_scores WHERE account=? GROUP BY kind")
+            guild_damage: crate::db::query_as::<(String, i64)>("SELECT kind,SUM(score)::bigint FROM guild_battle_scores WHERE account=$1 GROUP BY kind")
                 .bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
-            conquest_kills: sqlx::query_scalar("SELECT COUNT(*) FROM community_claims WHERE account=? AND kind='guild_conquest_kill'")
+            conquest_kills: crate::db::query_scalar("SELECT COUNT(*) FROM community_claims WHERE account=$1 AND kind='guild_conquest_kill'")
                 .bind(account).fetch_one(&mut *db).await?,
             // Count owned weapons, including stored/unequipped ones. The join
             // excludes orphaned soul records without treating them as ownership.
-            soul_weapons: sqlx::query_scalar::<_, String>("SELECT s.data FROM extension_state s JOIN equip_items e ON e.account_id=s.account_id AND e.slot_index=s.idx WHERE s.account_id=? AND s.kind='soul'")
+            soul_weapons: crate::db::query_scalar::<String>("SELECT s.data FROM extension_state s JOIN equip_items e ON e.account_id=s.account_id AND e.slot_index=s.idx WHERE s.account_id=$1 AND s.kind='soul'")
                 .bind(account).fetch_all(&mut *db).await?
                 .into_iter().map(|data| serde_json::from_str(&data)).collect::<std::result::Result<_, _>>()
                 .map_err(|e| ServerError::Internal(format!("Invalid saved Soul Weapon: {e}")))?,
-            dungeons:sqlx::query_as("SELECT chapter_id,dungeon_id,clear_count,best_star FROM campaign_progress WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
-            metrics:sqlx::query_as("SELECT day,kind,arg,arg2,value FROM progression_metrics WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
-            claims:sqlx::query_as("SELECT family,idx,step,period,claimed_time FROM progression_claims WHERE account_id=?").bind(account).fetch_all(&mut *db).await?,
-            login_days:sqlx::query_scalar("SELECT days FROM progression_login WHERE account_id=?").bind(account).fetch_optional(&mut *db).await?.unwrap_or(0),
-            level:sqlx::query_scalar("SELECT team_level FROM user_info WHERE account_id=?").bind(account).fetch_one(&mut *db).await?,
-            costumes:sqlx::query_scalar("SELECT COUNT(*) FROM costumes WHERE account_id=?").bind(account).fetch_one(&mut *db).await?,
-            friends:sqlx::query_scalar("SELECT COUNT(*) FROM friends WHERE (account_id=? OR friend_account_id=?) AND status='accepted'").bind(account).bind(account).fetch_one(&mut *db).await?,
-            guild:sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members WHERE account_id=?)").bind(account).fetch_one(&mut *db).await?,
-            tutorials:sqlx::query_scalar::<_,i64>("SELECT tutorial_index FROM tutorial_progress WHERE account_id=? AND completed_time IS NOT NULL").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
-            items:sqlx::query_as::<_,(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=?").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
-            entitlements:sqlx::query_scalar::<_,i64>("SELECT product_index FROM progression_entitlements WHERE account_id=?").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
+            dungeons:crate::db::query_as("SELECT chapter_id,dungeon_id,clear_count,best_star FROM campaign_progress WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?,
+            metrics:crate::db::query_as("SELECT day,kind,arg,arg2,value FROM progression_metrics WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?,
+            claims:crate::db::query_as("SELECT family,idx,step,period,claimed_time FROM progression_claims WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?,
+            login_days:crate::db::query_scalar("SELECT days FROM progression_login WHERE account_id=$1").bind(account).fetch_optional(&mut *db).await?.unwrap_or(0),
+            level:crate::db::query_scalar("SELECT team_level FROM user_info WHERE account_id=$1").bind(account).fetch_one(&mut *db).await?,
+            costumes:crate::db::query_scalar("SELECT COUNT(*) FROM costumes WHERE account_id=$1").bind(account).fetch_one(&mut *db).await?,
+            friends:crate::db::query_scalar("SELECT COUNT(*) FROM friends WHERE (account_id=$1 OR friend_account_id=$2) AND status='accepted'").bind(account).bind(account).fetch_one(&mut *db).await?,
+            guild:crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM guild_members WHERE account_id=$1)").bind(account).fetch_one(&mut *db).await?,
+            tutorials:crate::db::query_scalar::<i64>("SELECT tutorial_index FROM tutorial_progress WHERE account_id=$1 AND completed_time IS NOT NULL").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
+            items:crate::db::query_as::<(i64,i64)>("SELECT item_index,count FROM items WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
+            entitlements:crate::db::query_scalar::<i64>("SELECT product_index FROM progression_entitlements WHERE account_id=$1").bind(account).fetch_all(&mut *db).await?.into_iter().collect(),
         })
     }
     pub(super) fn battle_type(&self, state: &AppState, chapter: i64, dungeon: i64) -> Option<i64> {

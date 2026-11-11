@@ -42,12 +42,12 @@ pub(crate) async fn sync(State(s): State<AppState>, body: Bytes) -> Result<Json<
             pairs.insert((main, sub));
         }
     }
-    let mut tx = s.db.begin().await?;
+    let mut tx = crate::database::begin(&s.db).await?;
     for (main, sub) in pairs {
-        sqlx::query("INSERT OR IGNORE INTO mission_category_seen(account_id,main_category,sub_category) VALUES(?,?,?)")
+        crate::db::query("INSERT INTO mission_category_seen(account_id,main_category,sub_category) VALUES($1,$2,$3) ON CONFLICT DO NOTHING")
             .bind(account).bind(main).bind(sub).execute(&mut *tx).await?;
     }
-    let seen: Vec<(i64,i64)> = sqlx::query_as("SELECT main_category,sub_category FROM mission_category_seen WHERE account_id=? ORDER BY main_category,sub_category")
+    let seen: Vec<(i64,i64)> = crate::db::query_as("SELECT main_category,sub_category FROM mission_category_seen WHERE account_id=$1 ORDER BY main_category,sub_category")
         .bind(account).fetch_all(&mut *tx).await?;
     tx.commit().await?;
     Ok(Json(
@@ -102,7 +102,7 @@ mod tests {
         .await
         .is_err());
         assert_eq!(
-            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM mission_category_seen")
+            crate::db::query_scalar::<i64>("SELECT count(*) FROM mission_category_seen")
                 .fetch_one(&s.db)
                 .await
                 .unwrap(),

@@ -13,7 +13,7 @@ CREATE TABLE progression_claims (
     idx bigint NOT NULL,
     step bigint NOT NULL DEFAULT 1,
     period text NOT NULL DEFAULT 'all',
-    claimed_time timestamptz NOT NULL DEFAULT now(),
+    claimed_time text NOT NULL DEFAULT sprk_now(),
     PRIMARY KEY (account_id, family, idx, step, period)
 );
 
@@ -39,14 +39,14 @@ CREATE TABLE attendance_calendar_state (
     idx bigint NOT NULL,
     claims bigint NOT NULL DEFAULT 0,
     last_day text NOT NULL DEFAULT '',
-    completed_time timestamptz,
+    completed_time text,
     PRIMARY KEY (account_id, idx)
 );
 
 CREATE TABLE progression_entitlements (
     account_id bigint NOT NULL,
     product_index bigint NOT NULL,
-    created_time timestamptz NOT NULL DEFAULT now(),
+    created_time text NOT NULL DEFAULT sprk_now(),
     PRIMARY KEY (account_id, product_index)
 );
 
@@ -55,7 +55,7 @@ CREATE TABLE progression_world_events (
     chapter bigint NOT NULL,
     dungeon bigint NOT NULL,
     event bigint NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (account_id, chapter, dungeon, event)
 );
 
@@ -89,7 +89,7 @@ CREATE TABLE equipment_pending (
     account_id bigint NOT NULL,
     slot_index bigint NOT NULL REFERENCES equip_items(slot_index) ON DELETE CASCADE,
     kind text NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (account_id, slot_index, kind)
 );
 
@@ -97,6 +97,6 @@ CREATE TABLE extension_state (
     account_id bigint NOT NULL,
     kind text NOT NULL,
     idx bigint NOT NULL,
-    data jsonb NOT NULL,
+    data text NOT NULL,
     PRIMARY KEY (account_id, kind, idx)
 ) WITH (fillfactor = 85);

@@ -1,7 +1,7 @@
 use super::*;
 use crate::models::item::ItemGrant;
 
-pub(crate) async fn add(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
+pub(crate) async fn add(db: &mut PgConnection, s: &AppState, a: i64, id: i64) -> Result<Value> {
     let data = row(s, "Pet", &[("Index", id)])?;
     let old = get(db, a, "pet", id).await?;
     if !old.is_null() {
@@ -42,7 +42,7 @@ pub(crate) async fn add(db: &mut SqliteConnection, s: &AppState, a: i64, id: i64
     put(db, a, "pet", id, &v).await?;
     Ok(json!({"PetResult":v,"PetSoulResults":[]}))
 }
-async fn owned(db: &mut SqliteConnection, a: i64, id: i64) -> Result<Value> {
+async fn owned(db: &mut PgConnection, a: i64, id: i64) -> Result<Value> {
     let v = get(db, a, "pet", id).await?;
     if v.is_null() {
         return Err(rule("PetNotOwned"));
@@ -55,7 +55,7 @@ fn available(v: &Value) -> Result<()> {
     }
     Ok(())
 }
-async fn misc(db: &mut SqliteConnection, a: i64, key: i64, value: String) -> Result<()> {
+async fn misc(db: &mut PgConnection, a: i64, key: i64, value: String) -> Result<()> {
     put(
         db,
         a,
@@ -65,7 +65,7 @@ async fn misc(db: &mut SqliteConnection, a: i64, key: i64, value: String) -> Res
     )
     .await
 }
-pub(super) async fn misc_infos(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
+pub(super) async fn misc_infos(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Vec<Value>> {
     let mut infos = list(db, a, "pet_misc").await?;
     let keys = s.tables.live.enums.get("PetMiscType").ok_or_else(|| rule("InvalidValue"))?;
     for info in &mut infos {
@@ -80,7 +80,7 @@ pub(super) async fn misc_infos(db: &mut SqliteConnection, s: &AppState, a: i64) 
     Ok(infos)
 }
 pub(super) async fn increment(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     a: i64,
     key: i64,
     count: i64,
@@ -92,7 +92,7 @@ pub(super) async fn increment(
         .unwrap_or(0);
     misc(db, a, key, (old + count).to_string()).await
 }
-async fn initialize(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<()> {
+async fn initialize(db: &mut PgConnection, s: &AppState, a: i64) -> Result<()> {
     if s.tables.live.rows("PetIncubatorSlot").is_empty() {
         return Ok(());
     }
@@ -103,7 +103,7 @@ async fn initialize(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<(
     }
     Ok(())
 }
-async fn open_slot(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<()> {
+async fn open_slot(db: &mut PgConnection, a: i64, d: &Value) -> Result<()> {
     let slot = n(d, "Index");
     let id = n(d, "DefaultIndex");
     put(
@@ -123,14 +123,14 @@ async fn open_slot(db: &mut SqliteConnection, a: i64, d: &Value) -> Result<()> {
     )
     .await
 }
-pub(super) async fn snapshot(db: &mut SqliteConnection, s: &AppState, a: i64) -> Result<Value> {
+pub(super) async fn snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     initialize(db, s, a).await?;
     Ok(
         json!({"PetInfos":list(db,a,"pet").await?,"PetMiscInfos":misc_infos(db,s,a).await?,"PetIncubatorSlotInfos":list(db,a,"pet_slot").await?,"PetIncubatorInfos":list(db,a,"pet_incubator").await?,"PetExploreInfos":list(db,a,"pet_explore").await?}),
     )
 }
 pub(super) async fn execute(
-    db: &mut SqliteConnection,
+    db: &mut PgConnection,
     s: &AppState,
     a: i64,
     r: &Request,
