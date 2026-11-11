@@ -116,9 +116,14 @@ read-then-write code can lose updates or deadlock unless it locks.
      lock (`postgres::lock_guild`) after the account lock.
    - Party/raid rooms: the room row is read `FOR UPDATE` before the JSON is
      rewritten.
-   - Arena and guild arena pairing: the opponent is locked with a `try` lock
+   - Arena: matchmaking writes both players' queue entries and swords, so
+     arena requests and arena settlements take one arena queue lock
+     (`postgres::lock_arena_queue`) after the account lock and run in turn,
+     as they did on the single writer; a queue entry that changed anyway
+     aborts the pairing.
+   - Guild arena pairing locks the opponent guild with a `try` lock
      (skipping a busy one instead of waiting, which could deadlock) and
-     re-read; a queue entry that changed meanwhile aborts the pairing.
+     re-reads it.
    - Counters shared across players (guild conquest keys, honor buff,
      friendship points) are single atomic statements.
 4. **Retry wrapper.** `postgres::transaction(pool, Isolation, closure)` reruns

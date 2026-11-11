@@ -59,8 +59,8 @@ Either flag can be used alone. The report prints:
   transactions run one at a time, different players in parallel.
 - **Shared rows** take extra locks: a guild's members take turns through the
   guild lock in community requests; party/raid rooms are read `FOR UPDATE`
-  before they are rewritten; arena and guild arena pairing try-lock the
-  opponent and re-check it.
+  before they are rewritten; arena requests take turns on the arena queue
+  lock; guild arena pairing try-locks the opponent guild and re-checks it.
 - SQL goes through `crate::db` (`query`, `query_scalar`, `query_as`,
   `RowExt::get`), which binds and decodes like SQLite did. Schema, triggers and
   `sprk_*` helper functions are in `migrations/`.
@@ -73,8 +73,8 @@ Either flag can be used alone. The report prints:
 - A transaction that writes rows of **another** player or a shared entity
   must lock them: an atomic single statement (`UPDATE ... SET n = n + $1`),
   `SELECT ... FOR UPDATE`, or an advisory lock. Lock several entities in one
-  fixed order, or use the `try` variants and skip a busy one, as arena pairing
-  does. `crate::postgres::transaction` retries 40001/40P01 for code that can
+  fixed order, or use the `try` variants and skip a busy one, as guild arena
+  pairing does. `crate::postgres::transaction` retries 40001/40P01 for code that can
   run twice.
 - A failed statement aborts a PostgreSQL transaction. To try something that
   may fail and continue, run it in a savepoint (`tx.begin()`).

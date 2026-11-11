@@ -107,6 +107,14 @@ pub(crate) async fn lock_accounts(conn: &mut PgConnection, accounts: &[i64]) -> 
 /// Advisory lock classes for shared, non-account entities (two-int4 key form,
 /// separate from the account keyspace).
 const GUILD_LOCK: i32 = 1;
+const ARENA_QUEUE_LOCK: i32 = 2;
+
+/// Serialize arena matchmaking and settlement: they write both players'
+/// queue entries and swords. Take it after the account lock, never before.
+pub(crate) async fn lock_arena_queue(conn: &mut PgConnection) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1, 0)").bind(ARENA_QUEUE_LOCK).execute(conn).await?;
+    Ok(())
+}
 
 /// Serialize read-modify-write of a guild's shared rows (guild_*
 /// community_state, member list, guild arena/raid/conquest state). Take it

@@ -26,12 +26,9 @@ pub(crate) async fn pair(
         // Being logged in alone is insufficient: candidates must also have a
         // recently polled queue entry. Cancelled/bot/in-battle rows never qualify.
         if !s.sessions.iter().any(|v|v.account_id==b) { continue; }
-        // This transaction holds our own account lock. Never wait for the
-        // candidate's (its own poll may be pairing with us, which would
-        // deadlock): skip a busy candidate. Holding its lock, re-read its row,
-        // which another match may have taken since the scan.
-        let free: bool = crate::db::query_scalar("SELECT pg_try_advisory_xact_lock($1)").bind(b).fetch_one(&mut *db).await?;
-        if !free { continue; }
+        // Arena requests and settlements hold the arena queue lock, so the
+        // candidate's entry and swords cannot change under us; re-read the
+        // entry in case an earlier pairing in this scan's snapshot took it.
         let Some(raw): Option<String> = crate::db::query_scalar("SELECT data FROM arena_runs WHERE id=$1 AND account=$2 AND status='waiting'")
             .bind(other_id).bind(b).fetch_optional(&mut *db).await? else { continue; };
         let other: Value = parse(&raw)?;

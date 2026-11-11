@@ -25,6 +25,7 @@ pub(crate) fn create_arena(s:&AppState,worker:String,info:Value) {
 pub(super) async fn charge(s:&AppState,run:&Run)->Result<()> {
     let mut db=crate::database::begin(&s.db).await?;
     crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
     online::charge(&mut db,s,number(&run.payload,"MatchUid")).await?;
     db.commit().await?;
     Ok(())
@@ -50,6 +51,7 @@ pub(super) async fn finish(s:&AppState,run:&mut Run,body:&Value,give_up:Option<i
     let uid=number(&run.payload,"MatchUid");
     let mut db=crate::database::begin(&s.db).await?;
     crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
     let valid:bool=crate::db::query_scalar("SELECT count(*)=2 FROM arena_runs WHERE status='battle' AND sprk_json_int(data,'$.OnlineMatchUid')=$1 AND sprk_json_int(data,'$.Season')=$2")
         .bind(uid).bind(crate::api::community::arena::season(s).0).fetch_one(&mut *db).await?;
     if !valid {
@@ -148,6 +150,7 @@ pub(super) async fn depart(s:&AppState,run:&mut Run,a:i64)->Result<()> {
 pub(super) async fn cancel(s:&AppState,run:&Run)->Result<()> {
     let mut db=crate::database::begin(&s.db).await?;
     crate::db::query("SELECT pg_advisory_xact_lock($1)").bind(run.master).execute(&mut *db).await?;
+    crate::postgres::lock_arena_queue(&mut *db).await?;
     online::cancel(&mut db,s,number(&run.payload,"MatchUid")).await?;
     db.commit().await?;
     let _=notify_result(s,run,&json!({"Canceled":true}));

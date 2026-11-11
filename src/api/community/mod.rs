@@ -126,6 +126,10 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
             let guild: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
                 .bind(a).fetch_optional(&mut *tx).await?;
             if let Some(g) = guild { crate::postgres::lock_guild(&mut tx, g).await?; }
+        } else {
+            // Matchmaking pairs two players and charges both; arena requests
+            // take turns as on the single SQLite writer (they are short).
+            crate::postgres::lock_arena_queue(&mut tx).await?;
         }
     }
     let result = match path.split('/').next().unwrap_or("") {
