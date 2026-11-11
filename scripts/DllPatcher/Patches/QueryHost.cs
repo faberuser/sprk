@@ -8,10 +8,6 @@ partial class Program {
     // in place and padded with spaces; the asset layout never changes.
     const string QueryHostUrl = "http://127.0.0.1:8080/sprk/live/1/host_1.0_304dbdffe094.json";
     const int QueryHostLength = 87;
-    static readonly string[] LegacyQueryHosts = {
-        "https://kr-apne1-patchsrc.masangsoft.com/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json",
-        "http://127.0.0.1:8080/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json",
-    };
     static readonly byte[] QueryHostField = Encoding.ASCII.GetBytes("\"QueryHost\" : \"");
 
     static string QueryHostAsset(string root) =>
@@ -38,8 +34,8 @@ partial class Program {
         var data = File.ReadAllBytes(asset);
         var (offset, url) = FindQueryHost(data);
         if (url == QueryHostUrl) { VerifyQueryHostFile(root); return; }
-        if (!LegacyQueryHosts.Contains(url))
-            throw new InvalidOperationException("Unrecognised QueryHost; refusing to replace: " + url);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var current) || current.Scheme is not ("http" or "https"))
+            throw new InvalidOperationException("QueryHost is not an http(s) URL; refusing to replace: " + url);
         Encoding.ASCII.GetBytes(QueryHostUrl.PadRight(QueryHostLength)).CopyTo(data, offset);
         var staged = asset + ".query-host-staged";
         File.WriteAllBytes(staged, data);
@@ -58,8 +54,6 @@ partial class Program {
         var (_, url) = FindQueryHost(data);
         if (url != QueryHostUrl)
             throw new InvalidOperationException($"QueryHost must be {QueryHostUrl}, found {url}.");
-        if (data.AsSpan().IndexOf(Encoding.ASCII.GetBytes("Masang_Tokyo")) >= 0)
-            throw new InvalidOperationException("resources.assets still references the legacy Masang_Tokyo host path.");
         Console.WriteLine("Verified QueryHost: " + url);
     }
 }

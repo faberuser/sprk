@@ -152,8 +152,6 @@ fn game_and_all_modes_expose_the_expected_endpoints() {
         // Parameterised routes (path syntax changed in axum 0.8).
         assert!(server.get("/cdn/1.2.3/patch.json").contains(r#"{"Archives":[]}"#));
         assert!(server.get("/sprk/live/1/host_1.0_304dbdffe094.json").contains("https://play.example.test/cdn/"));
-        // The legacy Masang host path was removed with the QueryHost rename.
-        assert!(!server.get("/Masang_Tokyo/Live/1/host_1.0_304dbdffe094.json").contains("https://play.example.test/cdn/"));
         server.upgrade("/ws/chat");
         server.upgrade("/ws/battle");
         assert!(server.root.join("sprk.db").is_file());

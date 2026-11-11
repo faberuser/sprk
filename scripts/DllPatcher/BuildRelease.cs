@@ -78,6 +78,8 @@ partial class Program
         VerifySpecialShopFile(clientRoot);
         InstallShopTags(clientRoot, false);
         VerifyShopTagsFile(clientRoot);
+        InstallShopSearch(clientRoot, false);
+        VerifyShopSearchFile(clientRoot);
         InstallArtifactSelectors(clientRoot, false);
         VerifyArtifactSelectorsFile(clientRoot);
         InstallSkillDescriptionFormula(clientRoot, false);
