@@ -17,6 +17,24 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # PostgreSQL schema, trigger parity and locking tests (src/postgres_tests.rs).
+    # Each test creates and drops its own database on this server.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SPRK_TEST_POSTGRES_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # Fail instead of skipping when the service is missing.
+      SPRK_REQUIRE_POSTGRES: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -2,6 +2,7 @@
 FROM server-test-deps AS test-build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY migrations ./migrations
 COPY tables ./tables
 COPY config/mission-rule-gaps.json config/mission-rule-gaps.json
 COPY scripts/DllPatcher/Resources/ArtifactSelectorPools.json scripts/DllPatcher/Resources/ArtifactSelectorPools.json

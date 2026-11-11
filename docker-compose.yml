@@ -59,5 +59,41 @@ services:
     cpus: "${SPRK_UPDATE_CPUS:-1.0}"
     mem_limit: ${SPRK_UPDATE_MEMORY:-256m}
 
+  # PostgreSQL for the SQLite migration (docs/postgresql-migration.md). Behind
+  # a profile until the cutover: the game still uses sprk.db, and a plain
+  # `docker compose up` does not start this service. Start it with
+  # `docker compose --profile postgres up -d postgres`. The init script runs
+  # only when the volume is first created.
+  postgres:
+    image: postgres:18
+    profiles: [postgres]
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - shared_buffers=${SPRK_DB_SHARED_BUFFERS:-512MB}
+      - -c
+      - max_wal_size=${SPRK_DB_MAX_WAL_SIZE:-4GB}
+    environment:
+      # Bootstrap superuser, used only by the init script and maintenance.
+      POSTGRES_PASSWORD: ${SPRK_DB_SUPERUSER_PASSWORD:-}
+      SPRK_DB_OWNER_PASSWORD: ${SPRK_DB_OWNER_PASSWORD:-}
+      SPRK_DB_APP_PASSWORD: ${SPRK_DB_APP_PASSWORD:-}
+    # Internal Docker network only; no published host port.
+    volumes:
+      # postgres:18 keeps its data under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+      - ./config/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sprk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   game-data:
+  postgres-data:

@@ -1,2 +1,6 @@
 # Linux entrypoints must remain executable shell text after Windows checkouts.
 scripts/docker/*.sh text eol=lf
+# PostgreSQL init scripts run inside the postgres container.
+config/postgres/initdb/*.sh text eol=lf
+# sqlx checksums migration bytes; keep them identical on every checkout.
+migrations/*.sql text eol=lf

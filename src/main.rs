@@ -4,6 +4,7 @@ mod currency;
 mod database;
 mod error;
 mod models;
+mod postgres;
 mod service_mode;
 mod state;
 mod tables;

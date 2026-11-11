@@ -21,6 +21,8 @@ COPY --from=planner /build/recipe.json recipe.json
 RUN cargo chef cook --locked --release --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+# Embedded at compile time by sqlx::migrate!().
+COPY migrations ./migrations
 RUN cargo build --locked --release
 
 FROM scratch AS server-binary

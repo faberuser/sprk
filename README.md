@@ -152,6 +152,27 @@ see [client updates and Docker hosting](docs/client-updates.md#portainer--docker
 and [the CI release workflow](docs/github-client-updates.md). Local image builds
 also require preparing `build-input/worker` before running `docker build`.
 
+### PostgreSQL (migration in progress)
+
+The game still runs on SQLite. The PostgreSQL schema in `migrations/` and the
+helpers in `src/postgres.rs` are being prepared for the move described in
+[the PostgreSQL migration plan](docs/postgresql-migration.md). A plain
+`docker compose up` does not start PostgreSQL; the `postgres` service sits
+behind a Compose profile until the cutover.
+
+The PostgreSQL tests skip unless `SPRK_TEST_POSTGRES_URL` names a server where
+the role can create databases (CI sets it). To run them locally:
+
+```bash
+docker run -d --name sprk-postgres-dev -e POSTGRES_PASSWORD=dev \
+  -p 127.0.0.1:5432:5432 postgres:18
+SPRK_TEST_POSTGRES_URL=postgres://postgres:dev@127.0.0.1:5432/postgres \
+  cargo test postgres::
+```
+
+Each test creates and drops its own `sprk_test_*` database. A test that panics
+leaves its database behind; drop those by hand.
+
 ### Patching the Client
 
 Use the unified patcher to patch both `Assembly-CSharp.dll` and `resources.assets` in one command — just point it at your game client root folder:
