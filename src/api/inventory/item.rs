@@ -367,18 +367,18 @@ pub(crate) async fn reward(
     index: i32,
     rewards: &mut Rewards,
 ) -> Result<()> {
-    reward_with_loot_booster(db, state, account, index, rewards, false).await
+    reward_with_loot_bonus(db, state, account, index, rewards, 0).await
 }
 
-/// Double item quantities from this drop roll; currencies and first-clear
+/// Apply the additive loot percentage to this drop roll; currencies and first-clear
 /// rewards use their own paths. Equipment copies still roll their own options.
-pub(crate) async fn reward_with_loot_booster(
+pub(crate) async fn reward_with_loot_bonus(
     db: &mut SqliteConnection,
     state: &AppState,
     account: i64,
     index: i32,
     rewards: &mut Rewards,
-    boosted: bool,
+    loot_percent: i64,
 ) -> Result<()> {
     let row = state
         .tables
@@ -441,13 +441,16 @@ pub(crate) async fn reward_with_loot_booster(
         };
         let item_start = rewards.items.len();
         let equip_start = rewards.equipment.len();
+        let bonus = i64::from(count).checked_mul(loot_percent.max(0))
+            .and_then(|v| i32::try_from(v / 100).ok())
+            .ok_or_else(|| rule("InvalidItemCount"))?;
         give(
             db,
             state,
             account,
             ItemGrant {
                 index,
-                count: count.checked_mul(if boosted { 2 } else { 1 })
+                count: count.checked_add(bonus)
                     .ok_or_else(|| rule("InvalidItemCount"))?,
                 star,
                 custom: drop.custom_option_index,
@@ -455,12 +458,12 @@ pub(crate) async fn reward_with_loot_booster(
             rewards,
         )
         .await?;
-        if boosted {
+        if bonus > 0 {
             for result in &mut rewards.items[item_start..] {
-                result["AddBoosterCount"] = json!(count);
+                result["AddBoosterCount"] = json!(bonus);
             }
             for equip in rewards.equipment[equip_start..].iter().skip(count as usize) {
-                rewards.equipment_boosts.push(json!({"SlotIndex":equip.slot_index,"BoostPercent":100}));
+                rewards.equipment_boosts.push(json!({"SlotIndex":equip.slot_index,"BoostPercent":loot_percent}));
             }
         }
     }
@@ -1376,7 +1379,7 @@ pub(crate) async fn activate_booster(
         .boosters
         .get(&index)
         .ok_or_else(|| rule("BoosterDataNotFound"))?;
-    if !matches!(n(data, "Type"), 1 | 3) || data["IsOnetime"] == true {
+    if !matches!(n(data, "Type"), 1 | 2 | 3) || data["IsOnetime"] == true {
         return Err(rule("ItemTypeMismatch"));
     }
     activate_booster_definition(db, state, account, count, data).await
@@ -1421,7 +1424,7 @@ pub(crate) async fn normalize_booster_timers(
     let now = state.server_time_str();
     for (&index, data) in &state.tables.inventory.boosters {
         let group = n(data, "BoosterItemIndex");
-        if !matches!(n(data, "Type"), 1 | 3) || group <= 0 || group == i64::from(index) {
+        if !matches!(n(data, "Type"), 1 | 2 | 3) || group <= 0 || group == i64::from(index) {
             continue;
         }
         // Older servers stored day/week consumable IDs separately, while the

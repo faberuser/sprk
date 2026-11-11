@@ -344,7 +344,7 @@ pub(super) async fn execute(
     let req = request(&info);
     let heroes: Vec<i64> = read_json(info["HeroIndices"].as_str().unwrap_or("[]"))?;
     let mut out = if wins > 0 {
-        campaign::complete(db, s, a, &req, &heroes, 3, wins).await?
+        campaign::complete_dispatch(db, s, a, &req, &heroes, 3, wins).await?
     } else {
         item::success()
     };

@@ -546,7 +546,8 @@ async fn end_inner(
         return Ok(out);
     }
     let mut out = if completed {
-        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), super::loot_booster::active(&entry)).await?
+        let loot_percent = super::loot_booster::percent(db,s,a,&request,&entry).await?;
+        complete_inner(db, s, a, &request, &party, star, 1, party_loot_enabled(&entry), loot_percent).await?
     } else {
         item::success()
     };
@@ -612,7 +613,21 @@ pub(super) async fn complete(
     star: i64,
     count: i64,
 ) -> Result<Value> {
-    complete_inner(db, s, a, r, party, star, count, true, false).await
+    let loot_percent = super::loot_booster::percent(db,s,a,r,&json!({})).await?;
+    complete_inner(db, s, a, r, party, star, count, true, loot_percent).await
+}
+
+pub(super) async fn complete_dispatch(
+    db: &mut SqliteConnection,
+    s: &AppState,
+    a: i64,
+    r: &Request,
+    party: &[i64],
+    star: i64,
+    count: i64,
+) -> Result<Value> {
+    // Dispatch is excluded from loot boosters, even when one is active at claim.
+    complete_inner(db, s, a, r, party, star, count, true, 0).await
 }
 
 /// Only authenticated, server-saved party options can disable battle loot.
@@ -622,7 +637,7 @@ pub(super) fn party_loot_enabled(entry: &Value) -> bool {
 
 async fn complete_inner(
     db: &mut SqliteConnection, s: &AppState, a: i64, r: &Request,
-    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_boosted: bool,
+    party: &[i64], star: i64, count: i64, grant_loot: bool, loot_percent: i64,
 ) -> Result<Value> {
     let d = dungeon(s, r)?;
     let c = n(d, "ChapterIndex");
@@ -633,7 +648,7 @@ async fn complete_inner(
     for _ in 0..if grant_loot {count} else {0} {
         let index = field(d, "DropRewardIndex", diff);
         if index > 0 {
-            item::reward_with_loot_booster(db,s,a,index as i32,&mut reward,loot_boosted).await?;
+            item::reward_with_loot_bonus(db,s,a,index as i32,&mut reward,loot_percent).await?;
         }
     }
     // Clear credit also unlocks later stages. Track actual loot claims separately

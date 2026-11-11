@@ -1079,7 +1079,8 @@ pub(super) async fn finish(
         {
             let index = reward.as_i64().unwrap_or(0);
             if index > 0 {
-                item::reward_with_loot_booster(db,s,a,index as i32,&mut extra,!first && super::loot_booster::active(entry)).await?;
+                let percent = if first {0} else {super::loot_booster::percent(db,s,a,r,entry).await?};
+                item::reward_with_loot_bonus(db,s,a,index as i32,&mut extra,percent).await?;
             }
         }
         out["TowerInfos"] = json!([t]);

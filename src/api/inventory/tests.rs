@@ -1831,7 +1831,7 @@ async fn boosters_persist_extend_and_apply_campaign_bonuses() {
 }
 
 #[tokio::test]
-async fn gold_booster_uses_bonus_gold_enum_and_loot_boosters_are_not_consumed() {
+async fn gold_and_timed_loot_boosters_activate_but_onetime_loot_is_not_consumable() {
     let (state, u) = setup().await;
     let (&gold, data) = state
         .tables
@@ -1874,11 +1874,11 @@ async fn gold_booster_uses_bonus_gold_enum_and_loot_boosters_are_not_consumed() 
         .inventory
         .boosters
         .iter()
-        .find(|(_, v)| item::n(v, "Type") == 2)
+        .find(|(_, v)| item::n(v, "Type") == 2 && v["IsOnetime"] == false)
         .unwrap()
         .0;
     put(&state, &u, loot, 1).await;
-    assert_ne!(
+    assert_eq!(
         item::use_booster_item(
             State(state.clone()),
             form(&u, &format!("ItemIndex={loot}&ItemCount=1"))
@@ -1888,7 +1888,13 @@ async fn gold_booster_uses_bonus_gold_enum_and_loot_boosters_are_not_consumed() 
         .0["Result"],
         "Success"
     );
-    assert_eq!(count(&state, &u, loot).await, 1);
+    assert_eq!(count(&state, &u, loot).await, 0);
+    let onetime = *state.tables.inventory.boosters.iter()
+        .find(|(_,v)| item::n(v,"Type")==2 && v["IsOnetime"]==true).unwrap().0;
+    put(&state,&u,onetime,1).await;
+    assert_ne!(item::use_booster_item(State(state.clone()),form(&u,&format!("ItemIndex={onetime}&ItemCount=1")))
+        .await.unwrap().0["Result"],"Success");
+    assert_eq!(count(&state,&u,onetime).await,1);
 }
 
 #[tokio::test]
