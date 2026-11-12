@@ -185,10 +185,14 @@ run on separate connections.
 
 `docker-compose.yml` runs `postgres` (PostgreSQL 18, volume `postgres-data`,
 no published port, `pg_stat_statements`), `postgres-backup` and `game` (waits
-for a healthy `postgres`). On first start of the volume,
-`config/postgres/initdb/10-sprk-roles.sh` creates the `sprk` database and two
-roles: `sprk_owner` (owns the schema, runs migrations and backups) and
-`sprk_app` (data access only, not a superuser).
+for a healthy `postgres`). On first start of the volume, the init script
+(`sprk-postgres-init` under `configs:` in `docker-compose.yml`) creates the
+`sprk` database and two roles: `sprk_owner` (owns the schema, runs migrations
+and backups) and `sprk_app` (data access only, not a superuser). The init and
+backup scripts are inline in the compose file because Portainer git stacks
+cannot bind-mount files from the repository; this needs Docker Compose 2.23.1
+or newer. If the volume was created without them (roles missing), create the
+roles by running that script by hand in the `postgres` container.
 
 Portainer stack variables to set **before** the cutover (use long random
 URL-safe passwords, letters, digits, `-` and `_`):

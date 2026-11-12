@@ -21,85 +21,106 @@ This project is for educational and preservation purposes only.
 - Replays, rankings, and supporting services
 - Configuration and development tools
 
-## Source layout
+## Contents
 
-- `src/api/`: account, gameplay, GM, and protocol handlers
-- `src/models/` and `src/tables/`: client response types and table loading
-- `src/updates.rs`: launcher update delivery
-- `migrations/`: PostgreSQL schema, triggers and SQL helper functions
-- `launcher/`: Windows launcher and its checks
-- `scripts/`: client patching, publishing, and local server tools
-- `tests/`: Python tool and Windows process-lifetime checks
+- [Play on your own computer](#play-on-your-own-computer): run your own server
+  with Docker, no programming tools needed.
+- [Host a server for other players](#host-a-server-for-other-players): the same
+  setup on a Linux server or Portainer.
+- [Contributing](#contributing): build, run and test the server from source.
 
-See [the scripts inventory](scripts/README.md) for active CI and development tools.
+## Play on your own computer
 
-## Run a local server (Windows)
+The server runs in [Docker](https://www.docker.com/products/docker-desktop/),
+which downloads everything it needs. You do not need to build anything.
 
-You need [Rust 1.99+](https://rustup.rs), Python, and
-[Docker Desktop](https://www.docker.com/products/docker-desktop/) running, plus
-a patched game client (see [Patching the client](#patching-the-client)) and a
-published local client update (`client-updates/stable/manifest.json`, see
-[client updates](docs/client-updates.md)).
+You need:
 
-1. Optional: copy `.env.example` to `.env` and set `SPRK_GM_KEY` to enable GM
-   tools on `http://127.0.0.1:8082`.
-2. Run `start_server.bat`.
-3. Choose **Local** in SprkLauncher.
+- A 64-bit Windows or Linux PC (Intel or AMD) with a few GB of free memory.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/), installed
+  and running.
+- The game client with `SprkLauncher.exe` (Windows).
 
-`start_server.bat` builds the release server and starts the update service
-(port 8081) and the game (port 8080). Close the window or press Ctrl+C to stop
-both.
+### First-time setup
 
-### The local database
+1. Download this repository: on GitHub, click **Code**, then **Download ZIP**,
+   and extract it, for example to `C:\sprk`.
+2. In that folder, create two empty folders: `data\client-updates` and
+   `data\db-backups`.
+3. Copy `.env.example` to a new file named `.env`, open it in a text editor
+   (Notepad is fine) and change these lines:
 
-The game stores its data in PostgreSQL. Unless `DATABASE_URL` is set (in `.env`
-or the terminal), `start_server.bat` runs it for you in the Docker container
-`sprk-postgres-local` on `127.0.0.1:54320`. The data lives in the Docker volume
-of the same name and survives restarts.
+   ```ini
+   SPRK_DB_SUPERUSER_PASSWORD=type_a_long_random_password_here
+   SPRK_DB_OWNER_PASSWORD=type_a_different_one_here
+   SPRK_DB_APP_PASSWORD=and_a_third_one_here
+   SPRK_DB_BACKUP_HOST_DIR=./data/db-backups
+   SPRK_UPDATES_HOST_DIR=./data/client-updates
+   SPRK_GM_KEY=
+   ```
 
-If a `sprk.db` from the earlier SQLite version exists, the first start copies
-it into PostgreSQL (report in `target\local-server\sqlite-copy-report.json`).
-After that `sprk.db` is no longer used.
+   Use three different passwords made of letters, digits, `-` and `_`. You never
+   need to type them again; just do not change them later.
+4. Open a terminal in the folder (in Windows Explorer, right-click the folder
+   and choose **Open in Terminal**) and run:
 
-```powershell
-# SQL shell on the local database
-docker exec -it sprk-postgres-local psql -U postgres -d sprk
+   ```bash
+   docker compose up -d
+   ```
 
-# Start over (copies sprk.db again on the next start): stop the server, then
-docker rm -f sprk-postgres-local
-docker volume rm sprk-postgres-local
+   The first start downloads the server and the game files, which can take
+   several minutes. It is ready when <http://localhost:8080/health> and
+   <http://localhost:8081/health> both open in a browser.
+5. Start `SprkLauncher.exe`, choose the **Local** server and play. The launcher
+   downloads the game files from your server the first time.
+
+### Everyday use
+
+Run these in the same folder:
+
+```bash
+docker compose stop                            # stop the server
+docker compose start                           # start it again
+docker compose pull && docker compose up -d    # update to the latest version
 ```
 
-## Host with Docker Compose
+Docker Desktop restarts the server automatically when your computer starts, as
+long as Docker Desktop itself starts.
 
-Use Docker Engine with the Compose plugin on Linux, or Docker Desktop on
-Windows. The published `linux/amd64` image contains the server, tables and
-battle worker; Rust is not needed. From the repository root, in a Linux shell
-(WSL on Windows):
+Your game data stays in Docker between restarts and updates. A backup is written
+to `data\db-backups` once a day; keep that folder. Never run
+`docker compose down --volumes` or delete the `postgres-data` volume in Docker
+Desktop: that deletes your accounts.
+
+If something does not work, `docker compose ps` shows which part is not
+running and `docker compose logs game` shows the server's messages.
+
+## Host a server for other players
+
+This is the same Compose setup on an always-on Linux server, with Docker Engine
+and the Compose plugin (or a Portainer stack using `docker-compose.yml`).
 
 ```bash
 cp .env.example .env
 
-# Host directories: client releases (UID/GID 10001) and database backups (UID 999).
+# Host folders: client releases (UID/GID 10001) and database backups (UID 999).
 sudo mkdir -p /srv/sprk/client-updates /srv/sprk/db-backups
 sudo chown 10001:10001 /srv/sprk/client-updates
 sudo chown 999:999 /srv/sprk/db-backups
 ```
 
-Edit `.env`. At least set:
+In `.env` (or the Portainer stack variables), set at least:
 
-- `SPRK_GAME_HOST`: the address players reach, such as `192.168.1.10:8080`
-  (`SPRK_GAME_HTTPS=true` behind an HTTPS reverse proxy).
-- `SPRK_DB_SUPERUSER_PASSWORD`, `SPRK_DB_OWNER_PASSWORD`, `SPRK_DB_APP_PASSWORD`:
-  three different random passwords (letters, digits, `-`, `_`). They apply when
-  the database volume is first created.
-- `SPRK_GM_KEY`: a random key of at least 32 characters, or empty to disable GM.
+- `SPRK_GAME_HOST`: the address players reach, such as `192.168.1.10:8080`, or
+  your domain with `SPRK_GAME_HTTPS=true` behind an HTTPS reverse proxy.
+- The three `SPRK_DB_*_PASSWORD` values, as above. They apply when the database
+  volume is first created.
+- `SPRK_GM_KEY`: a random key of at least 32 characters for GM tools, or empty.
 
 Then start and check:
 
 ```bash
 docker compose up -d
-docker compose ps
 curl --fail http://localhost:8080/health
 curl --fail http://localhost:8080/health/battle
 curl --fail http://localhost:8081/health
@@ -112,30 +133,29 @@ curl --fail http://localhost:8081/health
 | `postgres`        | internal only           | game database in the `postgres-data` volume          |
 | `postgres-backup` | none                    | daily `pg_dump` files in `SPRK_DB_BACKUP_HOST_DIR`, optionally copied to `SPRK_DB_BACKUP_COPY_HOST_DIR` |
 
-The update service downloads and verifies its client release before
-listening, so its first start can take several minutes. Chat and battle use
-`/ws/chat` and `/ws/battle` on the game port; the GM listener uses port 8082
-on loopback.
+Chat and battle use `/ws/chat` and `/ws/battle` on the game port. The GM
+listener stays on loopback port 8082; never expose it. Players add your server
+in SprkLauncher with your `SPRK_GAME_HOST` and update service addresses.
 
-```bash
-docker compose pull && docker compose up -d   # update to the latest image
-docker compose down                           # stop, keeping all data
-```
+More detail:
 
-Never add `--volumes` to `docker compose down` unless you mean to delete the
-database. For Portainer, reverse proxies and local image builds, see
-[client updates and Docker hosting](docs/client-updates.md#portainer--docker)
-and [the CI release workflow](docs/github-client-updates.md). Database
-backups, restores and moving from SQLite are in
-[the PostgreSQL migration guide](docs/postgresql-migration.md).
+- [Client updates and Docker hosting](docs/client-updates.md#portainer--docker):
+  Portainer, reverse proxies and HTTPS.
+- [GitHub CI and client updates](docs/github-client-updates.md): how the image
+  and client releases are built.
+- [The PostgreSQL guide](docs/postgresql-migration.md): backups, restores and
+  moving from the older SQLite `sprk.db`.
 
-## Development
+## Contributing
 
-### Build
+### Tools
 
-```bash
-cargo build --release   # target/release/sprk-server(.exe)
-```
+- [Rust 1.99+](https://rustup.rs) for the server.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) for the
+  database (and Docker image builds).
+- Python 3 for the scripts in `scripts/` and `gm.py`.
+- The [.NET SDK](https://dotnet.microsoft.com/download) for the client patcher
+  and the launcher.
 
 For VS Code, install the analyzer and standard-library sources for your
 toolchain, then run **rust-analyzer: Restart server**:
@@ -147,9 +167,55 @@ rustup component add rust-analyzer rust-src
 The workspace settings use this toolchain's `rust-analyzer` from `PATH`, and the
 parent SPRK workspace links `sprk-server/Cargo.toml`.
 
-### Run the binary directly
+### Source layout
+
+- `src/api/`: account, gameplay, GM, and protocol handlers
+- `src/models/` and `src/tables/`: client response types and table loading
+- `src/updates.rs`: launcher update delivery
+- `migrations/`: PostgreSQL schema, triggers and SQL helper functions
+- `launcher/`: Windows launcher and its checks
+- `scripts/`: client patching, publishing, and local server tools
+- `tests/`: Python tool and Windows process-lifetime checks
+
+See [the scripts inventory](scripts/README.md) for active CI and development tools.
+
+### Run a development server (Windows)
+
+Besides the tools above you need a patched game client (see
+[Patching the client](#patching-the-client)) and a published local client update
+(`client-updates/stable/manifest.json`, see [client updates](docs/client-updates.md)).
+
+1. Optional: copy `.env.example` to `.env` and set `SPRK_GM_KEY` to enable GM
+   tools on `http://127.0.0.1:8082`.
+2. Run `start_server.bat`.
+3. Choose **Local** in SprkLauncher.
+
+`start_server.bat` builds the release server and starts the update service
+(port 8081) and the game (port 8080). Close the window or press Ctrl+C to stop
+both.
+
+The game stores its data in PostgreSQL. Unless `DATABASE_URL` is set (in `.env`
+or the terminal), `start_server.bat` runs it for you in the Docker container
+`sprk-postgres-local` on `127.0.0.1:54320`. The data lives in the Docker volume
+of the same name and survives restarts. If a `sprk.db` from the earlier SQLite
+version exists, the first start copies it into PostgreSQL (report in
+`target\local-server\sqlite-copy-report.json`); after that `sprk.db` is no
+longer used.
+
+```powershell
+# SQL shell on the local database
+docker exec -it sprk-postgres-local psql -U postgres -d sprk
+
+# Start over (copies sprk.db again on the next start): stop the server, then
+docker rm -f sprk-postgres-local
+docker volume rm sprk-postgres-local
+```
+
+### Build and run the binary directly
 
 ```bash
+cargo build --release   # target/release/sprk-server(.exe)
+
 docker run -d --name sprk-postgres-dev -e POSTGRES_PASSWORD=dev \
   -p 127.0.0.1:5432:5432 postgres:18 -c max_connections=300
 
@@ -170,6 +236,14 @@ The server refuses to start when a `sprk.db` from the SQLite version sits next
 to an empty database. Copy it first:
 `DATABASE_URL=... sprk-server migrate-sqlite sprk.db`.
 
+To try the Compose stack with your own build, prepare `build-input/worker`
+(the battle worker), then build the image:
+
+```bash
+docker build -t sprk-server:local .
+SPRK_IMAGE=sprk-server:local docker compose up -d --pull never
+```
+
 ### Tests
 
 Tests need a PostgreSQL server where the role can create databases, such as the
@@ -181,9 +255,10 @@ SPRK_TEST_POSTGRES_URL=postgres://postgres:dev@127.0.0.1:5432/postgres cargo tes
 
 The first run builds a migrated template database; each test clones it into its
 own database, and leftovers are dropped on the next run. Parallel tests open many
-connections, hence `-c max_connections=300`.
+connections, hence `-c max_connections=300`. Pull requests also run the checks in
+`.github/workflows/test-pr.yml`.
 
-## Patching the client
+### Patching the client
 
 Patch `Assembly-CSharp.dll` and `resources.assets` in one command by pointing
 the patcher at the game client folder:

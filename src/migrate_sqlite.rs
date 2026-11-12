@@ -147,8 +147,10 @@ async fn copy(path: &Path, pg: &mut PgConnection) -> anyhow::Result<Report> {
 /// PostgreSQL tables and their columns in ordinal order.
 async fn target_schema(pg: &mut PgConnection) -> anyhow::Result<BTreeMap<String, Vec<String>>> {
     let rows: Vec<(String, String)> = sqlx::query_as(
-        "SELECT table_name::text, column_name::text FROM information_schema.columns \
-         WHERE table_schema='public' AND table_name NOT LIKE '!_sqlx%' ESCAPE '!' ORDER BY table_name, ordinal_position")
+        "SELECT c.table_name::text, c.column_name::text FROM information_schema.columns c \
+         JOIN information_schema.tables t ON t.table_schema=c.table_schema AND t.table_name=c.table_name \
+         WHERE c.table_schema='public' AND t.table_type='BASE TABLE' \
+         AND c.table_name NOT LIKE '!_sqlx%' ESCAPE '!' ORDER BY c.table_name, c.ordinal_position")
         .fetch_all(&mut *pg).await?;
     let mut tables: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (table, column) in rows {
@@ -311,6 +313,8 @@ mod tests {
         sqlite.close().await;
 
         let db = crate::database::test_pool().await;
+        // Views in public (production's pg_stat_statements) are not copy targets.
+        sqlx::query("CREATE VIEW extension_view AS SELECT 1 AS x").execute(&db).await.unwrap();
         let mut pg = db.acquire().await.unwrap().detach();
         let report = copy(&path, &mut pg).await.unwrap();
         assert_eq!(report.tables["accounts"].rows, 2);
