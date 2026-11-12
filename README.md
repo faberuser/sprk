@@ -127,7 +127,9 @@ no longer reads. To bring it over once:
 3. Start the game again with `docker compose start game`.
 
 The copy only goes into a database without accounts, is all or nothing, checks
-every table afterwards and leaves `sprk.db` unchanged.
+every table afterwards and leaves `sprk.db` unchanged. Running the server with
+`start_server.bat` instead of Docker? See
+[Bring over an old `sprk.db`](server/README.md#bring-over-an-old-sprkdb).
 
 ## Host a server for other players
 

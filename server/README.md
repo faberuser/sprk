@@ -98,6 +98,29 @@ docker rm -f sprk-postgres-local
 docker volume rm sprk-postgres-local
 ```
 
+### Bring over an old `sprk.db`
+
+Versions before PostgreSQL kept the game data in a `sprk.db` file in the
+repository root. The server no longer reads it; copy it into the local database
+once:
+
+1. Run `start_server.bat` once so the new database exists, then stop it
+   (Ctrl+C). Don't create accounts in between: the copy only goes into a
+   database without accounts.
+2. Copy the data (`pip install "psycopg[binary]"` first):
+
+   ```powershell
+   python -I server/scripts/database/copy_sqlite_to_postgres.py sprk.db
+   ```
+
+   It targets the `start_server.bat` database by default (or `DATABASE_URL` if
+   set). Keep any `sprk.db-wal` and `sprk.db-shm` files next to `sprk.db`.
+3. Start `start_server.bat` again.
+
+The copy is all or nothing, checks every table afterwards and leaves `sprk.db`
+unchanged. If the database already has accounts, start over with an empty one
+(see the commands above) and repeat.
+
 ## Run the binary directly
 
 ```bash
