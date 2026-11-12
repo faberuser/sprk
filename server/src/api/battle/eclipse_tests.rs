@@ -313,3 +313,40 @@ async fn eclipse_damage_accepts_native_long_without_allowing_negative_or_regress
     assert_eq!(call(&s,&u,"eclipse/save_eclipse_result",&end).await["Result"],"Success");
     assert_eq!(call(&s,&u,"campaign/end_campaign",END).await["Result"],"Success");
 }
+
+#[tokio::test]
+async fn spent_stamina_fills_the_eclipse_gauge_into_capped_keys() {
+    let (s, u) = setup().await;
+    let a = account(&u);
+    assert_eq!(s.tables.battle.rules["EclipsePointPerStamina"], 100);
+    crate::db::query("UPDATE user_info SET stamina=100000 WHERE account_id=$1")
+        .bind(a).execute(&s.db).await.unwrap();
+    let mut tx = s.db.begin().await.unwrap();
+    let points = |v: &Value| n(&v["EclipsePointAward"]["CurrencyResults"][1], "NewValue");
+    assert_eq!(n(&dungeons::charge(&mut tx, &s, a, 22, 1).await.unwrap(), "NewValue"), 4);
+    // 1,400 stamina fills one 140,000-point gauge into the missing key.
+    let full = dungeons::charge(&mut tx, &s, a, 1, 1400).await.unwrap();
+    let award = &full["EclipsePointAward"];
+    assert_eq!(award["CurrencyResults"][0]["AddValue"], 140_000);
+    assert_eq!(award["CurrencyResults"][0]["NewValue"], 140_000);
+    assert_eq!(points(&full), 0);
+    assert_eq!(award["KeyResult"]["NewValue"], 5);
+    assert_eq!(award["KeyResult"]["AddValue"], 1);
+    // With every key held the gauge fills up to full and then stops.
+    let half = dungeons::charge(&mut tx, &s, a, 1, 700).await.unwrap();
+    assert_eq!(points(&half), 70_000);
+    assert!(half["EclipsePointAward"]["KeyResult"].is_null());
+    let capped = dungeons::charge(&mut tx, &s, a, 1, 2000).await.unwrap();
+    assert_eq!(capped["EclipsePointAward"]["CurrencyResults"][0]["AddValue"], 70_000);
+    assert_eq!(points(&capped), 140_000);
+    assert!(dungeons::charge(&mut tx, &s, a, 1, 10).await.unwrap()["EclipsePointAward"].is_null());
+    // Spending a key lets the next stamina spend convert the full gauge.
+    dungeons::charge(&mut tx, &s, a, 22, 1).await.unwrap();
+    let next = dungeons::charge(&mut tx, &s, a, 1, 1).await.unwrap();
+    assert_eq!(points(&next), 100);
+    assert_eq!(next["EclipsePointAward"]["KeyResult"]["NewValue"], 5);
+    tx.commit().await.unwrap();
+    let info = call(&s, &u, "eclipse/get_eclipse_info", "").await;
+    assert_eq!(info["EclipseInfo"]["EclipsePointResult"]["NewValue"], 100);
+    assert_eq!(info["EclipseInfo"]["EclipseStaminaResult"]["NewValue"], 5);
+}

@@ -2,6 +2,7 @@
   "Description": "Local emulator defaults, not recovered production rules. Times are UTC.",
   "BattleExpirySeconds": 14400,
   "RaiderExpPerStamina": 10,
+  "EclipsePointPerStamina": 100,
   "EnableLegacyFieldRaids": true,
   "EnablePieceOfMemoryEpisodes": true,
   "DispatchSecondsPerBattle": 60,

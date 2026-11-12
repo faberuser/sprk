@@ -43,6 +43,10 @@ pub(crate) async fn charge(
     let mut result = charge_reserved(db, s, a, kind, cost).await?;
     if kind == 1 && cost > 0 {
         result["RaiderExpResult"] = stamina_exp(db, s, a, cost).await?;
+        let award = Box::pin(eclipse_points(db, s, a, cost)).await?;
+        if !award.is_null() {
+            result["EclipsePointAward"] = award;
+        }
     }
     Ok(result)
 }
@@ -358,6 +362,68 @@ pub(super) async fn stamina_exp(db: &mut PgConnection, s: &AppState, a: i64, cos
     tutorial::team_exp(db, s, a, amount, &mut rewards).await?;
     Ok(json!(rewards.team_exp.first()))
 }
+/// Darkness Corruption gauge. Spent stamina fills EclipsePoint; each full
+/// gauge (CurrencyType.ExchangeCostValue) becomes one EclipseKey while the
+/// player holds fewer than the cap. With every key held the gauge stops at
+/// full, matching the native "charging now resets the level" warning.
+///
+/// Returns null when nothing changed, otherwise `{"CurrencyResults":[..],
+/// "KeyResult":..}`. The first currency result reports the uncapped sum the
+/// native reward gauge animates (it derives converted keys from it); the second
+/// leaves the client holding the stored remainder.
+pub(super) async fn eclipse_points(db: &mut PgConnection, s: &AppState, a: i64, stamina: i64) -> Result<Value> {
+    const KEY: i64 = 22;
+    let gain = stamina.max(0).saturating_mul(settings(s, "EclipsePointPerStamina", 100).max(0));
+    let exchange = s.tables.live.find("CurrencyType", &[("CurrencyType", 41)])
+        .map(|v| n(v, "ExchangeCostValue")).filter(|v| *v > 0).unwrap_or(140_000);
+    if gain <= 0 {
+        return Ok(Value::Null);
+    }
+    let cap = s.tables.services.find("Stamina", &[("StaminaType", KEY)])
+        .and_then(|v| v["MaxCountValue"].as_str()).and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or_else(|| s.tables.hero_shop.constant("MaxEclipseTicket", 5));
+    let keys = n(&charge(db, s, a, KEY, 0).await?, "NewValue");
+    let old = n(&hero::currency(db, a, "EclipsePoint", 0).await?, "NewValue");
+    let total = old.saturating_add(gain);
+    let made = (total / exchange).min((cap - keys).max(0));
+    let mut stored = total - made * exchange;
+    if keys + made >= cap {
+        stored = stored.min(exchange);
+    }
+    let applied = stored + made * exchange - old;
+    if applied <= 0 {
+        return Ok(Value::Null);
+    }
+    let result = hero::currency(db, a, "EclipsePoint", stored - old).await?;
+    let mut shown = result.clone();
+    shown["AddValue"] = json!(applied);
+    shown["NewValue"] = json!(old + applied);
+    let mut settled = result;
+    settled["AddValue"] = json!(0);
+    let mut key = Value::Null;
+    if made > 0 {
+        let mut info = get(db, a, "key", KEY).await?;
+        info["Count"] = json!(keys + made);
+        put(db, a, "key", KEY, &info).await?;
+        key = charge(db, s, a, KEY, 0).await?;
+        key["AddValue"] = json!(made);
+    }
+    Ok(json!({"CurrencyResults":[shown, settled],"KeyResult":key}))
+}
+
+/// Adds an `eclipse_points` award to a battle response the native reward
+/// popup reads (CurrencyResults + EclipseStaminaResult).
+pub(super) fn attach_eclipse_points(out: &mut Value, award: &Value) {
+    let Some(results) = award["CurrencyResults"].as_array() else { return };
+    if !out["CurrencyResults"].is_array() {
+        out["CurrencyResults"] = json!([]);
+    }
+    out["CurrencyResults"].as_array_mut().unwrap().extend(results.iter().cloned());
+    if !award["KeyResult"].is_null() {
+        out["EclipseStaminaResult"] = award["KeyResult"].clone();
+    }
+}
+
 pub(super) async fn key_snapshot(db: &mut PgConnection, s: &AppState, a: i64) -> Result<Value> {
     let mut out = vec![];
     for (k, key) in KEYS.iter().enumerate().skip(5) {

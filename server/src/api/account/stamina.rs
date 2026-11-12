@@ -321,7 +321,9 @@ pub async fn use_stamina(State(s): State<AppState>, body: Bytes) -> Result<Json<
     let mut tx = crate::database::begin(&s.db).await?;
     crate::api::inventory::item::init(&mut tx, &s, a).await?;
     chicken(&mut tx, &s, a).await?;
-    let out = battle::charge_key(&mut tx, &s, a, 1, amount).await?;
+    let mut out = battle::charge_key(&mut tx, &s, a, 1, amount).await?;
+    // Eclipse points are already stored; this response has no field for them.
+    if let Some(v) = out.as_object_mut() { v.remove("EclipsePointAward"); }
     tx.commit().await?;
     Ok(Json(
         json!({"BaseResult":"Success","Result":"Success","StaminaResult":out}),
