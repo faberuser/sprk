@@ -237,7 +237,7 @@ Clone this repository next to a game folder. The scripts look for the game in
 ```text
 <workspace>/
   sprk/          this repository
-  sprk-client/   the game folder from the client ZIP
+  sprk-client/   the game folder from the client
 ```
 
 Run every command from the repository root. Start the game once through its

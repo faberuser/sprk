@@ -10,29 +10,29 @@ Run every command from the repository root.
 A game folder (`sprk-client`) is a Unity player plus assets. Only two kinds of
 file in it are built from this directory:
 
-| Built here | Comes from an existing game folder or release |
-| --- | --- |
-| `King's Raid_Data/Managed/Assembly-CSharp.dll` (the game's code) | `King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`, `D3D12/` |
-| `King's Raid_Data/Managed/Sprk*.dll` (SPRK features) | Unity, Mono and third-party DLLs in `Managed/` |
-| `SprkLauncher.exe` | Scenes, asset bundles, tables, `King's Raid_Data/Documents/` (19 GB) |
+| Built here                                                       | Comes from an existing game folder or release                        |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `King's Raid_Data/Managed/Assembly-CSharp.dll` (the game's code) | `King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`, `D3D12/`  |
+| `King's Raid_Data/Managed/Sprk*.dll` (SPRK features)             | Unity, Mono and third-party DLLs in `Managed/`                       |
+| `SprkLauncher.exe`                                               | Scenes, asset bundles, tables, `King's Raid_Data/Documents/` (19 GB) |
 
 ## Layout
 
-| Path | Contents |
-| --- | --- |
-| `managed/Assembly-CSharp/` | The game's C# code |
-| `managed/Sprk*/` | SPRK feature assemblies, one DLL per directory |
-| `managed/Directory.Build.props` | Compiler settings shared by every project |
-| `managed/references.lock.json` | SHA-256 pins of the game runtime DLLs the code compiles against |
-| `launcher/` | `SprkLauncher.exe` (server profiles, signed updates) and its tests |
-| `overrides/files/` | Replacement assets and tables, by client-relative path (empty until needed) |
-| `dev.py` | Everyday commands: build, test, install, clean |
-| `scripts/build/` | Compiler and test-copy code used by `dev.py` and CI |
-| `scripts/release/` | Build, sign, publish and pin client updates |
-| `scripts/automation/` | Drive the real game in tests |
-| `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion |
-| `tools/ManagedSource/` | Read-only DLL inspection and comparison |
-| `global.json` | .NET SDK version |
+| Path                                    | Contents                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `managed/Assembly-CSharp/`              | The game's C# code                                                          |
+| `managed/Sprk*/`                        | SPRK feature assemblies, one DLL per directory                              |
+| `managed/Directory.Build.props`         | Compiler settings shared by every project                                   |
+| `managed/references.lock.json`          | SHA-256 pins of the game runtime DLLs the code compiles against             |
+| `launcher/`                             | `SprkLauncher.exe` (server profiles, signed updates) and its tests          |
+| `overrides/files/`                      | Replacement assets and tables, by client-relative path (empty until needed) |
+| `dev.py`                                | Everyday commands: build, test, install, clean                              |
+| `scripts/build/`                        | Compiler and test-copy code used by `dev.py` and CI                         |
+| `scripts/release/`                      | Build, sign, publish and pin client updates                                 |
+| `scripts/automation/`                   | Drive the real game in tests                                                |
+| `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion                                   |
+| `tools/ManagedSource/`                  | Read-only DLL inspection and comparison                                     |
+| `global.json`                           | .NET SDK version                                                            |
 
 ## Requirements
 
@@ -55,10 +55,10 @@ python client/dev.py build      # only compile, to check for errors
 python client/dev.py clean      # delete the test copy
 ```
 
-| Command | Changes your real game? | How you play afterwards |
-| --- | --- | --- |
-| `test` | No | It starts the test copy for you |
-| `install` | Yes | SprkLauncher, server **Local** |
+| Command   | Changes your real game? | How you play afterwards         |
+| --------- | ----------------------- | ------------------------------- |
+| `test`    | No                      | It starts the test copy for you |
+| `install` | Yes                     | SprkLauncher, server **Local**  |
 
 ### Try a change: `test`
 
@@ -200,9 +200,9 @@ including unsigned publishing for contributors without the signing key.
 
 ### New players
 
-New players still need a complete game folder (the client ZIP). Any recent one
+New players still need a complete game folder (the client). Any recent one
 works: the launcher brings the managed files up to the current release on its
-first start. Refresh the ZIP occasionally to shorten that first update.
+first start. Refresh the client occasionally to shorten that first update.
 
 ## Tests
 
