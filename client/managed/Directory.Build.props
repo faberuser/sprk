@@ -23,7 +23,7 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
-    <!-- Decompiled game code: thousands of harmless warnings would hide real errors. -->
+    <!-- The game code has thousands of harmless warnings that would hide real errors. -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningLevel>0</WarningLevel>
     <!-- build_managed_client.py stages references here; an IDE or a single

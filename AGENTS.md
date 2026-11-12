@@ -34,8 +34,8 @@ this repository. The Unity player, assets and tables are never source.
 
 ## Ground rules
 
-- `client/managed` is maintained source. Never regenerate it by decompiling a
-  DLL, and never patch a compiled DLL.
+- `client/managed` is the source of truth. Change behavior there; never patch a
+  compiled DLL.
 - Never point a test client at the public server. Use the local server, the
   test copy started by `client/dev.py test`, client automation, or set
   `SPRK_HOST_URL=http://127.0.0.1:8080/host.json`.

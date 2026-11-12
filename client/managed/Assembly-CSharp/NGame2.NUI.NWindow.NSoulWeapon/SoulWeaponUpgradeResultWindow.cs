@@ -99,7 +99,6 @@ public class SoulWeaponUpgradeResultWindow : BaseWindow
 
 		bool IEnumerator.MoveNext()
 		{
-			//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 			return this.MoveNext();
 		}
 

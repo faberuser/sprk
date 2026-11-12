@@ -4,7 +4,7 @@
 Inputs are the tracked C# source and the game's own runtime DLLs (Unity, Mono
 and third-party libraries), which are read from an installed client or an
 extracted client release and checked against client/managed/references.lock.json.
-No decompiler, IL patcher or previously built game/helper DLL is used.
+No previously built game or helper DLL is used.
 
     python client/scripts/build/build_managed_client.py
     python client/scripts/build/build_managed_client.py --install ../sprk-client

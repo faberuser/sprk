@@ -106,8 +106,7 @@ lobby, shops, battles). Point it at the test copy with `--client ../sprk-client-
 
 ## Change the game
 
-Edit the `.cs` files under `managed/` and rebuild. The source is ordinary
-maintained code: never regenerate it from a DLL or patch a compiled DLL.
+Edit the `.cs` files under `managed/` and rebuild. Never patch a compiled DLL.
 
 - **New feature assembly.** Create `managed/SprkName/SprkName.csproj` containing
   `<Project Sdk="Microsoft.NET.Sdk" />`, add its source and call it from the game
@@ -223,14 +222,10 @@ dotnet run --project tools/ManagedSource -- inspect <assembly.dll> <full-type-na
 
 See [tools/README.md](tools/README.md) for comparing two builds.
 
-## History
+## Compatibility
 
-`managed/` was recovered once, with ILSpy, from the last release built by the
-former DLL patcher (`client-ci-2795d44b755a-43152391931-1`), then repaired until
-it compiled. The patcher and the recovery records were deleted afterwards; git
-history still has them (`git show 470d93a2:client/legacy/README.md`).
-
-Checked against that release on 2026-11-12: all 15,350 types keep the same
+The source build was checked against client release
+`client-ci-2795d44b755a-43152391931-1` on 2026-11-12: all 15,350 types keep the same
 serialized field layout, base types and interfaces; login, lobby, hero,
 inventory and Special Shop screens and a campaign battle worked on the real game
 with no new errors; the server's native battle worker test passed. One

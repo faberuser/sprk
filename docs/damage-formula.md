@@ -1,8 +1,7 @@
 # Damage formula
 
-This is the hit-damage formula used by the installed SPRK client. It was taken
-from the decompiled `Assembly-CSharp.dll` (SHA-256 `022752624c61…08797`) and
-the client's `TableJit` tables. All battle maths is integer maths in
+This is the hit-damage formula used by the SPRK client. It comes from the game
+code in `client/managed/Assembly-CSharp` and the client's `TableJit` tables. All battle maths is integer maths in
 **permille** (1000 = 100%), and each step truncates toward zero. The formulas
 below use percentages for readability. The exact integer form is given where
 rounding or a curve matters.
@@ -336,7 +335,7 @@ The setup:
 
 ## Sources
 
-All paths are in the decompiled `Assembly-CSharp`:
+All paths are under `client/managed/Assembly-CSharp`:
 
 - Pipeline: `NShared/StatController.cs`. See `GiveDamage_Season1`,
   `GetFinalStat`, `MultAndAddStat`, `AttenuateStatUnderMinX` and
