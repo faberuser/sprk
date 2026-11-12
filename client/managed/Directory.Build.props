@@ -1,0 +1,46 @@
+<Project>
+  <!--
+    Shared settings for the game assembly and every SPRK helper assembly.
+    Each project directory compiles to one DLL named after the directory.
+  -->
+  <PropertyGroup>
+    <!-- The framework label only enables SDK tooling. The real API surface is the
+         Unity player's own Mono/framework DLLs in ManagedReferenceDirectory. -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoStdLib>true</NoStdLib>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <LangVersion>12.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <!-- The game code has thousands of harmless warnings that would hide real errors. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>0</WarningLevel>
+    <!-- build_managed_client.py stages references here; an IDE or a single
+         `dotnet build` reuses the references of the last complete build. -->
+    <ManagedReferenceDirectory Condition="'$(ManagedReferenceDirectory)' == ''">$(MSBuildThisFileDirectory)../../artifacts/client-build/references</ManagedReferenceDirectory>
+  </PropertyGroup>
+  <!-- The orchestrated build keeps obj/bin out of the source tree. -->
+  <PropertyGroup Condition="'$(SprkBuildRoot)' != ''">
+    <BaseIntermediateOutputPath>$(SprkBuildRoot)/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <OutputPath>$(SprkBuildRoot)/bin/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Never reference a previous build of the assembly being compiled. -->
+    <Reference Include="$(ManagedReferenceDirectory)/*.dll" Exclude="$(ManagedReferenceDirectory)/$(MSBuildProjectName).dll">
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

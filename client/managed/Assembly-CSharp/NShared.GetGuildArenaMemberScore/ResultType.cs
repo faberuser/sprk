@@ -1,0 +1,15 @@
+namespace NShared.GetGuildArenaMemberScore;
+
+public enum ResultType
+{
+	Fail,
+	Success,
+	[Comment("길드전이 진행중이 아닙니다.")]
+	GuildArenaSessionNotFound,
+	[Comment("진행중이지 않은 길드전입니다.")]
+	InvalidGuildArenaSessionIndex,
+	[Comment("가입된 길드가 없습니다.")]
+	NoGuild,
+	[Comment("길드전 기록을 찾을수 없습니다.")]
+	GuildArenaScoreInfoNotFound
+}

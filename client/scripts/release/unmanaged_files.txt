@@ -1,0 +1,15 @@
+# Client files that releases no longer manage.
+#
+# A listed file is left out of every new release and is NOT marked deleted, so
+# the launcher leaves each player's existing copy alone. It can no longer
+# repair or update it, and players only get it from the full client ZIP.
+#
+# Add a file only when:
+#   1. it will not change again (remove the line to manage it again);
+#   2. the current client ZIP for new players contains the same version;
+#   3. players have updated to a release that contains it;
+#   4. the server's native battle tests pass without it. The battle worker in
+#      the server image is built from the release, so it loses these files too.
+#
+# One client-relative path per line. A path ending in "/" covers a folder.
+# Changing this file rebuilds the client release in CI.

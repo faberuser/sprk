@@ -1,0 +1,122 @@
+using System;
+using System.Collections.Generic;
+using NVespa;
+using NVespa.NGlobal;
+
+public static class SprkSkillFormulaWords
+{
+	private static readonly string[] Keys = new string[11]
+	{
+		"Skill Level", "Level Scaling", "Awakening Coefficient", "Stacks", "of", "Some values remain calculated.", "Formula view unavailable for this skill.", "trunc: discard decimals; P.ATK / M.ATK: caster's physical / magical ATK.", "applicable effect stacks on the target (preview: 0)", "Show formulas",
+		"Show calculated values"
+	};
+
+	private static readonly Dictionary<string, string[]> Translations = new Dictionary<string, string[]>
+	{
+		{
+			"de",
+			new string[11]
+			{
+				"Fähigkeitsstufe", "Stufenskalierung", "Erweckungskoeffizient", "Stapel", "von", "Einige Werte bleiben berechnet.", "Formelansicht für diese Fähigkeit nicht verfügbar.", "trunc: Nachkommastellen entfernen; P.ATK / M.ATK: physischer / magischer ANG des Anwenders.", "zutreffende Effektstapel auf dem Ziel (Vorschau: 0)", "Formeln anzeigen",
+				"Berechnete Werte anzeigen"
+			}
+		},
+		{
+			"fr",
+			new string[11]
+			{
+				"Niveau de compétence", "Échelle de niveau", "Coefficient d'éveil", "Cumuls", "de", "Certaines valeurs restent calculées.", "Formule indisponible pour cette compétence.", "trunc : supprimer les décimales ; P.ATK / M.ATK : ATQ physique / magique du lanceur.", "cumuls de l'effet applicable sur la cible (aperçu : 0)", "Afficher les formules",
+				"Afficher les valeurs calculées"
+			}
+		},
+		{
+			"ja",
+			new string[11]
+			{
+				"スキルレベル", "レベル補正", "覚醒係数", "スタック数", "の", "一部の値は計算済みの数値で表示されます。", "このスキルの数式表示は利用できません。", "trunc：小数点以下を切り捨て。P.ATK / M.ATK：使用者の物理 / 魔法攻撃力。", "対象に付与された該当効果のスタック数（プレビュー：0）", "数式を表示",
+				"計算済みの数値を表示"
+			}
+		},
+		{
+			"ko",
+			new string[11]
+			{
+				"스킬 레벨", "레벨 보정", "각성 계수", "중첩 수", "의", "일부 값은 계산된 수치로 표시됩니다.", "이 스킬의 수식 표시를 사용할 수 없습니다.", "trunc: 소수점 이하 버림. P.ATK / M.ATK: 시전자의 물리 / 마법 공격력.", "대상에게 적용된 해당 효과 중첩 수 (미리보기: 0)", "수식 표시",
+				"계산된 수치 표시"
+			}
+		},
+		{
+			"ru",
+			new string[11]
+			{
+				"Уровень навыка", "Масштаб уровня", "Коэффициент пробуждения", "Суммирования", "от", "Некоторые значения остаются рассчитанными.", "Формула этого навыка недоступна.", "trunc: отбросить дробную часть; P.ATK / M.ATK: физическая / магическая АТК героя.", "суммирования соответствующего эффекта на цели (предпросмотр: 0)", "Показать формулы",
+				"Показать рассчитанные значения"
+			}
+		},
+		{
+			"zh-Hans",
+			new string[11]
+			{
+				"技能等级", "等级缩放", "觉醒系数", "叠加层数", "×", "部分数值仍显示计算结果。", "此技能暂不支持公式显示。", "trunc：舍去小数部分；P.ATK / M.ATK：施法者的物理 / 魔法攻击力。", "目标身上相应效果的叠加层数（预览：0）", "显示公式",
+				"显示计算结果"
+			}
+		},
+		{
+			"zh-Hant",
+			new string[11]
+			{
+				"技能等級", "等級縮放", "覺醒係數", "疊加層數", "×", "部分數值仍顯示計算結果。", "此技能暫不支援公式顯示。", "trunc：捨去小數部分；P.ATK / M.ATK：施法者的物理 / 魔法攻擊力。", "目標身上相應效果的疊加層數（預覽：0）", "顯示公式",
+				"顯示計算結果"
+			}
+		}
+	};
+
+	private static readonly string[] Locales = new string[7] { "de", "fr", "ja", "ko", "ru", "zh-Hans", "zh-Hant" };
+
+	private static readonly Dictionary<string, string[]> Extra = new Dictionary<string, string[]>
+	{
+		{
+			"Max HP",
+			new string[7] { "Max. LP", "PV max.", "最大HP", "최대 체력", "Макс. ОЗ", "最大生命值", "最大生命值" }
+		},
+		{
+			"Target",
+			new string[7] { "Ziel", "Cible", "対象", "대상", "Цель", "目标", "目標" }
+		},
+		{
+			"Distance",
+			new string[7] { "Entfernung", "Distance", "距離", "거리", "Расстояние", "距离", "距離" }
+		},
+		{
+			"caster-to-target distance in game units (preview: 0)",
+			new string[7] { "Abstand zwischen Anwender und Ziel in Spieleinheiten (Vorschau: 0)", "distance entre le lanceur et la cible en unités de jeu (aperçu : 0)", "使用者から対象までの距離（ゲーム内単位、プレビュー：0）", "시전자와 대상 사이의 거리 (게임 단위, 미리보기: 0)", "расстояние от героя до цели в игровых единицах (предпросмотр: 0)", "施法者与目标之间的距离（游戏单位，预览：0）", "施法者與目標之間的距離（遊戲單位，預覽：0）" }
+		}
+	};
+
+	public static string Locale => SingletonAuto<LocalizationManager>.instance.Language.ToString() switch
+	{
+		"ChineseTraditional" => "zh-Hant", 
+		"ChineseSimplified" => "zh-Hans", 
+		"Russian" => "ru", 
+		"Korean" => "ko", 
+		"Japanese" => "ja", 
+		"French" => "fr", 
+		"German" => "de", 
+		_ => "en", 
+	};
+
+	public static string Get(string text, string locale)
+	{
+		int num = Array.IndexOf(Keys, text);
+		if (num >= 0 && Translations.TryGetValue(locale, out var value))
+		{
+			return value[num];
+		}
+		int num2 = Array.IndexOf(Locales, locale);
+		if (num2 < 0 || !Extra.TryGetValue(text, out value))
+		{
+			return text;
+		}
+		return value[num2];
+	}
+}

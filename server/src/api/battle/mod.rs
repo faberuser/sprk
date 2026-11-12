@@ -1,0 +1,531 @@
+//! Persistent battle entries, rewards, dungeon modes, rooms, and asynchronous runs.
+use crate::api::{
+    heroes as hero,
+    inventory::item::{self, n, rule},
+    system::request::Request,
+    tutorial::{self, Rewards},
+};
+use crate::{
+    error::{Result, ServerError},
+    state::AppState,
+};
+use axum::{
+    body::Bytes,
+    extract::{OriginalUri, State},
+    Json,
+};
+use serde_json::{json, Value};
+use sqlx::PgConnection;
+use crate::db::RowExt;
+use std::collections::BTreeSet;
+mod campaign;
+pub(crate) mod entry_costs;
+mod contents;
+mod punishment;
+mod karma;
+pub mod campaign_handlers;
+mod dispatch;
+mod dungeons;
+mod eclipse;
+mod restrictions;
+mod rooms;
+pub(crate) mod cooperative;
+pub(crate) mod party_messages;
+mod seasons;
+pub(crate) mod challenge;
+mod treasure;
+mod special;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod entry_cost_tests;
+#[cfg(test)]
+mod dispatch_tests;
+#[cfg(test)]
+mod eclipse_tests;
+#[cfg(test)]
+mod maze_tests;
+pub(crate) mod bonuses;
+mod loot_booster;
+
+/// Dispatch jobs still awaiting battle simulation. Shared verbatim by the
+/// partial index and the preparation poller: PostgreSQL only uses a partial
+/// index when the query implies its WHERE terms, so the poller reads just pending rows
+/// instead of parsing every account's battle_state JSON every few seconds.
+pub(crate) const PENDING_DISPATCH_SIMULATION: &str = "kind='dispatch' AND sprk_json_int(data,'$.SimulationVersion') IN (1,2) AND sprk_json_text(data,'$.State') NOT IN ('Complete','Cancel') AND COALESCE(sprk_json_array_length(data,'$.SimulationResults'),0)<sprk_json_int(data,'$.RepeatCount')";
+pub fn routes(tables: &crate::tables::BattleTable) -> axum::Router<AppState> {
+    let mut r = axum::Router::new();
+    for path in tables.contracts.keys() {
+        if matches!(
+            path.as_str(),
+            "campaign/begin_campaign"
+                | "campaign/end_campaign"
+                | "campaign/visit_dungeon"
+                | "campaign/complete_scenario_dungeon"
+                | "campaign/reward_clear_chapter"
+                | "match/get_season_info"
+        ) {
+            continue;
+        }
+        r = r.route(&format!("/{path}"), axum::routing::post(handle));
+    }
+    r
+}
+pub async fn handle(
+    State(s): State<AppState>,
+    OriginalUri(uri): OriginalUri,
+    body: Bytes,
+) -> Result<Json<Value>> {
+    execute_request(&s, uri.path().trim_start_matches('/'), body)
+        .await
+        .map(Json)
+}
+pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Result<Value> {
+    let array_fields: Vec<&str> = s.tables.battle.contracts.get(path)
+        .and_then(|contract| contract["Request"].as_object())
+        .into_iter().flat_map(|fields| fields.iter())
+        .filter(|(_, typ)| typ.as_str().is_some_and(|typ| typ.ends_with("[]")))
+        .map(|(key, _)| key.as_str()).collect();
+    let mut req = Request::parse_with_arrays(&body, &array_fields)?;
+    let a = req.account(s)?;
+    if let Some(fields) = s
+        .tables
+        .battle
+        .contracts
+        .get(path)
+        .and_then(|c| c["Request"].as_object())
+    {
+        for (key, typ) in fields {
+            if let Some(values) = typ.as_str().and_then(|t| s.tables.battle.enums.get(t)) {
+                if let Some(raw) = req.0.get_mut(key) {
+                    if let Some(value) = values.get(raw) {
+                        *raw = value.to_string();
+                    }
+                }
+            }
+        }
+    }
+    // Awakening trials have their own transactional proof and reward state.
+    if path == "campaign/begin_campaign" || path == "campaign/end_campaign" {
+        let completed = if path.ends_with("end_campaign") {
+            Some(boolean(&req, "Completed", false)?)
+        } else {
+            None
+        };
+        let trial=hero::trial(
+            s,
+            a,
+            int(&req, "ChapterIndex")? as i32,
+            int(&req, "DungeonIndex")? as i32,
+            completed,
+        )
+        .await;
+        let trial=match trial {
+            Ok(value)=>value,
+            Err(ServerError::InvalidRequest(code))=>return Ok(rejected(s,path,a,code)),
+            Err(error)=>return Err(error),
+        };
+        if let Some(trial)=trial {
+            let mut out = response(s, path);
+            if completed.is_some() {
+                out["ItemResults"] = trial["ItemResults"].clone();
+            }
+            return Ok(out);
+        }
+    }
+    let mut tx = crate::database::begin(&s.db).await?;
+    if !crate::api::system::performance::observation(&format!("/{path}")) {
+        item::init(&mut tx, s, a).await?;
+    }
+    let action = path.rsplit('/').next().unwrap_or("");
+    let result = match path.split('/').next().unwrap_or("") {
+        "match" => seasons::match_season(s, &req),
+        "dispatch" => dispatch::execute(&mut tx, s, a, &req, action).await,
+        "contents" => contents::execute(&mut tx, s, a, &req, action).await,
+        "raid" | "party_dungeon" if action.contains("room") => {
+            rooms::execute(&mut tx, s, a, &req, path).await
+        }
+        "world_boss" | "event_world_boss" => seasons::execute(&mut tx, s, a, &req, path).await,
+        "raid" if action.contains("challenge_raid_rank") => challenge::execute(&mut tx, s, a, &req, action).await,
+        "raid" if action.contains("rank") => seasons::execute(&mut tx, s, a, &req, path).await,
+        "eclipse" | "ordeal_arena" => special::execute(&mut tx, s, a, &req, path).await,
+        _ => match action {
+            "begin_campaign" => campaign::begin(&mut tx, s, a, &req).await,
+            "end_campaign" => campaign::end(&mut tx, s, a, &req).await,
+            "visit_dungeon" | "complete_scenario_dungeon" => {
+                campaign::visit(&mut tx, s, a, &req, action).await
+            }
+            "sweep_dungeon" => dispatch::sweep(&mut tx, s, a, &req).await,
+            "get_selected_reward" => campaign::select_reward(&mut tx, s, a, &req).await,
+            "get_multiplay_reward" | "apply_for_multiplay_reward" | "abandon_multiplay_reward" => {
+                rooms::reward(&mut tx, s, a, &req, action).await
+            }
+            _ => dungeons::execute(&mut tx, s, a, &req, path).await,
+        },
+    };
+    match result {
+        Ok(v) => {
+            tx.commit().await?;
+            if action.contains("room") && matches!(path.split('/').next(),Some("raid"|"party_dungeon")) {
+                if let Err(error)=party_messages::after_room_request(s,a,&req,action).await {
+                    tracing::warn!(%error,"Room notification failed after commit");
+                }
+            }
+            if matches!(action, "begin_campaign" | "end_campaign") {
+                tracing::info!(path, account = a, chapter = req.text("ChapterIndex"),
+                    dungeon = req.text("DungeonIndex"), "Campaign request succeeded");
+            }
+            if action=="end_campaign" && v["MultiplayMemberIds"].as_array().is_some_and(|ids|!ids.is_empty()) {
+                if let Err(error)=party_messages::replay_rewards(s,a).await {
+                    tracing::warn!(%error,"Party reward summary replay failed after result response");
+                }
+            }
+            let mut out = response(s, path);
+            merge(&mut out, v);
+            Ok(out)
+        }
+        Err(ServerError::InvalidRequest(code)) => {
+            tx.rollback().await?;
+            Ok(rejected(s,path,a,code))
+        }
+        Err(e) => {
+            tracing::error!(path, account = a, error = %e, "Battle request failed");
+            Err(e)
+        }
+    }
+}
+fn rejected(s:&AppState,path:&str,a:i64,code:String)->Value {
+    // Room keep-alives ignore their reply. Local rooms (the Dragon Raid
+    // tutorial) have no server room, so their 30 s pings are expected misses.
+    if code=="RoomNotExist" && path.rsplit('/').next().is_some_and(|action|action.starts_with("ping_")) {
+        tracing::debug!(path,account=a,"Room ping without a server room");
+    } else {
+        tracing::warn!(path,account=a,reason=%code,"Battle request rejected");
+    }
+    let supported=s.tables.battle.contracts.get(path).and_then(|v|v["Results"].as_array())
+        .is_some_and(|values|values.contains(&json!(code)));
+    json!({"BaseResult":"Success","Result":if supported{code}else{"Fail".into()}})
+}
+fn response(s: &AppState, path: &str) -> Value {
+    let mut out = item::success();
+    if let Some(fields) = s
+        .tables
+        .battle
+        .contracts
+        .get(path)
+        .and_then(|v| v["Response"].as_object())
+    {
+        for (key, typ) in fields {
+            let t = typ.as_str().unwrap_or("");
+            out[key] = if t.ends_with("[]") {
+                json!([])
+            } else if t == "bool" {
+                json!(false)
+            } else if matches!(t, "int" | "long" | "byte") {
+                json!(0)
+            } else {
+                Value::Null
+            };
+        }
+    }
+    out
+}
+pub(crate) fn match_calendar(s: &AppState) -> Result<Value> {
+    Ok(seasons::match_season(s, &Request::parse(b"ArenaType=5")?)?["SeasonData"].clone())
+}
+fn merge(out: &mut Value, other: Value) {
+    if let Some(o) = other.as_object() {
+        for (k, v) in o {
+            out[k] = v.clone();
+        }
+    }
+}
+fn row<'a>(s: &'a AppState, table: &str, fields: &[(&str, i64)]) -> Result<&'a Value> {
+    s.tables
+        .battle
+        .find(table, fields)
+        .ok_or_else(|| rule("DungeonNotFound"))
+}
+fn int(r: &Request, key: &str) -> Result<i64> {
+    let v = r.number(key, 0)?;
+    if !(0..=i32::MAX as i64).contains(&v) {
+        return Err(rule("InvalidRequest"));
+    }
+    Ok(v)
+}
+fn boolean(r: &Request, key: &str, default: bool) -> Result<bool> {
+    match r.text(key) {
+        "" => Ok(default),
+        "true" | "True" | "1" => Ok(true),
+        "false" | "False" | "0" => Ok(false),
+        _ => Err(rule("InvalidRequest")),
+    }
+}
+fn ids(r: &Request, key: &str, max: usize) -> Result<Vec<i64>> {
+    if r.text(key).is_empty() {
+        return Ok(vec![]);
+    }
+    // BaseJsonMarshaler.EncodeArray serializes client integer arrays as strings.
+    let values: Vec<Value> = read_json(r.text(key)).map_err(|_| rule("InvalidHero"))?;
+    let ids: Vec<i64> = values
+        .iter()
+        .map(|value| {
+            value.as_i64()
+                .or_else(|| value.as_str().and_then(|value| value.parse().ok()))
+                .ok_or_else(|| rule("InvalidHero"))
+        })
+        .collect::<Result<_>>()?;
+    if ids.len() > max
+        || ids.iter().any(|v| *v <= 0 || *v > i32::MAX as i64)
+        || ids.iter().collect::<BTreeSet<_>>().len() != ids.len()
+    {
+        return Err(rule("DuplicatedHero"));
+    }
+    Ok(ids)
+}
+fn settings(s: &AppState, key: &str, default: i64) -> i64 {
+    s.tables.battle.rules[key].as_i64().unwrap_or(default)
+}
+fn now() -> i64 {
+    chrono::Utc::now().timestamp()
+}
+fn time(t: i64) -> String {
+    chrono::DateTime::from_timestamp(t, 0)
+        .unwrap()
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
+}
+fn day() -> String {
+    chrono::Utc::now().format("%Y-%m-%d").to_string()
+}
+pub(crate) async fn get(db: &mut PgConnection, a: i64, kind: &str, idx: i64) -> Result<Value> {
+    let data: Option<String> =
+        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 AND idx=$3")
+            .bind(a)
+            .bind(kind)
+            .bind(idx)
+            .fetch_optional(db)
+            .await?;
+    Ok(data
+        .map(|v| read_json(&v))
+        .transpose()?
+        .unwrap_or(Value::Null))
+}
+pub(crate) fn campaign_inspection_deck(s: &AppState, entry: &Value, played: i64) -> Option<Value> {
+    let chapter = n(entry,"ChapterIndex");
+    let dungeon = n(entry,"DungeonIndex");
+    let definition = s.tables.battle.find("CampaignDungeon", &[("ChapterIndex",chapter),("DungeonIndex",dungeon)])?;
+    if n(definition,"BattleType") != 1 || entry["ScenarioDungeon"] == true ||
+        entry["PresetStoryParty"].is_object() || entry["LoanedHeroIndices"].as_array().is_some_and(|v|!v.is_empty()) {
+        return None;
+    }
+    let ids: Vec<i64> = entry["Heroes"].as_array()?.iter().filter_map(Value::as_i64).filter(|id|*id>0).take(4).collect();
+    if ids.is_empty() { return None; }
+    let mut deck = json!({"BattleType":"Campaign","ChapterIndex":chapter,"DungeonIndex":dungeon,"PlayedTime":time(played)});
+    for slot in 0..4 { deck[format!("HeroIndex{}",slot+1)] = json!(ids.get(slot).copied().unwrap_or(0)); }
+    Some(deck)
+}
+pub(crate) async fn put(db: &mut PgConnection, a: i64, kind: &str, idx: i64, v: &Value) -> Result<()> {
+    crate::db::query("INSERT INTO battle_state(account,kind,idx,data) VALUES($1,$2,$3,$4) ON CONFLICT(account,kind,idx) DO UPDATE SET data=excluded.data").bind(a).bind(kind).bind(idx).bind(v.to_string()).execute(db).await?;
+    Ok(())
+}
+async fn list(db: &mut PgConnection, a: i64, kind: &str) -> Result<Vec<Value>> {
+    let rows: Vec<String> =
+        crate::db::query_scalar("SELECT data FROM battle_state WHERE account=$1 AND kind=$2 ORDER BY idx")
+            .bind(a)
+            .bind(kind)
+            .fetch_all(db)
+            .await?;
+    rows.iter().map(|v| read_json(v)).collect()
+}
+async fn owned(db: &mut PgConnection, a: i64, heroes: &[i64]) -> Result<()> {
+    for h in heroes {
+        hero::info(db, a, *h as i32).await?;
+    }
+    Ok(())
+}
+async fn claim(
+    db: &mut PgConnection,
+    a: i64,
+    kind: &str,
+    idx: i64,
+    period: &str,
+) -> Result<()> {
+    let r = crate::db::query(
+        "INSERT INTO battle_reward_claims(account,kind,idx,period) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",
+    )
+    .bind(a)
+    .bind(kind)
+    .bind(idx)
+    .bind(period)
+    .execute(db)
+    .await?;
+    if r.rows_affected() != 1 {
+        return Err(rule("AlreadyCompleted"));
+    }
+    Ok(())
+}
+async fn reward_index(
+    db: &mut PgConnection,
+    s: &AppState,
+    a: i64,
+    index: i64,
+    r: &mut Rewards,
+) -> Result<()> {
+    r.mail_overflow = true;
+    if index > 0 {
+        item::reward(db, s, a, index as i32, r).await?;
+    }
+    Ok(())
+}
+async fn rewards(db: &mut PgConnection, s: &AppState, a: i64, r: Rewards) -> Result<Value> {
+    crate::api::progression::record(db,a,"BattleRewardEquip",0,0,r.equipment.len() as i64).await?;
+    let mut out = item::reward_response(db, s, a, r).await?;
+    out["EquipItemInfos"] = out["EquipItemResults"].clone();
+    out["HeroExpResults"] = json!([]);
+    // EndCampaign consumes these fields, not RewardResultInfo.ExpResultInfos.
+    // Recruitment EXP remains separate so the battle reward UI applies it once.
+    out["ExpResultsByGetHero"] = out["ExpResultInfos"].clone();
+    Ok(out)
+}
+/// Release withdrawn local battles on lobby return, including results
+/// never submitted by the client. Keep service-owned runs and other sessions intact.
+pub(crate) async fn abandon_local_run_on_lobby(
+    s: &AppState, a: i64, session: &str,
+) -> Result<Value> {
+    let mut tx = crate::database::begin(&s.db).await?;
+    let mut out = json!({});
+    let old = crate::db::query("SELECT run_id,entry FROM battle_runs WHERE account=$1 AND completed=0")
+        .bind(a).fetch_optional(&mut *tx).await?;
+    if let Some(old) = old {
+        let mut entry: Value = read_json(&old.get::<String, _>("entry"))?;
+        let request = &entry["Request"];
+        // A lobby return explicitly withdraws the local run even if the client
+        // skipped its end request or the defeat report was rejected. Restricting
+        // this to selected story/raid types left ordinary parties reserved until
+        // relogin. Real dispatches live separately and are never removed here.
+        if !session.is_empty()
+            && request["SessionKey"].as_str() == Some(session)
+            && entry["ServiceOwned"] != true && entry["ServiceRequired"] != true
+        {
+            entry_costs::settle(&mut tx,s,a,&mut entry,false,&mut out).await?;
+            entry["AbandonedOnLobby"] = json!(true);
+            let run_id: String = old.get("run_id");
+            crate::db::query("UPDATE battle_runs SET completed=1,entry=$1 WHERE account=$2 AND run_id=$3 AND completed=0")
+                .bind(entry.to_string()).bind(a).bind(&run_id).execute(&mut *tx).await?;
+            tracing::info!(account=a, %run_id, "Released withdrawn local battle on lobby return");
+        }
+    }
+    tx.commit().await?;
+    Ok(out)
+}
+
+// The native client restores these managers from FirstLobby, not Login.
+// Keep this snapshot read-only: opening costs and battle cleanup have their
+// own transactional entry points.
+pub(crate) async fn punishment_lobby_snapshot(s: &AppState, a: i64) -> Result<Value> {
+    let mut db = s.db.acquire().await?;
+    Ok(json!({
+        "OpenPunishmentRaidInfos":list(&mut db,a,"punishment_open").await?,
+        "PunishmentRaidInfos":list(&mut db,a,"punishment_raid").await?,
+    }))
+}
+
+pub(crate) async fn login(s: &AppState, a: i64) -> Result<Value> {
+    let mut tx = crate::database::begin(&s.db).await?;
+    // FirstLobby can run while party heartbeats write on another connection.
+    // Reserve the writer before reading progress that may need repair.
+    crate::postgres::lock_account(&mut *tx, a).await?;
+    item::init(&mut tx, s, a).await?;
+    entry_costs::abandon_on_login(&mut tx,s,a).await?;
+    seasons::settle(&mut tx, s, a).await?;
+    challenge::settle(&mut tx, s, a).await?;
+    treasure::info(&mut tx, s, a).await?;
+    let towers = dungeons::tower_list(&mut tx, s, a).await?;
+    let mut under = list(&mut tx, a, "under_prison").await?;
+    for info in &mut under {
+        *info = dungeons::under(&mut tx, s, a, n(info, "ChapterIndex")).await?;
+    }
+    dungeons::repair_raid_progress(&mut tx,s,a).await?;
+    let raid = list(&mut tx, a, "raid").await?;
+    let mut god = list(&mut tx, a, "godking").await?;
+    for gate in &mut god {
+        gate["NextResetRemainTime"] = json!(-1);
+    }
+    let mut out = json!({"Towers":towers,"UnderPrisonInfos":under,"RaidInfos":raid,"GodkingTrialDungeonInfos":god});
+    let mut progress = vec![];
+    for p in list(&mut tx, a, "dungeon").await? {
+        progress.push(
+            campaign::progress(&mut tx, s, a, n(&p, "ChapterIndex"), n(&p, "DungeonIndex")).await?,
+        );
+    }
+    out["DungeonInfos"] = json!(progress);
+    out["BattleKeyResults"] = dungeons::key_snapshot(&mut tx, s, a).await?;
+    out["DispatchBattleInfos"] = json!(dispatch::snapshot(&mut tx, a).await?);
+    let mut top_clears = list(&mut tx, a, "top_clear").await?;
+    // JM_NShared_TopClearDungeonInfo uses ParseEnum, which only accepts text.
+    // Sending the stored numeric type makes every clear appear to be None.
+    const SWEEP_TYPES: &[&str] = &[
+        "None", "ChallengeTower", "MazeKnight", "MazeWarrior", "MazeAssassin",
+        "MazeArcher", "MazeMechanic", "MazeWizard", "MazePriest",
+        "MiddleShakmeh", "Shakmeh", "Eclipse",
+    ];
+    for info in &mut top_clears {
+        if let Some(kind) = info["SweepDungeonType"].as_i64() {
+            info["SweepDungeonType"] = json!(SWEEP_TYPES.get(kind as usize)
+                .map(|name| name.to_string()).unwrap_or_else(|| kind.to_string()));
+        }
+    }
+    out["TopClearDungeonInfos"] = json!(top_clears);
+    out["HideoutDungeons"] = json!(list(&mut tx, a, "hideout").await?);
+    out["ConquestDungeons"] = json!(list(&mut tx, a, "conquest").await?);
+    out["OpenPunishmentRaidInfos"] = json!(list(&mut tx, a, "punishment_open").await?);
+    out["PunishmentRaidInfos"] = json!(list(&mut tx, a, "punishment_raid").await?);
+    if !s.tables.battle.rows("ShakmehBoss").is_empty() {
+        out["ShakemehPassiveInfos"] = dungeons::shakmeh_passives(&mut tx, s, a).await?;
+    }
+    let currencies = crate::db::query("SELECT kind,value FROM battle_currencies WHERE account=$1")
+        .bind(a)
+        .fetch_all(&mut *tx)
+        .await?;
+    out["PlayerCurrencyInfos"] = json!(currencies.iter().map(|r|json!({"CurrencyType":r.get::<String,_>("kind"),"Amount":r.get::<i64,_>("value"),"DailyAmount":0,"DailyResetTime":null,"NextResetTime":-1})).collect::<Vec<_>>());
+    tx.commit().await?;
+    Ok(out)
+}
+
+pub(crate) async fn reset(db: &mut PgConnection, a: i64, keep_heroes: bool) -> Result<()> {
+    let membership: bool =
+        crate::db::query_scalar("SELECT EXISTS(SELECT 1 FROM battle_room_members WHERE account=$1)")
+            .bind(a)
+            .fetch_one(&mut *db)
+            .await?;
+    if membership {
+        rooms::remove_account(db, a).await?;
+    }
+    crate::db::query("DELETE FROM battle_runs WHERE account=$1")
+        .bind(a)
+        .execute(&mut *db)
+        .await?;
+    // Keep earned leaderboard rewards/claims; resetting an account must not make them claimable twice.
+    crate::db::query(
+        "DELETE FROM battle_state WHERE account=$1 AND ($2=0 OR kind NOT IN ('eclipse_deck'))",
+    )
+    .bind(a)
+    .bind(if keep_heroes { 1 } else { 0 })
+    .execute(db)
+    .await?;
+    Ok(())
+}
+
+fn read_json<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {
+    serde_json::from_str(text)
+        .map_err(|e| ServerError::Internal(format!("Invalid stored battle JSON: {e}")))
+}
+fn read_value<T: serde::de::DeserializeOwned>(value: Value) -> Result<T> {
+    serde_json::from_value(value)
+        .map_err(|e| ServerError::Internal(format!("Invalid stored battle value: {e}")))
+}
+
+pub(crate) use dungeons::charge as charge_key;
+
+pub(crate) use campaign::end_authoritative;

@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="RequirePlayerReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(ManagedReferenceDirectory)/mscorlib.dll')"
+           Text="Player API references not found in '$(ManagedReferenceDirectory)'. Run 'python client/dev.py build' once from the repository root, then reload the editor. Do not substitute SDK framework assemblies." />
+  </Target>
+</Project>

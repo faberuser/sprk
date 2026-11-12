@@ -1,0 +1,15 @@
+namespace NShared.NUtil;
+
+public enum TimeVariables
+{
+	TIME_SECOND = 1,
+	TIME_5SECOND = 5,
+	TIME_10SECOND = 10,
+	TIME_30SECOND = 30,
+	TIME_MINUTE = 60,
+	TIME_30MINUTE = 1800,
+	TIME_HOUR = 3600,
+	TIME_DAY = 86400,
+	TIME_MONTH = 2592000,
+	TIME_YEAR = 31104000
+}
