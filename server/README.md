@@ -72,6 +72,11 @@ Before the first start:
   **Manage Servers**, edit **Local**, untick **Use the launcher's default public
   key** and leave the key empty. Maintainers sign with
   `--signing-key client-updates/update-signing/private.pem`.
+- **Second checkout or worktree.** `client-updates/`, `.env` and
+  `conquest-service.*` are local files that Git ignores, so a new checkout starts
+  without them. Link the existing update store instead of publishing again
+  (it is large and holds the signing key):
+  `New-Item -ItemType Junction -Path client-updates -Target <other checkout>\client-updates`.
 - **Optional settings.** Copy `.env.example` to `.env`. The script reads
   `SPRK_GM_KEY`, `DATABASE_URL` and `SPRK_LOCAL_DB_PORT` from it.
 

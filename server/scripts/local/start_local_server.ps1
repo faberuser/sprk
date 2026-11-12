@@ -9,7 +9,9 @@ Set-Location -LiteralPath $project
 Import-LocalEnv -Path (Join-Path $project '.env')
 $updates = Join-Path $project 'client-updates'
 if (-not (Test-Path -LiteralPath (Join-Path $updates 'stable\manifest.json'))) {
-    throw 'Missing client-updates\stable\manifest.json. Publish a local client update before starting.'
+    throw ("Missing client-updates\stable\manifest.json: this checkout has no local client update yet.`n" +
+        "Publish one from your game folder: python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-1`n" +
+        "or link an existing client-updates folder from another checkout. See server/README.md.")
 }
 
 foreach ($port in @(8080, 8081)) {
