@@ -81,7 +81,7 @@ def remacri():
         "version": REMACRI_VERSION, "name": "4x Remacri", "author": "FoolhardyVEVO",
         "interface": INTERFACE, "native_scale": 4, "size": len(model),
         "sha256": hashlib.sha256(model).hexdigest(),
-        "url": "https://updates.krinfo.net/updates/models/" + REMACRI_VERSION + "/model.sprkmodel",
+        "url": "/updates/models/" + REMACRI_VERSION + "/model.sprkmodel",  # relative to the update server
         "source": base, "source_commit": REMACRI_COMMIT,
         "source_sha256": REMACRI_FILES, "license": "CC-BY-NC-SA-4.0",
         "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
@@ -115,7 +115,7 @@ def prepare(archive: bytes, client: Path | None, server: Path | None):
         descriptor = {
             "version": VERSION, "interface": INTERFACE, "native_scale": 4,
             "size": len(model), "sha256": hashlib.sha256(model).hexdigest(),
-            "url": "https://updates.krinfo.net/updates/models/" + VERSION + "/model.sprkmodel",
+            "url": "/updates/models/" + VERSION + "/model.sprkmodel",  # relative to the update server
             "source": URL, "archive_sha256": SHA256,
         }
         if server:

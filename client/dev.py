@@ -6,8 +6,8 @@
     python client/dev.py install    build, install into your real game, publish a local release
     python client/dev.py clean      delete the test copy
 
-`test` never touches your real game. It starts the game against the local
-server (start_server.bat) unless --public is given. `install` publishes a local
+`test` never touches your real game and always plays on the local server
+(start_server.bat). `install` publishes a local
 release afterwards, so SprkLauncher on the Local server keeps your build instead
 of restoring the published one.
 """
@@ -32,7 +32,8 @@ TEST_GAME = REPO.parent / "sprk-client-test"
 WORK = REPO / "artifacts/client-build"
 UPDATES = REPO / "client-updates"
 SIGNING_KEY = UPDATES / "update-signing/private.pem"
-SERVERS = {"local": "http://127.0.0.1:8080/host.json", "public": "https://play.krinfo.net/host.json"}
+LOCAL_HOST = "http://127.0.0.1:8080/host.json"
+LOCAL_MANIFEST = "http://127.0.0.1:8081/updates/stable/manifest.json"
 
 
 def require_local_server() -> None:
@@ -42,7 +43,7 @@ def require_local_server() -> None:
                 return
     except OSError:
         pass
-    raise SystemExit("The local server is not running. Start start_server.bat first (or use --public).")
+    raise SystemExit("The local server is not running. Start start_server.bat first.")
 
 
 def build(game: Path) -> dict[str, Path]:
@@ -58,8 +59,7 @@ def test(args) -> None:
     sandbox.require_closed(args.game)
     if TEST_GAME.exists():
         sandbox.require_closed(TEST_GAME)
-    if args.server == "local":
-        require_local_server()
+    require_local_server()
     if not TEST_GAME.exists():
         print(f"Creating the test copy {TEST_GAME} (first time only, about a minute)...")
         sandbox.create(args.game, TEST_GAME)
@@ -67,11 +67,11 @@ def test(args) -> None:
         raise SystemExit(f"{TEST_GAME} exists but is not a test copy made by client/dev.py.")
     if not args.no_build:
         install(build(args.game), TEST_GAME)
-    environment = dict(os.environ, SPRK_HOST_URL=SERVERS[args.server])
     # Started directly, not through SprkLauncher: the launcher would replace the
-    # test DLLs with the published ones before starting the game.
+    # test DLLs with the published ones. Pass the two addresses it would pass.
+    environment = dict(os.environ, SPRK_HOST_URL=LOCAL_HOST, SPRK_UPDATE_MANIFEST_URL=LOCAL_MANIFEST)
     subprocess.Popen([str(TEST_GAME / "King's Raid.exe")], cwd=TEST_GAME, env=environment)
-    print(f"Started the test copy on the {args.server} server. Rerun this command after each change.")
+    print("Started the test copy on the local server. Rerun this command after each change.")
 
 
 def install_real(args) -> None:
@@ -105,9 +105,7 @@ def main():
     parser.add_argument("--game", type=Path, default=GAME, help="Your game folder (default: ../sprk-client)")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("build", help="Compile the game code into artifacts/client-build")
-    tester = commands.add_parser("test", help="Build and start a separate test copy of the game")
-    tester.add_argument("--public", dest="server", action="store_const", const="public", default="local",
-                        help="Play the test copy on the public server with your real account")
+    tester = commands.add_parser("test", help="Build and start a separate test copy of the game on the local server")
     tester.add_argument("--no-build", action="store_true", help="Start the test copy without rebuilding")
     commands.add_parser("install", help="Build, install into your real game and publish a local release")
     commands.add_parser("clean", help="Delete the test copy")

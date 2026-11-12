@@ -66,8 +66,6 @@ public static class SprkIllustrationUpscaleCore
 
 	public const int DefaultSize = 33564831;
 
-	public const string DefaultUrl = "https://updates.krinfo.net/updates/models/remacri-4x-v1/model.sprkmodel";
-
 	public const string LegacyDefaultHash = "3aae12f7f04f602e301d82f84e7fa507a09827d99935e045c39d1d5ecccc7d67";
 
 	private static readonly SemaphoreSlim Gate = new SemaphoreSlim(1, 1);
@@ -131,7 +129,8 @@ public static class SprkIllustrationUpscaleCore
 		{
 			return ModelUrlFromManifest(config.ManifestUrl);
 		}
-		return "https://updates.krinfo.net/updates/models/remacri-4x-v1/model.sprkmodel";
+		// Models come only from the update server of the profile being played.
+		throw new InvalidDataException("No update server is configured for illustration models; start the game through SprkLauncher");
 	}
 
 	public static string Hash(byte[] data)
@@ -271,7 +270,11 @@ public static class SprkIllustrationUpscaleCore
 		try
 		{
 			progress?.Report("Downloading model", 0f);
-			HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(sourceUrl ?? "https://updates.krinfo.net/updates/models/remacri-4x-v1/model.sprkmodel");
+			if (string.IsNullOrEmpty(sourceUrl))
+			{
+				throw new InvalidDataException("No illustration model download address");
+			}
+			HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(sourceUrl);
 			httpWebRequest.Timeout = 30000;
 			httpWebRequest.ReadWriteTimeout = 30000;
 			httpWebRequest.AllowAutoRedirect = false;

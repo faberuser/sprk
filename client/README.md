@@ -70,9 +70,9 @@ python client/dev.py clean      # delete the test copy
 The first run creates `../sprk-client-test`: the player files are copied
 (1.2 GB) and the 19 GB `King's Raid_Data/Documents` folder is shared with your
 real game through a link. Each run then compiles the code (about 40 seconds),
-puts the DLLs into the test copy and starts it on the local server. Add
-`--public` to play the test copy on the public server with your real account,
-or `--no-build` to start it again without compiling.
+puts the DLLs into the test copy and starts it on the local server; the test
+copy never connects to the public server. Add `--no-build` to start it again
+without compiling.
 
 The test copy has no launcher on purpose: the launcher always updates before
 playing, which would replace your new DLLs with the published ones.
