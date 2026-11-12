@@ -215,7 +215,6 @@ consistent.
 - `client/overrides/`: optional client asset and table replacements
 - `client/scripts/`: client build, release signing, automation and launcher tools
 - `client/tools/`: read-only DLL inspection
-- `client/legacy/`: retired DLL patcher, kept for reference
 - `tables/` and `config/`: server game tables and shared configuration
 - `.github/`, Dockerfiles and Compose/Bake files: shared CI and deployment
 

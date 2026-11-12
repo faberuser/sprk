@@ -21,8 +21,8 @@ class FingerprintTests(unittest.TestCase):
             source.write_bytes(b"original")
             subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
             original = inputs.fingerprint(repo)
-            # Server, table, legacy-tool and launcher changes do not rebuild the client.
-            for unrelated in ("server/src/main.rs", "tables/new.json", "client/tools/DllPatcher/Program.cs",
+            # Server, table, inspection-tool and launcher changes do not rebuild the client.
+            for unrelated in ("server/src/main.rs", "tables/new.json", "client/tools/ManagedSource/Program.cs",
                               "client/launcher/SprkLauncher/Program.cs"):
                 path = repo / unrelated
                 path.parent.mkdir(parents=True)

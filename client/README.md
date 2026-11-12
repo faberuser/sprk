@@ -8,12 +8,11 @@ The game's managed code, built from source. Server code lives in `../server`.
 | `managed/Sprk*/` | SPRK feature assemblies, one DLL per directory |
 | `launcher/` | `SprkLauncher.exe` (profiles, signed updates) and its tests |
 | `overrides/files/` | Optional replacement assets and tables, by client-relative path |
-| `scripts/build/` | Compiles `managed/` |
+| `scripts/build/` | Compiles `managed/`; creates test copies of the game |
 | `scripts/release/` | Signed update building, publishing and baseline pin |
 | `scripts/automation/` | Drives the real client for tests |
 | `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion |
 | `tools/ManagedSource/` | Read-only DLL inspection and build verification |
-| `legacy/` | Retired DLL patcher and recovery records; not part of any build |
 
 What is **not** source and never built here: the Unity player
 (`King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`), native plugins,
@@ -44,7 +43,29 @@ feature assembly, create `managed/SprkName/SprkName.csproj` containing
 and the launcher pick it up automatically. Deleting a directory removes its DLL
 from the next release.
 
-After installing changed DLLs, publish a local signed update so the local update
+### Test without touching your game
+
+```powershell
+python client/scripts/build/sandbox_client.py create      # ../sprk-client-test, about 2 minutes
+python client/scripts/build/build_managed_client.py --install ../sprk-client-test   # after each change
+python client/scripts/build/sandbox_client.py remove      # when done
+```
+
+The sandbox copies the player files (1.2 GB), shares the real game's 19 GB
+`King's Raid_Data/Documents` through a junction and installs the source-built
+DLLs. Start the local server (`start_server.bat`), close the normal game, then
+run `Play (local server).bat` in the sandbox. `Play (public server).bat` uses
+your real account on the public server.
+
+- Never start `SprkLauncher.exe` for the sandbox; it would replace the test DLLs
+  with the published ones. The `.bat` files set `SPRK_HOST_URL`, which is all
+  the launcher normally adds.
+- Delete the sandbox with `sandbox_client.py remove` only. A plain recursive
+  delete can follow the junction and delete the real game's assets.
+- Saved settings and logins are shared with the real game (Unity keeps them
+  per Windows user), and only one game instance can run at a time.
+
+After installing changed DLLs into the real game, publish a local signed update so the local update
 server and the launcher agree with the game folder; see
 [client updates](../docs/client-updates.md).
 
@@ -115,8 +136,9 @@ database and drives the real game (login, lobby, shops, battles).
 
 `managed/` was recovered once from the last DLL-patched release
 (`client-ci-2795d44b755a-43152391931-1`) with ILSpy and repaired until it
-compiled; `legacy/recovery/` records that. It is now ordinary maintained source:
-never regenerate it from a DLL. Checked on 2026-11-12 against that release:
+compiled. It is now ordinary maintained source: never regenerate it from a DLL.
+The retired DLL patcher, its scripts and the recovery records were deleted
+afterwards; git history still has them (`git show 470d93a2:client/legacy/README.md`). Checked on 2026-11-12 against that release:
 
 - every type keeps the same serialized field layout, base type and interfaces
   (15,350 types), with matching assembly identities and embedded resources;

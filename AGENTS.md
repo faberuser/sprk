@@ -13,7 +13,6 @@ repository root.
 | `client/overrides/files/` | Optional replacement assets/tables, by client-relative path |
 | `client/scripts/` | `build/`, `release/`, `automation/`, `launcher/`, `android/` |
 | `client/tools/` | Read-only DLL inspection |
-| `client/legacy/` | Retired DLL patcher, kept for reference only. Never extend or run it for new work |
 | `tables/`, `config/` | Server game tables and shared configuration |
 | `docs/`, `.github/`, `Dockerfile*`, `docker-compose.yml` | Documentation, CI and container orchestration |
 
@@ -87,10 +86,19 @@ regression test and before/after numbers.
 - `client/scripts/release/client_baseline.py` pins the published release that
   supplies assets and runtime DLLs. Routine changes never touch it; use
   `pin_client_baseline.py` only when deliberately adopting a newer release.
+- Test source-built DLLs in a sandbox before installing them into the real
+  game: `python client/scripts/build/sandbox_client.py create` makes
+  `../sprk-client-test` (player files copied, the 19 GB `Documents` folder
+  shared through a junction, DLLs built from source). Rebuild into it with
+  `build_managed_client.py --install ../sprk-client-test`. Start it with its
+  `Play (local server).bat`, never with SprkLauncher, which would restore the
+  published DLLs. Delete it only with `sandbox_client.py remove`: a plain
+  recursive delete can follow the junction and destroy the real assets.
 - Verify behavior on the real client with
-  [client automation](docs/client-automation.md) where a change is user-visible:
-  it runs an isolated server and database. Never point a test client at the
-  public server; set `SPRK_HOST_URL` to the local `host.json` for manual runs.
+  [client automation](docs/client-automation.md) where a change is user-visible
+  (`--client ../sprk-client-test` for the sandbox): it runs an isolated server
+  and database. Never point a test client at the public server; set
+  `SPRK_HOST_URL` to the local `host.json` for manual runs.
 
 ## CI and deployment
 

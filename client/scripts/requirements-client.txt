@@ -1,3 +1,2 @@
-# Unity asset editing for the Android tools and client/legacy/scripts/remove_client_telemetry.py.
-# The client build and release scripts need no packages.
+# Unity asset editing for client/scripts/android. The build and release scripts need no packages.
 UnityPy==1.25.3
