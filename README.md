@@ -169,7 +169,8 @@ no longer reads. To bring it over once:
    `docker volume ls`):
 
    ```bash
-   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/scripts/server":/w:ro      python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
+   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/scripts/server":/w:ro \
+     python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
    ```
 
 3. Start the game again.
