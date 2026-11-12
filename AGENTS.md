@@ -115,6 +115,15 @@ this repository. The Unity player, assets and tables are never source.
 - `client/scripts/release/client_baseline.py` pins the published release that
   supplies assets and runtime DLLs. Change it only with `pin_client_baseline.py`
   when deliberately adopting a newer release.
+- Removing overrides: every release is rebuilt from the baseline plus
+  `client/overrides/files/`, and a deploy does not move the baseline. Deleting
+  an override alone makes the next release ship the baseline's old file again,
+  and launchers download it over players' fixed copies. Only when the user
+  asks: after a release containing the overrides is published, re-pin to it
+  with `pin_client_baseline.py --tag client-<version>` and delete the overrides
+  it contains in the same change (plus `client/overrides/README.md` notes about
+  them). Do not use `unmanaged_files.txt` for this: the files stay managed,
+  now supplied by the baseline.
 - `client/scripts/release/unmanaged_files.txt` keeps files out of releases
   without deleting players' copies. Add entries only when the user asks and the
   conditions in that file are met (including the native battle tests). Never

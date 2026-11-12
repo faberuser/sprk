@@ -183,6 +183,18 @@ Details: [GitHub CI and client updates](../docs/github-client-updates.md).
 `scripts/release/pin_client_baseline.py` moves the baseline to a newer published
 release; routine changes never need it.
 
+To clean up `overrides/files/`, never just delete it: the next release would
+ship the baseline's old files again, and launchers would put them back on
+players' machines. Once a release containing the overrides is published, pin
+it as the baseline and delete those overrides in the same pull request:
+
+```bash
+python client/scripts/release/pin_client_baseline.py --tag client-<that version>
+```
+
+The files stay in every release (now from the baseline), so they do not belong
+in `scripts/release/unmanaged_files.txt`.
+
 ### Locally (for start_server.bat)
 
 The local update service serves the newest release in `client-updates/`. On a
