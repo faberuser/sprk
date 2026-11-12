@@ -457,17 +457,8 @@ public class SoulWeaponManagement : BaseManagement<SoulWeaponManagement>, SoulWe
 			RequestSoulWeaponRenewWithCurrency(soulWeaponInfo, requirePrice, action);
 			return;
 		}
-		LocalizationManager.GetString(NShared.NLocalization.EquipOptionRenew.ASK_RENEW_OPTION_TITLE);
-		string stringDirect = LocalizationManager.GetStringDirect("SOULWEAPON_CHANGE_COUPONUSE");
-		string confirmLabel = LocalizationManager.GetString(NShared.NLocalization.Common.USE);
-		string cancelLabel = LocalizationManager.GetString(NShared.NLocalization.Common.COMMON_CANCEL);
-		IconConfirmPopup.GodKingStyleOpen(stringDirect, confirmLabel, cancelLabel, delegate
-		{
-			SingletonAuto<SoulWeaponWebManager>.instance.RequestSoulWeaponRenewOption(soulWeaponInfo, useCoupon: true);
-		}, delegate
-		{
-			RequestSoulWeaponRenewWithCurrency(soulWeaponInfo, requirePrice, action);
-		}).AddItem(valueInt, 0);
+		// SPRK: use the reforge coupon directly instead of asking for confirmation.
+		SingletonAuto<SoulWeaponWebManager>.instance.RequestSoulWeaponRenewOption(soulWeaponInfo, useCoupon: true);
 	}
 
 	private void RequestSoulWeaponRenewWithCurrency(SoulWeaponInfo soulWeaponInfo, RequirePrice requirePrice, Action action)
