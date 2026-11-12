@@ -21,6 +21,14 @@ public class HotTimeEventBoosterInfo : BoosterInfo
 		return base.GetSortScore();
 	}
 
+	public override bool IsShowAtBattle()
+	{
+		// Episode/shop unlock markers share the event feed with real bonuses.
+		// Match the booster-list visibility rules instead of displaying hidden markers.
+		return base.BuffPosition == NShared.DropBonusEvnetBuffPosition.Top ||
+			(base.BuffPosition == NShared.DropBonusEvnetBuffPosition.None && NGame2.NUI.Common.IsShowBoosterInfoList(base.BonusType));
+	}
+
 	public override bool IsEffective()
 	{
 		DateTime uTCNow = NGame2.NUI.NWindow.Common.GetUTCNow();

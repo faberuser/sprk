@@ -146,3 +146,12 @@ decoded frame, dimensions and resolved URL. Set `text` to a valid video-table
 code to play that movie through the native manager; `target=1` invokes native
 Skip. It does not mark tutorials or stages complete. This probe requires the
 automation environment and is unavailable in ordinary client launches.
+
+`reward-boosters-probe` requires Login and a `reward-boosters-*` automation
+profile. It recreates the seven episode-unlock markers, six shop markers and a
+real gold bonus through the native event/booster managers and reward grid.
+Set `target=1` to assert that only the gold bonus appears after repeated
+refreshes using Rebel Clause, scenario and campaign battle definitions. The
+probe also checks that the hidden event records and normal item/costume
+booster visibility are preserved. This tests the shared result UI without
+completing battles or changing account rewards.
