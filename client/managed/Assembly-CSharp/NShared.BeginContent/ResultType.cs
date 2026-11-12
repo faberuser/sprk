@@ -1,0 +1,36 @@
+namespace NShared.BeginContent;
+
+public enum ResultType
+{
+	Fail,
+	Success,
+	EquipItemFull,
+	ChapterNotFound,
+	DungeonNotFound,
+	LinkedDungeonNotFound,
+	AlreadyCompleted,
+	DungeonTypeError,
+	CannotVisitDungeon,
+	EmptyHeroIndices,
+	CannotPlayDungeon,
+	NotEnoughStamina,
+	NotEnoughGem,
+	NotEnoughItem,
+	CheckingIntegrity,
+	BattleServerNotFound,
+	RaidDataNotFound,
+	ContentsDisabled,
+	InvalidData,
+	NotOpenedDungeon,
+	UserCampaignInfoNotFound,
+	ItemNotExist,
+	ExistKarmaDungeon,
+	WrongFlaskIndex,
+	WrongGroupIndex,
+	WrongDungeonType,
+	NotValidAffixIndex,
+	NotAllowedPoint,
+	NotAvailableHero,
+	WrongInitialPoint,
+	ClosedDungeon
+}

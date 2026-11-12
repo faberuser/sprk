@@ -1,18 +1,22 @@
 # Client automation
 
-`scripts/automation/client_automation.py` controls the real Unity client through an opt-in
-helper installed by DllPatcher. Python uses its standard library plus
+`client/scripts/automation/client_automation.py` controls the real Unity client through the
+opt-in `SprkAutomation` assembly built from `client/managed/SprkAutomation`. Python uses its standard library plus
 `psycopg` for the test database (`pip install "psycopg[binary]"`). Normal
 launches without `SPRK_AUTOMATION_DIR` do not start the bridge.
 
 ## Install and launch
 
-Close test clients before installing. From the server directory:
+The helper is part of every client build. From the repository root:
 
 ```powershell
-dotnet run --project scripts/DllPatcher -- ../sprk-client --automation-only
-python scripts/automation/client_automation.py launch --seed-from sprk
+python client/scripts/automation/client_automation.py launch --seed-from sprk
 ```
+
+`--client <folder>` tests another game folder, for example a copy of the game
+with freshly built DLLs, without touching the installed one. Set
+`SPRK_HOST_URL=http://127.0.0.1:8080/host.json` in the environment so the test
+client can only reach the local server.
 
 The launcher creates a new PostgreSQL database `sprk_auto_<run>` and starts the
 release server on ports 8080/9001 against it, with logs in a new
@@ -36,9 +40,9 @@ the client while either instance runs. Engine settings and preferences in
 third-party assemblies are not fully virtualized.
 
 ```powershell
-python scripts/automation/client_automation.py launch --seed-from sprk --profile host
+python client/scripts/automation/client_automation.py launch --seed-from sprk --profile host
 # Record the run directory printed above before starting the second client.
-python scripts/automation/client_automation.py launch --external-server --profile guest --database <database URL from the host run's session.json>
+python client/scripts/automation/client_automation.py launch --external-server --profile guest --database <database URL from the host run's session.json>
 ```
 
 Fresh accounts retain their normal tutorial/unlocks. Use `new-guest.json` to
@@ -48,13 +52,13 @@ login-to-lobby and Portal smoke scenarios.
 ## Observe, act, and verify
 
 ```powershell
-python scripts/automation/client_automation.py --session <run> snapshot
-python scripts/automation/client_automation.py --session <run> screenshot
-python scripts/automation/client_automation.py --session <run> click Portal
-python scripts/automation/client_automation.py --session <run> text <input-path-or-id> <value>
-python scripts/automation/client_automation.py --session <run> run scripts/automation/scenarios/portal-smoke.json
-python scripts/automation/client_automation.py --session <run> quit
-python scripts/automation/client_automation.py --session <host-run> stop-server
+python client/scripts/automation/client_automation.py --session <run> snapshot
+python client/scripts/automation/client_automation.py --session <run> screenshot
+python client/scripts/automation/client_automation.py --session <run> click Portal
+python client/scripts/automation/client_automation.py --session <run> text <input-path-or-id> <value>
+python client/scripts/automation/client_automation.py --session <run> run client/scripts/automation/scenarios/portal-smoke.json
+python client/scripts/automation/client_automation.py --session <run> quit
+python client/scripts/automation/client_automation.py --session <host-run> stop-server
 ```
 
 Without `--session`, commands target the latest launch. Use explicit sessions
@@ -124,21 +128,16 @@ currentWorldBossIndex=1`. Its error checkpoint captured a real client error;
 
 The old standalone `test_client_automation.py` suite is no longer included.
 Use the real-client scenarios above for automation checks; current build and
-packaging tests are listed in [the scripts inventory](../scripts/README.md).
+packaging tests are listed in [the scripts inventory](../docs/scripts.md).
 
-The patcher keeps timestamped `Assembly-CSharp.dll.before_automation_*` backups
-of the currently restored client and helper backups. Reapplying is idempotent.
-To disable testing, launch normally without the automation environment variables.
-For a complete removal, close all clients and restore the earliest pre-automation
-DLL backup from this installation, then remove SprkAutomation.dll. A full normal
-DLL repatch may remove the hooks; reapply `--automation-only` afterward.
+To disable testing, launch normally without the automation environment
+variables; the helper stays inactive.
 
-Read-only material diagnosis: `python scripts/automation/client_automation.py renderers`
+Read-only material diagnosis: `python client/scripts/automation/client_automation.py renderers`
 adds active renderer hierarchy, material name, shader name, support and visibility
-to the reply. Reinstall `--automation-only` after updating the bridge. This command
+to the reply. Rebuild and install the client after changing the bridge. This command
 does not change materials or gameplay. Null slots on visible renderers can identify
-magenta effects. The old standalone field-projectile asset repair script is no
-longer included. Asset changes now belong in the tracked client build inputs
+magenta effects. Asset changes belong in the tracked client build inputs
 described in [CI client releases](github-client-updates.md).
 
 The opt-in bridge also accepts `video-probe` through the Python `request` API.

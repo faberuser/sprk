@@ -1,0 +1,33 @@
+using MessagePack;
+
+namespace NShared;
+
+[MessagePackObject(false)]
+public class ShardItemData : IDataKeySelector<int>
+{
+	[Key(0)]
+	public int Index { get; set; }
+
+	[Key(1)]
+	public int GroupIndex { get; set; }
+
+	[Key(2)]
+	public int ShowIndex { get; set; }
+
+	[Key(3)]
+	public int[] AvailableRaidIndices { get; set; }
+
+	[Key(4)]
+	public int[] AffixIndexes { get; set; }
+
+	[Key(5)]
+	public int Duration { get; set; }
+
+	[Key(6)]
+	public int IsWithDraw { get; set; }
+
+	[Key(7)]
+	public string BattleIconPath { get; set; }
+
+	int IDataKeySelector<int>.Key => Index;
+}

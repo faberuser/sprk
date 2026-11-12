@@ -1,0 +1,10 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum EVENTBOSS
+{
+	EVENT_BOSS_ENTER_COUNT,
+	HELP_EVENT_BOSS_TITLE,
+	EVENT_BOSS_KILL_TIME,
+	EVENT_BOSS_OPEN_STEP
+}

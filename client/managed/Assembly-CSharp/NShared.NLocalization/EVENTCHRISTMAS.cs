@@ -1,0 +1,9 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum EVENTCHRISTMAS
+{
+	TITLE_INFO_EVENT_ITEM_LEVEL,
+	TITLE_REWARD_EVENT_ITEM_LEVEL,
+	ADD_REWARD_ITEM_DESC
+}

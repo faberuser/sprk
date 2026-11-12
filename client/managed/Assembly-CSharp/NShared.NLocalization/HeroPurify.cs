@@ -1,0 +1,11 @@
+namespace NShared.NLocalization;
+
+[Localizable]
+public enum HeroPurify
+{
+	HERO_CUR_PURIFY_DESC,
+	HERO_CUR_PURIFY_TRANSCEND_DESC,
+	PURIFY_PERCENT,
+	PURIFY_COUNT,
+	MAX_PURIFY_EXPECT_PERCENT
+}

@@ -1,0 +1,32 @@
+namespace NShared.NJit.NGenerator;
+
+public class CodeSample
+{
+	public static string FileHead = "\nusing System;\nusing System.Collections.Generic;\nusing NShared.NJit.NCommon;\n\nnamespace NShared.NJit.NGenerator\n{\n";
+
+	public static string FileTail = "\n}\n";
+
+	public static string GenCodeContainerBody = "\n\tpublic static partial class GenCodeContainer\n\t{\n\t\tstatic GenCodeContainer()\n\t\t{\n\t\t\t_resolverList = new List<NResolver.IDataResolver>()\n\t\t\t{\n___resolver___\n\t\t\t};\n\n\t\t\t_comparerList = new List<NResolver.IKeyComparer>()\n\t\t\t{\n___comparer___\n\t\t\t};\n\t\t}\n\t}\n";
+
+	public static string NewCallCode = "\n\t\t\t\tnew ___instance___(),";
+
+	public static string PrimitiveComparerName = "___Primitive___ValueComparer";
+
+	public static string PrimitiveComparerCode = "\n\tpublic class ___Primitive___ValueComparer\n\t\t: NResolver.IKeyComparerT<___Primitive___>\n\t{\n\t\tType HandleType { get { return typeof(___Primitive___); } }\n\n\t\tType NResolver.IKeyComparer.GetCompareType() { return HandleType; }\n\t\tbool IEqualityComparer<___Primitive___>.Equals(___Primitive___ x, ___Primitive___ y)\n\t\t{\n\t\t\treturn x == y;\n\t\t}\n\t\tint IEqualityComparer<___Primitive___>.GetHashCode(___Primitive___ obj)\n\t\t{\n\t\t\treturn (int)obj;\n\t\t}\n\t}\n";
+
+	public static string PrimitiveResolverName = "___Primitive___ValueResolver";
+
+	public static string PrimitiveResolverCode = "\n\tpublic class ___Primitive___ValueResolver\n\t\t: NResolver.IDataResolverT<___Primitive___>\n\t{\n\t\tType HandleType { get { return typeof(___Primitive___); } }\n\t\tType NResolver.IDataResolver.GetResolveType() { return HandleType; }\n\n\t\tbyte[] NResolver.IDataResolver.SerializeObject(object obj, JitSerializer jitSerializer)\n\t\t{\n\t\t\tif (obj == null || obj.GetType() != typeof(___Primitive___))\n\t\t\t{\n\t\t\t\treturn SimpleBufferWriter.ErrorWrite(0);\n\t\t\t}\n\n\t\t\treturn SerializeValue((___Primitive___)obj, jitSerializer);\n\t\t}\n\n\t\tpublic byte[] SerializeValue(___Primitive___ value, JitSerializer jitSerializer)\n\t\t{\n\t\t\tusing(var writer = SimpleBufferWriter.CreateWriter())\n\t\t\t{\n\t\t\t\twriter.Write___Primitive___ByMsgPack(value);\n\t\t\t\treturn writer.ToArray();\n\t\t\t}\n\t\t}\n\n\t\tpublic byte[] SerializeReference(___Primitive___ value, JitSerializer jitSerializer)\n\t\t{\n\t\t\tusing (var writer = SimpleBufferWriter.CreateWriter())\n\t\t\t{\n\t\t\t\twriter.Write___Primitive___ByMsgPack(value);\n\t\t\t\treturn writer.ToArray();\n\t\t\t}\n\t\t}\n\n\t\tpublic ___Primitive___ Evaluate(ByteSpan span, JitPacker packer)\n\t\t{\n\t\t\tByteSpan nextSpan;\n\t\t\treturn span.ReadByMsgPack____Primitive___(0, out nextSpan);\n\t\t}\n\n\t\tpublic void EvaluateLater(___Primitive___ target, ByteSpan span, JitPacker packer)\n\t\t{\n\t\t}\n\n\t\tpublic ___Primitive___ EvaluateReference(ByteSpan span, JitPacker packer, out ByteSpan nextSpan)\n\t\t{\n\t\t\treturn span.ReadByMsgPack____Primitive___(0, out nextSpan);\n\t\t}\n\n\t\tpublic void SkipEvaluateReference(ByteSpan span, out ByteSpan nextSpan)\n\t\t{\n\t\t\tspan.ReadByMsgPack____Primitive___(0, out nextSpan);\n\t\t}\n\t}\n";
+
+	public static string EnumComparerName = "___EnumName___ValueComparer";
+
+	public static string EnumComparerCode = "\n\tpublic class ___EnumName___ValueComparer\n\t\t: NResolver.IKeyComparerT<___EnumGlobalType___>\n\t{\n\t\tType HandleType { get { return typeof(___EnumGlobalType___); } }\n\n\t\tType NResolver.IKeyComparer.GetCompareType() { return HandleType; }\n\t\tbool IEqualityComparer<___EnumGlobalType___>.Equals(___EnumGlobalType___ x, ___EnumGlobalType___ y)\n\t\t{\n\t\t\treturn x == y;\n\t\t}\n\t\tint IEqualityComparer<___EnumGlobalType___>.GetHashCode(___EnumGlobalType___ obj)\n\t\t{\n\t\t\treturn (int)obj;\n\t\t}\n\t}\n\n";
+
+	public static string EnumResolverName = "___EnumName___ValueResolver";
+
+	public static string EnumResolverCode = "\n\tpublic class ___EnumName___ValueResolver\n\t\t: NResolver.IDataResolverT<___EnumGlobalType___>\n\t{\n\t\tType HandleType { get { return typeof(___EnumGlobalType___); } }\n\t\tType NResolver.IDataResolver.GetResolveType() { return HandleType; }\n\n\t\tbyte[] NResolver.IDataResolver.SerializeObject(object obj, JitSerializer jitSerializer)\n\t\t{\n\t\t\tif (obj == null || obj.GetType() != typeof(___EnumGlobalType___))\n\t\t\t{\n\t\t\t\treturn SimpleBufferWriter.ErrorWrite(0);\n\t\t\t}\n\n\t\t\treturn SerializeValue((___EnumGlobalType___)obj, jitSerializer);\n\t\t}\n\n\t\tpublic byte[] SerializeValue(___EnumGlobalType___ value, JitSerializer jitSerializer)\n\t\t{\n\t\t\tusing(var writer = SimpleBufferWriter.CreateWriter())\n\t\t\t{\n\t\t\t\twriter.Write___UnderlyingType___ByMsgPack((___UnderlyingType___)value);\n\t\t\t\treturn writer.ToArray();\n\t\t\t}\n\t\t}\n\n\t\tpublic byte[] SerializeReference(___EnumGlobalType___ value, JitSerializer jitSerializer)\n\t\t{\n\t\t\tusing (var writer = SimpleBufferWriter.CreateWriter())\n\t\t\t{\n\t\t\t\twriter.Write___UnderlyingType___ByMsgPack((___UnderlyingType___)value);\n\t\t\t\treturn writer.ToArray();\n\t\t\t}\n\t\t}\n\n\t\tpublic ___EnumGlobalType___ Evaluate(ByteSpan span, JitPacker packer)\n\t\t{\n\t\t\tByteSpan nextSpan;\n\t\t\treturn (___EnumGlobalType___)span.ReadByMsgPack____UnderlyingType___(0, out nextSpan);\n\t\t}\n\n\t\tpublic void EvaluateLater(___EnumGlobalType___ target, ByteSpan span, JitPacker packer)\n\t\t{\n\t\t}\n\n\t\tpublic ___EnumGlobalType___ EvaluateReference(ByteSpan span, JitPacker packer, out ByteSpan nextSpan)\n\t\t{\n\t\t\treturn (___EnumGlobalType___)span.ReadByMsgPack____UnderlyingType___(0, out nextSpan);\n\t\t}\n\n\t\tpublic void SkipEvaluateReference(ByteSpan span, out ByteSpan nextSpan)\n\t\t{\n\t\t\tspan.ReadByMsgPack____UnderlyingType___(0, out nextSpan);\n\t\t}\n\t}\n";
+
+	public static string JitKeyComparerName = "___JitKeyName___Comparer";
+
+	public static string JitKeyComparerCode = "\n\tpublic class ___JitKeyName___Comparer\n\t\t: NResolver.IKeyComparerT<___JitKeyGlobalType___>\n\t{\n\t\tType HandleType { get { return typeof(___JitKeyGlobalType___); } }\n\n\t\tType NResolver.IKeyComparer.GetCompareType() { return HandleType; }\n\t\tbool IEqualityComparer<___JitKeyGlobalType___>.Equals(___JitKeyGlobalType___ x, ___JitKeyGlobalType___ y)\n\t\t{\n\t\t\treturn x.Equals(y);\n\t\t}\n\t\tint IEqualityComparer<___JitKeyGlobalType___>.GetHashCode(___JitKeyGlobalType___ obj)\n\t\t{\n\t\t\treturn obj.GetHashCode();\n\t\t}\n\t}\n";
+}

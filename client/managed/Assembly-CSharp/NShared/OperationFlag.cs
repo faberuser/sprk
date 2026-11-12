@@ -1,0 +1,35 @@
+namespace NShared;
+
+public enum OperationFlag
+{
+	None,
+	ExcludeTarget,
+	OnlyTarget,
+	AliveOnWaveEnd,
+	RangeCheck,
+	WhileSkillUse,
+	HasParent,
+	Disabled,
+	Positive,
+	Negative,
+	ForcePhysical,
+	ForceMagical,
+	SameTickParentOnly,
+	WatchCondition,
+	ExpireOnConditionFail,
+	PauseOnSoloTime,
+	ExpireOnWaveEnd,
+	PersistOnWaveEnd,
+	ExpireOnBattleEnd,
+	CheckConditionOnBegin,
+	CheckConditionOnReady,
+	OverrideAllState,
+	NoCancelReserve,
+	IgnoreRetarget,
+	IgnoreImmune,
+	IgnoreResist,
+	RetargetOnReserve,
+	RetargetOnAdd,
+	RetargetOnAddIfDied,
+	DelayIgnoreAttackSpeed
+}
