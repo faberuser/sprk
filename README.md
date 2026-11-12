@@ -143,8 +143,8 @@ More detail:
   Portainer, reverse proxies and HTTPS.
 - [GitHub CI and client updates](docs/github-client-updates.md): how the image
   and client releases are built.
-- [The PostgreSQL guide](docs/postgresql-migration.md): backups, restores and
-  database settings.
+- [The database guide](docs/database-diagnostics.md): backups, restores,
+  settings and diagnostics.
 
 ## Contributing
 

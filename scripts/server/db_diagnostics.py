@@ -6,9 +6,8 @@ Usage (from the sprk-server root; put the user's files in their own folder):
 
 The database report runs in a read-only session (pip install "psycopg[binary]").
 Connect as the owner role (sprk_owner), which can read pg_stat_statements and
-other sessions' activity. The log report also reads logs of the SQLite server,
-for comparing against the PostgreSQL baseline. See docs/database-diagnostics.md
-for how to interpret the output.
+other sessions' activity. See docs/database-diagnostics.md for how to interpret
+the output.
 """
 from __future__ import annotations
 
@@ -92,21 +91,6 @@ def report_log(path) -> None:
         if hits:
             top(collections.Counter(fields(line).get("path", "<no path>") for line in hits), 5)
 
-    # SQLite-era signals, kept to compare against logs from before the move.
-    locked = [i for i, line in enumerate(lines) if "database is locked" in line]
-    if locked:
-        codes = collections.Counter(m.group(1) for i in locked if (m := re.search(r"code: (\d+)", lines[i])))
-        print(f"\nSQLite 'database is locked': {len(locked)}  codes={dict(codes)}")
-        top(collections.Counter(fields(lines[i]).get("path", "<no path>") for i in locked))
-    holds = [fields(line) for line in lines if "Database connection held long" in line]
-    if holds:
-        print(f"\nSQLite single-connection holds >=250ms: {len(holds)}")
-        by_holder: dict[str, list[float]] = collections.defaultdict(list)
-        for f in holds:
-            by_holder[f.get("holder", "?")].append(number(f.get("held_ms")) or 0)
-        for holder, values in sorted(by_holder.items(), key=lambda kv: -sum(kv[1]))[:15]:
-            print(f"  total={sum(values):8.0f}ms  {summarize(holder, values)}")
-
     timeouts = [line for line in lines if "pool timed out" in line.lower() or "PoolTimedOut" in line]
     print(f"\nPool acquire timeouts (all connections busy for acquire_timeout): {len(timeouts)}")
     slow_acquire = [line for line in lines if "slow acquire" in line.lower() or "acquire_slow" in line]
@@ -138,7 +122,7 @@ def report_log(path) -> None:
 
     errors = collections.Counter()
     for line in lines:
-        if " ERROR " in line and not any(n in line for n in pg_errors.values()) and "database is locked" not in line:
+        if " ERROR " in line and not any(n in line for n in pg_errors.values()):
             errors[re.sub(r"\d+", "N", line[60:200])] += 1
     print("\nOther ERROR lines (digits normalised):")
     if errors:
@@ -184,7 +168,7 @@ def report_db(url: str) -> None:
                     ORDER BY total_exec_time DESC LIMIT 15"""):
                 print(f"  total={total:>9}ms mean={mean:>8}ms calls={calls:<9} {query[:150]}")
         else:
-            print("\npg_stat_statements is not installed (see docs/postgresql-migration.md, section 6).")
+            print("\npg_stat_statements is not installed (see docs/database-diagnostics.md, 'Hosting').")
 
         print("\nTransactions open for more than 5 seconds:")
         long = rows(db, """

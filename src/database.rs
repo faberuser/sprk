@@ -32,7 +32,7 @@ where F: std::future::Future + Send + 'static, F::Output: Send + 'static {
 
 fn database_url() -> anyhow::Result<String> {
     std::env::var("DATABASE_URL").map_err(|_| anyhow::anyhow!(
-        "DATABASE_URL is not set; it must name the game's PostgreSQL database (see docs/postgresql-migration.md)"))
+        "DATABASE_URL is not set; it must name the game's PostgreSQL database (see docs/database-diagnostics.md)"))
 }
 
 /// Run pending migrations with the owner role (DATABASE_MIGRATION_URL, or

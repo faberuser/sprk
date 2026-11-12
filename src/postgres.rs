@@ -1,5 +1,5 @@
 //! PostgreSQL connection settings, migrations, locks and the retry wrapper
-//! (docs/postgresql-migration.md).
+//! (docs/database-diagnostics.md).
 
 use futures_util::future::BoxFuture;
 use sqlx::{
