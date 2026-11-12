@@ -425,9 +425,10 @@ async fn execute_inner(
     // their durable run instead of accidentally operating on Victory's partition.
     let kind = if matches!(action,"wait_match"|"cancel_match"|"get_match_result") {
         let uid=r.number("MatchUid",0)?;
-        // Separate statements so each uses its index. `+account` keeps SQLite
-        // on the match index instead of JSON-parsing every one of the
-        // account's runs (Honor rows are ~1.5 MB each).
+        // Separate statements so each uses its index. `+account` keeps the
+        // planner on the match index instead of the account index, which
+        // would JSON-parse every one of the account's runs (Honor rows are
+        // ~1.5 MB each).
         let found=if uid==0 {
             crate::db::query_scalar::<i64>("SELECT kind FROM arena_runs WHERE account=$1 AND (status IN ('waiting','battle') OR (status='canceled' AND sprk_json(data,'$.QueueCancelReason') IS NOT NULL)) ORDER BY id DESC LIMIT 1")
                 .bind(a).fetch_optional(&mut *db).await?

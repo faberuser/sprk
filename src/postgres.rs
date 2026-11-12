@@ -1,5 +1,5 @@
 //! PostgreSQL connection settings, migrations, locks and the retry wrapper
-//! (docs/postgresql-migration.md).
+//! (docs/database-diagnostics.md).
 
 use futures_util::future::BoxFuture;
 use sqlx::{
@@ -17,18 +17,17 @@ const DEFAULT_MAX_CONNECTIONS: u32 = 16;
 
 /// Session settings applied to every connection. The role should carry the
 /// same timeouts (`ALTER ROLE ... SET`); these keep local and test databases
-/// equivalent. UTC matches SQLite's datetime('now') / date('now').
+/// equivalent. Stored timestamps are UTC text.
 fn connect_options(url: &str, read_only: bool) -> Result<PgConnectOptions, sqlx::Error> {
     let mut settings = vec![
         ("timezone", "UTC"),
-        // A stuck request must not hold row or advisory locks indefinitely
-        // (the SQLite pool's equivalent was its 30 s acquire timeout).
+        // A stuck request must not hold row or advisory locks indefinitely.
         ("statement_timeout", "30s"),
         ("lock_timeout", "10s"),
         ("idle_in_transaction_session_timeout", "60s"),
     ];
     // Endpoints routed to the read pool must never write; PostgreSQL rejects
-    // a write there instead of racing (SQLite used read-only connections).
+    // a write there instead of racing.
     if read_only {
         settings.push(("default_transaction_read_only", "on"));
     }
@@ -75,8 +74,8 @@ pub(crate) async fn migrate(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateE
     MIGRATOR.run(pool).await
 }
 
-/// Serialize mutating requests of one account, replacing SQLite's global
-/// single-writer queue. Requests for different accounts run in parallel.
+/// Serialize mutating requests of one account. Requests for different
+/// accounts run in parallel.
 ///
 /// Take it as the first statement of the request's transaction; PostgreSQL
 /// releases it at commit or rollback. It lives in the database, so it also

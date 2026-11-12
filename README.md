@@ -25,6 +25,8 @@ This project is for educational and preservation purposes only.
 
 - [Play on your own computer](#play-on-your-own-computer): run your own server
   with Docker, no programming tools needed.
+- [Upgrading from the SQLite version](#upgrading-from-the-sqlite-version): bring
+  an old `sprk.db` over.
 - [Host a server for other players](#host-a-server-for-other-players): the same
   setup on a Linux server or Portainer.
 - [Contributing](#contributing): build, run and test the server from source.
@@ -143,8 +145,38 @@ More detail:
   Portainer, reverse proxies and HTTPS.
 - [GitHub CI and client updates](docs/github-client-updates.md): how the image
   and client releases are built.
-- [The PostgreSQL guide](docs/postgresql-migration.md): backups, restores and
-  moving from the older SQLite `sprk.db`.
+- [The database guide](docs/database-diagnostics.md): backups, restores,
+  settings and diagnostics.
+
+## Upgrading from the SQLite version
+
+Older versions kept the game data in a `sprk.db` file, which the current server
+no longer reads. To bring it over once:
+
+1. Start the current server once (`start_server.bat` or `docker compose up -d`)
+   so it creates the new database, then stop the game (Ctrl+C, or
+   `docker compose stop game`).
+2. Copy the data (`pip install "psycopg[binary]"` first):
+
+   ```bash
+   python -I scripts/server/copy_sqlite_to_postgres.py sprk.db
+   ```
+
+   That targets the `start_server.bat` database. With Docker Compose the old
+   file is still in the `game-data` volume and the database has no published
+   port, so run the script in a container on the stack's network (the volume
+   and network names start with your project folder's name; see
+   `docker volume ls`):
+
+   ```bash
+   docker run --rm --network sprk_default -v sprk_game-data:/data -v "$PWD/scripts/server":/w:ro \
+     python:3.12-slim sh -c 'pip install -q "psycopg[binary]" && python -I /w/copy_sqlite_to_postgres.py /data/sprk.db --database-url "postgres://sprk_owner:<SPRK_DB_OWNER_PASSWORD>@postgres:5432/sprk"'
+   ```
+
+3. Start the game again.
+
+The copy only goes into a database without accounts, is all or nothing, checks
+every table afterwards and leaves `sprk.db` unchanged.
 
 ## Contributing
 
@@ -197,16 +229,13 @@ both.
 The game stores its data in PostgreSQL. Unless `DATABASE_URL` is set (in `.env`
 or the terminal), `start_server.bat` runs it for you in the Docker container
 `sprk-postgres-local` on `127.0.0.1:54320`. The data lives in the Docker volume
-of the same name and survives restarts. If a `sprk.db` from the earlier SQLite
-version exists, the first start copies it into PostgreSQL (report in
-`target\local-server\sqlite-copy-report.json`); after that `sprk.db` is no
-longer used.
+of the same name and survives restarts.
 
 ```powershell
 # SQL shell on the local database
 docker exec -it sprk-postgres-local psql -U postgres -d sprk
 
-# Start over (copies sprk.db again on the next start): stop the server, then
+# Start over with an empty database: stop the server, then
 docker rm -f sprk-postgres-local
 docker volume rm sprk-postgres-local
 ```
@@ -231,10 +260,6 @@ At startup the server applies the migrations in `migrations/`, then listens on
 | `DATABASE_MIGRATION_URL` | owner role for migrations; defaults to `DATABASE_URL`       |
 | `SPRK_SERVICE_MODE`      | `game` (default), `updates` (client updates only), or `all` |
 | `PORT`                   | HTTP port, default 8080                                     |
-
-The server refuses to start when a `sprk.db` from the SQLite version sits next
-to an empty database. Copy it first:
-`DATABASE_URL=... sprk-server migrate-sqlite sprk.db`.
 
 To try the Compose stack with your own build, prepare `build-input/worker`
 (the battle worker), then build the image:

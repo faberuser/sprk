@@ -140,7 +140,7 @@ pub(crate) async fn send(
         return Err(rule("InvalidMessage"));
     }
     let mut db = crate::database::begin(&s.db).await?;
-    // Obtain the SQLite writer before reading membership/decks, avoiding lost updates.
+    // Lock the account before reading membership/decks, avoiding lost updates.
     crate::postgres::lock_account(&mut *db, a).await?;
     let mut messages: Vec<(i64, i64, String, Value)> = vec![];
     if protocol == "JoinPartyReq" {

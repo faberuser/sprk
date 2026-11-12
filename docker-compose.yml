@@ -25,7 +25,7 @@ services:
       # TCP stays private; /health/battle checks worker authentication/capabilities.
       CHAT_BIND: 127.0.0.1
       BATTLE_BIND: 127.0.0.1
-      # Game database (docs/postgresql-migration.md). The app role reads and
+      # Game database (docs/database-diagnostics.md). The app role reads and
       # writes data; the owner role applies migrations at startup. Use
       # URL-safe passwords (letters, digits, - and _).
       DATABASE_URL: postgres://sprk_app:${SPRK_DB_APP_PASSWORD:-}@postgres:5432/sprk
@@ -41,8 +41,7 @@ services:
       # Private admin listener. Keep loopback, or choose the Docker host's LAN/VPN IP.
       - "${SPRK_GM_BIND_IP:-127.0.0.1}:${SPRK_GM_PORT:-8082}:8082"
     volumes:
-      # Non-database state (native worker configuration) and, until it is
-      # copied with `sprk-server migrate-sqlite`, the old sprk.db.
+      # Non-database state (native worker configuration).
       - game-data:/data
 
   updates:
@@ -74,7 +73,7 @@ services:
 
   # Game database. The init script (configs below) creates the roles and the
   # sprk database only when the volume is first created. Back it up with pg_dump; the
-  # volume is not a backup (docs/postgresql-migration.md).
+  # volume is not a backup (docs/database-diagnostics.md).
   postgres:
     image: postgres:18
     restart: unless-stopped
@@ -172,8 +171,7 @@ configs:
       REVOKE ALL ON DATABASE sprk FROM PUBLIC;
       GRANT CONNECT, TEMPORARY ON DATABASE sprk TO sprk_owner, sprk_app;
 
-      -- A stuck request must not hold locks indefinitely. Times are UTC like
-      -- SQLite's datetime('now').
+      -- A stuck request must not hold locks indefinitely. Stored times are UTC.
       ALTER ROLE sprk_app IN DATABASE sprk SET timezone = 'UTC';
       ALTER ROLE sprk_app IN DATABASE sprk SET statement_timeout = '30s';
       ALTER ROLE sprk_app IN DATABASE sprk SET lock_timeout = '10s';
@@ -203,7 +201,7 @@ configs:
       # format) at SPRK_DB_BACKUP_HOUR_UTC and keeps the newest SPRK_DB_BACKUP_KEEP
       # dumps. With SPRK_DB_BACKUP_COPY set, also copies them to /backup-copy (an
       # off-host directory such as a NAS), keeping SPRK_DB_BACKUP_COPY_KEEP there.
-      # Restore with pg_restore; see docs/postgresql-migration.md, "Backups and restore".
+      # Restore with pg_restore; see docs/database-diagnostics.md, "Backups and restore".
       set -eu
       : "$${PGHOST:?}" "$${PGUSER:?}" "$${PGPASSWORD:?}" "$${PGDATABASE:?}"
       keep="$${SPRK_DB_BACKUP_KEEP:-14}"

@@ -4,7 +4,6 @@ mod currency;
 mod database;
 mod db;
 mod error;
-mod migrate_sqlite;
 mod models;
 mod postgres;
 mod service_mode;
@@ -44,12 +43,6 @@ async fn main() -> anyhow::Result<()> {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    // One-off tool: copy the SQLite game database into PostgreSQL.
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.first().map(String::as_str) == Some("migrate-sqlite") {
-        return migrate_sqlite::run(migrate_sqlite::parse_args(&args[1..])?).await;
-    }
 
     let mode = ServiceMode::from_env()?;
     tracing::info!(?mode, "Starting sprk Private Server...");
@@ -141,7 +134,7 @@ async fn game_router() -> anyhow::Result<Router> {
     tokio::spawn(async move {
         if let Err(error)=api::battle::cooperative::serve(battle_listener,battle_state).await {tracing::error!(%error,"Conquest battle server stopped");}
     });
-    // Optional local native engine. Configuration lives beside sprk.db, so
+    // Optional local native engine. Configuration lives in the working directory, so
     // restarting the server also restarts its worker without exposing the key
     // in command-line arguments or requiring a game account.
     if let Some(executable)=std::env::var("BATTLE_WORKER_EXECUTABLE").ok().or_else(|| {

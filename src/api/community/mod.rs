@@ -120,15 +120,15 @@ pub(crate) async fn execute_request(s: &AppState, path: &str, body: Bytes) -> Re
         // Takes the account lock: one request per player at a time.
         item::init(&mut tx, s, a).await?;
         // Guild content reads and rewrites rows shared by all members (guild
-        // raid HP, conquest, guild arena, member list). The single SQLite
-        // writer serialized these; now members of one guild take turns.
+        // raid HP, conquest, guild arena, member list), so members of one
+        // guild take turns.
         if !arena {
             let guild: Option<i64> = crate::db::query_scalar("SELECT guild_id FROM guild_members WHERE account_id=$1")
                 .bind(a).fetch_optional(&mut *tx).await?;
             if let Some(g) = guild { crate::postgres::lock_guild(&mut tx, g).await?; }
         } else {
-            // Matchmaking pairs two players and charges both; arena requests
-            // take turns as on the single SQLite writer (they are short).
+            // Matchmaking pairs two players and charges both, so arena
+            // requests take turns (they are short).
             crate::postgres::lock_arena_queue(&mut tx).await?;
         }
     }

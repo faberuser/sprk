@@ -11,7 +11,7 @@ pub(crate) struct Snapshot {
 }
 
 // The lock is per session, never held through an endpoint or a network operation.
-// The revision and data are read in the same SQLite transaction. Never publish a
+// The revision and data are read in the same transaction. Never publish a
 // cache entry before commit, or label old data with a newer concurrent revision.
 pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Result<Value> {
     let Some(session) = state.get_session(session_key).filter(|s| s.account_id == account) else {
@@ -44,7 +44,7 @@ pub(crate) async fn get(state: &AppState, session_key: &str, account: i64) -> Re
         *cache = Some(Snapshot { revision, tables, day, expires, value: value.clone() });
         return Ok(value);
     }
-    // End the read transaction before taking SQLite's write lock in login().
+    // End the read transaction before taking the account lock in login().
     // Its initializers intentionally acquire that lock before reading progress.
     tx.commit().await?;
     let mut tx = crate::database::begin(&state.db).await?;

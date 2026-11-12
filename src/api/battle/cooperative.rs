@@ -77,7 +77,7 @@ impl BattleHub {
     }
 }
 
-// Persist liveness without a match lock or socket handler waiting on SQLite.
+// Persist liveness without a match lock or socket handler waiting on the database.
 // Keep failed/newer observations for retry; never touch a replacement room or
 // move a timestamp backwards after a concurrent HTTP/settlement update.
 async fn flush_heartbeats(s:&AppState)->Result<()> {
@@ -426,7 +426,7 @@ async fn player_packet_for_run(s:&AppState,a:i64,id:&str,name:&str,body:Value,tx
     let handle=s.conquest.runs.get(id).ok_or_else(||rule("BattleServerNotFound"))?.clone();let mut run=handle.lock().await;
     tracing::debug!(run=id, protocol=name, lock_wait_us=received.elapsed().as_micros() as u64,"Battle input received");
     // HTTP cancellations synchronize explicitly after commit. Skills and clock
-    // pulses must not wait on SQLite while holding the live match lock.
+    // pulses must not wait on the database while holding the live match lock.
     if name.starts_with("BattleBanPick") {return honor::packet(s,&mut run,a,name,&body,tx).await;}
     if matches!(name,"PingReq"|"PingIdleReq") {honor::tick(s,&mut run).await?;}
     let response_name=if matches!(name,"ReserveOnSkillReq"|"ReserveOffSkillReq"|"FireNextSkillReq"|"SetManualTargetReq"|"SetManualMoveReq") {"BaseCreatureActionRes".into()}else{name.strip_suffix("Req").map(|n|format!("{n}Res")).ok_or_else(||rule("InvalidRequest"))?};
