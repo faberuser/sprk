@@ -226,6 +226,44 @@ backup that has never been restored is not a backup.
 - Run Python with `-I` and pass paths as arguments. Don't run code from a
   download folder.
 
+### What to collect
+
+A dump holds the data but none of the statistics (`pg_stat_statements`, dead
+rows, vacuum times) that show where production spends its time. Collect all
+three:
+
+1. **The game log** (`docker logs sprk-game-1 > sprk-game.log`, covering the
+   slow period): slow requests, lock waits, slow statements and errors by path.
+2. **A report run against production.** It only reads and is safe while
+   players are on. On the Docker host, with `db_diagnostics.py` copied there,
+   run it from a throwaway Python container on the stack's network:
+
+   ```bash
+   docker run --rm --network sprk_default -v "$PWD":/w:ro python:3.12-slim sh -c \
+     'pip install -q --root-user-action=ignore "psycopg[binary]" && python -I /w/db_diagnostics.py --database-url "postgres://sprk_owner:<owner password>@postgres:5432/sprk"' > db-report.txt
+   ```
+
+3. **A dump** (a daily one from `postgres-backup`, or a manual one, see
+   "Backups and restore"), to test fixes on real data.
+
+### Load a dump locally
+
+Into a scratch container, never the local development database:
+
+```bash
+docker run -d --name sprk-diag -e POSTGRES_PASSWORD=diag -p 127.0.0.1:55440:5432 \
+  postgres:18 -c shared_preload_libraries=pg_stat_statements
+docker exec sprk-diag pg_isready -h 127.0.0.1 -U postgres   # repeat until it accepts connections
+docker exec sprk-diag createdb -U postgres sprk
+docker exec -i sprk-diag pg_restore -U postgres -d sprk --no-owner --no-privileges --exit-on-error < sprk-<time>.dump
+```
+
+`--no-owner --no-privileges` skip the production roles, which the scratch
+server does not have. The copy is at
+`postgres://postgres:diag@127.0.0.1:55440/sprk`: pass it to the report, to a
+timing test, or as `DATABASE_URL` to a local server (its migrations are already
+applied). Remove it with `docker rm -f sprk-diag` when done.
+
 ### Run the report
 
 From the `sprk-server` root (`pip install "psycopg[binary]"` for the database
