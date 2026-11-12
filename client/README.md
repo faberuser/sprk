@@ -1,148 +1,133 @@
-# Maintained SPRK client code
+# SPRK client
 
-This is part of the `sprk` monorepo: server code is in `server/src/`, PostgreSQL
-schema changes are in `server/migrations/`, client code is here, and the launcher
-is in `client/launcher/` (paths relative to the repository root).
-The repository's sibling `../sprk-client` directory remains the installed game;
-it is not a separate source repository.
+The game's managed code, built from source. Server code lives in `../server`.
 
-This directory contains the recovered game source and all 47 installed SPRK
-companion libraries as ordinary C# projects. Together they build 48 managed DLLs.
-The launcher is maintained in `launcher/` within this directory and included by the build
-command. Unity player binaries, native plugins, framework/third-party libraries,
-scenes, asset bundles and Documents are external inputs, not recovered source.
+| Path | Contents |
+| --- | --- |
+| `managed/Assembly-CSharp/` | The game's C# code |
+| `managed/Sprk*/` | SPRK feature assemblies, one DLL per directory |
+| `launcher/` | `SprkLauncher.exe` (profiles, signed updates) and its tests |
+| `overrides/files/` | Optional replacement assets and tables, by client-relative path |
+| `scripts/build/` | Compiles `managed/` |
+| `scripts/release/` | Signed update building, publishing and baseline pin |
+| `scripts/automation/` | Drives the real client for tests |
+| `scripts/launcher/`, `scripts/android/` | Launcher installation; Android conversion |
+| `tools/ManagedSource/` | Read-only DLL inspection and build verification |
+| `legacy/` | Retired DLL patcher and recovery records; not part of any build |
 
-Commands are grouped by purpose under `client/scripts/`: `build/`, `release/`,
-`legacy/`, `recovery/`, `verification/`, `android/`, `launcher/` and `automation/`.
-Legacy assembly and inspection tools are documented in
-[tools/README.md](tools/README.md). See [the scripts inventory](../docs/scripts.md)
-for entrypoints and tests.
+What is **not** source and never built here: the Unity player
+(`King's Raid.exe`, `UnityPlayer.dll`, `MonoBleedingEdge/`), native plugins,
+Unity/Mono/third-party DLLs, scenes, asset bundles, tables and the rest of
+`King's Raid_Data/`. A game folder supplies those as they are. The build replaces
+only `Assembly-CSharp.dll` and `Sprk*.dll` in `King's Raid_Data/Managed/`.
 
-## Build
+## Build, install, play
 
-Requirements: Windows, Python 3.11+, .NET SDK **10.0.100**, and the pinned API
-reference package. NuGet access is required for the launcher's Windows runtime
-packs. If the SDK is installed normally:
-
-```powershell
-python client/scripts/build/build_managed_client.py --references artifacts/client-source-api-references.zip --work artifacts/my-client-code-build
-```
-
-Run from the repository root. `--work` must name a new directory. A private SDK
-installation is also supported:
+Requirements: Windows, Python 3.11+, the .NET SDK selected by `global.json`
+(10.0.1xx), and an installed game folder (default `../sprk-client`, next to this
+repository). Run commands from the repository root.
 
 ```powershell
-python client/scripts/build/build_managed_client.py --references artifacts/client-source-api-references.zip --work artifacts/my-client-code-build --dotnet artifacts/dotnet-sdk-10/dotnet.exe
+# Compile all 48 assemblies into artifacts/client-build (about 40 seconds)
+python client/scripts/build/build_managed_client.py
+
+# Compile and copy the DLLs into the game folder (close the game first)
+python client/scripts/build/build_managed_client.py --install ../sprk-client
 ```
 
-Use `--managed-only` to omit the launcher. This does not change the game runtime
-target: .NET 10 runs the compiler and launcher, while the game projects use the
-Unity player's pinned Mono/framework API references. SDK framework references
-are disabled. The `netstandard2.1` project label enables SDK tooling; the actual
-reference set in `dependencies.lock.json` defines the game's available APIs.
+Then start the game through the launcher as usual. Use `--references` when the
+runtime DLLs are somewhere else, and `--work` for a different build directory.
 
-The output is:
+To change the game, edit the `.cs` files in `managed/` and rebuild. To add a
+feature assembly, create `managed/SprkName/SprkName.csproj` containing
+`<Project Sdk="Microsoft.NET.Sdk" />` plus its source; the build, the release
+and the launcher pick it up automatically. Deleting a directory removes its DLL
+from the next release.
+
+After installing changed DLLs, publish a local signed update so the local update
+server and the launcher agree with the game folder; see
+[client updates](../docs/client-updates.md).
+
+### How the build works
+
+`managed/Directory.Build.props` holds the shared compiler settings. Projects
+compile against the game's own runtime DLLs, not the .NET SDK's:
+`managed/references.lock.json` pins those 144 files by SHA-256, and the build
+refuses anything else. The `netstandard2.1` label only enables SDK tooling.
+
+The game calls the feature assemblies and they call the game. The build breaks
+that cycle without any previously built DLL:
+
+1. Compile all source into one temporary assembly.
+2. Compile the feature assemblies against it, then the game against them.
+3. Compile the final feature assemblies, then the final game, against those.
+
+Output is deterministic: the same source and SDK produce byte-identical DLLs.
+An IDE or `dotnet build` on one project works after one complete build, using
+the references staged in `artifacts/client-build/references`.
+
+## Releases
+
+`scripts/release/build_client_release.py` assembles a complete signed update in
+an isolated folder:
 
 ```text
-<work>/client-code/
-  SprkLauncher.exe
-  King's Raid_Data/Managed/
-    Assembly-CSharp.dll
-    Sprk*.dll
-<work>/result.json
-<work>/build-inputs.json
-<work>/logs/
+pinned published release (assets, tables, runtime DLLs)   scripts/release/client_baseline.py
+  + overrides/files/                                      replacement assets
+  + DLLs compiled from managed/
+  = signed manifest + client-update.tar.gz
 ```
 
-The output deliberately contains no Unity executable, player DLL, native
-plugins, scenes, asset bundles, Documents, accounts, tokens or launcher state.
-It is a code payload, not a standalone game installation. Small existing helper
-resources (four PNGs and one JSON file) remain embedded to preserve helper
-behavior. The launcher uses its existing icon and maintained source.
-
-## Dependencies and circular references
-
-`dependencies.lock.json` pins 191 compile-time DLLs by SHA-256 and size:
-144 runtime/vendor APIs and 47 original companion APIs for bootstrapping.
-**The original Assembly-CSharp.dll is not a build input.**
-
-The build first compiles the game using the pinned helper APIs. It then compiles
-all helpers against that source-built game, recompiles the game against the
-source-built helpers, and compiles the final helpers against the final game.
-Only the final source-built DLLs enter the output. No decompiler, DLL patcher,
-baseline game assembly template, or source generator runs during this build.
-
-The API ZIP is a separate binary input and is not committed as recovered source.
-Its current SHA-256 is
-`f9bff180d9cc13466fd69e76f5570079d830878e01cb984bef1fe15da6f51c3b`.
-Every file is verified against the tracked lock before compilation. A clean
-checkout plus that ZIP and the SDK can build without the game installation.
-The package has been produced locally; a remote artifact location has not yet
-been configured. Keep it alongside the source when moving this codebase.
-
-To recreate the reference ZIP from a directory containing the exact pinned DLLs:
+CI runs it on every merge to `main`, publishes the result as a GitHub release
+and deploys the matching server; see [GitHub client releases](../docs/github-client-updates.md).
+Check a release locally without the signing key or any upload:
 
 ```powershell
-python client/scripts/build/prepare_managed_references.py --references <managed-api-directory> --output <new-api.zip>
+python client/scripts/release/build_client_release.py --work artifacts/release-check --version check-1 --check-only
 ```
 
-Individual projects can be opened in an IDE or built with `dotnet build` after
-pointing `ManagedReferenceDirectory` at a staged reference directory. Use the
-orchestrated command for a complete build so circular dependencies are handled.
+To ship a changed asset or table, put the file under `overrides/files/` at its
+client-relative path, for example
+`overrides/files/King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit/ItemTable.jit`,
+together with any `SPRK-Native*.json` integrity metadata that covers it.
 
-## Recovery and compatibility
+New players still need a complete game folder (the Google Drive ZIP). It only
+has to contain the player and assets; the launcher brings its managed files up
+to the current release on first start.
 
-`recovery.json` records the original assembly hashes and per-file repair hashes.
-`recovery.patch` records the source edits relative to the untouched ILSpy 9.1
-exports. Recovery is complete as a compilation exercise; maintained edits should
-now be made directly in `managed/`, without rerunning decompilation.
+## Launcher
 
-Repairs include qualified type names hidden by enclosing namespaces, typed null
-discards, explicit interface properties, stale iterator attributes, generic IL
-parameter notation, and a null-list branch reconstructed from the original IL.
-Compiler-owned RefSafetyRules attributes are emitted by the compiler rather than
-declared explicitly in recovered helper source. The lobby helper qualifies the
-game's Avatar type instead of UnityEngine.Avatar.
+```powershell
+client/scripts/launcher/build_launcher.ps1 -ClientPath ../sprk-client
+dotnet run --project client/launcher/SprkLauncher.Tests
+```
 
-The old Currency64 patches left several explicit interface methods with mismatched
-Int32/Int64 signatures. Implementations now match their declared interfaces;
-remaining Int32 storage/request boundaries use checked conversion. Values outside
-Int32 range throw instead of silently truncating. This is a compatibility decision
-that needs gameplay testing, particularly selectors, pet feeding, roulette,
-punishment shards and persisted timestamps. It is not a claim of runtime parity.
-The CachedHeroInfo base constructor now executes in normal C# constructor order;
-its dictionary initialization is independent of the preceding recovered parameter
-normalization, but exact exception/allocation timing can differ.
+## Tests
 
-Compilation alone does not certify Unity serialization, reflection, scene/UI
-bindings, live server behavior or Linux battle-worker compatibility. The legacy
-release path remains active. This source payload must pass those checks before
-installation, signing or public cutover. No installed-client update is generated
-by this command, and `result.json` explicitly leaves release eligibility false.
+```powershell
+python -m unittest discover -s client/scripts -t . -p "test_*.py"
+```
 
-## Verified local result
+[Client automation](../docs/client-automation.md) starts an isolated server and
+database and drives the real game (login, lobby, shops, battles).
 
-On 2026-11-11, `artifacts/client-code-build-02/client-code` was built from the
-reference ZIP using SDK 10.0.100. All 48 managed projects and the launcher compile.
-The recovered source still produces compiler warnings; zero errors does not mean
-warning-free or behaviorally validated code.
+## Where the source came from
 
-- All 48 assembly identities and their referenced assembly identities match the
-  required metadata; embedded resource names and bytes match the original DLLs.
-- All 49 output files match the SHA-256 manifest in `result.json`.
-- Nine Python snapshot/reference-package/repair tests pass.
-- Twelve existing launcher update, signing, rollback and profile checks pass.
-- All installed managed DLL hashes remain unchanged.
+`managed/` was recovered once from the last DLL-patched release
+(`client-ci-2795d44b755a-43152391931-1`) with ILSpy and repaired until it
+compiled; `legacy/recovery/` records that. It is now ordinary maintained source:
+never regenerate it from a DLL. Checked on 2026-11-12 against that release:
 
-No Unity gameplay, serialized-contract or Linux-worker parity test was run.
+- every type keeps the same serialized field layout, base type and interfaces
+  (15,350 types), with matching assembly identities and embedded resources;
+- on the real client: login, lobby, hero, inventory and Special Shop screens,
+  and a campaign battle through victory and rewards, with no new errors;
+- the server's native battle worker test (`conquest_native_tcp_battle`) passes
+  with these DLLs.
 
-## Development integration
-
-On 2026-11-12, the working branch was based on development commit `ad1bd52`,
-including the PostgreSQL migration. The recovered `SprkStorageMigration` now
-matches development's retirement of legacy storage import: the default path
-records an empty receipt without reading the old files or registry values. The
-explicit legacy overload remains available for the existing regression tests.
-The upstream storage tests pass against the maintained source, and the updated
-SprkAutomation project compiles. Recovery hashes describe the original recovery,
-before this subsequent maintained-source change.
+Known differences from the patched DLLs: explicit interface methods that the old
+64-bit currency patch left with mismatched `int`/`long` signatures now match
+their interfaces and use checked conversions (a value above the 32-bit range
+throws instead of wrapping), and compiler-generated closure and backing-field
+names differ. Features not covered by the checks above should be play-tested
+before a public release.

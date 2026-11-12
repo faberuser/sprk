@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only report for the game database and/or sprk-game.log.
 
-Usage (from the sprk-server root; put the user's files in their own folder):
+Usage (from the repository root; put the user's files in their own folder):
     python -I server/scripts/database/db_diagnostics.py --database-url <postgres URL> --log <sprk-game.log>
 
 The database report runs in a read-only session (pip install "psycopg[binary]").

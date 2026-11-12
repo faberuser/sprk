@@ -13,9 +13,11 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.build_client_release import extract_baseline, file_hash, managed_build_files, throwaway_key
-from client.scripts.release.client_update_bundle import verified_manifest
-from client.scripts.release.prepare_client_baseline import prepare
+from unittest.mock import patch
+
+from client.scripts.release import build_client_release
+from client.scripts.release.build_client_release import extract_baseline, file_hash, install_managed, managed_build_files, throwaway_key
+from client.scripts.release.client_update_bundle import package, verified_manifest
 from client.scripts.release.publish_client_update import find_openssl, ignored, publish
 
 
@@ -34,21 +36,40 @@ class BaselineTests(unittest.TestCase):
         target.write_bytes(b"distributed fixture")
         self.updates = self.root / "updates"
         publish(self.client, self.updates, "fixture", "stable", ["King's Raid_Data/Managed"], self.key)
-        self.archive = self.root / "seed.tar.gz"
-        self.sha = prepare(self.updates, self.client, self.public, self.archive)
+        # The baseline is an ordinary published release bundle.
+        self.archive, _ = package(self.updates, "fixture", self.public, self.root / "assets")
+        self.sha = file_hash(self.archive)
 
     def test_baseline_roundtrip_preserves_signed_snapshot(self):
         client = self.root / "build"
-        metadata = extract_baseline(self.archive, client, self.sha, self.public)
-        self.assertEqual(metadata["previous_manifest"]["version"], "fixture")
+        raw = extract_baseline(self.archive, client, self.sha, self.public)
+        self.assertEqual(verified_manifest(raw, self.public)["version"], "fixture")
         self.assertEqual((client / "King's Raid_Data/Managed/fixture.dll").read_bytes(), b"distributed fixture")
 
-    def test_reproducible_seed_and_pinned_hash_rejection(self):
-        other = self.root / "other.tar.gz"
-        self.assertEqual(prepare(self.updates, self.client, self.public, other), self.sha)
+    def test_pinned_hash_and_foreign_signature_rejection(self):
         with self.assertRaisesRegex(ValueError, "SHA-256"):
             extract_baseline(self.archive, self.root / "wrong", "0" * 64, self.public)
         self.assertFalse((self.root / "wrong").exists())
+        _, other = throwaway_key(self.root)
+        with self.assertRaises(subprocess.CalledProcessError):
+            extract_baseline(self.archive, self.root / "foreign", self.sha, other)
+
+    def test_source_build_replaces_assemblies_and_drops_removed_helpers(self):
+        managed = self.client / "King's Raid_Data/Managed"
+        for name in ("Assembly-CSharp.dll", "SprkKept.dll", "SprkRemoved.dll"):
+            (managed / name).write_bytes(b"baseline " + name.encode())
+        built = self.root / "built"
+        built.mkdir()
+        outputs = {}
+        for name in ("Assembly-CSharp", "SprkKept", "SprkAdded"):
+            outputs[name] = built / (name + ".dll")
+            outputs[name].write_bytes(b"source " + name.encode())
+        with patch.object(build_client_release, "compile_managed", return_value=outputs) as compiler:
+            self.assertEqual(install_managed(self.client, self.root / "work"), sorted(outputs))
+        compiler.assert_called_once_with(managed, self.root / "work")
+        self.assertEqual({p.name: p.read_bytes() for p in managed.iterdir()}, {
+            "fixture.dll": b"distributed fixture", "Assembly-CSharp.dll": b"source Assembly-CSharp",
+            "SprkKept.dll": b"source SprkKept", "SprkAdded.dll": b"source SprkAdded"})
 
     def test_rejects_links_unexpected_and_duplicate_files(self):
         with tarfile.open(self.archive) as source:
@@ -60,7 +81,7 @@ class BaselineTests(unittest.TestCase):
                     member = tarfile.TarInfo(name)
                     member.size = len(payload)
                     archive.addfile(member, io.BytesIO(payload))
-                member = tarfile.TarInfo("baseline.json" if case == "duplicate" else "unexpected")
+                member = tarfile.TarInfo("manifest.json" if case == "duplicate" else "unexpected")
                 if case == "link":
                     member.type = tarfile.SYMTYPE
                     member.linkname = "../outside"

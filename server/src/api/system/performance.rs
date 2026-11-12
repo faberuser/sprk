@@ -125,8 +125,8 @@ mod tests {
     /// be a server read path so it carries no ordered progression snapshot.
     #[test]
     fn client_parallel_reads_are_server_observations() {
-        let source = include_str!("../../../../client/tools/DllPatcher/Resources/NetworkPerformance.cs.txt");
-        let start = source.find("parallelReads=new HashSet<string>").expect("client parallel read list");
+        let source = include_str!("../../../../client/managed/SprkNetworkPerformance/SprkNetworkPerformance.cs");
+        let start = source.find("parallelReads = new HashSet<string>").expect("client parallel read list");
         let block = &source[start..start + source[start..].find("};").unwrap()];
         let paths: Vec<&str> = block.split('"').skip(1).step_by(2).collect();
         assert!(paths.len() >= 10, "{paths:?}");

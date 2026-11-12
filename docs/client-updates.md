@@ -40,12 +40,6 @@ The default selection includes all files under:
 - `King's Raid_Data/Documents/Patch/StandaloneWindows/Video`
 
 Normal client launches write `%USERPROFILE%\AppData\LocalLow\sprk\King's Raid\Player.log`.
-The full patcher enables native `usePlayerLog` and aligns `app.info` with the
-`sprk` PlayerSettings identity; Unity chooses its initial log path from this file.
-Use `--player-logging-only` for a focused installation and
-`--verify-player-logging` to verify both settings. Restart the game after installing.
-`python client/scripts/verify_player_logging.py` proves the default path with an
-isolated native client and no `-logFile` argument.
 
 Generate release-signing keys once with
 `python client/scripts/release/create_update_signing_key.py`. Keep `client-updates/update-signing/private.pem`
@@ -56,16 +50,19 @@ machines. Unsigned publishing is supported for localhost development only; omit
 
 Backup (`.backup`, `.before-*`), staged (`.patched`, `.eye-patched`, `.staged`,
 `*-staged`), log, and temporary files are excluded.
-Symlinks/junctions in the input are rejected. Stop client patching/baking while
-publishing so the snapshot represents one tested build.
+Symlinks/junctions in the input are rejected. Do not install or change client
+files while publishing, so the snapshot represents one tested build.
 
-Complete snapshots that include all default paths also include installed files
-declared under `client/overrides/files`, such as Jane and Maria's restored Legend
-models. The publisher reads the installed copies; apply and verify the overrides
-before publishing. An explicit partial `--include` selection retains its scope.
+With the default selection, the publisher also keeps every file the previous
+release managed that still exists in the client (asset bundles, Unity data
+files, integrity metadata), so a later release cannot drop one by accident and
+make the launcher delete it. A file missing from the client becomes a deletion;
+`--delete <path>` retires one that still exists. An explicit partial `--include`
+selection retains its scope.
 
-For other code/assets, use repeated `--include` options. These **replace** the
-defaults, so include the default directories too if they should stay managed:
+To start managing another file, add it with `--include` once; later default
+publishes keep it. Repeated `--include` options **replace** the defaults, so
+include the default directories too:
 
 ```powershell
 python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version 1.0.1 --signing-key client-updates/update-signing/private.pem --include "King's Raid_Data/Managed" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableData" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/TableJit" --include "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit" --include "King's Raid_Data/resources.assets"

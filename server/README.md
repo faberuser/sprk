@@ -2,9 +2,9 @@
 
 The Rust package, PostgreSQL migrations, server tests and GM CLI live here.
 Server tools are grouped under `server/scripts/`: `database/`, `local/`,
-`worker/`, `performance/` and `docker/`. Client releases are under
-`client/scripts/release/`. Shared tables, configuration, CI and Docker
-orchestration files remain at the repository root.
+`worker/`, `performance/` and `docker/`. Game tables, configuration, CI and
+Docker orchestration files are at the repository root; the client is in
+`../client`.
 
 Run commands from the repository root:
 

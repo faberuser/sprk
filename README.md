@@ -187,8 +187,8 @@ every table afterwards and leaves `sprk.db` unchanged.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) for the
   database (and Docker image builds).
 - Python 3 for product scripts under `server/scripts/` and `client/scripts/`, and `server/gm.py`.
-- The [.NET SDK](https://dotnet.microsoft.com/download) for the client patcher
-  and the launcher.
+- The [.NET SDK](https://dotnet.microsoft.com/download) version in
+  `client/global.json` for the client code and the launcher.
 
 For VS Code, install the analyzer and standard-library sources for your
 toolchain, then run **rust-analyzer: Restart server**:
@@ -208,16 +208,15 @@ consistent.
 - `server/src/models/` and `server/src/tables/`: client response types and table loading
 - `server/src/updates/`: launcher update delivery
 - `server/migrations/`: PostgreSQL schema, triggers and SQL helper functions
+- `server/scripts/`: local server, database, battle-worker and container tools
+- `server/tests/`: server integration tests, fixtures and process-lifetime checks
+- `client/managed/`: game code and SPRK feature assemblies (C#)
 - `client/launcher/`: Windows launcher and its checks
-- `client/managed/`: recovered game source and SPRK companion projects
-- `client/overrides/`: tracked client asset and table replacements
-- `server/scripts/`: local server, database and battle-worker tools
-- `client/scripts/`: client builds, launcher tools, migration and automation
-- `client/tools/`: legacy release patcher and metadata inspection
-- `client/scripts/release/`: client build, signing and update packaging
-- `server/scripts/docker/`: container entrypoints and health checks
-- `server/tests/`: server integration tests and process-lifetime checks
-- `tables/` and `config/`: inputs shared by the server and client tooling
+- `client/overrides/`: optional client asset and table replacements
+- `client/scripts/`: client build, release signing, automation and launcher tools
+- `client/tools/`: read-only DLL inspection
+- `client/legacy/`: retired DLL patcher, kept for reference
+- `tables/` and `config/`: server game tables and shared configuration
 - `.github/`, Dockerfiles and Compose/Bake files: shared CI and deployment
 
 Server commands remain `cargo build` and `cargo test --locked` from the root.
@@ -227,8 +226,8 @@ See [the scripts inventory](docs/scripts.md) for active CI and development tools
 
 ### Run a development server (Windows)
 
-Besides the tools above you need a patched game client (see
-[Patching the client](#patching-the-client)) and a published local client update
+Besides the tools above you need the game client folder next to this repository
+(`../sprk-client`, see [Building the client](#building-the-client)) and a published local client update
 (`client-updates/stable/manifest.json`, see [client updates](docs/client-updates.md)).
 
 1. Optional: copy `.env.example` to `.env` and set `SPRK_GM_KEY` to enable GM
@@ -297,35 +296,19 @@ own database, and leftovers are dropped on the next run. Parallel tests open man
 connections, hence `-c max_connections=300`. Pull requests also run the checks in
 `.github/workflows/test-pr.yml`.
 
-### Patching the client
+### Building the client
 
-Patch `Assembly-CSharp.dll` and `resources.assets` in one command by pointing
-the patcher at the game client folder:
-
-```batch
-client\scripts\legacy\patch.bat "D:\path\to\game\client"
-client\scripts\legacy\patch.bat --restore "D:\path\to\game\client"
-```
-
-Or in PowerShell:
+The game's C# code is in `client/managed` and compiles into the installed game
+folder (`../sprk-client` by default; close the game first):
 
 ```powershell
-.\client\scripts\legacy\patch.ps1 -ClientPath "D:\path\to\game\client"
-.\client\scripts\legacy\patch.ps1 -ClientPath "D:\path\to\game\client" -Restore
+python client/scripts/build/build_managed_client.py --install ../sprk-client
 ```
 
-This runs the DLL patcher (`client/tools/DllPatcher`, which keeps
-`Assembly-CSharp.dll.backup_before_patch` from its first run) and points
-`resources.assets` at the local server (`http://127.0.0.1:8080`).
-
-The legacy patcher takes the client folder directly:
-
-```bash
-dotnet run --project client/tools/DllPatcher -- "D:\path\to\game\client"
-```
-
-For read-only assembly inspection, use `ManagedSource inspect` as described in
-[client tools](client/tools/README.md).
+It needs the .NET SDK from `client/global.json` and replaces only
+`Assembly-CSharp.dll` and the `Sprk*.dll` feature assemblies; the Unity player
+and game assets are used as they are. See [the client guide](client/README.md)
+for the layout, releases and tests.
 
 ## Credits
 

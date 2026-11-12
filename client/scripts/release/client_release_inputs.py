@@ -10,11 +10,12 @@ import tempfile
 from client.scripts.release.client_update_bundle import verified_manifest
 
 REPO = Path(__file__).resolve().parents[3]
-# Conservative: include all transformation scripts, tables and configuration.
+# Everything that can change the published client: source, asset overrides,
+# the build and release tooling, the SDK pin and the deployment workflow.
 # Git excludes generated/ignored binaries, workspaces and signing secrets.
-INPUTS = ["client/scripts", "client/tools", "server/scripts", "client/overrides", "tables", "config", ".github/workflows/build-and-deploy.yml",
-          ".gitattributes", "global.json", "NuGet.Config", "nuget.config",
-          "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props"]
+INPUTS = ["client/managed", "client/overrides", "client/scripts/build", "client/scripts/release",
+          "client/global.json", "config/client-update-public.pem",
+          ".github/workflows/build-and-deploy.yml", ".gitattributes"]
 REQUIRED_ASSETS = {"client-update-manifest.json", "client-update.tar.gz"}
 
 

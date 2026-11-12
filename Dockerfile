@@ -1,5 +1,5 @@
 FROM python:3.12-slim-bookworm AS illustration-model
-COPY client/tools/DllPatcher/prepare_illustration_runtime.py /prepare.py
+COPY server/scripts/docker/prepare_illustration_runtime.py /prepare.py
 RUN python /prepare.py --server /models
 
 FROM rust:1.99-bookworm AS chef

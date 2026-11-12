@@ -1,11 +1,9 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Mono.Cecil;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 // This process only reads metadata; it never loads or executes game assemblies.
-if (args.Length < 3) throw new ArgumentException("inventory <managed> <json> | compile <source> <managed> <output.dll>");
+if (args.Length < 3) throw new ArgumentException("inspect <assembly.dll> <type> [method] | inventory <managed-dir> <output.json> | verify-build <reference-managed-dir> <built-managed-dir>");
 var json = new JsonSerializerOptions { WriteIndented = true };
 if (args[0] == "inventory")
 {
@@ -68,7 +66,7 @@ else if (args[0] == "verify-build")
         count++;
     }
     if (count == 0) throw new InvalidDataException("No compiled assemblies to verify");
-    Console.WriteLine($"Verified {count} assembly identities, dependency identities and embedded resources. Runtime parity is not established.");
+    Console.WriteLine($"Verified {count} assembly identities, dependency identities and embedded resources.");
 }
 else if (args[0] == "inspect")
 {
@@ -80,25 +78,6 @@ else if (args[0] == "inspect")
         foreach (var ov in method.Overrides) Console.WriteLine("  override " + ov.FullName);
         if (method.HasBody) foreach (var instruction in method.Body.Instructions) Console.WriteLine("  " + instruction);
     }
-}
-else if (args[0] == "compile" && args.Length == 4)
-{
-    // Use ONLY the player's reference assemblies, never the tool's .NET 8 BCL.
-    var sources = Directory.GetFiles(args[1], "*.cs", SearchOption.AllDirectories).OrderBy(p => p, StringComparer.Ordinal)
-        .Select(p => CSharpSyntaxTree.ParseText(File.ReadAllText(p), new CSharpParseOptions(LanguageVersion.CSharp12), p)).ToArray();
-    var name = Path.GetFileNameWithoutExtension(args[3]);
-    var references = Directory.GetFiles(args[2], "*.dll").Where(p => Path.GetFileNameWithoutExtension(p) != name)
-        .OrderBy(p => p, StringComparer.Ordinal).Select(p => MetadataReference.CreateFromFile(p)).ToArray();
-    var compilation = CSharpCompilation.Create(name, sources, references,
-        new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true,
-            optimizationLevel: OptimizationLevel.Release, deterministic: true));
-    var temporary = args[3] + ".tmp";
-    if (File.Exists(args[3]) || File.Exists(temporary)) throw new IOException("Output already exists");
-    var result = compilation.Emit(temporary);
-    File.WriteAllLines(args[3] + ".diagnostics.txt", result.Diagnostics.Select(d => d.ToString()));
-    if (!result.Success) { File.Delete(temporary); Environment.ExitCode = 1; }
-    else File.Move(temporary, args[3]);
-    Console.WriteLine($"Compiled {sources.Length} files: success={result.Success}, errors={result.Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error)}");
 }
 else throw new ArgumentException("Unknown command");
 

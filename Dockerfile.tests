@@ -4,13 +4,12 @@ COPY Cargo.toml Cargo.lock ./
 COPY server/Cargo.toml ./server/Cargo.toml
 COPY server/src ./server/src
 COPY server/migrations ./server/migrations
-# Embedded by the PostgreSQL trigger test.
+# Embedded by the PostgreSQL trigger and client-parity tests.
 COPY server/tests/fixtures ./server/tests/fixtures
 COPY tables ./tables
 COPY config/mission-rule-gaps.json config/mission-rule-gaps.json
-COPY client/tools/DllPatcher/Resources/ArtifactSelectorPools.json client/tools/DllPatcher/Resources/ArtifactSelectorPools.json
-COPY client/tools/DllPatcher/Resources/LegacyData/RestoredCrafting.json client/tools/DllPatcher/Resources/LegacyData/RestoredCrafting.json
-COPY client/tools/DllPatcher/Resources/NetworkPerformance.cs.txt client/tools/DllPatcher/Resources/NetworkPerformance.cs.txt
+# The server checks its read-only endpoint list against the client request scheduler.
+COPY client/managed/SprkNetworkPerformance/SprkNetworkPerformance.cs client/managed/SprkNetworkPerformance/SprkNetworkPerformance.cs
 RUN cargo test --locked --no-run \
     && find target/debug/deps -maxdepth 1 -type f -executable -name 'sprk_server-*' \
        -exec cp {} /sprk-native-tests \;

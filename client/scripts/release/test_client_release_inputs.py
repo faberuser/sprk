@@ -16,29 +16,33 @@ class FingerprintTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             repo = Path(folder)
             subprocess.run(["git", "init", "-q", str(repo)], check=True)
-            script = repo / "client/scripts/legacy/patch.py"
-            script.parent.mkdir(parents=True)
-            script.write_bytes(b"original")
+            source = repo / "client/managed/Assembly-CSharp/Game.cs"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"original")
             subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
             original = inputs.fingerprint(repo)
-            (repo / "server/src").mkdir(parents=True)
-            (repo / "server/src/main.rs").write_text("server-only change")
+            # Server, table, legacy-tool and launcher changes do not rebuild the client.
+            for unrelated in ("server/src/main.rs", "tables/new.json", "client/tools/DllPatcher/Program.cs",
+                              "client/launcher/SprkLauncher/Program.cs"):
+                path = repo / unrelated
+                path.parent.mkdir(parents=True)
+                path.write_text("unrelated change")
             self.assertEqual(inputs.fingerprint(repo), original)
             override = repo / "client/overrides/files/example.json"
             override.parent.mkdir(parents=True)
             override.write_text("{}")
             self.assertNotEqual(inputs.fingerprint(repo), original)
             override.unlink()
-            script.write_bytes(b"changed")
+            source.write_bytes(b"changed")
             self.assertNotEqual(inputs.fingerprint(repo), original)
-            script.write_bytes(b"original")
-            table = repo / "tables/new.json"
-            table.parent.mkdir()
-            table.write_text("{}")
+            source.write_bytes(b"original")
+            script = repo / "client/scripts/release/build_client_release.py"
+            script.parent.mkdir(parents=True)
+            script.write_text("release tooling")
             self.assertNotEqual(inputs.fingerprint(repo), original)
-            table.unlink()
-            self.assertEqual(inputs.fingerprint(repo), original)
             script.unlink()
+            self.assertEqual(inputs.fingerprint(repo), original)
+            source.unlink()
             self.assertNotEqual(inputs.fingerprint(repo), original)
 
 

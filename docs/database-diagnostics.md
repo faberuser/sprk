@@ -266,7 +266,7 @@ applied). Remove it with `docker rm -f sprk-diag` when done.
 
 ### Run the report
 
-From the `sprk-server` root (`pip install "psycopg[binary]"` for the database
+From the repository root (`pip install "psycopg[binary]"` for the database
 part; connect as `sprk_owner`, which can read other sessions' activity and
 `pg_stat_statements`):
 

@@ -41,18 +41,18 @@ is the compatibility check.
 
 ## 2. Package the pair
 
-Open PowerShell and run these commands from the `sprk-server` repository.
+Open PowerShell and run these commands from the repository root.
 Adjust the source paths for your chosen model. Keep this PowerShell session
 open for the following steps.
 
 ```powershell
-Set-Location -LiteralPath 'D:\kr\sprk\sprk-server'
+Set-Location -LiteralPath 'D:\kr\sprk\sprk'
 
 $paramFile = 'D:\ai\Upscayl\resources\models\remacri-4x.param'
 $weightsFile = 'D:\ai\Upscayl\resources\models\remacri-4x.bin'
 $packedModel = Join-Path $env:TEMP ('sprk-model-' + [guid]::NewGuid().ToString('N') + '.sprkmodel')
 
-python client/tools/DllPatcher/prepare_illustration_runtime.py `
+python server/scripts/docker/prepare_illustration_runtime.py `
     --pack-model $packedModel `
     --param $paramFile `
     --weights $weightsFile
@@ -156,5 +156,4 @@ stock anime model, the game keeps that file but selects
 models in `active.sprkmodel` take priority over that migration file. Leave the
 migration file alone when swapping custom models.
 
-See [Illustration AI in the patcher guide](../client/tools/DllPatcher/README.md#illustration-ai)
-for runtime behavior and verification commands.
+The runtime behavior is implemented in `client/managed/SprkIllustrationUpscale`.

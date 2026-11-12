@@ -1,2 +1,3 @@
-# Serialized Unity asset cleanup used by remove_client_telemetry.py.
+# Unity asset editing for the Android tools and client/legacy/scripts/remove_client_telemetry.py.
+# The client build and release scripts need no packages.
 UnityPy==1.25.3

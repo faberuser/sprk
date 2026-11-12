@@ -27,7 +27,6 @@ DEFAULT_INCLUDES = [
     "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit",
     "King's Raid_Data/Documents/Patch/StandaloneWindows/Video",
 ]
-OVERRIDE_ROOT = Path(__file__).resolve().parents[3] / "client/overrides/files"
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -71,20 +70,21 @@ def collect_files(client: Path, includes: list[str]) -> list[Path]:
     return sorted(selected)
 
 
-def complete_snapshot_includes(client: Path, includes: list[str]) -> list[str]:
+def complete_snapshot_includes(client: Path, includes: list[str], previous_files=(), removals=()) -> list[str]:
+    """With the default selection, keep managing every file the previous release managed.
+
+    Releases also carry files outside DEFAULT_INCLUDES (asset bundles, Unity data
+    files, integrity metadata). Dropping one from a later release would make the
+    launcher delete it from players' installations, so they are carried forward
+    while they still exist in the client. Use --delete to retire one on purpose.
+    """
     selected = list(includes)
     if not set(DEFAULT_INCLUDES).issubset(selected):
         return selected
-    # Restored models and other installed overrides are release inputs just as
-    # they are in the isolated CI builder. Publish the installed bytes; do not
-    # silently substitute repository files for an unpatched local installation.
-    for source in sorted(OVERRIDE_ROOT.rglob("*")):
-        if not source.is_file():
+    for relative in sorted(previous_files):
+        if relative in removals or not (client / relative).is_file():
             continue
-        relative = safe_path(source.relative_to(OVERRIDE_ROOT).as_posix())
-        if (client / relative).is_file() and not any(
-            relative == path or relative.startswith(path + "/") for path in selected
-        ):
+        if not any(relative == path or relative.startswith(path + "/") for path in selected):
             selected.append(relative)
     return selected
 
@@ -145,16 +145,6 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     privacy = json.loads(privacy_path.read_text(encoding="utf-8")) if privacy_path.exists() else {}
     if privacy and privacy.get("schema_version") != 1:
         raise ValueError("Unsupported client privacy policy schema")
-    selected = complete_snapshot_includes(client, includes)
-    # Native table migrations update their integrity metadata alongside the JIT
-    # files. Keep it in subsequent releases too, even when using default includes.
-    for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json", "SPRK-NativeLocalization.json"):
-        path = "King's Raid_Data/Documents/Patch/StandaloneWindows/" + name
-        if (client / path).is_file():
-            selected.append(path)
-    if privacy:
-        selected += privacy.get("required_files", []) + ["King's Raid_Data/sprk-privacy.json"]
-    sources = collect_files(client, selected)
     output.mkdir(parents=True, exist_ok=True)
     # Serialize publishers so two releases cannot race to replace a channel.
     lock = output / ".publish-lock"
@@ -174,6 +164,16 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
         explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
         removed.update(explicit_removals)
+        selected = complete_snapshot_includes(client, includes, previous_files, explicit_removals)
+        # Native table migrations update their integrity metadata alongside the JIT
+        # files. Keep it in subsequent releases too, even when using default includes.
+        for name in ("SPRK-NativeData.json", "SPRK-NativeCombat.json", "SPRK-NativeLocalization.json"):
+            path = "King's Raid_Data/Documents/Patch/StandaloneWindows/" + name
+            if (client / path).is_file():
+                selected.append(path)
+        if privacy:
+            selected += privacy.get("required_files", []) + ["King's Raid_Data/sprk-privacy.json"]
+        sources = collect_files(client, selected)
         with tempfile.TemporaryDirectory(prefix=".publish-", dir=output) as staging_name:
             staging = Path(staging_name)
             snapshot = staging / "release"

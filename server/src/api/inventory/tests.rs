@@ -1327,7 +1327,7 @@ async fn crafting_spends_table_materials_and_gold_and_rejects_forged_outputs() {
 #[tokio::test]
 async fn restored_crafting_all_active_archive_recipes_pay_exact_costs_and_deliver_outputs() {
     let (state,u)=setup().await;
-    let archived:Vec<Value>=serde_json::from_str(include_str!("../../../../client/tools/DllPatcher/Resources/LegacyData/RestoredCrafting.json")).unwrap();
+    let archived:Vec<Value>=serde_json::from_str(include_str!("../../../tests/fixtures/client/RestoredCrafting.json")).unwrap();
     assert_eq!(archived.iter().filter(|r|r["IsOpen"]==true).count(),101);
     for recipe in archived.iter().filter(|r|r["IsOpen"]==true) {
         let id=item::n(recipe,"CraftIndex") as i32;
@@ -2369,7 +2369,7 @@ async fn soul_stone_selectors_use_stackable_response_and_cannot_fake_equipment()
 #[tokio::test]
 async fn kings_pass_artifacts_are_selectable_from_normal_and_lua_tickets_only() {
     let (s,u)=setup().await;
-    let resource:Value=serde_json::from_str(include_str!("../../../../client/tools/DllPatcher/Resources/ArtifactSelectorPools.json")).unwrap();
+    let resource:Value=serde_json::from_str(include_str!("../../../tests/fixtures/client/ArtifactSelectorPools.json")).unwrap();
     for ticket in [3030,2013] {
         let pool=&s.tables.inventory.equipment_selectors[&ticket]["ItemIndices"];
         let client=resource.as_array().unwrap().iter().find(|row|row["ItemIndex"]==ticket).unwrap();

@@ -1,23 +1,19 @@
-# Client migration and inspection tools
+# Client development tools
 
-The maintained source build is `python client/scripts/build/build_managed_client.py`.
-It does not invoke these tools.
-
-| Tool | Current use |
-| --- | --- |
-| `DllPatcher` | Legacy release builder, asset/data transformations, companion compilation and parity verifiers. Still called by the production release pipeline. |
-| `ManagedSource` | Recovery experiments, read-only metadata/IL inspection and assembly identity/resource verification. Used to validate source-built output. |
-
-The obsolete DllDisasm project was removed; use ManagedSource for inspection:
+`ManagedSource` reads .NET metadata with Mono.Cecil. It never loads or runs game
+code. Run it from `client/` so `global.json` selects the SDK.
 
 ```powershell
-dotnet run --project client/tools/ManagedSource -- inspect <assembly.dll> <full-type-name> [method-name]
+# IL of one type, optionally filtered by method name
+dotnet run --project tools/ManagedSource -- inspect <assembly.dll> <full-type-name> [method-name]
+
+# Types, fields, methods, attributes and references of every DLL in a folder
+dotnet run --project tools/ManagedSource -- inventory <managed-dir> <output.json>
+
+# Built DLLs keep the identity, references and embedded resources of a reference build
+dotnet run --project tools/ManagedSource -- verify-build <reference-managed-dir> <built-managed-dir>
 ```
 
-The game source compiles, but Unity serialization, gameplay and Linux-worker
-parity have not been accepted for release. Keep DllPatcher until its release
-responsibilities are migrated and validated. Source compilation does not replace
-asset cleanup, table/integrity generation, native packaging or signing.
-
-These tools target .NET 8 and have their own SDK selection. The maintained client
-and launcher use the SDK pinned in `client/global.json`.
+Use `inspect` to compare compiled output with a released DLL, and `inventory`
+on two builds to compare field layouts before a risky refactor of serialized
+types.

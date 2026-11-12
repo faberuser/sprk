@@ -2,18 +2,28 @@
 
 ## Repository layout
 
-The root Cargo workspace contains the Rust package in `server/`. Maintained
-managed source, launcher projects and asset overrides are in `client/`.
-Run build and orchestration commands from the repository root. Shared `tables/`,
-`config/`, documentation, CI and Docker orchestration files stay at root;
-generated builds stay in `target/` or `artifacts/`.
-Product scripts are grouped by purpose in `server/scripts/` and `client/scripts/`.
-Release scripts are in `client/scripts/release/`; container entrypoints are in
-`server/scripts/docker/`. Legacy patching and inspection tools live in
-`client/tools/`; the release pipeline still uses
-DllPatcher until the source build passes runtime parity.
+One repository holds the server and the client. Run every command from the
+repository root.
 
-## Shell and efficient DLL inspection
+| Path | Contents |
+| --- | --- |
+| `server/` | Rust server (`src/`), PostgreSQL `migrations/`, `tests/`, `gm.py`, `scripts/` |
+| `client/managed/` | Game (`Assembly-CSharp`) and SPRK feature assemblies (`Sprk*`) as C# source |
+| `client/launcher/` | Windows launcher and its tests |
+| `client/overrides/files/` | Optional replacement assets/tables, by client-relative path |
+| `client/scripts/` | `build/`, `release/`, `automation/`, `launcher/`, `android/` |
+| `client/tools/` | Read-only DLL inspection |
+| `client/legacy/` | Retired DLL patcher, kept for reference only. Never extend or run it for new work |
+| `tables/`, `config/` | Server game tables and shared configuration |
+| `docs/`, `.github/`, `Dockerfile*`, `docker-compose.yml` | Documentation, CI and container orchestration |
+
+Generated output goes to `target/` (Cargo, automation runs) or `artifacts/`
+(client builds); both are ignored. The installed game is a separate folder,
+normally `../sprk-client`. It holds the Unity player and assets, which are
+never source: only `Assembly-CSharp.dll` and `Sprk*.dll` are built here.
+See [client/README.md](client/README.md) and [the scripts inventory](docs/scripts.md).
+
+## Shell and efficient inspection
 
 - On Windows, prefer Git Bash when available for routine repository navigation,
   `git`, `rg`, and text inspection. Discover Git Bash from the local Git for
@@ -36,13 +46,13 @@ DllPatcher until the source build passes runtime parity.
   use native PowerShell cmdlets with `-LiteralPath`; verify resolved targets
   before recursive operations. Keep each file operation within one shell.
 - Reduce tool output: search scoped paths with `rg`, list candidate files before
-  reading them, and return relevant line ranges or matches. Avoid repeated full
-  file dumps and broad recursive scans of client assets.
-- Inspect managed DLLs with the repository's disassembly/patch tooling or an
-  appropriate .NET decompiler. Target the needed types/methods; do not dump raw
-  DLL bytes or entire assemblies into chat. Reuse local disassembly/decompilation
-  output when helpful, checking the source DLL hash to avoid stale results and
-  keeping generated output out of tracked source unless intentionally required.
+  reading them, and return relevant line ranges or matches. `client/managed`
+  has over 12,000 files; never scan or dump it broadly, and avoid recursive
+  scans of client assets.
+- Game code is source: read and search `client/managed` directly. Inspect a
+  compiled or third-party DLL only when needed, with `client/tools/ManagedSource`
+  ([usage](client/tools/README.md)); do not dump raw DLL bytes or whole
+  assemblies into chat.
 
 ## Database performance and diagnostics
 
@@ -52,41 +62,52 @@ handle the files as player data, load dumps only into a scratch container, run
 `server/scripts/database/db_diagnostics.py`, and fix the cause in server code with a
 regression test and before/after numbers.
 
-## Reproducible client changes and CI deployment
+## Changing the client
+
+- Change game behavior by editing C# under `client/managed`. A new feature
+  assembly is a new `client/managed/SprkName/SprkName.csproj` directory; the
+  build and release include it automatically.
+- `client/managed` is maintained source. Never regenerate it by decompiling a
+  DLL, and never patch a compiled DLL.
+- Unity serializes components by field declaration order and name. In classes
+  derived from `MonoBehaviour`/`ScriptableObject` and in `[Serializable]` types,
+  do not reorder, rename, retype or remove existing serialized fields; append
+  new ones at the end or mark them `[NonSerialized]`.
+- Keep assembly names, namespaces and type names that game assets, reflection
+  or the server's battle worker refer to.
+- Compile with `python client/scripts/build/build_managed_client.py`. It must
+  finish without errors before anything is installed or committed. The server
+  test `client_parallel_reads_are_server_observations` reads
+  `client/managed/SprkNetworkPerformance/SprkNetworkPerformance.cs`; keep its
+  `parallelReads` list a plain initializer.
+- Put a replacement table or asset, in its final form, under
+  `client/overrides/files/` using its client-relative path, with matching
+  `SPRK-Native*.json` integrity metadata when the changed data requires it.
+  Changes made only in `../sprk-client` or in ignored folders never reach CI.
+- `client/scripts/release/client_baseline.py` pins the published release that
+  supplies assets and runtime DLLs. Routine changes never touch it; use
+  `pin_client_baseline.py` only when deliberately adopting a newer release.
+- Verify behavior on the real client with
+  [client automation](docs/client-automation.md) where a change is user-visible:
+  it runs an isolated server and database. Never point a test client at the
+  public server; set `SPRK_HOST_URL` to the local `host.json` for manual runs.
+
+## CI and deployment
 
 Follow [GitHub client releases](docs/github-client-updates.md) for CI inputs,
 isolated validation, signing and deployment.
 
-- Keep client changes reproducible from tracked inputs. Implement DLL patches
-  and embedded resources under `client/tools/DllPatcher`; new patches and their
-  verifiers must run through its full build path (`--build-release`, including
-  `BuildRelease.cs`). Existing patch fixes use their existing calls. Track any
-  additional transformation tools and invoke them from the release build.
-- Put replacement tables/assets under `client/overrides/files/` using
-  client-relative paths. Include matching `SPRK-Native*.json` integrity metadata
-  whenever the changed data requires it. Changes only in `../sprk-client` or
-  ignored local release folders do not become CI inputs automatically.
-- Routine patches do not require a baseline change, a manual CI release version,
-  or `client-build.json`. `client/scripts/release/client_baseline.py` pins the fixed distributed
-  snapshot; use the baseline preparation tool only when deliberately replacing
-  that snapshot.
-- Preserve complete telemetry cleanup. The Python release builder and
-  `client/scripts/legacy/patch.ps1` run `client/scripts/legacy/remove_client_telemetry.py` before full DLL
-  patching, while original type definitions are available for serialized asset
-  cleanup. Keep its dependencies in `client/scripts/requirements-client.txt`. Managed
-  DLL stripping alone does not replace the serialized asset and SDK cleanup.
-- For explicitly source-only work or CI/build-tool changes that do not install
-  client assets, validate relevant checks in a fresh isolated workspace. For a
-  complete signed build use `client/scripts/release/build_client_release.py` without
-  `--publish`, with a unique work path/version and the existing signing key.
-  Do not change the installed client or normal local stable manifest for that
-  validation. Report that no installed-client release was generated. This does
-  not waive the local release requirement below when installed files change.
 - The normal deployment path is commit to `development`, PR, then merge to
-  `main`. GitHub-hosted runners build, verify, sign and publish the client update,
-  push the matching server image to GHCR, and trigger Portainer. No routine
-  SFTP upload or SSH deployment step is needed. A local signed release alone
-  does not publish a GitHub release or deploy the host.
+  `main`. GitHub-hosted runners compile the client source, sign and publish the
+  client update, push the matching server image to GHCR, and trigger Portainer.
+  No routine SFTP upload or SSH deployment step is needed. A local signed release
+  alone does not publish a GitHub release or deploy the host.
+- For source-only work or CI/build-tool changes that do not install client
+  files, validate with
+  `python client/scripts/release/build_client_release.py --work <new folder> --version <unique id> --check-only`.
+  It builds the complete release with a throwaway key and changes neither the
+  installed client nor the local stable manifest. Report that no
+  installed-client release was generated.
 - The updates container downloads only its image-pinned client release at
   startup, verifies it before activation, and keeps the active release plus two
   previous releases. Preserve startup-only pinning so older server code cannot
@@ -95,24 +116,24 @@ isolated validation, signing and deployment.
 
 ## Required client update after client changes
 
-When a task changes installed game client code, DLLs, TableData, TableJit,
-LocalizationJit or other launcher-managed assets, **generate a new signed client
-update before reporting the task complete**. Updating patcher source alone does
-not update the installed client. Apply and verify the intended patch first, then
-publish the actual resulting client files. The user's request to implement a
-client change includes authorization to generate its local update artifacts;
-do not ask for separate permission to run the local publisher.
+When a task changes the installed game client (compiled DLLs, TableData,
+TableJit, LocalizationJit or other launcher-managed assets), **generate a new
+signed client update before reporting the task complete**. Editing source alone
+does not update the installed client. Build and install first, then publish the
+actual resulting client files. The user's request to implement a client change
+includes authorization to generate its local update artifacts; do not ask for
+separate permission to run the local publisher.
 
-Use the existing workflow described in [docs/client-updates.md](docs/client-updates.md):
+Use the workflow described in [docs/client-updates.md](docs/client-updates.md):
 
-1. Run commands from the `sprk-server` repository root. The installed client is
-   normally `../sprk-client`; confirm it exists before patching.
-2. Preserve existing client patches. Use the appropriate focused patch mode and
-   validate the final installed files. The user authorizes closing the local
-   server and King's Raid client when patching or validation requires it;
-   no separate confirmation is needed. Never publish the unchanged client as if the staged fix were
-   installed. If the user requests source-only or stage-only work, respect that
-   scope and explicitly report that no installed-client release was generated.
+1. The installed client is normally `../sprk-client`; confirm it exists.
+2. Build and install with
+   `python client/scripts/build/build_managed_client.py --install ../sprk-client`,
+   then validate the installed client. The user authorizes closing the local
+   server and King's Raid client when installation or validation requires it;
+   no separate confirmation is needed. Never publish the unchanged client as if
+   the change were installed. If the user requests source-only work, respect
+   that scope and explicitly report that no installed-client release was generated.
 3. Choose a **new, unique** release identifier such as
    `local-YYYYMMDD-description`, using the user's local date. Add a time or numeric
    suffix when necessary. Inspect `client-updates/releases` and the current
@@ -124,17 +145,16 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
     python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --channel stable --version <new-release-id> --signing-key client-updates/update-signing/private.pem
     ```
 
-    Replace `<new-release-id>` with the chosen identifier. The publisher creates
-    `client-updates/releases/<new-release-id>/` and updates
+    The publisher creates `client-updates/releases/<new-release-id>/` and updates
     `client-updates/stable/manifest.json` atomically.
 
-5. Preserve the managed file selection across releases. Normally use the default
-   includes. If modifying additional assets, inspect the publisher's
-   `DEFAULT_INCLUDES` and the previous manifest, then supply **all** required
-   includes plus the extra assets. Repeated `--include` arguments replace defaults;
-   publishing only the changed DLL would mark other managed files for deletion.
-   Review `deleted_files` and ensure deletions are intentional. A complete managed
-   snapshot is expected; the launcher downloads only changed or missing files.
+5. Use the default selection. It keeps every file the previous release managed
+   that still exists in the client, so nothing is dropped by accident. Repeated
+   `--include` arguments replace the defaults and publish only that scope, which
+   marks every other managed file for deletion. The publisher snapshots the
+   installed client: compare the new manifest with the previous one
+   (added, removed, changed, `deleted_files`) and confirm every difference
+   belongs to this task.
 6. Verify that the stable and release manifests match, the signature verifies
    with the tracked `config/client-update-public.pem`, and each release file matches
    its manifest size and SHA-256 hash. Confirm the changed installed files appear
@@ -142,7 +162,7 @@ Use the existing workflow described in [docs/client-updates.md](docs/client-upda
 7. In the final response report the generated release ID, checks performed, and
    any restart needed. Distinguish the local installed-client release from a
    published GitHub release and a completed Portainer deployment. Public rollout
-   normally uses the tracked inputs and CI path above. If the user explicitly
+   uses the tracked inputs and CI path above. If the user explicitly
    requests manual hosting, identify the release folder and updated
    `stable/manifest.json` to upload; do not claim a deployment from local
    artifact creation alone.
@@ -154,5 +174,5 @@ blocker and what remains unfinished. Keep existing releases available and do not
 delete unrelated work or artifacts.
 
 Server-only or documentation-only changes do not require a client release unless
-they also change installed client files. Batch related patches in one task into
+they also change installed client files. Batch related changes in one task into
 one final verified release unless the user requests separate releases.

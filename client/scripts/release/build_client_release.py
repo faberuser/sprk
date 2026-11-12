@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build a signed client release in an isolated workspace from pinned CI inputs."""
+"""Build a signed client release in an isolated workspace from tracked inputs.
+
+Pinned published release (assets and runtime DLLs) + client/overrides/files
++ assemblies compiled from client/managed = a complete signed update.
+"""
 import argparse
 from contextlib import contextmanager
 import hashlib
@@ -22,6 +26,7 @@ from client.scripts.release.publish_client_update import IDENTIFIER, find_openss
 from client.scripts.release.client_update_bundle import package, verified_manifest
 from client.scripts.release.client_baseline import BASELINE
 from client.scripts.release.client_release_inputs import fingerprint
+from client.scripts.build.build_managed_client import MANAGED, compile_managed
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -48,7 +53,12 @@ def file_hash(path):
     return digest.hexdigest()
 
 
-def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path) -> dict:
+def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path) -> bytes:
+    """Unpack a pinned, signed client release and return its raw manifest.
+
+    The baseline supplies everything that is not compiled here: tables, asset
+    bundles, Unity data files and the runtime DLLs the source compiles against.
+    """
     if not re.fullmatch(r"[0-9a-f]{64}", sha256) or file_hash(archive) != sha256:
         raise ValueError("Baseline archive does not match its pinned SHA-256")
     if client.exists():
@@ -58,23 +68,20 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
         members = bundle.getmembers()
         if len({member.name for member in members}) != len(members) or not all(m.isfile() for m in members):
             raise ValueError("Baseline must contain unique regular files only")
-        metadata_entry = bundle.getmember("baseline.json")
-        if metadata_entry.size > 8 * 1024**2:
-            raise ValueError("Baseline metadata too large")
-        metadata = json.load(bundle.extractfile(metadata_entry))
-        if metadata["schema_version"] != 1:
-            raise ValueError("Unsupported baseline schema")
-        previous = metadata["previous_manifest"]
-        verified_manifest(json.dumps(previous).encode(), public_key)
+        entry = bundle.getmember("manifest.json")
+        if entry.size > 8 * 1024**2:
+            raise ValueError("Baseline manifest too large")
+        raw = bundle.extractfile(entry).read()
+        manifest = verified_manifest(raw, public_key)
         expected = {}
         casefolded = set()
-        for item in metadata["files"]:
+        for item in manifest["files"]:
             relative = safe_path(item["path"])
             if relative.lower() in casefolded:
                 raise ValueError("Duplicate baseline file")
             casefolded.add(relative.lower())
             expected["files/" + relative] = item
-        if set(expected) | {"baseline.json"} != {m.name for m in members}:
+        if set(expected) | {"manifest.json"} != {m.name for m in members}:
             raise ValueError("Baseline has missing or unexpected files")
         for name, item in expected.items():
             member = bundle.getmember(name)
@@ -86,13 +93,20 @@ def extract_baseline(archive: Path, client: Path, sha256: str, public_key: Path)
                 shutil.copyfileobj(source, output)
             if file_hash(target) != item["sha256"]:
                 raise ValueError(f"Baseline file hash mismatch: {item['path']}")
-        # Preserve every previously managed file. The baseline hash also pins
-        # support data added from signed baked metadata at preparation time.
-        for item in previous["files"]:
-            seed = expected.get("files/" + item["path"])
-            if not seed or (seed["sha256"], seed["size"]) != (item["sha256"], item["size"]):
-                raise ValueError("Baseline does not preserve the signed distribution")
-    return metadata
+    return raw
+
+
+def install_managed(client: Path, work: Path) -> list[str]:
+    """Compile client/managed against the baseline's runtime DLLs and install the result."""
+    managed = client / MANAGED
+    outputs = compile_managed(managed, work)
+    # A helper project deleted from source must not keep shipping its old DLL.
+    for stale in sorted(managed.glob("Sprk*.dll")):
+        if stale.stem not in outputs:
+            stale.unlink()
+    for path in outputs.values():
+        shutil.copyfile(path, managed / path.name)
+    return sorted(outputs)
 
 
 def apply_overrides(source: Path, client: Path) -> list[str]:
@@ -157,24 +171,18 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
     client = work / "client"
     inputs_hash = fingerprint(REPO)
     with phase("Extract and verify baseline"):
-        metadata = extract_baseline(baseline, client, BASELINE["sha256"], public_key)
+        baseline_manifest = extract_baseline(baseline, client, BASELINE["sha256"], public_key)
         apply_overrides(REPO / "client/overrides/files", client)
-    tools = work / "tools"
-    with phase("Compile patcher"):
-        subprocess.run(["dotnet", "build", str(REPO / "client/tools/DllPatcher"), "--configuration", "Release", "--output", str(tools)], check=True)
-    with phase("Remove and verify telemetry"):
-        subprocess.run([sys.executable, str(REPO / "client/scripts/legacy/remove_client_telemetry.py"),
-                        str(client), "--patcher", str(tools / "DllPatcher.dll")], check=True)
-    with phase("Patch and verify client"):
-        subprocess.run(["dotnet", str(tools / "DllPatcher.dll"), str(client), "--build-release"], check=True)
+    with phase("Compile game and helper assemblies"):
+        assemblies = install_managed(client, work / "managed")
+        print(f"Installed {len(assemblies)} source-built assemblies")
     output = work / "updates"
     (output / "stable").mkdir(parents=True)
-    previous = previous or (json.dumps(metadata["previous_manifest"]) + "\n").encode()
+    previous = previous or baseline_manifest
     verified_manifest(previous, public_key)
     (output / "stable/manifest.json").write_bytes(previous)
-    # The isolated client contains only baseline + override + patcher output.
-    # Include new assets automatically, and let the publisher carry removals
-    # forward when patcher code deletes an obsolete file.
+    # The isolated client contains only baseline + overrides + compiled code.
+    # Include new files automatically; the publisher carries removals forward.
     includes = managed_build_files(client)
     if fingerprint(REPO) != inputs_hash:
         raise ValueError("Client build inputs changed during the build")
@@ -203,7 +211,7 @@ def main():
     args = parser.parse_args()
     if args.check_only and (args.publish or args.signing_key):
         parser.error("--check-only cannot be combined with --publish or --signing-key")
-    # Do not propagate the private key's environment value to patcher processes.
+    # Do not propagate the private key's environment value to build processes.
     secret = os.environ.pop("CLIENT_UPDATE_SIGNING_KEY", None)
     with tempfile.TemporaryDirectory(prefix="sprk-client-ci-") as temporary:
         temporary = Path(temporary)
@@ -233,7 +241,7 @@ def main():
             with phase("Upload and publish release"):
                 subprocess.run(["gh", "release", "create", tag, str(archive), str(manifest), "--repo", args.repo,
                                 "--target", os.environ["GITHUB_SHA"], "--draft", "--title", f"Client {args.version}",
-                                "--notes", f"Built from server/patcher commit {os.environ['GITHUB_SHA']}."], check=True)
+                                "--notes", f"Built from commit {os.environ['GITHUB_SHA']}."], check=True)
                 subprocess.run(["gh", "release", "edit", tag, "--repo", args.repo, "--draft=false", "--latest=false"], check=True)
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as output:

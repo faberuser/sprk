@@ -237,7 +237,7 @@ def native_input(pid, action, x=0, y=0, key="ESC"):
 def launch(args):
     client = Path(args.client).resolve()
     if not (client / "King's Raid_Data/Managed/SprkAutomation.dll").exists():
-        raise RuntimeError("Install --automation-only with DllPatcher first")
+        raise RuntimeError("SprkAutomation.dll is missing; build and install the client first (client/scripts/build/build_managed_client.py --install)")
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
     root = RUNS / stamp
     root.mkdir(parents=True)
