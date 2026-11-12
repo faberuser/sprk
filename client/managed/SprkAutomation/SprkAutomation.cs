@@ -1033,6 +1033,11 @@ public sealed class SprkAutomation : MonoBehaviour
 				StartCoroutine(ProbeTowerContinuous(command));
 				return;
 			}
+			if (command.action == "archive-dialogue-probe")
+			{
+				ProbeArchiveDialogue(command);
+				return;
+			}
 			if (command.action == "native-stop-cycle")
 			{
 				if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" || command.target < 0 || command.target > 10)
@@ -3463,6 +3468,86 @@ public sealed class SprkAutomation : MonoBehaviour
 			}
 			busy = false;
 		}
+		Write(reply);
+	}
+
+	private void ProbeArchiveDialogue(Command cmd)
+	{
+		if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Login" ||
+			!(Environment.GetEnvironmentVariable("SPRK_AUTOMATION_PROFILE") ?? "").StartsWith("archive-dialogue-"))
+		{
+			throw new InvalidOperationException("Archive dialogue probe requires an isolated archive-dialogue profile at Login");
+		}
+		const string relative = "PlainAsset/Text/CutScene/HeroDungeon/RebelClause/RebelClause_9_1.bjs";
+		string path = string.IsNullOrEmpty(cmd.text)
+			? Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows", relative)
+			: Path.GetFullPath(cmd.text);
+		LitJson.JsonData json = PlainAssetHelper.LoadLitJsonFromJsonBin(File.ReadAllBytes(path), path, encrypted: false);
+		CutSceneManager manager = SceneAutoBehaviour<CutSceneManager>.instance;
+		bool loaded = (bool)typeof(CutSceneManager).GetMethod("LoadFromJson", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(manager, new object[] { json });
+		if (!loaded || manager.GroupList.Count != 31)
+		{
+			throw new InvalidOperationException("Rebel Clause 9-1 scene is missing or invalid; expected 31 script groups");
+		}
+		SingletonAuto<NClientData.LocalizationLoader>.instance.SetEnableLoadFromPatch(enableLoad: true);
+		var dialogue = manager.GroupList.SelectMany(group => group.ScriptList)
+			.Select(script => script.Value).OfType<NGame2.NCutScene.NScript.DisplayText>()
+			.Where(line => !string.IsNullOrEmpty(line.TextLink.Key)).ToArray();
+		if (dialogue.Length != 14 || cmd.target < 0 || cmd.target >= dialogue.Length)
+		{
+			throw new InvalidOperationException("Expected 14 Rebel Clause 9-1 dialogue lines and a valid line index");
+		}
+		foreach (var line in dialogue)
+		{
+			if (!line.TextLink.IsValid() || string.IsNullOrEmpty(line.TextLink.GetLocalize()) ||
+				(!string.IsNullOrEmpty(line.TitleLink.Key) && !line.TitleLink.IsValid()))
+			{
+				throw new InvalidOperationException("Unresolved archive dialogue localization: " + line.TextLink.Key);
+			}
+		}
+		// This isolated Login fixture needs the same installed-asset index as a
+		// logged-in scene so the native CutScene atlas can be loaded normally.
+		if (!NGameAsset.Define.PatchDownloaded)
+		{
+			TableRoot.Instance.SetPatchDownLoadComplete(isComplete: true);
+			string patch = Path.Combine(Application.dataPath, "Documents/Patch/StandaloneWindows");
+			var assets = new Dictionary<string, AssetInfo>();
+			MethodInfo setEntry = typeof(AssetInfo).GetProperty("EntryName").GetSetMethod(nonPublic: true);
+			foreach (string file in Directory.GetFiles(Path.Combine(patch, "Assetbundle"), "*", SearchOption.AllDirectories))
+			{
+				string entry = file.Substring(patch.Length + 1).Replace('\\', '/');
+				var info = new AssetInfo();
+				setEntry.Invoke(info, new object[] { entry });
+				assets.Add(entry, info);
+			}
+			SingletonAuto<AssetFileManager>.instance.Setup(assets);
+			typeof(UnityCache).GetProperty("persistentDataPath").GetSetMethod(nonPublic: true).Invoke(null, new object[] { Application.dataPath });
+			_ = SingletonAuto<BundleManager>.instance;
+			if (!JsonRead.CreateRoot(File.ReadAllBytes(Path.Combine(patch, "Assetbundle/BundlePack.bin")), out var pack))
+			{
+				throw new InvalidOperationException("Installed bundle index is unavailable");
+			}
+			SingletonUpdater<LoaderPlaying>.instance.InfoContainer.LoadFromJson(pack["BundleFileInfo"]);
+			NGameAsset.Define.PatchDownloaded = true;
+		}
+		CommonManagement common = SceneAutoBehaviour<CommonManagement>.instance;
+		var window = common.GetInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>();
+		if (window == null)
+		{
+			common.AddInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>(NGame2.NUI.NWindow.NCutScene.CutSceneWindow.PrefabPath, NGame2.GameUIRoot.ELayerType.CutSceneUI);
+			window = common.GetInstance<NGame2.NUI.NWindow.NCutScene.CutSceneWindow>();
+		}
+		var selected = dialogue[cmd.target];
+		window.OpenWindow();
+		window.Show(true);
+		window.HideTitle(selected.HideTitle);
+		window.SetText(selected.TitleLink.GetLocalize(), selected.TextLink.GetLocalize());
+		if (window.TitleLabel.text == "Empty" || string.IsNullOrEmpty(window.TextLabel.text))
+		{
+			throw new InvalidOperationException("Restored archive dialogue was not assigned to the native window");
+		}
+		Reply reply = Snapshot(cmd.id);
+		reply.materials.Add("PASS: Rebel Clause 9-1 parsed 31 groups; all 14 dialogue lines and speaker keys resolve; native dialogue window displays line " + cmd.target);
 		Write(reply);
 	}
 
