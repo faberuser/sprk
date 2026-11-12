@@ -22,7 +22,7 @@ import time
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, publish, safe_path
+from client.scripts.release.publish_client_update import IDENTIFIER, find_openssl, ignored, is_unmanaged, load_unmanaged, publish, safe_path
 from client.scripts.release.client_update_bundle import package, verified_manifest
 from client.scripts.release.client_baseline import BASELINE
 from client.scripts.release.client_release_inputs import fingerprint
@@ -184,11 +184,15 @@ def build(baseline: Path, work: Path, version: str, signing_key: Path,
     # The isolated client contains only baseline + overrides + compiled code.
     # Include new files automatically; the publisher carries removals forward.
     includes = managed_build_files(client)
+    unmanaged = load_unmanaged()
+    skipped = sum(1 for path in includes if is_unmanaged(path, unmanaged))
+    if skipped:
+        print(f"Leaving {skipped} files out of the release (client/scripts/release/unmanaged_files.txt)")
     if fingerprint(REPO) != inputs_hash:
         raise ValueError("Client build inputs changed during the build")
     with phase("Create and sign managed snapshot"):
         manifest = publish(client, output, version, "stable", includes, signing_key,
-                           build_inputs_sha256=inputs_hash)
+                           build_inputs_sha256=inputs_hash, unmanaged=unmanaged)
     release = output / "releases" / version
     if (release / "manifest.json").read_bytes() != (output / "stable/manifest.json").read_bytes():
         raise ValueError("Published manifests do not match")

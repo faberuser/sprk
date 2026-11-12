@@ -198,6 +198,17 @@ Use a new version name every time. The default selection keeps every file the
 previous release managed. See [client updates](../docs/client-updates.md),
 including unsigned publishing for contributors without the signing key.
 
+### Files releases no longer manage
+
+`scripts/release/unmanaged_files.txt` lists client files that releases stop
+managing. A listed file is left out of every new release but is **not** marked
+deleted, so the launcher leaves each player's existing copy alone; it just can
+no longer update or repair it. Use it to keep big, finished assets (for
+example restored models or login backgrounds) out of every release once all
+players and the current client ZIP have them. The file explains the conditions,
+including running the native battle tests first, because the server's battle
+worker is built from the release too. Remove a line to manage a file again.
+
 ### New players
 
 New players still need a complete game folder (the client). Any recent one

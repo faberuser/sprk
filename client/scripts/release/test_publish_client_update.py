@@ -6,11 +6,11 @@ import unittest
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from client.scripts.release.publish_client_update import DEFAULT_INCLUDES, publish
+from client.scripts.release.publish_client_update import DEFAULT_INCLUDES, UNMANAGED_LIST, load_unmanaged, publish
 
 
-class CarriedFilePublishingTests(unittest.TestCase):
-    """Files outside the default selection stay managed once a release contains them."""
+class ClientFixture(unittest.TestCase):
+    """A minimal client with the default selection and one extra asset file."""
 
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="sprk-carried-publish-")
@@ -32,6 +32,11 @@ class CarriedFilePublishingTests(unittest.TestCase):
 
     def publish(self, version, includes, **kwargs):
         return publish(self.client, self.root / "updates", version, "stable", includes, **kwargs)
+
+
+
+class CarriedFilePublishingTests(ClientFixture):
+    """Files outside the default selection stay managed once a release contains them."""
 
     def test_default_selection_keeps_previously_managed_files(self):
         first = self.publish("first", DEFAULT_INCLUDES + [self.relative])
@@ -59,6 +64,50 @@ class CarriedFilePublishingTests(unittest.TestCase):
         self.publish("first", DEFAULT_INCLUDES + [self.relative])
         manifest = self.publish("partial", ["King's Raid_Data/Managed"])
         self.assertEqual({f["path"] for f in manifest["files"]}, {"King's Raid_Data/Managed/fixture.dll"})
+
+
+
+class UnmanagedFileTests(ClientFixture):
+    """Files a release stops managing are left out without being deleted on players' machines."""
+
+    def test_unmanaged_file_leaves_the_release_without_a_deletion(self):
+        self.publish("first", DEFAULT_INCLUDES + [self.relative])
+        manifest = self.publish("second", DEFAULT_INCLUDES, unmanaged=[self.relative])
+        self.assertNotIn(self.relative, {f["path"] for f in manifest["files"]})
+        self.assertNotIn(self.relative, manifest["deleted_files"])
+        self.assertTrue(self.extra.is_file())
+        # Later releases do not pick it up again, and still never delete it.
+        later = self.publish("third", DEFAULT_INCLUDES, unmanaged=[self.relative])
+        self.assertNotIn(self.relative, {f["path"] for f in later["files"]})
+        self.assertNotIn(self.relative, later["deleted_files"])
+
+    def test_folder_entries_cover_everything_inside(self):
+        folder = self.relative.rsplit("/", 1)[0] + "/"
+        self.publish("first", DEFAULT_INCLUDES + [self.relative])
+        manifest = self.publish("second", DEFAULT_INCLUDES + [self.relative], unmanaged=[folder])
+        self.assertNotIn(self.relative, {f["path"] for f in manifest["files"]})
+        self.assertNotIn(self.relative, manifest["deleted_files"])
+        self.assertIn("King's Raid_Data/Managed/fixture.dll", {f["path"] for f in manifest["files"]})
+
+    def test_an_earlier_deletion_is_withdrawn_once_unmanaged(self):
+        self.publish("first", DEFAULT_INCLUDES + [self.relative])
+        self.assertIn(self.relative, self.publish("second", DEFAULT_INCLUDES, deleted_files=[self.relative])["deleted_files"])
+        self.assertNotIn(self.relative, self.publish("third", DEFAULT_INCLUDES, unmanaged=[self.relative])["deleted_files"])
+
+    def test_deleting_and_unmanaging_the_same_file_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "both delete and stop managing"):
+            self.publish("first", DEFAULT_INCLUDES, deleted_files=[self.relative], unmanaged=[self.relative])
+
+    def test_list_parsing_and_the_tracked_list(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "list.txt"
+            path.write_text("# comment\n\nKing's Raid_Data/a.bin\nKing's Raid_Data/Video/\n", encoding="utf-8")
+            self.assertEqual(load_unmanaged(path), ["King's Raid_Data/a.bin", "King's Raid_Data/Video/"])
+            path.write_text("../outside.bin\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_unmanaged(path)
+            self.assertEqual(load_unmanaged(Path(folder) / "missing.txt"), [])
+        load_unmanaged(UNMANAGED_LIST)  # the tracked list must always parse
 
 
 if __name__ == "__main__":

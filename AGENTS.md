@@ -115,6 +115,11 @@ this repository. The Unity player, assets and tables are never source.
 - `client/scripts/release/client_baseline.py` pins the published release that
   supplies assets and runtime DLLs. Change it only with `pin_client_baseline.py`
   when deliberately adopting a newer release.
+- `client/scripts/release/unmanaged_files.txt` keeps files out of releases
+  without deleting players' copies. Add entries only when the user asks and the
+  conditions in that file are met (including the native battle tests). Never
+  remove a managed file from releases any other way: dropping it from the
+  release otherwise marks it deleted and every launcher removes it.
 
 ## CI and deployment
 

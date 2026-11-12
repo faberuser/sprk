@@ -132,6 +132,12 @@ deletion forward relative to the previous signed release. Local hosting keeps
 the active release plus two previous releases; downloads of a pruned release
 must restart using the current stable manifest.
 
+Paths listed in `client/scripts/release/unmanaged_files.txt` are left out of
+every release without being marked deleted, so players keep their copies but
+the launcher no longer updates or repairs them. Both CI and the local publisher
+read the list; the CI log reports how many files it kept out. See the list file
+for when a file may be added.
+
 ## Local validation and recovery
 
 Run a complete local build without modifying the installed client:

@@ -27,6 +27,7 @@ DEFAULT_INCLUDES = [
     "King's Raid_Data/Documents/Patch/StandaloneWindows/LocalizationJit",
     "King's Raid_Data/Documents/Patch/StandaloneWindows/Video",
 ]
+UNMANAGED_LIST = Path(__file__).with_name("unmanaged_files.txt")
 IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -40,6 +41,24 @@ def safe_path(value: str) -> str:
     ):
         raise ValueError(f"Unsafe client-relative path: {value!r}")
     return PurePosixPath(value).as_posix()
+
+
+def load_unmanaged(path: Path = UNMANAGED_LIST) -> list[str]:
+    """Paths releases stop managing without deleting players' copies (see the list file)."""
+    if not path.is_file():
+        return []
+    entries = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        folder = line.endswith("/")
+        entries.append(safe_path(line.rstrip("/")) + ("/" if folder else ""))
+    return entries
+
+
+def is_unmanaged(path: str, unmanaged) -> bool:
+    return any(path == entry or (entry.endswith("/") and path.startswith(entry)) for entry in unmanaged)
 
 
 def ignored(path: Path) -> bool:
@@ -132,7 +151,7 @@ def sign_manifest(manifest: dict, private_key: Path) -> dict:
     }}
 
 
-def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None) -> dict:
+def publish(client: Path, output: Path, version: str, channel: str, includes: list[str], signing_key: Path | None = None, deleted_files: list[str] | None = None, build_inputs_sha256: str | None = None, unmanaged: list[str] | None = None) -> dict:
     if not IDENTIFIER.fullmatch(version) or not IDENTIFIER.fullmatch(channel) or channel.lower() == "releases":
         raise ValueError("Version/channel must start with a letter or digit and contain only letters, digits, '.', '_', '-' (max 128 characters); channel cannot be 'releases'")
     client = client.resolve(strict=True)
@@ -145,6 +164,7 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
     privacy = json.loads(privacy_path.read_text(encoding="utf-8")) if privacy_path.exists() else {}
     if privacy and privacy.get("schema_version") != 1:
         raise ValueError("Unsupported client privacy policy schema")
+    unmanaged = load_unmanaged() if unmanaged is None else unmanaged
     output.mkdir(parents=True, exist_ok=True)
     # Serialize publishers so two releases cannot race to replace a channel.
     lock = output / ".publish-lock"
@@ -164,6 +184,9 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
         removed = {safe_path(path) for path in previous.get("deleted_files", [])}
         explicit_removals = {safe_path(path) for path in (deleted_files or []) + privacy.get("deleted_files", [])}
         removed.update(explicit_removals)
+        conflicts = sorted(path for path in explicit_removals if is_unmanaged(path, unmanaged))
+        if conflicts:
+            raise ValueError("Cannot both delete and stop managing: " + ", ".join(conflicts))
         selected = complete_snapshot_includes(client, includes, previous_files, explicit_removals)
         # Native table migrations update their integrity metadata alongside the JIT
         # files. Keep it in subsequent releases too, even when using default includes.
@@ -173,7 +196,11 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 selected.append(path)
         if privacy:
             selected += privacy.get("required_files", []) + ["King's Raid_Data/sprk-privacy.json"]
-        sources = collect_files(client, selected)
+        # Unmanaged files leave the release but are never marked deleted.
+        sources = [source for source in collect_files(client, selected)
+                   if not is_unmanaged(source.relative_to(client).as_posix(), unmanaged)]
+        if not sources:
+            raise ValueError("No client files were selected")
         with tempfile.TemporaryDirectory(prefix=".publish-", dir=output) as staging_name:
             staging = Path(staging_name)
             snapshot = staging / "release"
@@ -195,7 +222,8 @@ def publish(client: Path, output: Path, version: str, channel: str, includes: li
                 "channel": channel,
                 "published_at": datetime.now(timezone.utc).isoformat(),
                 "files": files,
-                "deleted_files": sorted((removed | (previous_files - current_files)) - current_files),
+                "deleted_files": sorted(path for path in (removed | (previous_files - current_files)) - current_files
+                                        if not is_unmanaged(path, unmanaged)),
             }
             if signing_key is not None:
                 if build_inputs_sha256 is not None:
@@ -229,9 +257,12 @@ def main() -> None:
     parser.add_argument("--include", action="append", help="Client-relative file/directory; repeat to replace the default selection")
     parser.add_argument("--signing-key", type=Path, help="RSA private key PEM; use for hosted launcher updates")
     parser.add_argument("--delete", action="append", help="Client-relative obsolete file to remove, including files not previously managed; repeat as needed")
+    parser.add_argument("--unmanaged-list", type=Path, default=UNMANAGED_LIST,
+                        help="Files releases stop managing without deleting them (default: unmanaged_files.txt next to this script)")
     args = parser.parse_args()
     try:
-        manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES, args.signing_key, args.delete)
+        manifest = publish(args.client, args.output, args.version, args.channel, args.include or DEFAULT_INCLUDES, args.signing_key, args.delete,
+                           unmanaged=load_unmanaged(args.unmanaged_list))
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         parser.exit(1, f"Publish failed: {error}\n")
     size = sum(item["size"] for item in manifest["files"])
