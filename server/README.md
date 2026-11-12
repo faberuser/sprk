@@ -59,12 +59,18 @@ Before the first start:
 - **Database.** Nothing to do: unless `DATABASE_URL` is set, the script runs
   PostgreSQL in the Docker container `sprk-postgres-local` on `127.0.0.1:54320`,
   with its data in the volume of the same name.
-- **Client update.** The update service needs a published release in
-  `client-updates/stable/manifest.json`. Publish one from your game folder
-  ([details](../docs/client-updates.md)):
+- **Client update.** Nothing to do on a fresh clone: when
+  `client-updates/stable/manifest.json` does not exist, the first start
+  downloads the newest published client release from GitHub (about 400 MB),
+  verifies its signature with `config/client-update-public.pem` and serves it.
+  The launcher's **Local** profile accepts it as is. Later starts reuse the
+  local copy and never replace existing local releases. Set
+  `SPRK_UPDATES_GITHUB_REPO` (default `faberuser/sprk`) to use a fork.
+- **Your own client changes.** To serve DLLs you built and installed, publish a
+  local release from your game folder ([details](../docs/client-updates.md)):
 
   ```powershell
-  python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-1
+  python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-YYYYMMDD-name
   ```
 
   Without the project's signing key this release is unsigned. The launcher
@@ -74,11 +80,12 @@ Before the first start:
   `--signing-key client-updates/update-signing/private.pem`.
 - **Second checkout or worktree.** `client-updates/`, `.env` and
   `conquest-service.*` are local files that Git ignores, so a new checkout starts
-  without them. Link the existing update store instead of publishing again
-  (it is large and holds the signing key):
+  without them and downloads the release again. To keep one shared set of local
+  releases (and the signing key), link the existing folder instead:
   `New-Item -ItemType Junction -Path client-updates -Target <other checkout>\client-updates`.
 - **Optional settings.** Copy `.env.example` to `.env`. The script reads
-  `SPRK_GM_KEY`, `DATABASE_URL` and `SPRK_LOCAL_DB_PORT` from it.
+  `SPRK_GM_KEY`, `DATABASE_URL`, `SPRK_LOCAL_DB_PORT` and
+  `SPRK_UPDATES_GITHUB_REPO` from it.
 
 Useful database commands:
 

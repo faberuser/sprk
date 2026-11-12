@@ -63,7 +63,7 @@ class NativeBattleReleaseSelectionTests(unittest.TestCase):
             output = Path(directory) / "output"
             with patch.dict(os.environ, RELEASE_REPOSITORY="owner/repo", GITHUB_OUTPUT=str(output)), \
                     patch("subprocess.check_output", return_value=json.dumps(releases).encode()) as request:
-                latest_client_release.main()
+                latest_client_release.main([])
                 request.assert_called_once_with(["gh", "api", "repos/owner/repo/releases?per_page=100"])
             return output.read_text()
 
@@ -94,6 +94,18 @@ class NativeBattleReleaseSelectionTests(unittest.TestCase):
                 dict(name="client-update.tar.gz", state="new")]),
             self.release("client-invalid\nvalue", "2026-10-25T08:00:00Z"),
         ]), "tag=client-new\n")
+
+    def test_local_lookup_uses_the_public_api_and_validates_the_repository(self):
+        from client.scripts.release import latest_client_release
+        with patch("urllib.request.urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value.read.return_value = json.dumps(
+                [self.release("client-new", "2026-10-24T08:00:00Z")]).encode()
+            with patch("builtins.print") as printed:
+                latest_client_release.main(["--repo", "owner/repo"])
+            printed.assert_called_once_with("client-new")
+            self.assertIn("repos/owner/repo/releases", urlopen.call_args[0][0].full_url)
+        with self.assertRaises(SystemExit):
+            latest_client_release.releases_from_api("not a repo")
 
     def test_missing_client_release_fails_instead_of_skipping_native_checks(self):
         with self.assertRaisesRegex(SystemExit, "No complete published client release"):

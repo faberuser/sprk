@@ -74,7 +74,10 @@ this repository. The Unity player, assets and tables are never source.
   `SPRK_TEST_POSTGRES_URL=<server with CREATEDB> cargo test --locked`
   (see [server/README.md](server/README.md)). Add a regression test for each fix.
 - The local stack is `start_server.bat` (database in the Docker container
-  `sprk-postgres-local`, game on 8080, updates on 8081, GM on 8082).
+  `sprk-postgres-local`, game on 8080, updates on 8081, GM on 8082). When
+  `client-updates/stable/manifest.json` is missing, its first start downloads
+  and verifies the newest published client release from GitHub; it never
+  replaces existing local releases.
 - For a game log, database dump, diagnostics report or a slow, failing or
   locking server, follow [the database guide](docs/database-diagnostics.md):
   treat the files as player data, load dumps only into a scratch container,

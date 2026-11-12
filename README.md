@@ -248,6 +248,9 @@ cargo build                 # debug build
 start_server.bat            # Windows: database, update service and game on localhost
 ```
 
+On a fresh clone, the first `start_server.bat` downloads the newest published
+client update from GitHub, so the launcher's **Local** server works right away.
+
 [`server/README.md`](server/README.md) covers the local development server,
 configuration, tests, the native battle worker and GM tools.
 
@@ -293,7 +296,6 @@ uploaded by hand.
 | [docs/database-diagnostics.md](docs/database-diagnostics.md) | PostgreSQL operations and performance |
 | [docs/scripts.md](docs/scripts.md) | Every script and its purpose |
 | [docs/damage-formula.md](docs/damage-formula.md) | Combat damage calculation |
-| [docs/illustration-ai-custom-model.md](docs/illustration-ai-custom-model.md) | Custom illustration upscaling models |
 
 ## Credits
 

@@ -8,10 +8,21 @@ Set-Location -LiteralPath $project
 . (Join-Path $PSScriptRoot 'import_local_env.ps1')
 Import-LocalEnv -Path (Join-Path $project '.env')
 $updates = Join-Path $project 'client-updates'
+# Without a local client update (a fresh clone), the update service downloads the
+# newest published release from GitHub once and verifies its signature. Existing
+# local releases are never replaced: this only happens when none exists.
+$githubTag = ''
+$githubRepo = if ($env:SPRK_UPDATES_GITHUB_REPO) { $env:SPRK_UPDATES_GITHUB_REPO } else { 'faberuser/sprk' }
 if (-not (Test-Path -LiteralPath (Join-Path $updates 'stable\manifest.json'))) {
-    throw ("Missing client-updates\stable\manifest.json: this checkout has no local client update yet.`n" +
-        "Publish one from your game folder: python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-1`n" +
-        "or link an existing client-updates folder from another checkout. See server/README.md.")
+    Write-Host "No local client update yet. Looking up the newest client release of $githubRepo on GitHub..."
+    $githubTag = & python (Join-Path $project 'client/scripts/release/latest_client_release.py') --repo $githubRepo |
+        Select-Object -Last 1
+    if ($LASTEXITCODE -ne 0 -or -not $githubTag) {
+        throw ("Could not find a published client release on GitHub ($githubRepo). Check the internet connection, or publish`n" +
+            "a local client update: python client/scripts/release/publish_client_update.py --client ../sprk-client --output client-updates --version local-1")
+    }
+    $githubTag = $githubTag.Trim()
+    New-Item -ItemType Directory -Force -Path $updates | Out-Null
 }
 
 foreach ($port in @(8080, 8081)) {
@@ -61,12 +72,23 @@ $env:SPRK_UPDATES_DIR = $updates
 $env:SPRK_SERVICE_MODE = 'updates'
 $env:PORT = '8081'
 $updateProcess = $null
+# Readiness checks run every 250 ms: 10 seconds normally, 30 minutes for a download.
+$readyAttempts = 40
+if ($githubTag) {
+    $env:SPRK_UPDATES_GITHUB_REPO = $githubRepo
+    $env:SPRK_UPDATES_GITHUB_TAG = $githubTag
+    $env:SPRK_UPDATES_PUBLIC_KEY_FILE = Join-Path $project 'config\client-update-public.pem'
+    $readyAttempts = 7200
+    Write-Host "Downloading and verifying client release $githubTag (about 400 MB, first start only)..."
+}
 try {
     $updateProcess = Start-Process -FilePath $executable -WorkingDirectory $project -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $logs 'updates.log') `
         -RedirectStandardError (Join-Path $logs 'updates-error.log')
+    # Only the update service syncs from GitHub; later starts serve the local copy.
+    Remove-Item Env:SPRK_UPDATES_GITHUB_TAG, Env:SPRK_UPDATES_GITHUB_REPO, Env:SPRK_UPDATES_PUBLIC_KEY_FILE -ErrorAction SilentlyContinue
     $ready = $false
-    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+    for ($attempt = 0; $attempt -lt $readyAttempts; $attempt++) {
         if ($updateProcess.HasExited) { throw "Update service exited. Check $logs\updates-error.log" }
         try {
             $null = Invoke-RestMethod -Uri 'http://127.0.0.1:8081/updates/stable/manifest.json' -TimeoutSec 2
